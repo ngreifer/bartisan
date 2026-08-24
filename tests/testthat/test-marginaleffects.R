@@ -54,7 +54,7 @@ test_that("a categorical family stacks rows and draws the same way", {
   skip_if_no_me()
 
   d <- sim_x(n = 60, seed = 93)
-  set.seed(93)
+  set.seed(1093)
   z <- 2 * d$x1 - d$x2 + stats::rnorm(nrow(d))
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
@@ -140,7 +140,7 @@ test_that("a multinomial fit gives one group per category", {
   skip_if_no_me()
 
   d <- sim_x(n = 60, seed = 97)
-  set.seed(97)
+  set.seed(1097)
   d$y <- factor(sample(c("a", "b", "c"), nrow(d), TRUE))
 
   fit <- genbart(y ~ x1 + x2, d, family = multinomial(),

@@ -60,6 +60,15 @@
   directly. Also bit-identical. Worth about 4% -- less than expected, because
   the buffer was small enough to stay in cache.
 
+* Two prediction types for ordinal models, following
+  \pkg{WeightIt}. `predict(type = "mean")` reports the probabilities weighted by
+  the category labels read as numbers, so a response with levels `"1"`, `"2"`,
+  `"4"` gets a mean between one and four; `values` says what the categories are
+  worth when the labels are not numbers. `predict(type = "stdlv")` reports the
+  additive predictor divided by the standard deviation of the latent variable it
+  indexes, which is what puts fits with different links, or different amounts of
+  signal, on one scale.
+
 * **Group-level random intercepts**, written in \pkg{lme4}'s notation:
   `y ~ x1 + x2 + (1 | school)`. Several grouping factors are allowed and
   `(1 | a/b)` expands to nesting. Each additive predictor gets its own set, so a

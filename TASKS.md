@@ -6,7 +6,7 @@ This file is organized by subject, not by session. Each entry states the problem
 
 ## Status
 
-816 tests passing, 0 failures, 0 warnings. `R CMD check` Status: OK.
+850 tests passing, 0 failures, 0 warnings. `R CMD check` Status: OK.
 
 **What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `genbart()`, `genbart_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta. Missing predictors handled natively by MIA and kept by default. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Documentation, `README.Rmd`, `NEWS.md`, a vignette, and `_dev/benchmark.Rmd`.
 
@@ -585,6 +585,47 @@ Two things found along the way.
   fit on a different scale from `binomial()`. There is a test for that
   correspondence and it should keep passing.
 
+### Ordinal predictions on the latent and mean scales
+
+Two prediction types taken from `WeightIt::predict.ordinal_weightit()`, which is
+where the conventions come from.
+
+**`type = "mean"`** reports the probabilities weighted by the category labels read
+as numbers, so a response with levels `"1"`, `"2"`, `"4"` has a mean between one
+and four. The model stays ordinal; only the reporting treats the categories as
+numbers, which is the point — it gives a single summary without assuming a
+numeric response at the modelling stage. `values` overrides the labels, and labels
+that cannot be read as numbers are an error naming the offenders rather than a
+guess. Checked against WeightIt: correlation 0.997 on a linear truth, and the mean
+of the predictions matched the observed mean of the response read as numbers to
+three decimals (2.598 against 2.599). For a binomial response with levels `0` and
+`1` it is exactly `type = "response"`, which the tests require.
+
+**`type = "stdlv"`** divides the predictor by the standard deviation of the latent
+variable it indexes, `sqrt(var(eta) + var(e))`, where `var(eta)` is over the
+fitted sample so the divisor is a property of the model rather than of whatever is
+being predicted. `var(e)` comes from the link: 1 for probit, `pi^2/3` for logit,
+`pi^2/6` for cloglog.
+
+**The location convention took some settling, and WeightIt is right where it first
+looked wrong.** Their `mu` is `-digamma(1)` for cloglog, which is `+gamma`,
+whereas the latent error of a cloglog model — a smallest extreme value variate —
+has mean `-gamma`. Simulation confirmed the sign: their `stdlv` differs from
+`(lp - gamma)/sd` by exactly `2 * gamma / sd`. But it is not an error. They are
+shifting the latent so that *its error* is mean zero, which moves the error's mean
+into the index and gives `+gamma`; the mirror-image constant for `loglog`
+(`digamma(1)`, i.e. `-gamma`) is the same convention applied to the largest
+extreme value. That reading is confirmed by their cloglog fit recovering the truth
+on data generated from the smallest extreme value latent, so the orientation of
+their model matches this one.
+
+Against WeightIt on a linear truth, for all three links: correlation 0.994 to
+0.997, standard deviations agreeing to within 0.8%, and the difference a constant
+equal to `-mean(lp)/sd` to three decimals — which is the same chart difference as
+for the cutpoints, since genbart centers the predictor and WeightIt drops the
+intercept column. A standardized quantity is used for differences, which that
+constant leaves alone.
+
 ### Missing values are kept by default, and the old default never worked
 
 `na.action` now defaults to `na.pass`, so missing predictors reach the splitting
@@ -1013,6 +1054,7 @@ Kept together because the pattern is the lesson.
 - `README.md` is generated from `README.Rmd` with `knitr::knit()`, and needs re-knitting whenever the Rmd changes. `figure/` holds its one plot and is committed so GitHub can render it.
 - **`_dev/` is mostly not committed.** `.gitignore` keeps `_dev/benchmark.Rmd`, which README.md and this file both point at, and excludes the rest. `_dev/Reproduce/` is Linero's JASA replication package — seven third-party GPL-2 packages — which is here as a reference and is not ours to redistribute; publishing it under this repository's name is a decision for the maintainer, not a side effect of committing. `_dev/benchmark.html` is regenerable output.
 - **Error-message regexes in tests must not span a line break in the message's source string.** testthat pins `cli.condition_width` when it runs a package's tests, which stops cli reflowing a condition message, so the source string's own indentation survives into the message — under `R CMD check` only. A regex crossing one of those breaks passes when the tests are run any other way and fails under check, which is how three of them got through. The scratch test runner now sets the same option so the two agree.
+- **Never reuse a seed for the predictors and for the response.** `sim_x(seed = k)` followed by `set.seed(k)` makes the noise a deterministic function of the predictors, because both draw from the same restarted stream. For a continuous response the linear correlation is only about 0.008, so it hides; for `rbinom(n, 1, p)` it is catastrophic — with `p = plogis(2 * x1 - 1)` on the same stream that produced `x1`, every draw came out zero, which is what surfaced it. Twenty-two tests written across several sessions had the pattern and were changed to offset the response seed. It costs nothing to avoid and a recovery test built on coupled noise is not testing what it claims.
 - **`na.action` defaults to `na.pass`** now, so a test that expects rows to be dropped has to ask for `na.omit` explicitly. And note what the fix to that default exposed: `model.frame()` is called through a call rebuilt from `match.call()`, so *any* argument of `genbart()` that is forwarded to `model.frame()` and left at its default is absent from that call and picks up `model.frame()`'s default instead. Adding a default to `subset`, `weights` or `offset` would be swallowed the same way.
 - The package is installed only in a scratch library, because the sandbox cannot write to the system R library. Reinstall outside the sandbox to use it from a normal session.
 - `R CMD check --as-cran` reports three CRAN-incoming issues that are not code defects: the name collision above, a development version component, and a GitHub URL that 404s because nothing has been pushed. Plain `R CMD check` is `Status: OK`.

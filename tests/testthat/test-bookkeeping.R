@@ -11,7 +11,7 @@ test_that("recycling nodes leaves the fit unchanged", {
   # as the stored forest disagreeing with the predictor the sampler recorded --
   # a wrong cutpoint, variable or leaf value replays differently.
   d <- sim_x(n = 200, seed = 51)
-  set.seed(51)
+  set.seed(1051)
   d$y <- 2 * sin(pi * d$x1) - d$x2 + stats::rnorm(nrow(d))
 
   for (soft in c(TRUE, FALSE)) {
@@ -64,7 +64,7 @@ test_that("a rejected bandwidth move leaves the tree exactly as it was", {
   # were not, the memberships and the predictor would drift apart, which is what
   # the predictor invariant detects.
   d <- sim_x(n = 250, seed = 71)
-  set.seed(71)
+  set.seed(1071)
   d$y <- 2 * d$x1 * d$x2 + stats::rnorm(nrow(d))
 
   for (gate in c("logistic", "smoothstep", "smootherstep")) {
@@ -82,7 +82,7 @@ test_that("the child weights the split records are the ones the target needs", {
   # still sum to the parent's, which is what the whole membership scheme rests
   # on -- if they did not, the predictor and the stored forest would disagree.
   d <- sim_x(n = 200, seed = 81)
-  set.seed(81)
+  set.seed(1081)
   d$y <- stats::rbinom(nrow(d), 1, stats::plogis(2 * d$x1 - d$x2))
 
   for (soft in c(TRUE, FALSE)) {

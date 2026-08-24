@@ -353,7 +353,7 @@ test_that("the ordinal probit augmentation targets the same posterior as the dir
 
 test_that("the ordinal augmentation applies only where it is exact", {
   d <- sim_x(n = 150, seed = 12)
-  set.seed(12)
+  set.seed(1012)
   # With noise, so the response is not separable by the predictors and the fits
   # below have no reason to warn about a runaway leaf scale.
   z <- d$x1 - d$x2 + stats::rnorm(nrow(d))
@@ -476,7 +476,7 @@ test_that("the ordinal logit augmentation targets the same posterior as the dire
 
 test_that("both ordinal links are augmented, and only where it is exact", {
   d <- sim_x(n = 250, seed = 33)
-  set.seed(33)
+  set.seed(1033)
   # Enough noise that the categories are not close to separable, so the fits
   # below have no reason to warn about a runaway leaf scale.
   z <- d$x1 - d$x2 + 2 * stats::rlogis(nrow(d))

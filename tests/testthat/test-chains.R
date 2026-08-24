@@ -246,7 +246,7 @@ test_that("the diagnostics table survives a pinned cutpoint", {
   skip_on_cran()
 
   d <- sim_x(n = 200, seed = 41)
-  set.seed(41)
+  set.seed(1041)
   z <- 2 * d$x1 - d$x2 + stats::rnorm(nrow(d))
 
   # Two categories, which is the case where the single boundary is folded into

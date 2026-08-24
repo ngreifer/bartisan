@@ -83,7 +83,7 @@ test_that("several grouping factors each get their own scale", {
 
 test_that("nesting expands as it does in lme4", {
   d <- sim_x(n = 200, seed = 103)
-  set.seed(103)
+  set.seed(1103)
   d$a <- factor(sample(5, nrow(d), TRUE))
   d$b <- factor(sample(3, nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
@@ -120,7 +120,7 @@ test_that("a random slope is refused, and says what to do instead", {
 
 test_that("the grouping factor is not also a predictor", {
   d <- sim_x(n = 200, seed = 105)
-  set.seed(105)
+  set.seed(1105)
   d$g <- factor(sample(6, nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 
@@ -217,7 +217,7 @@ test_that("the intercepts work through the general and exponential target paths"
 
 test_that("a level not seen at fitting time gets the prior mean", {
   d <- sim_x(n = 200, seed = 108)
-  set.seed(108)
+  set.seed(1108)
   d$g <- factor(sample(letters[1:6], nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 
@@ -247,7 +247,7 @@ test_that("chains pool the intercepts and diagnose them", {
   skip_on_cran()
 
   d <- sim_x(n = 300, seed = 109)
-  set.seed(109)
+  set.seed(1109)
   d$g <- factor(sample(12, nrow(d), TRUE))
   d$y <- d$x1 + stats::rnorm(nrow(d))
 
@@ -266,7 +266,7 @@ test_that("chains pool the intercepts and diagnose them", {
 
 test_that("update_tau = FALSE holds the scale where it started", {
   d <- sim_x(n = 200, seed = 110)
-  set.seed(110)
+  set.seed(1110)
   d$g <- factor(sample(8, nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 

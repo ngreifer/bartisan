@@ -42,7 +42,8 @@ Suggests:
     marginaleffects,
     rmarkdown,
     survival,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    WeightIt
 VignetteBuilder: knitr
 URL: https://github.com/ngreifer/genbart
 BugReports: https://github.com/ngreifer/genbart/issues

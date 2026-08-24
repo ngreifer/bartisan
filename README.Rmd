@@ -528,6 +528,14 @@ p <- MASS::polr(y ~ x1 + x2, data = d, method = "probit")
 p$zeta - mean(p$lp)                      # same chart as colMeans(fit$aux)
 ```
 
+Two prediction types exist for reporting an ordinal fit on a single scale, both
+following **WeightIt**. `predict(type = "mean")` weights the category
+probabilities by the labels read as numbers, so levels `"1"`, `"2"`, `"4"` give a
+mean between one and four; `values` says what the categories are worth when the
+labels are not numbers. `predict(type = "stdlv")` divides the predictor by the
+standard deviation of the latent variable it indexes, which puts fits with
+different links, or different amounts of signal, on one scale.
+
 The leaf scale is raised from near zero over the first quarter of warmup.
 Linero (2025) describes this as essential: started at its full value the sampler
 can settle early into a poor configuration and fail to move. It is controlled by

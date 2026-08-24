@@ -12,6 +12,7 @@
   iterations = NULL,
   offset = NULL,
   weights = NULL,
+  values = NULL,
   log = FALSE,
   ...
 )
@@ -37,6 +38,21 @@ to report.}
 multinomial families.}
 \item{\code{"class"}}{the most probable category, as a factor, for the same
 families.}
+\item{\code{"mean"}}{the mean of the response with the category labels read as
+numbers, for the same families. \code{"4"} counts as four. This is the
+summary an ordinal outcome with numeric labels usually wants, and it
+needs no assumption at the modelling stage: the model is still ordinal
+and only the reporting treats the categories as numbers. Use \code{values} to
+say what the categories are worth when the labels are not numbers, or
+are not the numbers you mean.}
+\item{\code{"stdlv"}}{the additive predictor divided by the standard deviation
+of the latent variable it indexes, for the ordinal family. An ordinal
+model can be written as a continuous \verb{y* = eta + e} cut at the
+cutpoints, and the link fixes the distribution of \code{e} and so its
+variance; dividing by the standard deviation of \verb{y*} puts fits with
+different links, or different amounts of signal, on one scale, which is
+what a standardized effect size on an ordinal outcome needs. See
+Details.}
 \item{\code{"density"}}{the conditional density of the outcome given the
 predictors, evaluated at the observed outcome. This requires the
 outcome, so \code{newdata} must contain it; omit \code{newdata} to use the data
@@ -61,6 +77,11 @@ function of the predictors and so cannot be reconstructed.}
 \code{type = "density"}. For a binomial response given as proportions these are
 the numbers of trials. Ignored otherwise.}
 
+\item{values}{for \code{type = "mean"}, a numeric vector named for every response
+level, giving what each category is worth. Defaults to the level labels read
+as numbers, which fails with an error rather than a guess when they are not
+numbers.}
+
 \item{log}{for \code{type = "density"}, return the log of the value instead.
 Summing across observations then gives a log score. With \code{draws = FALSE}
 the density is averaged over draws before the log is taken, so the result
@@ -82,6 +103,33 @@ to fit the model or at new data. Because every draw of every tree is kept,
 predictions carry full posterior uncertainty rather than being a single point
 estimate.
 }
+\section{The standardized latent variable}{
+\code{type = "stdlv"} reports \verb{(eta - E[e]) / sd(y*)} for the latent
+\verb{y* = eta + e}, following
+\code{\link[WeightIt:predict.ordinal_weightit]{WeightIt::predict.ordinal_weightit()}}. Two parts of that need saying.
+
+The \strong{scale} is \verb{sd(y*) = sqrt(var(eta) + var(e))}, where \code{var(eta)} is taken
+over the sample the model was fitted to, per draw, so it is a property of the
+model rather than of whatever is being predicted; the same divisor is used when
+predicting new data. \code{var(e)} is whatever the link implies: 1 for the probit
+link, \code{pi^2 / 3} for the logit, \code{pi^2 / 6} for the complementary log-log.
+
+The \strong{location} subtracts the latent error's mean, which shifts \verb{y*} so that
+its error is centered. That is invisible for the logit and probit links, whose
+errors are already centered, and is the whole of the difference for the
+complementary log-log link, whose error is a smallest extreme value variate
+with mean \code{-gamma}.
+
+An ordinal model is identified only up to a common shift of its cutpoints and
+its predictor, so the location of this quantity is a convention rather than a
+fact, and the one used here is the same one the cutpoints use -- a predictor
+centered over the fitted sample. Against \code{WeightIt}, which identifies by
+dropping the intercept column instead, the two agree on the scale and differ by
+a constant; measured on a linear truth, the standard deviations agree to under
+1\% and the difference is constant to three decimals. Differences on this scale,
+which is what a standardized quantity is for, are unaffected.
+}
+
 \examples{
 set.seed(1)
 

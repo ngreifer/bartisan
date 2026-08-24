@@ -41,7 +41,7 @@ test_that("the complementary log-log link recovers a cloglog-generated fit", {
 
 test_that("cloglog probabilities from predict() match the link's own definition", {
   d <- sim_x(n = 150, seed = 12)
-  set.seed(12)
+  set.seed(1012)
   z <- d$x1 - d$x2 + log(-log1p(-stats::runif(nrow(d))))
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
@@ -99,7 +99,7 @@ test_that("the cloglog augmentation targets the same posterior as the direct fit
 
 test_that("three or more categories are reported with a centered predictor", {
   d <- sim_x(n = 200, seed = 14)
-  set.seed(14)
+  set.seed(1014)
   z <- 2 * d$x1 - d$x2 + stats::rnorm(nrow(d))
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
@@ -123,7 +123,7 @@ test_that("three or more categories are reported with a centered predictor", {
 
 test_that("two categories keep the chart that matches binary regression", {
   d <- sim_x(n = 200, seed = 15)
-  set.seed(15)
+  set.seed(1015)
   d$y <- ordered(as.integer(d$x1 - d$x2 + stats::rnorm(nrow(d)) > 0))
 
   fit <- genbart(y ~ ., d, family = ordinal(),
@@ -143,7 +143,7 @@ test_that("the chart is a change of chart: fitted probabilities are untouched", 
   # so they must not move -- checked by shifting the recorded cutpoints and
   # predictor back by the amount the centering removed and comparing.
   d <- sim_x(n = 200, seed = 16)
-  set.seed(16)
+  set.seed(1016)
   z <- 2 * d$x1 - d$x2 + stats::rnorm(nrow(d))
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
@@ -167,7 +167,7 @@ test_that("the chart is a change of chart: fitted probabilities are untouched", 
 
 test_that("missing predictors are kept by default", {
   d <- sim_x(n = 150, seed = 17)
-  set.seed(17)
+  set.seed(1017)
   d$y <- d$x1 - d$x2 + stats::rnorm(nrow(d))
   d$x3[c(3, 20, 55, 99)] <- NA
 
