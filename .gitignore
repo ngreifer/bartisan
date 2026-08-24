@@ -1,0 +1,28 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+
+# Compiled objects from src/
+*.o
+*.so
+*.dll
+*.dylib
+
+# Check and build output
+*.Rcheck/
+*.tar.gz
+docs/
+
+# Session and editor state
+.claude/
+.positai/
+
+# Development scratch. `benchmark.Rmd` is a maintained document that README.md
+# and TASKS.md both point at, so it is kept; the rest is not part of the package.
+# In particular `_dev/Reproduce/` is Linero's JASA replication package -- seven
+# third-party GPL-2 packages -- which is here as a reference and is not ours to
+# redistribute, and `benchmark.html` is regenerable output.
+_dev/*
+!_dev/benchmark.Rmd

@@ -1,0 +1,52 @@
+Package: genbart
+Type: Package
+Title: Generalized Bayesian Additive Regression Trees
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Noah", "Greifer", role = c("aut", "cre"),
+           email = "noah.greifer@gmail.com",
+           comment = c(ORCID = "0000-0003-3067-7154")),
+    person("Antonio R.", "Linero", role = c("ctb", "cph"),
+           comment = "Author of the FlexBart reference implementation from which the MCMC engine is adapted")
+    )
+Description: Fits Bayesian additive regression trees (BART) models for
+    likelihoods outside the conditionally conjugate Gaussian case, using the
+    Laplace-approximation reversible-jump sampler of Linero (2025). Supported
+    response families include Gaussian, binomial, Poisson, negative binomial,
+    gamma, ordinal (cumulative link), multinomial, accelerated failure time
+    models for right-censored survival data, and location-scale Gaussian
+    regression. Decision rules may be hard, as in standard BART, or soft, as in
+    the SoftBart model of Linero and Yang (2018), which yields smoother fits.
+    The interface follows that of 'glm()', so that a model is specified with a
+    formula, a data frame, and a family.
+License: GPL (>= 2)
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports:
+    arg,
+    cli,
+    Matrix,
+    Rcpp (>= 1.0.6),
+    reformulas,
+    stats
+LinkingTo:
+    Rcpp,
+    RcppArmadillo
+Suggests:
+    future,
+    future.apply,
+    ggplot2,
+    insight,
+    knitr,
+    MASS,
+    marginaleffects,
+    rmarkdown,
+    survival,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+URL: https://github.com/ngreifer/genbart
+BugReports: https://github.com/ngreifer/genbart/issues
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 8.0.0

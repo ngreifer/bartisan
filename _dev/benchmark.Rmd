@@ -1,0 +1,596 @@
+---
+title: "genbart timing benchmark"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: kable
+params:
+  n: 1000
+  p: 10
+  reps: 3
+  trees: 50
+  draws: 1000
+  quick: false
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", warning = FALSE,
+                      message = FALSE)
+options(digits = 4)
+
+# bartMachine starts a JVM the first time it is touched, and these have to be set
+# before that happens -- afterwards they are ignored and every fit fails. They
+# are set here, in the first chunk, for that reason and no other.
+options(java.parameters = c("-Xmx8g", "--add-modules=jdk.incubator.vector",
+                            "-XX:+UseZGC"))
+```
+
+This document times **genbart** against the other BART packages on this machine
+and reports, for each fit, the wall clock, the effective sample size of the
+fitted function, the effective samples per second, and the held-out accuracy.
+Speed on its own is not the quantity of interest: a sampler that is twice as fast
+and mixes half as well has bought nothing, and one that is fast and wrong has
+bought less than nothing.
+
+Render it with defaults, or scale it:
+
+```r
+rmarkdown::render("_dev/benchmark.Rmd")
+rmarkdown::render("_dev/benchmark.Rmd", params = list(n = 5000, reps = 5))
+rmarkdown::render("_dev/benchmark.Rmd", params = list(quick = TRUE))   # a smoke test
+```
+
+## Is this build optimized?
+
+**Read this before reading any timing below.** `devtools::load_all()` and
+`devtools::install()` compile C++ without optimization by default, which makes
+this package five to twenty times slower with nothing else out of place. The
+project's `.Rprofile` sets `options(pkg.build_extra_flags = FALSE)` to prevent
+it, but that only applies to sessions started in the package directory.
+
+```{r optimized}
+library(genbart)
+
+optimized <- genbart:::.genbart_optimized()
+
+if (!optimized) {
+  stop("This build is unoptimized; every timing below would be meaningless. ",
+       "Rebuild with:  pkgbuild::clean_dll(); R CMD INSTALL --preclean .")
+}
+
+optimized
+```
+
+## Setup
+
+```{r libs}
+library(dbarts)
+
+have <- function(pkg) requireNamespace(pkg, quietly = TRUE)
+
+# Whether a backend can actually fit, not whether its package is installed. The
+# two came apart for bartMachine, which needs a Java runtime that R can find:
+# loading the package succeeds, `set_bart_machine_num_cores()` succeeds, and then
+# every fit fails. So each backend is checked by fitting something tiny.
+#
+# The usual cause of a bartMachine failure here is JAVA_HOME being unset, which
+# leaves /usr/bin/java unable to locate a runtime even when one is installed.
+# Setting it in ~/.Renviron fixes it for every R session:
+#   JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
+usable <- function(pkg, probe) {
+  if (!have(pkg)) return("not installed")
+  out <- tryCatch({ probe(); TRUE },
+                  error = function(e) conditionMessage(e))
+  if (isTRUE(out)) "yes" else paste("cannot run:", out)
+}
+
+xs <- matrix(stats::runif(60), 20, 3)
+colnames(xs) <- c("a", "b", "c")
+ys <- stats::rnorm(20)
+
+backends <- c(
+  genbart = "yes",
+  dbarts = usable("dbarts", function()
+    dbarts::bart(xs, ys, ntree = 2L, nskip = 2L, ndpost = 2L, verbose = FALSE,
+                 keeptrees = FALSE)),
+  BART = usable("BART", function()
+    utils::capture.output(BART::wbart(xs, ys, ntree = 2L, nskip = 2L,
+                                      ndpost = 2L))),
+  stochtree = usable("stochtree", function()
+    stochtree::bart(X_train = xs, y_train = ys, num_gfr = 0L, num_burnin = 2L,
+                    num_mcmc = 2L, mean_forest_params = list(num_trees = 2L))),
+  bartMachine = usable("bartMachine", function() {
+    bartMachine::set_bart_machine_num_cores(1L)
+    bartMachine::bartMachine(as.data.frame(xs), ys, num_trees = 2L,
+                             num_burn_in = 2L,
+                             num_iterations_after_burn_in = 2L,
+                             verbose = FALSE, serialize = FALSE)
+  }))
+
+installed <- backends == "yes"
+data.frame(backend = names(backends), status = unname(backends))
+```
+
+```{r params}
+n     <- if (params$quick) 300  else params$n
+p     <- if (params$quick) 5    else params$p
+reps  <- if (params$quick) 1L   else params$reps
+trees <- if (params$quick) 20L  else params$trees
+draws <- if (params$quick) 200L else params$draws
+
+c(n = n, predictors = p, replicates = reps, trees = trees,
+  warmup = draws, saved = draws)
+```
+
+The Friedman function, which is the standard BART test surface: an interaction,
+a quadratic, two linear terms, and `p - 5` predictors that do nothing.
+
+```{r data}
+friedman <- function(x) {
+  10 * sin(pi * x[, 1] * x[, 2]) + 20 * (x[, 3] - 0.5)^2 + 10 * x[, 4] +
+    5 * x[, 5]
+}
+
+make_data <- function(n, p, seed) {
+  set.seed(seed)
+  x <- matrix(runif(2 * n * p), nrow = 2 * n)
+  colnames(x) <- paste0("x", seq_len(p))
+  eta <- (friedman(x) - 14) / 5
+  list(x = x, eta = eta, train = seq_len(n), test = seq_len(n) + n)
+}
+```
+
+Timing and mixing helpers. `ess` is the usual initial-positive-sequence
+estimate; `ess_of` summarizes it over the observations by its median, since there
+is one per observation.
+
+```{r helpers}
+# Times the best of `reps` runs. A fit that errors -- a package that is
+# installed but cannot run here, say -- returns NULL rather than stopping the
+# whole document.
+timer <- function(expr) {
+  best <- Inf
+  value <- NULL
+
+  for (i in seq_len(reps)) {
+    ok <- TRUE
+    t <- system.time(
+      value <- tryCatch(eval.parent(substitute(expr)),
+                        error = function(e) {
+                          ok <<- FALSE
+                          message("skipping: ", conditionMessage(e))
+                          NULL
+                        }))[["elapsed"]]
+    if (!ok) return(list(seconds = NA_real_, value = NULL))
+    best <- min(best, t)
+  }
+
+  list(seconds = best, value = value)
+}
+
+ess <- function(z) {
+  v <- stats::var(z)
+  if (!(v > 0)) return(NA_real_)
+  r <- stats::acf(z, plot = FALSE, lag.max = min(200, length(z) - 1))$acf[-1]
+  cut <- which(r < 0.05)[1]
+  if (is.na(cut)) cut <- length(r)
+  length(z) / (1 + 2 * sum(r[seq_len(cut)]))
+}
+
+ess_of <- function(draws_matrix) {
+  stats::median(apply(draws_matrix, 2L, ess), na.rm = TRUE)
+}
+
+results <- list()
+
+# A fit that failed is recorded as a row of NAs rather than dropped. Dropping it
+# is how bartMachine went missing from a whole run: its fits were erroring, the
+# timer returned NA, and the table simply had no bartMachine in it, which reads
+# as "not installed" rather than "installed and broken".
+skipped <- list()
+
+record <- function(task, package, call, seconds, draws_matrix, point, truth,
+                   score = NA_real_) {
+  if (is.na(seconds)) {
+    skipped[[length(skipped) + 1L]] <<- data.frame(task = task,
+                                                   package = package,
+                                                   call = call)
+    return(invisible(NULL))
+  }
+
+  e <- if (is.null(draws_matrix)) NA_real_ else ess_of(draws_matrix)
+  results[[length(results) + 1L]] <<- data.frame(
+    task = task, package = package, call = call,
+    seconds = seconds,
+    ess = e,
+    ess_per_sec = e / seconds,
+    rmse = sqrt(mean((point - truth)^2)),
+    log_score = score)
+  invisible(NULL)
+}
+```
+
+## Gaussian response
+
+The case every package supports, so it is the cleanest comparison of the
+samplers themselves.
+
+```{r gaussian}
+d <- make_data(n, p, seed = 12)
+y <- d$eta + rnorm(2 * n, sd = 0.5)
+xtr <- d$x[d$train, , drop = FALSE]; ytr <- y[d$train]
+xte <- d$x[d$test, , drop = FALSE];  truth <- d$eta[d$test]
+dtr <- data.frame(xtr, y = ytr); dte <- data.frame(xte)
+
+ctrl <- function(...) {
+  genbart_control(num_trees = trees, num_burn = draws, num_save = draws,
+                  verbose = FALSE, ...)
+}
+
+# genbart, soft rules (the default) and hard rules.
+r <- timer(genbart(y ~ ., data = dtr, control = ctrl()))
+e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+record("gaussian", "genbart", "soft (default)", r$seconds, e, colMeans(e), truth)
+
+r <- timer(genbart(y ~ ., data = dtr, control = ctrl(soft = FALSE)))
+e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+record("gaussian", "genbart", "hard rules", r$seconds, e, colMeans(e), truth)
+
+# The smoothstep gate, whose support is bounded, so an observation past it takes
+# one side of a rule outright and the subtree on the other side is never
+# visited. See ?genbart_control.
+for (g in c("smoothstep", "smootherstep")) {
+  r <- timer(genbart(y ~ ., data = dtr, control = ctrl(gate = g)))
+  e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+  record("gaussian", "genbart", paste("soft,", g, "gate"), r$seconds, e,
+         colMeans(e), truth)
+}
+
+# dbarts.
+r <- timer(bart(xtr, ytr, xte, ntree = trees, nskip = draws, ndpost = draws,
+                verbose = FALSE, keeptrees = FALSE))
+record("gaussian", "dbarts", "bart()", r$seconds, r$value$yhat.test,
+       colMeans(r$value$yhat.test), truth)
+
+if (installed[["BART"]]) {
+  r <- timer(BART::wbart(xtr, ytr, xte, ntree = trees, nskip = draws,
+                         ndpost = draws, printevery = draws + 1L))
+  if (!is.null(r$value)) {
+    record("gaussian", "BART", "wbart()", r$seconds, r$value$yhat.test,
+           colMeans(r$value$yhat.test), truth)
+  }
+}
+
+# stochtree. `num_gfr` is its grow-from-root warm start (He and Hahn 2021),
+# which is a different algorithm from the MCMC every other package here runs, so
+# it is timed both ways: at 0 for a like-for-like comparison of samplers, and at
+# its default for what the package actually recommends.
+if (installed[["stochtree"]]) {
+  for (gfr in c(0L, 5L)) {
+    r <- timer(stochtree::bart(X_train = xtr, y_train = ytr, X_test = xte,
+                               num_gfr = gfr, num_burnin = draws,
+                               num_mcmc = draws,
+                               mean_forest_params = list(num_trees = trees)))
+    if (!is.null(r$value)) {
+      e <- t(r$value$y_hat_test)
+      record("gaussian", "stochtree",
+             sprintf("bart(num_gfr = %d)", gfr), r$seconds, e, colMeans(e),
+             truth)
+    }
+  }
+}
+
+if (installed[["bartMachine"]]) {
+  r <- timer(bartMachine::bartMachine(as.data.frame(xtr), ytr,
+                                      num_trees = trees,
+                                      num_burn_in = draws,
+                                      num_iterations_after_burn_in = draws,
+                                      verbose = FALSE, seed = 1))
+  if (!is.null(r$value)) {
+    point <- bartMachine::bart_predict_for_test_data(r$value,
+                                                     as.data.frame(xte),
+                                                     truth)$y_hat
+    record("gaussian", "bartMachine", "bartMachine()", r$seconds, NULL, point,
+           truth)
+  }
+}
+```
+
+## Binary response, probit link
+
+```{r probit}
+prob <- pnorm(d$eta)
+yb <- rbinom(2 * n, 1, prob)
+dtr_b <- data.frame(xtr, y = yb[d$train])
+truth_b <- prob[d$test]
+
+# `augment` is on by default, so the comparison needs it switched off
+# explicitly. See ?genbart_control for what it does and what it costs.
+r <- timer(genbart(y ~ ., data = dtr_b, family = binomial("probit"),
+                   control = ctrl(augment = FALSE)))
+e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
+record("probit", "genbart", "soft, augment = FALSE", r$seconds, e,
+       colMeans(e), truth_b)
+
+r <- timer(genbart(y ~ ., data = dtr_b, family = binomial("probit"),
+                   control = ctrl(augment = TRUE)))
+e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
+record("probit", "genbart", "soft, augment = TRUE", r$seconds, e, colMeans(e),
+       truth_b)
+
+r <- timer(genbart(y ~ ., data = dtr_b, family = binomial("probit"),
+                   control = ctrl(soft = FALSE, augment = TRUE)))
+e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
+record("probit", "genbart", "hard, augment = TRUE", r$seconds, e, colMeans(e),
+       truth_b)
+
+if (installed[["stochtree"]]) {
+  r <- timer(stochtree::bart(
+    X_train = xtr, y_train = yb[d$train], X_test = xte, num_gfr = 0L,
+    num_burnin = draws, num_mcmc = draws,
+    general_params = list(outcome_model = stochtree::OutcomeModel(
+      outcome = "binary", link = "probit")),
+    mean_forest_params = list(num_trees = trees)))
+  if (!is.null(r$value)) {
+    e <- pnorm(t(r$value$y_hat_test))
+    record("probit", "stochtree", "bart(binary/probit)", r$seconds, e,
+           colMeans(e), truth_b)
+  }
+}
+
+r <- timer(bart(xtr, factor(yb[d$train]), xte, ntree = trees, nskip = draws,
+                ndpost = draws, verbose = FALSE, keeptrees = FALSE))
+e <- pnorm(r$value$yhat.test)
+record("probit", "dbarts", "bart()", r$seconds, e, colMeans(e), truth_b)
+
+if (installed[["BART"]]) {
+  r <- timer(BART::pbart(xtr, yb[d$train], xte, ntree = trees, nskip = draws,
+                         ndpost = draws, printevery = draws + 1L))
+  if (!is.null(r$value)) {
+    record("probit", "BART", "pbart()", r$seconds, r$value$prob.test,
+           colMeans(r$value$prob.test), truth_b)
+  }
+}
+```
+
+## Binary response, logit link
+
+Only genbart and `BART::lbart` offer this; dbarts is probit-only. The two use
+different augmentations -- Pólya-Gamma here, the Holmes and Held (2006) scale
+mixture in `lbart` -- so this is also a comparison of those.
+
+```{r logit}
+prob_l <- plogis(d$eta)
+yl <- rbinom(2 * n, 1, prob_l)
+dtr_l <- data.frame(xtr, y = yl[d$train])
+truth_l <- prob_l[d$test]
+
+for (aug in c(FALSE, TRUE)) {
+  r <- timer(genbart(y ~ ., data = dtr_l, family = binomial("logit"),
+                     control = ctrl(augment = aug)))
+  e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
+  record("logit", "genbart", paste0("soft, augment = ", aug), r$seconds, e,
+         colMeans(e), truth_l)
+}
+
+if (installed[["BART"]]) {
+  r <- timer(BART::lbart(xtr, yl[d$train], xte, ntree = trees, nskip = draws,
+                         ndpost = draws, printevery = draws + 1L))
+  if (!is.null(r$value)) {
+    record("logit", "BART", "lbart()", r$seconds, r$value$prob.test,
+           colMeans(r$value$prob.test), truth_l)
+  }
+}
+```
+
+## Families only genbart has
+
+These have no counterpart in the other packages, so there is nothing to compare
+against on speed. What the column shows is the cost of the general machinery when
+no Gaussian rewriting is available -- which is the price of the coverage.
+
+```{r general}
+# The gamma, Poisson and negative binomial families reach the *exponential* form
+# rather than the quadratic one -- see ?genbart_control -- which under hard rules
+# collapses the leaf work to one pass just as the quadratic form does. The
+# `exact_quadratic = FALSE` runs show what that is worth.
+dtr_g <- data.frame(xtr, y = rgamma(n, shape = 4, rate = 4 / exp(d$eta[d$train])))
+for (exact in c(TRUE, FALSE)) {
+  r <- timer(genbart(y ~ ., data = dtr_g, family = Gamma("log"),
+                     control = ctrl(soft = FALSE, exact_quadratic = exact)))
+  e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+  record("gamma (log link)", "genbart",
+         if (exact) "hard rules" else "hard, no shortcut", r$seconds, e,
+         colMeans(e), truth)
+}
+
+dtr_p <- data.frame(xtr, y = rpois(n, exp(d$eta[d$train] + 1)))
+for (exact in c(TRUE, FALSE)) {
+  r <- timer(genbart(y ~ ., data = dtr_p, family = poisson(),
+                     control = ctrl(soft = FALSE, exact_quadratic = exact)))
+  e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+  record("poisson", "genbart",
+         if (exact) "hard rules" else "hard, no shortcut", r$seconds, e,
+         colMeans(e), truth + 1)
+}
+
+dtr_nb <- data.frame(xtr, y = rnbinom(n, mu = exp(d$eta[d$train] + 1), size = 2))
+for (aug in c(TRUE, FALSE)) {
+  r <- timer(genbart(y ~ ., data = dtr_nb, family = negbin(),
+                     control = ctrl(soft = FALSE, augment = aug)))
+  e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+  record("negative binomial", "genbart",
+         if (aug) "hard, augment = TRUE" else "hard, augment = FALSE",
+         r$seconds, e, colMeans(e), truth + 1)
+}
+
+lt <- d$eta[d$train] + 0.7 * rlogis(n)
+cens <- quantile(lt, 0.75)
+dtr_s <- data.frame(xtr, time = exp(pmin(lt, cens)),
+                    status = as.numeric(lt <= cens))
+r <- timer(genbart(survival::Surv(time, status) ~ ., data = dtr_s,
+                   family = loglogistic_aft(), control = ctrl(soft = FALSE)))
+e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+record("log-logistic AFT", "genbart", "hard rules", r$seconds, e, colMeans(e),
+       truth)
+
+cuts <- c(-1, 0.5, 2)
+probs <- vapply(d$eta[d$train], function(z) diff(c(0, pnorm(cuts - z), 1)),
+                numeric(4))
+dtr_o <- data.frame(xtr, y = factor(apply(probs, 2L, function(q)
+  sample.int(4, 1, prob = q)), levels = 1:4, ordered = TRUE))
+
+# Both links have a latent-variable representation now, so both are timed with
+# the rewriting on and off; the gap between the pair of rows for a link is what
+# the augmentation is worth there.
+for (setting in list(list(lab = "hard, probit, augment = TRUE",
+                          fam = ordinal("probit"), soft = FALSE,
+                          augment = "ordinal"),
+                     list(lab = "soft, probit, augment = TRUE",
+                          fam = ordinal("probit"), soft = TRUE,
+                          augment = "ordinal"),
+                     list(lab = "hard, probit, augment = FALSE",
+                          fam = ordinal("probit"), soft = FALSE,
+                          augment = FALSE),
+                     list(lab = "hard, logit, augment = TRUE",
+                          fam = ordinal("logit"), soft = FALSE,
+                          augment = "ordinal"),
+                     list(lab = "soft, logit, augment = TRUE",
+                          fam = ordinal("logit"), soft = TRUE,
+                          augment = "ordinal"),
+                     list(lab = "hard, cloglog, augment = TRUE",
+                          fam = ordinal("cloglog"), soft = FALSE,
+                          augment = "ordinal"),
+                     list(lab = "hard, logit, augment = FALSE",
+                          fam = ordinal("logit"), soft = FALSE,
+                          augment = FALSE),
+                     list(lab = "hard, cloglog, augment = FALSE",
+                          fam = ordinal("cloglog"), soft = FALSE,
+                          augment = FALSE))) {
+  r <- timer(genbart(y ~ ., data = dtr_o, family = setting$fam,
+                     control = ctrl(soft = setting$soft,
+                                    augment = setting$augment)))
+  e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
+  record("ordinal", "genbart", setting$lab, r$seconds, e, colMeans(e), truth)
+}
+
+# stochtree fits ordinal responses through a complementary log-log link, which
+# genbart now also offers, so the `cloglog` rows above are the like-for-like
+# comparison. The RMSE column still is not comparable across links.
+if (installed[["stochtree"]]) {
+  r <- timer(stochtree::bart(
+    X_train = xtr, y_train = as.integer(dtr_o$y), X_test = xte, num_gfr = 0L,
+    num_burnin = draws, num_mcmc = draws,
+    general_params = list(outcome_model = stochtree::OutcomeModel(
+      outcome = "ordinal", link = "cloglog")),
+    mean_forest_params = list(num_trees = trees)))
+  if (!is.null(r$value)) {
+    e <- t(r$value$y_hat_test)
+    record("ordinal", "stochtree", "bart(ordinal/cloglog)", r$seconds, e,
+           colMeans(e), truth)
+  }
+}
+```
+
+## Several chains at once
+
+The chain is the only parallel axis a sampler like this has, and it is what makes
+a convergence diagnostic possible. Any `future` backend works, mirai's included.
+
+```{r chains}
+cores <- suppressWarnings(parallel::detectCores())
+workers <- if (is.finite(cores)) max(1L, min(4L, cores - 1L)) else 2L
+
+# A backend that cannot start -- no sockets, no forking, a locked-down
+# environment -- should not take the document down with it.
+started <- FALSE
+
+if (have("future.apply") && have("future") && workers > 1L) {
+  started <- tryCatch({
+    future::plan(future::multisession, workers = workers)
+    TRUE
+  }, error = function(e) {
+    message("multisession unavailable (", conditionMessage(e),
+            "); trying multicore")
+    tryCatch({
+      future::plan(future::multicore, workers = workers)
+      TRUE
+    }, error = function(e2) {
+      message("no parallel backend available; timing one chain at a time")
+      FALSE
+    })
+  })
+}
+
+if (started) {
+  chain_draws <- max(50L, draws %/% workers)
+
+  r <- timer(genbart(y ~ ., data = dtr, chains = workers,
+                     control = genbart_control(num_trees = trees,
+                                               num_burn = draws,
+                                               num_save = chain_draws,
+                                               verbose = FALSE)))
+
+  if (!is.null(r$value)) {
+    cat(sprintf("%d chains of %d draws on %d workers: %.2f s\n", workers,
+                chain_draws, workers, r$seconds))
+    # Rank-normalized folded split R-hat, and the bulk and tail effective sample
+    # sizes. R-hat above about 1.01, or an effective sample size below about 400,
+    # says the run is too short for the quantity on that row -- and the tail
+    # column is the one that governs an interval endpoint.
+    print(r$value$rhat, digits = 4)
+  }
+
+  future::plan(future::sequential)
+}
+```
+
+## Results
+
+```{r table}
+out <- do.call(rbind, results)
+out <- out[order(out$task, out$seconds), ]
+out$relative <- NA_real_
+
+for (task in unique(out$task)) {
+  rows <- out$task == task
+  out$relative[rows] <- out$seconds[rows] / min(out$seconds[rows])
+}
+
+knitr::kable(out, digits = c(0, 0, 0, 3, 1, 1, 4, 3, 2), row.names = FALSE)
+```
+
+`seconds` is the best of `r reps` runs. `ess` is the median over test
+observations of the effective sample size of the fitted value, out of
+`r draws` draws; `ess_per_sec` divides one by the other and is the number to
+compare. `rmse` is against the true regression function on the held-out half.
+`relative` is the time divided by the fastest fit for that task.
+
+Two things the `rmse` column will not bear:
+
+* It is against the additive predictor on the scale the data were generated on,
+  which for the ordinal task is the probit scale. The `ordinal` rows for the
+  logit link and for stochtree's complementary log-log link are therefore
+  measuring a scale difference, not a worse fit, and only the probit rows are
+  comparable with each other. The `seconds` and `ess` columns are comparable
+  across all of them.
+* bartMachine reports no posterior draws of the fitted value through
+  `bart_predict_for_test_data()`, so its `ess` is missing and its
+  `ess_per_sec` with it. Its timing is comparable; its mixing is not measured.
+
+Any fit that was attempted and failed is listed here rather than being left out
+of the table above, so that "installed but not working" cannot be mistaken for
+"not installed".
+
+```{r skipped}
+if (length(skipped)) {
+  knitr::kable(do.call(rbind, skipped), row.names = FALSE)
+} else {
+  "none"
+}
+```
+
+```{r sessioninfo}
+sessionInfo()
+```
