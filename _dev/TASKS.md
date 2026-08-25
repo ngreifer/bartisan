@@ -6,9 +6,9 @@ This file is organized by subject, not by session. Each entry states the problem
 
 ## Status
 
-850 tests passing, 0 failures, 0 warnings. `R CMD check` Status: OK.
+957 tests passing, 0 failures, 0 warnings. `R CMD check` Status: OK.
 
-**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `genbart()`, `genbart_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta. Missing predictors handled natively by MIA and kept by default. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Documentation, `README.Rmd`, `NEWS.md`, a vignette, and `_dev/benchmark.Rmd`.
+**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `genbart()`, `genbart_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta. Missing predictors handled natively by MIA and kept by default. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. Documentation, `README.Rmd`, `NEWS.md`, a vignette, and `_dev/benchmark.Rmd`.
 
 Benchmark, Friedman function, n = 1000, p = 10, 50 trees, 500 warmup plus 500 saved, best of 2, scored against the true regression function on a held-out thousand. Reproducible with `_dev/benchmark.Rmd`.
 
@@ -68,9 +68,7 @@ Ordered by expected value.
 
 - [ ] **Rename the package.** `genbart` collides case-insensitively with the archived CRAN package `genBart`, which is a hard block on submission. Candidates checked against both the current index and all 27,654 archived names are in the Notes below.
 - [ ] **Correlated random effects across additive predictors**, which is the one part of the random-effects feature that is not there. The obstacle is the absence of mixed second derivatives in the `Family` interface, and the alternative needs a prior mean threaded through 27 places; see the assessment.
-- [ ] **Posterior predictive draws of a new outcome.** `predict()` returns the mean and the link but never draws Y, so predictive intervals for a new observation are unavailable. Needs a sampler per family; small work, high value, and the largest functional gap against other packages.
-- [ ] The exponential form for **soft** rules. A soft rule gives each observation its own exponent, so three numbers no longer suffice — but a small fixed number of them might, since the membership weights take few distinct values in practice. The payoff would be on the default configuration rather than only on hard rules.
-- [ ] An exponential-form route for the **zero-inflated** families and the **multinomial**, which Murray reaches through a further gamma augmentation. A larger change than the negative binomial's was.
+- [ ] An exponential-form route for the **zero-inflated** families and the **multinomial**, which Murray reaches through a further gamma augmentation. A larger change than the negative binomial's was, and for the multinomial the prize is the mixing rather than the speed; see the assessment below.
 - [ ] A Bayesian-bootstrap dispersion draw for `Gamma()` and `negbin()`, from Pearson residuals rather than the assumed likelihood. Cheapest available improvement to interval calibration; see the quasi-likelihood entry.
 - [ ] A joint tridiagonal update for the ordinal cutpoints, which is what makes inference on the thresholds usable when there are many of them. The obstacle is the ordering constraint, not the algebra.
 - [ ] A `quasi()` family parameterized by link, variance function and dispersion update rule. Needs a documented weakening of the exactness claim.
@@ -79,6 +77,7 @@ Ordered by expected value.
 - [ ] Consider the `draw_prior` move from SoftBart, which proposes a whole fresh tree and helps escape local modes. It needs an `L`-dimensional Laplace proposal for the new leaves, so it is real work, not a port.
 - [ ] The vignette does not cover the bounded gates or either ordinal augmentation. It runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
 - [ ] Missing data, further work: nothing forces the three missing-value rules to be equally likely, and a variable with a handful of missing values probably does not want a third of its rules spent on splitting by missingness. A prior weight on the third rule is a one-line change and an open question.
+- [ ] `custom_family()` has no posterior predictive distribution, since a log density supplies no way to draw from it. An optional `rng` argument alongside the density would give it one, and would make `simulate()`, `pp_check()` and `r2()` work for a user-written likelihood. Small work; the design question is whether to also ask for a mean.
 - [ ] `custom_family()` cannot draw a nuisance parameter. The clean way is a user-supplied slice-sampling target, since `slice.cpp` already has the sampler; the awkward part is that the parameter has to reach the log density, so the closure can no longer be opaque.
 - [ ] Joint update for correlated nuisance parameters. Linero reports that `sigma` and the shape of the generalized gamma mix badly when updated separately. Only relevant if a two-nuisance family is added; the current families have at most one.
 - [ ] A lighter-tailed prior on the leaf scale, or an upper bound, would remove the separation pathology at the cost of changing the default prior. Not done unilaterally; the warning is the interim measure.
@@ -626,6 +625,220 @@ for the cutpoints, since genbart centers the predictor and WeightIt drops the
 intercept column. A standardized quantity is used for differences, which that
 constant leaves alone.
 
+### Posterior predictive draws, and the packages they unlock
+
+`predict()` gave the mean, the link and the density but never drew Y, which was
+the largest functional gap against other BART packages. There is now one sampler
+covering every family that has one, and with it the standard interfaces:
+`posterior_predict()`, `posterior_epred()`, `posterior_linpred()` and `log_lik()`
+on the \pkg{rstantools} generics, `simulate()` on base R's, `loo()` and `waic()`,
+`bayesplot::pp_check()`, `posterior::as_draws()`, and
+`performance::model_performance()` / `r2()`.
+
+**The mean is not derived twice.** For the families that have one, the sampler
+takes it from `response_scale()` — the function `type = "response"` already uses,
+and the one that already knows about a link the engine does not carry natively.
+Only the families whose predictive distribution is not "noise around the mean"
+are written out separately: the AFT families (the response scale reports a
+*median*), the zero-inflated pair (the mean mixes the two components, and the
+sampler needs them apart), the ordered beta (two point masses and a density), and
+the two categorical families.
+
+**Validated against the C++ log density, which is an independent statement about
+the same distribution.** `iterations` accepts repeats, so `rep(1L, R)` gives R
+independent draws at one fixed parameter value; the empirical distribution of
+those is then compared against `type = "density"` evaluated at the same value.
+For a discrete family that is a frequency against a probability at every point of
+a grid; for a continuous one it is quantiles against the numerically integrated
+density. Every one of 20 configurations agreed:
+
+| Family | Check | Worst discrepancy |
+|---|---|---|
+| gaussian, `Gamma`, `location_scale` | quantiles vs integrated density | 0.002 of the range |
+| poisson, negbin | frequency vs probability | 0.0035 |
+| binomial logit/probit/cloglog, and with 5 trials | frequency vs probability | 0.0043 |
+| ordinal logit/probit/cloglog | frequency vs probability | 0.0072 |
+| multinomial | frequency vs probability | 0.0011 |
+| `zi_poisson`, `zi_negbin` | frequency vs probability | 0.0052 |
+| `ordbeta` | both point masses and the interior mass | 0.003 |
+| AFT weibull/lognormal/loglogistic | log-time quantiles | 0.014 |
+
+**Scale conventions, which are where this kind of thing goes wrong quietly.** A
+binomial replicate is a *proportion*, because that is the scale the likelihood was
+written on — so binary data come back as 0 and 1 and trial data as a fraction. A
+categorical replicate is an integer category index, because a matrix cannot hold a
+factor; `simulate()` returns factors instead, since its result is a data frame and
+can. An AFT replicate is a time, not a log time, and it is an *event* time: the
+predictive distribution does not know about censoring, so `pp_check()` warns that
+the comparison is not like for like. `custom_family()` has no sampler at all — a
+log density supplies no way to draw from it — and says so.
+
+**One footgun closed by making it an error.** For a binomial response the trials
+live in the prior weights, which are not a function of the predictors, so they
+cannot be reconstructed for `newdata`. Defaulting to one trial would answer a
+question about counts with a plausible 0/1, so `posterior_predict()` refuses and
+asks for `weights`, which is what `predict()` already does about an offset.
+
+**Leave-one-out is documented as strained rather than offered as a number.** PSIS
+importance sampling needs finite-variance weights, and a forest is flexible enough
+that a single observation can dominate the leaves it lands in; high Pareto k is
+common rather than exceptional here. The documentation says so and points at the
+held-out log score, which the package can compute exactly.
+
+**`loo` is given the chain structure.** The draws are stacked chain by chain, so
+`chain_id` is that block structure; without it `relative_eff()` would treat
+dependent draws as independent and understate the standard errors.
+
+### marginaleffects reaches the mean and standardized-latent scales
+
+`get_predict()` was mapping three type names and rejecting the rest, so
+`type = "mean"` and `type = "stdlv"` — the two ordinal scales added just before —
+were unreachable through \pkg{marginaleffects} even though `predict()` had them.
+Both are one number per observation, so they need nothing but the name. `"probs"`,
+`"lp"` and `"lv"` are accepted as aliases, since those are the names the same
+quantities go by for the WeightIt classes in \pkg{marginaleffects} itself.
+`"class"` and `"density"` stay out, and are refused by name: neither is a number
+per observation that an average or a contrast could be taken of.
+
+The dots cannot simply be forwarded to `predict()`, because \pkg{marginaleffects}
+puts arguments of its own there (`mfx`, and whatever the caller passed to the
+estimand function) and a stray name would match one of `predict()`'s arguments
+partially. Only `values`, `iterations`, `offset`, `weights` and `log` are taken,
+by exact name. \pkg{marginaleffects} warns that it does not recognize `values`,
+which is correct — it is this package's argument — and the value is used anyway.
+
+**A convention worth knowing, found by a test failure that was the test's
+fault.** \pkg{marginaleffects} centers a posterior at its **median**;
+`predict()` reports its **mean**. On the same draws for the same fit those read
+2.402 and 2.393, and the difference is the skewness of the posterior rather than a
+disagreement. Documented, and the tests now compare like with like.
+
+### The exponential form under soft rules: measured, and the ceiling is 5–10%
+
+This sat in the To Do list on the reasoning that the hard-rule gain was 1.86x for
+Poisson and 1.89x for gamma, so recovering it for the default configuration should
+be worth something like that. It is not.
+
+The obstruction is real: a soft rule gives observation i the exponent
+`exp(s * w_i * mu)`, and a sum of terms with different exponents is not a function
+of three numbers, so `exponential_usable()` declines. The proposed fix was to
+bucket the weights, since a saturating gate puts most of them at or near 0 and 1 —
+`2 + K` numbers for K distinct weights.
+
+The ceiling was measured before writing any of it, by forcing
+`exponential_usable()` to return `true` regardless of `soft` in a scratch build.
+That gives statistically wrong answers, which is the point: it costs what a
+*perfect* bucketing would cost — one exponential per Newton step instead of K, and
+no bucket-building pass — so whatever it saves is strictly more than the real
+thing could. On the Friedman function at n = 1000, p = 10, 50 trees, 200 + 200
+draws, two runs each:
+
+| | general path (shipped) | forced exponential form | gain |
+|---|---|---|---|
+| poisson soft | 2.77 s | 2.63 s | **1.05x** |
+| gamma soft | 4.28 s | 3.87 s | **1.10x** |
+| poisson hard | 0.69 s | 0.69 s | (already on) |
+| gamma hard | 1.21 s | 1.22 s | (already on) |
+
+So the whole optimization is worth at most 5% on Poisson and 10% on gamma, and
+the achievable version is worth less. The reason the hard-rule case gained 1.86x
+and this does not is that the shape shortcut removes the *repeated* passes of the
+Newton iteration, not the first one; under soft rules every observation is in
+every node's support, so that first pass is O(n) whatever happens and the repeats
+turn out to be a small share of a soft fit. The decomposition in "Where the time
+goes now" says the same thing from the other side: under soft rules the bandwidth
+move is 46.5% of the fit and the leaf refresh is 9.2%, and the exponential form
+does not touch the first of those at all.
+
+Dropped from the To Do list. The premise ("few distinct weights") was never the
+weak part; the expected value was.
+
+### The zero-inflated and multinomial exponential route: still open, and what it is for
+
+Murray (2021) reaches the multinomial through the multinomial-Poisson
+transformation: a multinomial with total `n` and probabilities `softmax(eta)` is
+the conditional law of independent Poissons with rates `exp(eta_j)` given their
+sum, so introducing a gamma latent for that sum makes the categories independent
+Poissons — and a Poisson forest has the exponential form.
+
+**The prize is the mixing, not the speed.** The Polya-Gamma route that ships is
+4.2x faster and mixes at 0.37x, which is why `multinomial()` is augmented only
+when named rather than by default. Murray's route replaces one Polya-Gamma draw
+per observation *per category per forest* with one gamma draw per observation, and
+a single scalar latent should couple to the predictor less tightly than one latent
+per category does — so the plausible gain is on the 0.37x, which is the number
+that is actually holding the augmentation back.
+
+**Why it is a larger change than the negative binomial's was.** That one was
+local: same single additive predictor, same output, one gamma draw and a different
+`logdens`. This one changes the identification. Independent Poissons with rates
+`exp(eta_j)` carry one parameter more than the multinomial does — the total — and
+the gamma latent absorbs it, so the per-category predictors are no longer
+constrained the way the symmetric and reference codings constrain them now. That
+reaches `category_probs()`, the recorded output, the coding option, and the
+`before_forest()` machinery.
+
+**The zero-inflated case needs a second augmentation before it needs this one.**
+Its `y > 0` term is already the exponential form in the count predictor. The
+`y = 0` term is not: it is `log_sum_exp(log_expit(eta_2), log1m_expit(eta_2) +
+log_p0(eta_1, theta))`, a mixture of the two components rather than either one. A
+Bernoulli indicator for "structural zero" splits that, after which the count part
+is a clean Poisson (exponential form) and the inflation part is a binomial
+logistic (Polya-Gamma, worth 2.1x in ESS/s). The gain would be real but smaller
+than the multinomial's, because a zero-inflated fit divides its time across two
+forests and only one of them gains.
+
+### The standardized latent variable, extended to binary responses
+
+`type = "stdlv"` was ordinal-only, on the reasoning that the latent variable is
+what an ordinal model cuts. A binary response is the same construction with one
+threshold, so it now works there too, for the probit, logit and complementary
+log-log links -- the ones whose error distribution has a name and therefore a
+variance to divide by. A `cauchit` fit is refused, correctly: its error has no
+variance.
+
+**The complementary log-log error enters the two families with opposite signs,
+and getting that wrong would have been invisible.** A normal or logistic error is
+symmetric, so it does not matter whether `e` or `-e` is the thing added to the
+index. A smallest extreme value error is not symmetric. The ordinal model here
+writes `P(Y <= k) = G(c_k - eta)`, which is `P(eta + e <= c_k)`, so its additive
+error has mean `-gamma`. The binomial model writes `P(Y = 1) = G(eta)`, which is
+`P(e <= eta)`, so its latent is `eta - e` and the additive error has mean
+`+gamma`. Reusing the ordinal constant would have put the binary answer off by
+`2*gamma/sd` -- about 0.80 on the fit this was measured on, against a quantity
+whose own standard deviation was 0.42.
+
+Checked by deriving the constant outside the code and comparing:
+`mean(stdlv)` came out `-0.24686` against a predicted `(mean(eta) - gamma)/sd` of
+`-0.24674`, where the ordinal convention would have given `+0.55676`. The scale
+was checked separately for all three links against `sd(eta)/sqrt(var(eta) +
+var(e))`: agreement to 0.3%.
+
+**A corollary worth recording:** a two-category ordinal complementary log-log fit
+is *not* the binomial complementary log-log model. For a symmetric error,
+`1 - F(c - eta) = F(eta - c)` and the two coincide; `G` is not symmetric, so they
+do not. Measured, the two fits correlate at 0.99 but differ in scale by 18%,
+where the probit and logit pairs agree up to Monte Carlo error. The
+two-category collapse the ordinal identification chart promises is a statement
+about the logit and probit links.
+
+### The residual-scale prior was ignoring the weights
+
+`residual_scale()` anchors the prior on the Gaussian `sigma` with the residual
+standard deviation of a linear fit, which is a much better anchor than the
+marginal spread. It was fitting that line unweighted, so a weighted analysis
+anchored its prior on the wrong observations -- and the failure is quiet, because
+a prior scale that is too large produces a fit that merely looks under-confident.
+
+Now weighted, with one decision in it: only the relative sizes of the weights can
+matter, since a residual variance is per observation, so the weights are
+normalized to average one *over the rows they keep*. Normalizing over all rows
+instead would make a zero weight shrink every scale rather than drop a row --
+measured, that put the scale a factor of `sqrt(2)` out on a half-zeroed sample.
+With the normalization over kept rows, zeroing out a noisy half reproduces the
+clean half's scale exactly, and a constant weight reproduces the unweighted
+answer exactly, which is what keeps every existing fit unchanged.
+
 ### Missing values are kept by default, and the old default never worked
 
 `na.action` now defaults to `na.pass`, so missing predictors reach the splitting
@@ -1027,6 +1240,7 @@ Kept together because the pattern is the lesson.
 - "Fixing the bandwidth is faster and more accurate." Only on smooth functions; on a step function it more than doubles the error.
 - Coverage was documented as "about 90% to 94%". Measured at the defaults it is 0.95 (Gaussian), 0.91 (binomial), 0.96 (Poisson), 0.96 (gamma).
 - The timing table could not be reproduced to the precision it was stated at: re-measurement on a clean build came out 12–25% higher in every cell. Restated as an anchor plus ratios.
+- "The exponential form for soft rules would pay off on the default configuration the way it did on hard rules." A forced-on scratch build put the ceiling at 1.05x for Poisson and 1.10x for gamma, against 1.86x and 1.89x under hard rules. Dropped.
 - "The Gaussian hard-rule fit regressed by 35%." It had not: two consecutive benchmark runs of the same build read 0.441 s and 0.593 s, and a best-of-five standalone measurement read 0.426 s both times. `_dev/benchmark.Rmd` defaults to two replicates, which is not enough to support a claim about a factor near two.
 
 ## Notes
