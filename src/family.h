@@ -8,7 +8,7 @@
 #include <algorithm>
 #include "utils.h"
 
-namespace genbart {
+namespace bartisan {
 
 // The shape of a family's log density as a function of one additive predictor,
 // with the others held fixed. It matters because a leaf value enters the
@@ -20,7 +20,7 @@ enum TargetForm {
   TARGET_GENERAL = 0,
 
   // c + a * eta - b * eta^2 / 2. The Gaussian response, and every likelihood
-  // that genbart_control(augment = ) rewrites into a Gaussian one. Here the
+  // that bartisan_control(augment = ) rewrites into a Gaussian one. Here the
   // Laplace approximation is exact: Fisher scoring lands on the mode in one
   // step from anywhere and the fitted normal is the conditional posterior.
   TARGET_QUADRATIC = 1,
@@ -171,6 +171,13 @@ struct Family {
   // after the other categories have already moved this sweep.
   virtual void before_forest(int h, const arma::mat& eta) {}
 
+  // How many of this family's additive predictors are nuisance parameters
+  // carried as forests pinned at depth zero. The engine pins the trailing
+  // `num_pinned()` forests -- one tree, no splits, a fixed leaf scale -- and
+  // keeps them out of the reported predictors, so that a scalar drawn this way
+  // is reported as a parameter rather than as a constant function.
+  virtual int num_pinned() const { return 0; }
+
   virtual std::vector<std::string> aux_names() const {
     return std::vector<std::string>();
   }
@@ -195,9 +202,14 @@ struct Family {
     return target_form(h) == TARGET_QUADRATIC;
   }
 
-  // The sign in exp(sign * eta) for the two exponential forms, and zero for
-  // the others.
-  double exp_sign(int h) const {
+  // The rate in exp(rate * eta) for the two exponential forms, and zero for the
+  // others. The Poisson and the gamma have rates of exactly +1 and -1, which is
+  // why this started life as a sign; a family whose exponential runs at another
+  // rate -- the log standard deviation of `location_scale()`, at -2, or a
+  // Weibull whose scale is not one -- overrides it. Only the magnitude has to be
+  // supplied here: the sign follows from `target_form()` and disagreeing with it
+  // would make the two accounts of the same target inconsistent.
+  virtual double exp_rate(int h) const {
     TargetForm form = target_form(h);
 
     if (form == TARGET_EXP_UP) {
@@ -471,6 +483,12 @@ struct Family {
   virtual arma::vec report_shift(const arma::mat& eta) const {
     return arma::zeros<arma::vec>(H);
   }
+
+  // A record of the family's own state that does not fit in a fixed number of
+  // columns -- the mixture of a Dirichlet process family, whose component count
+  // changes every draw. Appended to one flat vector across draws, the way the
+  // trees are, with a per-draw offset. Empty for every other family.
+  virtual arma::vec mixture_flat() const { return arma::vec(); }
 
   // The nuisance parameters as they should be recorded, given that shift. Only a
   // family whose nuisance parameters live on the predictor's scale needs to do
@@ -865,12 +883,12 @@ Family* make_family(const std::string& name, const std::string& link,
 // sampler uses this: everything that reports a density works with the family as
 // the caller asked for it.
 // `enabled` names the engine families the caller wants rewritten, since the
-// rewriting is worth it for some and not others; see genbart_control().
+// rewriting is worth it for some and not others; see bartisan_control().
 Family* augmented_family(const std::string& name, const std::string& link,
                          const arma::vec& y, const arma::vec& w,
                          const Rcpp::List& opts,
                          const std::vector<std::string>& enabled);
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif

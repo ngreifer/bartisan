@@ -1,6 +1,6 @@
 #include "random.h"
 
-namespace genbart {
+namespace bartisan {
 
 namespace {
 
@@ -162,4 +162,4 @@ std::unique_ptr<RandomEffects> make_random_effects(const Rcpp::List& spec, int H
   return out;
 }
 
-} // namespace genbart
+} // namespace bartisan

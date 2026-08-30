@@ -6,7 +6,7 @@
 #include "family.h"
 #include "node.h"
 
-namespace genbart {
+namespace bartisan {
 
 // Everything the leaf-level Laplace fits need: the family, the current
 // predictors for all observations, and which additive predictor is being
@@ -274,10 +274,10 @@ private:
   double d1_;
   double d2_;
 
-  // The exponential case: the likelihood written as c + a * mu + b * exp(s mu),
+  // The exponential case: the likelihood written as c + a * mu + b * exp(r * mu),
   // with the coefficients recovered from the same single pass. Reference-free,
   // so the fit does not depend on where the expansion was taken.
-  double sign_;
+  double rate_;   // the rate r in b * exp(r * mu)
   double a_;
   double b_;
   double c_;
@@ -310,7 +310,7 @@ private:
   // The exponential case. With hard rules each observation reaches exactly one
   // child, so the target separates: the cross curvature is exactly zero and the
   // two children are two independent one-dimensional problems.
-  double sign_;
+  double rate_;   // the rate r in b * exp(r * mu)
   double a_[2];
   double b_[2];
   double c_;
@@ -325,6 +325,6 @@ void update_scalar(Node* node, Context& ctx);
 // One sweep over the trees of one forest, then the forest's hyperparameters.
 void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers);
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif

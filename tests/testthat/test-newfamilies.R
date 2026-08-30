@@ -1,8 +1,8 @@
 test_that("the zero-inflated constructors resolve", {
-  expect_identical(as_genbart_family(zi_poisson())[["family"]], "zip")
-  expect_identical(as_genbart_family(zi_negbin())[["family"]], "zinb")
-  expect_identical(as_genbart_family("zi_poisson")[["family"]], "zip")
-  expect_identical(as_genbart_family(ordbeta())[["family"]], "ordbeta")
+  expect_identical(as_bartisan_family(zi_poisson())[["family"]], "zip")
+  expect_identical(as_bartisan_family(zi_negbin())[["family"]], "zinb")
+  expect_identical(as_bartisan_family("zi_poisson")[["family"]], "zip")
+  expect_identical(as_bartisan_family(ordbeta())[["family"]], "ordbeta")
 
   expect_error(zi_poisson("logit"), "should be")
   expect_error(ordbeta("probit"), "should be")
@@ -16,8 +16,8 @@ test_that("zero-inflated models carry a forest for each component", {
   structural <- stats::rbinom(n, 1, 0.3)
   d$y <- ifelse(structural == 1, 0, stats::rpois(n, exp(1 + d$x1)))
 
-  fit <- genbart(y ~ ., data = d, family = zi_poisson(),
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = d, family = zi_poisson(),
+                  control = quick_control())
 
   expect_identical(fit[["num_forest"]], 2L)
   expect_identical(names(fit[["eta"]]), c("count", "zero"))
@@ -29,8 +29,8 @@ test_that("zero-inflated models carry a forest for each component", {
   link <- predict(fit, type = "link")
   expect_true(all(predict(fit, type = "response") < exp(link[, "count"]) + 1e-8))
 
-  nb <- genbart(y ~ ., data = d, family = zi_negbin(),
-                control = quick_control())
+  nb <- bartisan(y ~ ., data = d, family = zi_negbin(),
+                 control = quick_control())
   expect_identical(colnames(nb[["aux"]]), "theta")
   expect_true(all(nb[["aux"]][, "theta"] > 0))
   expect_predictor_invariant(nb, d)
@@ -40,8 +40,8 @@ test_that("a fixed dispersion is held fixed", {
   d <- sim_x(seed = 52)
   d$y <- stats::rnbinom(nrow(d), mu = exp(1 + d$x1), size = 2)
 
-  fit <- genbart(y ~ ., data = d, family = zi_negbin(theta = 2.5),
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = d, family = zi_negbin(theta = 2.5),
+                  control = quick_control())
 
   expect_true(all(fit[["aux"]][, "theta"] == 2.5))
 })
@@ -58,8 +58,8 @@ test_that("ordered beta fits a response with mass at both endpoints", {
   y[u >= 1 - p_one] <- 1
   d$y <- y
 
-  fit <- genbart(y ~ ., data = d, family = ordbeta(),
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = d, family = ordbeta(),
+                  control = quick_control())
 
   expect_identical(fit[["num_forest"]], 1L)
   expect_identical(colnames(fit[["aux"]]), c("cut1", "cut2", "phi"))
@@ -78,12 +78,12 @@ test_that("ordered beta rejects responses it cannot model", {
   n <- nrow(d)
 
   d$y <- stats::runif(n, -1, 1)
-  expect_error(genbart(y ~ ., data = d, family = ordbeta(),
+  expect_error(bartisan(y ~ ., data = d, family = ordbeta(),
                        control = quick_control()),
                "between 0 and 1")
 
   d$y <- stats::rbinom(n, 1, 0.5)
-  expect_error(genbart(y ~ ., data = d, family = ordbeta(),
+  expect_error(bartisan(y ~ ., data = d, family = ordbeta(),
                        control = quick_control()),
                "needs some responses strictly")
 })
@@ -102,9 +102,9 @@ test_that("zero-inflated recovery: both components are found", {
   structural <- stats::rbinom(n, 1, p_zero)
   d$y <- ifelse(structural == 1, 0, stats::rpois(n, exp(log_mu)))
 
-  fit <- genbart(y ~ ., data = d, family = zi_poisson(),
-                 control = genbart_control(num_trees = 20, num_burn = 400,
-                                           num_save = 400, verbose = FALSE))
+  fit <- bartisan(y ~ ., data = d, family = zi_poisson(),
+                  control = bartisan_control(num_trees = 20, num_burn = 400,
+                                             num_save = 400, verbose = FALSE))
 
   link <- predict(fit, type = "link")
   expect_gt(stats::cor(link[, "count"], log_mu), 0.85)
@@ -139,9 +139,9 @@ test_that("ordered beta recovery: cutpoints and precision are found", {
   y[u >= 1 - p_one] <- 1
   d$y <- y
 
-  fit <- genbart(y ~ ., data = d, family = ordbeta(),
-                 control = genbart_control(num_trees = 20, num_burn = 400,
-                                           num_save = 400, verbose = FALSE))
+  fit <- bartisan(y ~ ., data = d, family = ordbeta(),
+                  control = bartisan_control(num_trees = 20, num_burn = 400,
+                                             num_save = 400, verbose = FALSE))
 
   expect_gt(stats::cor(predict(fit, type = "link"), eta), 0.9)
   expect_equal(mean(fit[["aux"]][, "cut1"]), cut1, tolerance = 0.35)

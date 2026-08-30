@@ -3,7 +3,7 @@
 
 #' Fit a generalized BART model
 #'
-#' The workhorse behind [genbart()]. Not intended to be called directly: it
+#' The workhorse behind [bartisan()]. Not intended to be called directly: it
 #' assumes the design matrix has already been mapped to the unit interval and
 #' the response already coerced to the form the requested family expects.
 #'
@@ -20,15 +20,15 @@
 #' @param control a list of sampler and prior settings.
 #' @return A list of posterior draws and the encoded forests.
 #' @keywords internal
-.genbart_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec) {
-    .Call(`_genbart_genbart_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec)
+.bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec) {
+    .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec)
 }
 
 #' Evaluate stored forests at new data
 #'
 #' @param X design matrix with entries in `[0, 1]`.
 #' @param forest_flat,tree_start the encoded forests returned by
-#'   `.genbart_fit()`.
+#'   `.bartisan_fit()`.
 #' @param bandwidth a matrix of per-tree bandwidths.
 #' @param num_forest,num_trees,num_save dimensions of the stored chain.
 #' @param soft whether the decision rules are soft.
@@ -36,8 +36,8 @@
 #' @param iterations the zero-based saved iterations to evaluate.
 #' @return A list of `num_forest` matrices of additive predictors.
 #' @keywords internal
-.genbart_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_save, soft, gate, iterations) {
-    .Call(`_genbart_genbart_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_save, soft, gate, iterations)
+.bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_save, soft, gate, iterations) {
+    .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_save, soft, gate, iterations)
 }
 
 #' Conditional log density of the outcome at stored posterior draws
@@ -56,8 +56,27 @@
 #'   the family has none.
 #' @return A matrix of draws by observations.
 #' @keywords internal
-.genbart_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux) {
-    .Call(`_genbart_genbart_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux)
+.bartisan_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux) {
+    .Call(`_bartisan_bartisan_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux)
+}
+
+#' Category probabilities of a multinomial probit fit, by simulation
+#'
+#' The probability that the argmax of a correlated Gaussian vector falls in each
+#' category is an orthant probability with no closed form, so it is simulated.
+#' Fresh draws are taken on every call, which makes the estimate unbiased; the
+#' Monte Carlo error is then averaged down by the posterior draws, so a modest
+#' number of replicates per draw is enough for a posterior mean.
+#'
+#' @param eta_draws a list of one draws-by-observations matrix per latent
+#'   variable.
+#' @param sigma a matrix of draws by the lower triangle of the covariance
+#'   matrix, column-major within a row, as `aux` stores it.
+#' @param replicates simulation replicates per draw and observation.
+#' @return An array of draws by observations by categories.
+#' @keywords internal
+.bartisan_mnp_probs <- function(eta_draws, sigma, replicates) {
+    .Call(`_bartisan_bartisan_mnp_probs`, eta_draws, sigma, replicates)
 }
 
 #' Score and information of a family, analytic or by differences
@@ -66,7 +85,7 @@
 #' against central differences of its own log density.
 #'
 #' @param y,weights,eta_draws,family_name,link,family_opts,aux as for
-#'   `.genbart_logdens()`.
+#'   `.bartisan_logdens()`.
 #' @param component which additive predictor to differentiate with respect to.
 #' @param by_difference use central differences instead of the analytic form.
 #' @param blocked evaluate a whole draw at once through the family's block
@@ -75,8 +94,8 @@
 #'   differences while its block route does not.
 #' @return A list with matrices `d1` and `info`, draws by observations.
 #' @keywords internal
-.genbart_derivs <- function(y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked = FALSE) {
-    .Call(`_genbart_genbart_derivs`, y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked)
+.bartisan_derivs <- function(y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked = FALSE) {
+    .Call(`_bartisan_bartisan_derivs`, y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked)
 }
 
 #' Polya-Gamma draws, for checking the sampler
@@ -84,12 +103,12 @@
 #' @param b,c parameters of the distribution.
 #' @return A numeric vector of draws.
 #' @keywords internal
-.genbart_rpg <- function(n, b, c) {
-    .Call(`_genbart_genbart_rpg`, n, b, c)
+.bartisan_rpg <- function(n, b, c) {
+    .Call(`_bartisan_bartisan_rpg`, n, b, c)
 }
 
-.genbart_rtruncnorm <- function(n, lo, hi) {
-    .Call(`_genbart_genbart_rtruncnorm`, n, lo, hi)
+.bartisan_rtruncnorm <- function(n, lo, hi) {
+    .Call(`_bartisan_bartisan_rtruncnorm`, n, lo, hi)
 }
 
 #' Whether the installed shared library was compiled with optimization
@@ -102,7 +121,7 @@
 #'
 #' @return `TRUE` if the library was optimized.
 #' @keywords internal
-.genbart_optimized <- function() {
-    .Call(`_genbart_genbart_optimized`)
+.bartisan_optimized <- function() {
+    .Call(`_bartisan_bartisan_optimized`)
 }
 

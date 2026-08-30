@@ -1,0 +1,223 @@
+---
+title: "Effects, curves and interactions"
+author: "Noah Greifer"
+date: "`r Sys.Date()`"
+output:
+  html_vignette:
+    toc: yes
+vignette: >
+  %\VignetteIndexEntry{Effects, curves and interactions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+link-citations: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.4, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4)
+
+has_me <- rlang::is_installed("marginaleffects")
+has_gg <- rlang::is_installed("ggplot2")
+run <- rlang::is_installed("MASS") && has_me
+```
+
+## Introduction
+
+A forest has no coefficients. There is no table of slopes to read, and no
+standard error to put beside one. This is the part of the workflow that changes
+most when moving from `lm()` to BART, and it is the part where the change is an
+improvement rather than a cost.
+
+The replacement is to ask the fitted model questions about predictions. What does
+it predict for these people? What would it predict if this variable were
+different? How much does the answer differ between groups? The \pkg{marginaleffects}
+package [@arelbundock2024] asks all of them, and returns posterior intervals with
+the answers.
+
+This vignette covers the questions worth asking and how to phrase them.
+`vignette("workflow")` is the shorter tour, and this expands its section on
+interpreting the fit.
+
+```{r libs, eval = run}
+library(bartisan)
+library(marginaleffects)
+
+data("birthwt", package = "MASS")
+
+d <- birthwt
+d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
+d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
+d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
+d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
+d$low   <- NULL
+
+set.seed(2026)
+
+fit <- bartisan(bwt ~ ., data = d, family = gaussian(), chains = 4)
+```
+
+## Three questions
+
+Everything below is one of three things.
+
+A **prediction** is what the model expects for a set of covariate values.
+`predictions()` gives one per row, `avg_predictions()` averages them.
+
+A **comparison** is the difference between two predictions that differ in one
+variable. This is the closest thing to a regression coefficient and it is what
+you usually want.
+
+A **slope** is the derivative of the prediction with respect to a numeric
+variable. It is the least useful of the three here, for a reason given below.
+
+## Average effects
+
+`avg_comparisons()` with no other arguments gives every predictor at once.
+
+```{r avgcomp, eval = run}
+avg_comparisons(fit)
+```
+
+Read this as a coefficient table. For a categorical predictor the estimate is the
+average difference in predicted birth weight between the named levels, holding
+everything else at each person's own values. For a numeric predictor it is the
+average difference associated with an increase of one unit.
+
+Infants of mothers who smoked weigh about 290 grams less. Uterine irritability is
+associated with about 445 grams less. Age has an interval covering zero.
+
+The averaging matters and is worth being explicit about. The model's effect of
+smoking is not a single number: it can differ for every mother, because the
+forest is free to fit an interaction between smoking and anything else. What
+`avg_comparisons()` reports is the average of those individual differences over
+the sample, which is a well defined quantity whether or not the effect is
+constant.
+
+### Choosing the step for a numeric predictor
+
+One unit is the default and is often the wrong scale. A pound of maternal weight
+is a small change; ten pounds is a quantity someone might act on.
+
+```{r step, eval = run}
+avg_comparisons(fit, variables = list(lwt = 10))
+```
+
+Always say which step you used when reporting a numeric effect. Unlike a linear
+model, the answer here is not simply ten times the one-unit effect, because the
+relationship is not assumed to be a straight line.
+
+## Effects for subgroups
+
+`by` splits the average by a grouping variable.
+
+```{r byui, eval = run}
+avg_comparisons(fit, variables = "smoke", by = "ui")
+```
+
+The smoking difference is about 300 grams among mothers without uterine
+irritability and about 245 grams among those with it. The intervals overlap
+heavily.
+
+A common mistake is to stop here and conclude that the effect differs between
+groups, because one interval excludes zero and the other does not. That
+comparison is not a test. The question is whether the two effects differ from
+each other, which needs the difference of the two, with its own interval.
+
+```{r hypo, eval = run}
+avg_comparisons(fit, variables = "smoke", by = "ui",
+                hypothesis = "b2 - b1 = 0")
+```
+
+The difference is about 27 grams with an interval from roughly -110 to 350. There
+is no evidence here that the effect of smoking depends on uterine irritability.
+This is how to test an interaction in a model that never had an interaction term
+to test.
+
+`avg_predictions()` does the same thing for predictions rather than differences,
+which is useful for describing groups:
+
+```{r bypred, eval = run}
+avg_predictions(fit, by = "race")
+```
+
+## The shape of a relationship
+
+Averages hide shape. To see the fitted function, plot predictions against one
+predictor with everything else held fixed.
+
+```{r pdp, eval = run && has_gg}
+plot_predictions(fit, condition = "lwt")
+```
+
+Predicted birth weight rises with maternal weight to about 125 pounds and is flat
+above that. This is the plot a linear model cannot produce, because it would
+report a single slope for the whole range. Nothing was specified to find the
+bend.
+
+The band is a credible interval and is wide at both ends, where few mothers were
+observed. Treat the ends with more caution than the middle.
+
+Adding a second variable shows how the shape differs across groups.
+
+```{r pdp2, eval = run && has_gg}
+plot_predictions(fit, condition = c("lwt", "smoke"))
+```
+
+The curves are close to parallel, which is the picture that goes with the
+non-significant interaction above. If they converged, crossed, or had different
+shapes, that would be a moderation worth reporting, and the difference of
+differences is how to put a number on it.
+
+## Why slopes are unreliable here
+
+`avg_slopes()` reports a derivative. It is available and it will return a number,
+but that number should not be trusted for a fit made with the default settings.
+
+The reason is the predictor transform. By default numeric predictors are mapped
+through their empirical distribution function before the trees see them, which
+makes the fitted function a step function of the original predictor. Between two
+observed values of `lwt` the prediction does not change at all, so the difference
+quotient is either exactly zero or a whole step divided by a very small number,
+depending on where the step lands. On this fit `avg_slopes()` reports several
+hundred grams per pound where a one-unit comparison gives about 2.5.
+
+Use `comparisons()` with a step you can interpret. If a genuine derivative is
+needed, refit with `x_transform = "range"` in `bartisan_control()`, which is
+linear and does have one. This is documented at `?bartisan-marginaleffects`.
+
+## Other scales
+
+`type` chooses the scale on which predictions are made and therefore the scale on
+which effects are reported. For a binomial fit, `type = "response"` gives a
+difference in probability and `type = "link"` a difference on the linear
+predictor. The first is almost always the one to report, since a difference in
+probability is interpretable without reference to the model.
+
+For survival families, `type = "survival"` with a `times` argument gives a
+difference in survival probability at a horizon. See `vignette("survival")`.
+
+## What these are not
+
+Everything here is a description of the fitted model. `avg_comparisons()` reports
+what the model predicts would differ between two versions of the data, which is a
+causal quantity only if the model contains enough covariates to account for
+confounding. That is a question about the study design and not about the fit.
+`vignette("causal")` covers what is needed.
+
+The intervals are posterior credible intervals under the model. They cover the
+uncertainty in the fitted function, and they do not cover the possibility that
+the model is missing a confounder, that the outcome is measured with bias, or
+that the sample is not the population of interest.
+
+## Where to go next
+
+`vignette("importance")` covers which predictors the forest uses, which is a
+different question from how much they move the outcome. `vignette("diagnostics")`
+covers whether the fit can be trusted before any of this is read.
+`?bartisan-marginaleffects` documents which \pkg{marginaleffects} functions are
+supported and the arguments that are specific to this package.
+
+## References

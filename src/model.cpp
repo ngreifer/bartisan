@@ -11,7 +11,7 @@
 
 
 using namespace Rcpp;
-using namespace genbart;
+using namespace bartisan;
 
 namespace {
 
@@ -92,7 +92,7 @@ List wrap_matrices(const std::vector<T>& x) {
 
 //' Fit a generalized BART model
 //'
-//' The workhorse behind [genbart()]. Not intended to be called directly: it
+//' The workhorse behind [bartisan()]. Not intended to be called directly: it
 //' assumes the design matrix has already been mapped to the unit interval and
 //' the response already coerced to the form the requested family expects.
 //'
@@ -109,8 +109,8 @@ List wrap_matrices(const std::vector<T>& x) {
 //' @param control a list of sampler and prior settings.
 //' @return A list of posterior draws and the encoded forests.
 //' @keywords internal
-// [[Rcpp::export(.genbart_fit)]]
-List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
+// [[Rcpp::export(.bartisan_fit)]]
+List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
                  const arma::vec& y,
                  const arma::vec& weights, const arma::mat& offset,
                  const arma::sp_mat& group_probs, std::string family_name,
@@ -152,7 +152,27 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
     stop("`offset` must be a %d by %d matrix.", H, n);
   }
 
-  int num_trees = as<int>(control["num_trees"]);
+  // One tree count per additive predictor. A single value is recycled by
+  // `bartisan()` before it gets here, so this is always length H. The forests
+  // are stored back to back rather than as a rectangle, so a per-forest offset
+  // is what indexes them.
+  std::vector<int> num_trees = as<std::vector<int>>(control["num_trees"]);
+
+  if (static_cast<int>(num_trees.size()) != H) {
+    stop("`control$num_trees` must have one value per additive predictor (%d).",
+         H);
+  }
+
+  // The trailing forests may be nuisance parameters rather than predictors:
+  // pinned at depth zero so that each is a single scalar, and reported in `aux`
+  // rather than in `eta`. `n_report` is how many forests the caller asked for.
+  int n_pinned = family->num_pinned();
+  int n_report = H - n_pinned;
+
+  std::vector<int> tree_offset(H + 1, 0);
+  for (int h = 0; h < H; h++) {
+    tree_offset[h + 1] = tree_offset[h] + num_trees[h];
+  }
   int num_burn = as<int>(control["num_burn"]);
   int num_thin = as<int>(control["num_thin"]);
   int num_save = as<int>(control["num_save"]);
@@ -182,17 +202,23 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
   ForestGuard guard = {forests};
 
   for (int h = 0; h < H; h++) {
+    // A pinned forest gets a branching probability of zero, which makes every
+    // birth proposal impossible, and a fixed leaf scale, because one leaf cannot
+    // identify a scale of its own -- left to draw it, `sigma_mu` wanders over an
+    // order of magnitude.
+    bool pinned = h >= n_report;
     hypers.push_back(std::unique_ptr<Hypers>(new Hypers(
-      group_probs, sigma_mu_target(h), as<double>(control["gamma"]),
+      group_probs, sigma_mu_target(h),
+      pinned ? 0.0 : as<double>(control["gamma"]),
       as<double>(control["beta"]), as<double>(control["alpha"]),
       as<double>(control["alpha_scale"]), as<double>(control["alpha_shape_1"]),
-      as<double>(control["alpha_shape_2"]), update_sigma_mu,
+      as<double>(control["alpha_shape_2"]), pinned ? false : update_sigma_mu,
       as<bool>(control["update_s"]), as<bool>(control["update_alpha"]), soft,
       as<double>(control["bandwidth"]),
       as<bool>(control["update_bandwidth"]),
       as<int>(control["bandwidth_every"]), gate)));
 
-    for (int t = 0; t < num_trees; t++) {
+    for (int t = 0; t < num_trees[h]; t++) {
       forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na));
     }
   }
@@ -219,17 +245,25 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
   std::vector<std::string> aux_names = family->aux_names();
   int num_aux = static_cast<int>(aux_names.size());
 
-  std::vector<arma::mat> eta_out(H, arma::mat(num_save, n, arma::fill::zeros));
-  std::vector<arma::umat> counts(H, arma::umat(num_save, num_groups,
-                                              arma::fill::zeros));
-  arma::mat sigma_mu_out(num_save, H, arma::fill::zeros);
+  std::vector<arma::mat> eta_out(n_report,
+                                 arma::mat(num_save, n, arma::fill::zeros));
+  std::vector<arma::umat> counts(n_report, arma::umat(num_save, num_groups,
+                                                     arma::fill::zeros));
+  arma::mat sigma_mu_out(num_save, n_report, arma::fill::zeros);
   arma::mat aux_out(num_save, std::max(num_aux, 1), arma::fill::zeros);
-  arma::mat bandwidth_out(num_save, H * num_trees, arma::fill::zeros);
+  arma::mat bandwidth_out(num_save, std::max(tree_offset[n_report], 1),
+                          arma::fill::zeros);
   arma::vec loglik_out(num_save, arma::fill::zeros);
 
   std::vector<double> forest_flat;
   std::vector<int> tree_start;
   tree_start.push_back(0);
+
+  // A family whose own state has a different size at every draw -- a Dirichlet
+  // process mixture -- reports it the same way, flat with per-draw offsets.
+  std::vector<double> mixture_flat;
+  std::vector<int> mixture_start;
+  mixture_start.push_back(0);
 
   // Group-level random intercepts, one set per additive predictor. The prior
   // scale starts at, and is given a half-Cauchy prior with, the same value the
@@ -286,6 +320,11 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
         hypers[h]->sigma_mu = sigma_mu_target(h) * fraction;
         hypers[h]->update_sigma_mu = false;
       }
+      for (int h = n_report; h < H; h++) {
+        // A pinned forest is not ramped: its scale is a prior the caller set,
+        // not something the sampler is working its way towards.
+        hypers[h]->sigma_mu = sigma_mu_target(h);
+      }
     }
 
     sweep();
@@ -306,7 +345,7 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
   // would leave the leaf scale pinned for the entire sampling phase.
   for (int h = 0; h < H; h++) {
     hypers[h]->sigma_mu = sigma_mu_target(h);
-    hypers[h]->update_sigma_mu = update_sigma_mu;
+    hypers[h]->update_sigma_mu = h < n_report ? update_sigma_mu : false;
     hypers[h]->adapt = false;
   }
 
@@ -319,16 +358,17 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
     // The chart the draw is recorded in may differ from the one the sampler
     // works in; for every family but the ordinal ones this is zero.
     arma::vec shift = family->report_shift(eta);
-    double per_tree = static_cast<double>(num_trees);
 
-    for (int h = 0; h < H; h++) {
+    for (int h = 0; h < n_report; h++) {
       eta_out[h].row(iter) = eta.row(h) - shift(h);
       sigma_mu_out(iter, h) = hypers[h]->sigma_mu;
 
       arma::uvec var_counts = arma::zeros<arma::uvec>(num_groups);
-      for (int t = 0; t < num_trees; t++) {
+      double per_tree = static_cast<double>(num_trees[h]);
+
+      for (int t = 0; t < num_trees[h]; t++) {
         get_var_counts(forests[h][t]->root, var_counts);
-        bandwidth_out(iter, h * num_trees + t) = forests[h][t]->bandwidth;
+        bandwidth_out(iter, tree_offset[h] + t) = forests[h][t]->bandwidth;
         encode_tree(forests[h][t]->root, forest_flat, shift(h) / per_tree);
         tree_start.push_back(static_cast<int>(forest_flat.size()));
       }
@@ -337,6 +377,16 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
 
     if (num_aux > 0) {
       aux_out.row(iter) = family->aux_values_shifted(shift).t();
+    }
+
+    {
+      arma::vec drawn = family->mixture_flat();
+
+      for (arma::uword k = 0; k < drawn.n_elem; k++) {
+        mixture_flat.push_back(drawn(k));
+      }
+
+      mixture_start.push_back(static_cast<int>(mixture_flat.size()));
     }
 
     for (std::size_t h = 0; h < ranef_out.size(); h++) {
@@ -367,8 +417,14 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
   out["loglik"] = loglik_out;
   out["forest_flat"] = forest_flat;
   out["tree_start"] = tree_start;
-  out["num_forest"] = H;
-  out["num_trees"] = num_trees;
+
+  if (!mixture_flat.empty()) {
+    out["mixture_flat"] = mixture_flat;
+    out["mixture_start"] = mixture_start;
+  }
+  out["num_forest"] = n_report;
+  out["num_trees"] = std::vector<int>(num_trees.begin(),
+                                      num_trees.begin() + n_report);
 
   if (num_aux > 0) {
     out["aux"] = aux_out;
@@ -387,7 +443,7 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
 //'
 //' @param X design matrix with entries in `[0, 1]`.
 //' @param forest_flat,tree_start the encoded forests returned by
-//'   `.genbart_fit()`.
+//'   `.bartisan_fit()`.
 //' @param bandwidth a matrix of per-tree bandwidths.
 //' @param num_forest,num_trees,num_save dimensions of the stored chain.
 //' @param soft whether the decision rules are soft.
@@ -395,15 +451,26 @@ List genbart_fit(const arma::mat& X, const arma::uvec& has_na,
 //' @param iterations the zero-based saved iterations to evaluate.
 //' @return A list of `num_forest` matrices of additive predictors.
 //' @keywords internal
-// [[Rcpp::export(.genbart_predict)]]
-List genbart_predict(const arma::mat& X, const std::vector<double>& forest_flat,
+// [[Rcpp::export(.bartisan_predict)]]
+List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat,
                      const std::vector<int>& tree_start,
-                     const arma::mat& bandwidth, int num_forest, int num_trees,
+                     const arma::mat& bandwidth, int num_forest,
+                     const std::vector<int>& num_trees,
                      int num_save, bool soft, int gate,
                      const std::vector<int>& iterations) {
 
   int n = static_cast<int>(X.n_rows);
   int num_iter = static_cast<int>(iterations.size());
+
+  if (static_cast<int>(num_trees.size()) != num_forest) {
+    stop("`num_trees` must have one value per forest.");
+  }
+
+  std::vector<int> tree_offset(num_forest + 1, 0);
+  for (int h = 0; h < num_forest; h++) {
+    tree_offset[h + 1] = tree_offset[h] + num_trees[h];
+  }
+  int total_trees = tree_offset[num_forest];
 
   std::vector<arma::mat> out(num_forest, arma::mat(num_iter, n,
                                                   arma::fill::zeros));
@@ -414,11 +481,12 @@ List genbart_predict(const arma::mat& X, const std::vector<double>& forest_flat,
       stop("`iterations` must index the saved draws.");
     }
     for (int h = 0; h < num_forest; h++) {
-      for (int t = 0; t < num_trees; t++) {
-        // Trees were written iteration-major, then forest, then tree.
-        int flat_index = (iter * num_forest + h) * num_trees + t;
+      for (int t = 0; t < num_trees[h]; t++) {
+        // Trees were written iteration-major, then forest, then tree, with the
+        // forests back to back rather than as a rectangle.
+        int flat_index = iter * total_trees + tree_offset[h] + t;
         int begin = tree_start[flat_index];
-        double band = bandwidth(iter, h * num_trees + t);
+        double band = bandwidth(iter, tree_offset[h] + t);
         for (int i = 0; i < n; i++) {
           int pos = begin;
           out[h](s, i) += eval_tree(forest_flat.data(), pos, X, i, 1.0, band,
@@ -452,8 +520,8 @@ List genbart_predict(const arma::mat& X, const std::vector<double>& forest_flat,
 //'   the family has none.
 //' @return A matrix of draws by observations.
 //' @keywords internal
-// [[Rcpp::export(.genbart_logdens)]]
-arma::mat genbart_logdens(const arma::vec& y, const arma::vec& weights,
+// [[Rcpp::export(.bartisan_logdens)]]
+arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights,
                           const List& eta_draws, std::string family_name,
                           std::string link, List family_opts,
                           const arma::mat& aux) {
@@ -504,13 +572,110 @@ arma::mat genbart_logdens(const arma::vec& y, const arma::vec& weights,
   return out;
 }
 
+//' Category probabilities of a multinomial probit fit, by simulation
+//'
+//' The probability that the argmax of a correlated Gaussian vector falls in each
+//' category is an orthant probability with no closed form, so it is simulated.
+//' Fresh draws are taken on every call, which makes the estimate unbiased; the
+//' Monte Carlo error is then averaged down by the posterior draws, so a modest
+//' number of replicates per draw is enough for a posterior mean.
+//'
+//' @param eta_draws a list of one draws-by-observations matrix per latent
+//'   variable.
+//' @param sigma a matrix of draws by the lower triangle of the covariance
+//'   matrix, column-major within a row, as `aux` stores it.
+//' @param replicates simulation replicates per draw and observation.
+//' @return An array of draws by observations by categories.
+//' @keywords internal
+// [[Rcpp::export(.bartisan_mnp_probs)]]
+arma::cube bartisan_mnp_probs(const List& eta_draws, const arma::mat& sigma,
+                             int replicates) {
+
+  int C = static_cast<int>(eta_draws.size());
+
+  if (C < 1) {
+    stop("`eta_draws` must have at least one matrix.");
+  }
+
+  std::vector<arma::mat> eta(C);
+
+  for (int l = 0; l < C; l++) {
+    eta[l] = as<arma::mat>(eta_draws[l]);
+  }
+
+  int num_draws = static_cast<int>(eta[0].n_rows);
+  int n = static_cast<int>(eta[0].n_cols);
+
+  if (static_cast<int>(sigma.n_rows) != num_draws ||
+      static_cast<int>(sigma.n_cols) != C * (C + 1) / 2) {
+    stop("`sigma` must have one row per draw and one column per lower-triangle "
+         "entry.");
+  }
+
+  arma::cube out(num_draws, n, C + 1, arma::fill::zeros);
+  arma::mat covariance(C, C);
+  arma::mat factor(C, C);
+  arma::vec value(C);
+  arma::vec noise(C);
+
+  for (int d = 0; d < num_draws; d++) {
+    int at = 0;
+
+    for (int l = 0; l < C; l++) {
+      for (int k = 0; k <= l; k++) {
+        covariance(l, k) = sigma(d, at);
+        covariance(k, l) = sigma(d, at);
+        at++;
+      }
+    }
+
+    if (!arma::chol(factor, covariance, "lower")) {
+      factor = arma::eye<arma::mat>(C, C);
+    }
+
+    for (int i = 0; i < n; i++) {
+      for (int r = 0; r < replicates; r++) {
+        for (int l = 0; l < C; l++) {
+          noise(l) = norm_rand();
+        }
+
+        int best = -1;
+        double largest = 0.0;
+
+        for (int l = 0; l < C; l++) {
+          double shift = 0.0;
+
+          for (int k = 0; k <= l; k++) {
+            shift += factor(l, k) * noise(k);
+          }
+
+          value(l) = eta[l](d, i) + shift;
+
+          if (value(l) >= largest) {
+            largest = value(l);
+            best = l;
+          }
+        }
+
+        out(d, i, best + 1) += 1.0;
+      }
+    }
+
+    Rcpp::checkUserInterrupt();
+  }
+
+  out /= static_cast<double>(replicates);
+
+  return out;
+}
+
 //' Score and information of a family, analytic or by differences
 //'
 //' Exists so that the test suite can check each family's analytic derivatives
 //' against central differences of its own log density.
 //'
 //' @param y,weights,eta_draws,family_name,link,family_opts,aux as for
-//'   `.genbart_logdens()`.
+//'   `.bartisan_logdens()`.
 //' @param component which additive predictor to differentiate with respect to.
 //' @param by_difference use central differences instead of the analytic form.
 //' @param blocked evaluate a whole draw at once through the family's block
@@ -519,8 +684,8 @@ arma::mat genbart_logdens(const arma::vec& y, const arma::vec& weights,
 //'   differences while its block route does not.
 //' @return A list with matrices `d1` and `info`, draws by observations.
 //' @keywords internal
-// [[Rcpp::export(.genbart_derivs)]]
-List genbart_derivs(const arma::vec& y, const arma::vec& weights,
+// [[Rcpp::export(.bartisan_derivs)]]
+List bartisan_derivs(const arma::vec& y, const arma::vec& weights,
                     const List& eta_draws, std::string family_name,
                     std::string link, List family_opts, const arma::mat& aux,
                     int component, bool by_difference, bool blocked = false) {

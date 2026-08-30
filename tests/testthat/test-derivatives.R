@@ -6,8 +6,8 @@
 # The information is checked only for the families that report the observed
 # second derivative. Several deliberately report the *expected* information
 # instead, because the observed version can be negative -- probit and cloglog
-# binomial, negative binomial, the zero-inflated mixtures, and the beta part of
-# the ordered beta family. For those, disagreement is the intended behavior, so
+# binomial, negative binomial, the zero-inflated mixtures, and and both beta
+# families. For those, disagreement is the intended behavior, so
 # only the score is compared. The gamma family is not among them: its response
 # is strictly positive, so its observed curvature cannot go negative, and it
 # reports the true one.
@@ -16,12 +16,12 @@ derivs <- function(family, link, y, eta, opts = list(),
                    aux = matrix(0, 1L, 0L), component = 0L,
                    by_difference = FALSE) {
   weights <- rep(1, length(y))
-  .genbart_derivs(y, weights, eta, family, link, opts, aux,
-                  as.integer(component), by_difference, FALSE)
+  .bartisan_derivs(y, weights, eta, family, link, opts, aux,
+                   as.integer(component), by_difference, FALSE)
 }
 
 expect_score_matches_difference <- function(family, link, y, eta, opts = list(),
-                                           aux = matrix(0, 1L, 0L),
+                                            aux = matrix(0, 1L, 0L),
                                            component = 0L,
                                            check_info = FALSE) {
   analytic <- derivs(family, link, y, eta, opts, aux, component, FALSE)
@@ -84,6 +84,21 @@ test_that("the ordinal scores are correct for both links", {
     expect_score_matches_difference("ordinal", link, y, list(grid), opts, aux,
                                     check_info = TRUE)
   }
+})
+
+test_that("the beta score is correct, tabulated derivatives and all", {
+  set.seed(13)
+
+  # The score here comes from a per-sweep table of the two digamma combinations,
+  # so this is the check that the interpolation is faithful: it is compared with a
+  # central difference of the exact log density, which uses no table at all.
+  y <- stats::runif(n_grid, 0.05, 0.95)
+
+  expect_score_matches_difference(
+    "beta", "logit", y, list(grid),
+    list(phi = 8, phi_prior_shape = 0.01, phi_prior_rate = 0.01,
+         update_phi = TRUE),
+    matrix(8, 1L, 1L))
 })
 
 test_that("the ordered beta score is correct at both endpoints and inside", {

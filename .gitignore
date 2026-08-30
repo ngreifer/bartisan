@@ -19,10 +19,21 @@ docs/
 .claude/
 .positai/
 
-# Development scratch. `benchmark.Rmd` is a maintained document that README.md
-# and TASKS.md both point at, so it is kept; the rest is not part of the package.
-# In particular `_dev/Reproduce/` is Linero's JASA replication package -- seven
-# third-party GPL-2 packages -- which is here as a reference and is not ours to
-# redistribute, and `benchmark.html` is regenerable output.
+# Development scratch. `TASKS.md`, `SHIP.md`, `benchmark.Rmd`, `check.sh` and the
+# `survival-*.R` scripts are maintained, so they are kept; the rest is not part
+# of the package. In particular `_dev/Reproduce/` is Linero's JASA replication
+# package -- seven third-party GPL-2 packages -- which is here as a reference and
+# is not ours to redistribute, and `benchmark.html` is regenerable output.
+#
+# The `survival-*.R` scripts are the provenance of every number in
+# `vignette("survival")`, which names them, so they are kept while their `.rds`
+# outputs are not: `vignettes/survival-results.rds` is the one that ships.
 _dev/*
+!_dev/TASKS.md
+!_dev/SHIP.md
 !_dev/benchmark.Rmd
+!_dev/check.sh
+!_dev/survival-sim.R
+!_dev/survival-bins.R
+!_dev/survival-timing.R
+!_dev/survival-results.R

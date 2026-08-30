@@ -14,16 +14,16 @@ test_that("recycling nodes leaves the fit unchanged", {
   set.seed(1051)
   d$y <- 2 * sin(pi * d$x1) - d$x2 + stats::rnorm(nrow(d))
 
-  for (soft in c(TRUE, FALSE)) {
-    fit <- genbart(y ~ ., d, control = quick_control(
-      soft = soft, num_trees = 25L, num_burn = 200L, num_save = 200L))
+  for (gate in c("smoothstep", "hard")) {
+    fit <- bartisan(y ~ ., d, control = quick_control(
+      gate = gate, num_trees = 25L, num_burn = 200L, num_save = 200L))
     expect_predictor_invariant(fit, d)
   }
 
   # A long run with many births and deaths, so the pool is exercised heavily,
   # and with a deep tree prior so nodes are taken and given at several depths.
-  deep <- genbart(y ~ ., d, control = quick_control(
-    soft = FALSE, gamma = 0.99, beta = 0.5, num_trees = 10L,
+  deep <- bartisan(y ~ ., d, control = quick_control(
+    gate = "hard", gamma = 0.99, beta = 0.5, num_trees = 10L,
     num_burn = 300L, num_save = 300L))
   expect_predictor_invariant(deep, d)
 })
@@ -39,8 +39,8 @@ test_that("the bandwidth of a tree with no splits is drawn from its prior", {
   d <- data.frame(x1 = stats::runif(300), x2 = stats::runif(300))
   d$y <- stats::rnorm(300)
 
-  fit <- genbart(y ~ ., d, gamma = 1e-10, bandwidth = 0.1, num_trees = 20L,
-                 num_burn = 200L, num_save = 2000L)
+  fit <- bartisan(y ~ ., d, gamma = 1e-10, bandwidth = 0.1, num_trees = 20L,
+                  num_burn = 200L, num_save = 2000L)
 
   b <- as.vector(fit[["bandwidth"]])
   expect_gt(length(b), 1000)
@@ -54,8 +54,8 @@ test_that("the bandwidth of a tree with no splits is drawn from its prior", {
 
   # A different prior scale moves it, so the draw is using the prior rather than
   # anything hard-coded.
-  wide <- genbart(y ~ ., d, gamma = 1e-10, bandwidth = 0.4, num_trees = 20L,
-                  num_burn = 200L, num_save = 2000L)
+  wide <- bartisan(y ~ ., d, gamma = 1e-10, bandwidth = 0.4, num_trees = 20L,
+                   num_burn = 200L, num_save = 2000L)
   expect_equal(mean(as.vector(wide[["bandwidth"]])), 0.4, tolerance = 0.03)
 })
 
@@ -68,7 +68,7 @@ test_that("a rejected bandwidth move leaves the tree exactly as it was", {
   d$y <- 2 * d$x1 * d$x2 + stats::rnorm(nrow(d))
 
   for (gate in c("logistic", "smoothstep", "smootherstep")) {
-    fit <- genbart(y ~ ., d, control = quick_control(
+    fit <- bartisan(y ~ ., d, control = quick_control(
       gate = gate, num_trees = 20L, num_burn = 300L, num_save = 300L))
     expect_predictor_invariant(fit, d)
     # The bandwidth actually moved, so rejections really happened.
@@ -85,10 +85,10 @@ test_that("the child weights the split records are the ones the target needs", {
   set.seed(1081)
   d$y <- stats::rbinom(nrow(d), 1, stats::plogis(2 * d$x1 - d$x2))
 
-  for (soft in c(TRUE, FALSE)) {
-    fit <- genbart(y ~ ., d, family = binomial("probit"),
-                   control = quick_control(soft = soft, num_trees = 20L,
-                                           num_burn = 200L, num_save = 200L))
+  for (gate in c("smoothstep", "hard")) {
+    fit <- bartisan(y ~ ., d, family = binomial("probit"),
+                    control = quick_control(gate = gate, num_trees = 20L,
+                                            num_burn = 200L, num_save = 200L))
     expect_predictor_invariant(fit, d)
   }
 
@@ -97,8 +97,8 @@ test_that("the child weights the split records are the ones the target needs", {
   # rows, rather than the default `na.omit` dropping them.
   d2 <- d
   d2$x3[c(4, 19, 60, 130)] <- NA
-  fit <- genbart(y ~ ., d2, family = binomial("probit"),
-                 na.action = stats::na.pass,
+  fit <- bartisan(y ~ ., d2, family = binomial("probit"),
+                  na.action = stats::na.pass,
                  control = quick_control(num_trees = 20L, num_burn = 200L,
                                          num_save = 200L))
   expect_predictor_invariant(fit, d2)

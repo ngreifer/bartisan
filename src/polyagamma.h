@@ -1,7 +1,7 @@
 #ifndef GENBART_POLYAGAMMA_H
 #define GENBART_POLYAGAMMA_H
 
-namespace genbart {
+namespace bartisan {
 
 // A draw from the Polya-Gamma distribution PG(b, c), for b > 0.
 //
@@ -27,6 +27,6 @@ namespace genbart {
 // the error that leaves.
 double rpg(double b, double c);
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif

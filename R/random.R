@@ -16,7 +16,7 @@
 split_random <- function(formula) {
   bars <- reformulas::findbars(formula)
 
-  if (length(bars) == 0L) {
+  if (is_null(bars)) {
     return(list(fixed = formula, bars = list()))
   }
 
@@ -40,7 +40,7 @@ split_random <- function(formula) {
 # The grouping expression is evaluated in the model frame, which is where
 # `subbars()` put it, so `(1 | a:b)` works for the same reason `(1 | g)` does.
 random_terms <- function(bars, mf) {
-  if (length(bars) == 0L) {
+  if (is_null(bars)) {
     return(list())
   }
 
@@ -103,13 +103,13 @@ random_spec <- function(terms) {
 random_predict <- function(object, newdata, iterations) {
   terms <- object[["random"]]
 
-  if (is_null(terms) || length(terms) == 0L) {
+  if (is_null(terms)) {
     return(NULL)
   }
 
   draws <- object[["ranef"]]
   n_new <- nrow(newdata)
-  unseen <- character(0L)
+  unseen <- character()
 
   out <- lapply(seq_along(draws), function(h) {
     total <- matrix(0, nrow = length(iterations), ncol = n_new)
@@ -135,12 +135,12 @@ random_predict <- function(object, newdata, iterations) {
     total
   })
 
-  if (length(unseen) > 0L) {
+  if (!is_null(unseen)) {
     bad <- unique(unseen)
-    cli::cli_warn(c("{.arg newdata} has levels of {.val {bad}} that were not
-                     present when the model was fit",
-                    i = "those rows get the group effect's prior mean of zero,
-                         which is what a group with no data can be given"))
+    arg::wrn(c("{.arg newdata} has levels of {.val {bad}} that were not
+                present when the model was fit.",
+               i = "Those rows get the group effect's prior mean of zero,
+                    which is what a group with no data can be given."))
   }
 
   out

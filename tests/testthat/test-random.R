@@ -18,8 +18,8 @@ test_that("a random intercept is recovered, and its scale with it", {
   f <- 2 * sin(pi * x[, 1]) - x[, 2]
   d$y <- f + b[as.integer(g)] + stats::rnorm(n)
 
-  fit <- genbart(y ~ x1 + x2 + x3 + x4 + (1 | g), d, num_trees = 50,
-                 num_burn = 400, num_save = 400)
+  fit <- bartisan(y ~ x1 + x2 + x3 + x4 + (1 | g), d, num_trees = 50,
+                  num_burn = 400, num_save = 400)
 
   expect_identical(dim(fit[["ranef"]][[1L]]), c(400L, ng))
   expect_identical(dim(fit[["tau"]][[1L]]), c(400L, 1L))
@@ -37,8 +37,8 @@ test_that("a random intercept is recovered, and its scale with it", {
   expect_predictor_invariant(fit, d)
 
   # And it is worth having here: without it the group variation is unexplained.
-  plain <- genbart(y ~ x1 + x2 + x3 + x4, d, num_trees = 50, num_burn = 400,
-                   num_save = 400)
+  plain <- bartisan(y ~ x1 + x2 + x3 + x4, d, num_trees = 50, num_burn = 400,
+                    num_save = 400)
   truth <- f + b[as.integer(g)]
   expect_lt(sqrt(mean((fit[["fitted"]] - truth)^2)),
             0.6 * sqrt(mean((plain[["fitted"]] - truth)^2)))
@@ -63,8 +63,8 @@ test_that("several grouping factors each get their own scale", {
   d$y <- 2 * sin(pi * x[, 1]) + bg[as.integer(g)] + bh[as.integer(h)] +
     stats::rnorm(n)
 
-  fit <- genbart(y ~ x1 + x2 + x3 + (1 | g) + (1 | h), d, num_trees = 50,
-                 num_burn = 400, num_save = 400)
+  fit <- bartisan(y ~ x1 + x2 + x3 + (1 | g) + (1 | h), d, num_trees = 50,
+                  num_burn = 400, num_save = 400)
 
   expect_identical(names(fit[["random"]]), c("g", "h"))
   expect_identical(ncol(fit[["ranef"]][[1L]]), ng + nh)
@@ -88,7 +88,7 @@ test_that("nesting expands as it does in lme4", {
   d$b <- factor(sample(3, nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 
-  fit <- genbart(y ~ x1 + (1 | a / b), d, control = quick_control())
+  fit <- bartisan(y ~ x1 + (1 | a / b), d, control = quick_control())
 
   # `(1 | a/b)` is two intercept terms, the inner one being the interaction.
   expect_identical(length(fit[["random"]]), 2L)
@@ -101,20 +101,20 @@ test_that("a random slope is refused, and says what to do instead", {
   d$g <- factor(sample(5, nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 
-  expect_error(genbart(y ~ x1 + (1 + x1 | g), d, control = quick_control()),
+  expect_error(bartisan(y ~ x1 + (1 + x1 | g), d, control = quick_control()),
                "[Oo]nly random intercepts")
-  expect_error(genbart(y ~ x1 + (x1 | g), d, control = quick_control()),
+  expect_error(bartisan(y ~ x1 + (x1 | g), d, control = quick_control()),
                "random slope")
 
   # A grouping factor with one level has nothing to vary over.
   d$one <- factor("a")
-  expect_error(genbart(y ~ x1 + (1 | one), d, control = quick_control()),
+  expect_error(bartisan(y ~ x1 + (1 | one), d, control = quick_control()),
                "nothing for a group effect")
 
   # And a missing group cannot be given a group effect.
   d$h <- factor(sample(4, nrow(d), TRUE))
   d$h[3] <- NA
-  expect_error(genbart(y ~ x1 + (1 | h), d, control = quick_control()),
+  expect_error(bartisan(y ~ x1 + (1 | h), d, control = quick_control()),
                "missing values")
 })
 
@@ -124,7 +124,7 @@ test_that("the grouping factor is not also a predictor", {
   d$g <- factor(sample(6, nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 
-  fit <- genbart(y ~ x1 + x2 + (1 | g), d, control = quick_control())
+  fit <- bartisan(y ~ x1 + x2 + (1 | g), d, control = quick_control())
 
   # `g` is in the random part, so no splitting rule may use it.
   expect_false("g" %in% fit[["group_names"]])
@@ -132,7 +132,7 @@ test_that("the grouping factor is not also a predictor", {
 
   # And `y ~ . + (1 | g)` puts g in both, which is the caller's business but has
   # to work: the dot expands over the data, g included.
-  both <- genbart(y ~ . - g + (1 | g), d, control = quick_control())
+  both <- bartisan(y ~ . - g + (1 | g), d, control = quick_control())
   expect_false("g" %in% both[["group_names"]])
   expect_predictor_invariant(both, d)
 })
@@ -157,8 +157,8 @@ test_that("each additive predictor gets its own set of intercepts", {
   lsd <- -0.5 + 0.5 * x[, 2] + b2[as.integer(g)]
   d$y <- stats::rnorm(n, mu, exp(lsd))
 
-  fit <- genbart(y ~ x1 + x2 + x3 + (1 | g), d, family = location_scale(),
-                 num_trees = 30, num_burn = 400, num_save = 400)
+  fit <- bartisan(y ~ x1 + x2 + x3 + (1 | g), d, family = location_scale(),
+                  num_trees = 30, num_burn = 400, num_save = 400)
 
   expect_identical(length(fit[["ranef"]]), 2L)
   expect_identical(length(fit[["tau"]]), 2L)
@@ -198,14 +198,14 @@ test_that("the intercepts work through the general and exponential target paths"
                                 c(-0.5, 1), ">")) + 1L)   # general
 
   fits <- list(
-    probit = genbart(yb ~ x1 + x2 + (1 | g), d, family = binomial("probit"),
-                     soft = FALSE, num_trees = 30, num_burn = 300,
+    probit = bartisan(yb ~ x1 + x2 + (1 | g), d, family = binomial("probit"),
+                      gate = "hard", num_trees = 30, num_burn = 300,
                      num_save = 300),
-    poisson = genbart(yc ~ x1 + x2 + (1 | g), d, family = poisson(),
-                      soft = FALSE, num_trees = 30, num_burn = 300,
+    poisson = bartisan(yc ~ x1 + x2 + (1 | g), d, family = poisson(),
+                       gate = "hard", num_trees = 30, num_burn = 300,
                       num_save = 300),
-    ordinal = genbart(yo ~ x1 + x2 + (1 | g), d, family = ordinal("logit"),
-                      soft = FALSE, augment = FALSE, num_trees = 30,
+    ordinal = bartisan(yo ~ x1 + x2 + (1 | g), d, family = ordinal("logit"),
+                       gate = "hard", augment = FALSE, num_trees = 30,
                       num_burn = 300, num_save = 300))
 
   for (nm in names(fits)) {
@@ -221,7 +221,7 @@ test_that("a level not seen at fitting time gets the prior mean", {
   d$g <- factor(sample(letters[1:6], nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 
-  fit <- genbart(y ~ x1 + x2 + (1 | g), d, control = quick_control())
+  fit <- bartisan(y ~ x1 + x2 + (1 | g), d, control = quick_control())
 
   nd <- d[1:5, ]
   nd$g <- factor("z", levels = c(levels(d$g), "z"))
@@ -251,8 +251,8 @@ test_that("chains pool the intercepts and diagnose them", {
   d$g <- factor(sample(12, nrow(d), TRUE))
   d$y <- d$x1 + stats::rnorm(nrow(d))
 
-  fit <- genbart(y ~ x1 + x2 + (1 | g), d, chains = 3L, num_trees = 20L,
-                 num_burn = 150L, num_save = 150L)
+  fit <- bartisan(y ~ x1 + x2 + (1 | g), d, chains = 3L, num_trees = 20L,
+                  num_burn = 150L, num_save = 150L)
 
   expect_identical(nrow(fit[["ranef"]][[1L]]), 450L)
   expect_identical(nrow(fit[["tau"]][[1L]]), 450L)
@@ -270,10 +270,10 @@ test_that("update_tau = FALSE holds the scale where it started", {
   d$g <- factor(sample(8, nrow(d), TRUE))
   d$y <- stats::rnorm(nrow(d))
 
-  fit <- genbart(y ~ x1 + (1 | g), d, control = quick_control(update_tau = FALSE))
+  fit <- bartisan(y ~ x1 + (1 | g), d, control = quick_control(update_tau = FALSE))
   expect_identical(stats::sd(as.vector(fit[["tau"]][[1L]])), 0)
 
-  drawn <- genbart(y ~ x1 + (1 | g), d, control = quick_control())
+  drawn <- bartisan(y ~ x1 + (1 | g), d, control = quick_control())
   expect_gt(stats::sd(as.vector(drawn[["tau"]][[1L]])), 0)
 })
 
@@ -282,7 +282,7 @@ test_that("a formula with no bars is unaffected", {
   d$y <- stats::rnorm(nrow(d))
 
   set.seed(5)
-  a <- genbart(y ~ x1 + x2, d, control = quick_control())
+  a <- bartisan(y ~ x1 + x2, d, control = quick_control())
 
   expect_null(a[["random"]])
   expect_null(a[["ranef"]])

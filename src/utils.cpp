@@ -1,6 +1,6 @@
 #include "utils.h"
 
-namespace genbart {
+namespace bartisan {
 
 double log_sum_exp(const arma::vec& x) {
   double m = x.max();
@@ -124,7 +124,7 @@ double trigamma_inverse(double x) {
   return y;
 }
 
-} // namespace genbart
+} // namespace bartisan
 
 //' Whether the installed shared library was compiled with optimization
 //'
@@ -136,8 +136,8 @@ double trigamma_inverse(double x) {
 //'
 //' @return `TRUE` if the library was optimized.
 //' @keywords internal
-// [[Rcpp::export(.genbart_optimized)]]
-bool genbart_optimized() {
+// [[Rcpp::export(.bartisan_optimized)]]
+bool bartisan_optimized() {
 #ifdef __OPTIMIZE__
   return true;
 #else

@@ -1,6 +1,6 @@
 #include "mcmc.h"
 
-namespace genbart {
+namespace bartisan {
 
 
 namespace {
@@ -17,6 +17,75 @@ namespace {
 // path taken to the current state.
 const double SCORE_TOL = 1e-2;
 const int MAX_SCORE_STEPS = 50;
+
+// A trust region on the Fisher-scoring step, in standard errors of the current
+// fit. Newton's method is only reliable near the mode: on a sharply asymmetric
+// target it can be thrown far past it, and then crawl back so slowly that the
+// step cap is reached with the fit nowhere near the mode -- which produces a
+// proposal that is always rejected, so the leaf never moves and the same failure
+// repeats every sweep. It is a permanent trap rather than slow mixing, and it
+// showed up on a nuisance parameter carried as a forest pinned at depth zero,
+// where one leaf holds a whole parameter instead of a small increment.
+//
+// Capping the step converges in a handful of iterations instead. Like SCORE_TOL,
+// what matters for correctness is that the cap is *fixed*: the fit stays a
+// deterministic function of the current state, so the forward and reverse moves
+// still build the same proposal. And it applies only to the general path -- a
+// quadratic target is reached exactly in one step from anywhere, and capping
+// that would break an exactness the sampler relies on.
+const double STEP_CAP = 4.0;
+
+// A trust region on the *location* of the proposal, in its own standard errors.
+// The Laplace fit is an independence proposal: it is centred on the mode and does
+// not depend on where the leaf currently sits, which is what lets one fit serve
+// both directions of the Metropolis ratio. That breaks down when the leaf is far
+// from the mode -- the reverse density at the current value is then
+// astronomically small, so the ratio is hugely negative however much the target
+// improves, and the move can never be accepted. Measured on a nuisance parameter
+// started twenty standard errors out: the target improved by 222 log points and
+// the proposal cost 449, so the chain sat there forever.
+//
+// Damping the proposal toward the current value makes the step local, and the
+// chain walks to the mode over a few sweeps. Reversibility is kept by building
+// the reverse proposal the same way from the proposed value, which costs nothing
+// because both come from the one shared fit; and when the cap does not bind both
+// reduce to the fit itself, so the ratio is exactly the undamped one and every
+// family that sits near its mode is unaffected.
+const double PROPOSAL_CAP = 3.0;
+
+inline double damped_mean(const Laplace1& fit, double from) {
+  double delta = fit.mean - from;
+  double cap = PROPOSAL_CAP * fit.sd;
+
+  if (delta > cap) {
+    return from + cap;
+  }
+  if (delta < -cap) {
+    return from - cap;
+  }
+
+  return fit.mean;
+}
+
+// The Newton step, held inside the trust region.
+inline double capped_step(double u, double j, bool quadratic) {
+  double delta = u / j;
+
+  if (quadratic) {
+    return delta;
+  }
+
+  double cap = STEP_CAP / std::sqrt(j);
+
+  if (delta > cap) {
+    return cap;
+  }
+  if (delta < -cap) {
+    return -cap;
+  }
+
+  return delta;
+}
 
 // Every Laplace fit starts from zero rather than from a neighboring node's
 // value, for the same reason: the proposal must be a function of the current
@@ -764,7 +833,7 @@ Laplace1 fit_laplace1(Context& ctx, const Node* node,
     if (!ctx.quadratic && std::fabs(u) <= SCORE_TOL * std::sqrt(j)) {
       break;
     }
-    double proposed = m + u / j;
+    double proposed = m + capped_step(u, j, ctx.quadratic);
     if (!std::isfinite(proposed)) {
       break;
     }
@@ -794,7 +863,7 @@ Laplace1 fit_laplace1_at(Context& ctx, const Node* node, double mu_ref) {
     if (!ctx.quadratic && std::fabs(u) <= SCORE_TOL * std::sqrt(j)) {
       break;
     }
-    double proposed = m + u / j;
+    double proposed = m + capped_step(u, j, ctx.quadratic);
     if (!std::isfinite(proposed)) {
       break;
     }
@@ -935,14 +1004,15 @@ bool exponential_usable(const Node* node, TargetForm form) {
 
 // Solve score(mu) = 0 by Newton's method, from a fixed start so that the answer
 // depends on the target and not on where the expansion was taken.
-double exponential_mode(double a, double b, double sign, double prec,
+double exponential_mode(double a, double b, double rate, double prec,
                         double* info_out) {
   double m = SCORE_INIT;
+  double rate2 = rate * rate;
 
   for (int step = 0; step < EXP_STEPS; step++) {
-    double curve = b * std::exp(sign * m);
-    double score = a + sign * curve - m * prec;
-    double info = prec - curve;
+    double ex = b * std::exp(rate * m);
+    double score = a + rate * ex - m * prec;
+    double info = prec - rate2 * ex;
 
     if (!(info > 0.0) || !std::isfinite(score) || !std::isfinite(info)) {
       break;
@@ -962,8 +1032,8 @@ double exponential_mode(double a, double b, double sign, double prec,
     m = proposed;
   }
 
-  double curve = b * std::exp(sign * m);
-  *info_out = prec - curve;
+  double ex = b * std::exp(rate * m);
+  *info_out = prec - rate2 * ex;
   return m;
 }
 
@@ -972,7 +1042,7 @@ double exponential_mode(double a, double b, double sign, double prec,
 Target1::Target1(Context& ctx, const Node* node, const std::vector<double>* base,
                  double ref)
   : ctx_(&ctx), node_(node), base_(base), ref_(ref), mode_(PASSES), f_(0.0),
-    d1_(0.0), d2_(0.0), sign_(0.0), a_(0.0), b_(0.0), c_(0.0) {
+    d1_(0.0), d2_(0.0), rate_(0.0), a_(0.0), b_(0.0), c_(0.0) {
   if (!ctx.exact_quadratic) {
     return;
   }
@@ -998,17 +1068,21 @@ Target1::Target1(Context& ctx, const Node* node, const std::vector<double>* base
 
   // Strip the leaf prior, which is Gaussian and so known exactly, to leave the
   // likelihood's own value, slope and curvature at ref_. Then read off the
-  // three coefficients of c + a * mu + b * exp(s * mu). The curvature of that
-  // is b * exp(s * mu) whatever the sign, since s squares to one.
+  // three coefficients of c + a * mu + b * exp(r * mu), whose curvature is
+  // r^2 * b * exp(r * mu).
   double prec = 1.0 / (ctx.sigma_mu * ctx.sigma_mu);
   double value = f_ - R::dnorm4(ref_, 0.0, ctx.sigma_mu, 1);
   double slope = d1_ + ref_ * prec;
   double curve = prec - d2_;
 
-  sign_ = ctx_->family->exp_sign(ctx_->h);
-  a_ = slope - sign_ * curve;
-  b_ = curve * std::exp(-sign_ * ref_);
-  c_ = value - a_ * ref_ - curve;
+  // b exp(r ref) = curve / r^2 and a = slope - curve / r, which at the rates of
+  // +1 and -1 the Poisson and gamma have reduces to the sign arithmetic this
+  // used to do, since there 1 / r == r and r^2 == 1.
+  rate_ = ctx_->family->exp_rate(ctx_->h);
+  double rate2 = rate_ * rate_;
+  a_ = slope - curve / rate_;
+  b_ = curve * std::exp(-rate_ * ref_) / rate2;
+  c_ = value - a_ * ref_ - curve / rate2;
 
   // A non-finite coefficient means the predictor has run somewhere the
   // exponential cannot be represented; fall back rather than propagate it.
@@ -1020,12 +1094,13 @@ Target1::Target1(Context& ctx, const Node* node, const std::vector<double>* base
 }
 
 double Target1::exp_score(double mu) const {
-  return a_ + sign_ * b_ * std::exp(sign_ * mu) -
+  return a_ + rate_ * b_ * std::exp(rate_ * mu) -
     mu / (ctx_->sigma_mu * ctx_->sigma_mu);
 }
 
 double Target1::exp_info(double mu) const {
-  return 1.0 / (ctx_->sigma_mu * ctx_->sigma_mu) - b_ * std::exp(sign_ * mu);
+  return 1.0 / (ctx_->sigma_mu * ctx_->sigma_mu) -
+    rate_ * rate_ * b_ * std::exp(rate_ * mu);
 }
 
 double Target1::log_f(double mu) const {
@@ -1035,7 +1110,7 @@ double Target1::log_f(double mu) const {
   }
 
   if (mode_ == EXPONENTIAL) {
-    return c_ + a_ * mu + b_ * std::exp(sign_ * mu) +
+    return c_ + a_ * mu + b_ * std::exp(rate_ * mu) +
       R::dnorm4(mu, 0.0, ctx_->sigma_mu, 1);
   }
 
@@ -1057,7 +1132,7 @@ Laplace1 Target1::laplace() const {
   if (mode_ == EXPONENTIAL) {
     double prec = 1.0 / (ctx_->sigma_mu * ctx_->sigma_mu);
     double info;
-    double m = exponential_mode(a_, b_, sign_, prec, &info);
+    double m = exponential_mode(a_, b_, rate_, prec, &info);
 
     Laplace1 out;
 
@@ -1085,7 +1160,7 @@ Target2::Target2(Context& ctx, const Node* parent,
                  const std::vector<double>& w_left,
                  const std::vector<double>& w_right)
   : ctx_(&ctx), parent_(parent), base_(&base), w_left_(&w_left),
-    w_right_(&w_right), mode_(PASSES), f_(0.0), sign_(0.0), c_(0.0) {
+    w_right_(&w_right), mode_(PASSES), f_(0.0), rate_(0.0), c_(0.0) {
   g_[0] = 0.0;
   g_[1] = 0.0;
   info_[0] = 0.0;
@@ -1124,11 +1199,14 @@ Target2::Target2(Context& ctx, const Node* parent,
   }
 
   double prec = 1.0 / (ctx.sigma_mu * ctx.sigma_mu);
-  sign_ = ctx_->family->exp_sign(ctx_->h);
-  b_[0] = prec - info_[0];
-  b_[1] = prec - info_[2];
-  a_[0] = g_[0] - sign_ * b_[0];
-  a_[1] = g_[1] - sign_ * b_[1];
+  rate_ = ctx_->family->exp_rate(ctx_->h);
+  double rate2 = rate_ * rate_;
+  double curve_left = prec - info_[0];
+  double curve_right = prec - info_[2];
+  b_[0] = curve_left / rate2;
+  b_[1] = curve_right / rate2;
+  a_[0] = g_[0] - curve_left / rate_;
+  a_[1] = g_[1] - curve_right / rate_;
 
   // Only the two constants' sum is ever needed, which is as well: one pass
   // returns the two children's log densities already added together.
@@ -1152,7 +1230,7 @@ double Target2::log_f(double mu_left, double mu_right) const {
 
   if (mode_ == EXPONENTIAL) {
     return c_ + a_[0] * mu_left + a_[1] * mu_right +
-      b_[0] * std::exp(sign_ * mu_left) + b_[1] * std::exp(sign_ * mu_right) +
+      b_[0] * std::exp(rate_ * mu_left) + b_[1] * std::exp(rate_ * mu_right) +
       R::dnorm4(mu_left, 0.0, ctx_->sigma_mu, 1) +
       R::dnorm4(mu_right, 0.0, ctx_->sigma_mu, 1);
   }
@@ -1174,7 +1252,7 @@ Laplace2 Target2::laplace() const {
     // Two one-dimensional problems, since the cross curvature is zero.
     for (int side = 0; side < 2; side++) {
       double curvature;
-      double m = exponential_mode(a_[side], b_[side], sign_, prec, &curvature);
+      double m = exponential_mode(a_[side], b_[side], rate_, prec, &curvature);
       double slot = side == 0 ? 0.0 : 2.0;
       info[static_cast<int>(slot)] = curvature;
       // Expressed as a score at the origin, so that laplace2_from() recovers
@@ -1255,6 +1333,13 @@ void node_birth(Tree* tree, Context& ctx, const Hypers& hypers) {
   ctx.make_base(leaf, base);
 
   double rho_d = grow_prob(&hypers, leaf->depth);
+
+  // A forest pinned at depth zero carries a branching probability of zero, so
+  // the move is impossible and the ratio below would be -Inf. Returning here
+  // says so plainly and skips a Laplace fit that could only be rejected.
+  if (!(rho_d > 0.0)) {
+    return;
+  }
   double rho_d1 = grow_prob(&hypers, leaf->depth + 1);
 
   // One object for the parent's target: the log density before the move and the
@@ -1463,14 +1548,21 @@ void update_scalar(Node* node, Context& ctx) {
   }
 
   Laplace1 fit = fit_laplace1_at(ctx, node, mu_ref);
-  double mu_new = fit.draw();
+
+  double mean_forward = damped_mean(fit, mu_ref);
+  double mu_new = mean_forward + fit.sd * norm_rand();
 
   double log_f_new;
   double log_f_old;
   ctx.log_f_pair_at(node, mu_ref, mu_new, mu_ref, &log_f_new, &log_f_old);
 
-  double log_ratio = log_f_new - log_f_old + fit.log_dens(mu_ref) -
-    fit.log_dens(mu_new);
+  // The reverse proposal is the same fit damped toward the proposed value.
+  double mean_reverse = damped_mean(fit, mu_new);
+  Laplace1 forward = {mean_forward, fit.sd};
+  Laplace1 reverse = {mean_reverse, fit.sd};
+
+  double log_ratio = log_f_new - log_f_old + reverse.log_dens(mu_ref) -
+    forward.log_dens(mu_new);
 
   if (std::isfinite(log_ratio) && std::log(unif_rand()) < log_ratio) {
     apply_leaf_delta(node, *ctx.eta, ctx.h, mu_new);
@@ -1649,4 +1741,4 @@ void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers) {
   }
 }
 
-} // namespace genbart
+} // namespace bartisan

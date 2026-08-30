@@ -1,4 +1,4 @@
 library(testthat)
-library(genbart)
+library(bartisan)
 
-test_check("genbart")
+test_check("bartisan")

@@ -8,8 +8,8 @@ test_that("chains are pooled into one set of draws", {
   d <- sim_x(n = 100, seed = 81)
   d$y <- 2 * d$x1 + stats::rnorm(100, sd = 0.4)
 
-  one <- genbart(y ~ ., data = d, control = quick_control())
-  four <- genbart(y ~ ., data = d, chains = 4, control = quick_control())
+  one <- bartisan(y ~ ., data = d, control = quick_control())
+  four <- bartisan(y ~ ., data = d, chains = 4, control = quick_control())
 
   expect_identical(four[["chains"]], 4L)
   expect_identical(nrow(four[["eta"]][["eta"]]),
@@ -29,7 +29,7 @@ test_that("the pooled forests still reproduce the pooled predictor", {
   d <- sim_x(n = 100, seed = 82)
   d$y <- 2 * d$x1 + stats::rnorm(100, sd = 0.4)
 
-  fit <- genbart(y ~ ., data = d, chains = 3, control = quick_control())
+  fit <- bartisan(y ~ ., data = d, chains = 3, control = quick_control())
 
   # The forests of each chain are concatenated and their record offsets shifted,
   # so this is the check that the shifting is right: replaying the stored trees
@@ -46,8 +46,8 @@ test_that("one seed reproduces the whole run whatever the backend", {
 
   fit <- function() {
     set.seed(11)
-    genbart(y ~ ., data = d, family = binomial(), chains = 3,
-            control = quick_control())
+    bartisan(y ~ ., data = d, family = binomial(), chains = 3,
+             control = quick_control())
   }
 
   old <- future::plan(future::sequential)
@@ -58,8 +58,8 @@ test_that("one seed reproduces the whole run whatever the backend", {
   expect_equal(a[["eta"]], b[["eta"]])
 
   set.seed(12)
-  c <- genbart(y ~ ., data = d, family = binomial(), chains = 3,
-               control = quick_control())
+  c <- bartisan(y ~ ., data = d, family = binomial(), chains = 3,
+                control = quick_control())
   expect_false(isTRUE(all.equal(a[["eta"]], c[["eta"]])))
 
   # Chains must differ from one another, or the streams are not independent.
@@ -75,11 +75,11 @@ test_that("the diagnostics are reported as a table of the right shape", {
   d <- sim_x(n = 100, seed = 84)
   d$y <- 2 * d$x1 + stats::rnorm(100, sd = 0.4)
 
-  one <- genbart(y ~ ., data = d, control = quick_control())
+  one <- bartisan(y ~ ., data = d, control = quick_control())
   expect_null(one[["rhat"]])
 
-  fit <- genbart(y ~ ., data = d, chains = 4,
-                 control = quick_control(num_burn = 200L, num_save = 200L))
+  fit <- bartisan(y ~ ., data = d, chains = 4,
+                  control = quick_control(num_burn = 200L, num_save = 200L))
 
   diagnostics <- fit[["rhat"]]
   expect_s3_class(diagnostics, "data.frame")
@@ -206,11 +206,11 @@ test_that("more than one chain needs the parallel package installed", {
   # The check is the message, since future.apply is installed here.
   expect_error(
     with_mocked_bindings(
-      genbart(y ~ x1, data = data.frame(x1 = stats::runif(30),
+      bartisan(y ~ x1, data = data.frame(x1 = stats::runif(30),
                                         y = stats::rnorm(30)),
               chains = 2, control = quick_control()),
-      requireNamespace = function(...) FALSE,
-      .package = "base"),
+      is_installed = function(...) FALSE,
+      .package = "rlang"),
     "future.apply")
 })
 
@@ -254,8 +254,8 @@ test_that("the diagnostics table survives a pinned cutpoint", {
   # then no longer a test of a constant quantity.
   d$y <- ordered(as.integer(z > stats::median(z)))
 
-  fit <- expect_silent(genbart(y ~ ., d, family = ordinal("probit"),
-                               soft = FALSE, chains = 2L,
+  fit <- expect_silent(bartisan(y ~ ., d, family = ordinal("probit"),
+                               gate = "hard", chains = 2L,
                                control = quick_control()))
 
   cut1 <- fit[["rhat"]][fit[["rhat"]]$quantity == "aux.cut1", ]

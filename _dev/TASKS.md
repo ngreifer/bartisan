@@ -1,4 +1,4 @@
-# genbart tasks
+# bartisan tasks
 
 Implements Linero (2025), "Generalized Bayesian Additive Regression Trees Models: Beyond Conditional Conjugacy", with SoftBart-style soft decision rules from Linero and Yang (2018).
 
@@ -6,47 +6,47 @@ This file is organized by subject, not by session. Each entry states the problem
 
 ## Status
 
-957 tests passing, 0 failures, 0 warnings. `R CMD check` Status: OK.
+1358 tests passing, 0 failures, 0 warnings, 0 skips. `R CMD check` reports `Status: OK` with no warnings and no notes when run outside the agent sandbox; inside it, `OMP: Warning #179` and an `nm` cache-file NOTE appear, and both are artifacts of the sandbox rather than the package. the suite run inside the check passes 1055 of them, skipping 51 for Suggests packages that environment does not have.
 
-**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `genbart()`, `genbart_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta. Missing predictors handled natively by MIA and kept by default. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. Documentation, `README.Rmd`, `NEWS.md`, a vignette, and `_dev/benchmark.Rmd`.
+**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, `NEWS.md`, three vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`.
 
 Benchmark, Friedman function, n = 1000, p = 10, 50 trees, 500 warmup plus 500 saved, best of 2, scored against the true regression function on a held-out thousand. Reproducible with `_dev/benchmark.Rmd`.
 
 | Task | Package and call | Seconds | ESS | RMSE |
 |---|---|---|---|---|
 | gaussian | dbarts | 0.239 | 19.6 | 0.221 |
-| | **genbart hard** | **0.441** | 17.6 | 0.219 |
+| | **bartisan hard** | **0.441** | 17.6 | 0.219 |
 | | stochtree | 0.697 | 18.3 | 0.218 |
 | | bartMachine | 0.866 | — | 0.230 |
 | | BART `wbart()` | 1.061 | 21.3 | 0.228 |
-| | genbart soft, smoothstep gate | 1.399 | 42.0 | **0.135** |
-| | genbart soft, smootherstep gate | 1.420 | 43.2 | 0.140 |
-| | genbart soft (default) | 2.003 | 43.7 | 0.145 |
+| | bartisan soft, smoothstep gate (default) | 1.399 | 42.0 | **0.135** |
+| | bartisan soft, smootherstep gate | 1.420 | 43.2 | 0.140 |
+| | bartisan soft, logistic gate | 2.003 | 43.7 | 0.145 |
 | probit | dbarts | 0.271 | 35.8 | 0.134 |
-| | **genbart hard** | **0.491** | 34.8 | 0.122 |
+| | **bartisan hard** | **0.491** | 34.8 | 0.122 |
 | | stochtree | 0.985 | 29.4 | 0.134 |
 | | BART `pbart()` | 1.133 | 35.9 | 0.125 |
-| | genbart soft (default) | 2.049 | 33.4 | **0.111** |
-| | genbart soft, `augment = FALSE` | 23.578 | 65.2 | 0.106 |
-| logit | genbart soft (default) | **2.111** | 128.8 | 0.088 |
-| | genbart soft, `augment = FALSE` | 13.861 | 103.8 | 0.085 |
+| | bartisan soft, logistic gate | 2.049 | 33.4 | **0.111** |
+| | bartisan soft, `augment = FALSE` | 23.578 | 65.2 | 0.106 |
+| logit | bartisan soft, logistic gate | **2.111** | 128.8 | 0.088 |
+| | bartisan soft, `augment = FALSE` | 13.861 | 103.8 | 0.085 |
 | | BART `lbart()` | 20.820 | 37.8 | 0.109 |
-| ordinal | genbart hard, probit | **0.868** | 35.0 | — |
-| | genbart hard, logit | 0.932 | 30.5 | — |
-| | genbart soft, probit | 2.383 | 50.5 | — |
-| | genbart soft, logit | 2.520 | 48.1 | — |
-| | genbart hard, cloglog | 3.030 | 24.3 | — |
+| ordinal | bartisan hard, probit | **0.868** | 35.0 | — |
+| | bartisan hard, logit | 0.932 | 30.5 | — |
+| | bartisan soft, probit | 2.383 | 50.5 | — |
+| | bartisan soft, logit | 2.520 | 48.1 | — |
+| | bartisan hard, cloglog | 3.030 | 24.3 | — |
 | | stochtree (cloglog) | 4.010 | 20.3 | — |
-| | genbart hard, logit, `augment = FALSE` | 14.903 | 42.3 | — |
-| | genbart hard, cloglog, `augment = FALSE` | 17.005 | 37.2 | — |
-| | genbart hard, probit, `augment = FALSE` | 25.186 | 36.4 | — |
-| poisson | genbart hard | **1.715** | 20.0 | 0.207 |
-| | genbart hard, no shortcut | 3.351 | 24.1 | 0.192 |
-| gamma | genbart hard | **3.600** | 21.5 | 0.198 |
-| | genbart hard, no shortcut | 6.234 | 18.8 | 0.204 |
-| negative binomial | genbart hard, augmented | 3.494 | 25.8 | 0.276 |
-| | genbart hard, direct | 6.566 | 33.1 | 0.286 |
-| log-logistic AFT | genbart hard | 9.465 | 35.6 | — |
+| | bartisan hard, logit, `augment = FALSE` | 14.903 | 42.3 | — |
+| | bartisan hard, cloglog, `augment = FALSE` | 17.005 | 37.2 | — |
+| | bartisan hard, probit, `augment = FALSE` | 25.186 | 36.4 | — |
+| poisson | bartisan hard | **1.715** | 20.0 | 0.207 |
+| | bartisan hard, no shortcut | 3.351 | 24.1 | 0.192 |
+| gamma | bartisan hard | **3.600** | 21.5 | 0.198 |
+| | bartisan hard, no shortcut | 6.234 | 18.8 | 0.204 |
+| negative binomial | bartisan hard, augmented | 3.494 | 25.8 | 0.276 |
+| | bartisan hard, direct | 6.566 | 33.1 | 0.286 |
+| log-logistic AFT | bartisan hard | 9.465 | 35.6 | — |
 
 Four things this says.
 
@@ -54,9 +54,9 @@ Four things this says.
 
 **Note on measurement.** The table above is `_dev/benchmark.Rmd` at two replicates, which is noisy at the ten to thirty percent level — the Gaussian hard-rule cell has read 0.441 and 0.593 on consecutive runs of the same build, with a best-of-five standalone measurement of 0.426 either side of it. Any claim about a ratio near two needs more replicates than the document's default, and the two ratios quoted above are from a longer run for that reason.
 
-**genbart is now the faster of the two on the ordinal complementary log-log model**, which is the one task stochtree supports and dbarts does not: 3.03 s against 4.01 s.
+**bartisan is now the faster of the two on the ordinal complementary log-log model**, which is the one task stochtree supports and dbarts does not: 3.03 s against 4.01 s.
 
-**genbart is faster and more accurate than every other package here** on both tasks — stochtree, bartMachine and BART included — once hard rules are used.
+**bartisan is faster and more accurate than every other package here** on both tasks — stochtree, bartMachine and BART included — once hard rules are used.
 
 **Soft rules are the accuracy argument, not a tax.** They cost three to five times the hard-rule time and cut held-out error by 35–40%, which makes the default configuration the most accurate fit in the table, dbarts included. With a bounded gate the cost falls to 3.2x.
 
@@ -64,25 +64,640 @@ Four things this says.
 
 ## To Do
 
-Ordered by expected value.
+Ordered by expected value. `_dev/SHIP.md` holds the release assessment -- which of
+these actually block a workflow the package claims to support, which are covered
+by other packages, and the six-vignette workflow series that exposed the
+difference.
 
-- [ ] **Rename the package.** `genbart` collides case-insensitively with the archived CRAN package `genBart`, which is a hard block on submission. Candidates checked against both the current index and all 27,654 archived names are in the Notes below.
+- [ ] **Rename the package.** `bartisan` collides case-insensitively with the archived CRAN package `genBart`, which is a hard block on submission. Candidates checked against both the current index and all 27,654 archived names are in the Notes below.
 - [ ] **Correlated random effects across additive predictors**, which is the one part of the random-effects feature that is not there. The obstacle is the absence of mixed second derivatives in the `Family` interface, and the alternative needs a prior mean threaded through 27 places; see the assessment.
-- [ ] An exponential-form route for the **zero-inflated** families and the **multinomial**, which Murray reaches through a further gamma augmentation. A larger change than the negative binomial's was, and for the multinomial the prize is the mixing rather than the speed; see the assessment below.
 - [ ] A Bayesian-bootstrap dispersion draw for `Gamma()` and `negbin()`, from Pearson residuals rather than the assumed likelihood. Cheapest available improvement to interval calibration; see the quasi-likelihood entry.
 - [ ] A joint tridiagonal update for the ordinal cutpoints, which is what makes inference on the thresholds usable when there are many of them. The obstacle is the ordering constraint, not the algebra.
 - [ ] A `quasi()` family parameterized by link, variance function and dispersion update rule. Needs a documented weakening of the exactness claim.
 - [ ] **Partial dependence plots** and a **formal variable-selection test** rather than raw split counts, both of which `dbarts`, `SoftBart` and `bartMachine` have and this does not. Partial dependence is now largely reachable through `marginaleffects::plot_predictions()`, so this is less of a gap than it was.
 - [ ] Possibly a grow-from-root warm start for hard-rule fits, using a one-step Laplace criterion, to shorten burn-in. See the XBART assessment for why this is not obviously worth the code. It became more attractive, not less, once the augmentations landed: they made the per-sweep cost small enough that burn-in length is now the binding constraint on an ordinal fit.
 - [ ] Consider the `draw_prior` move from SoftBart, which proposes a whole fresh tree and helps escape local modes. It needs an `L`-dimensional Laplace proposal for the new leaves, so it is real work, not a port.
-- [ ] The vignette does not cover the bounded gates or either ordinal augmentation. It runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
+- [ ] `vignette("bartisan")` does not cover the bounded gates or either ordinal augmentation; `vignette("families")` covers the augmentations but not the gates. The first runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
 - [ ] Missing data, further work: nothing forces the three missing-value rules to be equally likely, and a variable with a handful of missing values probably does not want a third of its rules spent on splitting by missingness. A prior weight on the third rule is a one-line change and an open question.
 - [ ] `custom_family()` has no posterior predictive distribution, since a log density supplies no way to draw from it. An optional `rng` argument alongside the density would give it one, and would make `simulate()`, `pp_check()` and `r2()` work for a user-written likelihood. Small work; the design question is whether to also ask for a mean.
-- [ ] `custom_family()` cannot draw a nuisance parameter. The clean way is a user-supplied slice-sampling target, since `slice.cpp` already has the sampler; the awkward part is that the parameter has to reach the log density, so the closure can no longer be opaque.
 - [ ] Joint update for correlated nuisance parameters. Linero reports that `sigma` and the shape of the generalized gamma mix badly when updated separately. Only relevant if a two-nuisance family is added; the current families have at most one.
 - [ ] A lighter-tailed prior on the leaf scale, or an upper bound, would remove the separation pathology at the cost of changing the default prior. Not done unilaterally; the warning is the interim measure.
+- [ ] **`predict(type = "density")` returns NaN silently** when a composed link's inverse sends the predictor outside the family's support. Measured on `stats::Gamma("inverse")` with heavy-tailed data: five of eight replicates had draws where the predictor went non-positive, and each produced NaN densities for two to five test points out of 800. A negative fitted mean is not a gamma mean, so NaN is arguably the right *value*, but it should not be silent -- `bartisan()` already warns about the link at fit time and `predict()` says nothing. Left alone deliberately: it changes the output contract of `predict()`, which is the user's call. See the gamma comparison entry.
+- [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
+- [ ] **Soft random tree features**, as a fast approximate fit and as a warm start for the sampler. Measured at 0.840 average out-of-sample R-squared against full soft BART's 0.872 at 200 features, for a fraction of the cost, and a soft basis beats a hard one by 0.16 R-squared at five trees. See the McCartan and Huang entry, which has three further items.
 - [ ] **Categorical splits on subsets of levels**, as in `flexBART`, rather than one-hot columns sharing a sparsity weight. More expressive rules.
 - [ ] **Causal-inference structure** — a separate treatment forest, ATE/CATE (`bcf`, `bartCause`, `stochtree`). Substantial work, and `marginaleffects` now covers the estimand side of it for a model fitted by hand.
+
+## Speeding up the survival models
+
+Four changes, all of them from the same observation: the leaf-level target's *shape* is what costs, not the non-conjugacy. Measured against the direct likelihood on the same data and seed.
+
+**The rate generalization.** `Family::exp_sign()` returned +1 or -1, so the sampler recognized `exp(eta)` and `exp(-eta)` and nothing else. It is now `exp_rate()`, returning the rate in `c + a mu + b exp(r mu)`. The arithmetic generalizes cleanly once written out: `b exp(r ref) = curve / r^2` and `a = slope - curve / r`, which at r = ±1 reduces to the sign arithmetic it replaced, since there `1/r == r` and `r^2 == 1`. `exponential_mode()`'s Newton step needed the same treatment (`score = a + r ex - mu prec`, `info = prec - r^2 ex`). Verified as a bitwise no-op for the Poisson and the gamma, whose rates are ±1. The member is now spelled `rate_` rather than `sign_`, which is what it is.
+
+**`location_scale()`'s scale forest.** Its log density is `const - eta1 - (y - eta0)^2 exp(-2 eta1) / 2`, which is the exponential form at rate -2 -- previously unreachable, so the forest ran on the general path. Declaring `TARGET_EXP_DOWN` with `exp_rate() = -2` required one other change: its `info_unit(h = 1)` returned the *expected* information, a constant 2, because that is quieter, and the exponential form reads its coefficients off the curvature the target actually has. Switching to the observed `2 r^2` makes the extraction exact. The two paths then agree to 2e-15 on the mean predictor and 5e-6 on the log-scale one (the Newton tolerance), and the fit went from **7.7 seconds to 3.6** under hard rules at 50 trees, with the same accuracy. Soft rules cannot use the form, so `location_scale()` at the default gate is unchanged.
+
+**`weibull_aft()` needed no augmentation at all.** The plan had been to impute censored times from a truncated Gumbel. Writing out the likelihood showed the imputation was unnecessary:
+
+    delta (r - log sigma) - exp(r) = c - (delta / sigma) eta - exp(y / sigma) exp(-eta / sigma)
+
+with `r = (y - eta) / sigma`. That is already the exponential form, at rate `-1 / sigma`, and *censoring does not break it*: delta = 0 drops the linear term and leaves the shape intact. The rate is the same for every observation, which is the form's requirement, and `info_unit` was already the observed curvature. So it is two overrides and no new sampler: 6.7 seconds to **4.2** under hard rules, reproducing the general path to 1.3e-15. Under soft rules it stays general, and no augmentation would change that, because the truncated-Gumbel route lands in the exponential form too -- which soft rules cannot use. This makes the Weibull the slowest of the three AFT families at the default gate.
+
+**The two augmentations that do pay.** The log-normal and log-logistic have no exponential form, and for them the imputation is the whole point. Right-censoring is what makes the direct likelihood expensive: a failure contributes a density in the predictor and a censored observation a survival function, and the two have different shapes, so the target has no exploitable form and every trial leaf value costs its own pass. Imputing the failure time above its censoring time replaces the survival term with a density and makes every contribution quadratic. Unlike the exponential form, **this route survives soft rules**, which is why it is the one that helps at the default gate.
+
+The log-normal imputes from a normal truncated below; the log-logistic imputes from a logistic truncated below (by inverting the CDF through the upper tail probability, so that a censoring time far above the predictor does not collapse onto the endpoint) and then draws a Pólya-Gamma precision, the same device the ordinal logit uses. `sigma` is drawn from the *observed*-data likelihood with the imputations integrated out, and only then are they redrawn -- partially collapsed, and free here, because it is the same sum over observations either way.
+
+| Family | Rules | Speed | ESS ratio | ESS per second |
+|---|---|---|---|---|
+| `lognormal_aft()` | soft | 11.2 to 19.7x | 0.83 to 1.27x | **14 to 16x** |
+| `lognormal_aft()` | hard | 19.7 to 29.3x | 0.74 to 1.01x | **20 to 22x** |
+| `loglogistic_aft()` | soft | 8.4 to 9.3x | 0.58 to 0.84x | **4.9 to 7.7x** |
+| `loglogistic_aft()` | hard | 11.3 to 12.3x | 0.87 to 0.89x | **9.8 to 11x** |
+
+Both beat the estimates in the old To Do entries (10x and 7x on raw speed), and the log-normal's hard-rule number puts it beside `ordinal("probit")` as one of the two largest gains in the package.
+
+**How the augmentations were checked.** Posterior agreement, not just speed, and on the right scale. Comparing posterior means directly is misleading: two different samplers agree only to Monte Carlo error, so the question is whether the between-sampler gap is bigger than that error. Running two seeds of each sampler and measuring every gap in units of the pointwise posterior standard deviation, on the log-logistic at 50% censoring:
+
+| Comparison | Mean gap | Max gap |
+|---|---|---|
+| augmented against augmented | 0.13 | 0.54 |
+| direct against direct | 0.15 | 0.48 |
+| **augmented against direct** | **0.09** | **0.30** |
+
+The between-sampler gap is *smaller* than each sampler's own Monte Carlo error. Across censoring from 10% to 70%, `sigma`'s posterior mean agreed to within 0.002 with a posterior standard deviation of 0.02 to 0.03, and its posterior standard deviation to within 0.002.
+
+## Is `Gamma()` worth keeping?
+
+Asked directly, and the answer is a narrow yes. Measured on 800 training and 800 test observations, 50 trees, 500 draws after 500 warmup, four replicates, over four shapes of positive error around the same mean function, with Jacobian-corrected log scores.
+
+| Errors | `Gamma("log")` | `Gamma("inverse")` | `dpm()` | `gaussian()` on `log(y)` | `ordinal("probit")`, 25 bins |
+|----|----|----|----|----|----|
+| gamma, RMSE | 0.401 | 0.535 | 0.856 | **0.388** | 0.414 |
+| gamma, log score | **-2024** | -2028 | -2102 | -2041 | -- |
+| lognormal, RMSE | 0.234 | 0.265 | 0.400 | **0.225** | 0.232 |
+| lognormal, log score | -1525 | -1527 | -1600 | **-1521** | -- |
+| heavy tail, RMSE | 2.454 | 3.257 | 2.215 | **2.110** | 2.269 |
+| heavy tail, log score | -2359 | *NaN* | **-1947** | -2438 | -- |
+| mixed, RMSE | 1.606 | 1.624 | 1.808 | **1.419** | 1.610 |
+| mixed, log score | -1935 | -1938 | **-1913** | -1987 | -- |
+| seconds | 6.7 | 11.1 | 1.3 | **1.1** | 1.8 |
+
+**`Gamma("log")` is the only family that gets the best predictive density when the gamma is the truth.** That is what a correctly specified family should do, and it is the reason to keep it. But it never has the best RMSE for the conditional mean, and it is the slowest of the five by four to six times, because its exponential form pays only under hard rules and the default gate is soft.
+
+**`Gamma("inverse")` is worse on every measure and can return NaN.** The link message was already justified on speed; this is the stronger reason. The additive predictor is unconstrained and the inverse link needs it positive. Over eight replicates on the heavy-tailed setting, five had draws that went non-positive -- 0.001% to 0.04% of them -- and each produced NaN densities for two to five of 800 test points. Recorded as a To Do, because `predict()` says nothing about it.
+
+**The gamma's tails are its weak point.** A first pass reported the heavy-tailed log score as -Inf, which was one replicate poisoning a mean rather than a uniform failure. Per replicate over eight: median -2359, worst -557785, with two replicates containing a point whose density underflowed. `dpm()` had a median of -1947 and a worst of -15602 and never underflowed. A fixed shape cannot supply density in a tail it does not have.
+
+**`ordinal("probit")` on 25 bins is the most consistent of the five for the conditional mean** -- within 3% of the best in all four settings, including the heavy-tailed one where the gamma is 8% behind it, at under a third of the gamma's time, with no assumption about the error's shape. It cannot give a density on the original scale, which is the price.
+
+**One qualification to an earlier recommendation.** `dpm()` is roughly twice the RMSE of everything else for the conditional mean under gamma or lognormal errors. The advice to prefer `dpm()` over `gaussian()` was established on symmetric errors and does not carry over to the raw scale of a skewed positive outcome, where its flexible error absorbs signal that belongs in the mean. On `log(y)` it is fine. The vignette now says so.
+
+## The gamma link, decided rather than reported
+
+The link is now replaced rather than composed: any `Gamma()` whose link is not `log` is fitted on `log` with a message, and only an explicit `Gamma("log")` (or the string `"Gamma"`, which is this package's own spelling) is silent. `stats::Gamma()` is untouched, so attaching the package still cannot change what `glm()` does.
+
+The reason base R defaults to the inverse link is that it is the **canonical** link for the gamma. In exponential-family form the gamma's natural parameter is `-1/mu`, and `glm()` follows McCullagh and Nelder in defaulting every family to its canonical link -- Gaussian to identity, binomial to logit, Poisson to log, gamma to inverse, inverse Gaussian to `1/mu^2`. Canonical links earn that status because the observed and expected information coincide there, which makes IRLS exactly Newton-Raphson, and because `X'y` is then sufficient. It is a theoretical convention, not a practical recommendation, and the gamma is the case where the two come apart: the canonical link does not keep the mean positive, which is a known wart in ordinary GLM practice too and the reason most applied gamma regression uses the log link anyway.
+
+That wart is worse here than in a GLM, which is what settled it. A GLM's IRLS can step out of the parameter space and be caught; a sampler's additive predictor is unconstrained by construction and *will* visit negative means. Measured: over eight replicates on heavy-tailed data, five had draws where the predictor went non-positive -- 0.001% to 0.04% of them -- and each produced NaN densities for two to five of 800 test points. Plus 11.1 seconds against 6.7, and worse RMSE in all four settings.
+
+The cost of the change: composed links are no longer reachable for the gamma, so `Gamma("sqrt")` -- whose inverse at least stays non-negative -- is overruled along with the rest. `Gamma` was removed from `native_links` to say so. A caller who genuinely wants one now needs `custom_family()`. Judged worth it: the link was a documented feature almost nobody wants, and leaving it available meant leaving the inverse link available too.
+
+## `Beta()`, and what it is actually worth
+
+Added because `ordbeta()` without it was an odd gap: the package could model a proportion that reaches its bounds but not one that does not. It is the interior of `OrdBetaFamily` with the endpoint machinery removed -- about eighty lines of C++ -- and it is capitalized for the reason `stats::Gamma()` is, since `base::beta()` is the beta function.
+
+Measured against the alternatives, two replicates each, 50 trees, 300 draws after 300 warmup, RMSE for the conditional mean on held-out data:
+
+| | `Beta()` | `ordbeta()` | `gaussian()` on `logit(y)` |
+|---|---|---|---|
+| n = 200, interior only | **0.0223** | 0.0251 | 0.0224 |
+| n = 500, interior only | 0.0206 | **0.0204** | 0.0257 |
+| n = 500, 1% at a boundary | 0.0222 (clamped) | **0.0210** | 0.0299 |
+
+The honest reading, which is weaker than the case for adding it: **`Beta()` is 11% better than `ordbeta()` at n = 200 and a tie at n = 500.** The theory predicts exactly that -- `ordbeta()`'s two cutpoints have nothing to identify them without boundary observations, and unidentified nuisance parameters cost more when there is less data -- but the cost is small and vanishes with sample size. It is also only 13% faster.
+
+So the argument for the family is not accuracy. It is that `ordbeta()` on interior data leaves two parameters wandering: the fitted cutpoints reached magnitudes of 18 to 19 against slice bounds of ±30, which is a diagnostic that looks like a pathology and is really just an unidentified parameter doing what unidentified parameters do. `Beta()` reports one precision, which means something. Choose between the two on whether the response *can* reach a boundary.
+
+The row that does earn its keep unambiguously is the third: with boundary observations, `ordbeta()` beats a clamped `Beta()` by 5% and `gaussian()` on the logit by 30%, with coverage of 0.98 against 0.85. And `gaussian()` on `logit(y)` is worth knowing about: 100 times faster, competitive at n = 200, clearly worse by n = 500 (25% worse RMSE, coverage 0.89 against 0.96).
+
+## The families vignette, cut in half
+
+Rewritten from 9,414 words to 4,917 -- 48% shorter -- on the brief that the document exists to orient a user and support a practical choice, not to survey the method. What came out, as a rule: anything a user cannot act on. The augmentation ESS tables (they live in `?bartisan_control`), the `dpm()` centering derivation, the normal-inverse-chi-square baseline and its `nu`/`q`/`k_s` calibration, the Murray parameterization's leaf-prior scaling, the trace constraint and the inverse-Wishart prior, the multinomial-probit correlation sweep table, the ordinal binning table, the 200-observation continuous table, the `polr()` chart-matching demonstration, and a mea culpa about an earlier version of the documentation that belonged in this file rather than in a vignette.
+
+What went in: the four-way continuous comparison with `location_scale()` added, the positive-outcome comparison re-run without `Gamma("inverse")`, `ordinal()` as a fourth count family, and the corrected defaults. Citations fell from 14 to 4, which is the honest consequence of cutting the method exposition; `references.bib` keeps all 19 verified entries, since pandoc emits only the cited ones and the rest are work worth keeping.
+
+**Adding `location_scale()` to the continuous comparison is what made that table worth having.** With four families over five error shapes it now says one thing per row instead of needing two tables and a paragraph of hedging:
+
+| Errors | `gaussian()` | `dpm()` | `location_scale()` | `ordinal("probit")` |
+|---|---|---|---|---|
+| normal | 0.135 / -1439 | 0.140 / -1440 | 0.137 / -1442 | **0.129** |
+| $t_3$ | 0.094 / -1412 | **0.080 / -1253** | 0.101 / -1400 | 0.105 |
+| skewed | 0.078 / -1106 | **0.053 / -956** | 0.078 / -1115 | 0.089 |
+| bimodal | 0.149 / -1657 | **0.060 / -1240** | 0.136 / -1656 | 0.166 |
+| heteroskedastic | 0.168 / -1684 | 0.165 / -1653 | **0.136 / -1541** | 0.147 |
+| seconds | **1.6** | 2.1 | 17.4 | 2.7 |
+
+`dpm()` for a badly *shaped* error, `location_scale()` for a *varying* one, everything level when the errors are normal, and `ordinal()` never far off in either direction. `location_scale()` beating `dpm()` by 112 log points on the heteroskedastic row is a cleaner statement of the division than the two separate tables managed.
+
+**Three claims in the draft did not survive checking against the numbers**, all of them inherited from the longer version:
+
+- "bimodality worth 417 log points **with a third the RMSE**" -- the ratio is 0.060/0.149 = 0.40, so 40%, not a third.
+- "`c(50, 10)` was **three times faster** than `c(50, 50)`" -- 14.5 against 5.9 seconds is 2.5x.
+- "`ordinal("probit")` is **within 3% of the best RMSE in every row**" of the positive-outcome table -- it is up to 13.5% off the best column. What is true is that it tracks `Gamma("log")` within about 3% in every row and beats it by 8% on heavy tails. The original claim was wrong when it was first written, not broken by the re-run.
+
+**The heavy-tail log score was dropped from the positive-outcome table rather than reported.** The 4-replicate re-run put `Gamma("log")` ahead (-2250 against `dpm()`'s -2392); the earlier 8-replicate run put it behind (-2359 against -1947). Both are medians, and they disagree on the ordering, because the score is dominated by the single worst test point. The stable statement is the range: over eight replicates `Gamma("log")` ran from -1745 to -557785 and `dpm()` from -1661 to -15602. Medians close, tail risk not, and the gamma carries much more of it. That is what the vignette now says, in place of a number that would have looked authoritative and been noise.
+
+## Making the beta families fast
+
+They were the slowest families in the package -- `Beta()` at 18.4 seconds and `ordbeta()` at 20.4 where the slowest *other* general-target family, `binomial("cloglog")` with the augmentation off, took 3.2 (500 observations, 50 trees, 300 draws). Now 4.3 and 4.9. On a longer run (3 seeds, 500 warmup and 1000 draws) `Beta()` went from 91.5 seconds to 20.0 and `ordbeta()` from 104.1 to 24.9, so **4.6x and 4.2x**, with effective samples per second up 5.0x and 3.7x.
+
+**First, what the cost was not.** Instrumenting the Fisher-scoring loop settled it: `Beta()` used 38,089 score passes and `binomial("cloglog")` 37,697 -- within 1% -- for 6x the time. So the iteration count was never the problem, and neither was the general target as such. It was the four `digamma`/`trigamma` calls per observation per pass.
+
+**The structural observation that fixes it.** The two special functions appear only in the combinations
+
+    psi(mu phi) - psi((1 - mu) phi)      and      psi'(mu phi) + psi'((1 - mu) phi),
+
+and the two shapes always sum to `phi`. `phi` moves only in `update_aux`, once per sweep, so *within a sweep both combinations are functions of the single scalar `mu`*. They are now tabulated on a grid of 2049 points in the additive predictor over (-8, 8), rebuilt once per sweep and linearly interpolated, with the exact functions used outside the grid. Four special-function calls become two loads and a multiply. The per-sweep rebuild costs 2049 evaluations against the millions it replaces.
+
+**Why an approximate derivative is legitimate here**, which is the part worth stating: the score and information shape the *Laplace proposal only*. `logdens_unit` stays exact, and the Metropolis step corrects. What the sampler requires of the fit is that it be a **deterministic** function of the current state, so the birth and death moves rebuild the same proposal -- the comment above `SCORE_TOL` says exactly this -- and a fixed table satisfies it. Interpolation error costs acceptance rate, not correctness.
+
+Verified as such. Two seeds of each version, 1000 warmup and 2500 draws, differences measured in units of the pointwise posterior standard deviation of the fitted mean:
+
+| Comparison | `Beta()` | `ordbeta()` |
+|---|---|---|
+| exact against exact (Monte Carlo error alone) | 0.06 mean, 0.32 max | 0.11 mean, 0.43 max |
+| table against table (Monte Carlo error alone) | 0.09 mean, 0.37 max | 0.09 mean, 0.27 max |
+| **exact against table** | **0.05 mean, 0.21 max** | **0.03 mean, 0.16 max** |
+
+The between-version gap is smaller than either version's own Monte Carlo error, and `phi`'s posterior mean agrees to 0.01 and 0.02 posterior standard deviations. The tabulated score also matches a central difference of the exact log density to 9e-7 relative, which is what `test-derivatives.R` now checks.
+
+**A crude approximation was tried first and is worse.** The leading term of the expansion in `1/phi` is elegant -- `psi(a) - psi(b)` goes to `logit(mu)`, which is the predictor itself, and `s^2 (psi'(a) + psi'(b))` goes to `s = phi mu (1 - mu)`, so the whole thing collapses to a weighted least squares of `logit(y)` on the predictor with weight `phi mu (1 - mu)`, the ordinary quasi-likelihood form, with no special functions at all. It runs at the same speed as the table (19.3 seconds) but the proposal is far enough off that effective sample size fell from 241 to **91**, so ESS per second was 4.7 against the table's 13.0. Worth recording because the derivation looks compelling on paper: the approximation is good in the bulk and useless in the tails, since `a = mu phi` falls to 1.7e-4 at a predictor of -8, where the asymptotic series diverges. A plain series is not an option for the same reason.
+
+**A second, exact win in `ordbeta()`.** Its cutpoint updates were rebuilding the whole likelihood -- three log-gammas per observation -- on every slice evaluation, for a beta density that does not depend on the cutpoints at all. The likelihood splits: the endpoint-and-middle part depends on the cutpoints and not on `phi`, the interior beta density on `phi` and not on the cutpoints. Since slice sampling only needs the log density up to an additive constant, each update now evaluates its own half and drops the other. That is 30.6 seconds to 24.9. It is exactly invariant -- shifting the log density by a constant shifts the slice level by the same constant, leaving the slice set and the random-number stream untouched -- and the draws came out bit-identical, which is the check that it is a reorganization and not a change. `lgamma(phi)` was also hoisted out of both families' precision loops, being one of the three log-gammas `lbeta` computes.
+
+**A claim in the earlier version of this entry was wrong.** It said the information is the expected one, so "two of the four calls buy only variance reduction and the observed version may be affordable". Working out the observed information shows it is `s^2 (psi'(a) + psi'(b)) - s (1 - 2 mu) C`, which needs *both* trigammas and then some. There was no saving on that route.
+
+**No exact augmentation exists.** Asked directly, and the obstruction is structural. Writing the log density in the predictor,
+
+    phi mu(eta) logit(y) + phi log(1 - y) - lgamma(mu phi) - lgamma((1 - mu) phi) + lgamma(phi),
+
+`eta` enters through `mu = expit(eta)` in two places: inside a linear exponent, giving `exp(c expit(eta))`, and inside two log-gamma normalizers. The Polya-Gamma identity needs `e^{a eta} / (1 + e^{eta})^b`, with `eta` appearing *linearly* in the exponent; `exp(c expit(eta))` is not of that form, which is the same obstruction recorded for `ordbeta()` earlier. The gamma-ratio representation `Y = G1 / (G1 + G2)` does not help either: conditioning on the two gammas leaves `phi [mu log g1 + (1 - mu) log g2] - lgamma(mu phi) - lgamma((1 - mu) phi)`, with the normalizers untouched, because the difficulty is the eta-dependent normalizing constant rather than the shape of the kernel. The order-statistic representation needs integer shapes, and `mu phi` is not one.
+
+## Nuisance parameters for a custom likelihood: the pinned-forest route
+
+Recorded because the measurement overturned the first answer. The question was how to let `custom_family()` draw a nuisance parameter, and the initial recommendation was a declared interface -- `aux_start`, bounds, a log prior -- with the package slice-sampling each coordinate. The alternative raised was to give the nuisance a *forest pinned at depth zero*, which is a scalar with a normal prior drawn by machinery that already exists.
+
+Two objections were offered against it and both were weak. The first, that the user would have to transform for positivity, is no objection at all: they already write `exp(eta[, 2])` for a real second predictor. The second, that pinning a forest and controlling its prior scale would need new structure, was wrong on inspection -- there is already one `Hypers` per forest, `sigma_mu` is already a per-forest vector, and `update_sigma_mu` is already applied as `hypers[h]->update_sigma_mu`. Only the R-side plumbing feeds them scalars.
+
+**It works today with no changes**, on a hand-written Gaussian with a second predictor for `log(sigma)`, 800 observations, truth 0.400:
+
+| | sigma | posterior sd | note |
+|---|---|---|---|
+| `num_trees = c(50, 1)`, read off one observation | 0.402 | 0.0188 | |
+| the same, averaged over observations | 0.402 | 0.0103 | |
+| splitting denied (`gamma` at 1e-8) | 0.404 | **0.0102** | |
+| `gaussian()`, drawing sigma properly | 0.399 | 0.0097 | |
+| theory, `sigma / sqrt(2n)` | -- | **0.0100** | |
+
+**But the catch is the whole story: without pinning it is not a scalar.** The one tree splits, and the nuisance predictor took a single value in only **8% of draws** -- median 232 distinct values, maximum 800. So an unpinned "nuisance forest" is really an unadvertised dispersion surface fitting noise, which is why reading one observation gave a posterior 1.9 times too wide while averaging over observations landed on the theoretical width. Deny the splits and the posterior sd is 0.0102 against a theoretical 0.0100, with exactly one distinct value per draw.
+
+That reframes the enabling change from "nice to have" to "the thing that makes it correct", and it is small: `gamma` as a vector, matching `num_trees`.
+
+The residual cost is reporting rather than sampling. A pinned forest is a constant column of `fit$eta`, so `fit$aux` stays empty, `fit$rhat` has no entry for it, and the user extracts it with `exp(predict(fit, type = "link", draws = TRUE)[[2]][, 1])`. The attractive resolution is to route a pinned forest into `fit$aux` under a supplied name, which makes "pinned at depth zero" and "nuisance parameter" the same object and gives the declared interface's ergonomics with none of its sampler.
+
+## Nuisance parameters for a custom likelihood, implemented
+
+Built the pinned-forest route. `custom_family(aux_names =, aux_start =)` declares them, `logdens` gains a third argument, and they come back in `fit$aux` -- so the interface separates predictors from parameters while the mechanism is a forest pinned at depth zero for each one.
+
+**What the engine does.** `Family::num_pinned()` is a new virtual, zero for everything but `RFamily`; the engine pins the trailing `num_pinned()` forests -- one tree, `gamma = 0` so no birth is possible, `update_sigma_mu = false` -- and keeps them out of `eta`, `sigma_mu`, the variable counts and the encoded forests, so `num_forest` is what the caller asked for. Almost no new structure was needed: `Hypers` was already per forest and `sigma_mu` already a per-forest vector. Per-forest `gamma` and `update_sigma_mu` stayed internal, as the caller has no reason to set them.
+
+**Three bugs, each found by measurement rather than by reading.**
+
+The first was mine and specific to this work. `RFamily::unpack` read the nuisance value once per block, from the first row, on the reasoning that a pinned forest has one leaf holding every observation and so shifts them all together. True of most calls -- but `log_f_pair_at` stacks *two* values of one component in a single block of `2n` rows to evaluate both ends of a Metropolis move in one pass. Both halves therefore got the first half's value, so the likelihood did not respond to the proposal at all: the reported change in the target was exactly the leaf prior's, `-(0.043^2) / (2 * 1.5^2) = -0.00041` against an observed `-0.000409`, which is what identified it. The nuisance column is constant only in *runs*, and the block methods now find them. For a family with no nuisance parameters, or any call that is not a paired one, there is exactly one run and nothing changes.
+
+The other two were in the shared sampler, exposed rather than caused by this feature: a pinned forest's single leaf carries a whole parameter, so it can start far from its conditional mode, where an ordinary leaf in a fifty-tree forest never is.
+
+**Newton's method can be thrown past the mode and then crawl.** On `f(s) = -n s - A exp(-2 s) / 2` the step is `s + 1/2 - n / (2u)` with `u = A exp(-2 s)`. From a start above the mode `u` is small, the step overshoots to about `-27`, and from there each iteration gains exactly `1/2` -- so `MAX_SCORE_STEPS = 50` is reached still far away. A trust region of four standard errors on the step converges in about six iterations instead.
+
+**A Laplace proposal is an independence proposal, and cannot be accepted from far out.** This is the more interesting one. Once the fit was converging properly the proposal was still rejected every sweep: the target improved by 222 log points and the proposal cost 449, because the reverse density of a tight Gaussian at the mode, evaluated at a current value twenty standard errors away, is astronomically small. Damping the proposal's *location* toward the current value makes the step local; reversibility is kept by building the reverse proposal the same way from the proposed value, which is free because both come from the one shared fit, and when the cap does not bind both reduce to the fit itself, so the ratio is exactly the undamped one.
+
+Neither cap binds for a chain near its mode: the full suite passes unchanged and the timings of every family are the same to within noise (`Beta()` 4.3 against 4.4 seconds, `location_scale()` 1.6 against 1.8, `gaussian()` 0.2 either way). Both are fixed constants, so the fit remains a deterministic function of the state, which is what the birth and death moves need.
+
+**What it delivers.** A hand-written Gaussian with its scale drawn, started at 3.0 against a truth of 0.40, on 800 observations:
+
+| | mean | posterior sd | ESS |
+|---|---|---|---|
+| `custom_family()` with a drawn `log_sigma` | 0.3988 | 0.0099 | 821 |
+| `gaussian()`, conjugate step | 0.3990 | 0.0102 | 834 |
+| theory, `sigma / sqrt(2n)` | -- | 0.0100 | -- |
+
+Matching a conjugate Gibbs sampler on the mean, the spread *and* the effective sample size, from a start seven times off. Two parameters at once work as well: a t likelihood with a drawn scale and drawn degrees of freedom recovers `sigma` at 0.386 and puts the degrees of freedom at 49 on normal data.
+
+**A note on what was not built.** The first design proposed for this was a declared interface -- `aux_start`, bounds, a log prior -- with the package slice-sampling each parameter, and the pinned forest was dismissed on two grounds that did not survive contact: that the caller would have to transform for positivity, which they already do for a real predictor, and that pinning would need new structure, which it did not. The measurement that settled it was that an *unpinned* nuisance forest is not a scalar at all: its one tree split, and the predictor took a single value in only 8% of draws. Pinning was the thing that made it correct, not a refinement.
+
+## Survival, part two: proportional hazards and the discrete-time route
+
+Two papers read and assessed. `ph()` was built; the other method was measured and left as a documented recipe, because it needs no code.
+
+### Basak, Linero, Maringe and Rubio (2024), and the claim it retracts
+
+The paper is *relative* survival -- excess hazard against population life tables, for cancer registries -- but its engine is a piecewise-exponential proportional hazards BART, and that is the part worth having. The observation that made it cheap: after their augmentation the log-likelihood in the predictor is
+
+    delta_i * eta - Lambda_0(y_i) * exp(eta),
+
+which is `a eta + b exp(eta)` at rate exactly +1 -- **the same exponential form `poisson()` already uses**. So a leaf update is one pass over the node, one row per subject, no data expansion. The baseline is a nuisance vector with an exact gamma conditional and an O(N + B) update, and the trailing-bin recursion in the paper is what keeps it O(N) rather than O(NB).
+
+**This retracts something the documentation asserted in three places.** It said proportional hazards was "deliberately absent" because Cox's partial likelihood couples observations through risk sets and so does not decompose over the observations reaching a leaf. The first half is true and is why the *partial* likelihood cannot be used. The conclusion was wrong: the *full* likelihood of the piecewise-exponential model does decompose, approaches the partial likelihood as the bins shrink (Sinha, Ibrahim and Chen 2003), and is of a form the sampler already had a fast path for. Proportional hazards was reachable all along.
+
+**Was it worth it?** Yes, and the measurement is two-sided, which is the useful part. 800 training and 800 test observations, 50 trees, 500 draws after 500 warmup, against a proportional-hazards truth under two baselines:
+
+| Baseline | Family | Held-out log score | `S(t|x)` RMSE (worst t) |
+|---|---|---|---|
+| turns over | **`ph()`** | **-618** | **0.050 (0.063)** |
+| | `loglogistic_aft()` | -866 | 0.081 (0.136) |
+| | `weibull_aft()` | -876 | 0.100 (0.169) |
+| Weibull | `ph()` | -870 | 0.046 (0.066) |
+| | **`weibull_aft()`** | **-774** | **0.044 (0.059)** |
+
+About 250 log points when the baseline turns over; about 96 back when the parametric baseline is right. Note the asymmetry in *where* the cost falls: on the Weibull truth the two are level on `S(t|x)` (0.046 against 0.044), so the flexible baseline costs the density at a point rather than the survival curve.
+
+**What it does *not* buy, which is worth knowing before recommending it.** The risk *ordering*. An oracle PH model given the true baseline recovered `r(x)` at rmse 0.162 while the accelerated failure time families, after a best-case rescaling, managed 0.145 to 0.177 -- the log-logistic *beat* the oracle. A monotone reparameterization of time barely disturbs the ordering, so if all that is wanted is who is at higher risk, the parametric families were already enough. The case for `ph()` is the hazard's shape, the survival curve, and a hazard-ratio reading.
+
+Two traps hit while prototyping, both mine: the starting intercept is folded into the offset at fit time, so predicting with a zero offset returns the forest *without* the level -- which does not matter for a centered comparison of `r(x)` and matters entirely for `S(t|x)`, where it first showed up as the oracle looking catastrophically worse than everything else. And `prepare_surv()` returned only `log_time`, so `a$time` was silently NULL, which surfaced as bin edges of `c(0, NA)`.
+
+**Not built: the relative-survival part.** It is the paper's actual novelty and it is a narrow one -- it needs population life tables as an input, which is a data interface rather than a family. Worth knowing that it is *cheap* on top of what now exists: one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard entering as one number per subject. That is a nuisance draw and a data column, not a new sampler.
+
+### Sparapani, Logan, McCulloch and Laud (2016), and why nothing was built
+
+Not the same as our accelerated failure time families, so the question was live. It is a discrete-time hazard: expand to one row per subject per grid time up to their own, then probit BART on the binary event indicator **with time as a covariate**. Nothing is assumed about proportionality, so it handles crossing survival curves, which no other family here can.
+
+But it needs no new code -- it is `binomial("probit")` on expanded data, and that is the *fastest* family in the package. So the deliverable is a recipe in the vignette, not a family. Measured against the other two, 600 training and 600 test observations:
+
+| Family | PH truth | crossing truth |
+|---|---|---|
+| `ph()` | **0.035 (0.048)** | 0.065 (0.083) |
+| `weibull_aft()` | 0.102 (0.183) | 0.064 (0.079) |
+| discrete-time probit | 0.046 (0.072) | **0.036 (0.048)** |
+
+A clean division. `ph()` is best under proportional hazards and the discrete-time model is a close second there, because it nests proportional hazards and pays only a little for the freedom. When hazards cross it is the only one that copes, and by a factor of 1.8 over both others -- which are then equally wrong.
+
+**Possible follow-up, not done:** the ergonomics. The expansion is six lines and the survival curve is a running product, both now written out in the vignette, but a `survival_expand()` helper plus an `S(t | x)` output would make the route usable without the reader assembling it. The same missing piece applies to `ph()`, whose `S(t | x)` is also a documented recipe rather than a `predict()` type. That is the one interface gap this work leaves.
+
+## The survival predict gap, and a marginaleffects bug behind it
+
+Asked whether `predict()` for the survival families was *missing* something or whether `S(t | x)` was extra. It was missing, and the argument that settles it is the package's own consistency: every family whose response is discrete already returns its full predictive distribution through `type = "prob"` -- binomial, ordinal, multinomial -- while the survival families returned only a point summary, the median. The survival analogue of `prob` is `S(t | x)` over `t`, and it was not there. The corroborating smell was the recipe written into the vignette a moment earlier, which reached into `fit$family_opts$edges` and grepped `^lambda[0-9]+$`: asking a caller to depend on internal layout to get the primary output of a survival analysis is the sign the computation belongs inside.
+
+`predict(type = "survival", times = ...)` now covers all four survival families. One column per time, or a draws by rows by times array. Checked against a closed-form exponential truth: RMSE 0.018 for `ph()` and 0.027 to 0.054 for the three accelerated failure time families, monotone in `t` for every row, inside (0, 1) everywhere, and the averaged matrix equal to the mean of the draws array.
+
+**Looking for the payoff turned up a bug that had nothing to do with `times`.** The reason a survival curve matters is the estimand -- a contrast in t-year survival is what survival analysis is usually asked for -- so the natural test was `avg_comparisons(fit, type = "survival", times = 1)`. It failed. So did `avg_comparisons(fit, variables = "trt")` with no `type` at all, for `weibull_aft()` as well as `ph()`, while the same call on a binomial fit was fine. **marginaleffects has never worked for any survival family in this package.**
+
+The cause: a survival response is a two-column matrix, a model frame keeps it as a single matrix column, and `data.table::setDT` reads its 2n cells as a column of length 2n -- "Column 2 ['trt'] is length 300 but column 1 is length 600; malformed data.table". An error naming data.table, from a package two steps away, for a reason in neither. `get_data.bartisan()` now splits matrix columns into ordinary ones; the estimands need the predictors, not the response.
+
+With both in place the estimand recovers the truth. Contrast in survival between treated and untreated, truth `exp(-t e^0.8) - exp(-t)`:
+
+| t | estimate | 95% interval | truth |
+|---|---|---|---|
+| 0.5 | -0.261 | -0.311 to -0.211 | -0.278 |
+| 1 | -0.238 | -0.283 to -0.191 | -0.260 |
+| 2 | -0.119 | -0.153 to -0.088 | -0.124 |
+
+Every interval covers; the point estimates are shrunk toward zero by 0.03 to 0.05, which is the prior doing what it does.
+
+**One limitation that is not ours to fix.** marginaleffects checks the dots against a whitelist hardcoded per model class inside `sanity_dots()` -- no option, no generic -- so it warns that it does not recognize `times`, while passing it through, which is what the warning says. Documented as expected rather than worked around, and the tests suppress it deliberately.
+
+## CoxBART, and whether it differs from `ph()`
+
+Asked whether the CoxBART of Linero, Basak, Li and Sinha (2022, sec. 2.3) is the model `ph()` already fits. **Not identical, but the same leaf-level target, and empirically indistinguishable.**
+
+Their construction: the Cox partial likelihood is an *integrated* likelihood (Sinha, Ibrahim and Chen 2003). Give the discrete-time model `S(t | x) = exp{-e^{g(x)} sum_{t_l <= t} phi_l}` one jump per observed event time with the improper data-dependent prior `pi(phi) ∝ prod [delta_i phi_i^{-1} + (1 - delta_i) delta_0(phi_i)]`, and integrating the jumps out returns the partial likelihood exactly. Conditional on the jumps the likelihood is
+
+    prod_i phi_i^{delta_i} exp[ delta_i g(X_i) - e^{g(X_i)} sum_{j : Y_j <= Y_i} phi_j delta_j ],
+
+per observation `delta_i eta - C_i exp(eta)` -- **the identical target `ph()` has**, at rate +1. The whole difference is `C_i`:
+
+| | `ph()` | `coxph()` |
+|---|---|---|
+| `C_i` | `Lambda_0(Y_i)`, piecewise linear over B bins | sum of the jumps at or before `Y_i`, a step process |
+| baseline resolution | about `n^{1/3}` bins | one jump per event time |
+| baseline prior | `Gam(a, b)` per bin, `b` drawn | improper, `Gam(0, 0)`-like per jump |
+| marginal | the full likelihood | the Cox *partial* likelihood |
+| leaf prior in the paper | -- | log-Gamma, for a conjugate integrated likelihood |
+
+So `coxph()` is the `B -> infinity` limit of `ph()` under an improper prior -- which is exactly the remark Basak et al. (2024) make in passing and which I had recorded but not connected. The leaf prior is a further difference: the paper uses log-Gamma for conjugacy, this implementation keeps the package's normal leaf prior and corrects with the Metropolis step, so the two are slightly different models with the same intent.
+
+`update_aux` is the whole of the new code: draw `phi_i ~ Gam(1, sum over the risk set of exp(eta))` for each event -- an exponential -- then accumulate. Both passes are O(N) over the pre-sorted times, with tie groups added in full before being read, which is the Breslow convention.
+
+**Measured.** Four paired replicates on a baseline that turns over, 700 train and 700 test:
+
+| | `S(t|x)` RMSE | `r(x)` RMSE |
+|---|---|---|
+| `coxph()` | 0.0360 | 0.128 |
+| `ph()` | 0.0348 | 0.121 |
+| paired difference | +0.0012 (sd 0.0024) | +0.0068 (sd 0.0111) |
+
+Both within a standard error of zero. Across three truths, one replicate each, RMSE of `S(t | x)`:
+
+| Truth | `coxph()` | `ph()` | `weibull_aft()` | `loglogistic_aft()` |
+|---|---|---|---|---|
+| baseline turns over | **0.043** | 0.044 | 0.093 | 0.087 |
+| Weibull baseline | 0.061 | 0.062 | **0.052** | 0.063 |
+| crossing, not proportional | 0.071 | **0.070** | 0.075 | 0.071 |
+
+The two proportional-hazards families agree to the third decimal everywhere and win or lose together, which is what the shared target predicts. Same cost too: 5.7 against 5.6 seconds.
+
+**External validation, which was the check worth doing.** On a linear truth, `coxph()`'s predictor correlates 0.982 with `survival::coxph()`'s linear predictor, with a spread 3% smaller -- the leaf prior shrinking toward zero. That is the evidence that the augmentation really is the partial likelihood rather than something adjacent to it.
+
+**Recommendation, recorded in the docs:** `ph()`, for practical reasons rather than statistical ones -- a proper prior, a baseline reportable at full resolution, a genuine likelihood so the information criteria mean what they usually do, and prior weights, which `coxph()` refuses because the partial likelihood is derived without them. `coxph()` earns its place as the published method exactly, and as a benchmark.
+
+## Can the bin choice be removed? Yes, and it turns out not to be worth it
+
+Asked whether `ph()` could use one bin per event, or `coxph()` could gain weights and the likelihood-based tools -- combining the best of both. Both turned out to be possible, and the measurement then inverted the premise.
+
+**`ph(num_bins = Inf)` was tried and does not work.** Built it, measured it, removed it. Over four paired replicates the survival function got *worse* by +0.017 (sd 0.006) on a turning-over baseline and +0.010 (sd 0.006) on a Weibull one -- both several standard errors, and 26% to 44% worse in relative terms. A smaller `lambda_shape` made it far worse still (0.175 against 0.056), which killed my first explanation: I had guessed the `Gam(a = 1, b)` prior was adding one pseudo-event per bin, but shrinking the shape should then have helped.
+
+The real mechanism is that **`ph()` puts its prior on hazard *rates* with a common rate parameter.** A bin holding one event over a tiny width has a genuinely enormous hazard, of order one over its exposure; but `lambda_b ~ Gam(1 + A_b, b_lambda + B_b)` with a tiny `B_b` caps it at about `1 / b_lambda`. So the narrow bins are massively over-shrunk, and lowering the shape only removes what little data signal was there. A prior on rates cannot be spacing-agnostic.
+
+**`coxph()` escapes that because it works in jumps.** A jump in the cumulative hazard is of order one over the risk set however narrow the gap, so the same prior is well-scaled at any resolution. That is the Gamma process prior of Kalbfleisch (1978), and adding it to `coxph()` is a small change: `jump_b ~ Gam(precision * hazard * gap_b, precision * gap_b)`, whose posterior is `Gam(prior + A_b, prior_rate + risk_sum_b)`. At `precision = 0` it is the improper prior the paper uses and returns the partial likelihood; positive precision gives a full likelihood and admits weights.
+
+So `coxph(precision > 0)` does deliver everything asked for: no grid anywhere, prior weights, and an exact full likelihood -- `predict(type = "density")` now reproduces `fit$loglik` to 2e-13. And it is indistinguishable from `ph()` on both `r(x)` and `S(t | x)` at every precision tried, paired differences ranging from -0.0024 to +0.0024 with standard errors of the same size.
+
+**And yet `ph()` is still the answer, for a reason that only showed up in the diagnostics.** `loo()` on `coxph(precision = 1)` gave an elpd 670 points worse than `ph()`'s despite a *better* in-sample likelihood. That is not a bug -- the density path was verified exact -- it is the fine baseline doing what a fine baseline does:
+
+| | effective parameters (`p_loo`) | Pareto-k above 0.7 |
+|---|---|---|
+| `coxph(precision = 1)` | 674 | 56% |
+| `ph()` | 17 | none |
+
+674 effective parameters for 500 observations is leave-one-out reporting that it cannot do its job: with one jump per event time, an observation's own density is inflated by a parameter that only it informs. **The bin count is not a nuisance to be eliminated; it is the regularization that makes the model's own likelihood usable for comparison.** That reframes the original question rather than answering it, which is the useful outcome here.
+
+Two bugs found along the way, both mine, both in the density path for `coxph()`: `logdens_unit` omitted the hazard factor altogether (it lived only in `reported_loglik`, where `ph()` carries it in `compute_eta_free`), and `set_aux` restored the baseline without rebuilding the cumulative hazard from it, so a restored draw evaluated at the constructor's prior mean. Together those made `loo()` meaningless in a way that looked like a modelling result. The `fit$loglik` against sum-of-log-density check is what caught them and is now a test.
+
+Also fixed while here: the `bin_of` construction was an O(N * B) linear scan in both families, which is fine on a coarse grid and quadratic on a fine one; it is a binary search now. And `summary()` shows the ends of a long nuisance block with a count of what it omitted, rather than several hundred rows.
+
+## The Henderson accelerated failure time model, implemented as `dpm_aft()`
+
+`log T = m(x) + W` with `W` a mean-constrained Dirichlet process mixture and censored log-times imputed -- Henderson, Louis, Rosner and Varadhan (2020). The prediction was that both halves already existed and only the join was missing, and that held: `DPMAFTFamily` inherits from `DPMFamily` and adds about sixty lines. Everything about the mixture -- the Polya urn, the atom draws, the concentration, the centering, `error_density()` -- is inherited untouched. The CRTP static dispatch works through the inheritance because the derived class does not override `score_info_unit`, so `Concrete<DPMFamily>`'s qualified call still reaches the right one.
+
+**What was added.** The imputation draws a censored log-time from the component it currently sits in, truncated below at its censoring time -- conditioning on the label is what makes it an ordinary Gibbs step, and the label is redrawn immediately afterwards given the value drawn. And an observed-data `reported_loglik` that credits a censoring with the mixture's *survival* rather than its density, with a matching `dpm_survival()` on the R side for the density and survival-curve routes.
+
+**Measured**, 700 training and 700 test observations, held-out log score and RMSE of `S(t | x)`:
+
+| Errors | `dpm_aft()` | `lognormal_aft()` | `loglogistic_aft()` | `weibull_aft()` |
+|---|---|---|---|---|
+| bimodal | **-607 / 0.029** | -818 / 0.098 | -847 / 0.100 | -879 / 0.115 |
+| log-normal | -438.1 / 0.0264 | **-438.0 / 0.0266** | -444 / 0.031 | -467 / 0.057 |
+| heavy tailed | **-509 / 0.036** | -556 / 0.065 | -516 / 0.040 | -566 / 0.072 |
+
+210 log points and a third of the error in `S(t | x)` on a two-component error, and **within 0.1 log points of `lognormal_aft()` when a single normal is right** -- the same "costs nothing when the simpler assumption holds" property `dpm()` has against `gaussian()`, which is what makes it reachable-for rather than specialist. The price is speed: 5 to 15 seconds against about 1.
+
+The correctness check that matters: `rowSums(predict(type = "density", log = TRUE))` reproduces `fit$loglik` to 2.8e-13, draw by draw. Those are two independent implementations of the observed-data likelihood -- one in C++ over the mixture atoms, one in R over the reported components -- agreeing including the censored contributions.
+
+**A trap found while comparing, and worth knowing about.** `predict(type = "density")` is not on the same measure for every survival family: the accelerated failure time families report the density of `log T`, `ph()` and `coxph()` the density of `T`. Each is self-consistent -- the density of that family's own response -- but the caller supplies `(time, status)` to both and is not told. In the first head-to-head this showed as `ph()` scoring about 1000 log points worse than every accelerated failure time family; the correction is `sum(log t)`, which came to 1042, and on a common scale `ph()` was 168 points *better* rather than 1000 worse. Documented in `?predict.bartisan` and the vignette; `S(t | x)` is the metric that is comparable throughout.
+
+**A note on the working tree.** `coxph()` in the tree is more developed than the version described in the entry above: it gained a `precision` argument putting a Gamma process prior on the jumps, with `precision = 0` the improper limit that reproduces the published partial likelihood. Two claims in the older NEWS entry -- that `coxph()` reports the partial likelihood and refuses weights -- are true only at zero precision, and have been corrected in place rather than left to contradict the newer entry above them.
+
+## One proportional hazards family, and the bin count is not a knob
+
+`coxph()` was built, measured, and removed. The question it existed to raise -- whether the bin count in `ph()` is a choice the caller is being made to make -- turned out to be answerable directly, and the answer removed the reason for a second family.
+
+**Swept `num_bins` from 4 to 250, three replicates at 700 observations, against a baseline hazard that turns over and against a Weibull one:**
+
+| Bins | `S(t|x)` RMSE | `r(x)` RMSE | `p_loo` | Pareto-k above 0.7 |
+|---|---|---|---|---|
+| 4 | 0.047 / 0.044 | 0.176 / 0.163 | 19 / 17 | none |
+| **9** (default at this n) | **0.041 / 0.040** | **0.155 / 0.157** | 23 / 21 | none |
+| 20 | 0.047 / 0.036 | 0.184 / 0.139 | 33 / 33 | none |
+| 50 | 0.048 / 0.035 | 0.185 / 0.135 | 63 / 60 | none |
+| 100 | 0.042 / 0.037 | 0.156 / 0.139 | 103 / 100 | none |
+| 250 | 0.047 / 0.040 | 0.147 / 0.139 | 206 / 204 | 0.6% |
+
+Turning-over baseline first, Weibull second. **The estimates are flat over a sixtyfold range** -- no trend in either column, every difference inside the replicate spread. And `loo()` works throughout: the Pareto-k diagnostics stay clean to 100 bins and are barely troubled at 250.
+
+So the earlier framing was too pessimistic. The loo failure is not a consequence of "many bins": it appears only at *one bin per event*, where `coxph(precision = 1)` had 674 effective parameters for 500 observations and 56% bad k. Between nine bins and two hundred and fifty there is no penalty at all. The bin count is a regularization dial with a wide flat optimum, and the default sits in the middle of it.
+
+**Which settles the design.** One family, `ph()`. `num_bins` is demoted to an advanced argument documented as being for checking the insensitivity rather than for tuning -- the caller never chooses it, and it provably does not matter. `coxph()` is gone: it offered no accuracy, and its one distinguishing feature, a grid-free baseline, is exactly what breaks `loo()`. The Gamma-process work is recorded above in case a grid-free version is ever wanted for its own sake.
+
+A test now pins the insensitivity, so the claim cannot rot.
+
+**Re-measured later, on the truths used in `vignette("survival")`** (700 observations, three replicates, default 9 bins), the plateau is narrower than this table suggests: flat from 4 to 100 bins, then a consistent ~20% rise at 250 in both truths and in both `S(t|x)` and `r(x)`, with `bad_k` reaching 1.3%. The replicate spread there is 0.009 and 0.005, so the 250-bin degradation is about 1.3 to 1.6 standard errors -- marginal individually, but it appears in both truths and both metrics, which is what makes it real rather than noise. The design conclusion does not move: the default sits near the bottom of a twenty-five-fold plateau. But "flat over a sixtyfold range" was too strong, and the vignette says "flat from 4 to 100, with over-parameterization visible at 250" instead.
+
+## A survival vignette, and the comparison behind it
+
+The survival section of `vignettes/families.Rmd` had grown to 151 lines -- five families, four embedded results tables, the discrete-time route, and three cautions -- inside a document whose stated purpose is to help a reader make a practical choice rather than to survey the modeling space. It was split out.
+
+`vignettes/survival.Rmd` now holds the long version and `families.Rmd` keeps 43 lines: the table of five families with what each one's predictor means, one fit, `type = "survival"`, a four-line decision rule, and a pointer. Every results table moved.
+
+**The comparison is new work, not a transcription.** Six data-generating truths crossed with the five families plus the discrete-time route, five replicates, 700 training and 700 held-out observations, 50 trees and 500 draws after 500 warmup -- and a censoring sweep from none to 70% on the truth where the families disagree most. Reproducible from `_dev/survival-sim.R`, `_dev/survival-bins.R` and `_dev/survival-results.R`; the last writes `vignettes/survival-results.rds`, which the vignette reads so that it builds without refitting. Figures use ggplot2, which was already in Suggests but had not been used in a vignette.
+
+Two things the comparison established that were not known before.
+
+**The log score can be made comparable across all five families.** The earlier vignette said it could not: the accelerated failure time families report the density of \eqn{\log T} and `ph()` the density of \eqn{T}, so the two differ by \eqn{\sum \log t}. But censored observations contribute \eqn{S(t)}, which carries no measure at all, so the correction is `-sum(status * log(time))` -- events only. Applied, `weibull_aft()` and `ph()` score within a few points of each other on a Weibull truth instead of hundreds apart, which is the check that the correction is right rather than merely plausible. The vignette now gives the correction as a function rather than telling the reader to avoid the comparison.
+
+**The families disagree far more about the density than about the ordering.** Across every proportional-hazards and accelerated failure time truth, all five recover the ordering of subjects by survival nearly perfectly whether or not they have the shape right; the differences are concentrated in \eqn{S(t \mid x)} and the log score. The one exception is the crossing-hazards truth, where the ordering itself moves with time. So the choice of family matters for an absolute probability at a horizon and barely matters for a comparative question -- which is worth telling a reader before they agonize over it.
+
+The rest confirmed what was already recorded: `ph()` wins when the baseline turns over, `dpm_aft()` wins by a wide margin on a bimodal error and costs nothing when a single normal is right, and the discrete-time route is the only option that copes with crossing curves while being a slower and slightly worse `ph()` under proportionality.
+
+**One trap re-encountered.** A verification fit written as `Surv(time, status) ~ .` put `time` itself in as a predictor, and `dpm_aft()`'s reported `error_sd` came back at 0.021 against a truth of 0.7 -- which read as a scale bug in a family written by another agent. It was the formula. With the predictors named, `error_sd` recovers 0.716 uncensored and 0.684 at 27% censoring. This is the third time the `~ .` trap has cost a measurement in this project; the first draft of the new vignette had the same formula in four chunks and it was fixed there too.
+
+## Renamed to bartisan
+
+`genbart` became `bartisan` throughout: package, function, C++ namespace, documentation topics, file names, the repository directory. The fitted object's class is `bartisan_fit` rather than `bartisan`, which is the one part of the rename that is not a substitution.
+
+**Order mattered, and getting it wrong would have been quiet.** `"genbart"` appears as a string in two different roles: as the class (`inherits(x, "genbart")`, `class(out) <- "genbart"`, `expect_s3_class(fit, "genbart")`) and as the package (`vignette("genbart")`, `asNamespace("genbart")`, `test_check("genbart")`, `future.packages`). Those go to different targets. So the class pass ran first, with context-anchored patterns, and only then the global `genbart` -> `bartisan` sweep, by which point no class usage was left to catch.
+
+The S3 method suffixes needed the same care. The pattern is `\.genbart\b`, where the word boundary does not match before an underscore, so `predict.genbart` is renamed while the Rcpp entry points `.genbart_fit`, `.genbart_predict` and the rest are left for the global pass. A naive `.genbart` -> `.bartisan_fit` would have produced `.bartisan_fit_fit`.
+
+Totals: 9 files in the class pass, then 92 files and 1504 occurrences in the global pass, then eight file renames through `git mv` so the history follows.
+
+**Alignment had to be repaired, and needed three attempts.** `genbart` is seven characters and `bartisan` is eight, so every continuation line aligned to a paren on a renamed call sat one space short. The first attempt aligned to the *last* open paren on the line rather than the outermost unclosed one, which fixed inner arguments and left outer ones wrong. The second fixed the outer ones and thereby broke the inner ones again, because each shift moves the next nesting level. Iterating to a fixed point converged after one further sweep, 356 lines in total. Only lines exactly one space short were touched, which is the fingerprint of the rename rather than of hand layout, and a scan afterwards found none left.
+
+**The directory move needed the sandbox off**, since renaming a folder writes to its parent, and `.Rprofile` needed it too, being a protected startup file. Note that after the move every write to the tree needs it, because the sandbox's writable root is pinned to the path the session started in. `.git` moved with the tree, the branch and history are intact, and its extended attributes are unchanged: it still carries no `com.dropbox.ignored`, which is correct and was left alone.
+
+A snapshot of the tree went to the session scratchpad before any of this, since 82 files of uncommitted work were at stake and nothing here was committed.
+
+Verified after the move: 1358 tests pass, `R CMD check` reports `Status: OK`, all nine vignettes rebuild, `bartisan:::.bartisan_optimized()` is `TRUE`, and no file outside `.git` contains the string `genbart`.
+
+## The `. + external` formula warning, and the ACIC evidence for the propensity score
+
+**The warning.** `bartisan(bwt ~ . + ps, data = d)` with `ps` living in the calling environment emits `'varlist' has changed (from nvar=9) to new 10 after EncodeVars() -- should no longer happen!`. It comes from base R's `terms.formula`, not from this package: `glm()` emits it identically on the same formula.
+
+Isolated the trigger, which is narrower than it first looks. It is specifically `.` combined with a term that is not in `data`:
+
+| formula | data | result |
+|---|---|---|
+| `y ~ . + ps` | `ps` in the environment | **warns** |
+| `y ~ .` | `ps` a column of `data` | no warning |
+| `y ~ a + b + ps` | `ps` in the environment | no warning |
+| `y ~ .` | no extra term | no warning |
+
+So `.` expands against `data`, the extra term is appended afterwards, the variable count changes, and R's C-level `EncodeVars` notices. Writing the formula out avoids it, and so does putting the variable in the data frame, which is what the vignette now does: `d$ps <- ps` and then `bwt ~ .`. One line, keeps the `.`, no warning, and the score is visibly part of the analysis dataset.
+
+Deliberately not fixed inside the package. bartisan calls `terms()` the way `glm()` does, and matching `glm()`'s formula handling is a feature; pre-expanding the dot ourselves would duplicate base behaviour and risk diverging from it, to suppress a cosmetic warning that base R also emits for every other modelling function.
+
+**The regularization-induced confounding section now leads with evidence rather than with absent functionality.** It previously named Bayesian causal forests and pointed at `bcf` and `stochtree`, which reads as an apology. It now keeps @hahn2020 for the mechanism, since that is his contribution, and reports what the 2016 Atlantic Causal Inference Competition found: @dorie2019 for the competition, and @carnegie2019, who decomposed which features of a BART fit mattered.
+
+Read the Carnegie comment rather than citing it from the abstract, which changed what I wrote. Bias was small for every BART variant and including the propensity score cut average absolute bias by about a tenth, so on bias it is a refinement rather than a rescue. The differences showed in interval coverage: base BART covered at 83.4%, and the best combination without targeted learning, ten chains plus symmetric intervals plus the propensity score, reached 91.9%. Running several chains contributed alongside the score, which is a second reason for the `chains = 4` the vignettes already use. Carnegie also notes that ignorability and overlap held by construction in every competition dataset, so the value of modelling treatment assignment is plausibly larger when they are strained, which is exactly the case the section is about; that caveat is carried over.
+
+**Two smaller fixes to the maintainer's edits.** An inline expression used `ac <- .Last.value` to pull the interval bounds into the prose; `.Last.value` is not set inside a knitr chunk, so the object was not the estimand and `abs()` failed on it. The result is now assigned in the chunk and referenced, which achieves the intent, and `conf.hi` was corrected to `conf.high`. Separately, removing the per-fit seeds shifted every number, and one prose claim landed on a knife edge: the third subgroup interval now ends at exactly 0.000, which made "two of the three intervals exclude zero" both awkward and fragile. That sentence no longer depends on the pattern.
+
+## The causal vignette, revised
+
+Six changes on the maintainer's instruction, most of them correcting things I had got wrong rather than matters of taste.
+
+**The propensity score is now fitted with `bartisan()`** rather than `glm()`, which is the obvious thing given what the vignette is about, and it changes the picture: the BART score spans 0.13 to 0.78 where the logistic one spanned 0.03 to 0.97. The extreme logistic values are the artefacts a saturated parametric model produces when a covariate pattern happens to be perfectly predictive, and they make a positivity assessment look worse than it is. Overlap is plotted with `cobalt::bal.plot()`, added to Suggests. The working call passes the score as `distance = data.frame(prop.score = ps)`; `var.name = "prop.score"` with the score supplied separately is rejected.
+
+**The weighted analysis is removed.** Two reasons, both mine to have caught. Propensity weights are not frequency weights, and a bartisan fit treats prior weights as though they were, so it is not established that a posterior interval from a weighted fit has the coverage a weighted estimator needs. Until that is settled the intervals should not be reported as they stand. Separately, and independently of the package, **g-computation for the ATE should not pass weights to `avg_comparisons()`**: the averaging that turns individual contrasts into an average effect is over the target population's covariate distribution, which for the ATE is the sample as observed, so weighting it again applies the reweighting twice. My original version did exactly that. Both points are now stated in a short section rather than demonstrated.
+
+**The outcome family is `dpm()`, not `gaussian()`.** It estimates the error's shape instead of assuming it, costs almost nothing when a normal would have done, and is the default for a numeric outcome anyway, so using `gaussian()` here was a step backwards from what the package does on its own.
+
+**Added: the potential outcomes** through `avg_predictions(fit, variables = "smoke")`, which reports \eqn{E[Y(0)]} and \eqn{E[Y(1)]} at 3072 and 2773 grams. Their difference is the ATE reported in the next section, and showing both is more informative than the difference alone.
+
+**Added: a moderation analysis.** `by = "race"` gives three subgroup effects (-342, -306, -245) of which two intervals exclude zero and one does not, which is exactly the pattern people misread as moderation. `hypothesis = ~pairwise` gives the three differences, all with intervals covering zero comfortably. The vignette says plainly that comparing whether one interval excludes zero and another does not is not a test, and that these should be read as three noisy estimates of one effect. Note that `hypothesis = "pairwise"` as a string is rejected by the current marginaleffects; the formula form is required.
+
+## The debug build did not link, and -O2 had been hiding it
+
+Reported from RStudio: after `pkgbuild::clean_dll()`, loading the package failed with `symbol not found in flat namespace '__ZN7bartisan27OrdinalLogitAugmentedFamily9OMEGA_MINE'`, plus an unused-variable warning in `model.cpp`.
+
+**Three things had to line up, which is why it stayed hidden.**
+
+1. `OrdinalLogitAugmentedFamily::OMEGA_MIN` and the matching member of `LoglogisticAFTAugmentedFamily` are `static constexpr double`. Such a member is implicitly `inline`, and so needs no out-of-line definition, only from C++17 onward.
+2. The package declared no `CXX_STD` and `R CMD config CXX` emits no `-std=` flag, so the compiler's own default applied. On this toolchain that is C++14: `clang++ -dM -E -x c++ /dev/null` reports `__cplusplus 201402L`.
+3. `std::max()` takes both arguments by const reference, so `std::max(rpg(...), OMEGA_MIN)` binds the member to a reference. That is an ODR-use and needs the symbol.
+
+`R CMD INSTALL` builds at `-O2`, where the constant is folded into the instruction stream and no reference is emitted, so the missing definition never mattered. `pkgbuild::compile_dll()` uses `-UNDEBUG -Wall -pedantic -g -O0`, where it does.
+
+Reproduced in isolation before changing anything, which is what pinned all three factors at once:
+
+| standard | -O0 | -O2 |
+|---|---|---|
+| gnu++11 | **1 undefined** | 0 |
+| gnu++14 | **1 undefined** | 0 |
+| gnu++17 | 0 | 0 |
+
+**Fixed twice over.** `src/Makevars` now sets `CXX_STD = CXX17`, which is the honest declaration: the code already relies on C++17. And both call sites were rewritten as `drawn < OMEGA_MIN ? OMEGA_MIN : drawn`, which is what `std::max` is defined to compute, so the results are unchanged while nothing binds a reference. The second change means the package links under any standard, not just the one now declared.
+
+Checked afterwards that no other `static constexpr` member is at risk: `WEIGHT_TOL`, `PROBIT_DIRECT`, `TAB_N` and `TAB_L` all appear only in arithmetic and comparison, which are lvalue-to-rvalue conversions rather than ODR-uses. That matches the single missing symbol in the report.
+
+`model.cpp`'s `total_trees` was genuinely dead, left by the refactor that split reported forests from engine forests; the identically named variable 300 lines later is a different function and is used. A clean `-Wall -pedantic -O0` build now emits zero warnings.
+
+**Incidental correction.** With this fixed, `R CMD check` outside the agent sandbox reports `Status: OK`: no warnings, no notes. The `OMP: Warning #179` line reported in every earlier entry, and an `nm` cache-file NOTE, are both artifacts of the sandbox denying writes to `TMPDIR`, not properties of the package.
+
+## The remaining five workflow vignettes, and what writing them found
+
+`effects`, `importance`, `diagnostics`, `comparison` and `causal` written, completing the series. All use the same birth weight data as `workflow`, so a reader is never learning a new dataset and a new idea at once, and each ends by pointing at the next.
+
+**One bug, found the same way as the last one: by running the documented workflow on real data.** `marginaleffects::predictions(fit, newdata = )` returned the wrong number of rows -- covered in the previous entry. Nothing new surfaced in the five vignettes themselves beyond the two items below, which were investigated and left alone deliberately.
+
+**`avg_slopes()` looked like a bug and is not.** On the birth weight fit it reports several hundred grams per pound where a one-unit comparison gives about 2.5. The cause is `x_transform = "quantile"`, the default: the transform is the predictor's empirical distribution function, so the fitted function is piecewise constant in the original scale and a difference quotient is either zero or a whole step over a tiny denominator. Measured directly, perturbing `lwt` by 0.0001, 0.01 or 0.1 changes the prediction by exactly nothing; only at 1, the integer spacing, does it move. With `x_transform = "range"` the derivative is stable across step sizes (3.51, 3.51, 3.48) and `avg_slopes()` agrees with `avg_comparisons()` to two decimals.
+
+I built a guard that raised an error from `get_predict()` and then removed it, for two reasons. The behaviour is already documented at `?bartisan-marginaleffects` and pinned by a test that asserts exactly this inflation, so it was a deliberate decision rather than an oversight, and overriding it unilaterally was wrong. And the guard could not be softened into a warning: marginaleffects swallows warnings raised inside `get_predict()`, so only an error is deliverable, which is too blunt for documented behaviour. The caution now lives in `vignette("effects")`, where a reader meets the function.
+
+Two notes from building the guard, in case it is ever revisited. The call can be identified reliably: `avg_slopes()` puts `slopes` in the call stack and passes `internal_call` in the dots, while `comparisons()` and `predictions()` do neither. And match the function name exactly rather than searching the stack for the word, because a helper named `stop_if_slopes` matches its own frame, which cost a debugging cycle.
+
+**Content worth keeping across the series.** The correlated-predictor demonstration in `importance` is the sharpest: two nearly identical columns, only one in the truth, and the forest gives the copy `prop_used` 1.00 and 75 splits while the real variable gets 0.096 and 0.1 splits. `avg_comparisons()` follows the usage, attributing 1.42 to the copy and 0.00 to the original. Moving both together recovers the true 1.5. So the model has the relationship and cannot say which column owns it, which is the honest statement of what importance can and cannot support.
+
+The `comparison` vignette's family comparison came out as a negative result and is reported as one: `gaussian()`, `location_scale()` and `dpm()` on the same predictors land within 1.5 elpd of each other with standard errors around 1, and loo flags the differences as indistinguishable. The plain family is adequate here, which is the outcome that makes the flexible ones safe to try.
+
+## The bartisan vignette as the theory document, and two measurements behind it
+
+`vignette("bartisan")` rewritten. It had been a family-by-family tour that `families` now covers, opening with a first-model walkthrough that `workflow` now does better, and it contained no mathematical statement of the model at all. It is now the reference document: the sum-of-trees model and its generalization to an arbitrary density, the three parts of the prior, soft rules, sparsity, then backfitting, the reversible-jump tree moves, the Laplace approximation, the three target shapes, augmentation, nuisance parameters and the Dirichlet process mixture. References added to `references.bib` from Zotero: Hill (2011), Hill, Linero and Murray (2020), Hahn, Murray and Carvalho (2020), Murray (2021).
+
+**The sparsity claim I made earlier was wrong.** `sparsity = TRUE` is and was the default; the comparison that produced the claim had changed `num_trees` at the same time and I attributed the difference to the wrong argument. `vignette("workflow")` has been corrected.
+
+**Measured properly, on the Friedman function with five real predictors and five noise ones, three replicates at n = 500, mean `prop_used` for the noise:**
+
+| Trees | `sparsity = FALSE` | `sparsity = TRUE` |
+|---|---|---|
+| 10 | 0.28 | 0.09 |
+| 20 | 0.50 | 0.08 |
+| 50 | 0.95 | 0.09 |
+| 100 | 1.00 | 0.14 |
+
+The real predictors sit at 1.00 in every cell. So the prior works, and it works at every tree count. The "use fewer trees for variable importance" advice comes from @chipman2010 itself, verified in the paper: counting splits "is less effective when m is large because the redundancy offered by so many trees tends to mix many irrelevant predictors in with the relevant ones". The `sparsity = FALSE` column reproduces that exactly. The DART prior addresses the same problem directly, so the advice is a workaround for its absence rather than a general property of variable selection. Their own conclusion anticipates this: "Prior specifications for variable selection via BART are part of our ongoing research."
+
+On `birthwt` nothing separates even with sparsity on, and five added pure-noise columns interleave with the real predictors at 0.76 to 0.92. That is n = 189 with a weak signal, not a failure of the prior: there is nothing for it to concentrate on.
+
+**The `eta` row of `fit$rhat` is not a convergence problem, and more draws makes it worse.** Sweeping the draw count on the Friedman function at n = 400, four chains: 500 draws gives eta rhat 1.29, 2000 gives 1.33, 5000 gives 1.37, with ESS around 10 throughout, while `sigma` sits at 1.03 in all three. The per-observation distribution is elevated as a whole (median 1.09, 79% above 1.05), so it is not merely the maximum being an extreme-value statistic.
+
+Checked against `dbarts` on identical data, which is **worse**: median per-observation rhat 1.22, 90th percentile 1.46, maximum 1.87, and 99% above 1.05, against bartisan's median 1.09 and maximum 1.29. So slow mixing of the fitted values is a property of BART samplers rather than of this one, and bartisan is the better of the two here. The vignette says so without naming the comparison; the measurement is recorded here.
+
+Worth considering for the `rhat` table: reporting a quantile of the per-observation values, or the proportion above a threshold, alongside the maximum. A single worst-case number over hundreds of observations reads as alarming and is not actionable.
+
+## The getting-started vignette, and the marginaleffects bug it uncovered
+
+`vignette("workflow")` written as the "Getting started" entry point: one complete analysis of `MASS::birthwt`, every step a single call at the defaults. Deliberately shallow, with a pointer at the end of each section to the vignette that goes deeper.
+
+**Writing it found a real bug, which is the argument for writing vignettes against real data.** `marginaleffects::predictions(fit, newdata = )` returned the wrong number of rows whenever `newdata` was not the whole training frame: 1 row in gave 25 out, 3 gave 5, 10 gave 12. `lm` on the same data was correct, so it was ours.
+
+Tracing what `get_predict.bartisan()` actually received showed marginaleffects passing five rows for a three-row request, the first two carrying `rowid = -1`. Those are marginaleffects' own scratch rows, and it drops them again by that marker after the predictions come back. `get_predict.bartisan()` was rebuilding the column as `seq_len(ncol(draws))`, which overwrote the markers with 1 and 2, so nothing was dropped and the scratch rows landed in the output. Carrying `newdata$rowid` through when it exists is the whole fix.
+
+The effect estimates in the vignette moved by about 10% once this was corrected (smoking went from -277 to -292 grams), so every `avg_comparisons()` number produced before this was mildly wrong. It never showed up in the test suite because the existing marginaleffects tests all used the default `newdata`, which is the one case that worked.
+
+**Two smaller findings, recorded rather than acted on:**
+
+- `fit$rhat` is `NULL` with the default `chains = 1`, so a caller who never sets `chains` gets no convergence diagnostics at all and no indication that any exist. The vignette uses `chains = 4` and explains why. Worth considering whether the default should be higher, as it is in most Bayesian packages.
+- `variable_importance()` on a default fit is close to uninformative: every predictor sits between 0.92 and 1.00 on `prop_used`, because without `sparsity = TRUE` nothing is ever excluded. The separation only appears with sparsity on. Worth considering whether `sparsity` should default to `TRUE`, or whether `variable_importance()` should say so when it is off.
+
+**Overlap created.** `vignette("bartisan")` still opens with "What this package is for" and "A first model", which `workflow` now does better, and its middle is a family-by-family tour that `families` now covers. Its genuinely distinctive material is the mechanics: soft rules, missing values, the conditional density, chains and speed. It has no mathematical statement of the model at all. Reorganizing it into the theory document is the natural next step and has not been done.
+
+## `weibull_aft()`: 15% for free, and why the rest needs a decision
+
+Profiled the same way as `dpm_aft()`, and the answer was the opposite: 99.6% of the fit is in `.Call`, so this one is genuinely the sampler.
+
+Sampling the process put `bartisan::Family::score_info_unit` -- the *base class* fallback -- at the top of the family functions. Two findings behind it:
+
+1. `AFTFamily` was declared `: Family`, not `: Concrete<AFTFamily>`, so it ran the generic accumulate loops at four non-inlinable virtual calls per observation. It was the only remaining survival family not using the CRTP path: the two augmented AFT families and `PHFamily` all do.
+2. It did not override `score_info_unit`, so the score and the information came from two separate virtual calls, each forming `r` and the exponential again.
+
+Fixed both -- `Concrete<AFTFamily>` plus a fused `score_info_unit` writing the same expressions in the same order, so the results are bit-identical. Checked that nothing derives from `AFTFamily` first, since making a class `Concrete` statically binds the accumulate loops to it (the `DPMAFTFamily : DPMFamily` case is the one place that pattern already appears and is safe only because it overrides no unit function).
+
+**9.68 -> 8.19 seconds.** Only 15%, so the virtual dispatch was not the story.
+
+The rest is the exponential-form Laplace machinery itself, and that is inherent rather than a defect: `poisson()`, which takes the same `TARGET_EXP_UP` path on comparable data, costs 3.6 seconds against `gaussian()`'s 1.17 -- a 3x penalty for the iterative mode-finding over the closed-form quadratic draw. Cost depends only weakly on `sigma` (8.87 at 0.25, 8.18 at 1.0), so the rate being `-1/sigma` rather than `+-1` is not a lever either.
+
+**What would actually fix it, and why it was not done.** The Weibull AFT error is exactly `log(E)` with `E ~ Exp(1)`, and the standard route to conditional Gaussianity for that is the Frühwirth-Schnatter finite mixture-of-normals approximation to the log-exponential density -- the same device used for Poisson regression. It would plausibly bring the family to roughly `lognormal_aft()`'s ~1.1 seconds. But it is an **approximation**, and every other augmentation in this package is exact; adopting it would weaken a claim the package currently makes cleanly. That is a design decision for the maintainer, not a bug fix, and it is no longer urgent now that `weibull_aft()` is not the default. Recorded rather than implemented.
+
+## The `Surv` default moved to `dpm_aft()`
+
+Once the speedup below landed, `dpm_aft()` was the second-cheapest survival family and the most accurate on average, so it replaced `weibull_aft()` as the family inferred from a `Surv` response.
+
+Evidence: best or tied-best on four of six truths, never worse than third, and level with the correctly specified family on the two truths where one existed; 2.8 seconds against `weibull_aft()`'s 9.7.
+
+**The cost of the change is interpretive, not statistical.** The reported predictor changes meaning -- `weibull_aft()`'s is a log time ratio, `dpm_aft()`'s is \eqn{E[\log T \mid x]}, which is a time ratio only if the error is symmetric, which is the assumption the family exists to avoid. `type = "survival"` and `type = "response"` are unaffected, being on the same scale for every survival family.
+
+The maintainer was asked whether to flag that estimand change at fit time and chose not to, after the trade-off was put to them. The standard inferred-family message was kept -- it is uniform across every response type and names the family chosen, so removing it for `Surv` alone would have made survival the one response type that changes model silently. No *extra* estimand warning was added. The distinction is documented in `?bartisan`, both vignettes, and NEWS instead.
+
+One consequence needed handling: `dpm_aft()` cannot take prior weights, so `default_family()`'s existing weights guard, which covered `dpm()`, was extended to cover it, with a message naming the three `*_aft()` families and `ph()` as the weighted alternatives.
+
+Fixed in passing: `README.Rmd` still described the numeric default as `dpm()` "with ten or more distinct values" and `gaussian()` below that. That threshold was removed some time ago -- every numeric response gets `dpm()` -- so the README had been wrong about it independently of this change.
+
+## `dpm_aft()` was ten times slower than it needed to be, and the sampler was not why
+
+Reported as too slow to be a default: 13.3 seconds against `lognormal_aft()`'s 1.2 on 700 observations, 50 trees, 500 draws after 500 warmup.
+
+**The localization mattered more than the fix.** Four measurements, each cheap, narrowed it without guessing:
+
+1. `dpm()` against `gaussian()` on the same log-times: 1.29 against 0.93. The Dirichlet process mixture costs 0.36 seconds. So the mixture machinery is not it.
+2. `dpm_aft()` against `dpm()` on *identical uncensored data*, fitting the same model: 12.3 against 1.24, with near-identical fitted mixtures (28.4 against 25.7 clusters). A 9.9x gap that nothing about the model explains.
+3. Censoring swept 0 to 60%: 12.4, 8.1, 7.5, 7.2 seconds. **More censoring is faster**, so the truncated-normal imputation is not it either -- and that sampler is inversion-based, not rejection-based, so it was never a candidate.
+4. Tree count swept 1, 5, 50: 7.65, 6.71, 7.22 seconds -- **flat**, where `dpm()` scaled 0.17 to 0.75. A fixed per-sweep cost, not the tree loop.
+
+`sample(1)` on the running process then put 40% of the main thread in `Rf_pnorm5`, reached through `math3_2` in `stats.so` and `R_doDotCall` -- that is R's *vectorized* `pnorm`, called from R code, not from `bartisan.so` at all. `Rprof` finished it: `stats::pnorm` 66% self time, `dpm_survival` 83% total, `.Call` 11%.
+
+**The defect.** `response_scale()`'s `dpm_aft` branch finds the median survival time by bisecting the mixture's survival function, 60 steps per draw. It initialized `lo <- rep.int(-30, ncol(e))` and `hi <- rep.int(30, ncol(e))` -- one entry per observation -- and called `dpm_survival(object, s, mid)` on that vector. But `dpm_survival()` is a function of the error value alone: the median is a property of the error distribution that every observation shares, and only the shift `e[s, ]` differs between them. Every entry of that length-700 vector computed the same number. 500 draws x 60 steps x 28 components x 700 observations is 588 million `pnorm` evaluations to produce 500 scalars.
+
+Bisecting a scalar and adding it to the row: 13.3 -> 2.27 seconds. Hoisting `mixture_at()` out of the bisection, which was rebuilding the component matrix on all sixty steps of each draw: 2.27 -> 2.17. `dpm_survival()` took an optional `components` argument for the second.
+
+**Both are pure redundancy removal.** The fitted values are bit-identical -- checked by running the old algorithm verbatim against the new `predict()` output, max absolute difference exactly 0.
+
+**What this says about the model.** The sampler was never slow. `DPMAFTFamily` inherits `DPMFamily`'s `TARGET_QUADRATIC`, because conditional on the component labels and the imputed log-times the model is exactly Gaussian -- the same fast path `lognormal_aft()` reaches by augmentation. Its C++ time is 0.9 seconds against `lognormal_aft()`'s ~1.1. **So there was nothing to augment and nothing a warm start would have helped**: burn-in length was not the constraint, and the two obvious "make the model cheaper" routes would both have been wasted work. Standing order that this vindicates: measure where the time is before designing a speedup.
+
+Final standing, 700 observations at the package defaults: `lognormal_aft()` 1.10, `loglogistic_aft()` 1.23, `dpm_aft()` 2.79, discrete-time probit 6.26, `ph()` 6.53, `weibull_aft()` 9.68. The most flexible family is the second cheapest, and the *default* for a `Surv` response is the most expensive.
+
+## A note on working alongside concurrent edits
+
+Partway through this the tree turned out to contain a `dpm_aft()` family and a roxygen note about the density measure differing across the survival families, neither of which came from this session. The maintainer had implemented the Henderson et al. (2020) model recorded as a To Do above while this work was in progress.
+
+Nothing was lost -- `DPMAFTFamily` sits well after where `CoxPHFamily` was, so removing the latter by locating its banner comments did not touch it, and it still resolves and fits. But the near miss is the lesson: a removal that finds its target by index between two markers is only as safe as the assumption that nothing has moved. Checking for unexpected identifiers before a sweeping edit, rather than after, is the cheap version of that check.
 
 ## Design decisions
 
@@ -142,7 +757,7 @@ Worth stating first, because every number below would have been wrong without th
 | probit soft, augmented | 37.6 s | 37.5 s | 2.40 s |
 | probit hard, augmented | 16.6 s | 16.5 s | 0.75 s |
 
-It is now *detected* rather than remembered. `__OPTIMIZE__` is defined by the compiler when it is optimizing, so `genbart:::.genbart_optimized()` reports the truth about the loaded library, `genbart()` warns once per session when the answer is no, and `_dev/benchmark.Rmd` refuses to run at all. The project `.Rprofile` sets `options(pkg.build_extra_flags = FALSE)` so `load_all()` produces an optimized library in the first place.
+It is now *detected* rather than remembered. `__OPTIMIZE__` is defined by the compiler when it is optimizing, so `bartisan:::.bartisan_optimized()` reports the truth about the loaded library, `bartisan()` warns once per session when the answer is no, and `_dev/benchmark.Rmd` refuses to run at all. The project `.Rprofile` sets `options(pkg.build_extra_flags = FALSE)` so `load_all()` produces an optimized library in the first place.
 
 **Stale object files.** `roxygenize()` leaves `-O0` objects behind and a subsequent `R CMD INSTALL` sees them as up to date. Any timing claim must come from a clean build; `devtools::test()` is enough to contaminate them again.
 
@@ -254,6 +869,375 @@ Checked against the density before building on it: Monte Carlo of `(1/4) E[exp(-
 **Correctness was checked on the reported likelihood, not on timings.** For each augmented family the reported log likelihood is compared against the original model's, computed by hand in R — `dbinom` with trial counts, `dnbinom`, the multinomial from its own fitted probabilities, the ordinal from its cutpoints — and agrees to 1e-8 or better. That is the sharp test: the sampler's target is the augmented density, so anything wrong in the rewriting shows up as a likelihood on the wrong scale.
 
 One diagnostic trap: comparing the augmented and direct multinomial samplers on `eta` gave a correlation of 0.898, which looks like a bug. It is not. The symmetric coding is unidentified, so `eta` includes a direction pinned only by the prior, and two chains need not agree on it. Comparing identified quantities — fitted probabilities — gives 0.995 at 1500 draws and 0.997 at 5000. **Always compare identified quantities.**
+
+### DPMBART: a Dirichlet process mixture for the error distribution
+
+BART assumes i.i.d. normal errors, and that assumption does most of the work in
+its uncertainty quantification. `dpm()` drops it, following George, Laud, Logan,
+McCulloch and Sparapani (2019): each observation gets its own error mean and
+variance drawn from a Dirichlet process, so the error distribution is whatever
+mixture of normals the data ask for.
+
+**It is cheap because the target does not change.** Conditional on the mixture the
+log density is `-(y_i - mu_i - eta)^2 / (2 sigma_i^2)` -- still exactly quadratic
+in the predictor, so `TARGET_QUADRATIC`, the closed-form leaf draw, and no
+Laplace approximation. The only cost over a Gaussian fit is the mixture update:
+1.7 s against 1.3 s at n = 1000, 50 trees, 500 + 500 draws. The paper reports the
+total roughly doubling; here it is about 1.3x, because the Gaussian baseline this
+is measured against is itself faster than theirs.
+
+The baseline `G_0` is the conjugate normal-inverse-chi-square rather than this
+package's half-Cauchy, and it has to be: the Escobar and West draws that make the
+mixture update a few lines *are* the closed forms conjugacy provides. Everything
+in it is calibrated off a linear fit the way BART calibrates its own scale prior
+-- `nu = 10` and `q = 0.95` (tighter than BART's 3 and 0.90, because the mixture
+covers small errors with extra components rather than with one component's left
+tail), and `k_0` set so the marginal of a component mean reaches the largest
+residual at `k_s = 10` of its own scale units. The concentration gets Rossi's
+tapered prior, and is drawn on a grid: `P(I = k | alpha)` is proportional to
+`alpha^k Gamma(alpha) / Gamma(alpha + n)` times a Stirling number that does not
+involve `alpha` and so cancels, which makes the grid update exact rather than
+approximate.
+
+**The mixture is reported the way the trees are.** Its component count changes
+every draw, so it goes into a flat vector with one offset per draw --
+`mixture_flat` and `mixture_start`, next to `forest_flat` and `tree_start` --
+rather than into a matrix. `combine_chains()` grew a shared helper for
+concatenating that shape, which the forests now use too.
+
+**The likelihood is the mixture's own predictive**, occupied components weighted
+by their sizes plus the Dirichlet process's chance of opening a new one, whose
+kernel is the baseline's marginal `t`. It is computed twice -- in C++ for
+`fit$loglik`, and in R from the stored components for
+`predict(type = "density")` -- and the two agree to 4.5e-13, which is the check
+that the stored components really are the ones the sampler used.
+
+#### Only the sum of the fit and the error mean is identified
+
+Nothing forces the mixture to be centred, so `f` and `E[e]` are individually
+unidentified. Measured on a heavy-tailed example at n = 500: the level of the
+predictor and the error mean had standard deviations of 0.750 and 0.751 across
+draws with a correlation of **-0.987**, while their sum had a standard deviation
+of **0.122** -- six times smaller. The bias of `type = "response"` (the sum) was
+-0.003 against 0.144 for `type = "link"` (the trees alone).
+
+So `type = "response"` is the conditional mean and the thing to compare against a
+truth or across families, and `type = "link"` carries the drift. Documented, and
+the benchmark below uses the response scale for every family so the comparison is
+of like with like.
+
+#### Measured against gaussian and heteroskedastic gaussian
+
+The paper's three error distributions plus a heteroskedastic one, which is the
+case `location_scale()` exists for. n = 1000 train and test, `f(x) = 10x^3`,
+50 trees, 500 + 500 draws, two replicates. RMSE, coverage and width are for the
+regression function on the training data; the score is the held-out predictive
+log density.
+
+| errors | family | seconds | RMSE | coverage | width | score |
+|---|---|---|---|---|---|---|
+| normal | `gaussian()` | 1.3 | 0.263 | 0.949 | 0.988 | **-2097** |
+| | `location_scale()` | 12.2 | 0.255 | 0.958 | 0.973 | -2100 |
+| | `dpm()` | 1.7 | 0.258 | 0.946 | 0.957 | **-2097** |
+| t3 | `gaussian()` | 1.3 | 0.264 | 1.000 | 1.301 | -2642 |
+| | `location_scale()` | 11.8 | 0.281 | 0.997 | 1.319 | -2607 |
+| | `dpm()` | 1.9 | **0.251** | 0.999 | **1.206** | **-2467** |
+| skewed | `gaussian()` | 1.3 | 0.277 | 0.983 | 1.587 | -2680 |
+| | `location_scale()` | 12.1 | 0.250 | 1.000 | 1.564 | -2680 |
+| | `dpm()` | 1.6 | **0.190** | 1.000 | **0.993** | **-2456** |
+| heteroskedastic | `gaussian()` | 1.3 | 0.284 | 0.921 | 0.831 | -1886 |
+| | `location_scale()` | 14.3 | **0.243** | 0.963 | 0.786 | **-1734** |
+| | `dpm()` | 1.7 | 0.303 | 0.925 | 0.779 | -1853 |
+
+Four readings.
+
+**It costs nothing when the errors are normal.** Identical score to `gaussian()`
+to four figures, and the same RMSE and coverage. That is the property the paper
+spends its prior specification on -- "the strengths of the standard BART approach
+is not lost when the errors are close to normal" -- and it holds.
+
+**It wins by a wide margin when the errors are heavy tailed or skewed.** 175 and
+224 log points of held-out score over `gaussian()`. On the skewed case it also
+cut the interval width for the regression function from 1.59 to 0.99 *while
+holding coverage*, and cut RMSE by a third. That is the paper's real point: BART's
+intervals under non-normal errors are not merely wide, they are the wrong shape.
+
+**It is not the family for heteroskedasticity, and the measurement says so
+plainly.** `location_scale()` wins that row by 119 log points and `dpm()` is
+worse than `gaussian()` on RMSE there. A mixture makes the error distribution
+flexible but keeps it the *same* distribution at every `x`. The two families
+answer different questions and the documentation now says which is which.
+
+**`location_scale()` costs about nine times a Gaussian fit** -- 12 to 14 seconds
+against 1.3 -- where `dpm()` costs 1.3x. That is two forests and a target that is
+not quadratic in the second one, against one forest and a mixture update. Worth
+knowing when choosing between them on a problem where either would do.
+
+### The family is inferred from the response when none is named
+
+`family` defaults to `NULL` and is read off the response: `Surv` or a two-column
+matrix of times and events gives `weibull_aft()`, an ordered factor `ordinal()`,
+a logical or a two-level factor or numeric zeros and ones `binomial()`, a factor
+with more than two levels `multinomial()`, and anything else `gaussian()`. A
+message says which was chosen, and naming `family` is what silences it -- the
+same action that changes it, so there is no second argument for the message.
+
+The family is now resolved *after* the model frame is built rather than before,
+because the response is not available until then. Nothing else moved.
+
+**Two rules are deliberately not what a reader might guess, and both are
+refusals to guess.** A count is not read as `poisson()`: a non-negative integer
+response is often Poisson and often not, and the Poisson variance assumption is
+strong enough that making it silently would be a modelling decision taken on the
+caller's behalf. Gaussian is the weaker guess and the one whose failure is easy
+to see. And a numeric response with two values that are not zero and one --
+`c(1, 2)` -- is Gaussian rather than binomial, because which value is the success
+is not something to infer.
+
+One thing this broke and how: `is_binary()` first read "at most two values, all
+in {0, 1}", which made a constant response of all ones a binomial with no
+failures. That turned an existing test's clear "no variation" error into a silent
+fit. It now reads "exactly two values", so a constant numeric response goes to
+Gaussian and complains, which is what a degenerate response should do whatever
+the family.
+
+### The zero-inflated families: two latent variables, 4 to 10x in ESS/s
+
+This was on the To Do list as "an exponential-form route for the zero-inflated
+families", and the framing was wrong in a useful way: what blocks them is a
+*mixture*, not a link, and the fix is one augmentation before the exponential
+form is even reachable.
+
+The zero contributes `log[pi + (1 - pi) P_0(mu)]` -- a log-sum-exp of the two
+components -- so neither predictor has a shape and `dlogdens_unit` for a zero
+costs several transcendentals on top of that. Introducing `z_i`, the indicator of
+whether observation i is a structural zero, separates them completely:
+
+- the **count** forest sees `prod over {z = 0}` of the count likelihood, which is
+  a plain Poisson (exponential form) or negative binomial;
+- the **inflation** forest sees a Bernoulli logistic likelihood in `z`, which is
+  the Polya-Gamma case already in the package, so its target is quadratic.
+
+`z` is drawn from its exact conditional: zero whenever `y > 0`, and for `y = 0`
+one with probability `pi / (pi + (1 - pi) P_0)`. It is redrawn before each forest
+rather than once a sweep, so each forest moves under the indicator the other has
+just been fitted with.
+
+For `zi_negbin()` a second augmentation goes on top: the non-structural
+observations get the Poisson-gamma rate, which turns their target from a general
+one into the exponential form. `z` is drawn with that rate integrated out and the
+rate redrawn immediately afterwards -- a partially collapsed Gibbs step in that
+order (Van Dyk and Park 2008), and better than conditioning `z` on a stale rate.
+`theta` is still drawn from the true zero-inflated likelihood. The rate of a
+structural zero is never drawn, because its observation's contribution to the
+count target is multiplied by `1 - z`.
+
+Measured at n = 500, p = 5, 50 trees, 500 + 500 draws, with ESS the median over
+observations of the effective sample size of the fitted mean:
+
+| | rules | speed | ESS | ESS/s | RMSE |
+|---|---|---|---|---|---|
+| `zi_poisson()` | hard | 7.1x | 1.42x | **10.1x** | 0.447 vs 0.501 |
+| `zi_poisson()` | soft | 4.6x | 0.85x | **3.9x** | 0.394 vs 0.387 |
+| `zi_negbin()` | hard | 9.4x | 0.84x | **7.9x** | 0.570 vs 0.648 |
+| `zi_negbin()` | soft | 5.9x | 0.98x | **5.8x** | 0.462 vs 0.562 |
+
+The gain is much larger than the "smaller than the multinomial's" this was
+predicted to be, and the reason is the direct family rather than the
+augmentation: the log-sum-exp made it the second most expensive target in the
+package after the ordinal probit's. Note that it pays under soft rules too, where
+the count forest gets no shape shortcut at all -- half the benefit is simply that
+a per-unit kernel of arithmetic replaced one of transcendentals.
+
+On by default for both kinds of rule.
+
+### The multinomial-Poisson transformation: implemented, measured, rejected
+
+The other half of that To Do item was Murray's (2021) route to the multinomial: a
+multinomial with total `n_i` and probabilities `softmax(eta_i)` is the conditional
+law of independent Poissons with rates `lambda_i exp(eta_ij)` given their sum, so
+introducing `lambda_i` with the scale-invariant prior `p(lambda) ∝ 1/lambda`
+makes the categories independent Poissons and every forest gets the exponential
+form. Integrating `lambda` back out returns the multinomial likelihood exactly,
+so it is an augmentation and not a reparameterization.
+
+**Two things recorded here were wrong.** First, this was described as "a larger
+change than the negative binomial's was" because it "changes the identification"
+-- that the extra Poisson total would loosen the symmetric and reference codings.
+It does not: `lambda` is integrated out exactly, so the marginal posterior of the
+predictors is the one the direct family targets and neither coding is disturbed.
+`lambda` is precisely the per-observation level the softmax already leaves free,
+made explicit. The family was about 60 lines and touched nothing else.
+
+Second, and the reason it is not shipped: **the prize was supposed to be the
+mixing, and the mixing is not what decides it.** Head to head under hard rules on
+the same data and seed, against the Polya-Gamma route the package already had:
+
+| | seconds | ESS | ESS/s |
+|---|---|---|---|
+| K = 3, multinomial-Poisson | 4.62 | 170.6 | 36.9 |
+| K = 3, Polya-Gamma | 1.19 | 134.9 | **113.4** |
+| K = 6, multinomial-Poisson | 5.41 | 107.5 | 19.9 |
+| K = 6, Polya-Gamma | 1.59 | 156.3 | **98.6** |
+
+The prediction about mixing was right at K = 3 -- one scalar latent per
+observation does couple to the predictor less tightly than one Polya-Gamma
+variable per category, 170.6 against 134.9 -- and it is worth nothing, because
+Polya-Gamma is 3.9x faster. At K = 6 the Poisson route loses on both counts.
+
+**The mechanism, and the general lesson: the quadratic form beats the exponential
+form, and it is not close.** A quadratic target is reached exactly in one Fisher
+scoring step, the fitted normal *is* the conditional posterior, and -- the part
+that dominates -- the per-unit kernel is pure arithmetic. The exponential form
+still iterates Newton on scalars and carries one `exp()` per observation per
+evaluation. That is the same finding as "what the bounded gates save is the
+`exp()`", arrived at from a different direction. Reaching for the exponential
+form because it is the shape a Poisson has, when a quadratic rewriting of the
+same likelihood exists, is backwards.
+
+The family was deleted rather than kept behind a flag: two routes to one
+likelihood with no way to choose between them is worse than one, and the
+measurement is here.
+
+**What did come out of it.** The head-to-head forced a re-measurement of the
+Polya-Gamma multinomial against the direct family, and it is far better than the
+recorded row said: 9.6x in ESS/s under hard rules and 10.1x under soft, against
+the 1.6x that had kept it off by default. It is now a default. The old row said
+4.2x speed and 0.37x ESS; the new one says 14.5x and 0.66x (hard). The two cannot
+be reconciled -- different problem, and ESS measured over the fitted
+probabilities here rather than whatever it was then -- so the old row is replaced
+rather than averaged with, and the new one is stated with its configuration.
+
+### Multinomial probit: correlated categories, and the sampler that fits the trees in the normalized space
+
+`multinomial()` is a logit, and a multinomial logit cannot express dependence
+between the categories at all. The probit version can, and that is the whole
+reason for it: the outcome is the largest of `C + 1` latent utilities, and
+differencing against a reference category leaves
+`W_i ~ MVN(eta_i, Sigma)` with one forest per component and a covariance matrix
+to draw.
+
+**The target is exactly quadratic, which is why it is cheap.** Conditional on
+`W` and `Sigma` the log density is `-(1/2)(W_i - eta_i)' P (W_i - eta_i)` with
+`P = Sigma^{-1}`, so the score in component h is `sum_k P_hk (W_k - eta_k)` and
+the information is `P_hh`: `TARGET_QUADRATIC`, the closed-form leaf draw, no
+Laplace approximation and no Metropolis ratio. A fit costs about twice a
+multinomial logit's on the same data (7.2 s against 2.9 s at n = 800, 50 trees,
+500 + 500 draws), which buys the covariance.
+
+**Which sampler.** Xu et al. (2025) give two proposals and compare them against
+Kindo, Wang and Pena's (2016) original. Their Algorithms [P1] and [P2] measured
+indistinguishable on every figure in the paper -- accuracy, the covariance
+estimates, the autocorrelation of tree depth, and the application table to two
+decimals -- so [P2] was implemented, being the one with no expansion parameter at
+all: draw `W` by a Gibbs sweep of truncated normals, fit the forests, draw the
+unnormalized covariance from its inverse Wishart conditional, and rescale to
+`trace(Sigma) = C`. What separates both from [KD] is that [KD] fits the trees to
+the *unnormalized* utilities, which keeps being rescaled underneath the
+stochastic search; their tree depths come out at 6 and 9 against about 2.
+
+Identification is the trace constraint of Burgette and Nordheim (2012) rather
+than pinning a diagonal element, which keeps it symmetric in the categories and
+makes a two-category fit *exactly* binary probit -- one latent variable, trace
+one, `P(S = 1) = Phi(eta)`. Measured, the two agree to a correlation of 0.997 on
+the predictor.
+
+**Validated against an independent reimplementation.** The behavior of the
+covariance draw looked wrong at first -- see the next paragraph -- so Algorithm
+[P2] was written out again from the paper as forty lines of plain R for a
+*linear* multinomial probit, with no bartisan involved. It reproduces the C++ to
+the second decimal: with the mean fixed at the truth and a true correlation of
+0.7, the R reference gives 0.758; with the mean fitted, 0.419, against bartisan's
+0.38 on a comparable problem. That is what established the implementation is
+right and the surprise is the model's.
+
+**Two things a user has to be told, both found by measurement.**
+
+*The correlation is attenuated, so read its sign and not its magnitude.* A
+nonparametric mean absorbs part of the dependence between categories. On a linear
+truth at n = 900, true correlations of 0, 0.5 and 0.8 came back as about 0.28,
+0.55 and 0.83; the R reference shows the same thing happening as soon as the mean
+is estimated rather than known (0.758 -> 0.419 with a *linear* mean of the
+correct functional form). The paper's own comparison of samplers turns on the
+sign of `sigma_12` for exactly this reason.
+
+*The inverse Wishart degrees of freedom are not exposed, and that is deliberate.*
+The obvious knob would be `nu`, and it does the opposite of what it looks like.
+With the scale matrix held at the identity, raising `nu` does not pull the
+correlations towards zero: `Psi = I` contributes about 1 against a residual
+scatter of order `N`, so it is swamped, and all a large `nu` does is make the
+draw concentrate on that scatter -- whose correlation the truncation in the
+latent draw inflates. Measured against a true correlation of 0.7: `nu = 3` gives
+0.38, `nu = 10` gives 0.79, `nu = 50` gives 0.97, `nu = 300` gives 0.996. The R
+reference reproduces it (0.997 at `nu = 300`), so it is the prior
+parameterization and not the code. Shipping the knob would have shipped a way to
+get a confident wrong answer, so `nu = C + 1` -- Imai and van Dyk's (2005) choice,
+and the paper's -- is fixed.
+
+**The likelihood has no closed form**, since a category probability is a
+`C`-dimensional Gaussian orthant probability. Two different simulators, for two
+different jobs. The reported `loglik` uses a *fixed* set of standard normal draws
+held by the family, so it is a deterministic function of `eta` and `Sigma` and
+the chain sees no Monte Carlo noise -- only a bias that is the same at every
+iteration, which is what a convergence diagnostic needs. Predictions use fresh
+draws, which is unbiased, and their error is per posterior draw and averages down
+over them: a few hundred replicates give an accurate posterior mean from a chain
+of a few hundred draws, which is why `replicates` defaults to 200 rather than to
+something that looks more careful.
+
+`augment` does not apply: the latent variables are the model rather than a
+rewriting of it, so there is nothing to turn off, and `augment = "mnp"` is
+refused as an unknown name.
+
+**It is a link on `multinomial()`, not a family of its own.** The two are
+different enough inside the engine to be separate `Family` classes -- the probit
+carries a covariance matrix, and under the same coding has one fewer forest --
+but they are one model to the caller, and the package's convention is that the
+link is an argument (`binomial()`, `ordinal()`). So `multinomial("probit")` it
+is, and `family_label()` reports it as a multinomial with a probit link rather
+than by the engine's name for it.
+
+### The multinomial probit is reference-sensitive, and the symmetric fix is not worth it
+
+Reference coding is what Murray's symmetric multinomial removed for the logit, so
+the question is whether the probit needs the same treatment. It is
+reference-sensitive, measurably, and about half as much as the reference-coded
+logit.
+
+Measured at n = 700, three categories, 50 trees, 500 + 500 draws, on the fitted
+probabilities, which are the identified quantity. The spread across the three
+possible reference categories only means something next to the spread across
+three *seeds* at a fixed reference, since anything the two share is Monte Carlo
+noise:
+
+| | across references (max / mean) | across seeds (max / mean) | ratio of means |
+|---|---|---|---|
+| `multinomial("probit")` | 0.141 / 0.0263 | 0.092 / 0.0140 | **1.9x** |
+| `multinomial(reference = )` | 0.156 / 0.0257 | 0.045 / 0.0063 | **4.1x** |
+
+So both exceed noise and the probit is the better behaved of the two. Held-out
+error barely moves either way -- RMSE against the truth was 0.042, 0.047, 0.046
+across the probit's three references, and the symmetric logit's 0.043 sits inside
+the reference-coded logit's 0.040 to 0.047 -- which is consistent with Xu et al.
+reporting their Table 2 accuracies as stable to two decimals across reference
+levels. Accuracy summaries are stable; individual predicted probabilities move by
+up to 0.14.
+
+**A symmetric parameterization is possible and was not built.** It would fit
+`C + 1` forests for the raw utilities with no differencing and no zero threshold
+-- the latent draw becomes a Gibbs sweep truncated only by `Z_l <= Z_winner`,
+which is fully symmetric in the categories -- and Murray's argument carries over:
+a proper leaf prior gives a proper posterior and the identified quantities are
+recovered. The reason not to is what it does to the covariance. The probabilities
+depend on `Omega` only through `var(Z_k - Z_l) = Omega_kk + Omega_ll -
+2 Omega_kl`, which is invariant to `Omega -> Omega + a 1' + 1 a'` for any vector
+`a`, so `Omega` would carry `C + 1` unidentified directions plus the overall
+scale, against the *one* unidentified direction the symmetric logit has. The
+reported covariance -- the thing the probit link exists to give you -- would be
+uninterpretable without differencing it back, and its posterior would wander
+freely in those directions. Buying that to halve a sensitivity already at 1.9x
+noise is the wrong trade. Recorded rather than done, and the measurement is here
+if it ever looks worth revisiting.
 
 ### Soft rules: the gate, and the bandwidth move
 
@@ -444,7 +1428,7 @@ Caveat: the test function here is smooth and five-dimensional. A rougher target 
 
 `sigma_mu` is drawn under a half-Cauchy prior, which has no upper bound. Where the predictors nearly separate a binary response the likelihood rewards an unbounded predictor, and that prior is not enough to hold the scale down. On fully separated data (`y = 1(x1 > 0.5)`, n = 200, 20 trees) the drawn scale averaged 2.79, 9.29, 8.44 and 4.22 over the four quarters of a 1600-draw chain — wandering, not settling, which is what a barely proper posterior looks like — and the additive predictor reached 110. Pinning the scale with `update_sigma_mu = FALSE` brought the maximum predictor to 6.9 at the default value and 4.1 at 0.15. On the same predictors with a non-separable response the drawn scale sat at 0.32 to 0.42 and the predictor at 4.5.
 
-`genbart()` now warns when the posterior mean of the leaf scale settles more than five times above its prior median. The threshold has room: a genuinely strong signal needs about twice the default scale, and five times corresponds to an ensemble prior standard deviation of 7.5 on the log-odds scale, which is essentially never a real signal.
+`bartisan()` now warns when the posterior mean of the leaf scale settles more than five times above its prior median. The threshold has room: a genuinely strong signal needs about twice the default scale, and five times corresponds to an ensemble prior standard deviation of 7.5 on the log-odds scale, which is essentially never a real signal.
 
 ### Firth-type penalization: wrong direction for the usual bias
 
@@ -571,9 +1555,9 @@ Two things found along the way.
   | `polr`, predictors as given | −1.041, 0.327, 1.864 |
   | `polr`, predictors centered | −0.479, 0.888, 2.426 |
   | `polr$zeta - mean(polr$lp)` | −0.479, 0.888, 2.426 |
-  | genbart | −0.479, 0.904, 2.444 |
+  | bartisan | −0.479, 0.904, 2.444 |
 
-  So **genbart's chart is `polr()`'s chart with the predictors centered**, and
+  So **bartisan's chart is `polr()`'s chart with the predictors centered**, and
   either centering the predictors or subtracting the mean of the linear predictor
   puts the two side by side. No chart makes them agree automatically, because
   `polr()`'s convention is a property of its design matrix and a forest has no
@@ -621,7 +1605,7 @@ their model matches this one.
 Against WeightIt on a linear truth, for all three links: correlation 0.994 to
 0.997, standard deviations agreeing to within 0.8%, and the difference a constant
 equal to `-mean(lp)/sd` to three decimals — which is the same chart difference as
-for the cutpoints, since genbart centers the predictor and WeightIt drops the
+for the cutpoints, since bartisan centers the predictor and WeightIt drops the
 intercept column. A standardized quantity is used for differences, which that
 constant leaves alone.
 
@@ -886,7 +1870,7 @@ What the integration needed, in the order the obstacles appeared:
    list of the ones it knows *before* any of those methods is reached, and exposes
    `options(marginaleffects_model_classes = )` as the way an outside package adds
    its own. That is done in `.onLoad()`. Without it every call fails with "Models
-   of class genbart are not supported", which is what it did at first.
+   of class bartisan are not supported", which is what it did at first.
 
 **A trap worth the documentation it got.** Slopes are numerical derivatives, and
 the default `x_transform = "quantile"` maps each predictor through its empirical
@@ -901,7 +1885,7 @@ diverges as the step shrinks. On a surface whose average derivative is zero:
 | 5e-2 | −0.29 | −0.25 |
 
 `"range"` is stable across a 500-fold change in the step; the default is not. This
-is documented in `?genbart-marginaleffects` rather than fixed, because the
+is documented in `?bartisan-marginaleffects` rather than fixed, because the
 quantile transform is the default for a good reason — it makes the cutpoint prior
 invariant to monotone reparameterization — and predictions and comparisons, which
 evaluate the fit at two points a substantive distance apart, are unaffected.
@@ -1038,7 +2022,7 @@ predictor and split on like anything else.
 Measured: a smooth fixed part plus a group intercept with `tau = 1`, unit residual
 noise, four replicates per cell, reporting RMSE against the true conditional mean.
 
-| groups | per group | genbart, group as a factor | group ignored | `rbart_vi` |
+| groups | per group | bartisan, group as a factor | group ignored | `rbart_vi` |
 |---|---|---|---|---|
 | 5 | 100 | **0.190** | 0.844 | 0.279 |
 | 25 | 20 | **0.306** | 0.924 | 0.341 |
@@ -1196,6 +2180,96 @@ Their grow-from-root sweep replaces the reversible-jump tree moves with a recurs
 
 What *is* worth taking is their warm start, which does not touch the transition kernel. It is in the To Do list.
 
+### Ultimate Polya-Gamma samplers (Zens, Fruhwirth-Schnatter and Wagner 2024)
+
+The paper's contribution is in two parts, and the package's position on each is
+different.
+
+**The representation is already here, where it applies.** Their equation (5)
+writes the logistic density as a Polya-Gamma normal scale mixture,
+`f(e) = (1/4) E[exp(-w e^2 / 2)]` with `w ~ PG(2, 0)`, so that `w | e ~ PG(2,|e|)`
+is a tilted Polya-Gamma draw. That is exactly the identity the ordinal logit
+augmentation in this package rests on, reached independently from Polson, Scott
+and Windle's Theorem 1 at `a = 1`, `b = 2`. Independent corroboration of a
+derivation that had been arrived at here from scratch, and nothing to do.
+
+**The boosting is the paper's real contribution, and it does not port.** They add
+two working parameters to the latent utility equation -- a location `gamma` and a
+scale `delta` -- and alternate: draw `gamma` from the working prior, shift the
+utilities, redraw `gamma` from its conditional *with the coefficients integrated
+out*, shift back, then draw the coefficients. That middle step is what makes the
+shift free, and it needs the coefficient vector marginalized. From their own
+replication code (`Simulations_Logit/algorithms/LOGIT_V2.R`), every iteration
+does
+
+    Bn = chol2inv(chol(A0.inv + t(X * omega) %*% X))
+    beta.draw = sqrt(delta.star / delta) * bn + t(chol(Bn)) %*% rnorm(P)
+
+-- an explicit `P x P` inverse and a joint block draw of every coefficient. BART
+has neither. Its "coefficients" are the leaf values of every tree, a set whose
+dimension changes every iteration, and backfitting exists precisely so that this
+matrix is never formed. There is a cheap special case -- marginalize only the
+*level* of the predictor, which is one direction and so a scalar -- and it is
+worth knowing that it exists, but see below for why it is not worth building.
+
+A second obstacle: iMDA needs a latent utility with a threshold, so that the
+observed outcomes restrict `gamma` to `[max z_i(y=0), min z_i(y=1)]`. The paper
+says this itself about the original Polya-Gamma sampler, and it applies to this
+package: the binomial *logit* augmentation here is the marginal Polya-Gamma form,
+which has a Gaussian pseudo-response but no utility and no threshold. Only the
+probit and ordinal probit augmentations, which are Albert and Chib latent
+normals, could carry the move at all.
+
+**And the pathology it fixes is not present.** This is the part that decided it.
+UPG is aimed at a level that has to travel to its posterior region and then random
+walk there in tiny steps, which is what happens when the intercept carries a
+near-flat prior -- theirs is `N(0, 100)`. Measured here at n = 2000, p = 5, 50
+trees, 1000 + 1000 draws, with ESS taken on the level of the predictor
+(`rowMeans(eta)` per draw):
+
+| positives | logit augmented | probit augmented | logit direct | probit direct |
+|---|---|---|---|---|
+| 1019 (51%) | 862 | 354 | 1000 | 1000 |
+| 113 (5.7%) | 143 | 100 | 245 | — |
+| 27 (1.4%) | 75 | 24 | 28 | 17 |
+| 4 (0.2%) | 7.6 | 10 | — | — |
+
+So mixing does collapse with imbalance. Three further measurements say it is not
+UPG's problem:
+
+- **Displacing the anchor changes nothing.** The predictor is anchored at the
+  intercept-only fit, and a user offset is the only way to move that anchor. At
+  27 positives, offsets of 0, -3 and +3 gave ESS(level) of 23.8, 24.5 and 27.3
+  (probit) and 75.3, 54.8, 62.1 (logit). If the level had to travel, displacing
+  it by three units on the probit scale would have shown up. It does not.
+- **From a cold start the level arrives in about 25 draws**, displaced or not:
+  -0.47, -1.95, -2.31 at draws 1, 10, 25, then flat, with `offset = +3` and with
+  `offset = 0` alike. There is no slow approach to shorten.
+- **The level is not a separately stuck coordinate.** At 27 positives ESS(level)
+  is 23.8 against ESS of the *centered* predictor of 50.2 -- the whole fit mixes
+  at that rate. A block move on the level cannot fix a shape that is equally slow.
+
+The cross-check that settles it: **dbarts, an independent implementation of the
+same augmentation with the same anchoring, reproduces the number exactly.** On the
+same data, `ESS(level) 24.4`, `acf1 0.952`, `sd(level) 0.104`, against bartisan's
+`24.8`, `0.948`, `0.101` under hard rules. Two implementations agreeing to three
+digits is a property of BART with 27 events, not a defect in either.
+
+The mechanism is the prior. The leaf prior here is proper and tight --
+`sigma_mu = 3 / (k sqrt(num_trees))`, about 0.21 at the defaults -- and the
+predictor is anchored at the null fit, so the level's conditional is sharp and it
+starts where it belongs. UPG's near-flat intercept prior is the regime where the
+random walk is slow, and this sampler never enters it.
+
+**Finally, even in the paper it is a trade rather than a free win.** Figure 3's
+lower panels plot inefficiency against the true intercept: UPG's curve is flat
+where the Polya-Gamma sampler's is U-shaped, and the Polya-Gamma curve dips
+*below* UPG's near a balanced intercept. It buys robustness to imbalance at a
+cost when balanced.
+
+What a user with 27 events actually needs is more draws, and to know that the
+number is the information in the data. That is now said in `?bartisan_control`.
+
 ### Windle, Polson and Scott's saddlepoint Polya-Gamma sampler
 
 It was on the list as the prerequisite for the negative binomial augmentation being worth anything. The Poisson-gamma route serves that purpose better, is exact, and needs no new sampler. The saddlepoint method is also itself an approximation, whose envelope could not be validated against the paper from here — and shipping a delicate approximate sampler on the strength of a half-remembered derivation would be the wrong trade for a package whose selling point is exactness. The same reasoning applied later to the Kolmogorov-Smirnov sampler for the ordinal logit, and there an exact route was found.
@@ -1240,14 +2314,19 @@ Kept together because the pattern is the lesson.
 - "Fixing the bandwidth is faster and more accurate." Only on smooth functions; on a step function it more than doubles the error.
 - Coverage was documented as "about 90% to 94%". Measured at the defaults it is 0.95 (Gaussian), 0.91 (binomial), 0.96 (Poisson), 0.96 (gamma).
 - The timing table could not be reproduced to the precision it was stated at: re-measurement on a clean build came out 12–25% higher in every cell. Restated as an anchor plus ratios.
+- "Raising the inverse Wishart degrees of freedom shrinks the latent correlations towards zero." It pushes them towards one: 0.38, 0.79, 0.97, 0.996 at `nu` of 3, 10, 50, 300 against a truth of 0.7. `Psi = I` is swamped by a residual scatter of order N, so all a large `nu` does is concentrate the draw on that scatter. The knob was written, measured, and removed.
 - "The exponential form for soft rules would pay off on the default configuration the way it did on hard rules." A forced-on scratch build put the ceiling at 1.05x for Poisson and 1.10x for gamma, against 1.86x and 1.89x under hard rules. Dropped.
+- "The multinomial-Poisson transformation changes the identification, so it is a larger change than the negative binomial's." It changes nothing: the gamma latent is integrated out exactly, so neither coding is disturbed. The family was 60 lines.
+- "The prize for the multinomial-Poisson route is the mixing." The mixing prediction was right and irrelevant: Polya-Gamma is 3.9x faster and wins on ESS/s by 3.1x at K = 3 and 5.0x at K = 6. The exponential form loses to the quadratic form whenever both are available.
+- "The multinomial augmentation is a modest gain bought with a severe loss of mixing, worth 1.6x." Re-measured, 9.6x and 10.1x in ESS/s with mixing at 0.66x and 1.09x. It is now a default.
+- "The zero-inflated gain would be smaller than the multinomial's, because only one of its two forests gains." 3.9x to 10.1x in ESS/s, and it pays under soft rules where neither forest gets the exponential form -- the direct target's log-sum-exp was the expensive part, not the missing shape.
 - "The Gaussian hard-rule fit regressed by 35%." It had not: two consecutive benchmark runs of the same build read 0.441 s and 0.593 s, and a best-of-five standalone measurement read 0.426 s both times. `_dev/benchmark.Rmd` defaults to two replicates, which is not enough to support a claim about a factor near two.
 
 ## Notes
 
 ### Candidate names
 
-`genbart` collides case-insensitively with the archived CRAN package `genBart`, which blocks submission. All of the following were checked against the current CRAN index and against all 27,654 archived package names, and are free. Also note `flexBART`, `SoftBart`, `dbarts`, `bartMachine`, `bartCause` and `stochtree` exist, and that `gbart` is the main *function* in the `BART` package, so it should be avoided even though the name is free.
+`bartisan` collides case-insensitively with the archived CRAN package `genBart`, which blocks submission. All of the following were checked against the current CRAN index and against all 27,654 archived package names, and are free. Also note `flexBART`, `SoftBart`, `dbarts`, `bartMachine`, `bartCause` and `stochtree` exist, and that `gbart` is the main *function* in the `BART` package, so it should be avoided even though the name is free.
 
 | Candidate | Reading |
 |---|---|
@@ -1269,7 +2348,7 @@ Kept together because the pattern is the lesson.
 - **`_dev/` is mostly not committed.** `.gitignore` keeps `_dev/benchmark.Rmd`, which README.md and this file both point at, and excludes the rest. `_dev/Reproduce/` is Linero's JASA replication package — seven third-party GPL-2 packages — which is here as a reference and is not ours to redistribute; publishing it under this repository's name is a decision for the maintainer, not a side effect of committing. `_dev/benchmark.html` is regenerable output.
 - **Error-message regexes in tests must not span a line break in the message's source string.** testthat pins `cli.condition_width` when it runs a package's tests, which stops cli reflowing a condition message, so the source string's own indentation survives into the message — under `R CMD check` only. A regex crossing one of those breaks passes when the tests are run any other way and fails under check, which is how three of them got through. The scratch test runner now sets the same option so the two agree.
 - **Never reuse a seed for the predictors and for the response.** `sim_x(seed = k)` followed by `set.seed(k)` makes the noise a deterministic function of the predictors, because both draw from the same restarted stream. For a continuous response the linear correlation is only about 0.008, so it hides; for `rbinom(n, 1, p)` it is catastrophic — with `p = plogis(2 * x1 - 1)` on the same stream that produced `x1`, every draw came out zero, which is what surfaced it. Twenty-two tests written across several sessions had the pattern and were changed to offset the response seed. It costs nothing to avoid and a recovery test built on coupled noise is not testing what it claims.
-- **`na.action` defaults to `na.pass`** now, so a test that expects rows to be dropped has to ask for `na.omit` explicitly. And note what the fix to that default exposed: `model.frame()` is called through a call rebuilt from `match.call()`, so *any* argument of `genbart()` that is forwarded to `model.frame()` and left at its default is absent from that call and picks up `model.frame()`'s default instead. Adding a default to `subset`, `weights` or `offset` would be swallowed the same way.
+- **`na.action` defaults to `na.pass`** now, so a test that expects rows to be dropped has to ask for `na.omit` explicitly. And note what the fix to that default exposed: `model.frame()` is called through a call rebuilt from `match.call()`, so *any* argument of `bartisan()` that is forwarded to `model.frame()` and left at its default is absent from that call and picks up `model.frame()`'s default instead. Adding a default to `subset`, `weights` or `offset` would be swallowed the same way.
 - The package is installed only in a scratch library, because the sandbox cannot write to the system R library. Reinstall outside the sandbox to use it from a normal session.
 - `R CMD check --as-cran` reports three CRAN-incoming issues that are not code defects: the name collision above, a development version component, and a GitHub URL that 404s because nothing has been pushed. Plain `R CMD check` is `Status: OK`.
 - The MCMC engine is adapted from Linero's `FlexBart` (GPL-2) in `_dev/`. The package is GPL (>= 2), which is compatible; Linero is credited in `DESCRIPTION` as contributor and copyright holder.
@@ -1287,3 +2366,349 @@ The deeper problem was that the document could not tell the difference. Backend 
 `bartMachine` reports no posterior draws of the fitted value through `bart_predict_for_test_data()`, so its ESS column is genuinely unavailable, not missing by accident.
 
 `stochtree`'s grow-from-root warm start (`num_gfr`) is a different algorithm from the MCMC every other package here runs, so the Gaussian task times it both at 0 and at its default of 5. It supports continuous/identity, binary/probit, binary/cloglog and ordinal/cloglog.
+
+### The family documentation moved to a vignette, and two claims in it were wrong
+
+The `bartisan-families` help page had grown to roughly 380 lines of Details, most of it exposition rather than reference. It is now `vignette("families")`, with a section per family, a section on the inferred default, a section on choosing a family, per-family guidance on choosing among the links (and among the zero-inflated and AFT models, which differ by model rather than by link), and a section on `custom_family()`. The help page keeps the family table, the identification facts that output could be misread without, and a pointer to the vignette. Both vignettes now carry citations in `vignettes/references.bib`; every entry was checked against CrossRef, which caught a `\references` block where the Murray (2021) entry had been split in half by the George et al. (2019) entry pasted into the middle of it.
+
+**The multinomial probit correlation claim was wrong, and wrong in an interesting way.** The documentation said the correlation is "attenuated" because a nonparametric mean absorbs part of the dependence, and then printed 0 → 0.28, 0.5 → 0.55, 0.8 → 0.83 as evidence — three numbers all *larger* in magnitude than the truth. The test carried the same wrong comment.
+
+Re-measured at 1000 draws after 1000 warmup, sweeping the true correlation, with the sum of trees as the mean:
+
+| True | n = 900 | 95% interval | n = 3000 | 95% interval |
+|---|---|---|---|---|
+| -0.6 | -0.748 | [-0.883, -0.504] | -0.588 | [-0.787, -0.407] |
+| -0.3 | -0.347 | [-0.793, 0.144] | -0.043 | [-0.288, 0.492] |
+| 0.0 | -0.567 | [-0.855, 0.047] | 0.083 | [-0.176, 0.245] |
+| 0.3 | 0.110 | [-0.488, 0.584] | 0.424 | [0.243, 0.563] |
+| 0.6 | 0.456 | [0.117, 0.736] | 0.654 | [0.490, 0.768] |
+| 0.8 | 0.648 | [0.392, 0.844] | 0.600 | [0.464, 0.729] |
+
+Eight draws of the data at a true correlation of zero and n = 900 gave posterior means of -0.214, -0.189, 0.330, -0.024, 0.095, -0.600, -0.205 and -0.102.
+
+So the parameter is **weakly identified rather than attenuated**. At 900 observations the sweep is not even monotone, intervals run 0.38 to 1.07 wide on a parameter confined to (-1, 1), and a true zero can come back at -0.6. By 3000 it behaves: right sign everywhere, within about 0.2 of the truth, intervals 0.26 to 0.78. The problem is variance, not bias, and the documentation now says to read the fitted probabilities rather than the covariance. The test was rewritten to assert the deterministic constraints (trace, positivity, unit ball) plus separation of the two extremes, which is all that holds at a size a test can afford; the old `abs(estimate at zero) < 0.4` assertion passed only because 400 draws had not yet reached where 1000 draws go.
+
+### avg_comparisons() returning exactly zero: neither package's bug
+
+Reported as `avg_comparisons(fit, variables = "treat", newdata = subset(treat == 1))` giving `Estimate 0, 2.5% 0, 97.5% 2154` on `MatchIt::lalonde`. Two checks settled it.
+
+The plumbing is exact. The draws `marginaleffects` receives match a hand computation from `predict()` — build the treat = 0 and treat = 1 frames, take `rowMeans(dh - dl)` per draw — to 5.9e-12, elementwise.
+
+The zero is a **posterior atom**. In any draw where no tree splits on the contrasted variable, the fit does not depend on it, so the two counterfactual predictions are identical and the difference is exactly zero. The Dirichlet sparsity prior (`update_s`) is what makes those draws common. `marginaleffects` centers a posterior at its median, so once the atom holds more than half the mass the reported estimate is exactly zero however large the rest is. Reproduced at the defaults: `treat` was in none of the 50 trees in 64% of draws and the contrast was exactly zero in 65%, median 0, mean 197.
+
+Also visible in the same measurement, and worth its own note: **the variable-selection state mixes slowly.** Four chains at the defaults put `treat` in 82%, 46%, 78% and 100% of draws and gave average contrasts of 649, 426, 847 and 1039. With `update_s = FALSE` the same four chains gave 1327, 1345, 1417 and 1356. A predictor whose splitting proportion has gone small is rarely proposed and so is hard to get back in, which is the known stickiness of the DART prior rather than a defect in this implementation — `update_s_param()` and `update_alpha_param()` were both re-derived against Linero's Dirichlet conditional and are correct, and `alpha_scale` defaults to the group count as it should. But it means a single chain can look much more settled than the posterior is, and the `marginaleffects` help page now says to run several.
+
+Not changed: the defaults. `num_trees = 50` with the sparsity prior on is a deliberate configuration and the benchmark above is built on it. Whether 50 trees is too few for the DART prior to mix at is an open question worth measuring, and is the one item this round added to the To Do list.
+
+### The control surface, reorganized
+
+`bartisan_control()` had 29 arguments in no particular order, several of which existed only so a test could check that two code paths agree. It now has the same settings in three declared groups, stated in the description and marked in each `@param`: modeling decisions (`num_trees`, `gate`, `sparsity`, `k`, `bandwidth`, the chain lengths, `augment`, `x_transform`), advanced settings (everything from `gamma` to `num_print`), and three toggles that exist for internal validation (`block_eval`, `exact_quadratic`, `generic_accumulate`).
+
+Three substantive changes came with it.
+
+**`num_trees` takes a vector, one value per additive predictor.** A scalar is recycled, so the common case is unchanged. The engine stored forests as a rectangle -- `(iter * num_forest + h) * num_trees + t` -- and now stores them back to back with a per-forest offset, which is the only indexing change; the same substitution applies to the bandwidth matrix's columns and to `bartisan_predict`. The leaf scale divides by the square root of each forest's *own* tree count, so shrinking one forest leaves the prior on the sum it forms unchanged. `print()` and `summary()` say "2 forests of 50 and 10 trees" when the counts differ.
+
+**`soft` is gone and `gate` decides both questions.** `gate = "hard"` (or `"step"`) gives the step functions of standard BART; `"smoothstep"`, `"smootherstep"` and `"logistic"` give soft rules and name the gate's shape. They were one decision pretending to be two: a hard rule has no gate shape to pick, and the old pair allowed `soft = FALSE, gate = "logistic"`, which had a test asserting that the second argument was ignored. `soft` survives as an internal field derived from `gate`, because `predict()` and the engine both need it.
+
+**`sparsity` replaces four hyperparameters for the common case.** `TRUE` (the default) is Linero's (2018) DART prior, `FALSE` is a uniform prior over predictors, and `"none"`, `"weak"`, `"moderate"`, `"strong"` name four strengths. It sets `update_s`, `update_alpha`, `alpha_shape_1` and `alpha_shape_2` together; any of those supplied directly wins. The four knobs are a poor interface for what a caller wants to say, because `alpha / (alpha + P)` is Beta(a1, a2) and moving the selection pressure means moving two numbers in opposite directions at once.
+
+### How many trees, and does the default depend on anything
+
+Friedman function, n = 1000 train and 1000 test, p = 10, four chains of 500 draws after 500 warmup, held-out RMSE against the true regression function:
+
+| Trees | Soft (smoothstep) | Hard | Soft seconds | Hard seconds |
+|---|---|---|---|---|
+| 5 | 0.286 | 1.149 | 5.4 | 4.4 |
+| 10 | 0.281 | 0.682 | 5.1 | 4.1 |
+| 20 | **0.270** | 0.558 | 6.0 | 4.3 |
+| 50 | 0.284 | **0.521** | 9.3 | 5.6 |
+| 100 | 0.289 | 0.531 | 15.1 | 8.3 |
+| 200 | 0.319 | 0.510 | 28.2 | 11.0 |
+
+**Soft rules need far fewer trees than hard ones**, and 200 -- the default in most BART packages -- is actively worse for them than 20. **The two want different counts**: hard rules are still improving at 200 where soft rules peaked at 20 and then degraded 12%.
+
+That argues for a gate-dependent default, and the answer is still no, because point accuracy is not the only thing a tree count buys. On `MatchIt::lalonde`, four chains, average contrast on `treat`:
+
+| Trees | `sparsity = TRUE` spread | `sparsity = FALSE` spread | P(contrast exactly 0), sparsity on |
+|---|---|---|---|
+| 10 | 45% | 93% | 0.39 |
+| 20 | 122% | 35% | 0.32 |
+| 50 | 127% | **9%** | 0.20 |
+| 100 | 127% | 10% | 0.23 |
+| 200 | 113% | 7% | 0.18 |
+
+So 20 soft trees costs 35% between-chain disagreement where 50 costs 9%, against a 5% gain in Friedman RMSE. **50 stays the default for both gates**, and the two curves above are documented so that someone optimizing for prediction can drop to 20 and someone using hard rules can raise towards 200.
+
+**Where the default should arguably vary is the number of forests, and there the answer is to document rather than to default.** `location_scale()`, n = 1000, smooth mean and log-linear standard deviation:
+
+| `num_trees` | Seconds | Mean RMSE | Log-SD RMSE | Log score |
+|---|---|---|---|---|
+| `c(50, 50)` | 14.5 | 0.092 | 0.050 | -1188 |
+| `c(50, 20)` | 8.3 | 0.094 | 0.047 | -1188 |
+| `c(50, 10)` | 5.9 | 0.093 | 0.051 | -1188 |
+| `c(50, 5)` | 4.9 | 0.094 | 0.046 | -1187 |
+| `c(20, 5)` | **2.9** | **0.084** | **0.041** | **-1184** |
+| `c(50, 1)` | 3.9 | 0.096 | 0.048 | -1188 |
+
+A Gaussian fit on the same data is 1.4 s, so `c(50, 50)` is 10x a Gaussian fit and `c(50, 5)` is 3.5x, at the same accuracy to three decimals. Even one scale tree holds up here -- but that is because this truth's log standard deviation is linear in one predictor, and how many trees a variance surface needs depends on how complicated it is. Under-parameterizing it silently would show up as intervals that are wrong, which is the thing `location_scale()` exists to get right. So it is documented in `?bartisan_control` with the table, not made the default. Making it one is a one-line change to `resolve_num_trees()` if that judgment is ever revisited.
+
+**A correction this produced.** The `marginaleffects` help page said a larger `num_trees` removes the atom at zero "almost entirely". It does not: with the sparsity prior on, the contrast was exactly zero in 20% of draws at 50 trees and 18% at 200. The earlier single-chain measurement that suggested otherwise was one lucky chain, which is exactly the failure mode the same page warns about. Corrected.
+
+### Infinite BART (Battiston and Luo 2025): assessed, not implemented
+
+arXiv 2511.20087 proposes `Y_i = sum_k W_ik g(X_i; T_k, mu_k) + eps_i` with `W` an n-by-infinity binary matrix under a three-parameter Indian buffet process prior. Two claimed features: the number of trees is learned, and each observation uses only a subset of the trees, which induces soft clustering with heterogeneous regression functions.
+
+**It is implementable here, and the way in is neat.** Every accumulation and every `eta` commit in this engine goes through a node's index list and its membership weights, and the weights are already fractional because that is what a soft rule is. So `W_ik` is a multiplicative factor on the *root* membership weight of tree k: a masked observation then contributes nothing to any leaf's sums and receives nothing from the tree, with no change to the accumulators, the structure moves or the leaf draws. The row update needs `logdens_unit(i, eta_i)` with and without tree k's contribution, which the `Family` interface already exposes, so it would generalize to every family rather than just the Gaussian one, and it is O(nK) arithmetic per sweep. The dynamic column count is the only real work, and it can be avoided with the standard finite Beta-Bernoulli truncation at `K_max`, exactly as `dpm()` already truncates a Dirichlet process.
+
+**It was not implemented, because the measurement does not support it.** Two reasons.
+
+First, **the clustering cannot reach a new observation.** `W`'s prior does not depend on the predictors -- the paper says so in its discussion -- so at a new point the predictive mean is `sum_k E[W_k] g_k(x)`, a fixed re-weighted sum of trees. There is no per-observation tree selection at prediction time, by construction. Whatever the model gains has to come from `W` acting as an allocation device *during fitting*, not from clustering the test set.
+
+Second, **the paper's headline gain is mostly a weak baseline.** Its clearest win is the clustered Friedman example of section 4.2: five groups of 40 observations, each with a Friedman regression function on a different window of five of nine predictors, group label never observed. Reported: classic BART 38.14, infinite BART 29.80, mean test MSE over ten 4:1 splits. Reproducing that design here, same n, same Beta marginals, same ten splits:
+
+| Fit | Mean test MSE | sd over splits |
+|---|---|---|
+| paper's classic BART | 38.14 | — |
+| paper's infinite BART | 29.80 | — |
+| dbarts, 200 trees (its default) | 32.52 | 8.36 |
+| dbarts, 10 trees | 33.46 | 8.14 |
+| bartisan default (soft, sparsity on, 50 trees) | 31.65 | 7.48 |
+| bartisan soft, `sparsity = FALSE`, 50 trees | **31.33** | 7.67 |
+| bartisan hard, `sparsity = FALSE`, 200 trees | **31.29** | 7.72 |
+
+Two independent modern BART implementations land at 31.3 to 32.5 where the paper's classic BART reads 38.14, so roughly 80% of the gap it reports closes without any of its machinery. What is left, 1.5 units, is a fifth of the between-split standard deviation and is on data drawn from a different seed, so it cannot be resolved without running their code. The sweep also shows `sparsity = FALSE` beating `sparsity = TRUE` at every tree count on this design, which makes sense: all nine predictors matter to some group, so a variable-selection prior is working against the truth.
+
+**What would change the decision.** A covariate-dependent prior for `W` -- which the paper names as future work -- would make the clustering reach new observations and would turn this into a dependent Dirichlet process style conditional density model, which is a different and more interesting proposition. A direct comparison against their implementation on identical draws would settle the residual 1.5 units. Neither is cheap, and the finite-truncation prototype described above is the way to get the second if it is ever wanted.
+
+### Infinite BART, implemented as a prototype and measured: it does not learn the tree count
+
+The assessment above said the finite Beta-Bernoulli truncation was the cheap way to build this and that the root-weight trick was the way in. Both held. The prototype lives in a scratch copy of the package, not here, because the measurements say it should not ship.
+
+**What was built.** `Tree` gained a `mask`, a 0/1 column of the weight matrix `W`. A masked observation is simply absent from the root's index list, so the tree never sees it: no accumulator changes, no weight vector for hard rules, and `reseat_tree()` rebuilds the root and calls the existing `rebuild_support()` when a column changes. `eval_live()` walks the live nodes to get what a tree *would* give an observation it is switched off for, which is what the row update needs. The update precomputes that K-by-n table once, does O(nK) arithmetic, and reseats only the columns that moved, so it costs about the same order as a sweep. `pi_k ~ Beta(a/K, 1)` conjugately, and `a` by slice sampling. Because the row of `W` for a new observation is unknown, the stored trees are scaled by `pi_k` on the way out, which makes `predict()` the plug-in predictive mean; in-sample `eta` uses the realized weights. About 200 lines across `node.h`, `node.cpp`, `mcmc.cpp` and `model.cpp`.
+
+**The implementation is right.** Fixing the concentration at 1e4 drives `W` to all ones -- 49.8 of 50 trees per observation, mean `pi` 0.995 -- and the fit reproduces plain bartisan: test RMSE 0.431 against 0.419, Friedman n = 400, p = 10. That dense limit is the check that matters, because the model is *defined* to reduce to BART there.
+
+**It does not select a small number of trees.** Friedman, n = 300, p = 30, six replicates, RMSE against the true regression function:
+
+| Fit | RMSE (sd) | seconds | active trees |
+|---|---|---|---|
+| bartisan, 5 trees | 0.662 (0.166) | 0.1 | -- |
+| **bartisan, 10 trees** | **0.507 (0.029)** | 0.1 | -- |
+| bartisan, 20 trees | 0.529 (0.070) | 0.2 | -- |
+| bartisan, 50 trees | 0.551 (0.108) | 0.5 | -- |
+| bartisan, 200 trees | 0.610 (0.083) | 2.0 | -- |
+| ibp, truncation 50 | 0.884 (0.239) | 1.3 | 46.5 |
+| ibp, truncation 200 | 1.025 (0.110) | 5.1 | 175.3 |
+| ibp, truncation 200, concentration fixed at 2 | 0.786 (0.088) | 4.4 | 59.9 |
+
+It keeps almost every tree it is given, and it costs a factor of two in RMSE and a factor of fifty in time against the 10-tree fit that wins.
+
+**And the count it reports depends on where the chain starts.** Truncation 200, four chains per row, same data:
+
+| Setting | active trees (range over chains) | concentration | RMSE |
+|---|---|---|---|
+| start dense, Gamma(1, 1) prior | 161.0 (150--184) | 48.4 | 1.006 |
+| start from the prior, Gamma(1, 1) | **79.0 (74--82)** | 17.3 | 0.883 |
+| start dense, Gamma(0.05, 0.01) as in the paper | 200.0 (200--200) | 2428 | 0.717 |
+| start from the prior, Gamma(0.05, 0.01) | **114.2 (106--128)** | 29.5 | 1.165 |
+| start from the prior, concentration fixed at 1.2 | 11.0 (9--12) | 1.2 | 1.175 |
+
+Same prior, same data, different starting point: 161 against 79, and 200 against 114, with ranges over four chains that do not overlap. The number of trees is not being learned; it is being remembered. The one row that does pick a small number is the row where the concentration was fixed by hand -- which is choosing the tree count, one level of indirection away -- and it is the worst fit in the table, 1.175 against 0.507 for a 10-tree bartisan fit. At a matched effective tree count the per-observation subsetting costs a factor of 2.3, because on a homogeneous problem it is noise.
+
+Two other things the table says. With the paper's own weak concentration prior the chain runs to 2428 and every tree is active, which is standard BART -- and that row has the *best* RMSE of the five, which is the model telling you what it wants. And bartisan's leaf-scale warning fired on three of the sparse fits, correctly: the predictor is weakly identified when each observation sees a random subset of the trees.
+
+**The variable-importance claim, which is the paper's headline, is better served by the sparsity prior already here.** Friedman, n = 300, p = 30, six replicates; separation is the smallest importance among the five real predictors minus the largest among the 25 noise ones, so positive means a clean split:
+
+| Fit | Separation | Real predictors in the top five |
+|---|---|---|
+| bartisan 200 trees, sparsity off | +0.0042 | 4.8 / 5 |
+| bartisan 200 trees, DART | +0.0426 | 5.0 / 5 |
+| bartisan 50 trees, DART | +0.0433 | 5.0 / 5 |
+| bartisan 10 trees, sparsity off | +0.0124 | 4.5 / 5 |
+| **bartisan 10 trees, DART** | **+0.0836** | 5.0 / 5 |
+| ibp, truncation 200 | **-0.0013** | 4.5 / 5 |
+| ibp, truncation 200, DART | +0.0784 | 5.0 / 5 |
+
+The paper's premise checks out: 200 trees with no sparsity prior barely separates the real predictors from the noise. But the Indian buffet process is not the fix. On its own it makes the separation *negative*, worse than plain BART; the two rows where it looks good are the rows where DART is on, and DART reaches the same place at a tenth of the cost without it.
+
+**Verdict.** The prototype answers the question it was built for. Learning the number of trees is not what this model does: it replaces one choice with two -- a truncation and a concentration prior -- and returns an answer that depends on initialization. Kept in the scratch tree in case a covariate-dependent prior for `W` ever makes the clustering reach new observations, which is the change that would make the model a different proposition.
+
+### McCartan and Huang (2026): their ablation replicated here, and where it stops holding
+
+*Seeing the Forest for the Trees: The Gaussian Process Limit of BART* (arXiv 2607.28844) proves that a symmetric-tree BART prior converges weakly to a Gaussian process as the number of trees goes to infinity, derives the kernel, and shows that ridge regression on *random tree features* -- leaf indicators from trees drawn from the prior and never updated -- attains minimax-optimal rates depending only logarithmically on the covariate dimension. The empirical claim underneath it is an ablation: once the number of trees is large, neither Bayesian averaging, nor learning the tree structure, nor asymmetric trees does much for out-of-sample R-squared.
+
+**Nothing in the package was changed on the strength of this.** What follows is the replication and what it suggests for later.
+
+**Setup.** Four datasets -- `airquality` (n = 111, p = 5), `MASS::Boston` (506, 13), a 1200-row sample of `ggplot2::diamonds` (9), and Friedman with n = 500 and p = 30, so 25 irrelevant predictors. Four 75/25 splits each, 400 draws after 400 warmup, predictors mapped through the training ECDF. Ablation (a) is a single final draw against the full posterior mean, which is a cruder version of theirs -- they condition on the final tree structure and integrate the leaves. Ablation (b) is random tree features against full BART, with the tree structures drawn from bartisan's own branching prior and the ridge penalty by leave-one-out. Their ablation (c), symmetrized trees, was not run; their own answer there is "no effect".
+
+Differences in R-squared, averaged over the four datasets, negative meaning the ablated model is worse:
+
+| Trees | Bayes, hard | Learning, hard | Bayes, soft | Learning, soft |
+|---|---|---|---|---|
+| 5 | -0.026 | -0.419 | +0.003 | -0.319 |
+| 20 | -0.037 | -0.283 | -0.012 | -0.158 |
+| 75 | -0.044 | -0.158 | -0.058 | -0.094 |
+| 200 | -0.060 | -0.062 | -0.022 | -0.032 |
+| 500 | -0.050 | -0.040 | -0.054 | -0.022 |
+
+**Both of their findings replicate.** Ablating Bayesian averaging costs a small amount that does not depend much on the tree count. Ablating tree learning costs a great deal at five trees and almost nothing at five hundred. The shape is theirs.
+
+**Their section 6 conjecture about soft varieties is confirmed.** They speculate that adapting the *type* of random feature to the data "may yield improved performance at a smaller number of trees". Random features built from bartisan's smoothstep gate against the same features built from hard splits, mean R-squared over the four datasets:
+
+| Trees | Hard features | Soft features | Difference |
+|---|---|---|---|
+| 5 | 0.350 | 0.507 | **+0.157** |
+| 20 | 0.549 | 0.693 | **+0.144** |
+| 75 | 0.697 | 0.778 | +0.080 |
+| 200 | 0.794 | 0.840 | +0.045 |
+| 500 | 0.812 | 0.845 | +0.033 |
+
+A soft gate is a better random basis, and exactly as they guess, the advantage is largest where the trees are fewest. The same thing shows up in the ablation table: the learning gap closes faster under soft rules at every tree count, because the prior-drawn soft basis is already closer to what learning would have produced.
+
+**Where their conclusion stops holding is the other open question they name.** Their last paragraph asks whether the hierarchical variable-selection prior of Linero (2018) can be approximated by a penalty on random-feature coefficients. Measured on the Friedman design with 25 irrelevant predictors:
+
+| Trees | Soft, no sparsity prior | Soft, DART | Soft random features |
+|---|---|---|---|
+| 5 | 0.921 | **0.950** | 0.168 |
+| 20 | 0.950 | **0.958** | 0.436 |
+| 75 | 0.946 | **0.957** | 0.669 |
+| 200 | 0.937 | **0.958** | 0.877 |
+| 500 | 0.925 | **0.958** | 0.874 |
+
+Three things. DART is **flat in the tree count** -- 0.950 to 0.958 from five trees to five hundred -- where plain soft BART peaks at twenty and then decays. Random features never catch it: the gap is still 0.084 at five hundred trees and has stopped closing. And on the three datasets where most covariates matter, the same gap is 0.02 to 0.04 by five hundred trees, which is their result. So **"tree learning does not matter once T is large" is conditional on the covariates mostly mattering.** When they do not, what is being learned is which variables to split on, and a basis drawn from a uniform prior over predictors cannot represent that however many features it has.
+
+That also explains why this package's defaults do not move. bartisan's configuration is soft rules with DART at fifty trees, and at that point on the curve the learning ablation still costs 0.09 to 0.16, not 0.02.
+
+**What is worth following up, in order.**
+
+- [ ] **Soft random tree features as a fast approximate fit.** The R prototype is about sixty lines and reached 0.840 average R-squared at 200 features against full soft BART's 0.872, in a fraction of the time. Two uses: a `random_features()` estimator for when a fit is needed inside a loop, and, more interestingly, a warm start for the MCMC -- which is the existing grow-from-root To Do item arrived at from a better direction, since these features come from the prior and cost one ridge solve.
+- [ ] **Random tree features for the non-Gaussian families.** Their section 5.2 point is that random features slot into any linear predictor. Here that would mean a penalized GLM on the feature matrix, which reaches every family the package has without a sampler. Whether the uncertainty holds up outside the Gaussian case is open; their section 5.3 evidence is Gaussian only.
+- [ ] **A sparsity-aware feature draw.** Drawing the splitting variable from the DART proportions of a short pilot run, rather than uniformly, is the obvious way to give random features the one thing the measurement above says they lack. This is their closing question and the table gives it a concrete target: 0.874 to beat 0.958 on Friedman with p = 30.
+- [ ] **Reconsider whether `sigma_mu` should be tuned rather than drawn.** Their figure 3 bottom row shows the ablation patterns become much less variable across datasets once the leaf prior variance is tuned by cross-validation, and they flag incorrect tuning of it as the reason several datasets misbehave. bartisan draws it under a half-Cauchy, which is a third option neither of them tested; whether the drawn version lands where the tuned one does is a cheap thing to check and would say something about the leaf-scale warning this package emits.
+
+**Not suggested by any of this:** changing the tree-count default, changing the gate default, or turning the sparsity prior off. The ablation's message is that computation spent on structure learning has diminishing returns at large T, and this package is not at large T -- it is at fifty trees with a basis and a prior that both make the learning worth more, not less.
+
+### `Gamma_shape()` removed, `Gamma()` masked so that the default link is log
+
+`Gamma_shape()` existed for one reason: `stats::Gamma()` has no slot to carry a fixed shape, and the package's convention is that a family which draws a nuisance parameter also lets you fix it (`negbin(theta =)`, `ordbeta(phi =)`, `dpm(alpha =)`). Realistically nobody fitting BART knows a gamma shape, so the convention was not worth a second family function and it is gone. The shape is drawn, as it always was; the engine still supports holding it fixed and nothing exposes that.
+
+Removing it exposed something worse, which is why this entry exists at all. **`stats::Gamma()` defaults to `link = "inverse"`, and the two functions therefore differed in the default link, not only in the argument.** The inverse link is the worst case for this sampler: its inverse sends a negative predictor to a negative mean, whose log is not a number, so the proposal is rejected. `compose_link()` already carried a comment saying a default `Gamma()` fit produces "dozens of them", but nothing surfaced it and three documentation tables listed `Gamma()`'s link as `log`, which was true of `Gamma_shape()` and false of `Gamma()`. Measured on 600 observations and 50 trees, fitted mean against the truth:
+
+| Call | Seconds | RMSE |
+|---|---|---|
+| `stats::Gamma()` -- inverse link | 7.2 | 0.664 |
+| `Gamma("log")` | 3.8 | 0.606 |
+
+So `Gamma()` is now exported from this package with `link = "log"`, which **masks `stats::Gamma()`**. It is otherwise the same function -- it returns `stats::Gamma(link)` unchanged, so a link name, a `link-glm` object and `glm()` all still work. The cost of the mask is that `glm(y ~ x, family = Gamma())` gets the log link while bartisan is attached; that is documented in three places and `stats::Gamma()` still reaches base R's default. `Gamma("log")` and the old `Gamma_shape()` produced bit-identical draws from one seed, which is what confirms the two were the same model.
+
+Separately, and generally rather than for the gamma alone: **`bartisan()` now says when a composed link's inverse does not cover the whole additive predictor.** `warn_restricted_link()` evaluates the caller's `linkinv` on a grid and checks it against the domain the engine's own link needs -- positive for `log`, the unit interval for `logit`. It fires for `Gamma("inverse")`, `Gamma("identity")` and `poisson("identity")`, and stays quiet for compiled links and for composed links that do cover the line, such as `binomial("cauchit")`.
+
+One incidental fix: `test-bartisan.R` matched the inferred-family message on the literal `"using"`, and that message had been sentence-cased to "Using ...", so the regex silently stopped matching -- testthat reports a non-matching regexp with the same wording it uses for no message at all, which is what made it look like the message had disappeared. It now matches on `"family = "`, which no capitalization rule touches.
+
+### gaussian(), dpm() and ordinal() on a numeric response: dpm dominates
+
+The question was whether `dpm()` should be recommended over `gaussian()` in general, and whether `ordinal()` is a legitimate choice for a continuous outcome. Both hold up. 200 training and 200 test observations, 50 trees, 500 draws after 500 warmup, four replicates, errors centered so that every family is estimating the same conditional mean:
+
+| Errors | `gaussian()` | `dpm()` | `ordinal("probit")` | `ordinal("logit")` |
+|---|---|---|---|---|
+| normal | 0.263 / -280 | **0.252 / -279** | 0.263 | 0.294 |
+| t3 | 0.264 / -281 | **0.213 / -261** | 0.307 | 0.244 |
+| skewed | 0.183 / -237 | **0.145 / -212** | 0.177 | 0.180 |
+| bimodal | 0.356 / -334 | **0.199 / -261** | 0.353 | 0.415 |
+| heteroskedastic | 0.281 / -315 | 0.289 / **-312** | **0.274** | 0.282 |
+
+RMSE against the true regression function, and for the two continuous families the held-out predictive log score. At 1000 observations, with the full grid:
+
+| Errors | `gaussian()` | `dpm()` | `ordinal("probit")` | `ordinal("logit")` |
+|---|---|---|---|---|
+| normal | 0.146 / -1433 | 0.143 / -1434 | **0.139** | 0.152 |
+| t3 | 0.135 / -1425 | **0.102 / -1247** | 0.133 | 0.127 |
+| skewed | 0.089 / -1216 | **0.073 / -1020** | 0.091 | 0.097 |
+| bimodal | 0.165 / -1660 | **0.049 / -1078** | 0.150 | 0.175 |
+| heteroskedastic | 0.171 / -1596 | 0.150 / -1563 | 0.145 | **0.141** |
+
+Level on normal errors to within one log point, ahead by 178 and 196 on heavy tails and skewness, and ahead by **582** on bimodal errors with a third the RMSE. One refinement over the smaller sample: heteroskedasticity was a wash at n = 200 and at n = 1000 `dpm()` is ahead of `gaussian()` by 33 log points, with `ordinal()` ahead of both on error. `location_scale()` is still the family that actually finds the pattern.
+
+**`dpm()` does not pay for its flexibility.** On normal errors, where `gaussian()` is exactly right, it came out slightly ahead on both measures. That is what makes it a default rather than a specialist tool, and it confirms the reading that `gaussian()`'s remaining advantages are not statistical. They are: prior weights, which `dpm()` refuses (verified -- `gaussian()`, `ordinal()` and `location_scale()` all take them and `dpm()` errors); an identified additive predictor, since `dpm()` identifies only the sum of the fit and the error mean; one interpretable `sigma`; and 1.4 times the speed at a thousand observations.
+
+**`ordinal()` on a continuous outcome is a real method**, and the cutpoint structure is why. Every distinct value becomes a category, the cutpoints absorb the marginal distribution, and the forest explains only the ordering, so nothing is assumed about the error and the model for the cumulative probability is invariant to a monotone transformation of the response. This is `rms::orm()` with a forest in place of the linear predictor. It never won by much, but it had the lowest error and the only above-nominal coverage on the heteroskedastic row -- the one setting where the other two are misspecified -- which is what a model with no error distribution should do.
+
+**Bin the outcome, and bin it hard.** One cutpoint per distinct value means n cutpoints. t3 errors, n = 1000:
+
+| Cutpoints | RMSE | Coverage | Seconds |
+|---|---|---|---|
+| 10 bins | 0.118 | 0.96 | 4.8 |
+| **25 bins** | **0.115** | 0.97 | **4.6** |
+| 50 bins | 0.123 | 0.97 | 5.6 |
+| 100 bins | 0.152 | 0.95 | 6.1 |
+| 250 bins | 0.161 | 0.96 | 11.8 |
+| every value | 0.134 | 0.97 | 73.3 |
+| `gaussian()` | 0.133 | 0.97 | 2.7 |
+| `dpm()` | **0.096** | 0.97 | 4.2 |
+
+Twenty-five bins is sixteen times faster than no binning *and* slightly more accurate, because a cutpoint vector with a thousand weakly-identified entries is worse conditioned than one with twenty-five. Bimodal errors put the optimum at fifty bins (0.148); anywhere from ten to fifty is fine and the choice inside that range hardly matters.
+
+Timings in these tables were taken with other jobs on the machine, so read the ratios within a table rather than the absolute seconds across tables -- the same unbinned cell read 73 seconds in one run and 185 in another under heavier load.
+
+Documented in `vignette("families")` with a head-to-head section and a new "A continuous outcome as ordinal" section, in the `bartisan-families` help page, in the README, and in `NEWS.md`.
+
+### dpm reports the conditional mean on the predictor, and is the numeric default
+
+Two changes that go together, and the first is what makes the second reasonable.
+
+**The reporting chart.** Nothing in the DPMBART model forces the error mixture to be centered, so the sampler works in a chart where only the *sum* of the predictor and the error mean is identified and each piece alone wanders. That was documented as a limitation and it was the one respect in which `dpm()` was harder to use than `gaussian()`. It is now a reporting question rather than a modelling one: `DPMFamily::report_shift()` returns minus the mixture's mean, so the recorded predictor moves up by it, `mixture_flat()` reports component means with the same amount taken out, and the chart the draw is recorded in has the mixture at mean zero and the whole conditional mean on the predictor. This is exactly the device the ordinal families use for their cutpoints, and `model.cpp` already distributed a shift across the recorded leaf values, so the stored forest still replays to the reported predictor.
+
+Measured on a skewed example, n = 600:
+
+| | before | after |
+|---|---|---|
+| sd of the predictor's level across draws | 0.750 | **0.021** |
+| bias of `type = "link"` against the truth | 0.144 | **-0.021** |
+| `type = "link"` vs `type = "response"` | differ by the drift | identical |
+| log likelihood rebuilt in R vs the sampler's | 4.5e-13 | **3.4e-13** |
+
+That last row is the check that matters and it caught a real bug on the first attempt. Shifting the atoms is not enough: the predictive density's *new-component* term is the baseline `G_0`, which lives on the raw chart, so after centering the R-side reconstruction was evaluating it in the wrong place and the invariant broke to 0.47. The fix is to report the shift, which `aux` now does as **`center`** in place of `error_mean` -- the raw mixture's mean, relabelled as the bookkeeping quantity it is rather than an estimate of anything, and used by `dpm_predictive()` to place the baseline term and by the posterior predictive sampler to place a fresh component. The error mean in the reported chart is zero by construction, and `error_density()` is centered: integral 1, mean 4e-04, sd matching `error_sd`, skewness 1.34 against a true 1.63 on a gamma error.
+
+**The default.** A numeric response now gets `dpm()` rather than `gaussian()`. The comparison in the previous entry is the argument: `dpm()` matches `gaussian()` when the errors really are normal and beats it, sometimes by a factor of three, when they are not, so there is no error distribution on which the old default was the better choice.
+
+With one boundary. A mixture cannot separate an error distribution from a mean when the response takes a handful of values, so a numeric response with fewer than ten distinct values keeps `gaussian()`. Rounding a continuous response onto k equally spaced levels, n = 600, held-out RMSE:
+
+| Levels | `gaussian()` | `dpm()` | Ratio |
+|---|---|---|---|
+| 3 | 0.175 | 0.662 | **3.78** |
+| 5 | 0.150 | 0.151 | 1.00 |
+| 8 | 0.138 | 0.141 | 1.02 |
+| 12 to 80 | ~0.14 | ~0.14 | 0.99 to 1.03 |
+| continuous | 0.136 | 0.138 | 1.01 |
+
+The break is between three and five, so ten is a conservative line, and in the range where the two tie the tie goes to the family that also takes weights. One case not caught by a distinct-value count: a *clamped* five-level scale, with mass piled on both end values, gave 0.122 against 0.224. Point masses at the boundary are the shape a mixture handles worst, and a distinct-value guard does not see them -- `ordinal()` is the right family there and the vignette says so.
+
+Since `dpm()` refuses prior weights, a weighted fit with no family named is an **error** naming the alternatives rather than a silent substitution: dropping the weights and swapping the family are both defensible and only the caller can say which was meant.
+
+### augment is a sampling setting, and what it would take to extend it
+
+`augment` moved from the modeling group to the advanced group in `?bartisan_control`. It belongs there: a rewriting targets exactly the same posterior as the direct likelihood, so nothing about the model changes and what changes is how fast the sampler gets there. The default is the set of rewritings measured to pay, and nobody should have to think about it. Agreed with, not argued against.
+
+**Which families could gain, and what it would take.** The families whose leaf target is `TARGET_GENERAL` with no augmented counterpart are the three accelerated failure time families, `ordbeta()`, and the second predictor of `location_scale()`. Everything else is already at the best form available -- `gaussian()` and `dpm()` are quadratic, `poisson()` and `Gamma()` are the exponential form, and the binomial, ordinal, multinomial, negative binomial and zero-inflated families all have augmented counterparts already.
+
+The prize is worth stating first, because it is large. Timed on 1000 observations, 50 trees, 300 draws after 300 warmup, 31% censoring, against a Gaussian fit on the same design at 3.2 s:
+
+| Fit | Seconds | Against `gaussian()` |
+|---|---|---|
+| `gaussian()` | 3.2 | 1.0x |
+| `weibull_aft()` | 17.9 | 5.6x |
+| `loglogistic_aft()` | 21.9 | 6.8x |
+| `lognormal_aft()` | 31.9 | **10.0x** |
+| `location_scale()`, `c(50, 50)` | 13.2 | 4.1x |
+
+So a general target costs five to ten times a quadratic one here, which is the same order as the 14x that `ordinal("probit")`'s augmentation was worth. Concretely:
+
+- **`lognormal_aft()` is censored normal regression.** Impute the censored log-times from a normal truncated below at the observed time; conditional on the completed data the likelihood is a plain Gaussian, so the target is **quadratic** and the leaf draw is closed form with acceptance one. `truncated_normal_between()` is already in `utils.h`, the augmented-family pattern is established in four places, and `sigma` draws from its conditional given complete data. This is the largest single performance win available in the package and the cheapest of the three to write.
+- **`loglogistic_aft()`** is the same imputation from a truncated logistic, followed by the Pólya-Gamma step that `ordinal("logit")` already uses -- a logistic variate is a normal whose precision is Pólya-Gamma(2, |r|). Two augmentations composed, both already present, and the target lands quadratic.
+- **`weibull_aft()`** imputes from a truncated Gumbel, after which the log density is `-(t - eta)/sigma - exp(-(t - eta)/sigma)`: the *exponential* form rather than the quadratic one, and with rate `1/sigma` rather than 1.
+- **`ordbeta()`** has no clean route. Its beta component's log density is a constant times `logit^-1(eta)`, and neither the Pólya-Gamma identity nor a latent normal makes a sum of expits quadratic. Not worth pursuing.
+
+**The one change that unlocked two of these was not an augmentation at all.** `TargetForm` had `TARGET_EXP_UP` and `TARGET_EXP_DOWN`, and `Family::exp_sign()` returned +1 or -1 -- the machinery was hardcoded to `exp(±eta)`. Both remaining cases needed a *rate*. Generalizing `exp_sign()` to `exp_rate()` reached both; see the entry below.
+
+A caution on measurement, learned here: **`exact_quadratic = FALSE` is not a proxy for a general target.** On a Gaussian fit it costs 1.16x and on a Poisson fit nothing at all, because the underlying target really is quadratic or exponential and the iteration terminates immediately whichever path it takes. The five-to-ten-times figures above are direct comparisons between families, which is the only way to see it.
+

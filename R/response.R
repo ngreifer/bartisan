@@ -20,21 +20,22 @@ prepare_response <- function(family, y, weights, offset, x, n) {
   name <- family[["family"]]
   link <- family[["link"]]
 
-  out <- list(family = name, link = link, n_forest = 1L, num_cat = NULL,
-              levels = NULL, opts = list())
+  out <- list(family = name, link = link, n_forest = 1L, n_aux = 0L,
+              num_cat = NULL, levels = NULL, opts = list())
 
   if (is_null(weights)) {
-    weights <- rep(1, n)
+    weights <- rep.int(1, n)
   }
+  else {
+    arg::arg_numeric(weights)
 
-  arg::arg_numeric(weights)
+    if (length(weights) != n) {
+      arg::err("{.arg weights} must have one value per observation")
+    }
 
-  if (length(weights) != n) {
-    arg::err("{.arg weights} must have one value per observation")
-  }
-
-  if (any(weights < 0)) {
-    arg::err("{.arg weights} must be non-negative")
+    if (any(weights < 0)) {
+      arg::err("{.arg weights} must be non-negative")
+    }
   }
 
   switch(name,
@@ -43,7 +44,53 @@ prepare_response <- function(family, y, weights, offset, x, n) {
       out$y <- y
       out$weights <- weights
       out$eta_scale <- stats::sd(y)
-      out$opts <- list(sigma_hat = residual_scale(y, x))
+      out$opts <- list(sigma_hat = residual_scale(y, x, weights))
+      intercept <- stats::weighted.mean(y, weights)
+    },
+
+    # A Dirichlet process mixture for the error distribution. The predictor's
+    # own prior is the Gaussian family's, since conditional on the mixture the
+    # target is the same Gaussian one; what is different is the baseline
+    # distribution of the mixture, which is set up here because it is calibrated
+    # from a linear fit.
+    dpm_aft = {
+      if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
+        arg::err("{.fn dpm_aft} does not take prior weights, because a weight
+                  would have to be a multiplicity in the Dirichlet process,
+                  which is not what a fractional weight means",
+                 i = "the other survival families take them")
+      }
+
+      a <- prepare_surv(y, n)
+      out$y <- a$log_time
+      out$weights <- weights
+      out$eta_scale <- stats::sd(a$log_time)
+
+      # The mixture's baseline is calibrated the way `dpm()` calibrates it, from
+      # a linear fit -- but on the log times of the *observed events*, since a
+      # censoring time understates its own failure time and would pull the
+      # residual scale down.
+      seen <- a$event > 0
+      out$opts <- c(dpm_baseline(family, a$log_time[seen], x[seen, , drop = FALSE],
+                                 sum(seen)),
+                    list(event = a$event))
+      intercept <- mean(a$log_time[seen])
+    },
+
+    dpm = {
+      if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
+        arg::err("{.fn dpm} does not take prior weights, because a weight
+                  would have to be a multiplicity in the Dirichlet process,
+                  which is not what a fractional weight means",
+                 i = "{.fn gaussian}, {.fn ordinal} and {.fn location_scale} all
+                      take them")
+      }
+
+      y <- check_numeric_response(y, name)
+      out$y <- y
+      out$weights <- weights
+      out$eta_scale <- stats::sd(y)
+      out$opts <- dpm_baseline(family, y, x, n)
       intercept <- stats::weighted.mean(y, weights)
     },
 
@@ -55,13 +102,26 @@ prepare_response <- function(family, y, weights, offset, x, n) {
       y <- check_numeric_response(y, name)
       out$y <- y
       out$weights <- weights
-      out$n_forest <- family[["num_predictors"]]
-      out$eta_scale <- rep(1, out$n_forest)
-      out$opts <- list(num_predictors = out$n_forest,
+
+      # A nuisance parameter is carried as a trailing additive predictor whose
+      # forest the engine pins at depth zero, so it is one scalar drawn by the
+      # ordinary leaf machinery. `n_forest` counts them because the engine has to
+      # build them; `n_aux` is how many of those trailing forests are nuisances,
+      # and they are reported in `aux` rather than in `eta`.
+      n_aux <- family[["num_aux"]] %or% 0L
+      out$n_aux <- n_aux
+      out$n_forest <- family[["num_predictors"]] + n_aux
+      out$eta_scale <- rep.int(1, out$n_forest)
+      out$opts <- list(num_predictors = family[["num_predictors"]],
+                       num_aux = n_aux,
+                       aux_names = as.character(family[["aux_names"]]),
                        logdens = family[["logdens"]],
                        derivatives = family[["derivatives"]],
                        name = family[["name"]])
-      intercept <- family[["start"]]
+      intercept <- {
+        if (n_aux > 0L) c(family[["start"]], family[["aux_start"]])
+        else family[["start"]]
+      }
     },
 
     location_scale = {
@@ -123,10 +183,14 @@ prepare_response <- function(family, y, weights, offset, x, n) {
       mu <- stats::weighted.mean(y, weights)
       intercept <- log(mu)
       shape_start <- max(mu^2 / stats::var(y), 0.1)
-      out$opts <- list(shape = family[["shape"]] %or% shape_start,
+      # The engine can hold the shape fixed, and nothing exposes that: a caller
+      # who knows the gamma shape is rare enough that the argument was not worth
+      # a second family function. `update_shape` stays here because the engine
+      # reads it.
+      out$opts <- list(shape = shape_start,
                        shape_prior_shape = 0.01,
                        shape_prior_rate = 0.01,
-                       update_shape = is_null(family[["shape"]]))
+                       update_shape = TRUE)
     },
 
     ordinal = {
@@ -168,15 +232,46 @@ prepare_response <- function(family, y, weights, offset, x, n) {
       # sqrt(2) leaves the prior on the identified log odds where reference
       # coding puts it (Murray 2021, sec. 4.3).
       if (symmetric) {
-        out$eta_scale <- rep(1 / sqrt(2), m$num_cat)
+        out$eta_scale <- rep.int(1 / sqrt(2), m$num_cat)
         # Only contrasts are identified, so the levels are centered rather than
         # taken against a reference.
         intercept <- log(counts) - mean(log(counts))
       }
       else {
-        out$eta_scale <- rep(1, m$num_cat - 1L)
+        out$eta_scale <- rep.int(1, m$num_cat - 1L)
         intercept <- log(counts[-1L] / counts[1L])
       }
+    },
+
+    # Multinomial probit. Like the reference-coded multinomial in its coding --
+    # one forest per non-reference category -- and unlike it in having a
+    # covariance matrix, which is what the probit link is for.
+    mnp = {
+      m <- prepare_unordered(y, name, family[["reference"]] %or%
+                               first_level(y))
+      out$y <- m$codes
+      out$weights <- weights
+      out$levels <- m$levels
+      out$num_cat <- m$num_cat
+      out$n_forest <- m$num_cat - 1L
+      out$eta_scale <- rep.int(1, m$num_cat - 1L)
+
+      # Imai and van Dyk's (2005) choice, nu = C + 1 with Psi the identity,
+      # which puts a uniform prior on the correlations of the unnormalized
+      # covariance matrix. Not exposed: see the family's documentation for what
+      # raising it actually does.
+      out$opts <- list(num_cat = m$num_cat,
+                       nu = m$num_cat,
+                       update_sigma = m$num_cat > 2L,
+                       replicates = family[["replicates"]])
+
+      counts <- pmax(tabulate(m$codes + 1L, nbins = m$num_cat), 0.5)
+      shares <- counts / sum(counts)
+
+      # The pairwise probit contrast of each category against the reference,
+      # which is the exact intercept when there are two categories and a
+      # reasonable anchor when there are more.
+      intercept <- stats::qnorm(shares[-1L] / (shares[-1L] + shares[1L]))
     },
 
     zip = ,
@@ -211,6 +306,39 @@ prepare_response <- function(family, y, weights, offset, x, n) {
       }
     },
 
+    beta = {
+      y <- check_numeric_response(y, name)
+
+      if (any(y <= 0) || any(y >= 1)) {
+        arg::err("The {.val beta} family requires a response strictly between 0
+                  and 1.",
+                 i = "With observations at 0 or 1, use {.fn ordbeta}, which
+                      models those as point masses.")
+      }
+
+      out$y <- y
+      out$weights <- weights
+      out$eta_scale <- 1
+
+      mid <- mean(y)
+      intercept <- stats::qlogis(mid)
+
+      # Method of moments for the precision, which is what a beta regression
+      # would start from: var = mu (1 - mu) / (1 + phi).
+      v <- stats::var(y)
+      phi_start <- {
+        if (length(y) > 1L && v > 0 && v < mid * (1 - mid)) {
+          mid * (1 - mid) / v - 1
+        }
+        else 5
+      }
+
+      out$opts <- list(phi = family[["phi"]] %or% phi_start,
+                       phi_prior_shape = 0.01,
+                       phi_prior_rate = 0.01,
+                       update_phi = is_null(family[["phi"]]))
+    },
+
     ordbeta = {
       y <- check_numeric_response(y, name)
 
@@ -241,7 +369,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
       cut1 <- intercept - stats::qlogis(1 - p_zero)
       cut2 <- intercept - stats::qlogis(p_one)
 
-      if (!(cut1 < cut2)) {
+      if (cut1 >= cut2) {
         spread <- max(abs(intercept), 1)
         cut1 <- intercept - spread
         cut2 <- intercept + spread
@@ -262,6 +390,37 @@ prepare_response <- function(family, y, weights, offset, x, n) {
                        phi_prior_shape = 0.01,
                        phi_prior_rate = 0.01,
                        update_phi = is_null(family[["phi"]]))
+    },
+
+    ph = {
+      a <- prepare_surv(y, n)
+      out$y <- a$time
+      out$weights <- weights
+
+      if (!any(a$event > 0)) {
+        arg::err("{.fn ph} needs at least one observed event")
+      }
+
+      # Bin edges at evenly spaced quantiles of the observed times, and about
+      # n^(1/3) of them, which is the order the Freedman-Diaconis rule gives for
+      # a histogram and what Basak et al. (2024) recommend. The first edge is
+      # zero; the last bin runs to infinity.
+      num_bins <- family[["num_bins"]] %or%
+        max(2L, min(30L, as.integer(ceiling(n^(1 / 3)))))
+      probs <- seq(0, 1, length.out = num_bins + 1L)
+      edges <- unique(c(0, unname(stats::quantile(a$time,
+                                                 probs[-c(1L, num_bins + 1L)]))))
+
+      # The predictor is a log hazard ratio, identified only against the baseline,
+      # so it starts at zero and the baseline carries the level.
+      out$eta_scale <- 1
+      hazard <- sum(a$event) / max(sum(a$time), .Machine$double.eps)
+      out$opts <- list(event = a$event,
+                       edges = edges,
+                       lambda_shape = family[["lambda_shape"]] %or% 1,
+                       lambda_rate = 1 / hazard,
+                       update_lambda = family[["update_lambda"]] %or% TRUE)
+      intercept <- 0
     },
 
     aft = {
@@ -433,11 +592,11 @@ prepare_ordered <- function(y, name) {
     codes <- as.integer(y) - 1L
   }
   else if (is.factor(y)) {
-    cli::cli_warn(c("the response is an unordered factor",
-                    i = "the {.val ordinal} family will use the existing level
-                         order: {.val {levels(y)}}",
-                    i = "supply an {.cls ordered} factor to make the order
-                         explicit"))
+    arg::wrn(c("The response is an unordered factor.",
+               i = "The {.val ordinal} family will use the existing level
+                    order: {.val {levels(y)}}",
+               i = "Supply an {.cls ordered} factor to make the order
+                    explicit."))
     levels <- levels(y)
     codes <- as.integer(y) - 1L
   }
@@ -454,6 +613,17 @@ prepare_ordered <- function(y, name) {
   }
 
   list(codes = as.numeric(codes), levels = levels, num_cat = num_cat)
+}
+
+# The first level of a response, used as the reference category when the caller
+# does not name one. A multinomial probit is written as contrasts against a
+# reference, so unlike the symmetric multinomial it always has one.
+first_level <- function(y) {
+  if (is.factor(y)) {
+    return(levels(y)[1L])
+  }
+
+  as.character(sort(unique(y))[1L])
 }
 
 prepare_unordered <- function(y, name, reference = NULL) {
@@ -477,8 +647,8 @@ prepare_unordered <- function(y, name, reference = NULL) {
   present <- tabulate(codes + 1L, nbins = num_cat) > 0
 
   if (!all(present)) {
-    cli::cli_warn("dropping {sum(!present)} unused response level{?s}:
-                   {.val {levels[!present]}}")
+    arg::wrn("dropping {sum(!present)} unused response level{?s}:
+              {.val {levels[!present]}}")
     levels <- levels[present]
     codes <- match(codes, which(present) - 1L) - 1L
     num_cat <- length(levels)
@@ -540,20 +710,127 @@ prepare_surv <- function(y, n) {
     arg::err("every observation is censored, so the model is not identified")
   }
 
-  list(log_time = log(time), event = event)
+  list(time = time, log_time = log(time), event = event)
+}
+
+# The baseline distribution of the Dirichlet process mixture, and the prior on
+# its concentration. Everything here is calibrated from a linear fit, following
+# George et al. (2019, secs. 3.1 and 3.2), which is the same device BART uses for
+# its own scale prior and is why the defaults need no tuning.
+dpm_baseline <- function(family, y, x, n) {
+  residuals <- linear_residuals(y, x)
+  sigma_hat <- residual_scale(y, x)
+
+  nu <- family[["nu"]]
+  q <- family[["q"]]
+
+  # lambda placed so that P(sigma < sigma_hat) = q under
+  # sigma^2 ~ nu lambda / chisq_nu, which is BART's construction with the
+  # paper's larger nu and higher quantile: the mixture covers small errors with
+  # extra components, so a single component's prior can afford to be tighter.
+  lambda <- sigma_hat^2 * stats::qchisq(1 - q, nu) / nu
+
+  # k_0 scales the baseline's mean so that the marginal of mu, which is
+  # sqrt(lambda / k_0) times a t on nu degrees of freedom, reaches the edge of
+  # the residuals at `k_s` of its own scale units.
+  reach <- max(abs(residuals))
+  reach <- if (reach > 0) reach else 1
+  k_0 <- lambda * family[["k_s"]]^2 / reach^2
+
+  # The concentration's prior is Rossi's: pick the smallest and largest cluster
+  # counts thought plausible, turn each into a concentration, and taper between
+  # them. `alpha log(1 + n / alpha)` is the expected number of occupied clusters,
+  # which is the standard approximation and is what makes this solvable in one
+  # line each.
+  most <- family[["max_clusters"]] %or% max(as.integer(0.1 * n), 2L)
+  most <- min(most, n)
+  alpha_min <- concentration_for(1, n)
+  alpha_max <- concentration_for(most, n)
+
+  if (!(alpha_max > alpha_min)) {
+    alpha_max <- alpha_min * 10
+  }
+
+  grid <- seq(alpha_min, alpha_max, length.out = 100L)
+  taper <- 1 - (grid - alpha_min) / (alpha_max - alpha_min)
+  logprior <- family[["psi"]] * log(pmax(taper, 1e-12))
+
+  list(nu = nu,
+       lambda = lambda,
+       mu_0 = 0,
+       k_0 = k_0,
+       alpha = family[["alpha"]] %or% stats::median(grid),
+       update_alpha = is_null(family[["alpha"]]),
+       alpha_grid = grid,
+       alpha_logprior = logprior)
+}
+
+# The concentration that gives `clusters` occupied clusters on average, from
+# `clusters = alpha * log(1 + n / alpha)`, solved numerically because it has no
+# closed form.
+concentration_for <- function(clusters, n) {
+  expected <- function(alpha) alpha * log1p(n / alpha) - clusters
+
+  if (expected(1e-8) > 0) {
+    return(1e-8)
+  }
+
+  stats::uniroot(expected, c(1e-8, 10 * n), tol = 1e-8)$root
+}
+
+# Residuals of the linear fit the baseline is calibrated from, which is the same
+# fit residual_scale() reads its own anchor off.
+linear_residuals <- function(y, x) {
+  if (is_null(x) || nrow(x) <= ncol(x) + 1L) {
+    return(y - mean(y))
+  }
+
+  fit <- try(stats::lm.fit(cbind(1, x), y), silent = TRUE)
+
+  if (inherits(fit, "try-error")) {
+    return(y - mean(y))
+  }
+
+  fit[["residuals"]]
 }
 
 # Prior scale for the residual standard deviation. A linear fit gives a much
 # better anchor than the marginal spread when the predictors explain anything,
 # and this is the same device the original BART implementations use.
-residual_scale <- function(y, x) {
-  s <- stats::sd(y)
+#
+# The weights enter because they say how much each observation is worth, and a
+# prior scale read off the wrong observations is the wrong scale. Only their
+# relative sizes can matter: a residual variance is per observation, so weights
+# that do not average one over the rows they keep would rescale it. Normalizing
+# over the *kept* rows leaves unit weights exactly where they were and makes a
+# zero weight mean "drop this row" rather than "shrink every scale".
+residual_scale <- function(y, x, weights = NULL) {
+  w <- weights %or% rep.int(1, length(y))
+  contributes <- w > 0
+  kept <- sum(contributes)
 
-  if (is_null(x) || nrow(x) <= ncol(x) + 1L) {
+  if (kept < 2L) {
+    return(stats::sd(y))
+  }
+
+  average <- mean(w[contributes])
+
+  if (!isTRUE(average > 0)) {
+    return(stats::sd(y))
+  }
+
+  w <- w / average
+  s <- sqrt(sum(w * (y - stats::weighted.mean(y, w))^2) / (kept - 1L))
+
+  if (!is.finite(s) || s <= 0) {
+    return(stats::sd(y))
+  }
+
+  if (is_null(x) || kept <= ncol(x) + 1L) {
     return(s)
   }
 
-  fit <- try(stats::lm.fit(cbind(1, x), y), silent = TRUE)
+  fit <- try(stats::lm.wfit(cbind(1, x), y, w), silent = TRUE)
 
   if (inherits(fit, "try-error")) {
     return(s)
@@ -565,7 +842,9 @@ residual_scale <- function(y, x) {
     return(s)
   }
 
-  out <- sqrt(sum(fit[["residuals"]]^2) / df)
+  # `lm.wfit()` returns residuals on the response's own scale, so the weights go
+  # back in here; this is what `summary.lm()` does for a weighted fit.
+  out <- sqrt(sum(w * fit[["residuals"]]^2) / df)
 
   if (!is.finite(out) || out <= 0) s else min(out, s)
 }

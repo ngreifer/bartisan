@@ -1,0 +1,193 @@
+---
+title: "Choosing between models"
+author: "Noah Greifer"
+date: "`r Sys.Date()`"
+output:
+  html_vignette:
+    toc: yes
+vignette: >
+  %\VignetteIndexEntry{Choosing between models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+link-citations: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4)
+
+has_loo <- rlang::is_installed("loo")
+run <- rlang::is_installed("MASS") && has_loo
+```
+
+## Introduction
+
+Model selection means something different here than it does for a linear model,
+and the difference is worth stating before any code.
+
+With `lm()` you choose which terms enter, whether to add a squared term, whether
+to include an interaction. Those choices are the model. With BART the forest
+makes them, so they are not yours to make. What remains is a shorter list:
+
+1. Which variables the model is allowed to see.
+2. Which likelihood, meaning which family and link.
+3. Occasionally, a sampler setting such as the number of trees.
+
+This vignette covers how to compare those choices.
+
+```{r libs, eval = run}
+library(bartisan)
+library(loo)
+
+data("birthwt", package = "MASS")
+
+d <- birthwt
+d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
+d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
+d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
+d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
+d$low   <- NULL
+
+set.seed(2026)
+full <- bartisan(bwt ~ ., data = d, family = gaussian(), chains = 4)
+```
+
+## Leave-one-out cross-validation
+
+```{r loo, eval = run}
+loo(full)
+```
+
+`elpd_loo` estimates the log predictive density on data the model has not seen,
+with higher being better. It is computed by importance sampling from the fitted
+posterior rather than by refitting, which is why it is fast [@vehtari2017].
+
+`p_loo` is the effective number of parameters, about 13 here. For a forest of 50
+trees with hundreds of leaves, that number is small because the prior shrinks
+most of them toward zero. It is a useful measure of how much of the data the
+model is actually using.
+
+The Pareto \eqn{k} diagnostics are the thing to check. Leave-one-out by
+importance sampling is trustworthy only when the importance weights are well
+behaved, and \eqn{k} above 0.7 says they are not for that observation. Here they
+are all good.
+
+### When it fails
+
+A forest is a flexible function, so a single observation can have a lot of
+influence on the leaves it falls into, and high \eqn{k} values are more common
+than for a parametric model. If many observations are flagged, the estimate is
+unreliable and the answer is held-out data rather than a different diagnostic:
+
+```{r holdout, eval = FALSE}
+train <- d[1:150, ]
+held  <- d[151:nrow(d), ]
+
+fit <- bartisan(bwt ~ ., data = train, family = gaussian())
+
+sum(predict(fit, newdata = held, type = "density", log = TRUE))
+```
+
+This is the same quantity `elpd_loo` approximates, computed directly.
+
+## Comparing two models
+
+```{r compare, eval = run}
+set.seed(2026)
+reduced <- bartisan(bwt ~ age + lwt + smoke, data = d, family = gaussian(),
+                    chains = 4)
+
+loo_compare(list(full = loo(full), reduced = loo(reduced)))
+```
+
+The full model predicts better by about 14 on the elpd scale with a standard
+error of about 5. The standard error is the important half. A difference of
+roughly three standard errors is reasonably clear; a difference smaller than its
+own standard error is not evidence of anything.
+
+This is the right way to ask whether a set of variables earns its place, and it
+is a better question than the one variable importance answers, because it is
+about prediction rather than about how the forest happened to spend its splits.
+
+## Comparing families
+
+The other choice is the likelihood. Here the same predictors are fitted with
+three families: a constant-variance Gaussian, one where the variance is itself a
+function of the predictors, and one where the shape of the error is estimated.
+
+```{r families, eval = run}
+set.seed(2026)
+loc_scale <- bartisan(bwt ~ ., data = d, family = location_scale(), chains = 4)
+
+set.seed(2026)
+mixture <- bartisan(bwt ~ ., data = d, family = dpm(), chains = 4)
+
+loo_compare(list(gaussian = loo(full),
+                 location_scale = loo(loc_scale),
+                 dpm = loo(mixture)))
+```
+
+All three are within a couple of points of each other, and the differences are
+smaller than or comparable to their standard errors. \pkg{loo} flags this
+directly. The reading is that the plain Gaussian family is adequate for this
+data: modelling the variance as a function of the predictors buys nothing here,
+and neither does relaxing the shape of the error.
+
+That is a useful negative result and worth reporting as one. It is also the
+expected outcome when the simple family is right, which is the property that
+makes the flexible families safe to try.
+
+## A trap: the densities must be on the same scale
+
+`loo()` is built on the pointwise log density of each observation, and comparing
+two models by it assumes both densities are with respect to the same measure.
+This is normally automatic and there is one case in this package where it is not.
+
+The accelerated failure time families report the density of \eqn{\log T} while
+`ph()` reports the density of \eqn{T}. The two differ by a Jacobian, so a
+comparison across that boundary is off by \eqn{\sum \log t}, which can be
+hundreds of points and can reverse the ordering. `vignette("survival")` gives the
+correction.
+
+The general rule: `loo()` compares models fitted to the same outcome on the same
+scale. If you transform the outcome, refit, and compare, the comparison is
+invalid unless you account for the Jacobian. Comparing a model of `y` to a model
+of `log(y)` is the everyday version of this mistake.
+
+## Comparing against a linear model
+
+There is no obstacle to this, and it is worth doing. If a linear model predicts
+as well as the forest, that is evidence the relationship is close to linear, and
+the linear model is easier to report.
+
+The comparison has to be like for like. Fit both in a framework that produces the
+same kind of pointwise log density, for example by fitting the linear model with
+\pkg{rstanarm} or \pkg{brms} and comparing with `loo_compare()`, or by comparing
+held-out log scores computed the same way for both.
+
+Comparing `elpd_loo` from this package against `AIC` from `lm()` is not a
+comparison and should not be reported as one.
+
+## What not to select on
+
+Do not choose the number of trees, or `k`, or the gate, by cross-validation as a
+matter of routine. The priors are chosen so that the defaults work across a wide
+range of problems, and tuning them typically produces small gains and an
+optimistically biased estimate of performance if the same data chose them. If you
+do tune, hold out data for the final assessment.
+
+Do not select variables by fitting many models and keeping the best. With a
+handful of candidate specifications chosen in advance, `loo_compare()` is
+informative. With a search over all subsets it is not, for the same reason
+stepwise regression is not.
+
+## Where to go next
+
+`vignette("diagnostics")` covers checking that each model fits before comparing
+them, which is the step people skip. `vignette("families")` covers what the
+families assume, which is what a comparison between them is really about.
+
+## References

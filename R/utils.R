@@ -10,6 +10,11 @@ is_null <- function(x) {
   if (is_null(x)) y else x
 }
 
+cli_cat <- function(..., .envir = parent.frame()) {
+  cli::format_inline(..., .envir = .envir) |>
+    cli::cat_line()
+}
+
 # Map a predictor to the unit interval. The cutpoint prior is uniform on a
 # node's live range, so the transformation decides what "uniform" means: the
 # quantile version makes the prior invariant to any monotone reparameterization
@@ -49,15 +54,15 @@ make_group_probs <- function(assign, term_labels) {
   groups <- unique(assign)
   n_col <- length(assign)
 
-  i <- integer(0)
-  j <- integer(0)
-  x <- numeric(0)
+  i <- integer()
+  j <- integer()
+  x <- numeric()
 
   for (g in seq_along(groups)) {
     cols <- which(assign == groups[g])
     i <- c(i, cols)
-    j <- c(j, rep(g, length(cols)))
-    x <- c(x, rep(1 / length(cols), length(cols)))
+    j <- c(j, rep.int(g, length(cols)))
+    x <- c(x, rep.int(1 / length(cols), length(cols)))
   }
 
   probs <- Matrix::sparseMatrix(i = i, j = j, x = x,

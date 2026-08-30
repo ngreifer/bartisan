@@ -9,7 +9,7 @@
 #include "mcmc.h"
 #include "node.h"
 
-namespace genbart {
+namespace bartisan {
 
 // A group-level random intercept, for one grouping factor and one additive
 // predictor.
@@ -76,6 +76,6 @@ std::unique_ptr<RandomEffects> make_random_effects(const Rcpp::List& spec, int H
                                                    bool update_tau,
                                                    const arma::mat* X);
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif

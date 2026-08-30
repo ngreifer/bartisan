@@ -1,0 +1,257 @@
+---
+title: "Has it converged, and does it fit?"
+author: "Noah Greifer"
+date: "`r Sys.Date()`"
+output:
+  html_vignette:
+    toc: yes
+vignette: >
+  %\VignetteIndexEntry{Has it converged, and does it fit?}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+link-citations: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.0, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 3)
+
+has_post <- rlang::is_installed("posterior")
+has_bp <- rlang::is_installed("bayesplot")
+has_gg <- rlang::is_installed("ggplot2")
+run <- rlang::is_installed("MASS")
+```
+
+## Introduction
+
+Two questions get asked together and are worth separating. Has the sampler
+converged, meaning has it explored the posterior properly? And does the model
+fit, meaning does it describe the data?
+
+The first is about the algorithm and the second is about the model. A fit can
+converge beautifully on a badly chosen family, and a well chosen family can be
+fitted by a chain that has not run long enough.
+
+```{r libs, eval = run}
+library(bartisan)
+
+data("birthwt", package = "MASS")
+
+d <- birthwt
+d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
+d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
+d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
+d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
+d$low   <- NULL
+
+set.seed(2026)
+
+fit <- bartisan(bwt ~ ., data = d, family = gaussian(), chains = 4)
+```
+
+## Convergence
+
+### Run more than one chain
+
+`chains = 4` above is doing the work. The default is one chain, which produces
+estimates but no way to check them: `fit$rhat` is `NULL` for a single chain,
+because the statistic compares chains to each other. Running four costs four
+times as much, which for most fits is a few seconds.
+
+```{r rhat, eval = run}
+fit$rhat
+```
+
+`rhat` compares the variance between chains to the variance within them
+[@vehtari2021]. If the chains have found the same posterior the two agree and the
+ratio is near 1. `ess_bulk` and `ess_tail` are effective sample sizes: how many
+independent draws the correlated ones are worth, in the middle of the
+distribution and in the tails.
+
+The conventional thresholds are `rhat` below 1.01 and effective sample sizes above
+about 400 for a quantity you intend to report precisely. Those come from the
+general MCMC literature and are a reasonable default here, with one exception
+described below.
+
+### What the rows are
+
+`loglik` is the log likelihood of the whole dataset at each draw. It is a useful
+scalar summary of the fit and mixes reasonably.
+
+`aux.*` are the nuisance parameters, here the residual standard deviation. These
+are usually the best behaved and are the ones a reported `sigma` depends on.
+
+`sigma_mu.*` is a prior scale internal to the forest. It mixes slowly in almost
+every BART fit and does not improve much with longer chains. Nothing you report
+depends on it directly. It is in the table for completeness rather than as
+something to act on.
+
+`eta.*` is the additive predictor, summarized over the observation that mixes
+worst. This is the fitted function, so it is the row that matters when
+predictions or effects are the output.
+
+### The one exception
+
+The `eta` row is a maximum over every observation, so it is conservative by
+construction, and forests mix slowly on their fitted values. Two chains can visit
+quite different collections of trees that imply nearly identical predictions,
+which inflates a between-chain statistic without meaning the two chains disagree
+about anything you would report.
+
+On harder problems this shows up clearly. The following fits the Friedman
+function, first with a chain far too short and then at the defaults.
+
+```{r friedmanbad}
+set.seed(3)
+fr <- as.data.frame(matrix(runif(400 * 10), 400, 10))
+names(fr) <- paste0("x", 1:10)
+fr$y <- 10 * sin(pi * fr$x1 * fr$x2) + 20 * (fr$x3 - 0.5)^2 +
+  10 * fr$x4 + 5 * fr$x5 + rnorm(400)
+
+too_short <- bartisan(y ~ ., fr, family = gaussian(), chains = 4,
+                      control = bartisan_control(num_trees = 20, num_burn = 50,
+                                                 num_save = 50))
+too_short$rhat
+```
+
+Everything is bad: `rhat` above 2 for the log likelihood, the residual standard
+deviation and the fitted values, with effective sample sizes under 10. This chain
+has not converged and nothing from it should be used.
+
+```{r friedmangood}
+long_enough <- bartisan(y ~ ., fr, family = gaussian(), chains = 4)
+
+long_enough$rhat
+```
+
+Now the log likelihood and the residual standard deviation have converged, and
+`eta` has improved but is still above 1.01. That residual is the phenomenon
+described above, and adding draws does not reliably remove it.
+
+When the `eta` row is the only one left elevated, look at the distribution behind
+it rather than the maximum:
+
+```{r perobs, eval = run}
+per_observation_rhat <- function(fit) {
+  draws <- fit$eta$eta
+  per <- nrow(draws) / fit$chains
+  index <- matrix(seq_len(per * fit$chains), per, fit$chains)
+  apply(draws, 2, function(column) {
+    posterior::rhat(matrix(column[index], per, fit$chains))
+  })
+}
+
+round(quantile(per_observation_rhat(fit), c(0.5, 0.9, 0.99, 1)), 3)
+```
+
+For the birth weight fit the whole distribution is below 1.05, so the maximum was
+not hiding a problem. If instead the median were elevated, the fitted function
+genuinely has not converged and the answer is more draws or a simpler model.
+
+### Looking at the chains
+
+`as_draws()` hands the fit to \pkg{posterior} and \pkg{bayesplot}. It carries the
+scalar parameters and a representative set of `eta` columns.
+
+```{r summarise, eval = run && has_post}
+library(posterior)
+
+summarise_draws(as_draws(fit))
+```
+
+```{r trace, eval = run && has_bp, fig.height = 2.6}
+library(bayesplot)
+
+mcmc_trace(as_draws(fit, eta = 1), pars = c("aux.sigma", "eta[1]"))
+```
+
+What you want to see is four chains overlapping, wandering around the same level,
+with no drift and no long excursions. `eta = 1` selects the first observation;
+`eta = TRUE` gives a spread of ten and `eta = FALSE` gives none.
+
+### What to do when it has not converged
+
+In order of what usually helps:
+
+1. Increase `num_burn` and `num_save`. This is the first thing to try and it
+   fixes most cases.
+2. Reduce `num_trees`. A smaller forest has fewer ways to represent the same
+   function and mixes faster.
+3. Check the family. A likelihood that fits the data badly can produce a
+   posterior that is hard to explore.
+
+## Fit
+
+Convergence says the sampler did its job. It says nothing about whether the model
+is right.
+
+### Posterior predictive checks
+
+Simulate outcomes from the fitted model and compare their distribution to the
+observed one.
+
+```{r ppc, eval = run && has_bp, fig.height = 3.0}
+pp_check(fit)
+```
+
+The simulated densities should look like plausible replicates of the observed
+one. Here they do, with the observed data slightly heavier in the lower tail than
+the replicates. Systematic differences are what to look for: replicates that are
+too narrow, that miss a second mode, or that put mass where the outcome cannot go.
+
+A common and informative failure is simulating negative values for an outcome
+that cannot be negative, which says the Gaussian family is wrong and a positive
+family is needed. `vignette("families")` covers the alternatives.
+
+### Residuals
+
+```{r resid, eval = run && has_gg, fig.height = 2.8}
+library(ggplot2)
+
+check <- data.frame(fitted = fitted(fit), residual = residuals(fit))
+
+ggplot(check, aes(fitted, residual)) +
+  geom_hline(yintercept = 0, colour = "grey60") +
+  geom_point(alpha = 0.5, size = 1) +
+  labs(x = "fitted value", y = "residual") +
+  theme_bw(base_size = 9)
+```
+
+Read this the way you would for a linear model, with one difference. A forest
+shrinks its predictions toward the overall mean, so a plot of residuals against
+fitted values will often show a mild negative trend even when the model is
+correct: the highest fitted values are pulled down and the lowest pulled up. A
+gentle slope is expected. A strong one, or a fan shape, is not.
+
+A fan shape means the spread of the outcome depends on the predictors, which
+`location_scale()` models directly.
+
+### How much is the model explaining
+
+```{r r2, eval = run && rlang::is_installed("performance")}
+performance::r2(fit)
+```
+
+This is the Bayesian \eqn{R^2} of @gelman2019, computed from the posterior rather
+than from a single fit, so it comes with an interval and cannot exceed 1.
+
+## A checklist
+
+Before reporting anything from a fit:
+
+1. Fit with `chains = 4`.
+2. Check `fit$rhat`. The `loglik` and `aux` rows should be near 1. If `eta` is
+   the only elevated row, look at the per-observation distribution.
+3. Run `pp_check()` and look for systematic differences.
+4. If the outcome is bounded, check that the replicates respect the bound.
+
+## Where to go next
+
+`vignette("comparison")` covers choosing between models once each of them fits.
+`vignette("families")` covers what to do when the posterior predictive check says
+the family is wrong.
+
+## References

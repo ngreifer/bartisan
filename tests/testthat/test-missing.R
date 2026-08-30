@@ -19,34 +19,34 @@ test_that("na.action decides whether missing predictors are kept", {
 
   # na.omit drops the rows, which is what every other modelling function does
   # and is no longer the default here.
-  dropped <- genbart(y ~ ., data = d, na.action = stats::na.omit,
-                     control = quick_control())
+  dropped <- bartisan(y ~ ., data = d, na.action = stats::na.omit,
+                      control = quick_control())
   expect_identical(dropped[["n"]], complete)
   expect_false(any(dropped[["has_na"]]))
 
   # The default keeps them, and so does asking for na.pass by name.
-  by_default <- genbart(y ~ ., data = d, control = quick_control())
+  by_default <- bartisan(y ~ ., data = d, control = quick_control())
   expect_identical(by_default[["n"]], nrow(d))
   expect_identical(names(which(by_default[["has_na"]])), "x1")
 
-  kept <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                  control = quick_control())
+  kept <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                   control = quick_control())
   expect_identical(kept[["n"]], nrow(d))
   expect_identical(names(which(kept[["has_na"]])), "x1")
 
   # Nothing missing anywhere means nothing to record, whichever na.action.
   clean <- sim_x(n = 60, seed = 52)
   clean$y <- stats::rnorm(60)
-  fit <- genbart(y ~ ., data = clean, na.action = stats::na.pass,
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = clean, na.action = stats::na.pass,
+                  control = quick_control())
   expect_false(any(fit[["has_na"]]))
 })
 
 test_that("a fit with missing predictors predicts and stays consistent", {
   d <- with_missing(columns = c("x1", "x2"))
 
-  fit <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                  control = quick_control())
 
   expect_false(anyNA(predict(fit)))
   expect_false(anyNA(predict(fit, type = "link")))
@@ -60,8 +60,8 @@ test_that("a fit with missing predictors predicts and stays consistent", {
 test_that("hard rules handle missing values too", {
   d <- with_missing(seed = 53)
 
-  fit <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                 control = quick_control(soft = FALSE))
+  fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                  control = quick_control(gate = "hard"))
 
   expect_false(anyNA(predict(fit)))
   expect_predictor_invariant(fit, d)
@@ -73,8 +73,8 @@ test_that("a missing factor level is a level the rules can split on", {
   d$g[stats::runif(120) < 0.2] <- NA
   d$y <- 2 * d$x1 + stats::rnorm(120, sd = 0.4)
 
-  fit <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                  control = quick_control())
 
   # A missing factor value leaves every one of its indicator columns missing.
   expect_setequal(names(which(fit[["has_na"]])), c("ga", "gb", "gc"))
@@ -89,15 +89,15 @@ test_that("a column constant where observed is kept for its missingness", {
 
   # Constant columns are dropped, but this one carries information in whether it
   # is there at all, so it survives.
-  fit <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                  control = quick_control())
   expect_true("flat" %in% names(fit[["has_na"]]))
   expect_true(fit[["has_na"]][["flat"]])
 
   # With nothing missing it is constant and goes.
   d$flat <- 1
-  expect_warning(genbart(y ~ ., data = d, na.action = stats::na.pass,
-                         control = quick_control()),
+  expect_warning(bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                          control = quick_control()),
                  "constant predictor column")
 })
 
@@ -105,8 +105,8 @@ test_that("rows the model cannot use are dropped and named as such", {
   d <- with_missing(seed = 56)
   d$y[1:5] <- NA
 
-  expect_warning(fit <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                                control = quick_control()),
+  expect_warning(fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                                 control = quick_control()),
                  "missing response")
   expect_identical(fit[["n"]], nrow(d) - 5L)
 
@@ -114,8 +114,8 @@ test_that("rows the model cannot use are dropped and named as such", {
   d2 <- with_missing(seed = 57)
   w <- rep(1, nrow(d2))
   w[1:3] <- NA
-  expect_warning(fit <- genbart(y ~ ., data = d2, weights = w,
-                                na.action = stats::na.pass,
+  expect_warning(fit <- bartisan(y ~ ., data = d2, family = gaussian(),
+                                weights = w, na.action = stats::na.pass,
                                 control = quick_control()),
                  "missing response")
   expect_identical(fit[["n"]], nrow(d2) - 3L)
@@ -124,8 +124,8 @@ test_that("rows the model cannot use are dropped and named as such", {
 test_that("new data may only be missing where the fitting data was", {
   d <- with_missing(seed = 58)
 
-  fit <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                 control = quick_control())
+  fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                  control = quick_control())
 
   expect_false(anyNA(predict(fit, newdata = d)))
 
@@ -137,7 +137,7 @@ test_that("new data may only be missing where the fitting data was", {
   # And a fit with no missing values at all rejects any missing new data.
   clean <- sim_x(n = 60, seed = 59)
   clean$y <- stats::rnorm(60)
-  plain <- genbart(y ~ ., data = clean, control = quick_control())
+  plain <- bartisan(y ~ ., data = clean, control = quick_control())
   clean$x1[1] <- NA
   expect_error(predict(plain, newdata = clean), "has missing values in")
 })
@@ -155,9 +155,9 @@ test_that("informative missingness is recovered", {
   d$y <- 2 * gone + stats::rnorm(n, sd = 0.3)
   d$x1[gone] <- NA
 
-  fit <- genbart(y ~ ., data = d, na.action = stats::na.pass,
-                 control = genbart_control(num_trees = 20, num_burn = 300,
-                                           num_save = 300, verbose = FALSE))
+  fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
+                  control = bartisan_control(num_trees = 20, num_burn = 300,
+                                             num_save = 300, verbose = FALSE))
 
   p <- predict(fit)
   expect_equal(mean(p[gone]), 2, tolerance = 0.15)
@@ -202,10 +202,10 @@ test_that("a flat likelihood still reproduces the tree prior with missing data",
     d[[nm]][stats::runif(n) < 0.3] <- NA
   }
 
-  fit <- genbart(y ~ ., data = d, weights = rep(1e-10, n),
-                 na.action = stats::na.pass,
-                 control = genbart_control(num_trees = 1, num_burn = 2000,
-                                           num_save = 20000, soft = FALSE,
+  fit <- bartisan(y ~ ., data = d, family = gaussian(),
+                  weights = rep(1e-10, n), na.action = stats::na.pass,
+                 control = bartisan_control(num_trees = 1, num_burn = 2000,
+                                            num_save = 20000, gate = "hard",
                                            sigma_mu = 0.4,
                                            update_sigma_mu = FALSE,
                                            update_s = FALSE,

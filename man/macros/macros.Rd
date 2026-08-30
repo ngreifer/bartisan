@@ -1,0 +1,4 @@
+%\pkgfun{}{})tests whether the package is available, and, if so, produces a cross-reference to the function in the package; if not, the function name is displayed without a cross-reference. The first argument is the package, the second is the function name, e.g., \pkgfun{optmatch}{pairmatch}.
+\newcommand{\pkgfun}{\Sexpr[results=rd,stage=render]{if (rlang::is_installed("#1")) r"(\code{\link[#1:#2]{#1::#2()}})" else r"(\code{#1::#2()})"}}
+
+%E.g., \pkgfun{sandwich}{vcovCL} is the same as \code{\link[sandwich:vcovCL]{vcovCL}} if the sandwich package is installed and \code{vcovCL} if not.

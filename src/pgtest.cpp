@@ -7,11 +7,11 @@
 //' @param b,c parameters of the distribution.
 //' @return A numeric vector of draws.
 //' @keywords internal
-// [[Rcpp::export(.genbart_rpg)]]
-Rcpp::NumericVector genbart_rpg(int n, double b, double c) {
+// [[Rcpp::export(.bartisan_rpg)]]
+Rcpp::NumericVector bartisan_rpg(int n, double b, double c) {
   Rcpp::NumericVector out(n);
   for (int i = 0; i < n; i++) {
-    out[i] = genbart::rpg(b, c);
+    out[i] = bartisan::rpg(b, c);
   }
   return out;
 }
@@ -20,13 +20,13 @@ Rcpp::NumericVector genbart_rpg(int n, double b, double c) {
 // normal draw is a few lines of log-scale arithmetic that the ordinal
 // augmentation leans on for every observation of every sweep, and a quiet bias
 // in the far tails would be invisible in a fit.
-// [[Rcpp::export(.genbart_rtruncnorm)]]
-Rcpp::NumericVector genbart_rtruncnorm(int n, double lo, double hi) {
+// [[Rcpp::export(.bartisan_rtruncnorm)]]
+Rcpp::NumericVector bartisan_rtruncnorm(int n, double lo, double hi) {
   Rcpp::NumericVector out(n);
   Rcpp::RNGScope scope;
 
   for (int i = 0; i < n; i++) {
-    out[i] = genbart::truncated_normal_between(lo, hi);
+    out[i] = bartisan::truncated_normal_between(lo, hi);
   }
 
   return out;

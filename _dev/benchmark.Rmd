@@ -1,5 +1,5 @@
 ---
-title: "genbart timing benchmark"
+title: "bartisan timing benchmark"
 output:
   html_document:
     toc: true
@@ -26,7 +26,7 @@ options(java.parameters = c("-Xmx8g", "--add-modules=jdk.incubator.vector",
                             "-XX:+UseZGC"))
 ```
 
-This document times **genbart** against the other BART packages on this machine
+This document times **bartisan** against the other BART packages on this machine
 and reports, for each fit, the wall clock, the effective sample size of the
 fitted function, the effective samples per second, and the held-out accuracy.
 Speed on its own is not the quantity of interest: a sampler that is twice as fast
@@ -50,9 +50,9 @@ project's `.Rprofile` sets `options(pkg.build_extra_flags = FALSE)` to prevent
 it, but that only applies to sessions started in the package directory.
 
 ```{r optimized}
-library(genbart)
+library(bartisan)
 
-optimized <- genbart:::.genbart_optimized()
+optimized <- bartisan:::.bartisan_optimized()
 
 if (!optimized) {
   stop("This build is unoptimized; every timing below would be meaningless. ",
@@ -90,7 +90,7 @@ colnames(xs) <- c("a", "b", "c")
 ys <- stats::rnorm(20)
 
 backends <- c(
-  genbart = "yes",
+  bartisan = "yes",
   dbarts = usable("dbarts", function()
     dbarts::bart(xs, ys, ntree = 2L, nskip = 2L, ndpost = 2L, verbose = FALSE,
                  keeptrees = FALSE)),
@@ -224,26 +224,27 @@ xte <- d$x[d$test, , drop = FALSE];  truth <- d$eta[d$test]
 dtr <- data.frame(xtr, y = ytr); dte <- data.frame(xte)
 
 ctrl <- function(...) {
-  genbart_control(num_trees = trees, num_burn = draws, num_save = draws,
-                  verbose = FALSE, ...)
+  bartisan_control(num_trees = trees, num_burn = draws, num_save = draws,
+                   verbose = FALSE, ...)
 }
 
-# genbart, soft rules (the default) and hard rules.
-r <- timer(genbart(y ~ ., data = dtr, control = ctrl()))
+# bartisan. `gate` is the one argument that chooses between hard and soft rules
+# and, when soft, the shape of the gate; "smoothstep" is the default, and its
+# support is bounded, so an observation past it takes one side of a rule outright
+# and the subtree on the other side is never visited. See ?bartisan_control.
+r <- timer(bartisan(y ~ ., data = dtr, control = ctrl()))
 e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-record("gaussian", "genbart", "soft (default)", r$seconds, e, colMeans(e), truth)
+record("gaussian", "bartisan", "soft, smoothstep gate (default)", r$seconds, e,
+       colMeans(e), truth)
 
-r <- timer(genbart(y ~ ., data = dtr, control = ctrl(soft = FALSE)))
+r <- timer(bartisan(y ~ ., data = dtr, control = ctrl(gate = "hard")))
 e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-record("gaussian", "genbart", "hard rules", r$seconds, e, colMeans(e), truth)
+record("gaussian", "bartisan", "hard rules", r$seconds, e, colMeans(e), truth)
 
-# The smoothstep gate, whose support is bounded, so an observation past it takes
-# one side of a rule outright and the subtree on the other side is never
-# visited. See ?genbart_control.
-for (g in c("smoothstep", "smootherstep")) {
-  r <- timer(genbart(y ~ ., data = dtr, control = ctrl(gate = g)))
+for (g in c("smootherstep", "logistic")) {
+  r <- timer(bartisan(y ~ ., data = dtr, control = ctrl(gate = g)))
   e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-  record("gaussian", "genbart", paste("soft,", g, "gate"), r$seconds, e,
+  record("gaussian", "bartisan", paste("soft,", g, "gate"), r$seconds, e,
          colMeans(e), truth)
 }
 
@@ -306,23 +307,23 @@ dtr_b <- data.frame(xtr, y = yb[d$train])
 truth_b <- prob[d$test]
 
 # `augment` is on by default, so the comparison needs it switched off
-# explicitly. See ?genbart_control for what it does and what it costs.
-r <- timer(genbart(y ~ ., data = dtr_b, family = binomial("probit"),
+# explicitly. See ?bartisan_control for what it does and what it costs.
+r <- timer(bartisan(y ~ ., data = dtr_b, family = binomial("probit"),
                    control = ctrl(augment = FALSE)))
 e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
-record("probit", "genbart", "soft, augment = FALSE", r$seconds, e,
+record("probit", "bartisan", "soft, augment = FALSE", r$seconds, e,
        colMeans(e), truth_b)
 
-r <- timer(genbart(y ~ ., data = dtr_b, family = binomial("probit"),
+r <- timer(bartisan(y ~ ., data = dtr_b, family = binomial("probit"),
                    control = ctrl(augment = TRUE)))
 e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
-record("probit", "genbart", "soft, augment = TRUE", r$seconds, e, colMeans(e),
+record("probit", "bartisan", "soft, augment = TRUE", r$seconds, e, colMeans(e),
        truth_b)
 
-r <- timer(genbart(y ~ ., data = dtr_b, family = binomial("probit"),
-                   control = ctrl(soft = FALSE, augment = TRUE)))
+r <- timer(bartisan(y ~ ., data = dtr_b, family = binomial("probit"),
+                   control = ctrl(gate = "hard", augment = TRUE)))
 e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
-record("probit", "genbart", "hard, augment = TRUE", r$seconds, e, colMeans(e),
+record("probit", "bartisan", "hard, augment = TRUE", r$seconds, e, colMeans(e),
        truth_b)
 
 if (installed[["stochtree"]]) {
@@ -356,7 +357,7 @@ if (installed[["BART"]]) {
 
 ## Binary response, logit link
 
-Only genbart and `BART::lbart` offer this; dbarts is probit-only. The two use
+Only bartisan and `BART::lbart` offer this; dbarts is probit-only. The two use
 different augmentations -- Pólya-Gamma here, the Holmes and Held (2006) scale
 mixture in `lbart` -- so this is also a comparison of those.
 
@@ -367,10 +368,10 @@ dtr_l <- data.frame(xtr, y = yl[d$train])
 truth_l <- prob_l[d$test]
 
 for (aug in c(FALSE, TRUE)) {
-  r <- timer(genbart(y ~ ., data = dtr_l, family = binomial("logit"),
+  r <- timer(bartisan(y ~ ., data = dtr_l, family = binomial("logit"),
                      control = ctrl(augment = aug)))
   e <- predict(r$value, newdata = dte, type = "response", draws = TRUE)
-  record("logit", "genbart", paste0("soft, augment = ", aug), r$seconds, e,
+  record("logit", "bartisan", paste0("soft, augment = ", aug), r$seconds, e,
          colMeans(e), truth_l)
 }
 
@@ -384,7 +385,7 @@ if (installed[["BART"]]) {
 }
 ```
 
-## Families only genbart has
+## Families only bartisan has
 
 These have no counterpart in the other packages, so there is nothing to compare
 against on speed. What the column shows is the cost of the general machinery when
@@ -392,35 +393,35 @@ no Gaussian rewriting is available -- which is the price of the coverage.
 
 ```{r general}
 # The gamma, Poisson and negative binomial families reach the *exponential* form
-# rather than the quadratic one -- see ?genbart_control -- which under hard rules
+# rather than the quadratic one -- see ?bartisan_control -- which under hard rules
 # collapses the leaf work to one pass just as the quadratic form does. The
 # `exact_quadratic = FALSE` runs show what that is worth.
 dtr_g <- data.frame(xtr, y = rgamma(n, shape = 4, rate = 4 / exp(d$eta[d$train])))
 for (exact in c(TRUE, FALSE)) {
-  r <- timer(genbart(y ~ ., data = dtr_g, family = Gamma("log"),
-                     control = ctrl(soft = FALSE, exact_quadratic = exact)))
+  r <- timer(bartisan(y ~ ., data = dtr_g, family = Gamma("log"),
+                     control = ctrl(gate = "hard", exact_quadratic = exact)))
   e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-  record("gamma (log link)", "genbart",
+  record("gamma (log link)", "bartisan",
          if (exact) "hard rules" else "hard, no shortcut", r$seconds, e,
          colMeans(e), truth)
 }
 
 dtr_p <- data.frame(xtr, y = rpois(n, exp(d$eta[d$train] + 1)))
 for (exact in c(TRUE, FALSE)) {
-  r <- timer(genbart(y ~ ., data = dtr_p, family = poisson(),
-                     control = ctrl(soft = FALSE, exact_quadratic = exact)))
+  r <- timer(bartisan(y ~ ., data = dtr_p, family = poisson(),
+                     control = ctrl(gate = "hard", exact_quadratic = exact)))
   e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-  record("poisson", "genbart",
+  record("poisson", "bartisan",
          if (exact) "hard rules" else "hard, no shortcut", r$seconds, e,
          colMeans(e), truth + 1)
 }
 
 dtr_nb <- data.frame(xtr, y = rnbinom(n, mu = exp(d$eta[d$train] + 1), size = 2))
 for (aug in c(TRUE, FALSE)) {
-  r <- timer(genbart(y ~ ., data = dtr_nb, family = negbin(),
-                     control = ctrl(soft = FALSE, augment = aug)))
+  r <- timer(bartisan(y ~ ., data = dtr_nb, family = negbin(),
+                     control = ctrl(gate = "hard", augment = aug)))
   e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-  record("negative binomial", "genbart",
+  record("negative binomial", "bartisan",
          if (aug) "hard, augment = TRUE" else "hard, augment = FALSE",
          r$seconds, e, colMeans(e), truth + 1)
 }
@@ -429,10 +430,10 @@ lt <- d$eta[d$train] + 0.7 * rlogis(n)
 cens <- quantile(lt, 0.75)
 dtr_s <- data.frame(xtr, time = exp(pmin(lt, cens)),
                     status = as.numeric(lt <= cens))
-r <- timer(genbart(survival::Surv(time, status) ~ ., data = dtr_s,
-                   family = loglogistic_aft(), control = ctrl(soft = FALSE)))
+r <- timer(bartisan(survival::Surv(time, status) ~ ., data = dtr_s,
+                   family = loglogistic_aft(), control = ctrl(gate = "hard")))
 e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-record("log-logistic AFT", "genbart", "hard rules", r$seconds, e, colMeans(e),
+record("log-logistic AFT", "bartisan", "hard rules", r$seconds, e, colMeans(e),
        truth)
 
 cuts <- c(-1, 0.5, 2)
@@ -445,38 +446,38 @@ dtr_o <- data.frame(xtr, y = factor(apply(probs, 2L, function(q)
 # the rewriting on and off; the gap between the pair of rows for a link is what
 # the augmentation is worth there.
 for (setting in list(list(lab = "hard, probit, augment = TRUE",
-                          fam = ordinal("probit"), soft = FALSE,
+                          fam = ordinal("probit"), gate = "hard",
                           augment = "ordinal"),
                      list(lab = "soft, probit, augment = TRUE",
-                          fam = ordinal("probit"), soft = TRUE,
+                          fam = ordinal("probit"), gate = "smoothstep",
                           augment = "ordinal"),
                      list(lab = "hard, probit, augment = FALSE",
-                          fam = ordinal("probit"), soft = FALSE,
+                          fam = ordinal("probit"), gate = "hard",
                           augment = FALSE),
                      list(lab = "hard, logit, augment = TRUE",
-                          fam = ordinal("logit"), soft = FALSE,
+                          fam = ordinal("logit"), gate = "hard",
                           augment = "ordinal"),
                      list(lab = "soft, logit, augment = TRUE",
-                          fam = ordinal("logit"), soft = TRUE,
+                          fam = ordinal("logit"), gate = "smoothstep",
                           augment = "ordinal"),
                      list(lab = "hard, cloglog, augment = TRUE",
-                          fam = ordinal("cloglog"), soft = FALSE,
+                          fam = ordinal("cloglog"), gate = "hard",
                           augment = "ordinal"),
                      list(lab = "hard, logit, augment = FALSE",
-                          fam = ordinal("logit"), soft = FALSE,
+                          fam = ordinal("logit"), gate = "hard",
                           augment = FALSE),
                      list(lab = "hard, cloglog, augment = FALSE",
-                          fam = ordinal("cloglog"), soft = FALSE,
+                          fam = ordinal("cloglog"), gate = "hard",
                           augment = FALSE))) {
-  r <- timer(genbart(y ~ ., data = dtr_o, family = setting$fam,
-                     control = ctrl(soft = setting$soft,
-                                    augment = setting$augment)))
+  r <- timer(bartisan(y ~ ., data = dtr_o, family = setting$fam,
+                      control = ctrl(gate = setting$gate,
+                                     augment = setting$augment)))
   e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
-  record("ordinal", "genbart", setting$lab, r$seconds, e, colMeans(e), truth)
+  record("ordinal", "bartisan", setting$lab, r$seconds, e, colMeans(e), truth)
 }
 
 # stochtree fits ordinal responses through a complementary log-log link, which
-# genbart now also offers, so the `cloglog` rows above are the like-for-like
+# bartisan now also offers, so the `cloglog` rows above are the like-for-like
 # comparison. The RMSE column still is not comparable across links.
 if (installed[["stochtree"]]) {
   r <- timer(stochtree::bart(
@@ -491,6 +492,51 @@ if (installed[["stochtree"]]) {
            colMeans(e), truth)
   }
 }
+```
+
+## How many trees, and how many per forest
+
+Two sweeps that inform the defaults rather than comparing packages. The first is
+the tree count under each kind of rule, on the same Gaussian task as above: soft
+rules reach their best held-out error at far fewer trees than hard ones, and past
+that point they get worse. The second is the per-forest vector, on
+`location_scale()`, where the scale forest is where nearly all the time goes.
+
+```{r tree-count}
+tree_sweep <- do.call(rbind, lapply(c("smoothstep", "hard"), function(g) {
+  do.call(rbind, lapply(c(10L, 20L, 50L, 100L, 200L), function(nt) {
+    r <- timer(bartisan(y ~ ., data = dtr, family = gaussian(),
+                       control = bartisan_control(num_trees = nt, gate = g,
+                                                  num_burn = draws,
+                                                 num_save = draws,
+                                                 verbose = FALSE)))
+    e <- predict(r$value, newdata = dte, type = "link")
+    data.frame(gate = g, trees = nt, seconds = round(r$seconds, 2),
+               rmse = round(sqrt(mean((e - truth)^2)), 3))
+  }))
+}))
+
+tree_sweep
+```
+
+```{r per-forest}
+dtr_ls <- dtr
+dtr_ls$y <- dtr$y + rnorm(nrow(dtr), 0, exp(-1 + dtr$x2))
+
+per_forest <- do.call(rbind, lapply(list(c(trees, trees), c(trees, 10L),
+                                         c(trees, 5L)), function(nt) {
+  r <- timer(bartisan(y ~ ., data = dtr_ls, family = location_scale(),
+                     control = bartisan_control(num_trees = nt,
+                                                num_burn = draws,
+                                               num_save = draws,
+                                               verbose = FALSE)))
+  e <- predict(r$value, newdata = dte, type = "link")
+  data.frame(num_trees = paste(nt, collapse = ","),
+             seconds = round(r$seconds, 2),
+             mean_rmse = round(sqrt(mean((e[, 1] - truth)^2)), 3))
+}))
+
+per_forest
 ```
 
 ## Several chains at once
@@ -526,9 +572,9 @@ if (have("future.apply") && have("future") && workers > 1L) {
 if (started) {
   chain_draws <- max(50L, draws %/% workers)
 
-  r <- timer(genbart(y ~ ., data = dtr, chains = workers,
-                     control = genbart_control(num_trees = trees,
-                                               num_burn = draws,
+  r <- timer(bartisan(y ~ ., data = dtr, chains = workers,
+                      control = bartisan_control(num_trees = trees,
+                                                 num_burn = draws,
                                                num_save = chain_draws,
                                                verbose = FALSE)))
 

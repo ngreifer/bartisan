@@ -10,7 +10,7 @@ test_that("the smoothstep gate is a distribution function with bounded support",
 
   fits <- lapply(c("logistic", "smoothstep", "smootherstep"), function(g) {
     set.seed(4)
-    genbart(y ~ ., d, control = quick_control(gate = g, num_trees = 5))
+    bartisan(y ~ ., d, control = quick_control(gate = g, num_trees = 5))
   })
 
   for (fit in fits) {
@@ -42,7 +42,7 @@ test_that("each gate has the smoothness it claims", {
     set.seed(2)
     # The response is a noiseless step, so the leaf scale has nothing to settle
     # to and is held fixed; this test is about the gate's shape, not the prior.
-    fit <- genbart(y ~ ., d, control = quick_control(
+    fit <- bartisan(y ~ ., d, control = quick_control(
       gate = gate, bandwidth = 0.05, update_bandwidth = FALSE, num_trees = 1L,
       num_burn = 100L, num_save = 100L, update_sigma_mu = FALSE))
     p <- stats::predict(fit, type = "link")
@@ -75,7 +75,9 @@ test_that("the smoothstep gate saturates and the logistic one does not", {
   band <- 0.02
   soft <- function(g) {
     set.seed(6)
-    fit <- genbart(y ~ ., d, control = quick_control(
+    # The family is incidental here -- this is about the gate -- so it is named
+    # rather than inferred, which for a numeric response would be `dpm()`.
+    fit <- bartisan(y ~ ., d, family = gaussian(), control = quick_control(
       gate = g, bandwidth = band, update_bandwidth = FALSE, num_trees = 1,
       num_burn = 200, num_save = 200))
     stats::predict(fit, type = "link")
@@ -100,13 +102,13 @@ test_that("the gate choice is stored and used by predict()", {
   d <- sim_x(seed = 8)
   d$y <- stats::rnorm(nrow(d))
 
-  fit <- genbart(y ~ ., d, control = quick_control(gate = "smoothstep"))
+  fit <- bartisan(y ~ ., d, control = quick_control(gate = "smoothstep"))
   expect_identical(fit[["gate"]], "smoothstep")
   expect_predictor_invariant(fit, d)
 
   # A fit from before the gate existed has no element for it; predict() must
   # still treat it as the logistic gate rather than failing.
-  logistic <- genbart(y ~ ., d, control = quick_control(gate = "logistic"))
+  logistic <- bartisan(y ~ ., d, control = quick_control(gate = "logistic"))
   old <- logistic
   old[["gate"]] <- NULL
   expect_equal(stats::predict(old, newdata = d, type = "link"),
@@ -121,25 +123,31 @@ test_that("the gate choice is stored and used by predict()", {
                                stats::predict(logistic, newdata = d,
                                               type = "link"))))
 
-  expect_error(genbart_control(gate = "cosine"), "should be one of")
-  expect_error(genbart_control(gate = "linear"), "should be one of")
+  expect_error(bartisan_control(gate = "cosine"), "should be one of")
+  expect_error(bartisan_control(gate = "linear"), "should be one of")
 })
 
-test_that("the gate is ignored when the rules are hard", {
+test_that("a hard rule has no gate to choose and ignores the bandwidth", {
   d <- sim_x(seed = 9)
   d$y <- stats::rnorm(nrow(d))
 
+  # "step" is a second name for "hard", so the two are the same model and the
+  # same draws.
   set.seed(10)
-  a <- genbart(y ~ ., d, control = quick_control(soft = FALSE,
-                                                 gate = "logistic"))
+  a <- bartisan(y ~ ., d, control = quick_control(gate = "hard"))
   set.seed(10)
-  b <- genbart(y ~ ., d, control = quick_control(soft = FALSE,
-                                                 gate = "smoothstep"))
-  set.seed(10)
-  cc <- genbart(y ~ ., d, control = quick_control(soft = FALSE,
-                                                  gate = "smootherstep"))
+  b <- bartisan(y ~ ., d, control = quick_control(gate = "step"))
 
   expect_equal(a[["eta"]], b[["eta"]])
+  expect_false(a[["soft"]])
+  expect_false(b[["soft"]])
+
+  # And a setting that only a soft rule reads leaves a hard fit untouched.
+  set.seed(10)
+  cc <- bartisan(y ~ ., d, control = quick_control(gate = "hard",
+                                                   bandwidth = 0.5,
+                                                  update_bandwidth = FALSE))
+
   expect_equal(a[["eta"]], cc[["eta"]])
 })
 
@@ -149,11 +157,11 @@ test_that("bandwidth_every skips the bandwidth move without disturbing anything 
 
   # Every sweep, and never: the bandwidth moves in the first and not the second.
   set.seed(14)
-  every <- genbart(y ~ ., d, control = quick_control(num_burn = 100,
-                                                     num_save = 100))
+  every <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
+                                                      num_save = 100))
   set.seed(14)
-  none <- genbart(y ~ ., d, control = quick_control(num_burn = 100,
-                                                    num_save = 100,
+  none <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
+                                                     num_save = 100,
                                                     update_bandwidth = FALSE))
 
   expect_gt(stats::sd(as.vector(every[["bandwidth"]])), 0)
@@ -162,19 +170,19 @@ test_that("bandwidth_every skips the bandwidth move without disturbing anything 
   # A stride larger than the whole run leaves the bandwidth where it started,
   # exactly as switching the move off does -- the two are the same sampler.
   set.seed(14)
-  never <- genbart(y ~ ., d, control = quick_control(num_burn = 100,
-                                                     num_save = 100,
+  never <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
+                                                      num_save = 100,
                                                      bandwidth_every = 10000L))
   expect_equal(never[["eta"]], none[["eta"]])
 
   # An intermediate stride is a valid sampler that still moves the bandwidth.
   set.seed(14)
-  half <- genbart(y ~ ., d, control = quick_control(num_burn = 100,
-                                                    num_save = 100,
+  half <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
+                                                     num_save = 100,
                                                     bandwidth_every = 4L))
   expect_gt(stats::sd(as.vector(half[["bandwidth"]])), 0)
   expect_predictor_invariant(half, d)
 
-  expect_error(genbart_control(bandwidth_every = 0), "must be")
-  expect_error(genbart_control(bandwidth_every = 2.5), "whole number")
+  expect_error(bartisan_control(bandwidth_every = 0), "must be")
+  expect_error(bartisan_control(bandwidth_every = 2.5), "whole number")
 })

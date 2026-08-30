@@ -3,7 +3,7 @@
 quick_control <- function(...) {
   args <- list(num_trees = 5L, num_burn = 30L, num_save = 30L, verbose = FALSE)
   args[names(list(...))] <- list(...)
-  do.call(genbart_control, args)
+  do.call(bartisan_control, args)
 }
 
 sim_x <- function(n = 60, p = 3, seed = 1) {

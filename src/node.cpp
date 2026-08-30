@@ -1,6 +1,6 @@
 #include "node.h"
 
-namespace genbart {
+namespace bartisan {
 
 Tree::Tree(Hypers* hypers_, const arma::mat* X_, const arma::uvec* has_na_)
   : hypers(hypers_), X(X_), has_na(has_na_) {
@@ -461,4 +461,4 @@ void collect_leaf_params(Node* node, std::vector<double>& out) {
   collect_leaf_params(node->right, out);
 }
 
-} // namespace genbart
+} // namespace bartisan

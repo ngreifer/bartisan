@@ -17,10 +17,10 @@ if (file.exists("~/.Rprofile")) {
 # `-flto` are all within one percent of `-O2`, so there is nothing to gain from
 # going further -- the only thing that matters is not being at `-O0`.
 #
-# `genbart:::.genbart_optimized()` reports what the loaded library actually is,
-# and `genbart()` warns once per session when the answer is no.
+# `bartisan:::.bartisan_optimized()` reports what the loaded library actually is,
+# and `bartisan()` warns once per session when the answer is no.
 options(pkg.build_extra_flags = FALSE)
 
 if (interactive()) {
-  message("genbart: compiling at -O2 (pkg.build_extra_flags = FALSE)")
+  message("bartisan: compiling at -O2 (pkg.build_extra_flags = FALSE)")
 }

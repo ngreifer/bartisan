@@ -3,7 +3,7 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 
-namespace genbart {
+namespace bartisan {
 
 namespace {
 
@@ -222,4 +222,4 @@ double rpg(double b, double c) {
   return rpg_series(b, c);
 }
 
-} // namespace genbart
+} // namespace bartisan

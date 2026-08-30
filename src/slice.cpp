@@ -1,6 +1,6 @@
 #include "slice.h"
 
-namespace genbart {
+namespace bartisan {
 
 double slice_sampler(double x0, const std::function<double(double)>& logf,
                      double w, double lower, double upper, int max_steps) {
@@ -71,4 +71,4 @@ double slice_sampler(double x0, const std::function<double(double)>& logf,
   return x0;
 }
 
-} // namespace genbart
+} // namespace bartisan

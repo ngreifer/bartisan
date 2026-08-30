@@ -1,7 +1,7 @@
 #include "hypers.h"
 #include "slice.h"
 
-namespace genbart {
+namespace bartisan {
 
 Hypers::Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
                double beta_, double alpha_, double alpha_scale_,
@@ -92,4 +92,4 @@ void Hypers::update_alpha_param() {
   alpha = alpha_scale * rho_up / (1.0 - rho_up);
 }
 
-} // namespace genbart
+} // namespace bartisan

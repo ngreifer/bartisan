@@ -19,8 +19,8 @@ test_that("the complementary log-log link recovers a cloglog-generated fit", {
 
   fits <- lapply(c("cloglog", "logit", "probit"), function(lk) {
     set.seed(3)
-    genbart(y ~ ., d, family = ordinal(lk), soft = FALSE, num_trees = 50,
-            num_burn = 300, num_save = 300)
+    bartisan(y ~ ., d, family = ordinal(lk), gate = "hard", num_trees = 50,
+             num_burn = 300, num_save = 300)
   })
   names(fits) <- c("cloglog", "logit", "probit")
 
@@ -45,8 +45,8 @@ test_that("cloglog probabilities from predict() match the link's own definition"
   z <- d$x1 - d$x2 + log(-log1p(-stats::runif(nrow(d))))
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
-  fit <- genbart(y ~ ., d, family = ordinal("cloglog"),
-                 control = quick_control(soft = FALSE))
+  fit <- bartisan(y ~ ., d, family = ordinal("cloglog"),
+                  control = quick_control(gate = "hard"))
 
   p <- stats::predict(fit, newdata = d, type = "prob")
   expect_equal(rowSums(p), rep(1, nrow(d)), tolerance = 1e-10,
@@ -80,8 +80,8 @@ test_that("the cloglog augmentation targets the same posterior as the direct fit
 
   fit <- function(augment) {
     set.seed(8)
-    genbart(y ~ ., d, family = ordinal("cloglog"), soft = FALSE,
-            num_trees = 20, num_burn = 400, num_save = 400, augment = augment)
+    bartisan(y ~ ., d, family = ordinal("cloglog"), gate = "hard",
+             num_trees = 20, num_burn = 400, num_save = 400, augment = augment)
   }
 
   direct <- fit(FALSE)
@@ -104,8 +104,8 @@ test_that("three or more categories are reported with a centered predictor", {
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
   for (lk in c("logit", "probit", "cloglog")) {
-    fit <- genbart(y ~ ., d, family = ordinal(lk),
-                   control = quick_control(soft = FALSE))
+    fit <- bartisan(y ~ ., d, family = ordinal(lk),
+                    control = quick_control(gate = "hard"))
 
     # Every draw's predictor averages to zero over the fitted sample, which is
     # the identifying convention, and no cutpoint is pinned.
@@ -126,8 +126,8 @@ test_that("two categories keep the chart that matches binary regression", {
   set.seed(1015)
   d$y <- ordered(as.integer(d$x1 - d$x2 + stats::rnorm(nrow(d)) > 0))
 
-  fit <- genbart(y ~ ., d, family = ordinal(),
-                 control = quick_control(soft = FALSE))
+  fit <- bartisan(y ~ ., d, family = ordinal(),
+                  control = quick_control(gate = "hard"))
 
   # One boundary, folded into the intercept exactly as binary regression does,
   # so it stays pinned and the predictor is not centered.
@@ -147,8 +147,8 @@ test_that("the chart is a change of chart: fitted probabilities are untouched", 
   z <- 2 * d$x1 - d$x2 + stats::rnorm(nrow(d))
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
-  fit <- genbart(y ~ ., d, family = ordinal("probit"), soft = FALSE,
-                 num_trees = 20, num_burn = 200, num_save = 200)
+  fit <- bartisan(y ~ ., d, family = ordinal("probit"), gate = "hard",
+                  num_trees = 20, num_burn = 200, num_save = 200)
 
   e <- stats::predict(fit, newdata = d, type = "link", draws = TRUE)
   cuts <- fit[["aux"]]
@@ -173,15 +173,15 @@ test_that("missing predictors are kept by default", {
 
   # na.pass is the default now, so the rows stay and the rules decide where the
   # missing values go.
-  fit <- genbart(y ~ ., d, control = quick_control())
+  fit <- bartisan(y ~ ., d, control = quick_control())
   expect_identical(fit[["n"]], 150L)
   expect_true(fit[["has_na"]][["x3"]])
   expect_predictor_invariant(fit, d)
 
   # na.omit still drops them, and then predict() refuses the same data because
   # no rule carries an answer.
-  dropped <- genbart(y ~ ., d, na.action = stats::na.omit,
-                     control = quick_control())
+  dropped <- bartisan(y ~ ., d, na.action = stats::na.omit,
+                      control = quick_control())
   expect_identical(dropped[["n"]], 146L)
   expect_false(dropped[["has_na"]][["x3"]])
   expect_error(stats::predict(dropped, newdata = d), "missing values")
@@ -189,7 +189,7 @@ test_that("missing predictors are kept by default", {
   # A missing response is dropped either way, with a warning.
   d2 <- d
   d2$y[1:2] <- NA
-  expect_warning(fit2 <- genbart(y ~ ., d2, control = quick_control()),
+  expect_warning(fit2 <- bartisan(y ~ ., d2, control = quick_control()),
                  "missing response")
   expect_identical(fit2[["n"]], 148L)
 })
@@ -201,7 +201,7 @@ test_that("the cutpoints are on the same scale as polr's", {
   # A linear truth, so polr is correctly specified and the two should land in the
   # same place. What is being checked is the *chart*: an ordinal model is
   # identified only up to a common shift of its cutpoints and its predictor, and
-  # the claim in ?genbart-families is that genbart reports the chart polr reports
+  # the claim in ?bartisan-families is that bartisan reports the chart polr reports
   # when polr's predictors are centered.
   set.seed(41)
   n <- 3000
@@ -210,8 +210,8 @@ test_that("the cutpoints are on the same scale as polr's", {
   zeta <- c(-1, 0.4, 1.9)
   d$y <- ordered(rowSums(outer(lp + stats::rnorm(n), zeta, ">")) + 1L)
 
-  fit <- genbart(y ~ x1 + x2, d, family = ordinal("probit"), soft = FALSE,
-                 num_trees = 50, num_burn = 400, num_save = 400)
+  fit <- bartisan(y ~ x1 + x2, d, family = ordinal("probit"), gate = "hard",
+                  num_trees = 50, num_burn = 400, num_save = 400)
   cuts <- colMeans(fit[["aux"]])
 
   raw <- MASS::polr(y ~ x1 + x2, data = d, method = "probit")

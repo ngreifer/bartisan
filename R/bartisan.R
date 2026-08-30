@@ -10,18 +10,19 @@
 #' The interface deliberately mirrors [stats::glm()]: a formula, a data frame
 #' and a family. Ordinary [stats::family] objects work unchanged, including
 #' their links, and the extra families that `glm()` has no counterpart for are
-#' documented at [genbart-families], along with `custom_family()` for a
+#' documented at [bartisan-families], along with `custom_family()` for a
 #' likelihood of your own.
 #'
 #' @param formula a model formula. The right-hand side lists candidate
 #'   predictors; the model finds interactions and nonlinearity on its own, so
 #'   `y ~ .` is usually the right specification. Survival families take a
-#'   [survival::Surv()] object on the left. A `(1 | group)` term adds a
+#'   \pkgfun{survival}{Surv} object on the left. A `(1 | group)` term adds a
 #'   group-level random intercept, in the notation of \pkg{lme4}; see Details.
 #' @param data a data frame containing the variables in `formula`.
 #' @param family the response distribution, as a [stats::family] object, one of
-#'   the families in [genbart-families], or a name. See Details for what is
-#'   supported.
+#'   the families in [bartisan-families], or a name. The default, `NULL`, reads
+#'   one off the response and says which it chose; see Details for the rules and
+#'   for what is supported.
 #' @param weights optional prior weights. For a binomial response given as
 #'   proportions, these are the numbers of trials, as in `glm()`.
 #' @param offset optional known component of the additive predictor, on the link
@@ -36,18 +37,18 @@
 #'   nothing to fit them to.
 #' @param chains how many independent chains to run. More than one requires the
 #'   \pkg{future.apply} package and runs them under whatever backend the caller
-#'   has planned with [future::plan()] -- `multisession`, `multicore`, a cluster,
+#'   has planned with \pkgfun{future}{plan} -- `multisession`, `multicore`, a cluster,
 #'   or mirai's `mirai_multisession`. The draws are pooled and
-#'   [split-R-hat][genbart()] is reported in the `rhat` element. One
+#'   [split-R-hat][bartisan()] is reported in the `rhat` element. One
 #'   `set.seed()` before the call reproduces the whole run whatever the backend,
 #'   because each chain is given its own L'Ecuyer stream.
 #' @param control a list of sampler and prior settings from
-#'   [genbart_control()].
-#' @param ... further arguments to [genbart_control()]. They are
+#'   [bartisan_control()].
+#' @param ... further arguments to [bartisan_control()]. They are
 #'   merged into `control`, overriding any value given there, so that
-#'   `genbart(..., num_trees = 20)` and
-#'   `genbart(..., control = genbart_control(num_trees = 20))` are the same
-#'   call. Names that are not arguments of [genbart_control()] are an error
+#'   `bartisan(..., num_trees = 20)` and
+#'   `bartisan(..., control = bartisan_control(num_trees = 20))` are the same
+#'   call. Names that are not arguments of [bartisan_control()] are an error
 #'   rather than being silently ignored.
 #'
 #' @details
@@ -71,11 +72,39 @@
 #' for the derivatives, and a link the package does not compile is composed onto
 #' the scale its family works on the same way.
 #'
+#' # The family is inferred when you do not name one
+#'
+#' `family` may be left alone, in which case it is read off the response:
+#'
+#' | Response | Family |
+#' |---|---|
+#' | [survival::Surv()] object, or a two-column matrix of times and events | `dpm_aft()` |
+#' | ordered factor | `ordinal()` |
+#' | logical, or two levels, or numeric zeros and ones | `binomial()` |
+#' | factor or character with more than two levels | `multinomial()` |
+#' | two-column matrix of successes and failures | `binomial()` |
+#' | anything else | `gaussian()` |
+#'
+#' A message reports the choice. Naming `family` yourself is what silences it,
+#' which is the same thing you would do to change the choice.
+#'
+#' Two of these are worth saying out loud. A **count** is not inferred as
+#' `poisson()`: a non-negative integer response is often Poisson and often not,
+#' and the Poisson variance assumption is strong enough that making it silently
+#' would be a modeling decision taken on the caller's behalf. Gaussian is the
+#' weaker guess and the one whose failure is easy to see. And a numeric response
+#' with exactly two values that are *not* zero and one -- `c(1, 2)`, say -- is
+#' Gaussian rather than binomial, because which of the two counts as the success
+#' is not something to guess at.
+#'
 #' # Soft decision rules
 #'
-#' With `soft = TRUE`, the default, a decision rule is a logistic gate rather
-#' than a step, so an observation reaches every leaf with some weight and the
-#' fitted function is smooth. This costs more per iteration, since a leaf now
+#' By default a decision rule is a smooth gate rather than a step, so an
+#' observation reaches every leaf with some weight and the fitted function is
+#' smooth. `gate` in [bartisan_control()] chooses both whether the rules are soft
+#' and, if they are, the gate's shape; the default is the bounded
+#' `"smoothstep"`, and `"logistic"` is Linero and Yang's (2018) original. This
+#' costs more per iteration, since a leaf now
 #' touches every observation rather than the ones inside its cell, and it makes
 #' the leaf parameters of a tree dependent on one another. Combining soft rules
 #' with a non-conjugate likelihood is an extension of Linero (2025), which
@@ -83,7 +112,7 @@
 #' move a bivariate Laplace proposal for the pair of child leaves, which reduces
 #' to Linero's independent pair exactly when the rules are hard.
 #'
-#' Set `soft = FALSE` in [genbart_control()] for the faster hard-rule sampler.
+#' Set `gate = "hard"` in [bartisan_control()] for the faster hard-rule sampler.
 #'
 #' # Random intercepts
 #'
@@ -93,8 +122,8 @@
 #' are allowed, and `(1 | a/b)` expands to nesting as it does in \pkg{lme4}:
 #'
 #' ```r
-#' genbart(y ~ x1 + x2 + (1 | school), data = d)
-#' genbart(y ~ x1 + (1 | school) + (1 | year), data = d)
+#' bartisan(y ~ x1 + x2 + (1 | school), data = d)
+#' bartisan(y ~ x1 + (1 | school) + (1 | year), data = d)
 #' ```
 #'
 #' The intercepts are in `fit$ranef` and their standard deviations in `fit$tau`,
@@ -172,8 +201,8 @@
 #' approximation, which the sampler then moves away from.
 #'
 #' @returns
-#' An object of class `genbart`, a list with elements including:
-#' \describe{
+#' An object of class `bartisan`, a list with elements including:
+#'
 #'   \item{`eta`}{a list with one matrix per additive predictor, each of
 #'     posterior draws by observation, on the link scale.}
 #'   \item{`fitted`}{fitted values on the response scale, averaged over draws.}
@@ -194,7 +223,7 @@
 #'   \item{`sigma_mu`, `bandwidth`}{draws of the leaf standard deviation and,
 #'     for soft rules, the per-tree gate bandwidths.}
 #'   \item{`loglik`}{the log likelihood at each draw.}
-#' }
+#'
 #'
 #' @references
 #' Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
@@ -227,7 +256,9 @@
 #' coping with missing data in decision trees. *Pattern Recognition Letters*,
 #' 29(7), 950--956. \doi{10.1016/j.patrec.2008.01.010}
 #'
-#' @seealso [predict.genbart()], [genbart_control()], [genbart-families]
+#' @seealso
+#' [predict.bartisan_fit()], [bartisan_control()], [bartisan-families], and
+#' `vignette("families", package = "bartisan")` for a family-by-family guide.
 #'
 #' @examples
 #' set.seed(1)
@@ -236,18 +267,18 @@
 #' d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n))
 #' d$y <- rbinom(n, 1, plogis(3 * sin(pi * d$x1 * d$x2) - 1))
 #'
-#' fit <- genbart(y ~ x1 + x2 + x3, data = d, family = binomial(),
-#'                control = genbart_control(num_trees = 10, num_burn = 50,
+#' fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = binomial(),
+#'                control = bartisan_control(num_trees = 10, num_burn = 50,
 #'                                          num_save = 50, verbose = FALSE))
 #' fit
 #'
 #' head(predict(fit, type = "response"))
 #'
 #' @export
-genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
-                    offset = NULL, subset = NULL,
+bartisan <- function(formula, data, family = NULL, weights = NULL,
+                     offset = NULL, subset = NULL,
                     na.action = stats::na.pass,
-                    chains = 1L, control = genbart_control(), ...) {
+                    chains = 1L, control = bartisan_control(), ...) {
 
   cl <- match.call()
 
@@ -258,13 +289,14 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
   arg::arg_gte(chains, 1)
   chains <- as.integer(chains)
 
-  if (!inherits(control, "genbart_control")) {
-    arg::err("{.arg control} must be the result of {.fn genbart_control}")
+  if (!inherits(control, "bartisan_control")) {
+    arg::err("{.arg control} must be the result of {.fn bartisan_control}")
   }
 
   control <- merge_control(control, list(...))
 
-  family <- as_genbart_family(family)
+  # `family` is resolved after the model frame, not before, because the default
+  # is read off the response and the response is not available until then.
 
   # Random-effect terms come out of the formula before anything else looks at
   # it. The model frame is built from the version with the bars replaced by
@@ -324,6 +356,8 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
   model_weights <- as.vector(stats::model.weights(mf))
   model_offset <- as.vector(stats::model.offset(mf))
 
+  family <- as_bartisan_family(family %or% default_family(y, model_weights))
+
   design <- build_design(mt, mf)
   n <- nrow(design$x)
 
@@ -345,9 +379,21 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
 
   engine_control <- as.list(control)
   engine_control[["gate"]] <- gate_code(control[["gate"]])
+
+  # One tree count per additive predictor. A scalar is recycled, so the common
+  # case reads the same as before; a vector lets a forest that needs less
+  # capacity be given less, which is most of what makes `location_scale()`
+  # affordable.
+  engine_control[["num_trees"]] <- resolve_num_trees(control[["num_trees"]],
+                                                     response[["n_forest"]],
+                                                     response[["n_aux"]])
+
+  # The leaf scale divides by the square root of that forest's *own* tree count,
+  # so a forest with fewer trees gets a proportionally larger prior per leaf and
+  # the prior on the sum is unchanged.
   engine_control[["sigma_mu"]] <- control[["sigma_mu"]] %or%
-    (3 * response[["eta_scale"]] / (control[["k"]] *
-                                      sqrt(control[["num_trees"]])))
+    (3 * response[["eta_scale"]] /
+       (control[["k"]] * sqrt(engine_control[["num_trees"]])))
 
   if (length(engine_control[["sigma_mu"]]) != response[["n_forest"]]) {
     engine_control[["sigma_mu"]] <- rep(engine_control[["sigma_mu"]],
@@ -357,8 +403,8 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
   # Everything above is a deterministic function of the data and is done once;
   # only the sampler itself is repeated per chain.
   engine <- function(ignored) {
-    .genbart_fit(X = unit$x,
-                 has_na = as.integer(has_na),
+    .bartisan_fit(X = unit$x,
+                  has_na = as.integer(has_na),
                  y = response[["y"]],
                  weights = response[["weights"]],
                  offset = response[["offset"]],
@@ -389,7 +435,7 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
               # NULL rather than an empty list when the formula has no bars, so
               # that everything downstream can test for it with one idiom and
               # `print()` does not announce a random part that is not there.
-              random = if (length(random) == 0L) NULL else random,
+              random = random %or% NULL,
               ranef = draws[["ranef"]],
               tau = draws[["tau"]],
               eta = draws[["eta"]],
@@ -399,6 +445,11 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
               loglik = as.vector(draws[["loglik"]]),
               forest_flat = draws[["forest_flat"]],
               tree_start = draws[["tree_start"]],
+              # The Dirichlet process mixture, when there is one: a flat vector
+              # of (mean, standard deviation, weight) triples with one offset per
+              # draw, because its component count changes from draw to draw.
+              mixture_flat = draws[["mixture_flat"]],
+              mixture_start = draws[["mixture_start"]],
               intercept = response[["offset"]][, 1L],
               has_offset = !is_null(model_offset),
               # Kept so that the conditional density of the training data can be
@@ -442,7 +493,7 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
 
     for (h in seq_along(out[["ranef"]])) {
       colnames(out[["ranef"]][[h]]) <- unlist(lapply(random, function(z) {
-        paste0(z[["label"]], ":", z[["levels"]])
+        sprintf("%s:%s", z[["label"]], z[["levels"]])
       }), use.names = FALSE)
       colnames(out[["tau"]][[h]]) <- labels
     }
@@ -454,7 +505,7 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
   }
   colnames(out[["sigma_mu"]]) <- predictor_names(out)
 
-  class(out) <- "genbart"
+  class(out) <- "bartisan_fit"
 
   out[["fitted"]] <- fitted_from_eta(out, out[["eta"]], average = TRUE)
 
@@ -474,20 +525,20 @@ genbart <- function(formula, data, family = stats::gaussian(), weights = NULL,
 # behind for a later `R CMD INSTALL` to reuse, so this is not a rare accident.
 # Warned once per session, since it is a property of the installation.
 warn_unoptimized <- function() {
-  if (isTRUE(the$checked_optimized) || .genbart_optimized()) {
+  if (isTRUE(the$checked_optimized) || .bartisan_optimized()) {
     the$checked_optimized <- TRUE
     return(invisible(NULL))
   }
 
   the$checked_optimized <- TRUE
 
-  cli::cli_warn(c(
-    "{.pkg genbart}'s compiled code was built without optimization, which makes
-     it 5 to 20 times slower than it should be",
-    i = "reinstall from a clean source directory:
+  arg::wrn(c(
+    "{.pkg bartisan}'s compiled code was built without optimization, which makes
+     it 5 to 20 times slower than it should be.",
+    i = "Reinstall from a clean source directory:
          {.code pkgbuild::clean_dll(); R CMD INSTALL --preclean .}",
-    i = "{.code genbart:::.genbart_optimized()} reports the state of the
-         installed library"))
+    i = "{.code bartisan:::.bartisan_optimized()} reports the state of the
+         installed library."))
 
   invisible(NULL)
 }
@@ -507,13 +558,13 @@ warn_unoptimized <- function() {
 # makes the result reproducible from a single `set.seed()` regardless of how many
 # workers happen to run it.
 run_chains <- function(engine, chains) {
-  if (!requireNamespace("future.apply", quietly = TRUE)) {
+  if (!rlang::is_installed("future.apply")) {
     arg::err("running more than one chain needs the {.pkg future.apply} package.
               Install it, or use {.code chains = 1}")
   }
 
   future.apply::future_lapply(seq_len(chains), engine, future.seed = TRUE,
-                              future.packages = "genbart")
+                              future.packages = "bartisan")
 }
 
 # Stack the chains into one set of draws, in chain order. The stored forests are
@@ -524,45 +575,50 @@ combine_chains <- function(fits) {
   first <- fits[[1L]]
   out <- first
 
-  stack <- function(name) {
+  stack <- function(fits, name) {
     do.call(rbind, lapply(fits, `[[`, name))
   }
 
-  stack_list <- function(name) {
+  stack_list <- function(fits, name) {
     lapply(seq_along(first[[name]]), function(h) {
       do.call(rbind, lapply(fits, function(z) z[[name]][[h]]))
     })
   }
 
-  out[["eta"]] <- stack_list("eta")
-  out[["counts"]] <- stack_list("counts")
-  out[["sigma_mu"]] <- stack("sigma_mu")
-  out[["bandwidth"]] <- stack("bandwidth")
-  out[["loglik"]] <- do.call(rbind, lapply(fits, function(z) z[["loglik"]]))
+  out[["eta"]] <- stack_list(fits, "eta")
+  out[["counts"]] <- stack_list(fits, "counts")
+  out[["sigma_mu"]] <- stack(fits, "sigma_mu")
+  out[["bandwidth"]] <- stack(fits, "bandwidth")
+  out[["loglik"]] <- stack(fits, "loglik")
 
   if (!is_null(first[["aux"]])) {
-    out[["aux"]] <- stack("aux")
+    out[["aux"]] <- stack(fits, "aux")
   }
 
   if (!is_null(first[["ranef"]])) {
-    out[["ranef"]] <- stack_list("ranef")
-    out[["tau"]] <- stack_list("tau")
+    out[["ranef"]] <- stack_list(fits, "ranef")
+    out[["tau"]] <- stack_list(fits, "tau")
   }
 
-  flat <- vector("list", length(fits))
-  starts <- vector("list", length(fits))
-  offset <- 0
+  # A flat vector with per-draw offsets is concatenated by shifting every
+  # chain's offsets past what came before it. Each chain's own offsets start
+  # with a zero, which belongs only to the first.
+  concatenate <- function(values, offsets) {
+    flat <- lapply(fits, `[[`, values)
+    at <- utils::head(cumsum(c(0L, lengths(flat))), -1L)
+    starts <- lapply(seq_along(fits), function(k) {
+      fits[[k]][[offsets]][-1L] + at[k]
+    })
 
-  for (k in seq_along(fits)) {
-    flat[[k]] <- fits[[k]][["forest_flat"]]
-    # Each chain's tree_start begins with a zero, which is only the first
-    # chain's; the rest are that chain's offsets shifted past what came before.
-    starts[[k]] <- fits[[k]][["tree_start"]][-1L] + offset
-    offset <- offset + length(flat[[k]])
+    out[[values]] <<- unlist(flat, use.names = FALSE)
+    out[[offsets]] <<- c(0L, unlist(starts, use.names = FALSE))
   }
 
-  out[["forest_flat"]] <- unlist(flat, use.names = FALSE)
-  out[["tree_start"]] <- c(0L, unlist(starts, use.names = FALSE))
+  concatenate("forest_flat", "tree_start")
+
+  if (!is_null(first[["mixture_flat"]])) {
+    concatenate("mixture_flat", "mixture_start")
+  }
 
   out
 }
@@ -579,23 +635,22 @@ combine_chains <- function(fits) {
 # effective sample sizes are reported separately because they answer different
 # questions -- the bulk one governs a posterior mean, the tail one an interval
 # endpoint, and a run can easily be adequate for the first and not the second.
-chain_diagnostics <- function(object) {
-  chains <- object[["chains"]]
-  per <- nrow(object[["sigma_mu"]]) / chains
-  index <- matrix(seq_len(per * chains), nrow = per, ncol = chains)
-
-  shape <- function(x) matrix(x[index], nrow = per, ncol = chains)
-
-  scalars <- list(loglik = object[["loglik"]])
+# The scalar parameters of a fit, as a named list of draw vectors. These are the
+# quantities that are one number per draw whatever the data are, which is what
+# makes them the ones a convergence diagnostic or a draws object wants; the
+# predictor and the group effects are one number per observation or per level and
+# are handled separately.
+scalar_draws <- function(object) {
+  out <- list(loglik = object[["loglik"]])
 
   for (h in seq_len(ncol(object[["sigma_mu"]]))) {
-    nm <- paste0("sigma_mu.", colnames(object[["sigma_mu"]])[h])
-    scalars[[nm]] <- object[["sigma_mu"]][, h]
+    nm <- sprintf("sigma_mu.%s", colnames(object[["sigma_mu"]])[h])
+    out[[nm]] <- object[["sigma_mu"]][, h]
   }
 
   if (!is_null(object[["aux"]])) {
     for (nm in colnames(object[["aux"]])) {
-      scalars[[paste0("aux.", nm)]] <- object[["aux"]][, nm]
+      out[[sprintf("aux.%s", nm)]] <- object[["aux"]][, nm]
     }
   }
 
@@ -604,11 +659,23 @@ chain_diagnostics <- function(object) {
   # level, since there is one per level.
   for (h in seq_along(object[["tau"]])) {
     for (r in seq_len(ncol(object[["tau"]][[h]]))) {
-      nm <- paste0("tau.", names(object[["tau"]])[h], ".",
-                   colnames(object[["tau"]][[h]])[r])
-      scalars[[nm]] <- object[["tau"]][[h]][, r]
+      nm <- sprintf("tau.%s.%s", names(object[["tau"]])[h],
+                    colnames(object[["tau"]][[h]])[r])
+      out[[nm]] <- object[["tau"]][[h]][, r]
     }
   }
+
+  out
+}
+
+chain_diagnostics <- function(object) {
+  chains <- object[["chains"]]
+  per <- nrow(object[["sigma_mu"]]) / chains
+  index <- matrix(seq_len(per * chains), nrow = per, ncol = chains)
+
+  shape <- function(x) matrix(x[index], nrow = per, ncol = chains)
+
+  scalars <- scalar_draws(object)
 
   rows <- lapply(names(scalars), function(nm) {
     x <- shape(scalars[[nm]])
@@ -617,7 +684,7 @@ chain_diagnostics <- function(object) {
   })
 
   for (h in seq_along(object[["eta"]])) {
-    label <- paste0("eta.", names(object[["eta"]])[h])
+    label <- sprintf("eta.%s", names(object[["eta"]])[h])
     draws <- object[["eta"]][[h]]
 
     per_obs <- vapply(seq_len(ncol(draws)), function(j) {
@@ -626,14 +693,14 @@ chain_diagnostics <- function(object) {
     }, numeric(3L))
 
     rows[[length(rows) + 1L]] <- data.frame(
-      quantity = paste0(label, " (worst over observations)"),
+      quantity = sprintf("%s (worst over observations)", label),
       rhat = worst(per_obs[1L, ], max),
       ess_bulk = worst(per_obs[2L, ], min),
       ess_tail = worst(per_obs[3L, ], min))
   }
 
   for (h in seq_along(object[["ranef"]])) {
-    label <- paste0("ranef.", names(object[["ranef"]])[h])
+    label <- sprintf("ranef.%s", names(object[["ranef"]])[h])
     draws <- object[["ranef"]][[h]]
 
     per_level <- vapply(seq_len(ncol(draws)), function(j) {
@@ -642,7 +709,7 @@ chain_diagnostics <- function(object) {
     }, numeric(3L))
 
     rows[[length(rows) + 1L]] <- data.frame(
-      quantity = paste0(label, " (worst over levels)"),
+      quantity = sprintf("%s (worst over levels)", label),
       rhat = worst(per_level[1L, ], max),
       ess_bulk = worst(per_level[2L, ], min),
       ess_tail = worst(per_level[3L, ], min))
@@ -676,7 +743,10 @@ split_rhat <- function(x) {
   half <- nrow(y)
   within <- mean(apply(y, 2L, stats::var))
 
-  if (!(within > 0)) {
+  # `isTRUE()` rather than a `<=` comparison because the quantity being guarded
+  # can be NaN as well as zero -- a chain of one draw, or a constant -- and
+  # `NaN <= 0` is NA, which is not something `if` can act on.
+  if (!isTRUE(within > 0)) {
     return(NA_real_)
   }
 
@@ -705,8 +775,9 @@ split_chains <- function(x) {
 # the diagnostic invariant to any monotone reparameterization. Blom's offsets.
 rank_normalize <- function(x) {
   r <- rank(x, ties.method = "average")
-  z <- stats::qnorm((r - 3 / 8) / (length(r) - 1 / 4))
-  matrix(z, nrow = nrow(x), ncol = ncol(x))
+
+  stats::qnorm((r - 3 / 8) / (length(r) - 1 / 4)) |>
+    matrix(nrow = nrow(x), ncol = ncol(x))
 }
 
 # Rank-normalized, folded, split R-hat (Vehtari, Gelman, Simpson, Carpenter and
@@ -720,8 +791,12 @@ rhat_rank <- function(x) {
     return(NA_real_)
   }
 
-  bulk <- split_rhat(rank_normalize(x))
-  folded <- split_rhat(rank_normalize(abs(x - stats::median(x))))
+  bulk <- rank_normalize(x) |>
+    split_rhat()
+
+  folded <- abs(x - stats::median(x)) |>
+    rank_normalize() |>
+    split_rhat()
 
   # A quantity the sampler holds fixed -- an ordinal model's first cutpoint, say
   # -- has no between-chain variance to compare, so both are NA. Reducing that
@@ -766,11 +841,12 @@ ess_from_split <- function(y) {
     var_plus <- var_plus + stats::var(colMeans(y))
   }
 
-  if (!(var_plus > 0) || !(mean_var > 0)) {
+  # Guarded with `isTRUE()` for the reason given in `split_rhat()`.
+  if (!isTRUE(var_plus > 0) || !isTRUE(mean_var > 0)) {
     return(NA_real_)
   }
 
-  rho <- function(t) 1 - (mean_var - pooled[t + 1L]) / var_plus
+  rho <- function(t) {1 - (mean_var - pooled[t + 1L]) / var_plus}
 
   # Geyer's initial positive sequence: walk the autocorrelations in adjacent
   # pairs and stop at the first pair whose sum goes negative, which is where the
@@ -798,7 +874,7 @@ ess_from_split <- function(y) {
   # estimator conservative rather than merely unbiased. With too few kept lags
   # for a second pair there is nothing to compare against.
   last <- length(kept) - 3L
-  pairs <- if (last >= 2L) seq(2L, last, by = 2L) else integer(0)
+  pairs <- if (last >= 2L) seq(2L, last, by = 2L) else integer()
 
   for (k in pairs) {
     previous <- kept[k - 1L] + kept[k]
@@ -835,7 +911,8 @@ ess_from <- function(x) {
 }
 
 ess_bulk <- function(x) {
-  ess_from(rank_normalize(x))
+  rank_normalize(x) |>
+    ess_from()
 }
 
 # Tail effective sample size: the smaller of the two effective sample sizes for
@@ -845,11 +922,10 @@ ess_bulk <- function(x) {
 # average over every draw, and a tail quantile depends on the few draws out
 # there.
 ess_tail <- function(x) {
-  lower <- stats::quantile(x, 0.05, names = FALSE, na.rm = TRUE)
-  upper <- stats::quantile(x, 0.95, names = FALSE, na.rm = TRUE)
+  q <- stats::quantile(x, c(0.05, 0.95), names = FALSE, na.rm = TRUE)
 
-  worst(c(ess_from(rank_normalize((x <= lower) * 1)),
-          ess_from(rank_normalize((x >= upper) * 1))), min)
+  worst(c(ess_from(rank_normalize((x <= q[1L]) * 1)),
+          ess_from(rank_normalize((x >= q[2L]) * 1))), min)
 }
 
 # The leaf scale is drawn under a half-Cauchy prior, which has no upper bound.
@@ -867,19 +943,15 @@ warn_runaway_scale <- function(object, target) {
   ratio <- colMeans(object[["sigma_mu"]]) / target
   at <- which(ratio > 5)
 
-  if (length(at) == 0L) {
-    return(invisible(NULL))
-  }
-
-  cli::cli_warn(c(
-    "the leaf scale settled {round(max(ratio[at]))} times above its prior
+  if (!is_null(at)) {
+    arg::wrn(c(
+      "The leaf scale settled {round(max(ratio[at]))} times above its prior
      median, which usually means the response is close to separable by the
-     predictors",
-    i = "the additive predictor is then only weakly identified; fix the scale
-         with {.code update_sigma_mu = FALSE} in {.fn genbart_control} if the
-         draws look unstable"))
-
-  invisible(NULL)
+     predictors.",
+      i = "The additive predictor is then only weakly identified; fix the scale
+         with {.code update_sigma_mu = FALSE} in {.fn bartisan_control} if the
+         draws look unstable."))
+  }
 }
 
 # Names for the additive predictors, which are the columns of most outputs.
@@ -894,6 +966,12 @@ predictor_names <- function(object) {
     return(object[["levels"]][-1L])
   }
 
+  # One latent variable per non-reference category, named for the contrast it
+  # carries.
+  if (identical(family, "mnp")) {
+    return(sprintf("%s-%s", object[["levels"]][-1L], object[["levels"]][1L]))
+  }
+
   if (identical(family, "location_scale")) {
     return(c("mean", "log_sd"))
   }
@@ -903,7 +981,7 @@ predictor_names <- function(object) {
   }
 
   if (identical(family, "custom") && object[["num_forest"]] > 1L) {
-    return(paste0("eta", seq_len(object[["num_forest"]])))
+    return(sprintf("eta%d", seq_len(object[["num_forest"]])))
   }
 
   "eta"
@@ -919,7 +997,7 @@ drop_unusable_rows <- function(mf, mt) {
                match(c("(weights)", "(offset)"), names(mf), 0L))
   columns <- columns[columns > 0L]
 
-  if (length(columns) == 0L) {
+  if (is_null(columns)) {
     return(mf)
   }
 
@@ -929,8 +1007,8 @@ drop_unusable_rows <- function(mf, mt) {
     return(mf)
   }
 
-  cli::cli_warn("dropping {sum(!keep)} row{?s} with a missing response, weight
-                 or offset; rows missing only predictors are kept")
+  arg::wrn("dropping {sum(!keep)} row{?s} with a missing response, weight
+            or offset; rows missing only predictors are kept")
 
   mf[keep, , drop = FALSE]
 }
@@ -953,11 +1031,11 @@ build_design <- function(mt, mf) {
 
   contrasts <- NULL
 
-  if (length(categorical) > 0L) {
+  if (!is_null(categorical)) {
     contrasts <- lapply(categorical, function(nm) {
       stats::contrasts(as.factor(mf[[nm]]), contrasts = FALSE)
-    })
-    names(contrasts) <- categorical
+    }) |>
+      setNames(categorical)
   }
 
   x <- stats::model.matrix(mt, mf, contrasts.arg = contrasts)
@@ -983,8 +1061,8 @@ build_design <- function(mt, mf) {
   }
 
   if (!all(varies)) {
-    cli::cli_warn("dropping {sum(!varies)} constant predictor column{?s}:
-                   {.val {colnames(x)[!varies]}}")
+    arg::wrn("dropping {sum(!varies)} constant predictor column{?s}:
+              {.val {colnames(x)[!varies]}}")
     x <- x[, varies, drop = FALSE]
     assign <- assign[varies]
   }
@@ -994,8 +1072,8 @@ build_design <- function(mt, mf) {
 }
 
 unit_transform <- function(x, type) {
-  maps <- lapply(seq_len(ncol(x)), function(j) make_unit_map(x[, j], type))
-  names(maps) <- colnames(x)
+  maps <- lapply(seq_len(ncol(x)), function(j) make_unit_map(x[, j], type)) |>
+    setNames(colnames(x))
 
   out <- x
 
@@ -1016,31 +1094,30 @@ apply_unit_maps <- function(x, maps) {
   out
 }
 
-# Settings passed to `genbart()` through `...` are control arguments, as in
+# Settings passed to `bartisan()` through `...` are control arguments, as in
 # `glm()`. They are merged with whatever the caller supplied to
-# `genbart_control()` and the whole thing is re-validated, so a bad value passed
+# `bartisan_control()` and the whole thing is re-validated, so a bad value passed
 # this way fails the same way it would have failed there.
 merge_control <- function(control, dots) {
-  if (length(dots) == 0) {
+  if (is_null(dots)) {
     return(control)
   }
 
-  allowed <- names(formals(genbart_control))
+  allowed <- names(formals(bartisan_control))
   nms <- names(dots)
 
   if (is_null(nms) || !all(nzchar(nms))) {
-    arg::err("arguments passed to {.fn genbart} in {.arg ...} must be named")
+    arg::err("arguments passed to {.fn bartisan} in {.arg ...} must be named")
   }
 
   if (anyDuplicated(nms) > 0) {
-    arg::err("arguments passed to {.fn genbart} in {.arg ...} must have distinct names")
+    arg::err("arguments passed to {.fn bartisan} in {.arg ...} must have distinct names")
   }
 
   bad <- setdiff(nms, allowed)
 
-  if (length(bad) > 0) {
-    arg::err(paste0("{.val {bad}} {?is/are} not {?an argument/arguments} of ",
-                    "{.fn genbart_control}"))
+  if (!is_null(bad)) {
+    arg::err("{.val {bad}} {?is/are} not {?an argument/arguments} of {.fn bartisan_control}")
   }
 
   args <- attr(control, "supplied") %or% list()
@@ -1050,11 +1127,37 @@ merge_control <- function(control, dots) {
   # rather than removing the entry.
   args[nms] <- dots
 
-  do.call(genbart_control, args)
+  do.call(bartisan_control, args)
 }
 
 # The engine takes the gate as an integer, matching GateShape in node.h. Kept in
-# one place so the two orderings cannot drift apart.
+# one place so the two orderings cannot drift apart. A hard rule has no gate
+# shape to choose, so it takes the default code and the engine ignores it.
 gate_code <- function(gate) {
-  match(gate, c("logistic", "smoothstep", "smootherstep")) - 1L
+  code <- match(gate, c("logistic", "smoothstep", "smootherstep")) - 1L
+
+  if (is.na(code)) 1L else code
+}
+
+# One tree count per additive predictor. The default depends on the rules,
+# because a soft rule makes a tree more expressive: measured on the Friedman
+# function, held-out error levels off by 20 trees with soft rules and keeps
+# improving to 50 with hard ones. 50 is kept for both because a smaller forest
+# mixes worse -- on `lalonde`, four chains at 20 soft trees disagreed by 35% on
+# an average contrast against 9% at 50 -- and the Friedman gain at 20 was 5%.
+resolve_num_trees <- function(num_trees, n_forest, n_aux = 0L) {
+  num_trees <- as.integer(num_trees %or% 50L)
+
+  # `num_trees` is about the additive predictors, so the count the caller sees
+  # excludes the trailing nuisance forests.
+  n_report <- n_forest - n_aux
+
+  if (length(num_trees) > n_report) {
+    arg::err("{.arg num_trees} has {length(num_trees)} value{?s} but this
+              family has {n_report} additive predictor{?s}")
+  }
+
+  # A nuisance parameter is one scalar, so its forest is one tree, and the engine
+  # pins it so that the tree can never split.
+  c(rep(num_trees, length.out = n_report), rep.int(1L, n_aux))
 }

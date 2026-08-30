@@ -5,7 +5,7 @@
 #include <limits>
 #include <cmath>
 
-namespace genbart {
+namespace bartisan {
 
 static const double LN_2PI = 1.8378770664093454835606594728112;
 
@@ -134,6 +134,6 @@ inline double log1mexp(double d) {
 // shape of a gamma prior.
 double trigamma_inverse(double x);
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif

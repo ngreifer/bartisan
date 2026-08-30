@@ -4,7 +4,7 @@
 
 using namespace Rcpp;
 
-namespace genbart {
+namespace bartisan {
 
 namespace {
 
@@ -841,7 +841,13 @@ struct OrdinalLogitAugmentedFamily : Concrete<OrdinalLogitAugmentedFamily> {
     for (int i = 0; i < N; i++) {
       // The precision, given the residual the previous sweep left behind.
       double r = latent(i) - e(i);
-      omega(i) = std::max(rpg(2.0, std::fabs(r)), OMEGA_MIN);
+      // Compared rather than passed to std::max(), which takes its arguments
+      // by const reference: binding OMEGA_MIN to one is an ODR-use, and a
+      // `static constexpr` member is only implicitly inline from C++17 on. Under
+      // an older standard the symbol has no definition, which the optimizer
+      // hides by folding the constant and a -O0 build does not.
+      double drawn = rpg(2.0, std::fabs(r));
+      omega(i) = drawn < OMEGA_MIN ? OMEGA_MIN : drawn;
 
       // Then the latent variable, given that precision and the cutpoints.
       double sd = 1.0 / std::sqrt(omega(i));
@@ -1533,7 +1539,7 @@ struct MultinomFamily : Family {
 // gives log-logistic and normal gives log-normal.
 // ---------------------------------------------------------------------------
 
-struct AFTFamily : Family {
+struct AFTFamily : Concrete<AFTFamily> {
   enum Dist { WEIBULL, LOGLOGISTIC, LOGNORMAL };
   Dist dist;
   arma::vec event;
@@ -1543,8 +1549,8 @@ struct AFTFamily : Family {
 
   AFTFamily(const arma::vec& y_, const arma::vec& w_, Dist dist_,
             const arma::vec& event_, double sigma_hat_, bool update_sigma_)
-    : Family(y_, w_, 1), dist(dist_), event(event_), sigma(sigma_hat_),
-      sigma_hat(sigma_hat_), update_sigma(update_sigma_) {}
+    : Concrete<AFTFamily>(y_, w_, 1), dist(dist_), event(event_),
+      sigma(sigma_hat_), sigma_hat(sigma_hat_), update_sigma(update_sigma_) {}
 
   static double loglik_one(Dist dist, double y, double eta, double delta,
                            double sigma) {
@@ -1561,6 +1567,26 @@ struct AFTFamily : Family {
       return delta * (R::dnorm4(r, 0.0, 1.0, 1) - log_sigma) +
         (1.0 - delta) * R::pnorm5(-r, 0.0, 1.0, 1, 1);
     }
+  }
+
+  // The Weibull log-likelihood is *exactly* of the exponential form, censored
+  // observations included:
+  //
+  //   delta (r - log sigma) - exp(r) = c - (delta / sigma) eta
+  //                                      - exp(y / sigma) exp(-eta / sigma),
+  //
+  // with r = (y - eta) / sigma. Censoring only sets delta to zero, which drops
+  // the linear term and leaves the shape intact, and the rate -1/sigma is the
+  // same for every observation, which is what the form requires. So this needs
+  // no data augmentation to escape the general path -- it only needed the rate
+  // to be something other than +-1. The other two error distributions have no
+  // such form and go through augmentation instead.
+  TargetForm target_form(int h) const override {
+    return dist == WEIBULL ? TARGET_EXP_DOWN : TARGET_GENERAL;
+  }
+
+  double exp_rate(int h) const override {
+    return dist == WEIBULL ? -1.0 / sigma : 0.0;
   }
 
   double logdens_unit(int i, const double* eta) const override {
@@ -1605,6 +1631,47 @@ struct AFTFamily : Family {
     }
   }
 
+  // The score and the information together, from one evaluation of the
+  // transcendental rather than two. The base class's default forms them through
+  // separate virtual calls to the two functions above, which for this family
+  // means computing `r` twice and the exponential, the logistic or the inverse
+  // Mills ratio twice. Every expression below is the one the function above it
+  // forms, in the same order, so the two agree to the last bit -- which is what
+  // the bit-identity harness in the test suite checks.
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double r = (y(i) - eta[0]) / sigma;
+    double delta = event(i);
+    double s2 = sigma * sigma;
+
+    switch (dist) {
+    case WEIBULL: {
+      double e = std::exp(r);
+      *d1 = (e - delta) / sigma;
+      *d2 = e / s2;
+      break;
+    }
+    case LOGLOGISTIC: {
+      double p = expit(r);
+      *d1 = ((1.0 + delta) * p - delta) / sigma;
+      *d2 = (1.0 + delta) * p * (1.0 - p) / s2;
+      break;
+    }
+    default: {
+      if (delta > 0.0) {
+        *d1 = r / sigma;
+        *d2 = 1.0 / s2;
+      }
+      else {
+        double lambda = inv_mills(r);
+        *d1 = lambda / sigma;
+        *d2 = lambda * (lambda - r) / s2;
+      }
+      break;
+    }
+    }
+  }
+
   void update_aux(const arma::mat& eta) override {
     if (!update_sigma) {
       return;
@@ -1639,6 +1706,492 @@ struct AFTFamily : Family {
 };
 
 // ---------------------------------------------------------------------------
+// The log-normal and log-logistic accelerated failure time models, by imputing
+// the censored log-failure-times. Both are quadratic once the imputation is in
+// hand, and unlike the exponential form that route survives soft rules, so this
+// is the version that helps at the default gate.
+//
+// Right-censoring is what makes the direct likelihood awkward: an observed
+// failure contributes a density in (y - eta), but a censored one contributes a
+// survival function, and the two have different shapes in eta. Imputing the
+// failure time above its censoring time replaces the survival term with a
+// density, and then every observation contributes the same shape.
+//
+// The scale is drawn from the *observed*-data likelihood, with the imputations
+// integrated out, and only then are they redrawn -- the partially collapsed
+// order of Van Dyk and Park (2008). Conditioning sigma on the current
+// imputations instead would be valid but slower to mix, and the marginal draw
+// costs nothing extra here because it is the same sum over observations either
+// way.
+// ---------------------------------------------------------------------------
+
+struct LognormalAFTAugmentedFamily : Concrete<LognormalAFTAugmentedFamily> {
+  arma::vec obs;      // log of the observed time, a failure or a censoring
+  arma::vec event;    // 1 for an observed failure, 0 for right-censored
+  arma::vec latent;   // the imputed log failure time; equal to obs when observed
+  double sigma;
+  double sigma_hat;
+  bool update_sigma;
+
+  LognormalAFTAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
+                              const arma::vec& event_, double sigma_hat_,
+                              bool update_sigma_)
+    : Concrete<LognormalAFTAugmentedFamily>(y_, w_, 1), obs(y_), event(event_),
+      sigma(sigma_hat_), sigma_hat(sigma_hat_), update_sigma(update_sigma_) {
+    // A deterministic start one scale unit past each censoring time, replaced by
+    // a proper draw at the end of the first sweep.
+    latent = obs;
+    for (int i = 0; i < N; i++) {
+      if (event(i) <= 0.0) {
+        latent(i) += sigma;
+      }
+    }
+    y = latent;
+  }
+
+  static bool applies(const arma::vec& w_) {
+    for (arma::uword i = 0; i < w_.n_elem; i++) {
+      if (w_(i) != 1.0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  TargetForm target_form(int h) const override { return TARGET_QUADRATIC; }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double r = (latent(i) - eta[0]) / sigma;
+    return -0.5 * r * r;
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double prec = 1.0 / (sigma * sigma);
+    *d1 = (latent(i) - eta[0]) * prec;
+    *d2 = prec;
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    return (latent(i) - eta[0]) / (sigma * sigma);
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    return 1.0 / (sigma * sigma);
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    const arma::rowvec& e = eta.row(0);
+
+    if (update_sigma) {
+      auto logf = [this, &e](double log_sigma) {
+        double s = std::exp(log_sigma);
+        if (!(s > 0.0) || !std::isfinite(s)) {
+          return R_NegInf;
+        }
+        double out = Rf_dcauchy(s, 0.0, sigma_hat, 1) + log_sigma;
+        for (int i = 0; i < N; i++) {
+          out += w(i) * AFTFamily::loglik_one(AFTFamily::LOGNORMAL, obs(i),
+                                              e(i), event(i), s);
+        }
+        return out;
+      };
+      sigma = std::exp(slice_sampler(std::log(sigma), logf, 0.5, -20.0, 20.0));
+    }
+
+    for (int i = 0; i < N; i++) {
+      if (event(i) > 0.0) {
+        latent(i) = obs(i);
+        continue;
+      }
+      // The failure happened after the censoring time, so the error is a
+      // standard normal truncated below at the residual it would have had.
+      double lo = (obs(i) - e(i)) / sigma;
+      latent(i) = e(i) + sigma * truncated_normal_between(lo, R_PosInf);
+    }
+
+    y = latent;
+  }
+
+  double reported_loglik(const arma::mat& eta) const override {
+    const arma::rowvec& e = eta.row(0);
+    double out = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      out += w(i) * AFTFamily::loglik_one(AFTFamily::LOGNORMAL, obs(i), e(i),
+                                          event(i), sigma);
+    }
+
+    return out;
+  }
+
+  std::vector<std::string> aux_names() const override {
+    return std::vector<std::string>{"sigma"};
+  }
+
+  arma::vec aux_values() const override { return arma::vec{sigma}; }
+
+  void set_aux(const arma::vec& values) override {
+    if (values.n_elem > 0) {
+      sigma = values(0);
+    }
+  }
+};
+
+// The log-logistic model needs a second layer: even with the failure time in
+// hand the complete-data density is logistic, not normal. Writing it as a scale
+// mixture of normals -- Polson, Scott and Windle (2013), Theorem 1 at a = 1 and
+// b = 2, where the tilting term kappa = a - b / 2 vanishes -- gives each
+// observation its own precision and makes the target quadratic. The same device
+// the ordinal logit uses.
+struct LoglogisticAFTAugmentedFamily
+  : Concrete<LoglogisticAFTAugmentedFamily> {
+  arma::vec obs;
+  arma::vec event;
+  arma::vec latent;
+  arma::vec omega;    // the Polya-Gamma precision, one per observation
+  double sigma;
+  double sigma_hat;
+  bool update_sigma;
+
+  static constexpr double OMEGA_MIN = 1e-10;
+
+  LoglogisticAFTAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
+                                const arma::vec& event_, double sigma_hat_,
+                                bool update_sigma_)
+    : Concrete<LoglogisticAFTAugmentedFamily>(y_, w_, 1), obs(y_),
+      event(event_), sigma(sigma_hat_), sigma_hat(sigma_hat_),
+      update_sigma(update_sigma_) {
+    latent = obs;
+    omega.set_size(N);
+    for (int i = 0; i < N; i++) {
+      if (event(i) <= 0.0) {
+        latent(i) += sigma;
+      }
+      // The mean of PG(2, 0), replaced by a proper draw at the end of the first
+      // sweep.
+      omega(i) = 0.5;
+    }
+    y = latent;
+  }
+
+  static bool applies(const arma::vec& w_) {
+    for (arma::uword i = 0; i < w_.n_elem; i++) {
+      if (w_(i) != 1.0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  TargetForm target_form(int h) const override { return TARGET_QUADRATIC; }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double r = (latent(i) - eta[0]) / sigma;
+    return -0.5 * omega(i) * r * r;
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double prec = omega(i) / (sigma * sigma);
+    *d1 = (latent(i) - eta[0]) * prec;
+    *d2 = prec;
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    return omega(i) * (latent(i) - eta[0]) / (sigma * sigma);
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    return omega(i) / (sigma * sigma);
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    const arma::rowvec& e = eta.row(0);
+
+    if (update_sigma) {
+      auto logf = [this, &e](double log_sigma) {
+        double s = std::exp(log_sigma);
+        if (!(s > 0.0) || !std::isfinite(s)) {
+          return R_NegInf;
+        }
+        double out = Rf_dcauchy(s, 0.0, sigma_hat, 1) + log_sigma;
+        for (int i = 0; i < N; i++) {
+          out += w(i) * AFTFamily::loglik_one(AFTFamily::LOGLOGISTIC, obs(i),
+                                              e(i), event(i), s);
+        }
+        return out;
+      };
+      sigma = std::exp(slice_sampler(std::log(sigma), logf, 0.5, -20.0, 20.0));
+    }
+
+    for (int i = 0; i < N; i++) {
+      if (event(i) > 0.0) {
+        latent(i) = obs(i);
+      }
+      else {
+        // Drawn from the logistic truncated below, by inverting its cumulative
+        // distribution rather than conditioning on omega: the two are both
+        // valid Gibbs steps, and this one leaves the imputation independent of
+        // the precision it is about to be paired with. Carrying the *upper*
+        // tail probability keeps the inversion accurate when the censoring time
+        // is far above the predictor and the lower probability rounds to one.
+        double q = expit(-(obs(i) - e(i)) / sigma) * (1.0 - unif_rand());
+        if (!(q > 0.0)) {
+          q = std::numeric_limits<double>::min();
+        }
+        latent(i) = e(i) + sigma * (std::log1p(-q) - std::log(q));
+      }
+
+      // Then the precision, given the residual now in place.
+      double r = (latent(i) - e(i)) / sigma;
+      // Compared rather than passed to std::max(), which takes its arguments
+      // by const reference: binding OMEGA_MIN to one is an ODR-use, and a
+      // `static constexpr` member is only implicitly inline from C++17 on. Under
+      // an older standard the symbol has no definition, which the optimizer
+      // hides by folding the constant and a -O0 build does not.
+      double drawn = rpg(2.0, std::fabs(r));
+      omega(i) = drawn < OMEGA_MIN ? OMEGA_MIN : drawn;
+    }
+
+    y = latent;
+  }
+
+  double reported_loglik(const arma::mat& eta) const override {
+    const arma::rowvec& e = eta.row(0);
+    double out = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      out += w(i) * AFTFamily::loglik_one(AFTFamily::LOGLOGISTIC, obs(i), e(i),
+                                          event(i), sigma);
+    }
+
+    return out;
+  }
+
+  std::vector<std::string> aux_names() const override {
+    return std::vector<std::string>{"sigma"};
+  }
+
+  arma::vec aux_values() const override { return arma::vec{sigma}; }
+
+  void set_aux(const arma::vec& values) override {
+    if (values.n_elem > 0) {
+      sigma = values(0);
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Proportional hazards with a piecewise-constant baseline: the semiparametric
+// survival model, with the log hazard ratio given a forest.
+//
+//   lambda(t | x) = lambda_0(t) exp(r(x)),   lambda_0(t) = lambda_b for t in bin b.
+//
+// Cox's *partial* likelihood couples observations through risk sets and so does
+// not decompose into a sum over the observations reaching a leaf, which is what
+// this sampler needs. The full likelihood of the piecewise-exponential model
+// does decompose, and it approaches the partial likelihood as the bins shrink
+// (Sinha, Ibrahim and Chen 2003), so proportional hazards is reachable after all
+// -- and cheaply. Writing Lambda_0 for the cumulative baseline, the contribution
+// of observation i is
+//
+//   delta_i (log lambda_{b_i} + eta) - Lambda_0(y_i) exp(eta),
+//
+// which is `a eta + b exp(eta)` with the rate exactly +1: the same exponential
+// form the Poisson has, so a leaf update is one pass over the node rather than
+// one per trial value. The baseline is a nuisance vector drawn from its exact
+// gamma conditional, which is what makes it as cheap as it is flexible.
+//
+// The level of the predictor and the level of the baseline are identified only
+// jointly, so the convention here is that the baseline carries it: the predictor
+// starts at zero and is reported as a log hazard ratio against the fitted
+// baseline. Basak, Linero, Maringe and Rubio (2024) is the reference for this
+// construction, in the relative-survival setting.
+// ---------------------------------------------------------------------------
+
+struct PHFamily : Concrete<PHFamily> {
+  arma::vec event;
+  int num_bins;
+  arma::vec edges;        // lower edge of each bin; edges(0) is 0
+  arma::vec width;        // bin widths, the last one unused and set to zero
+  arma::uvec bin_of;      // which bin each observation's time falls in
+  arma::vec lambda;
+  arma::vec cum_base;     // Lambda_0(y_i), rebuilt whenever lambda moves
+  arma::vec events_in;    // A_b, free of everything drawn, so computed once
+  double shape;           // a_lambda
+  double rate;            // b_lambda, itself drawn
+  bool update_lambda;
+
+  // Scratch for the O(N + B) baseline update, allocated once.
+  mutable arma::vec bin_total;
+  mutable arma::vec bin_partial;
+
+  // R draws gamma variates by shape and *scale*; every conditional here is
+  // written by rate, which is the convention the model is stated in.
+  static double gamma_by_rate(double shape_in, double rate_in) {
+    if (!(rate_in > 0.0) || !std::isfinite(rate_in)) {
+      return 0.0;
+    }
+    return Rf_rgamma(shape_in, 1.0 / rate_in);
+  }
+
+  PHFamily(const arma::vec& y_, const arma::vec& w_, const arma::vec& event_,
+           const arma::vec& edges_, double shape_, double rate_,
+           bool update_lambda_)
+    : Concrete<PHFamily>(y_, w_, 1), event(event_), edges(edges_),
+      shape(shape_), rate(rate_), update_lambda(update_lambda_) {
+    num_bins = static_cast<int>(edges.n_elem);
+
+    width.set_size(num_bins);
+    for (int b = 0; b < num_bins - 1; b++) {
+      width(b) = edges(b + 1) - edges(b);
+    }
+    // The last bin runs to infinity, but no observation lies *above* it, so its
+    // width never multiplies anything.
+    width(num_bins - 1) = 0.0;
+
+    // Binary search rather than a scan: with one bin per event time a scan is
+    // quadratic in the sample size.
+    bin_of.set_size(N);
+    for (int i = 0; i < N; i++) {
+      const double* first = edges.memptr();
+      const double* found = std::upper_bound(first, first + num_bins, y(i));
+      bin_of(i) = static_cast<arma::uword>(
+        std::max<std::ptrdiff_t>(found - first - 1, 0));
+    }
+
+    events_in.zeros(num_bins);
+    for (int i = 0; i < N; i++) {
+      events_in(bin_of(i)) += w(i) * event(i);
+    }
+
+    lambda.set_size(num_bins);
+    lambda.fill(shape / std::max(rate, 1e-8));
+    bin_total.set_size(num_bins);
+    bin_partial.set_size(num_bins);
+    cum_base.set_size(N);
+    rebuild_baseline();
+  }
+
+  // Lambda_0(y) = sum of the whole bins below y, plus the part of y's own bin it
+  // reaches. One O(B) scan and one O(N) pass.
+  void rebuild_baseline() {
+    arma::vec before(num_bins, arma::fill::zeros);
+    for (int b = 1; b < num_bins; b++) {
+      before(b) = before(b - 1) + lambda(b - 1) * width(b - 1);
+    }
+    for (int i = 0; i < N; i++) {
+      arma::uword b = bin_of(i);
+      cum_base(i) = before(b) + lambda(b) * (y(i) - edges(b));
+    }
+  }
+
+  TargetForm target_form(int h) const override { return TARGET_EXP_UP; }
+
+  // The `delta * log lambda` term moves with the baseline, not the predictor, so
+  // it belongs to the part the sampler caches per sweep.
+  arma::vec compute_eta_free() const override {
+    arma::vec out(N);
+    for (int i = 0; i < N; i++) {
+      out(i) = event(i) > 0.0 ? std::log(lambda(bin_of(i))) : 0.0;
+    }
+    return out;
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    return event(i) * eta[0] - cum_base(i) * std::exp(eta[0]);
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double mu = cum_base(i) * std::exp(eta[0]);
+    *d1 = event(i) - mu;
+    *d2 = mu;
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    return event(i) - cum_base(i) * std::exp(eta[0]);
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    return cum_base(i) * std::exp(eta[0]);
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    if (!update_lambda) {
+      return;
+    }
+
+    const arma::rowvec& e = eta.row(0);
+
+    // B_b = width_b * (total exposure of everyone who outlives the bin)
+    //       + (the part-bins of everyone who leaves inside it).
+    bin_total.zeros();
+    bin_partial.zeros();
+    for (int i = 0; i < N; i++) {
+      double contribution = w(i) * std::exp(e(i));
+      arma::uword b = bin_of(i);
+      bin_total(b) += contribution;
+      bin_partial(b) += contribution * (y(i) - edges(b));
+    }
+
+    double above = 0.0;
+    for (int b = num_bins - 1; b >= 0; b--) {
+      // `above` is the exposure of the observations whose bin is strictly higher.
+      double exposure = width(b) * above + bin_partial(b);
+      lambda(b) = gamma_by_rate(shape + events_in(b), rate + exposure);
+      above += bin_total(b);
+    }
+
+    // A flat prior on the baseline's own rate leaves a gamma conditional, which
+    // is what lets the bins borrow a level from each other rather than each
+    // resting on its own handful of events.
+    rate = gamma_by_rate(num_bins + 1.0, arma::accu(lambda));
+
+    rebuild_baseline();
+    refresh_eta_free();
+  }
+
+  double reported_loglik(const arma::mat& eta) const override {
+    const arma::rowvec& e = eta.row(0);
+    double out = 0.0;
+    for (int i = 0; i < N; i++) {
+      out += w(i) * (event(i) * (std::log(lambda(bin_of(i))) + e(i)) -
+                     cum_base(i) * std::exp(e(i)));
+    }
+    return out;
+  }
+
+  std::vector<std::string> aux_names() const override {
+    std::vector<std::string> out;
+    for (int b = 0; b < num_bins; b++) {
+      out.push_back("lambda" + std::to_string(b + 1));
+    }
+    out.push_back("lambda_rate");
+    return out;
+  }
+
+  arma::vec aux_values() const override {
+    arma::vec out(num_bins + 1);
+    out.head(num_bins) = lambda;
+    out(num_bins) = rate;
+    return out;
+  }
+
+  void set_aux(const arma::vec& values) override {
+    if (static_cast<int>(values.n_elem) >= num_bins) {
+      lambda = values.head(num_bins);
+      if (static_cast<int>(values.n_elem) > num_bins) {
+        rate = values(num_bins);
+      }
+      rebuild_baseline();
+      refresh_eta_free();
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Gaussian location-scale regression: one forest for the mean and a second for
 // the log standard deviation, so the variance is an unrestricted function of
 // the predictors.
@@ -1646,10 +2199,21 @@ struct AFTFamily : Family {
 
 struct LocationScaleFamily : Concrete<LocationScaleFamily> {
 
-  // Quadratic in the mean but not in the log standard deviation, which is why
-  // this is asked per predictor rather than per family.
+  // Quadratic in the mean, and in the log standard deviation the *exponential*
+  // form at rate -2: the log density is
+  //
+  //   const - eta1 - (y - eta0)^2 exp(-2 eta1) / 2,
+  //
+  // which is c + a eta1 + b exp(-2 eta1) with b free of eta1. So neither
+  // predictor needs the general path, which is why this is asked per predictor
+  // rather than per family. The rate is what made this reachable: the form used
+  // to be hardcoded to exp(+-eta).
   TargetForm target_form(int h) const override {
-    return h == 0 ? TARGET_QUADRATIC : TARGET_GENERAL;
+    return h == 0 ? TARGET_QUADRATIC : TARGET_EXP_DOWN;
+  }
+
+  double exp_rate(int h) const override {
+    return h == 0 ? 0.0 : -2.0;
   }
 
   LocationScaleFamily(const arma::vec& y_, const arma::vec& w_)
@@ -1672,9 +2236,13 @@ struct LocationScaleFamily : Concrete<LocationScaleFamily> {
     if (h == 0) {
       return std::exp(-2.0 * eta[1]);
     }
-    // Expected information for the log scale, which is constant and avoids the
-    // noise in the observed version.
-    return 2.0;
+    // The *observed* information for the log scale. The expected version is
+    // constant at 2 and was used because it is quieter, but the exponential form
+    // reads its coefficients off the curvature and so needs the curvature the
+    // target actually has. Nothing is approximated either way: a Laplace fit is
+    // a proposal, and here it stops being an approximation at all.
+    double r = (y(i) - eta[0]) * std::exp(-eta[1]);
+    return 2.0 * r * r;
   }
 };
 
@@ -1684,6 +2252,49 @@ struct LocationScaleFamily : Concrete<LocationScaleFamily> {
 // observation is a structural zero. Both are modeled nonparametrically, so the
 // excess-zero mechanism is free to depend on the predictors.
 // ---------------------------------------------------------------------------
+
+// The zero-inflated log likelihood, as free functions so that the direct family
+// and the augmented one below share exactly one definition of the model.
+namespace {
+
+// log P(the count component yields a zero).
+double zi_log_p0(double eta_count, double theta, bool negbin) {
+  double mu = std::exp(eta_count);
+
+  if (!negbin) {
+    return -mu;
+  }
+
+  return theta * (std::log(theta) - std::log(theta + mu));
+}
+
+double zi_count_logpmf(double y_i, double eta_count, double theta,
+                       bool negbin) {
+  double mu = std::exp(eta_count);
+
+  if (!negbin) {
+    return y_i * eta_count - mu - R::lgammafn(y_i + 1.0);
+  }
+
+  double log_theta_mu = std::log(theta + mu);
+
+  return R::lgammafn(y_i + theta) - R::lgammafn(theta) -
+    R::lgammafn(y_i + 1.0) + theta * (std::log(theta) - log_theta_mu) +
+    y_i * (eta_count - log_theta_mu);
+}
+
+double zi_loglik_one(double y_i, const double* eta, double theta,
+                     bool negbin) {
+  if (y_i > 0.0) {
+    return log1m_expit(eta[1]) + zi_count_logpmf(y_i, eta[0], theta, negbin);
+  }
+
+  // A zero arises either structurally or from the count component.
+  return log_sum_exp(log_expit(eta[1]),
+                     log1m_expit(eta[1]) + zi_log_p0(eta[0], theta, negbin));
+}
+
+} // namespace
 
 struct ZeroInflatedFamily : Family {
   bool negbin;
@@ -1699,32 +2310,12 @@ struct ZeroInflatedFamily : Family {
       prior_shape(prior_shape_), prior_rate(prior_rate_),
       update_theta(update_theta_) {}
 
-  // log P(count component yields zero).
   double log_p0(double eta_count, double th) const {
-    double mu = std::exp(eta_count);
-    if (!negbin) {
-      return -mu;
-    }
-    return th * (std::log(th) - std::log(th + mu));
-  }
-
-  double count_logpmf(double y_i, double eta_count, double th) const {
-    double mu = std::exp(eta_count);
-    if (!negbin) {
-      return y_i * eta_count - mu - R::lgammafn(y_i + 1.0);
-    }
-    double log_theta_mu = std::log(th + mu);
-    return R::lgammafn(y_i + th) - R::lgammafn(th) - R::lgammafn(y_i + 1.0) +
-      th * (std::log(th) - log_theta_mu) + y_i * (eta_count - log_theta_mu);
+    return zi_log_p0(eta_count, th, negbin);
   }
 
   double loglik_one(double y_i, const double* eta, double th) const {
-    if (y_i > 0.0) {
-      return log1m_expit(eta[1]) + count_logpmf(y_i, eta[0], th);
-    }
-    // A zero arises either structurally or from the count component.
-    return log_sum_exp(log_expit(eta[1]),
-                       log1m_expit(eta[1]) + log_p0(eta[0], th));
+    return zi_loglik_one(y_i, eta, th, negbin);
   }
 
   // Only observations with a positive count reach the count log-density, and
@@ -1853,6 +2444,236 @@ struct ZeroInflatedFamily : Family {
 // the predictor also enters the beta mean it is identified, so unlike the
 // ordinal family neither cutpoint has to be pinned.
 // ---------------------------------------------------------------------------
+// Beta regression for a response strictly inside the unit interval. The forest
+// is on the logit of the mean and a precision is drawn, so the two shapes are
+// mu * phi and (1 - mu) * phi and their sum is free of the predictor -- which is
+// what makes the normalizing constant partly cacheable.
+//
+// This is the interior of `ordbeta()` with the endpoint machinery removed. Kept
+// as its own family rather than as a special case of that one because the two
+// answer different questions: this one says the response cannot reach 0 or 1,
+// and ordered beta says it can and estimates how often it does. Fitting ordered
+// beta to data with no boundary observations leaves its two cutpoints with
+// nothing to identify them.
+// ---------------------------------------------------------------------------
+
+struct BetaFamily : Family {
+  double phi;
+  double prior_shape;
+  double prior_rate;
+  bool update_phi;
+
+  // log(y) and log(1 - y) are multiplied by shapes that move with eta, so they
+  // cannot go into the eta-free part, but they are fixed per observation.
+  arma::vec log_y;
+  arma::vec log1m_y;
+  arma::vec logit_y;
+
+  // The derivatives need two digamma and two trigamma evaluations per
+  // observation per pass, which made this the slowest family in the package. But
+  // both of the combinations they appear in,
+  //
+  //   psi(mu phi) - psi((1 - mu) phi)   and   psi'(mu phi) + psi'((1 - mu) phi),
+  //
+  // are functions of the *single scalar* mu, because the two shapes always sum to
+  // phi and phi is fixed for the whole of a sweep -- it moves only in
+  // `update_aux`. So they are tabulated once per sweep on a grid in the additive
+  // predictor and interpolated, which turns four special-function calls into two
+  // loads and a multiply.
+  //
+  // This is a proposal, not the target: `logdens_unit` below stays exact, and the
+  // Metropolis step corrects. What the sampler requires of a Laplace fit is that
+  // it be a *deterministic* function of the current state, so that the forward
+  // and reverse moves rebuild the same proposal, and a fixed table is exactly
+  // that. Interpolation error costs acceptance rate, not correctness.
+  static const int TAB_N = 2049;
+  static constexpr double TAB_L = 8.0;
+  std::vector<double> tab_dpsi;
+  std::vector<double> tab_tpsi;
+  double tab_step;
+  double tab_phi;
+
+  BetaFamily(const arma::vec& y_, const arma::vec& w_, double phi_,
+             double prior_shape_, double prior_rate_, bool update_phi_)
+    : Family(y_, w_, 1), phi(phi_), prior_shape(prior_shape_),
+      prior_rate(prior_rate_), update_phi(update_phi_) {
+    log_y.set_size(N);
+    log1m_y.set_size(N);
+    logit_y.set_size(N);
+    for (int i = 0; i < N; i++) {
+      log_y(i) = std::log(y_(i));
+      log1m_y(i) = std::log1p(-y_(i));
+      logit_y(i) = log_y(i) - log1m_y(i);
+    }
+    tab_dpsi.resize(TAB_N);
+    tab_tpsi.resize(TAB_N);
+    tab_step = 2.0 * TAB_L / (TAB_N - 1);
+    build_tables();
+  }
+
+  // Exact, for the grid itself and for predictors beyond it.
+  void psi_exact(double e, double* dpsi, double* tpsi) const {
+    double mu = expit(e);
+    double a = mu * phi;
+    double b = phi - a;
+    *dpsi = R::digamma(a) - R::digamma(b);
+    *tpsi = R::trigamma(a) + R::trigamma(b);
+  }
+
+  void build_tables() {
+    for (int g = 0; g < TAB_N; g++) {
+      psi_exact(-TAB_L + g * tab_step, &tab_dpsi[g], &tab_tpsi[g]);
+    }
+    tab_phi = phi;
+  }
+
+  void psi_lookup(double e, double* dpsi, double* tpsi) const {
+    if (!(e > -TAB_L) || !(e < TAB_L)) {
+      // The tails, where the grid would need to resolve a function growing like
+      // exp(|e|) / phi. Rare enough to pay for exactly.
+      psi_exact(e, dpsi, tpsi);
+      return;
+    }
+    double t = (e + TAB_L) / tab_step;
+    int g = static_cast<int>(t);
+    // The guard above makes g <= TAB_N - 2 mathematically, but rounding in the
+    // division could land it one past that, and the read below is of g + 1.
+    if (g > TAB_N - 2) {
+      g = TAB_N - 2;
+    }
+    double frac = t - g;
+    *dpsi = tab_dpsi[g] + frac * (tab_dpsi[g + 1] - tab_dpsi[g]);
+    *tpsi = tab_tpsi[g] + frac * (tab_tpsi[g + 1] - tab_tpsi[g]);
+  }
+
+  // lbeta(a, b) = lgamma(a) + lgamma(b) - lgamma(phi), and the last term is free
+  // of eta because the two shapes always sum to phi. The unit constants of the
+  // density go the same way.
+  arma::vec compute_eta_free() const override {
+    arma::vec out(N);
+    double lg_phi = R::lgammafn(phi);
+    for (int i = 0; i < N; i++) {
+      out(i) = lg_phi - log_y(i) - log1m_y(i);
+    }
+    return out;
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double mu = expit(eta[0]);
+    double a = mu * phi;
+    double b = phi - a;
+
+    if (!(a > 0.0) || !(b > 0.0)) {
+      return R_NegInf;
+    }
+
+    return a * log_y(i) + b * log1m_y(i) - R::lgammafn(a) - R::lgammafn(b);
+  }
+
+  // Complete log density, for the precision update, which varies phi and so
+  // cannot use the cached eta-free part.
+  static double loglik_one(double y_i, double eta, double phi_) {
+    double mu = expit(eta);
+    double a = mu * phi_;
+    double b = phi_ - a;
+
+    if (!(a > 0.0) || !(b > 0.0)) {
+      return R_NegInf;
+    }
+
+    return (a - 1.0) * std::log(y_i) + (b - 1.0) * std::log1p(-y_i) -
+      Rf_lbeta(a, b);
+  }
+
+  // The two digamma contributions from log Beta(a, b) keep only their
+  // difference, because the shapes move in opposite directions: da/deta is
+  // -db/deta. The information is the expected beta information
+  // s^2 (psi'(a) + psi'(b)) rather than the observed one, whose extra term has
+  // mean zero but can turn the total negative.
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double e = eta[0];
+    double mu = expit(e);
+    double slope = phi * mu * (1.0 - mu);
+    double dpsi;
+    double tpsi;
+    psi_lookup(e, &dpsi, &tpsi);
+
+    *d1 = slope * (logit_y(i) - dpsi);
+    *d2 = slope * slope * tpsi;
+  }
+
+  
+  // Both of these default to a central difference in the base class. Delegating
+  // to the analytic pair keeps the diagnostic entry point on the same derivatives
+  // the sampler actually uses, which is what lets the derivative tests check
+  // them against a difference rather than against another difference.
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    if (!update_phi) {
+      return;
+    }
+
+    const arma::rowvec& e = eta.row(0);
+
+    phi = std::exp(slice_sampler(std::log(phi), [this, &e](double log_phi) {
+      double p = std::exp(log_phi);
+      if (!(p > 0.0) || !std::isfinite(p)) {
+        return R_NegInf;
+      }
+      // Gamma prior on the precision, with the Jacobian for the log scale
+      // folded into the shape term, as `ordbeta()` does.
+      // lgamma(a + b) = lgamma(phi) is free of the observation, so it comes
+      // out of the loop; that is one of the three log-gammas `lbeta` does.
+      double lg_p = R::lgammafn(p);
+      double out = prior_shape * log_phi - prior_rate * p;
+      for (int i = 0; i < N; i++) {
+        double mu = expit(e(i));
+        double a = mu * p;
+        double b = p - a;
+        if (!(a > 0.0) || !(b > 0.0)) {
+          return R_NegInf;
+        }
+        out += w(i) * ((a - 1.0) * log_y(i) + (b - 1.0) * log1m_y(i) + lg_p -
+                       R::lgammafn(a) - R::lgammafn(b));
+      }
+      return out;
+    }, 0.5, -10.0, 15.0));
+
+    build_tables();
+    refresh_eta_free();
+  }
+
+  std::vector<std::string> aux_names() const override {
+    return std::vector<std::string>{"phi"};
+  }
+
+  arma::vec aux_values() const override { return arma::vec{phi}; }
+
+  void set_aux(const arma::vec& values) override {
+    if (values.n_elem > 0) {
+      phi = values(0);
+      if (phi != tab_phi) {
+        build_tables();
+      }
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 
 struct OrdBetaFamily : Family {
   double cut1;
@@ -1867,6 +2688,18 @@ struct OrdBetaFamily : Family {
   // still fixed per observation and worth computing once.
   arma::vec log_y;
   arma::vec log1m_y;
+  arma::vec logit_y;
+
+  // The same tabulation `BetaFamily` uses, for the same reason: the interior of
+  // this likelihood *is* a beta density, so its derivatives carry the same two
+  // digamma and two trigamma evaluations per observation per pass, and the same
+  // two combinations are functions of mu alone once phi is fixed.
+  static const int TAB_N = 2049;
+  static constexpr double TAB_L = 8.0;
+  std::vector<double> tab_dpsi;
+  std::vector<double> tab_tpsi;
+  double tab_step;
+  double tab_phi;
 
   OrdBetaFamily(const arma::vec& y_, const arma::vec& w_, double cut1_,
                 double cut2_, double phi_, double prior_shape_,
@@ -1876,11 +2709,49 @@ struct OrdBetaFamily : Family {
       update_phi(update_phi_) {
     log_y.set_size(N);
     log1m_y.set_size(N);
+    logit_y.set_size(N);
     for (int i = 0; i < N; i++) {
       bool interior = y_(i) > 0.0 && y_(i) < 1.0;
       log_y(i) = interior ? std::log(y_(i)) : 0.0;
       log1m_y(i) = interior ? std::log1p(-y_(i)) : 0.0;
+      logit_y(i) = log_y(i) - log1m_y(i);
     }
+    tab_dpsi.resize(TAB_N);
+    tab_tpsi.resize(TAB_N);
+    tab_step = 2.0 * TAB_L / (TAB_N - 1);
+    build_tables();
+  }
+
+  void psi_exact(double e, double* dpsi, double* tpsi) const {
+    double mu = expit(e);
+    double a = mu * phi;
+    double b = phi - a;
+    *dpsi = R::digamma(a) - R::digamma(b);
+    *tpsi = R::trigamma(a) + R::trigamma(b);
+  }
+
+  void build_tables() {
+    for (int g = 0; g < TAB_N; g++) {
+      psi_exact(-TAB_L + g * tab_step, &tab_dpsi[g], &tab_tpsi[g]);
+    }
+    tab_phi = phi;
+  }
+
+  void psi_lookup(double e, double* dpsi, double* tpsi) const {
+    if (!(e > -TAB_L) || !(e < TAB_L)) {
+      psi_exact(e, dpsi, tpsi);
+      return;
+    }
+    double t = (e + TAB_L) / tab_step;
+    int g = static_cast<int>(t);
+    // The guard above makes g <= TAB_N - 2 mathematically, but rounding in the
+    // division could land it one past that, and the read below is of g + 1.
+    if (g > TAB_N - 2) {
+      g = TAB_N - 2;
+    }
+    double frac = t - g;
+    *dpsi = tab_dpsi[g] + frac * (tab_dpsi[g + 1] - tab_dpsi[g]);
+    *tpsi = tab_tpsi[g] + frac * (tab_tpsi[g + 1] - tab_tpsi[g]);
   }
 
   // lbeta(a, b) = lgamma(a) + lgamma(b) - lgamma(phi), and the last term is
@@ -1992,29 +2863,78 @@ struct OrdBetaFamily : Family {
       (span * span);
 
     double mu = expit(e);
-    double a = mu * phi;
-    double b = phi - a;
-
-    if (!(a > 0.0) || !(b > 0.0)) {
-      score_info_numeric(i, eta, h, d1, d2);
-      return;
-    }
-
     double slope = phi * mu * (1.0 - mu);
-    double centered = std::log(y_i) - std::log1p(-y_i) - R::digamma(a) +
-      R::digamma(b);
+    double dpsi;
+    double tpsi;
+    psi_lookup(e, &dpsi, &tpsi);
 
-    *d1 = d1_span + slope * centered;
-    *d2 = d2_span + slope * slope * (R::trigamma(a) + R::trigamma(b));
+    *d1 = d1_span + slope * (logit_y(i) - dpsi);
+    *d2 = d2_span + slope * slope * tpsi;
+  }
+
+  
+  // Both of these default to a central difference in the base class. Delegating
+  // to the analytic pair keeps the diagnostic entry point on the same derivatives
+  // the sampler actually uses, which is what lets the derivative tests check
+  // them against a difference rather than against another difference.
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
   }
 
   void update_aux(const arma::mat& eta) override {
     const arma::rowvec e = eta.row(0);
 
-    auto total = [this, &e](double c1, double c2, double p) {
+    // Slice sampling only needs the log density up to an additive constant, and
+    // this likelihood splits: the endpoint-and-middle part depends on the
+    // cutpoints but not on phi, and the beta density on the interior depends on
+    // phi but not on the cutpoints. So each update evaluates its own half and
+    // drops the other as a constant, instead of rebuilding the whole likelihood
+    // -- three log-gamma calls per observation -- on every slice evaluation.
+    auto cut_total = [this, &e](double c1, double c2) {
       double out = 0.0;
       for (int i = 0; i < N; i++) {
-        out += w(i) * loglik_one(y(i), e(i), c1, c2, p);
+        double y_i = y(i);
+        if (y_i <= 0.0) {
+          out += w(i) * log1m_expit(e(i) - c1);
+        }
+        else if (y_i >= 1.0) {
+          out += w(i) * log_expit(e(i) - c2);
+        }
+        else {
+          out += w(i) * log_diff_logistic(e(i) - c2, e(i) - c1);
+        }
+      }
+      return out;
+    };
+
+    auto phi_total = [this, &e](double p) {
+      // lgamma(a + b) = lgamma(phi) is free of the observation, so it comes out
+      // of the loop; that is one of the three log-gammas `lbeta` would do.
+      double lg_p = R::lgammafn(p);
+      double out = 0.0;
+      for (int i = 0; i < N; i++) {
+        double y_i = y(i);
+        if (!(y_i > 0.0 && y_i < 1.0)) {
+          continue;
+        }
+        double mu = expit(e(i));
+        double a = mu * p;
+        double b = p - a;
+        if (!(a > 0.0) || !(b > 0.0)) {
+          return R_NegInf;
+        }
+        out += w(i) * ((a - 1.0) * log_y(i) + (b - 1.0) * log1m_y(i) + lg_p -
+                       R::lgammafn(a) - R::lgammafn(b));
       }
       return out;
     };
@@ -2024,7 +2944,7 @@ struct OrdBetaFamily : Family {
       if (!(v < c2_now)) {
         return R_NegInf;
       }
-      return total(v, c2_now, phi);
+      return cut_total(v, c2_now);
     }, 0.5, -30.0, c2_now);
 
     double c1_now = cut1;
@@ -2032,21 +2952,20 @@ struct OrdBetaFamily : Family {
       if (!(v > c1_now)) {
         return R_NegInf;
       }
-      return total(c1_now, v, phi);
+      return cut_total(c1_now, v);
     }, 0.5, c1_now, 30.0);
 
     if (update_phi) {
-      double c1 = cut1;
-      double c2 = cut2;
       phi = std::exp(slice_sampler(std::log(phi), [&](double log_phi) {
         double p = std::exp(log_phi);
         if (!(p > 0.0) || !std::isfinite(p)) {
           return R_NegInf;
         }
-        return prior_shape * log_phi - prior_rate * p + total(c1, c2, p);
+        return prior_shape * log_phi - prior_rate * p + phi_total(p);
       }, 0.5, -10.0, 15.0));
     }
 
+    build_tables();
     refresh_eta_free();
   }
 
@@ -2063,6 +2982,9 @@ struct OrdBetaFamily : Family {
       cut1 = values(0);
       cut2 = values(1);
       phi = values(2);
+      if (phi != tab_phi) {
+        build_tables();
+      }
       refresh_eta_free();
     }
   }
@@ -2302,6 +3224,1164 @@ struct NegBinAugmentedFamily : Concrete<NegBinAugmentedFamily> {
   }
 };
 
+// The zero-inflated families, rewritten with two latent variables so that both
+// of their forests get an exploitable target.
+//
+// What blocks the direct family is the zero: `log[pi + (1 - pi) P_0(mu)]` is a
+// log-sum-exp of the two components, so neither predictor has a shape and every
+// trial value of a leaf parameter costs its own pass. Introducing the indicator
+// the mixture is a mixture *over* -- z_i = 1 when observation i is a structural
+// zero -- separates them. Conditional on z the two forests see:
+//
+//   count:     prod over {z = 0} of the count likelihood, a plain Poisson or
+//              negative binomial, so the exponential form applies;
+//   inflation: a Bernoulli logistic likelihood in z, so Polya-Gamma applies and
+//              the target is quadratic.
+//
+// z is drawn from its exact conditional: it is zero whenever y > 0, and for
+// y = 0 it is one with probability pi / (pi + (1 - pi) P_0), where P_0 is the
+// true count probability of a zero.
+//
+// For the negative binomial a second augmentation goes on top of the first: the
+// non-structural observations are given the Poisson-gamma rate of
+// NegBinAugmentedFamily, which turns their target from a general one into the
+// exponential form. z is drawn with that rate integrated out and the rate is
+// redrawn immediately afterwards, which is a valid partially collapsed Gibbs
+// step in that order (Van Dyk and Park 2008) and mixes better than conditioning
+// z on a stale rate. theta is drawn the same way the direct family draws it,
+// from the true zero-inflated likelihood.
+//
+// The rate of a structural zero is never used -- its observation's contribution
+// to the count target is multiplied by (1 - z) -- so it is not drawn.
+struct ZeroInflatedAugmentedFamily : Concrete<ZeroInflatedAugmentedFamily> {
+  arma::vec count;
+  arma::vec structural;   // z, one when the observation is a structural zero
+  arma::vec rate;         // lambda, the Poisson rate, negative binomial only
+  arma::vec kappa;        // Polya-Gamma constants for the inflation forest
+  arma::vec omega;
+  bool negbin;
+  double theta;
+  double log_theta;
+  double prior_shape;
+  double prior_rate;
+  bool update_theta;
+
+  ZeroInflatedAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
+                              bool negbin_, double theta_, double prior_shape_,
+                              double prior_rate_, bool update_theta_)
+    : Concrete<ZeroInflatedAugmentedFamily>(y_, unit_weights(y_.n_elem), 2),
+      count(y_), negbin(negbin_), theta(theta_), prior_shape(prior_shape_),
+      prior_rate(prior_rate_), update_theta(update_theta_) {
+    log_theta = std::log(theta);
+    structural = arma::vec(N, arma::fill::zeros);
+    kappa = arma::vec(N, arma::fill::zeros);
+    omega = arma::vec(N, arma::fill::ones);
+    // Replaced by a proper draw before the first forest moves. The counts are
+    // the natural guess at their own rates.
+    rate = arma::clamp(y_, 0.1, arma::datum::inf);
+  }
+
+  static bool applies(const arma::vec& w) {
+    return arma::all(w == 1.0);
+  }
+
+  // The count forest inherits the shape of whatever the count likelihood is
+  // once the structural zeros are out of it: a Poisson rises with the
+  // predictor, and the Poisson-gamma rewriting of a negative binomial falls
+  // with it, exactly as for the unmixed families.
+  TargetForm target_form(int h) const override {
+    if (h == 1) {
+      return TARGET_QUADRATIC;
+    }
+    return negbin ? TARGET_EXP_DOWN : TARGET_EXP_UP;
+  }
+
+  double count_kernel(int i, double eta_count) const {
+    if (negbin) {
+      return -theta * (eta_count + rate(i) * std::exp(-eta_count));
+    }
+    return count(i) * eta_count - std::exp(eta_count);
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double live = 1.0 - structural(i);
+    return live * count_kernel(i, eta[0]) +
+      kappa(i) * eta[1] - 0.5 * omega(i) * eta[1] * eta[1];
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    if (h == 1) {
+      *d1 = kappa(i) - omega(i) * eta[1];
+      *d2 = omega(i);
+      return;
+    }
+
+    double live = 1.0 - structural(i);
+
+    if (negbin) {
+      double scaled = theta * rate(i) * std::exp(-eta[0]);
+      *d1 = live * (scaled - theta);
+      *d2 = live * scaled;
+      return;
+    }
+
+    double mu = std::exp(eta[0]);
+    *d1 = live * (count(i) - mu);
+    *d2 = live * mu;
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
+  }
+
+  // z | y, eta, theta, with the Poisson-gamma rate integrated out. A positive
+  // count cannot be structural; a zero is structural with the odds the two
+  // components give it.
+  void draw_structural(const arma::mat& eta) {
+    for (int i = 0; i < N; i++) {
+      if (count(i) > 0.0) {
+        structural(i) = 0.0;
+        continue;
+      }
+
+      double log_zero = negbin
+        ? theta * (log_theta - std::log(theta + std::exp(eta(0, i))))
+        : -std::exp(eta(0, i));
+      double log_odds = eta(1, i) - log_zero;
+
+      structural(i) = unif_rand() < expit(log_odds) ? 1.0 : 0.0;
+    }
+  }
+
+  // lambda | y, z, eta, theta is Gamma(y + theta, 1 + theta / mu) for a
+  // non-structural observation, and unused for a structural one.
+  void draw_rate(const arma::mat& eta) {
+    for (int i = 0; i < N; i++) {
+      if (structural(i) > 0.0) {
+        continue;
+      }
+
+      double scale = 1.0 / (1.0 + theta * std::exp(-eta(0, i)));
+      rate(i) = Rf_rgamma(count(i) + theta, scale);
+    }
+  }
+
+  void before_forest(int h, const arma::mat& eta) override {
+    // Redrawn before each forest rather than once a sweep, so that the
+    // inflation forest sees the indicator the count forest has just moved under
+    // and the other way round.
+    draw_structural(eta);
+
+    if (h == 0) {
+      if (negbin) {
+        draw_rate(eta);
+      }
+      return;
+    }
+
+    for (int i = 0; i < N; i++) {
+      kappa(i) = structural(i) - 0.5;
+      omega(i) = rpg(1.0, eta(1, i));
+    }
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    if (!negbin || !update_theta) {
+      return;
+    }
+
+    // The collapsed conditional: the true zero-inflated negative binomial
+    // likelihood, with both latent variables integrated out, which is the same
+    // target the direct family slices on.
+    auto logf = [this, &eta](double candidate) {
+      double th = std::exp(candidate);
+
+      if (!(th > 0.0) || !std::isfinite(th)) {
+        return R_NegInf;
+      }
+
+      double out = prior_shape * candidate - prior_rate * th;
+
+      for (int i = 0; i < N; i++) {
+        out += zi_loglik_one(count(i), eta.colptr(i), th, true);
+      }
+
+      return out;
+    };
+
+    theta = std::exp(slice_sampler(log_theta, logf, 1.0, -20.0, 20.0));
+    log_theta = std::log(theta);
+  }
+
+  std::vector<std::string> aux_names() const override {
+    if (!negbin) {
+      return std::vector<std::string>();
+    }
+    return std::vector<std::string>{"theta"};
+  }
+
+  arma::vec aux_values() const override {
+    if (!negbin) {
+      return arma::vec();
+    }
+    return arma::vec{theta};
+  }
+
+  void set_aux(const arma::vec& values) override {
+    if (negbin && values.n_elem > 0) {
+      theta = values(0);
+      log_theta = std::log(theta);
+    }
+  }
+
+  double reported_loglik(const arma::mat& eta) const override {
+    double out = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      out += zi_loglik_one(count(i), eta.colptr(i), theta, negbin);
+    }
+
+    return out;
+  }
+};
+
+// A draw from the inverse Wishart distribution with `df` degrees of freedom and
+// scale matrix `scatter`, by Bartlett's decomposition of the Wishart it inverts.
+// The dimension here is the number of response categories less one, so these are
+// small matrices and the cubic work in them is not worth avoiding.
+namespace {
+
+arma::mat inverse_wishart(double df, const arma::mat& scatter) {
+  int p = static_cast<int>(scatter.n_rows);
+  arma::mat inverse_scale;
+
+  if (!arma::inv_sympd(inverse_scale, scatter)) {
+    return scatter / df;
+  }
+
+  arma::mat factor;
+
+  if (!arma::chol(factor, inverse_scale, "lower")) {
+    return scatter / df;
+  }
+
+  arma::mat bartlett(p, p, arma::fill::zeros);
+
+  for (int j = 0; j < p; j++) {
+    bartlett(j, j) = std::sqrt(Rf_rchisq(df - static_cast<double>(j)));
+
+    for (int k = 0; k < j; k++) {
+      bartlett(j, k) = norm_rand();
+    }
+  }
+
+  arma::mat root = factor * bartlett;
+  arma::mat wishart = root * root.t();
+  arma::mat out;
+
+  if (!arma::inv_sympd(out, wishart)) {
+    return scatter / df;
+  }
+
+  return out;
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------
+// A Dirichlet process mixture of normals for the error distribution, which is
+// DPMBART (George, Laud, Logan, McCulloch and Sparapani 2019).
+//
+// BART assumes the errors are i.i.d. normal, and that assumption does most of
+// the work in its uncertainty quantification. Here it is dropped: each
+// observation gets its own error mean and variance,
+//
+//     y_i = f(x_i) + e_i,   e_i ~ N(mu_i, sigma_i^2),
+//     theta_i = (mu_i, sigma_i) ~ G,   G ~ DP(alpha G_0),
+//
+// and because the Dirichlet process is discrete the theta_i take far fewer
+// distinct values than there are observations. The error distribution is then
+// whatever mixture of normals the data ask for -- heavy tailed, skewed,
+// bimodal -- rather than the one normal BART is committed to.
+//
+// **Conditional on the theta_i the target is still exactly quadratic in the
+// predictor**, which is what keeps this cheap: the leaf draw is the closed form,
+// and the only cost over a Gaussian fit is the mixture update. The paper reports
+// the total roughly doubling, which is what is measured here too.
+//
+// The baseline G_0 is the conjugate normal-inverse-chi-square,
+//
+//     sigma^2 ~ nu lambda / chisq_nu,    mu | sigma ~ N(mu_0, sigma^2 / k_0),
+//
+// and it has to be conjugate: the Escobar and West (1995) draws that make the
+// mixture update a few lines are exactly the closed forms conjugacy provides.
+// That is why this family does not use the half-Cauchy scale prior the Gaussian
+// family here uses -- there is no conjugate mixture update to be had from it.
+// ---------------------------------------------------------------------------
+
+struct DPMFamily : Concrete<DPMFamily> {
+  // Per-observation error mean and variance, which are what the predictor's
+  // target sees.
+  arma::vec shift;
+  arma::vec scale2;
+
+  // The mixture, held as a list of atoms plus a label per observation. Atoms are
+  // deleted by swapping the last one into the hole, which is why the labels have
+  // to be repaired on deletion.
+  std::vector<double> atom_mu;
+  std::vector<double> atom_s2;
+  std::vector<int> atom_count;
+  std::vector<int> label;
+
+  // Baseline parameters, all fixed: the paper chooses values rather than priors
+  // for these, on the argument that BART plus a Dirichlet process is already
+  // adaptable enough that keeping the rest simple is worth more than another
+  // layer.
+  double nu;
+  double lambda;
+  double mu_0;
+  double k_0;
+
+  double alpha;
+  bool update_alpha;
+  arma::vec alpha_grid;
+  arma::vec alpha_logprior;
+
+  // Scratch, so that a sweep allocates nothing.
+  mutable std::vector<double> weight_buffer;
+
+  DPMFamily(const arma::vec& y_, const arma::vec& w_, double nu_,
+            double lambda_, double mu_0_, double k_0_, double alpha_,
+            bool update_alpha_, const arma::vec& alpha_grid_,
+            const arma::vec& alpha_logprior_)
+    : Concrete<DPMFamily>(y_, w_, 1), nu(nu_), lambda(lambda_), mu_0(mu_0_),
+      k_0(k_0_), alpha(alpha_), update_alpha(update_alpha_),
+      alpha_grid(alpha_grid_), alpha_logprior(alpha_logprior_) {
+
+    shift = arma::vec(N, arma::fill::zeros);
+    scale2 = arma::vec(N).fill(lambda);
+    label.assign(N, 0);
+
+    // One atom to begin with, at the baseline's centre. The first mixture update
+    // splits it as the data ask.
+    atom_mu.push_back(mu_0);
+    atom_s2.push_back(lambda);
+    atom_count.push_back(N);
+    shift.fill(mu_0);
+    refresh_eta_free();
+  }
+
+  // Conditional on the mixture the log density is a Gaussian one in the
+  // predictor, with an offset and a variance that differ by observation.
+  double logdens_unit(int i, const double* eta) const override {
+    double r = y(i) - shift(i) - eta[0];
+    return -0.5 * r * r / scale2(i);
+  }
+
+  arma::vec compute_eta_free() const override {
+    arma::vec out(N);
+
+    for (int i = 0; i < N; i++) {
+      out(i) = -0.5 * (LN_2PI + std::log(scale2(i)));
+    }
+
+    return out;
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    *d1 = (y(i) - shift(i) - eta[0]) / scale2(i);
+    *d2 = 1.0 / scale2(i);
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    return (y(i) - shift(i) - eta[0]) / scale2(i);
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    return 1.0 / scale2(i);
+  }
+
+  TargetForm target_form(int h) const override {
+    return TARGET_QUADRATIC;
+  }
+
+  // The marginal density of one residual under the baseline, which is the
+  // weight a new atom gets in the Polya urn. Normal-inverse-chi-square
+  // integrates to a t.
+  double log_marginal(double r) const {
+    double s = std::sqrt(lambda * (1.0 + 1.0 / k_0));
+    return R::dt((r - mu_0) / s, nu, 1) - std::log(s);
+  }
+
+  // A draw from the baseline's posterior given `count` residuals with the given
+  // sum and sum of squares. Also used with count = 1 for a fresh atom.
+  void draw_atom(double count, double total, double total_sq, double* out_mu,
+                 double* out_s2) const {
+    double k_n = k_0 + count;
+    double nu_n = nu + count;
+    double mean = count > 0.0 ? total / count : 0.0;
+    double centered = total_sq - count * mean * mean;
+    double pull = k_0 * count / k_n * (mean - mu_0) * (mean - mu_0);
+    double scale_n = (nu * lambda + centered + pull) / nu_n;
+    double mu_n = (k_0 * mu_0 + total) / k_n;
+
+    double drawn_s2 = nu_n * scale_n / Rf_rchisq(nu_n);
+
+    if (!(drawn_s2 > 0.0) || !std::isfinite(drawn_s2)) {
+      drawn_s2 = lambda;
+    }
+
+    *out_s2 = drawn_s2;
+    *out_mu = mu_n + std::sqrt(drawn_s2 / k_n) * norm_rand();
+  }
+
+  void drop_atom(int at) {
+    int last = static_cast<int>(atom_mu.size()) - 1;
+
+    if (at != last) {
+      atom_mu[at] = atom_mu[last];
+      atom_s2[at] = atom_s2[last];
+      atom_count[at] = atom_count[last];
+
+      for (int i = 0; i < N; i++) {
+        if (label[i] == last) {
+          label[i] = at;
+        }
+      }
+    }
+
+    atom_mu.pop_back();
+    atom_s2.pop_back();
+    atom_count.pop_back();
+  }
+
+  // Escobar and West's sampler, in the two steps the paper takes from Dey,
+  // Muller and Sinha (1998, sec. 1.3.3): reassign every observation, then
+  // redraw every occupied atom given the observations that landed in it.
+  void update_mixture(const arma::mat& eta) {
+    const arma::rowvec& e = eta.row(0);
+
+    for (int i = 0; i < N; i++) {
+      double r = y(i) - e(i);
+
+      // Take the observation out of its atom, and remove the atom if it empties.
+      int mine = label[i];
+      atom_count[mine]--;
+
+      if (atom_count[mine] == 0) {
+        drop_atom(mine);
+      }
+
+      int atoms = static_cast<int>(atom_mu.size());
+      weight_buffer.resize(atoms + 1);
+      double largest = R_NegInf;
+
+      for (int k = 0; k < atoms; k++) {
+        double resid = r - atom_mu[k];
+        weight_buffer[k] = std::log(static_cast<double>(atom_count[k])) -
+          0.5 * (LN_2PI + std::log(atom_s2[k]) + resid * resid / atom_s2[k]);
+
+        if (weight_buffer[k] > largest) {
+          largest = weight_buffer[k];
+        }
+      }
+
+      weight_buffer[atoms] = std::log(alpha) + log_marginal(r);
+
+      if (weight_buffer[atoms] > largest) {
+        largest = weight_buffer[atoms];
+      }
+
+      double total = 0.0;
+
+      for (int k = 0; k <= atoms; k++) {
+        weight_buffer[k] = std::exp(weight_buffer[k] - largest);
+        total += weight_buffer[k];
+      }
+
+      double u = unif_rand() * total;
+      int chosen = atoms;
+      double running = 0.0;
+
+      for (int k = 0; k <= atoms; k++) {
+        running += weight_buffer[k];
+
+        if (u <= running) {
+          chosen = k;
+          break;
+        }
+      }
+
+      if (chosen == atoms) {
+        double fresh_mu;
+        double fresh_s2;
+        draw_atom(1.0, r, r * r, &fresh_mu, &fresh_s2);
+        atom_mu.push_back(fresh_mu);
+        atom_s2.push_back(fresh_s2);
+        atom_count.push_back(1);
+        label[i] = atoms;
+      }
+      else {
+        atom_count[chosen]++;
+        label[i] = chosen;
+      }
+    }
+
+    // Redraw each atom given everything assigned to it.
+    int atoms = static_cast<int>(atom_mu.size());
+    std::vector<double> total(atoms, 0.0);
+    std::vector<double> total_sq(atoms, 0.0);
+    std::vector<double> count(atoms, 0.0);
+
+    for (int i = 0; i < N; i++) {
+      double r = y(i) - e(i);
+      int k = label[i];
+      count[k] += 1.0;
+      total[k] += r;
+      total_sq[k] += r * r;
+    }
+
+    for (int k = 0; k < atoms; k++) {
+      draw_atom(count[k], total[k], total_sq[k], &atom_mu[k], &atom_s2[k]);
+    }
+
+    for (int i = 0; i < N; i++) {
+      shift(i) = atom_mu[label[i]];
+      scale2(i) = atom_s2[label[i]];
+    }
+  }
+
+  // alpha on a grid. The number of occupied atoms is all the data say about it:
+  // P(I = k | alpha) is proportional to alpha^k Gamma(alpha) / Gamma(alpha + n)
+  // times a Stirling number that does not involve alpha and so cancels.
+  void update_concentration() {
+    if (!update_alpha || alpha_grid.n_elem == 0) {
+      return;
+    }
+
+    double atoms = static_cast<double>(atom_mu.size());
+    double n = static_cast<double>(N);
+    arma::vec weights(alpha_grid.n_elem);
+    double largest = R_NegInf;
+
+    for (arma::uword g = 0; g < alpha_grid.n_elem; g++) {
+      double a = alpha_grid(g);
+      weights(g) = atoms * std::log(a) + R::lgammafn(a) -
+        R::lgammafn(a + n) + alpha_logprior(g);
+
+      if (weights(g) > largest) {
+        largest = weights(g);
+      }
+    }
+
+    weights = arma::exp(weights - largest);
+    double total = arma::accu(weights);
+    double u = unif_rand() * total;
+    double running = 0.0;
+
+    for (arma::uword g = 0; g < alpha_grid.n_elem; g++) {
+      running += weights(g);
+
+      if (u <= running) {
+        alpha = alpha_grid(g);
+        return;
+      }
+    }
+
+    alpha = alpha_grid(alpha_grid.n_elem - 1);
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    update_mixture(eta);
+    update_concentration();
+    refresh_eta_free();
+  }
+
+  // The predictive density of one error under the current draw: the occupied
+  // atoms weighted by their sizes, plus the chance under the Dirichlet process
+  // that the next observation opens an atom of its own, which is the baseline's
+  // own marginal.
+  double log_predictive(double r) const {
+    double n = static_cast<double>(N);
+    double total = alpha + n;
+    double out = std::exp(std::log(alpha) - std::log(total) + log_marginal(r));
+
+    for (std::size_t k = 0; k < atom_mu.size(); k++) {
+      double resid = r - atom_mu[k];
+      out += atom_count[k] / total *
+        std::exp(-0.5 * (LN_2PI + std::log(atom_s2[k]) +
+                         resid * resid / atom_s2[k]));
+    }
+
+    return std::log(out);
+  }
+
+  // Reported as the mixture's own log likelihood rather than the complete-data
+  // one, so that it is the quantity a Gaussian fit's log likelihood is, and so
+  // that summing `predict(type = "density")` over observations reproduces it.
+  double reported_loglik(const arma::mat& eta) const override {
+    const arma::rowvec& e = eta.row(0);
+    double out = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      out += w(i) * log_predictive(y(i) - e(i));
+    }
+
+    return out;
+  }
+
+  // The mean and standard deviation of the fitted error distribution, which is
+  // the mixture over the atoms weighted by how many observations sit in each.
+  void error_moments(double* out_mean, double* out_sd) const {
+    double n = static_cast<double>(N);
+    double mean = 0.0;
+    double second = 0.0;
+
+    for (std::size_t k = 0; k < atom_mu.size(); k++) {
+      double p = static_cast<double>(atom_count[k]) / n;
+      mean += p * atom_mu[k];
+      second += p * (atom_s2[k] + atom_mu[k] * atom_mu[k]);
+    }
+
+    *out_mean = mean;
+    *out_sd = std::sqrt(std::max(second - mean * mean, 0.0));
+  }
+
+  // Nothing forces the mixture to be centered, so the sampler works in a chart
+  // where the sum of the predictor and the error mean is the conditional mean
+  // and neither piece is identified on its own. Reporting is done in the chart
+  // where the mixture has mean zero, which puts the whole conditional mean on
+  // the predictor -- so `eta` means for `dpm()` what it means for `gaussian()`.
+  // The shift is applied to the recorded predictor, the recorded leaf values and
+  // the recorded mixture together, so every density is untouched.
+  arma::vec report_shift(const arma::mat& eta) const override {
+    double mean;
+    double sd;
+    error_moments(&mean, &sd);
+
+    // model.cpp records `eta - shift`, and the predictor has to move *up* by the
+    // error mean, so the shift is its negative.
+    return arma::vec{-mean};
+  }
+
+  // `center` is the raw mixture's mean, which is exactly the shift taken out
+  // above. It is reported because the predictive density's new-component term
+  // needs it -- the baseline is centered on the *raw* chart -- and because it
+  // says how far from symmetric the fitted error came out. It is a bookkeeping
+  // quantity, not an estimate of anything: the error mean in the reported chart
+  // is zero by construction.
+  std::vector<std::string> aux_names() const override {
+    return std::vector<std::string>{"alpha", "clusters", "center",
+                                    "error_sd"};
+  }
+
+  arma::vec aux_values() const override {
+    double mean;
+    double sd;
+    error_moments(&mean, &sd);
+
+    return arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd};
+  }
+
+  // Only alpha is recoverable from these four numbers; the mixture itself is
+  // reported separately, as a flat vector of atoms, because it has a different
+  // number of components at every draw.
+  void set_aux(const arma::vec& values) override {
+    if (values.n_elem > 0) {
+      alpha = values(0);
+    }
+  }
+
+  // The atoms of the current draw, as (mean, standard deviation, weight)
+  // triples. `model.cpp` appends these to one flat vector across draws, the same
+  // way it stores the trees.
+  arma::vec mixture_flat() const override {
+    arma::vec out(3 * atom_mu.size());
+    double n = static_cast<double>(N);
+
+    // Centered, to match the chart the predictor is reported in.
+    double mean;
+    double sd;
+    error_moments(&mean, &sd);
+
+    for (std::size_t k = 0; k < atom_mu.size(); k++) {
+      out(3 * k) = atom_mu[k] - mean;
+      out(3 * k + 1) = std::sqrt(atom_s2[k]);
+      out(3 * k + 2) = static_cast<double>(atom_count[k]) / n;
+    }
+
+    return out;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// The accelerated failure time model with a Dirichlet process mixture for its
+// errors: Henderson, Louis, Rosner and Varadhan (2020).
+//
+//   log T_i = m(x_i) + W_i,   W_i ~ a mean-constrained DP mixture of normals,
+//
+// with right-censored log-times imputed. This is `dpm()`'s error model joined to
+// the survival families' censoring, and both halves already existed: everything
+// about the mixture -- the Polya urn, the atom draws, the concentration, the
+// centering that makes the predictor the conditional mean of log T, the reported
+// error density -- is inherited unchanged from `DPMFamily`. What is added is the
+// imputation, and an observed-data likelihood that credits a censored
+// observation with the mixture's survival rather than its density.
+//
+// The paper's error model is a location mixture with one common scale; this one
+// is a location-scale mixture, because that is what `DPMFamily` already is, so
+// the error distribution here is the more flexible of the two.
+// ---------------------------------------------------------------------------
+
+struct DPMAFTFamily : DPMFamily {
+  arma::vec obs;      // log of the observed time, an event or a censoring
+  arma::vec event;
+
+  DPMAFTFamily(const arma::vec& y_, const arma::vec& w_,
+               const arma::vec& event_, double nu_, double lambda_,
+               double mu_0_, double k_0_, double alpha_, bool update_alpha_,
+               const arma::vec& alpha_grid_, const arma::vec& alpha_logprior_)
+    : DPMFamily(y_, w_, nu_, lambda_, mu_0_, k_0_, alpha_, update_alpha_,
+                alpha_grid_, alpha_logprior_),
+      obs(y_), event(event_) {
+    // A deterministic start one scale unit past each censoring time, replaced by
+    // a proper draw at the end of the first sweep.
+    for (int i = 0; i < N; i++) {
+      if (event(i) <= 0.0) {
+        y(i) = obs(i) + std::sqrt(lambda);
+      }
+    }
+  }
+
+  static bool applies(const arma::vec& w_) {
+    for (arma::uword i = 0; i < w_.n_elem; i++) {
+      if (w_(i) != 1.0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    const arma::rowvec& e = eta.row(0);
+
+    // Impute each censored log-time from the component it currently sits in,
+    // truncated below at its censoring time. Conditioning on the label is what
+    // makes this an ordinary Gibbs step; the label itself is redrawn immediately
+    // afterwards by the mixture update, given the value drawn here.
+    for (int i = 0; i < N; i++) {
+      if (event(i) > 0.0) {
+        y(i) = obs(i);
+        continue;
+      }
+
+      int k = label[i];
+      double centre = e(i) + atom_mu[k];
+      double sd = std::sqrt(atom_s2[k]);
+      double lo = (obs(i) - centre) / sd;
+      y(i) = centre + sd * truncated_normal_between(lo, R_PosInf);
+    }
+
+    DPMFamily::update_aux(eta);
+  }
+
+  // The survival function of one error under the current draw, matching
+  // `log_predictive()` term for term: the occupied atoms weighted by their sizes
+  // plus the baseline's own marginal, which is a t.
+  double log_survival(double r) const {
+    double n = static_cast<double>(N);
+    double total = alpha + n;
+    double scale = std::sqrt(lambda * (1.0 + 1.0 / k_0));
+    double out = alpha / total *
+      R::pt((r - mu_0) / scale, nu, 0, 0);
+
+    for (std::size_t k = 0; k < atom_mu.size(); k++) {
+      out += atom_count[k] / total *
+        R::pnorm5(r, atom_mu[k], std::sqrt(atom_s2[k]), 0, 0);
+    }
+
+    if (!(out > 0.0)) {
+      return R_NegInf;
+    }
+
+    return std::log(out);
+  }
+
+  // The *observed-data* likelihood: a density for an event, a survival
+  // probability for a censoring. Not the complete-data one the imputation works
+  // with, so that this is comparable with what the other survival families
+  // report.
+  double reported_loglik(const arma::mat& eta) const override {
+    const arma::rowvec& e = eta.row(0);
+    double out = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      double r = obs(i) - e(i);
+      out += w(i) * (event(i) > 0.0 ? log_predictive(r) : log_survival(r));
+    }
+
+    return out;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Multinomial probit (Imai and van Dyk 2005), with the sum-of-trees mean of
+// Kindo, Wang and Pena (2016) and the sampler of Xu et al. (2025).
+//
+// The outcome is the argmax of C + 1 latent utilities. Differencing against the
+// reference category leaves C latent variables per observation,
+// W_i ~ MVN(eta_i, Sigma), with
+//
+//     S_i = l  if max(W_i) = W_il >= 0,     S_i = 0  if max(W_i) < 0,
+//
+// and one forest per component of eta. What the probit link buys over the
+// logistic one is Sigma: the categories may be correlated, which a multinomial
+// logit cannot express at all.
+//
+// Only the scale of W is unidentified, so Sigma is normalized by the trace
+// constraint trace(Sigma) = C (Burgette and Nordheim 2012), which is what makes
+// a two-category fit identical to binary probit.
+//
+// **Conditional on W and Sigma the target is exactly quadratic in every
+// component of eta**, which is the whole reason this is fast: the leaf draw is
+// the closed form rather than a Laplace approximation, exactly as for the
+// augmented ordinal probit. The score and information in component h are read
+// off the precision matrix P = Sigma^{-1}:
+//
+//     d/deta_h = sum_k P_hk (W_k - eta_k),    -d^2/deta_h^2 = P_hh.
+//
+// The sampler is Algorithm [P2] of Xu et al. (2025): draw W by a Gibbs sweep of
+// truncated normals, fit the forests to it, then draw the unnormalized
+// covariance from its inverse Wishart conditional and rescale to the trace
+// constraint. Their Algorithms [P1] and [P2] measured indistinguishable on every
+// figure in that paper, and [P2] is the one with no expansion parameter at all.
+// Both beat the earlier [KD] sampler, which fits the trees to the *unnormalized*
+// utilities and so grows them much deeper -- average depths of 6 and 9 against
+// about 2 -- because the quantity the stochastic search is chasing keeps being
+// rescaled underneath it.
+//
+// There is no closed form for P(S_i = k | eta_i, Sigma): it is a C-dimensional
+// Gaussian orthant probability. The reported log likelihood is therefore
+// simulated, with a fixed set of standard normal draws held by the family so
+// that it is a deterministic function of eta and Sigma and adds no Monte Carlo
+// noise to the chain. Predictions simulate too, with fresh draws.
+// ---------------------------------------------------------------------------
+
+struct MultinomProbitFamily : Concrete<MultinomProbitFamily> {
+  arma::vec category;      // observed category, 0 for the reference level
+  int num_cat;
+  arma::mat latent;        // W, C by N
+  arma::mat sigma;         // normalized, trace(sigma) = C
+  arma::mat prec;          // sigma inverse
+  arma::mat chol_sigma;    // lower Cholesky factor of sigma
+  arma::mat unit_draws;    // fixed standard normals, C by replicates
+  double nu;               // inverse Wishart degrees of freedom
+  bool update_sigma;
+  int replicates;
+
+  MultinomProbitFamily(const arma::vec& y_, const arma::vec& w_, int num_cat_,
+                       double nu_, bool update_sigma_, int replicates_)
+    : Concrete<MultinomProbitFamily>(y_, w_, num_cat_ - 1),
+      category(y_), num_cat(num_cat_), nu(nu_),
+      update_sigma(update_sigma_), replicates(replicates_) {
+    int C = H;
+    sigma = arma::eye<arma::mat>(C, C);
+    prec = arma::eye<arma::mat>(C, C);
+    chol_sigma = arma::eye<arma::mat>(C, C);
+
+    // A start that satisfies the sign constraints, so that the first Gibbs
+    // sweep over the latent variables has something coherent to condition on.
+    latent = arma::mat(C, N);
+    latent.fill(-1.0);
+
+    for (int i = 0; i < N; i++) {
+      int k = static_cast<int>(category(i));
+
+      if (k > 0) {
+        latent(k - 1, i) = 1.0;
+      }
+    }
+
+    unit_draws = arma::mat(C, replicates);
+
+    for (int r = 0; r < replicates; r++) {
+      for (int l = 0; l < C; l++) {
+        unit_draws(l, r) = norm_rand();
+      }
+    }
+  }
+
+  TargetForm target_form(int h) const override {
+    return TARGET_QUADRATIC;
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double out = 0.0;
+
+    for (int l = 0; l < H; l++) {
+      double r_l = latent(l, i) - eta[l];
+      out -= 0.5 * prec(l, l) * r_l * r_l;
+
+      for (int k = l + 1; k < H; k++) {
+        out -= prec(l, k) * r_l * (latent(k, i) - eta[k]);
+      }
+    }
+
+    return out;
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double score = 0.0;
+
+    for (int k = 0; k < H; k++) {
+      score += prec(h, k) * (latent(k, i) - eta[k]);
+    }
+
+    *d1 = score;
+    *d2 = prec(h, h);
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double score = 0.0;
+
+    for (int k = 0; k < H; k++) {
+      score += prec(h, k) * (latent(k, i) - eta[k]);
+    }
+
+    return score;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    return prec(h, h);
+  }
+
+  // Step 1 of Algorithm [P2]: a Gibbs sweep over the latent variables, each
+  // from its univariate conditional truncated to the region the observed
+  // category defines. The conditional moments come from the precision matrix
+  // rather than from a sweep operator, which makes each one O(C) instead of
+  // O(C^3).
+  void draw_latent(const arma::mat& eta) {
+    for (int i = 0; i < N; i++) {
+      int winner = static_cast<int>(category(i)) - 1;   // -1 for the reference
+
+      for (int l = 0; l < H; l++) {
+        double variance = 1.0 / (w(i) * prec(l, l));
+        double centered = 0.0;
+
+        for (int k = 0; k < H; k++) {
+          if (k != l) {
+            centered += prec(l, k) * (latent(k, i) - eta(k, i));
+          }
+        }
+
+        double mean = eta(l, i) - centered / prec(l, l);
+        double lower = R_NegInf;
+        double upper = R_PosInf;
+
+        if (winner < 0) {
+          // Every utility is below the reference category's.
+          upper = 0.0;
+        }
+        else if (l == winner) {
+          // The winner is above zero and above every rival.
+          lower = 0.0;
+
+          for (int k = 0; k < H; k++) {
+            if (k != l && latent(k, i) > lower) {
+              lower = latent(k, i);
+            }
+          }
+        }
+        else {
+          upper = latent(winner, i);
+        }
+
+        double scale = std::sqrt(variance);
+        double draw = truncated_normal_between((lower - mean) / scale,
+                                               (upper - mean) / scale);
+        latent(l, i) = mean + scale * draw;
+      }
+    }
+  }
+
+  // Step 3: the unnormalized covariance from its inverse Wishart conditional,
+  // then the rescaling that puts it back on the trace constraint. The scale
+  // factor is applied to the latent variables as well, which is what makes this
+  // a move in the normalized space rather than a reparameterization of it.
+  void update_aux(const arma::mat& eta) override {
+    if (!update_sigma || H < 2) {
+      return;
+    }
+
+    int C = H;
+    arma::mat scatter = arma::eye<arma::mat>(C, C);   // Psi, the identity
+    double df = nu;
+
+    for (int i = 0; i < N; i++) {
+      arma::vec resid(C);
+
+      for (int l = 0; l < C; l++) {
+        resid(l) = latent(l, i) - eta(l, i);
+      }
+
+      scatter += w(i) * resid * resid.t();
+      df += w(i);
+    }
+
+    arma::mat drawn = inverse_wishart(df, scatter);
+    double factor = arma::trace(drawn) / static_cast<double>(C);
+
+    if (!(factor > 0.0) || !std::isfinite(factor)) {
+      return;
+    }
+
+    sigma = drawn / factor;
+    double root = std::sqrt(factor);
+
+    for (int i = 0; i < N; i++) {
+      for (int l = 0; l < C; l++) {
+        latent(l, i) = eta(l, i) + (latent(l, i) - eta(l, i)) / root;
+      }
+    }
+
+    refresh_sigma();
+  }
+
+  void refresh_sigma() {
+    if (!arma::inv_sympd(prec, sigma)) {
+      prec = arma::inv(sigma);
+    }
+    if (!arma::chol(chol_sigma, sigma, "lower")) {
+      chol_sigma = arma::eye<arma::mat>(H, H);
+    }
+  }
+
+  void before_forest(int h, const arma::mat& eta) override {
+    // Once a sweep, before the first forest moves, as in Algorithm [P2].
+    if (h == 0) {
+      draw_latent(eta);
+    }
+  }
+
+  // With two categories the trace constraint pins the single variance at one, so
+  // there is nothing to record.
+  std::vector<std::string> aux_names() const override {
+    std::vector<std::string> out;
+
+    if (H < 2) {
+      return out;
+    }
+
+    for (int l = 0; l < H; l++) {
+      for (int k = 0; k <= l; k++) {
+        out.push_back("sigma" + std::to_string(l + 1) + std::to_string(k + 1));
+      }
+    }
+
+    return out;
+  }
+
+  arma::vec aux_values() const override {
+    if (H < 2) {
+      return arma::vec();
+    }
+
+    arma::vec out(H * (H + 1) / 2);
+    int at = 0;
+
+    for (int l = 0; l < H; l++) {
+      for (int k = 0; k <= l; k++) {
+        out(at++) = sigma(l, k);
+      }
+    }
+
+    return out;
+  }
+
+  void set_aux(const arma::vec& values) override {
+    if (H < 2 || static_cast<int>(values.n_elem) != H * (H + 1) / 2) {
+      return;
+    }
+
+    int at = 0;
+
+    for (int l = 0; l < H; l++) {
+      for (int k = 0; k <= l; k++) {
+        sigma(l, k) = values(at);
+        sigma(k, l) = values(at);
+        at++;
+      }
+    }
+
+    refresh_sigma();
+  }
+
+  // The likelihood the caller asked for, which is a Gaussian orthant
+  // probability and so is simulated. The draws are fixed at construction, so
+  // this is a deterministic function of eta and Sigma: the chain sees no Monte
+  // Carlo noise, only a bias that is the same at every iteration.
+  double reported_loglik(const arma::mat& eta) const override {
+    double out = 0.0;
+    arma::vec value(H);
+
+    for (int i = 0; i < N; i++) {
+      int winner = static_cast<int>(category(i)) - 1;
+      int hits = 0;
+
+      for (int r = 0; r < replicates; r++) {
+        for (int l = 0; l < H; l++) {
+          double shift = 0.0;
+
+          for (int k = 0; k <= l; k++) {
+            shift += chol_sigma(l, k) * unit_draws(k, r);
+          }
+
+          value(l) = eta(l, i) + shift;
+        }
+
+        if (chosen(value) == winner) {
+          hits++;
+        }
+      }
+
+      double p = (hits > 0 ? static_cast<double>(hits) : 0.5) /
+        static_cast<double>(replicates);
+      out += w(i) * std::log(p);
+    }
+
+    return out;
+  }
+
+  // Which category a vector of latent utilities implies: the largest if it is
+  // non-negative, and the reference otherwise.
+  static int chosen(const arma::vec& value) {
+    int at = -1;
+    double best = 0.0;
+
+    for (arma::uword l = 0; l < value.n_elem; l++) {
+      if (value(l) >= best) {
+        best = value(l);
+        at = static_cast<int>(l);
+      }
+    }
+
+    return at;
+  }
+};
+
 // Multinomial logistic, one category at a time. Conditional on the other
 // categories the likelihood of category j is exactly binomial-logistic in
 // eta_j - log C_j, so the same augmentation applies with one Polya-Gamma draw
@@ -2437,14 +4517,14 @@ arma::vec call_r(const Rcpp::Function& f, const double* x, int n,
   Rcpp::RObject value = f(arg);
 
   if (!Rf_isReal(value) && !Rf_isInteger(value)) {
-    Rcpp::stop("the %s supplied to genbart() must return a numeric vector.",
+    Rcpp::stop("the %s supplied to bartisan() must return a numeric vector.",
                what);
   }
 
   arma::vec out = Rcpp::as<arma::vec>(value);
 
   if (static_cast<int>(out.n_elem) != n) {
-    Rcpp::stop("the %s supplied to genbart() returned %d values for %d "
+    Rcpp::stop("the %s supplied to bartisan() returned %d values for %d "
                "observations.", what, static_cast<int>(out.n_elem), n);
   }
 
@@ -2591,31 +4671,88 @@ struct RFamily : Family {
   bool has_derivs;
   std::string label;
 
-  RFamily(const arma::vec& y_, const arma::vec& w_, int H_,
+  // A nuisance parameter is carried as an additive predictor whose forest is
+  // pinned at depth zero -- one tree that can never split -- so it is a single
+  // scalar drawn by the same Laplace-plus-Metropolis step as any leaf, with no
+  // separate sampler. The engine does the pinning; all this class does is keep
+  // the two kinds apart at the boundary with R. The caller's function sees
+  // `eta` with `num_predictors` columns and `aux` as a plain numeric vector, and
+  // never learns that the second kind is a forest.
+  int num_predictors;
+  int num_aux;
+  std::vector<std::string> aux_labels;
+  arma::vec aux_cache;
+
+  RFamily(const arma::vec& y_, const arma::vec& w_, int num_predictors_,
+          int num_aux_, const std::vector<std::string>& aux_labels_,
           const Rcpp::Function& dens_, const Rcpp::RObject& derivs_,
           const std::string& label_)
-    : Family(y_, w_, H_), dens(dens_),
+    : Family(y_, w_, num_predictors_ + num_aux_), dens(dens_),
       derivs(Rf_isFunction(derivs_) ? Rcpp::Function(derivs_) : dens_),
-      has_derivs(Rf_isFunction(derivs_)), label(label_) {}
+      has_derivs(Rf_isFunction(derivs_)), label(label_),
+      num_predictors(num_predictors_), num_aux(num_aux_),
+      aux_labels(aux_labels_),
+      aux_cache(std::max(num_aux_, 1), arma::fill::zeros) {}
 
   bool wants_block() const override { return true; }
 
   // The response and the predictors of one block, in the shape the caller's
-  // function expects: y a vector of length n, eta an n by H matrix.
-  void unpack(const int* idx, int n, const double* block,
-              Rcpp::NumericVector& y_out, Rcpp::NumericMatrix& eta_out) const {
+  // function expects: y a vector of length n, eta an n by num_predictors
+  // matrix, and the nuisance parameters as a vector of length num_aux.
+  //
+  // The nuisance columns are constant down the block, because a pinned forest
+  // has one leaf holding every observation and so shifts them all together, so
+  // reading the first row is reading the parameter.
+  void unpack(const int* idx, int n, const double* block, int from,
+              Rcpp::NumericVector& y_out, Rcpp::NumericMatrix& eta_out,
+              Rcpp::NumericVector& aux_out) const {
     for (int k = 0; k < n; k++) {
-      y_out[k] = y(idx[k]);
+      y_out[k] = y(idx[from + k]);
 
-      for (int j = 0; j < H; j++) {
-        eta_out(k, j) = block[static_cast<std::size_t>(k) * H + j];
+      for (int j = 0; j < num_predictors; j++) {
+        eta_out(k, j) = block[static_cast<std::size_t>(from + k) * H + j];
       }
+    }
+
+    for (int j = 0; j < num_aux; j++) {
+      aux_out[j] =
+        block[static_cast<std::size_t>(from) * H + num_predictors + j];
     }
   }
 
+  // A nuisance parameter is one number, so the caller is handed a vector rather
+  // than a column -- but the paired evaluations the sampler uses stack two values
+  // of one component in a single block, so the column is constant only in runs.
+  // These find the runs. Every call that is not a paired one has exactly one,
+  // and a family with no nuisance parameters always has exactly one, so the
+  // common path is unchanged.
+  bool same_aux(const double* block, int a, int b) const {
+    for (int j = 0; j < num_aux; j++) {
+      if (block[static_cast<std::size_t>(a) * H + num_predictors + j] !=
+          block[static_cast<std::size_t>(b) * H + num_predictors + j]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  int aux_run_end(const double* block, int from, int n) const {
+    if (num_aux == 0) {
+      return n;
+    }
+
+    int stop = from + 1;
+    while (stop < n && same_aux(block, from, stop)) {
+      stop++;
+    }
+    return stop;
+  }
+
   arma::vec evaluate(const Rcpp::NumericVector& y_in,
-                     const Rcpp::NumericMatrix& eta_in, int n) const {
-    Rcpp::RObject value = dens(y_in, eta_in);
+                     const Rcpp::NumericMatrix& eta_in,
+                     const Rcpp::NumericVector& aux_in, int n) const {
+    Rcpp::RObject value = num_aux > 0 ? dens(y_in, eta_in, aux_in)
+                                      : dens(y_in, eta_in);
 
     if (!Rf_isReal(value) && !Rf_isInteger(value)) {
       Rcpp::stop("the log density supplied to custom_family() must return a "
@@ -2635,23 +4772,51 @@ struct RFamily : Family {
 
   void logdens_block(const int* idx, int n, const double* block,
                      double* out) const override {
-    Rcpp::NumericVector yv(n);
-    Rcpp::NumericMatrix ev(n, H);
-    unpack(idx, n, block, yv, ev);
-    arma::vec value = evaluate(yv, ev, n);
+    int from = 0;
 
-    for (int k = 0; k < n; k++) {
-      out[k] = w(idx[k]) * value(k);
+    while (from < n) {
+      int stop = aux_run_end(block, from, n);
+      int m = stop - from;
+      Rcpp::NumericVector yv(m);
+      Rcpp::NumericMatrix ev(m, num_predictors);
+      Rcpp::NumericVector av(std::max(num_aux, 1));
+      unpack(idx, m, block, from, yv, ev, av);
+      arma::vec value = evaluate(yv, ev, av, m);
+
+      for (int k = 0; k < m; k++) {
+        out[from + k] = w(idx[from + k]) * value(k);
+      }
+
+      from = stop;
     }
   }
 
   void score_info_block(const int* idx, int n, const double* block, int h,
                         double* d1, double* d2) const override {
-    Rcpp::NumericVector yv(n);
-    Rcpp::NumericMatrix ev(n, H);
-    unpack(idx, n, block, yv, ev);
+    int from = 0;
 
-    if (has_derivs) {
+    while (from < n) {
+      int stop = aux_run_end(block, from, n);
+      score_info_run(idx, from, stop - from, block, h, d1, d2);
+      from = stop;
+    }
+  }
+
+  void score_info_run(const int* idx, int from, int n, const double* block,
+                      int h, double* d1_all, double* d2_all) const {
+    double* d1 = d1_all + from;
+    double* d2 = d2_all + from;
+    Rcpp::NumericVector yv(n);
+    Rcpp::NumericMatrix ev(n, num_predictors);
+    Rcpp::NumericVector av(std::max(num_aux, 1));
+    unpack(idx, n, block, from, yv, ev, av);
+
+    // Supplied derivatives cover the additive predictors only. A nuisance
+    // parameter is always differenced, which is affordable in a way that
+    // differencing a predictor is not: its forest has one leaf, so it costs
+    // three calls per sweep rather than three per leaf visit, and asking a
+    // caller to hand-derive it would be a poor trade.
+    if (has_derivs && h < num_predictors) {
       Rcpp::RObject value = derivs(yv, ev, h + 1);
       Rcpp::List parts(value);
       arma::vec score = Rcpp::as<arma::vec>(parts["score"]);
@@ -2664,45 +4829,89 @@ struct RFamily : Family {
       }
 
       for (int k = 0; k < n; k++) {
-        d1[k] = w(idx[k]) * score(k);
-        d2[k] = clamp_info(w(idx[k]) * info(k));
+        d1[k] = w(idx[from + k]) * score(k);
+        d2[k] = clamp_info(w(idx[from + k]) * info(k));
       }
 
       return;
     }
 
     const double step = 1e-4;
-    arma::vec mid = evaluate(yv, ev, n);
+    arma::vec mid = evaluate(yv, ev, av, n);
 
-    for (int k = 0; k < n; k++) {
-      ev(k, h) += step;
+    // Differencing moves whichever of the two the index names.
+    bool is_aux = h >= num_predictors;
+    int col = is_aux ? h - num_predictors : h;
+
+    if (is_aux) {
+      av[col] += step;
+    }
+    else {
+      for (int k = 0; k < n; k++) {
+        ev(k, col) += step;
+      }
     }
 
-    arma::vec up = evaluate(yv, ev, n);
+    arma::vec up = evaluate(yv, ev, av, n);
 
-    for (int k = 0; k < n; k++) {
-      ev(k, h) -= 2.0 * step;
+    if (is_aux) {
+      av[col] -= 2.0 * step;
+    }
+    else {
+      for (int k = 0; k < n; k++) {
+        ev(k, col) -= 2.0 * step;
+      }
     }
 
-    arma::vec down = evaluate(yv, ev, n);
+    arma::vec down = evaluate(yv, ev, av, n);
 
     for (int k = 0; k < n; k++) {
-      d1[k] = w(idx[k]) * 0.5 * (up(k) - down(k)) / step;
-      d2[k] = clamp_info(-w(idx[k]) *
+      d1[k] = w(idx[from + k]) * 0.5 * (up(k) - down(k)) / step;
+      d2[k] = clamp_info(-w(idx[from + k]) *
         (up(k) - 2.0 * mid(k) + down(k)) / (step * step));
     }
   }
 
   double logdens_unit(int i, const double* eta) const override {
     Rcpp::NumericVector yv(1);
-    Rcpp::NumericMatrix ev(1, H);
+    Rcpp::NumericMatrix ev(1, num_predictors);
+    Rcpp::NumericVector av(std::max(num_aux, 1));
     yv[0] = y(i);
 
-    for (int j = 0; j < H; j++) {
+    for (int j = 0; j < num_predictors; j++) {
       ev(0, j) = eta[j];
     }
+    for (int j = 0; j < num_aux; j++) {
+      av[j] = eta[num_predictors + j];
+    }
 
-    return evaluate(yv, ev, 1)(0);
+    return evaluate(yv, ev, av, 1)(0);
+  }
+
+  // The nuisance parameters are reported as parameters rather than as the
+  // predictors they are carried as, so they land in `fit$aux` under their own
+  // names and `fit$eta` holds only what the caller asked for.
+  int num_pinned() const override { return num_aux; }
+
+  std::vector<std::string> aux_names() const override { return aux_labels; }
+
+  arma::vec aux_values() const override {
+    return num_aux > 0 ? arma::vec(aux_cache.head(num_aux))
+                       : arma::vec(0, arma::fill::zeros);
+  }
+
+  void set_aux(const arma::vec& values) override {
+    for (int j = 0; j < num_aux && j < static_cast<int>(values.n_elem); j++) {
+      aux_cache(j) = values(j);
+    }
+  }
+
+  // Called once at the end of every sweep, which is where the drawn values are
+  // read off the predictors they live in and cached for reporting.
+  void update_aux(const arma::mat& eta) override {
+    for (int j = 0; j < num_aux; j++) {
+      aux_cache(j) = eta(num_predictors + j, 0);
+    }
   }
 
   // Supplied derivatives are used by the per-observation route as well, so that
@@ -2777,7 +4986,18 @@ Family* make_family(const std::string& name, const std::string& link,
                     const List& opts) {
 
   if (name == "custom") {
-    return finish(new RFamily(y, w, as<int>(opts["num_predictors"]),
+    // The nuisance-parameter fields are optional, so that opts assembled by hand
+    // -- as the density and derivative entry points are called in tests -- still
+    // describe a family with no nuisance parameters.
+    int n_aux = opts.containsElementNamed("num_aux")
+      ? as<int>(opts["num_aux"]) : 0;
+    std::vector<std::string> aux_labels;
+    if (opts.containsElementNamed("aux_names")) {
+      aux_labels = as<std::vector<std::string> >(opts["aux_names"]);
+    }
+
+    return finish(new RFamily(y, w, as<int>(opts["num_predictors"]), n_aux,
+                              aux_labels,
                               as<Function>(opts["logdens"]),
                               as<RObject>(opts["derivatives"]),
                               as<std::string>(opts["name"])));
@@ -2851,8 +5071,46 @@ Family* make_family(const std::string& name, const std::string& link,
                          as<bool>(opts["update_sigma"])));
   }
 
+  if (name == "dpm_aft") {
+    return finish(new DPMAFTFamily(y, w, as<arma::vec>(opts["event"]),
+                                   as<double>(opts["nu"]),
+                                   as<double>(opts["lambda"]),
+                                   as<double>(opts["mu_0"]),
+                                   as<double>(opts["k_0"]),
+                                   as<double>(opts["alpha"]),
+                                   as<bool>(opts["update_alpha"]),
+                                   as<arma::vec>(opts["alpha_grid"]),
+                                   as<arma::vec>(opts["alpha_logprior"])));
+  }
+
+  if (name == "ph") {
+    return finish(new PHFamily(y, w, as<arma::vec>(opts["event"]),
+                               as<arma::vec>(opts["edges"]),
+                               as<double>(opts["lambda_shape"]),
+                               as<double>(opts["lambda_rate"]),
+                               as<bool>(opts["update_lambda"])));
+  }
+
   if (name == "location_scale") {
     return finish(new LocationScaleFamily(y, w));
+  }
+
+  if (name == "dpm") {
+    return finish(new DPMFamily(y, w, as<double>(opts["nu"]),
+                                as<double>(opts["lambda"]),
+                                as<double>(opts["mu_0"]),
+                                as<double>(opts["k_0"]),
+                                as<double>(opts["alpha"]),
+                                as<bool>(opts["update_alpha"]),
+                                as<arma::vec>(opts["alpha_grid"]),
+                                as<arma::vec>(opts["alpha_logprior"])));
+  }
+
+  if (name == "mnp") {
+    return finish(new MultinomProbitFamily(y, w, as<int>(opts["num_cat"]),
+                                           as<double>(opts["nu"]),
+                                           as<bool>(opts["update_sigma"]),
+                                           as<int>(opts["replicates"])));
   }
 
   if (name == "zip" || name == "zinb") {
@@ -2862,6 +5120,13 @@ Family* make_family(const std::string& name, const std::string& link,
                                   nb ? as<double>(opts["theta_prior_shape"]) : 0.0,
                                   nb ? as<double>(opts["theta_prior_rate"]) : 0.0,
                                   nb ? as<bool>(opts["update_theta"]) : false));
+  }
+
+  if (name == "beta") {
+    return finish(new BetaFamily(y, w, as<double>(opts["phi"]),
+                          as<double>(opts["phi_prior_shape"]),
+                          as<double>(opts["phi_prior_rate"]),
+                          as<bool>(opts["update_phi"])));
   }
 
   if (name == "ordbeta") {
@@ -2929,12 +5194,37 @@ Family* augmented_family(const std::string& name, const std::string& link,
       as<bool>(opts["update_cuts"])));
   }
 
+  if (name == "aft" && link == "lognormal" &&
+      LognormalAFTAugmentedFamily::applies(w)) {
+    return finish(new LognormalAFTAugmentedFamily(
+      y, w, as<arma::vec>(opts["event"]), as<double>(opts["sigma_hat"]),
+      as<bool>(opts["update_sigma"])));
+  }
+
+  if (name == "aft" && link == "loglogistic" &&
+      LoglogisticAFTAugmentedFamily::applies(w)) {
+    return finish(new LoglogisticAFTAugmentedFamily(
+      y, w, as<arma::vec>(opts["event"]), as<double>(opts["sigma_hat"]),
+      as<bool>(opts["update_sigma"])));
+  }
+
   if (name == "multinomial" && MultinomAugmentedFamily::applies(w)) {
     return finish(new MultinomAugmentedFamily(y, w, as<int>(opts["num_cat"]),
                                                as<bool>(opts["symmetric"])));
   }
 
+  if ((name == "zip" || name == "zinb") &&
+      ZeroInflatedAugmentedFamily::applies(w)) {
+    bool nb = name == "zinb";
+    return finish(new ZeroInflatedAugmentedFamily(
+      y, w, nb,
+      nb ? as<double>(opts["theta"]) : 1.0,
+      nb ? as<double>(opts["theta_prior_shape"]) : 0.0,
+      nb ? as<double>(opts["theta_prior_rate"]) : 0.0,
+      nb ? as<bool>(opts["update_theta"]) : false));
+  }
+
   return nullptr;
 }
 
-} // namespace genbart
+} // namespace bartisan

@@ -1,0 +1,285 @@
+---
+title: "Causal inference with BART"
+author: "Noah Greifer"
+date: "`r Sys.Date()`"
+output:
+  html_vignette:
+    toc: yes
+vignette: >
+  %\VignetteIndexEntry{Causal inference with BART}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+link-citations: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.0, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4, marginaleffects_safe = FALSE)
+
+has_me <- rlang::is_installed("marginaleffects")
+has_cobalt <- rlang::is_installed("cobalt")
+run <- rlang::is_installed("MASS") && has_me
+```
+
+## Introduction
+
+BART is a popular choice for causal inference [@hill2011], for a good reason: the
+step a flexible model helps with is the one people get wrong. Estimating a
+treatment effect from observational data requires modelling how the outcome
+depends on the covariates, and a linear model imposes a functional form that is
+rarely justified and can bias the answer when it is wrong.
+
+What BART does not do is deliver identification. The assumptions that turn an
+association into a causal effect are assumptions about the design, and no model
+supplies them. This vignette covers the part BART does help with, the checks that
+come before it, and one specific way a regularized model can go wrong in this
+setting that does not arise elsewhere.
+
+The running example treats maternal smoking as the exposure and birth weight as
+the outcome. It is used because it is familiar and the covariates are plausible,
+not because these data support a causal claim.
+
+```{r libs, eval = run}
+library(bartisan)
+library(marginaleffects)
+
+data("birthwt", package = "MASS")
+
+d <- birthwt
+d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
+d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
+d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
+d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
+d$low   <- NULL
+```
+
+## What has to be true
+
+Four assumptions, none of which the fit can check.
+
+**No unmeasured confounding.** Every common cause of smoking and birth weight is
+in the model. Here that is implausible: socioeconomic status, nutrition and
+partner smoking are absent and plainly relevant.
+
+**Positivity.** Every kind of mother could have smoked or not. This one is partly
+checkable and is checked below.
+
+**Consistency.** "Smoking" names a single well defined exposure. Smoking two
+cigarettes a day and twenty are treated as the same condition here, which they
+are not.
+
+**No interference.** One mother's smoking does not affect another's outcome.
+Reasonable here.
+
+The first is the one that usually fails and the one to be explicit about. State
+it as an assumption in what you write, rather than letting the interval imply it
+has been handled.
+
+## Checking positivity
+
+Positivity fails when some combination of covariates makes the exposure nearly
+certain. To look for that, model the exposure and inspect the fitted
+probabilities in both groups. BART is a good choice for this model too, for the
+same reason it is a good choice for the outcome: the functional form is not
+known.
+
+```{r psfit, eval = run}
+set.seed(2026)
+
+ps_fit <- bartisan(smoke ~ . - bwt, data = d,
+                   family = binomial(), chains = 4)
+
+ps <- fitted(ps_fit)
+
+round(do.call(rbind, tapply(ps, d$smoke, range)), 3)
+```
+
+Both groups span a similar range and neither approaches zero or one, so there is
+no region where one exposure is effectively impossible.
+
+\pkg{cobalt} draws the standard picture:
+
+```{r balplot, eval = run && has_cobalt, fig.height = 2.8}
+library(cobalt)
+
+bal.plot(smoke ~ ps, data = d, type = "histogram",
+         mirror = TRUE)
+```
+
+The two densities overlap over most of their range, which is what positivity
+looks like when it holds. Distributions pushed against zero and one, with little
+overlap, are what it looks like when it does not, and the honest response then is
+to restrict the analysis to the region of overlap rather than let the model
+extrapolate into a part of the covariate space where one exposure was never
+observed.
+
+A BART propensity score is more regularized than a logistic one and so is less
+prone to the very extreme fitted probabilities a saturated logistic model
+produces when a covariate pattern happens to be perfectly predictive. Those
+extreme values are usually artefacts, and they are what makes a positivity
+assessment look worse than it is.
+
+This check belongs before the outcome model, not after. A flexible outcome model
+will happily produce an estimate in a region with no data, and the interval will
+not tell you that is what happened.
+
+## Potential outcomes
+
+The quantities underlying every effect below are the two average potential
+outcomes: what birth weight would average if every mother smoked, and if none
+did. `avg_predictions()` reports them directly.
+
+```{r po, eval = run}
+fit <- bartisan(bwt ~ ., data = d,
+                family = dpm(), chains = 4)
+
+avg_predictions(fit, variables = "smoke")
+```
+
+The two rows are \eqn{E[Y(0)]} and \eqn{E[Y(1)]}, each averaged over the observed
+covariate distribution. Reporting both is often more informative than reporting
+their difference alone, because a difference of 300 grams means something
+different at 3000 grams than it would at 1500.
+
+## The average treatment effect
+
+The effect is the contrast between those two quantities, which is what
+g-computation computes: predict for everyone as if exposed, predict again as if
+unexposed, and average the difference.
+
+```{r ate, eval = run}
+ate <- avg_comparisons(fit, variables = "smoke")
+
+ate
+```
+
+Under the assumptions above this is the average treatment effect: about
+`r round(abs(ate$estimate))` grams lower, with an interval from roughly
+`r round(abs(ate$conf.low))` to `r round(abs(ate$conf.high))`. It is the
+difference of the two rows in the previous table, with an interval computed from
+the posterior of the difference rather than from the two intervals separately.
+
+The average treatment effect on the treated restricts the averaging to the mothers who actually smoked:
+
+```{r att, eval = run}
+avg_comparisons(fit, variables = "smoke",
+                newdata = subset(smoke == "yes"))
+```
+
+These are close here. They differ when the effect varies with the covariates and
+the exposed group is unlike the rest, which is exactly when the distinction
+matters. Decide which one answers your question before fitting.
+
+## Moderation
+
+A forest is free to fit a different effect for every covariate pattern, so asking
+whether the effect differs across groups needs no interaction term and no refit.
+`by` splits the average.
+
+```{r moderation, eval = run}
+avg_comparisons(fit, variables = "smoke", by = "race")
+```
+
+The three estimates differ, and so does how close each interval comes to zero. It
+is tempting to read that as the effect being present in some groups and absent in
+others. That reading is not supported, and the reasoning behind it is not a test:
+whether one interval covers zero and another does not says nothing about whether
+the two effects differ. The question is whether they differ from each other,
+which needs the difference itself, with its own interval.
+
+```{r pairwise, eval = run}
+avg_comparisons(fit, variables = "smoke", by = "race",
+                hypothesis = ~pairwise)
+```
+
+Every pairwise difference has an interval comfortably covering zero, and the
+intervals are wide relative to the differences. There is no evidence of
+moderation by race here, and the subgroup estimates above should be read as three
+noisy estimates of one common effect rather than as three different effects.
+
+This is the honest reading and it is the usual one. Detecting moderation needs
+much more data than estimating a main effect, and a flexible model does not
+change that. What it changes is that you are not required to guess the form of
+the interaction in advance.
+
+## Regularization-induced confounding
+
+This is the failure specific to using a regularized model for causal inference,
+and it is worth understanding rather than filing away.
+
+BART shrinks the fitted function toward a constant. That shrinkage applies to
+everything the forest fits, including the part of the outcome that depends on the
+exposure. When the exposure is strongly predicted by the covariates, the forest
+can explain the outcome using the covariates alone, leave little for the exposure
+to explain, and shrink the estimated effect toward zero. The interval shrinks with
+it, so the result is a confident estimate biased toward no effect.
+
+@hahn2020 identified this mechanism. Their remedy is to give the treatment effect
+its own forest with its own prior, so that shrinking the confounding part does
+not shrink the effect, which is the Bayesian causal forest model.
+
+A cheaper mitigation is to include the estimated propensity score as an
+additional covariate in the outcome model, and there is direct evidence on how
+much it is worth. The 2016 Atlantic Causal Inference Competition compared a large
+number of methods across 77 data generating processes [@dorie2019], and
+@carnegie2019 used those data to decompose which features of a BART fit
+contributed to its performance.
+
+Two findings are worth carrying over. Bias was small for every BART variant, and
+including the propensity score reduced average absolute bias by about a tenth,
+which on that scale is a refinement rather than a rescue. Interval coverage is
+where the differences showed: base BART covered at 83%, and the best combination
+without targeted learning, using ten chains, symmetric intervals and the
+propensity score as a covariate, reached about 92%. Both running several chains
+and including the score contributed.
+
+Carnegie notes a limitation that matters for how far to carry this: ignorability
+and overlap held by construction in every competition dataset, so the value of
+modelling treatment assignment may well be larger when they are strained, which
+is the situation this section is about.
+
+So, in order:
+
+- Check how strongly the exposure is predicted by the covariates. The overlap
+  plot above is the diagnostic. Densities concentrated at the ends mean strong
+  prediction and more scope for this bias; here they are spread out and heavily
+  overlapping, which is the benign case.
+- Run several chains, which the fits here already do.
+- Include the propensity score as a covariate.
+
+```{r pscovariate, eval = run}
+d$ps <- ps
+
+fit_ps <- bartisan(bwt ~ ., data = d,
+                   family = dpm(), chains = 4)
+
+avg_comparisons(fit_ps, variables = "smoke")
+```
+
+The estimate barely moves, which is what to expect when overlap is good and the
+exposure is not strongly predicted by the covariates.
+
+## What the interval means
+
+The posterior interval is a credible interval for the estimand under the model
+and under the identification assumptions. It covers uncertainty from having a
+finite sample and from not knowing the shape of the outcome surface. It does not
+cover uncertainty about whether the assumptions hold.
+
+An unmeasured confounder does not widen the interval. It moves the estimate and
+leaves the interval where it was. This is why a sensitivity analysis, asking how
+strong a confounder would have to be to explain the result away, is a more
+informative addition than any refinement of the model. The `sensemakr` and
+`EValue` packages do this and work from the estimate and its standard error,
+which `avg_comparisons()` provides.
+
+## Where to go next
+
+`vignette("effects")` covers the estimand machinery in more detail, including
+subgroup effects and testing whether they differ. `vignette("diagnostics")`
+covers checking the fit, which should happen before any of this is interpreted.
+
+## References

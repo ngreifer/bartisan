@@ -5,7 +5,7 @@
 #include <vector>
 #include "hypers.h"
 
-namespace genbart {
+namespace bartisan {
 
 struct Node;
 
@@ -328,6 +328,6 @@ arma::vec predict_tree(Tree* tree, const arma::mat& X);
 void get_var_counts(Node* node, arma::uvec& counts);
 void collect_leaf_params(Node* node, std::vector<double>& out);
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif

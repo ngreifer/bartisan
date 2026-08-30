@@ -4,7 +4,7 @@
 #include <RcppArmadillo.h>
 #include "utils.h"
 
-namespace genbart {
+namespace bartisan {
 
 // Hyperparameters shared by every tree of one forest. A model with H additive
 // predictors carries H of these, so that each predictor gets its own sparsity
@@ -79,6 +79,6 @@ inline double grow_prob(const Hypers* hypers, int depth) {
   return hypers->gamma * std::pow(1.0 + static_cast<double>(depth), -hypers->beta);
 }
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif

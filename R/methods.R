@@ -1,3 +1,16 @@
+# "1 forest of 50 trees", or "2 forests of 50 and 10 trees" when the tree count
+# differs by additive predictor.
+forest_label <- function(x) {
+  trees <- x[["num_trees"]]
+
+  if (length(unique(trees)) == 1L) {
+    return(cli::format_inline(
+      "{x$num_forest} forest{?s} of {trees[1L]} tree{?s}"))
+  }
+
+  cli::format_inline("{x$num_forest} forests of {.and {trees}} trees")
+}
+
 #' Summarize a generalized BART model
 #'
 #' @description
@@ -6,18 +19,18 @@
 #' predictor was used in a splitting rule, which is the model's variable
 #' selection output.
 #'
-#' @param x,object a fitted model from [genbart()].
+#' @param x,object a fitted model from [bartisan()].
 #' @param level width of the reported posterior intervals.
 #' @param digits number of significant digits to print.
 #' @param ... ignored, present for compatibility with the generics.
 #'
 #' @returns
 #' `print()` returns its argument invisibly. `summary()` returns a list of class
-#' `summary.genbart`, with a `usage` element giving the posterior summary of the
+#' `summary.bartisan_fit`, with a `usage` element giving the posterior summary of the
 #' splitting counts for each predictor group, and an `aux` element for the
 #' nuisance parameters when the family has any.
 #'
-#' @seealso [genbart()]
+#' @seealso [bartisan()]
 #'
 #' @examples
 #' set.seed(1)
@@ -26,35 +39,35 @@
 #' d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n))
 #' d$y <- 2 * d$x1 + rnorm(n, sd = 0.3)
 #'
-#' fit <- genbart(y ~ x1 + x2 + x3, data = d,
-#'                control = genbart_control(num_trees = 10, num_burn = 50,
+#' fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = gaussian(),
+#'                control = bartisan_control(num_trees = 10, num_burn = 50,
 #'                                          num_save = 50, verbose = FALSE))
 #' fit
 #' summary(fit)
 #'
 #' @export
-print.genbart <- function(x, digits = 3, ...) {
+print.bartisan_fit <- function(x, digits = 3L, ...) {
 
   print_header(x[["call"]])
 
-  cli::cat_line(cli::format_inline("Family: {family_label(x[['family']])}"))
-  cli::cat_line(cli::format_inline("Observations: {x$n}"))
+  cli_cat("Family: {family_label(x[['family']])}")
+  cli_cat("Observations: {x$n}")
   rules <- if (x[["soft"]]) "soft" else "hard"
-  cli::cat_line(cli::format_inline(
-    "Forests: {x$num_forest} of {x$num_trees} trees, {rules} decision rules"))
-  cli::cat_line(cli::format_inline(
-    "Draws: {nrow(x$sigma_mu)} kept after {x$control$num_burn} warmup"))
+  cli_cat("Structure: {forest_label(x)}, {rules} decision rules")
+  cli_cat("Draws: {nrow(x$sigma_mu)} kept after {x$control$num_burn} warmup")
 
   if (!is_null(x[["random"]])) {
-    cli::cat_line(cli::format_inline(
-      "Random intercepts: {ranef_label(x)}"))
+    cli_cat("Random intercepts: {ranef_label(x)}")
   }
 
   if (!is_null(x[["aux"]])) {
+    arg::arg_whole_number(digits)
+
     cli::cat_line()
     means <- signif(colMeans(x[["aux"]]), digits)
-    cli::cat_line(cli::format_inline(
-      "Posterior means: {paste0(names(means), ' = ', means, collapse = ', ')}"))
+    labels <- sprintf("%s = %s", names(means), means) |>
+      toString()
+    cli_cat("Posterior means: {labels}")
   }
 
   invisible(x)
@@ -64,9 +77,11 @@ print.genbart <- function(x, digits = 3, ...) {
 # formula says and the family label does not.
 ranef_label <- function(x) {
   terms <- x[["random"]]
-  paste0(vapply(terms, function(z) {
-    paste0(z[["label"]], " (", z[["num_levels"]], " levels)")
-  }, character(1L)), collapse = ", ")
+
+  vapply(terms, function(z) {
+    sprintf("%s (%s levels)", z[["label"]], z[["num_levels"]])
+  }, character(1L)) |>
+    toString()
 }
 
 # Posterior summaries of each random-effect scale, one row per grouping factor
@@ -86,7 +101,7 @@ ranef_summary <- function(object, level) {
     for (r in seq_len(ncol(tau))) {
       label <- {
         if (length(object[["tau"]]) > 1L) {
-          paste0(colnames(tau)[r], " [", names(object[["tau"]])[h], "]")
+          sprintf("%s [%s]", colnames(tau)[r], names(object[["tau"]])[h])
         }
         else colnames(tau)[r]
       }
@@ -106,29 +121,33 @@ family_label <- function(family) {
     return(cli::format_inline("{.val {family$name}} (supplied from R)"))
   }
 
+  # The engine calls it "mnp"; the caller asked for a multinomial with a probit
+  # link, and that is what the fit should say it is.
+  if (identical(family[["family"]], "mnp")) {
+    return(cli::format_inline("{.val multinomial} with the {.val probit} link"))
+  }
+
   supplied <- {
     if (is_null(family[["custom_link"]])) ""
     else " (supplied from R)"
   }
 
-  cli::format_inline(
-    "{.val {family$family}} with the {.val {family$link}} link{supplied}")
+  cli::format_inline("{.val {family$family}} with the {.val {family$link}} link{supplied}")
 }
 
 # Print methods write to stdout, so they use cli's cat_* functions rather than
 # cli_text(), which emits a message on stderr and would leave the output
 # invisible to capture.output() and to knitr.
 print_header <- function(call) {
-  cli::cat_line(cli::format_inline("{.strong Generalized BART}"))
+  cli_cat("{.strong Generalized BART}")
   cli::cat_line()
-  cli::cat_line(cli::format_inline(
-    "Call: {.code {deparse(call, width.cutoff = 500L)[1L]}}"))
+  cli_cat("Call: {.code {deparse(call, width.cutoff = 500L)[1L]}}")
   cli::cat_line()
 }
 
-#' @rdname print.genbart
+#' @rdname print.bartisan_fit
 #' @export
-summary.genbart <- function(object, level = 0.95, ...) {
+summary.bartisan_fit <- function(object, level = 0.95, ...) {
 
   arg::arg_number(level)
   arg::arg_between(level, c(0, 1), inclusive = FALSE)
@@ -162,56 +181,182 @@ summary.genbart <- function(object, level = 0.95, ...) {
                                  level = level)),
               loglik = post_summary(object[["loglik"]], level = level))
 
-  class(out) <- "summary.genbart"
+  class(out) <- "summary.bartisan_fit"
 
   out
 }
 
-#' @rdname print.genbart
+#' @rdname print.bartisan_fit
 #' @export
-print.summary.genbart <- function(x, digits = 3, ...) {
+print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 
   print_header(x[["call"]])
 
-  cli::cat_line(cli::format_inline("Family: {family_label(x[['family']])}"))
-  cli::cat_line(cli::format_inline("Observations: {x$n}"))
+  cli_cat("Family: {family_label(x[['family']])}")
+  cli_cat("Observations: {x$n}")
   rules <- if (x[["soft"]]) "soft" else "hard"
-  cli::cat_line(cli::format_inline(
-    "Forests: {x$num_forest} of {x$num_trees} trees, {rules} decision rules"))
-  cli::cat_line(cli::format_inline("Draws: {x$num_save}"))
+  cli_cat("Structure: {forest_label(x)}, {rules} decision rules")
+  cli_cat("Draws: {x$num_save}")
 
   if (!is_null(x[["random"]])) {
-    cli::cat_line(cli::format_inline(
-      "Random intercepts: {ranef_label(x)}"))
+    cli_cat("Random intercepts: {ranef_label(x)}")
   }
 
   if (!is_null(x[["aux"]])) {
     cli::cat_line()
-    cli::cat_line(cli::format_inline("{.strong Nuisance parameters}"))
-    print(round(x[["aux"]], digits))
+    cli_cat("{.strong Nuisance parameters}")
+
+    # A baseline hazard can have one entry per event time, which is too many to
+    # read. Printing the ends and saying how many were left out keeps the block
+    # legible without hiding that they are all there in `fit$aux`.
+    shown <- 12L
+
+    if (nrow(x[["aux"]]) > shown) {
+      keep <- c(seq_len(shown %/% 2L),
+                seq(nrow(x[["aux"]]) - shown %/% 2L + 1L, nrow(x[["aux"]])))
+      print(round(x[["aux"]][keep, , drop = FALSE], digits))
+      cli_cat("{.emph {nrow(x[['aux']]) - length(keep)} more, omitted;
+               all of them are in {.code fit$aux}.}")
+    }
+    else {
+      print(round(x[["aux"]], digits))
+    }
   }
 
   if (!is_null(x[["tau"]])) {
     cli::cat_line()
-    cli::cat_line(cli::format_inline("{.strong Random-effect scales}"))
-    cli::cat_line(cli::format_inline(
-      "{.emph Standard deviation of the group intercepts.}"))
+    cli_cat("{.strong Random-effect scales}")
+    cli_cat("{.emph Standard deviation of the group intercepts.}")
     print(round(x[["tau"]], digits))
   }
 
   cli::cat_line()
-  cli::cat_line(cli::format_inline("{.strong Predictor usage}"))
-  cli::cat_line(cli::format_inline(
-    "{.emph Splitting rules per draw, and how often used at all.}"))
+  cli_cat("{.strong Predictor usage}")
+  cli_cat("{.emph Splitting rules per draw, and how often used at all.}")
 
   for (h in seq_along(x[["usage"]])) {
     if (length(x[["usage"]]) > 1L) {
       cli::cat_line()
-      cli::cat_line(cli::format_inline(
-        "Predictor {.val {names(x$usage)[h]}}:"))
+      cli_cat("Predictor {.val {names(x$usage)[h]}}:")
     }
     print(round(x[["usage"]][[h]], digits))
   }
 
   invisible(x)
+}
+
+#' How often each predictor is used
+#'
+#' Reports, for every predictor, how many splitting rules the forest spends on
+#' it and how often it is used at all. This is the quantity people mean by
+#' "variable importance" for a BART model, and it is the same table
+#' [summary.bartisan_fit()] prints -- this returns it as a data frame instead, ready
+#' to sort, filter or plot.
+#'
+#' @param object a fit from [bartisan()].
+#' @param level the width of the interval reported for `splits`. Default `0.95`.
+#'
+#' @details
+#' # Which column answers which question
+#'
+#' `prop_used` -- the proportion of posterior draws in which the predictor
+#' received at least one splitting rule -- is the one to read first. It behaves
+#' like a posterior probability that the predictor belongs in the model, and it
+#' separates signal from noise sharply once `sparsity = TRUE` in
+#' [bartisan_control()], which puts a Dirichlet prior on how the rules are shared
+#' out and lets unused predictors be dropped rather than merely used rarely.
+#'
+#' `splits` -- the mean number of rules per draw -- says how much of the forest's
+#' structure a predictor accounts for. It is the more familiar number and the
+#' easier one to over-read.
+#'
+#' # Three things this is not
+#'
+#' **It is not an effect size.** A predictor can be split on constantly and move
+#' the prediction very little, and the reverse happens too. If the question is
+#' how much a predictor moves the outcome, that is a job for
+#' \pkgfun{marginaleffects}{avg_comparisons} on the fitted model, not for this
+#' table. See [bartisan-marginaleffects].
+#'
+#' **It is not stable under correlated predictors.** When two predictors carry
+#' the same information the trees split on whichever is convenient, and the usage
+#' distributes between them more or less arbitrarily. A predictor can matter and
+#' still show a low `prop_used` because a collinear partner absorbed it. Treat a
+#' group of correlated predictors as a group.
+#'
+#' **It is not causal.** A ranking of predictors by usage is a description of
+#' this fitted function, not of what would happen if any of them were changed.
+#'
+#' # Reading it as variable selection
+#'
+#' With `sparsity = TRUE`, `prop_used` is usable as a selection rule: predictors
+#' the forest genuinely needs sit near 1 and the rest fall near 0, usually with a
+#' wide gap rather than a continuum. There is no threshold that is correct in
+#' general; look at the gap and check that your conclusion does not depend on
+#' where in it you cut.
+#'
+#' @returns
+#' A data frame, one row per predictor, sorted by `prop_used` and then `splits`,
+#' both decreasing. Columns are `variable`, `splits`, `splits_lower`,
+#' `splits_upper` and `prop_used`. A family with more than one additive predictor
+#' has a forest for each, and gains a leading `predictor` column naming which.
+#'
+#' @seealso [summary.bartisan_fit()], which prints the same table;
+#'   [bartisan_control()] for `sparsity`; [bartisan-marginaleffects] for effects
+#'   rather than usage.
+#'
+#' @examples
+#' set.seed(1)
+#' n <- 300
+#' d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n), x4 = runif(n))
+#'
+#' # Only x1 and x2 are in the truth.
+#' d$y <- 2 * d$x1 + sin(3 * d$x2) + rnorm(n, sd = 0.3)
+#'
+#' fit <- bartisan(y ~ ., data = d, family = gaussian(),
+#'                control = bartisan_control(sparsity = TRUE))
+#'
+#' variable_importance(fit)
+#'
+#' @export
+variable_importance <- function(object, level = 0.95) {
+
+  if (!inherits(object, "bartisan_fit")) {
+    arg::err("{.arg object} must be a fit from {.fn bartisan}")
+  }
+
+  arg::arg_number(level)
+  arg::arg_between(level, c(0, 1), inclusive = FALSE)
+
+  counts <- object[["counts"]]
+
+  if (is_null(counts) || length(counts) == 0L) {
+    arg::err("this fit carries no splitting counts")
+  }
+
+  rows <- lapply(names(counts), function(nm) {
+    m <- counts[[nm]]
+    summarized <- apply(m, 2L, post_summary, level = level)
+
+    data.frame(predictor = nm,
+               variable = colnames(m),
+               splits = summarized["mean", ],
+               splits_lower = summarized["lower", ],
+               splits_upper = summarized["upper", ],
+               # The proportion of draws in which the predictor was used at all,
+               # which is the variable-selection reading; see the details.
+               prop_used = colMeans(m > 0),
+               row.names = NULL)
+  })
+
+  out <- do.call(rbind, rows)
+
+  # One forest needs no column saying which forest.
+  if (length(counts) == 1L) {
+    out[["predictor"]] <- NULL
+  }
+
+  out[order(out[["prop_used"]], out[["splits"]], decreasing = TRUE), ,
+      drop = FALSE] |>
+    `rownames<-`(NULL)
 }

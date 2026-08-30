@@ -21,7 +21,7 @@ test_that("the Polya-Gamma sampler has the moments it should", {
 
   for (b in c(1, 3, 0.5, 7.3)) {
     for (cc in c(0, 1.5, 8)) {
-      x <- .genbart_rpg(20000L, b, cc)
+      x <- .bartisan_rpg(20000L, b, cc)
       label <- paste("b =", b, "c =", cc)
 
       expect_true(all(x > 0), info = label)
@@ -36,25 +36,30 @@ test_that("the Polya-Gamma sampler has the moments it should", {
 })
 
 test_that("augment resolves to the families it says it does", {
-  expect_setequal(genbart_control(augment = TRUE)[["augment"]],
-                  c("binomial", "ordinal"))
-  expect_setequal(genbart_control(augment = TRUE, soft = FALSE)[["augment"]],
-                  c("binomial", "ordinal", "negbin"))
-  expect_identical(genbart_control(augment = FALSE)[["augment"]],
-                   character(0L))
-  expect_identical(genbart_control(augment = "multinomial")[["augment"]],
+  every <- c("binomial", "ordinal", "multinomial", "zip", "zinb", "aft")
+
+  # The negative binomial is the one whose rewriting depends on the rules: its
+  # gain is the exponential form, which only hard rules get.
+  expect_setequal(bartisan_control(augment = TRUE)[["augment"]], every)
+  expect_setequal(bartisan_control(augment = TRUE, gate = "hard")[["augment"]],
+                  c(every, "negbin"))
+  expect_identical(bartisan_control(augment = FALSE)[["augment"]],
+                   character())
+  expect_identical(bartisan_control(augment = "multinomial")[["augment"]],
                    "multinomial")
-  expect_setequal(genbart_control(augment = c("binomial", "negbin"))[["augment"]],
+  expect_setequal(bartisan_control(augment = c("binomial", "negbin"))[["augment"]],
                   c("binomial", "negbin"))
-  expect_error(genbart_control(augment = "poisson"), "must be one of")
+  expect_setequal(bartisan_control(augment = c("zip", "zinb"))[["augment"]],
+                  c("zip", "zinb"))
+  expect_error(bartisan_control(augment = "poisson"), "must be one of")
 })
 
 test_that("the reported log likelihood is the probit one, not the augmented one", {
   d <- sim_x(n = 120, seed = 71)
   d$y <- stats::rbinom(120, 1, stats::plogis(2 * d$x1 - 1))
 
-  fit <- genbart(y ~ ., data = d, family = binomial("probit"),
-                 control = quick_control(augment = TRUE))
+  fit <- bartisan(y ~ ., data = d, family = binomial("probit"),
+                  control = quick_control(augment = TRUE))
 
   # Sum over observations of log Phi(eta) or log Phi(-eta), which is the probit
   # log likelihood and has nothing to do with the latent normal the sampler
@@ -78,10 +83,10 @@ test_that("augmentation declines where it does not apply", {
   trials <- rep(4, 80)
   d$y <- stats::rbinom(80, 4, 0.4) / 4
 
-  plain <- genbart(y ~ ., data = d, family = binomial("probit"),
-                   weights = trials, control = quick_control())
-  asked <- genbart(y ~ ., data = d, family = binomial("probit"),
-                   weights = trials, control = quick_control(augment = TRUE))
+  plain <- bartisan(y ~ ., data = d, family = binomial("probit"),
+                    weights = trials, control = quick_control())
+  asked <- bartisan(y ~ ., data = d, family = binomial("probit"),
+                    weights = trials, control = quick_control(augment = TRUE))
 
   # Both fits used the same family, so the reported likelihoods live on the same
   # scale; the augmented one would be missing the binomial coefficients and sit
@@ -91,8 +96,8 @@ test_that("augmentation declines where it does not apply", {
 
   # A logit link is not a probit one, so nothing is rewritten.
   d$y <- stats::rbinom(80, 1, 0.4)
-  a <- genbart(y ~ ., data = d, family = binomial("logit"),
-               control = quick_control(augment = TRUE))
+  a <- bartisan(y ~ ., data = d, family = binomial("logit"),
+                control = quick_control(augment = TRUE))
   expect_true(all(is.finite(a[["loglik"]])))
 })
 
@@ -108,16 +113,16 @@ test_that("augmentation targets the same posterior as the direct sampler", {
   d$y <- stats::rbinom(n, 1, stats::pnorm(truth))
 
   ctrl <- function(augment) {
-    genbart_control(num_trees = 50, num_burn = 800, num_save = 800,
-                    augment = augment, verbose = FALSE)
+    bartisan_control(num_trees = 50, num_burn = 800, num_save = 800,
+                     augment = augment, verbose = FALSE)
   }
 
   set.seed(5)
-  direct <- genbart(y ~ ., data = d, family = binomial("probit"),
-                    control = ctrl(FALSE))
+  direct <- bartisan(y ~ ., data = d, family = binomial("probit"),
+                     control = ctrl(FALSE))
   set.seed(5)
-  augmented <- genbart(y ~ ., data = d, family = binomial("probit"),
-                       control = ctrl(TRUE))
+  augmented <- bartisan(y ~ ., data = d, family = binomial("probit"),
+                        control = ctrl(TRUE))
 
   p_direct <- predict(direct, type = "response")
   p_augmented <- predict(augmented, type = "response")
@@ -142,8 +147,8 @@ test_that("the logit rewriting reports the binomial log likelihood", {
   d <- sim_x(n = 120, seed = 92)
   d$y <- stats::rbinom(120, 1, stats::plogis(2 * d$x1 - 1))
 
-  fit <- genbart(y ~ ., data = d, family = binomial("logit"),
-                 control = quick_control(augment = TRUE))
+  fit <- bartisan(y ~ ., data = d, family = binomial("logit"),
+                  control = quick_control(augment = TRUE))
 
   eta <- predict(fit, type = "link", draws = TRUE)
   by_hand <- apply(eta, 1L, function(e) {
@@ -161,8 +166,8 @@ test_that("the logit rewriting handles binomial counts", {
   successes <- stats::rbinom(100, trials, stats::plogis(2 * d$x1 - 1))
   d$y <- successes / trials
 
-  fit <- genbart(y ~ ., data = d, family = binomial("logit"), weights = trials,
-                 control = quick_control(augment = TRUE))
+  fit <- bartisan(y ~ ., data = d, family = binomial("logit"), weights = trials,
+                  control = quick_control(augment = TRUE))
 
   eta <- predict(fit, type = "link", draws = TRUE)
   by_hand <- apply(eta, 1L, function(e) {
@@ -177,8 +182,8 @@ test_that("the negative binomial rewriting reports its own log likelihood", {
   d <- sim_x(n = 120, seed = 94)
   d$y <- stats::rnbinom(120, mu = exp(1 + d$x1), size = 3)
 
-  fit <- genbart(y ~ ., data = d, family = negbin(theta = 3),
-                 control = quick_control(augment = "negbin"))
+  fit <- bartisan(y ~ ., data = d, family = negbin(theta = 3),
+                  control = quick_control(augment = "negbin"))
 
   eta <- predict(fit, type = "link", draws = TRUE)
   by_hand <- apply(eta, 1L, function(e) {
@@ -189,8 +194,8 @@ test_that("the negative binomial rewriting reports its own log likelihood", {
   expect_predictor_invariant(fit, d)
 
   # The dispersion is still drawn when it is not fixed.
-  drawn <- genbart(y ~ ., data = d, family = negbin(),
-                   control = quick_control(augment = "negbin"))
+  drawn <- bartisan(y ~ ., data = d, family = negbin(),
+                    control = quick_control(augment = "negbin"))
   expect_identical(colnames(drawn[["aux"]]), "theta")
   expect_true(all(drawn[["aux"]][, "theta"] > 0))
 })
@@ -200,8 +205,8 @@ test_that("the multinomial rewriting reports its own log likelihood", {
   d$y <- factor(sample(c("a", "b", "c"), 120, replace = TRUE))
 
   for (reference in list(NULL, "a")) {
-    fit <- genbart(y ~ ., data = d,
-                   family = multinomial(reference = reference),
+    fit <- bartisan(y ~ ., data = d,
+                    family = multinomial(reference = reference),
                    control = quick_control(augment = "multinomial"))
 
     probs <- predict(fit, type = "prob", draws = TRUE)
@@ -224,15 +229,15 @@ test_that("a rewriting is declined where it cannot apply", {
   # family. The check is that the fit still runs and reports a sane likelihood.
   w <- stats::runif(80, 0.5, 1.5)
   d$y <- stats::rpois(80, 2)
-  fit <- genbart(y ~ ., data = d, family = negbin(), weights = w,
-                 control = quick_control(augment = "negbin"))
+  fit <- bartisan(y ~ ., data = d, family = negbin(), weights = w,
+                  control = quick_control(augment = "negbin"))
   expect_true(all(is.finite(fit[["loglik"]])))
 
   # A cloglog link has no Polya-Gamma form, so asking for the binomial
   # rewriting leaves it alone.
   d$y <- stats::rbinom(80, 1, 0.4)
-  fit <- genbart(y ~ ., data = d, family = binomial("cloglog"),
-                 control = quick_control(augment = TRUE))
+  fit <- bartisan(y ~ ., data = d, family = binomial("cloglog"),
+                  control = quick_control(augment = TRUE))
   expect_true(all(is.finite(fit[["loglik"]])))
   expect_predictor_invariant(fit, d)
 })
@@ -249,16 +254,16 @@ test_that("the logit rewriting targets the same posterior", {
   d$y <- stats::rbinom(n, 1, stats::plogis(truth))
 
   ctrl <- function(a) {
-    genbart_control(num_trees = 50, num_burn = 1000, num_save = 1000,
-                    augment = a, verbose = FALSE)
+    bartisan_control(num_trees = 50, num_burn = 1000, num_save = 1000,
+                     augment = a, verbose = FALSE)
   }
 
   set.seed(5)
-  direct <- genbart(y ~ ., data = d, family = binomial("logit"),
-                    control = ctrl(FALSE))
+  direct <- bartisan(y ~ ., data = d, family = binomial("logit"),
+                     control = ctrl(FALSE))
   set.seed(5)
-  rewritten <- genbart(y ~ ., data = d, family = binomial("logit"),
-                       control = ctrl(TRUE))
+  rewritten <- bartisan(y ~ ., data = d, family = binomial("logit"),
+                        control = ctrl(TRUE))
 
   p_true <- stats::plogis(truth)
   p_direct <- predict(direct, type = "response")
@@ -299,7 +304,7 @@ test_that("the truncated normal draw matches its exact moments, including in the
                  c(-8, -7.5), c(8, 9), c(10, 12), c(20, 21))
 
   for (b in bounds) {
-    z <- .genbart_rtruncnorm(40000L, b[1L], b[2L])
+    z <- .bartisan_rtruncnorm(40000L, b[1L], b[2L])
     expect_true(all(z >= b[1L] & z <= b[2L]))
     exact <- moments(b[1L], b[2L])
     # Three standard errors of the mean, and a loose relative check on the sd.
@@ -308,9 +313,9 @@ test_that("the truncated normal draw matches its exact moments, including in the
   }
 
   # One-sided and unbounded reduce correctly.
-  expect_true(all(.genbart_rtruncnorm(1000L, 0, Inf) >= 0))
-  expect_true(all(.genbart_rtruncnorm(1000L, -Inf, 0) <= 0))
-  expect_lt(abs(mean(.genbart_rtruncnorm(40000L, -Inf, Inf))), 3 / sqrt(40000))
+  expect_true(all(.bartisan_rtruncnorm(1000L, 0, Inf) >= 0))
+  expect_true(all(.bartisan_rtruncnorm(1000L, -Inf, 0) <= 0))
+  expect_lt(abs(mean(.bartisan_rtruncnorm(40000L, -Inf, Inf))), 3 / sqrt(40000))
 })
 
 test_that("the ordinal probit augmentation targets the same posterior as the direct fit", {
@@ -326,8 +331,8 @@ test_that("the ordinal probit augmentation targets the same posterior as the dir
 
   fit <- function(augment) {
     set.seed(5)
-    genbart(y ~ ., d, family = ordinal("probit"), soft = FALSE,
-            num_trees = 20, num_burn = 400, num_save = 400, augment = augment)
+    bartisan(y ~ ., d, family = ordinal("probit"), gate = "hard",
+             num_trees = 20, num_burn = 400, num_save = 400, augment = augment)
   }
 
   direct <- fit(FALSE)
@@ -361,28 +366,28 @@ test_that("the ordinal augmentation applies only where it is exact", {
 
   # A logit link has no Gaussian margin, so it falls back on the direct family
   # rather than silently fitting a probit.
-  logit <- genbart(y ~ ., d, family = ordinal("logit"), control = quick_control(),
-                   augment = "ordinal")
-  probit <- genbart(y ~ ., d, family = ordinal("probit"),
-                    control = quick_control(), augment = "ordinal")
+  logit <- bartisan(y ~ ., d, family = ordinal("logit"), control = quick_control(),
+                    augment = "ordinal")
+  probit <- bartisan(y ~ ., d, family = ordinal("probit"),
+                     control = quick_control(), augment = "ordinal")
 
-  expect_s3_class(logit, "genbart")
-  expect_s3_class(probit, "genbart")
+  expect_s3_class(logit, "bartisan_fit")
+  expect_s3_class(probit, "bartisan_fit")
   expect_predictor_invariant(logit, d)
   expect_predictor_invariant(probit, d)
 
   # Prior weights other than one break the latent-normal representation, so they
   # fall back too.
   w <- rep(c(1, 2), length.out = nrow(d))
-  weighted <- genbart(y ~ ., d, family = ordinal("probit"), weights = w,
-                      control = quick_control(), augment = "ordinal")
-  expect_s3_class(weighted, "genbart")
+  weighted <- bartisan(y ~ ., d, family = ordinal("probit"), weights = w,
+                       control = quick_control(), augment = "ordinal")
+  expect_s3_class(weighted, "bartisan_fit")
   expect_predictor_invariant(weighted, d)
 
   # "ordinal" is in the default set, and is accepted by name.
-  expect_true("ordinal" %in% genbart_control(soft = TRUE)$augment)
-  expect_true("ordinal" %in% genbart_control(soft = FALSE)$augment)
-  expect_identical(genbart_control(augment = "ordinal")$augment, "ordinal")
+  expect_true("ordinal" %in% bartisan_control(gate = "smoothstep")$augment)
+  expect_true("ordinal" %in% bartisan_control(gate = "hard")$augment)
+  expect_identical(bartisan_control(augment = "ordinal")$augment, "ordinal")
 })
 
 test_that("the ordinal augmentation recovers known cutpoints", {
@@ -397,8 +402,8 @@ test_that("the ordinal augmentation recovers known cutpoints", {
   d <- x
   d$y <- ordered(rowSums(outer(z, truth, ">")) + 1L)
 
-  fit <- genbart(y ~ ., d, family = ordinal("probit"), soft = FALSE,
-                 num_trees = 20, num_burn = 400, num_save = 400,
+  fit <- bartisan(y ~ ., d, family = ordinal("probit"), gate = "hard",
+                  num_trees = 20, num_burn = 400, num_save = 400,
                  augment = "ordinal")
 
   # The cutpoints are reported in the chart where the predictor has mean zero
@@ -421,7 +426,7 @@ test_that("the logistic density is the Polya-Gamma normal scale mixture the ordi
   # and the left side is the standard logistic density. Everything the ordinal
   # logit augmentation does follows from this one identity, so it is checked
   # against the density directly rather than assumed.
-  w <- .genbart_rpg(2e6L, 2, 0)
+  w <- .bartisan_rpg(2e6L, 2, 0)
 
   expect_equal(mean(w), 0.5, tolerance = 0.01)
 
@@ -435,7 +440,7 @@ test_that("the logistic density is the Polya-Gamma normal scale mixture the ordi
   # given a residual r is exactly PG(2, |r|).
   for (cc in c(0.5, 1.5, 3)) {
     tilted <- sum(w * exp(-cc^2 * w / 2)) / sum(exp(-cc^2 * w / 2))
-    expect_equal(mean(.genbart_rpg(2e5L, 2, cc)), tilted, tolerance = 0.02,
+    expect_equal(mean(.bartisan_rpg(2e5L, 2, cc)), tilted, tolerance = 0.02,
                  info = paste("c =", cc))
   }
 })
@@ -453,8 +458,8 @@ test_that("the ordinal logit augmentation targets the same posterior as the dire
 
   fit <- function(augment) {
     set.seed(6)
-    genbart(y ~ ., d, family = ordinal("logit"), soft = FALSE, num_trees = 20,
-            num_burn = 400, num_save = 400, augment = augment)
+    bartisan(y ~ ., d, family = ordinal("logit"), gate = "hard", num_trees = 20,
+             num_burn = 400, num_save = 400, augment = augment)
   }
 
   direct <- fit(FALSE)
@@ -486,19 +491,19 @@ test_that("both ordinal links are augmented, and only where it is exact", {
   # leaf scale is held fixed because this is a plumbing check on a 30-draw run,
   # which is far too short for it to settle and would warn on any family.
   for (link in c("logit", "probit")) {
-    fit <- genbart(y ~ ., d, family = ordinal(link),
-                   control = quick_control(update_sigma_mu = FALSE))
-    expect_s3_class(fit, "genbart")
+    fit <- bartisan(y ~ ., d, family = ordinal(link),
+                    control = quick_control(update_sigma_mu = FALSE))
+    expect_s3_class(fit, "bartisan_fit")
     expect_predictor_invariant(fit, d)
   }
 
   # Frequency weights break the one-latent-per-observation representation, so
   # they fall back on the direct family.
   w <- rep(c(1, 2), length.out = nrow(d))
-  weighted <- genbart(y ~ ., d, family = ordinal("logit"), weights = w,
-                      control = quick_control(update_sigma_mu = FALSE),
+  weighted <- bartisan(y ~ ., d, family = ordinal("logit"), weights = w,
+                       control = quick_control(update_sigma_mu = FALSE),
                       augment = "ordinal")
-  expect_s3_class(weighted, "genbart")
+  expect_s3_class(weighted, "bartisan_fit")
   expect_predictor_invariant(weighted, d)
 })
 
@@ -513,12 +518,123 @@ test_that("the ordinal logit augmentation recovers known cutpoints", {
   d <- x
   d$y <- ordered(rowSums(outer(lin + stats::rlogis(n), truth, ">")) + 1L)
 
-  fit <- genbart(y ~ ., d, family = ordinal("logit"), soft = FALSE,
-                 num_trees = 20, num_burn = 400, num_save = 400,
+  fit <- bartisan(y ~ ., d, family = ordinal("logit"), gate = "hard",
+                  num_trees = 20, num_burn = 400, num_save = 400,
                  augment = "ordinal")
 
   expect_equal(colMeans(fit[["aux"]]), truth - mean(lin), tolerance = 0.3,
                ignore_attr = TRUE)
   expect_equal(diff(colMeans(fit[["aux"]])), diff(truth), tolerance = 0.3,
                ignore_attr = TRUE)
+})
+
+test_that("the zero-inflated rewriting reports its own log likelihood", {
+  d <- sim_x(n = 150, seed = 151)
+  set.seed(1151)
+  structural <- stats::runif(nrow(d)) < 0.3
+  d$y <- ifelse(structural, 0L, stats::rpois(nrow(d), exp(0.7 + d$x1)))
+
+  fit <- bartisan(y ~ ., data = d, family = zi_poisson(),
+                  control = quick_control(augment = "zip"))
+
+  # The sampler works with the two latent variables; the likelihood it reports
+  # has to be the mixture the caller asked for, with both integrated out.
+  eta <- predict(fit, type = "link", draws = TRUE)
+  by_hand <- vapply(seq_len(nrow(eta[[1L]])), function(s) {
+    pi <- stats::plogis(eta[[2L]][s, ])
+    mu <- exp(eta[[1L]][s, ])
+    sum(log(ifelse(d$y == 0, pi + (1 - pi) * stats::dpois(0, mu),
+                   (1 - pi) * stats::dpois(d$y, mu))))
+  }, numeric(1L))
+
+  expect_equal(fit[["loglik"]], by_hand, tolerance = 1e-8)
+  expect_predictor_invariant(fit, d)
+
+  # And the negative binomial version, whose dispersion is still drawn from the
+  # true zero-inflated likelihood rather than from the augmented one.
+  set.seed(1152)
+  d$ynb <- ifelse(structural, 0L,
+                  stats::rnbinom(nrow(d), mu = exp(0.7 + d$x1), size = 3))
+
+  fixed <- bartisan(ynb ~ x1 + x2 + x3, data = d, family = zi_negbin(theta = 3),
+                    control = quick_control(augment = "zinb"))
+
+  eta <- predict(fixed, type = "link", draws = TRUE)
+  by_hand <- vapply(seq_len(nrow(eta[[1L]])), function(s) {
+    pi <- stats::plogis(eta[[2L]][s, ])
+    mu <- exp(eta[[1L]][s, ])
+    zero <- stats::dnbinom(0, mu = mu, size = 3)
+    sum(log(ifelse(d$ynb == 0, pi + (1 - pi) * zero,
+                   (1 - pi) * stats::dnbinom(d$ynb, mu = mu, size = 3))))
+  }, numeric(1L))
+
+  expect_equal(fixed[["loglik"]], by_hand, tolerance = 1e-8)
+
+  drawn <- bartisan(ynb ~ x1 + x2 + x3, data = d, family = zi_negbin(),
+                    control = quick_control(augment = "zinb"))
+  expect_identical(colnames(drawn[["aux"]]), "theta")
+  expect_true(all(drawn[["aux"]][, "theta"] > 0))
+})
+
+test_that("the zero-inflated rewriting targets the same posterior", {
+  skip_on_cran()
+
+  set.seed(153)
+  n <- 500
+  d <- as.data.frame(matrix(stats::runif(n * 4), n))
+  names(d) <- paste0("x", 1:4)
+  count_mean <- 0.4 + 2 * sin(pi * d$x1) - d$x2
+  zero_prob <- stats::plogis(-0.8 + d$x2)
+  set.seed(1153)
+  d$y <- ifelse(stats::runif(n) < zero_prob, 0L,
+                stats::rpois(n, exp(count_mean)))
+  truth <- exp(count_mean) * (1 - zero_prob)
+
+  ctrl <- function(a) {
+    bartisan_control(num_trees = 50, num_burn = 800, num_save = 800,
+                     augment = a, verbose = FALSE)
+  }
+
+  set.seed(5)
+  direct <- bartisan(y ~ ., data = d, family = zi_poisson(),
+                     control = ctrl(FALSE))
+  set.seed(5)
+  rewritten <- bartisan(y ~ ., data = d, family = zi_poisson(),
+                        control = ctrl("zip"))
+
+  mean_direct <- predict(direct, type = "response")
+  mean_rewritten <- predict(rewritten, type = "response")
+
+  expect_gt(stats::cor(mean_direct, mean_rewritten), 0.95)
+  expect_equal(sqrt(mean((mean_rewritten - truth)^2)),
+               sqrt(mean((mean_direct - truth)^2)), tolerance = 0.25)
+
+  # The posterior spread has to agree too: a rewriting that sped things up by
+  # understating the uncertainty would pass a comparison of point estimates.
+  spread <- function(fit) {
+    mean(apply(predict(fit, type = "response", draws = TRUE), 2L, stats::sd))
+  }
+  expect_equal(spread(rewritten), spread(direct), tolerance = 0.3)
+})
+
+test_that("the multinomial rewriting works under either kind of rule", {
+  d <- sim_x(n = 150, seed = 155)
+  set.seed(1155)
+  d$y <- factor(sample(c("a", "b", "c"), nrow(d), replace = TRUE))
+
+  for (gate in c("smoothstep", "hard")) {
+    fit <- bartisan(y ~ ., data = d, family = multinomial(),
+                    control = quick_control(augment = "multinomial",
+                                            gate = gate))
+
+    probs <- predict(fit, type = "prob", draws = TRUE)
+    observed <- match(d$y, dimnames(probs)[[3L]])
+    by_hand <- vapply(seq_len(dim(probs)[1L]), function(s) {
+      one <- probs[s, , , drop = FALSE][1L, , ]
+      sum(log(one[cbind(seq_along(observed), observed)]))
+    }, numeric(1L))
+
+    expect_equal(fit[["loglik"]], by_hand, tolerance = 1e-8)
+    expect_predictor_invariant(fit, d)
+  }
 })

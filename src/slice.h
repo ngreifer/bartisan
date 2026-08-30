@@ -4,7 +4,7 @@
 #include <RcppArmadillo.h>
 #include <functional>
 
-namespace genbart {
+namespace bartisan {
 
 // Univariate stepping-out slice sampler (Neal 2003), taking the log density as
 // a std::function so that every nuisance-parameter update can be written as a
@@ -18,6 +18,6 @@ double slice_sampler(double x0, const std::function<double(double)>& logf,
                      double w, double lower, double upper,
                      int max_steps = 100);
 
-} // namespace genbart
+} // namespace bartisan
 
 #endif
