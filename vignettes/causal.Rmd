@@ -100,7 +100,7 @@ round(do.call(rbind, tapply(ps, d$smoke, range)), 3)
 Both groups span a similar range and neither approaches zero or one, so there is
 no region where one exposure is effectively impossible.
 
-\pkg{cobalt} draws the standard picture:
+*cobalt* draws the standard picture:
 
 ```{r balplot, eval = run && has_cobalt, fig.height = 2.8}
 library(cobalt)

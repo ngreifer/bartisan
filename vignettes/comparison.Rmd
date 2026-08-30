@@ -131,7 +131,7 @@ loo_compare(list(gaussian = loo(full),
 ```
 
 All three are within a couple of points of each other, and the differences are
-smaller than or comparable to their standard errors. \pkg{loo} flags this
+smaller than or comparable to their standard errors. *loo* flags this
 directly. The reading is that the plain Gaussian family is adequate for this
 data: modelling the variance as a function of the predictors buys nothing here,
 and neither does relaxing the shape of the error.
@@ -165,7 +165,7 @@ the linear model is easier to report.
 
 The comparison has to be like for like. Fit both in a framework that produces the
 same kind of pointwise log density, for example by fitting the linear model with
-\pkg{rstanarm} or \pkg{brms} and comparing with `loo_compare()`, or by comparing
+*rstanarm* or *brms* and comparing with `loo_compare()`, or by comparing
 held-out log scores computed the same way for both.
 
 Comparing `elpd_loo` from this package against `AIC` from `lm()` is not a

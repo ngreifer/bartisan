@@ -153,7 +153,7 @@ genuinely has not converged and the answer is more draws or a simpler model.
 
 ### Looking at the chains
 
-`as_draws()` hands the fit to \pkg{posterior} and \pkg{bayesplot}. It carries the
+`as_draws()` hands the fit to *posterior* and *bayesplot*. It carries the
 scalar parameters and a representative set of `eta` columns.
 
 ```{r summarise, eval = run && has_post}

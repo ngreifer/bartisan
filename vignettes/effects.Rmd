@@ -33,7 +33,7 @@ improvement rather than a cost.
 
 The replacement is to ask the fitted model questions about predictions. What does
 it predict for these people? What would it predict if this variable were
-different? How much does the answer differ between groups? The \pkg{marginaleffects}
+different? How much does the answer differ between groups? The *marginaleffects*
 package [@arelbundock2024] asks all of them, and returns posterior intervals with
 the answers.
 
@@ -128,7 +128,7 @@ each other, which needs the difference of the two, with its own interval.
 
 ```{r hypo, eval = run}
 avg_comparisons(fit, variables = "smoke", by = "ui",
-                hypothesis = "b2 - b1 = 0")
+                hypothesis = ~pairwise)
 ```
 
 The difference is about 27 grams with an interval from roughly -110 to 350. There
@@ -217,7 +217,7 @@ that the sample is not the population of interest.
 `vignette("importance")` covers which predictors the forest uses, which is a
 different question from how much they move the outcome. `vignette("diagnostics")`
 covers whether the fit can be trusted before any of this is read.
-`?bartisan-marginaleffects` documents which \pkg{marginaleffects} functions are
+`?bartisan-marginaleffects` documents which *marginaleffects* functions are
 supported and the arguments that are specific to this package.
 
 ## References
