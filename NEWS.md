@@ -151,7 +151,7 @@
   accurate on average and about three and a half times quicker.
 
   **This changes what the reported predictor means.** `weibull_aft()`'s is a log
-  time ratio; `dpm_aft()`'s is the conditional mean of log T, which is a
+  time ratio; `dpm_aft()`'s is the conditional mean of $\log T$, which is a
   time ratio only insofar as the error density is symmetric -- and symmetry is
   exactly what `dpm_aft()` declines to assume. Name `weibull_aft()` to get the
   old behavior, and name it when a hazard-ratio reading is wanted, since it is
@@ -230,18 +230,18 @@
 
 * **New family: `dpm_aft()`**, the fully nonparametric accelerated failure time
   model of Henderson, Louis, Rosner and Varadhan (2020):
-  log T = m(x) + W with W a mean-constrained Dirichlet process
+  $\log T = m(x) + W$ with $W$ a mean-constrained Dirichlet process
   mixture of normals, and right-censored log-times imputed each sweep. It is
   `dpm()`'s error model joined to the survival families' censoring, and both
   halves already existed -- the Polya urn, the atom draws, the concentration, the
-  centering that makes the predictor the conditional mean of log T, and
+  centering that makes the predictor the conditional mean of $\log T$, and
   `error_density()` are all inherited unchanged. What is added is the imputation,
   which draws a censored log-time from the component it currently sits in
   truncated below at its censoring time, and an observed-data likelihood that
   credits a censoring with the mixture's survival rather than its density.
 
   Measured on 700 training and 700 test observations against three error shapes,
-  as a held-out log score and the RMSE of S(t | x):
+  as a held-out log score and the RMSE of $S(t \mid x)$:
 
   | Errors | `dpm_aft()` | best fixed-error family |
   |---|---|---|
@@ -250,7 +250,7 @@
   | heavy tailed | **-509, 0.036** | -516, 0.040 (`loglogistic_aft()`) |
 
   So it gains a great deal when the error is badly shaped -- 210 log points and a
-  third of the error in S(t | x) on a two-component error -- and costs
+  third of the error in $S(t \mid x)$ on a two-component error -- and costs
   nothing when a single normal is right, where it and `lognormal_aft()` are within
   0.1 log points of each other. The same property `dpm()` has against
   `gaussian()`. It refuses prior weights, as `dpm()` does.
@@ -260,18 +260,18 @@
 
 * **Note: `predict(type = "density")` is not on the same scale for every survival
   family.** The accelerated failure time families, `dpm_aft()` included, report
-  the density of log T; `ph()` and `coxph()` report the density of
-  T. The two differ by the sum of log t, so held-out log scores are
+  the density of $\log T$; `ph()` and `coxph()` report the density of
+  $T$. The two differ by $\sum \log t$, so held-out log scores are
   comparable within each group and not across them -- on one comparison the
   correction was 1042 log points and reversed which family looked better.
-  S(t | x) from `predict(type = "survival")` is comparable throughout
+  $S(t \mid x)$ from `predict(type = "survival")` is comparable throughout
   and is the safer cross-family metric.
 
 * `summary()` shows the ends of a long block of nuisance parameters and says how
   many it omitted, rather than printing hundreds of rows.
 
 * **`predict(type = "survival", times = ...)`** returns the survival function
-  S(t | x) for the accelerated failure time families and for `ph()`.
+  $S(t \mid x)$ for the accelerated failure time families and for `ph()`.
   This closes a gap rather than adding a convenience: every family whose response
   is discrete already returned its full predictive distribution through
   `type = "prob"`, while the survival families returned only a point summary --
@@ -690,7 +690,7 @@
   `ordinal()` do it. The outcome is
   the largest of several latent utilities; differencing against a reference
   category leaves one forest per remaining category and a covariance matrix
-  Sigma, drawn from its inverse Wishart conditional and normalized by the
+  $\Sigma$, drawn from its inverse Wishart conditional and normalized by the
   trace constraint of Burgette and Nordheim (2012). With two categories that
   constraint leaves the fit identical to binary probit regression.
 
