@@ -48,7 +48,7 @@
   moderation, positivity, and regularization-induced confounding, including what
   to do about it without a separate treatment forest. The propensity score is
   fitted with `bartisan()` rather than `glm()` and its overlap is plotted with
-  \pkg{cobalt}, now in Suggests.
+  *cobalt*, now in Suggests.
 
 * **`vignette("bartisan")` is now the theory document.** It had grown into a
   family-by-family tour that `vignette("families")` covers and a first-model
@@ -72,19 +72,19 @@
 * **New vignette, `vignette("workflow")`**, which is the "Getting started"
   document. It runs one complete analysis of the `MASS::birthwt` birth weight
   data end to end: fitting, convergence and fit checks, predictor usage, effects
-  through \pkg{marginaleffects}, a fitted curve, prediction for a new
+  through *marginaleffects*, a fitted curve, prediction for a new
   observation with both kinds of interval, and model comparison through
-  \pkg{loo}. Every step is a single call at the defaults, which is the point it
+  *loo*. Every step is a single call at the defaults, which is the point it
   is making. Each section ends with a pointer to the vignette that goes deeper.
 
 * **Fixed: `predictions()` returned the wrong number of rows** for any `newdata`
   that was not the full training data, and every estimand built on it was
-  affected. \pkg{marginaleffects} prepends rows of its own, marked
+  affected. *marginaleffects* prepends rows of its own, marked
   `rowid = -1`, and drops them again by that marker once the predictions come
   back; `get_predict.bartisan()` regenerated the column as `seq_len(n)`, which
   destroyed the marker and let those rows through.
   `predictions(fit, newdata = d[1:3, ])` returned five rows, two of them
-  \pkg{marginaleffects}' own, and `avg_comparisons()` estimates moved by around
+  *marginaleffects*' own, and `avg_comparisons()` estimates moved by around
   10% once the contamination was removed. The column is now carried through when
   it is present. A regression test pins the row count for several sizes of
   `newdata`, for `datagrid()`, and against `predict()`.
@@ -102,7 +102,7 @@
   only the scalars -- `loglik`, the leaf scales and the nuisance parameters --
   which left out the quantity whose convergence actually matters. `fit$rhat`
   already reported `eta`, so the diagnostics knew it mattered and then did not
-  hand it to \pkg{bayesplot}. A representative spread of ten `eta` columns is
+  hand it to *bayesplot*. A representative spread of ten `eta` columns is
   included by default, chosen across the range of the fitted function rather than
   at random; `eta = FALSE` restores the old behavior and `eta = c(1, 5)` takes
   named observations.
@@ -151,7 +151,7 @@
   accurate on average and about three and a half times quicker.
 
   **This changes what the reported predictor means.** `weibull_aft()`'s is a log
-  time ratio; `dpm_aft()`'s is the conditional mean of \eqn{\log T}, which is a
+  time ratio; `dpm_aft()`'s is the conditional mean of log T, which is a
   time ratio only insofar as the error density is symmetric -- and symmetry is
   exactly what `dpm_aft()` declines to assume. Name `weibull_aft()` to get the
   old behavior, and name it when a hazard-ratio reading is wanted, since it is
@@ -230,18 +230,18 @@
 
 * **New family: `dpm_aft()`**, the fully nonparametric accelerated failure time
   model of Henderson, Louis, Rosner and Varadhan (2020):
-  \eqn{\log T = m(x) + W} with \eqn{W} a mean-constrained Dirichlet process
+  log T = m(x) + W with W a mean-constrained Dirichlet process
   mixture of normals, and right-censored log-times imputed each sweep. It is
   `dpm()`'s error model joined to the survival families' censoring, and both
   halves already existed -- the Polya urn, the atom draws, the concentration, the
-  centering that makes the predictor the conditional mean of \eqn{\log T}, and
+  centering that makes the predictor the conditional mean of log T, and
   `error_density()` are all inherited unchanged. What is added is the imputation,
   which draws a censored log-time from the component it currently sits in
   truncated below at its censoring time, and an observed-data likelihood that
   credits a censoring with the mixture's survival rather than its density.
 
   Measured on 700 training and 700 test observations against three error shapes,
-  as a held-out log score and the RMSE of \eqn{S(t \mid x)}:
+  as a held-out log score and the RMSE of S(t | x):
 
   | Errors | `dpm_aft()` | best fixed-error family |
   |---|---|---|
@@ -250,7 +250,7 @@
   | heavy tailed | **-509, 0.036** | -516, 0.040 (`loglogistic_aft()`) |
 
   So it gains a great deal when the error is badly shaped -- 210 log points and a
-  third of the error in \eqn{S(t \mid x)} on a two-component error -- and costs
+  third of the error in S(t | x) on a two-component error -- and costs
   nothing when a single normal is right, where it and `lognormal_aft()` are within
   0.1 log points of each other. The same property `dpm()` has against
   `gaussian()`. It refuses prior weights, as `dpm()` does.
@@ -260,18 +260,18 @@
 
 * **Note: `predict(type = "density")` is not on the same scale for every survival
   family.** The accelerated failure time families, `dpm_aft()` included, report
-  the density of \eqn{\log T}; `ph()` and `coxph()` report the density of
-  \eqn{T}. The two differ by \eqn{\sum \log t}, so held-out log scores are
+  the density of log T; `ph()` and `coxph()` report the density of
+  T. The two differ by the sum of log t, so held-out log scores are
   comparable within each group and not across them -- on one comparison the
   correction was 1042 log points and reversed which family looked better.
-  \eqn{S(t \mid x)} from `predict(type = "survival")` is comparable throughout
+  S(t | x) from `predict(type = "survival")` is comparable throughout
   and is the safer cross-family metric.
 
 * `summary()` shows the ends of a long block of nuisance parameters and says how
   many it omitted, rather than printing hundreds of rows.
 
 * **`predict(type = "survival", times = ...)`** returns the survival function
-  \eqn{S(t \mid x)} for the accelerated failure time families and for `ph()`.
+  S(t | x) for the accelerated failure time families and for `ph()`.
   This closes a gap rather than adding a convenience: every family whose response
   is discrete already returned its full predictive distribution through
   `type = "prob"`, while the survival families returned only a point summary --
@@ -280,10 +280,10 @@
   stored. One column per time, or a draws by rows by times array with
   `draws = TRUE`.
 
-* **Fixed: \pkg{marginaleffects} did not work for *any* survival family.** A
+* **Fixed: *marginaleffects* did not work for *any* survival family.** A
   survival response is a two-column matrix and a model frame keeps it as a single
   matrix column, which the data.table conversion inside
-  \pkg{marginaleffects} cannot hold -- so `avg_comparisons()` and its siblings
+  *marginaleffects* cannot hold -- so `avg_comparisons()` and its siblings
   failed for every accelerated failure time fit, whatever `type` was asked for,
   with an error naming data.table rather than the cause. `get_data()` now splits
   such a column into ordinary ones.
@@ -291,7 +291,7 @@
   Together with the above, the usual survival estimand is now reachable:
   `avg_comparisons(fit, variables = "trt", type = "survival", times = 1)` is the
   difference in one-year survival. One time per call, and
-  \pkg{marginaleffects} warns that it does not recognize `times` while passing it
+  *marginaleffects* warns that it does not recognize `times` while passing it
   through, since it has no hook for registering an argument.
 
 * **New family: `ph()`**, proportional hazards with a piecewise-constant
@@ -690,7 +690,7 @@
   `ordinal()` do it. The outcome is
   the largest of several latent utilities; differencing against a reference
   category leaves one forest per remaining category and a covariance matrix
-  \eqn{\Sigma}, drawn from its inverse Wishart conditional and normalized by the
+  Sigma, drawn from its inverse Wishart conditional and normalized by the
   trace constraint of Burgette and Nordheim (2012). With two categories that
   constraint leaves the fit identical to binary probit regression.
 
