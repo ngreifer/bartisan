@@ -139,7 +139,7 @@ fit <- bartisan(bwt ~ ., data = d,
 avg_predictions(fit, variables = "smoke")
 ```
 
-The two rows are \eqn{E[Y(0)]} and \eqn{E[Y(1)]}, each averaged over the observed
+The two rows are $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed
 covariate distribution. Reporting both is often more informative than reporting
 their difference alone, because a difference of 300 grams means something
 different at 3000 grams than it would at 1500.

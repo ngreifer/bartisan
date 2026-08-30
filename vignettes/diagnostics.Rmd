@@ -235,7 +235,7 @@ A fan shape means the spread of the outcome depends on the predictors, which
 performance::r2(fit)
 ```
 
-This is the Bayesian \eqn{R^2} of @gelman2019, computed from the posterior rather
+This is the Bayesian $R^2$ of @gelman2019, computed from the posterior rather
 than from a single fit, so it comes with an interval and cannot exceed 1.
 
 ## A checklist

@@ -70,15 +70,15 @@ trees with hundreds of leaves, that number is small because the prior shrinks
 most of them toward zero. It is a useful measure of how much of the data the
 model is actually using.
 
-The Pareto \eqn{k} diagnostics are the thing to check. Leave-one-out by
+The Pareto $k$ diagnostics are the thing to check. Leave-one-out by
 importance sampling is trustworthy only when the importance weights are well
-behaved, and \eqn{k} above 0.7 says they are not for that observation. Here they
+behaved, and $k$ above 0.7 says they are not for that observation. Here they
 are all good.
 
 ### When it fails
 
 A forest is a flexible function, so a single observation can have a lot of
-influence on the leaves it falls into, and high \eqn{k} values are more common
+influence on the leaves it falls into, and high $k$ values are more common
 than for a parametric model. If many observations are flagged, the estimate is
 unreliable and the answer is held-out data rather than a different diagnostic:
 
@@ -146,9 +146,9 @@ makes the flexible families safe to try.
 two models by it assumes both densities are with respect to the same measure.
 This is normally automatic and there is one case in this package where it is not.
 
-The accelerated failure time families report the density of \eqn{\log T} while
-`ph()` reports the density of \eqn{T}. The two differ by a Jacobian, so a
-comparison across that boundary is off by \eqn{\sum \log t}, which can be
+The accelerated failure time families report the density of $\log T$ while
+`ph()` reports the density of $T$. The two differ by a Jacobian, so a
+comparison across that boundary is off by $\sum \log t$, which can be
 hundreds of points and can reverse the ordering. `vignette("survival")` gives the
 correction.
 
