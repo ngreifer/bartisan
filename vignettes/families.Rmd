@@ -26,7 +26,7 @@ set.seed(2026)
 
 # Small chains throughout, so that this vignette builds quickly. The defaults
 # are 50 trees and 500 draws after 500 warmup iterations.
-ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_save = 150)
+ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_draws = 150)
 ```
 
 This vignette is for choosing a `family`. It covers what each one assumes, when to prefer it over the alternatives, and the handful of places where the choice has a consequence that is easy to miss. `?bartisan_control` covers how the sampler goes about fitting them.
@@ -152,10 +152,37 @@ Coverage was between 0.94 and 1.00 everywhere, so it does not separate them. Fou
 d$het <- rnorm(n, 2 * d$x1, exp(-1 + 1.5 * d$x2))
 
 fit_ls <- bartisan(het ~ x1 + x2, data = d, family = location_scale(),
-                   num_trees = c(10, 5), control = ctrl)
+                   num_trees = c(mean = 10, log_sd = 5), control = ctrl)
 
 colnames(predict(fit_ls, type = "link"))
 ```
+
+### Giving one forest its own predictors and settings
+
+The two forests of a location-scale model are separate models of separate
+things, and every argument that could differ between them may. The tree counts
+above are keyed by forest name rather than ordered, which is the same thing
+written more legibly. The model formula works this way too, so the scale forest
+can have predictors the mean forest does not, or fewer:
+
+```{r perforest}
+fit_sub <- bartisan(list(het ~ x1 + x2, log_sd = ~ x2), data = d,
+                    family = location_scale(),
+                    num_trees = c(mean = 10, log_sd = 5),
+                    sparsity = c(mean = TRUE, log_sd = FALSE),
+                    control = ctrl)
+
+colMeans(fit_sub$counts$log_sd)
+```
+
+The scale forest never splits on `x1`, because its formula does not name it. The
+predictor is still in the data, so nothing about `predict()` or `newdata`
+changes; the forest simply never uses it. This is useful when you know which
+covariates drive the spread, or when the second forest is spending capacity on
+predictors that only matter for the mean.
+
+`?bartisan-families` lists the forests of every multi-forest family in order,
+with their names.
 
 **`ordinal()` never wins by much and never loses by much.** It has the lowest error on normal errors and the second lowest on heteroskedastic ones, which is what you would expect from a model that writes down no error distribution. Prefer it when the outcome is bounded, heavily rounded, or piles up at a floor or ceiling, where a continuous density smears mass across values the outcome cannot take.
 

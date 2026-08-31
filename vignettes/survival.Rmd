@@ -69,7 +69,7 @@ set.seed(2026)
 # Small chains in the live examples, so that this vignette builds quickly. The
 # defaults are 50 trees and 500 draws after 500 warmup iterations, which is
 # what the simulations reported below use.
-ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_save = 150)
+ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_draws = 150)
 ```
 
 This vignette is about right-censored time-to-event data. It covers the five families that take a censored response, what each one is estimating, which shapes of hazard each can and cannot represent, how they behave under misspecification and under heavy censoring, and the route to take when the proportional hazards assumption fails. `vignette("families")` gives the short version; this is the long one.
@@ -278,7 +278,7 @@ ggplot(haz, aes(t, h, group = interaction(family, label))) +
 
 ## A comparison across six truths
 
-`r sprintf("The simulation behind this section fits each family to %d training observations and scores it on %d held-out observations, with %d trees and %d draws after %d warmup, over %d replicates and at about 30%% censoring.", res$meta$n_train, res$meta$n_test, res$meta$num_trees, res$meta$num_save, res$meta$num_burn, res$meta$n_rep)`
+`r sprintf("The simulation behind this section fits each family to %d training observations and scores it on %d held-out observations, with %d trees and %d draws after %d warmup, over %d replicates and at about 30%% censoring.", res$meta$n_train, res$meta$n_test, res$meta$num_trees, res$meta$num_draws, res$meta$num_burn, res$meta$n_rep)`
 The script is `_dev/survival-sim.R` in the package sources.
 
 Every truth uses the same nonlinear function of five covariates, so the families differ only in how well they cope with the *shape* of the time distribution built around it. The six truths are:

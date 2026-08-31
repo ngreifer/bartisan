@@ -21,7 +21,7 @@ options(digits = 4, marginaleffects_safe = FALSE)
 
 has_me <- rlang::is_installed("marginaleffects")
 has_cobalt <- rlang::is_installed("cobalt")
-run <- rlang::is_installed("MASS") && has_me
+run <- has_me
 ```
 
 ## Introduction
@@ -38,41 +38,49 @@ supplies them. This vignette covers the part BART does help with, the checks tha
 come before it, and one specific way a regularized model can go wrong in this
 setting that does not arise elsewhere.
 
-The running example treats maternal smoking as the exposure and birth weight as
-the outcome. It is used because it is familiar and the covariates are plausible,
-not because these data support a causal claim.
+The example is the one the data were collected for: whether right heart
+catheterization helps or harms critically ill patients [@connors1996].
 
 ```{r libs, eval = run}
 library(bartisan)
 library(marginaleffects)
 
-data("birthwt", package = "MASS")
+data(rhc)
 
-d <- birthwt
-d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
-d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
-d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
-d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
-d$low   <- NULL
+model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+  hema + pafi + paco2 + crea + surv2m + card
 ```
+
+## The confounding is the whole problem
+
+Catheterization was not randomized. Doctors chose it, and they chose it more
+often for patients who were already doing badly. Those patients were also more
+likely to die. So the raw comparison is confounded in a specific and predictable
+direction:
+
+```{r naive, eval = run}
+with(rhc, tapply(death, rhc, mean))
+```
+
+Patients who were catheterized died more often. Some of that difference is the
+procedure and some of it is that they were sicker to begin with, and nothing in
+this table separates the two. Everything below is an attempt to.
 
 ## What has to be true
 
 Four assumptions, none of which the fit can check.
 
-**No unmeasured confounding.** Every common cause of smoking and birth weight is
-in the model. Here that is implausible: socioeconomic status, nutrition and
-partner smoking are absent and plainly relevant.
+**No unmeasured confounding.** Every common cause of catheterization and death is
+in the model. Here that is the crux: the covariates include a physiological
+profile and the study's own prognostic score, which is a serious attempt, but a
+doctor's judgment at the bedside is not fully captured by fourteen variables.
 
-**Positivity.** Every kind of mother could have smoked or not. This one is partly
-checkable and is checked below.
+**Positivity.** Every kind of patient could have received the procedure or not.
+This one is partly checkable and is checked below.
 
-**Consistency.** "Smoking" names a single well defined exposure. Smoking two
-cigarettes a day and twenty are treated as the same condition here, which they
-are not.
+**Consistency.** "Catheterization" names a single well defined intervention.
 
-**No interference.** One mother's smoking does not affect another's outcome.
-Reasonable here.
+**No interference.** One patient's treatment does not affect another's outcome.
 
 The first is the one that usually fails and the one to be explicit about. State
 it as an assumption in what you write, rather than letting the interval imply it
@@ -80,8 +88,8 @@ has been handled.
 
 ## Checking positivity
 
-Positivity fails when some combination of covariates makes the exposure nearly
-certain. To look for that, model the exposure and inspect the fitted
+Positivity fails when some combination of covariates makes the treatment nearly
+certain. To look for that, model the treatment and inspect the fitted
 probabilities in both groups. BART is a good choice for this model too, for the
 same reason it is a good choice for the outcome: the functional form is not
 known.
@@ -89,89 +97,166 @@ known.
 ```{r psfit, eval = run}
 set.seed(2026)
 
-ps_fit <- bartisan(smoke ~ . - bwt, data = d,
-                   family = binomial(), chains = 4)
+ps_fit <- bartisan(
+  rhc ~ age + sex + race + edu + aps + meanbp + resp + hema + pafi +
+    paco2 + crea + surv2m + card,
+  data = rhc, family = binomial(), chains = 4
+)
 
 ps <- fitted(ps_fit)
 
-round(do.call(rbind, tapply(ps, d$smoke, range)), 3)
+round(do.call(rbind, tapply(ps, rhc$rhc, range)), 3)
 ```
-
-Both groups span a similar range and neither approaches zero or one, so there is
-no region where one exposure is effectively impossible.
 
 *cobalt* draws the standard picture:
 
 ```{r balplot, eval = run && has_cobalt, fig.height = 2.8}
 library(cobalt)
 
-bal.plot(smoke ~ ps, data = d, type = "histogram",
-         mirror = TRUE)
+bal.plot(rhc ~ ps, data = rhc, type = "hist", mirror = TRUE)
 ```
 
-The two densities overlap over most of their range, which is what positivity
-looks like when it holds. Distributions pushed against zero and one, with little
-overlap, are what it looks like when it does not, and the honest response then is
-to restrict the analysis to the region of overlap rather than let the model
-extrapolate into a part of the covariate space where one exposure was never
-observed.
-
-A BART propensity score is more regularized than a logistic one and so is less
-prone to the very extreme fitted probabilities a saturated logistic model
-produces when a covariate pattern happens to be perfectly predictive. Those
-extreme values are usually artefacts, and they are what makes a positivity
-assessment look worse than it is.
+The treated distribution sits to the right of the untreated one, which is the
+confounding made visible: patients more likely to be catheterized were different
+patients. What matters for positivity is that the two overlap over most of their
+range, and they do. Distributions pushed against zero and one with little overlap
+are what failure looks like, and the honest response then is to restrict the
+analysis to the region of overlap rather than let the model extrapolate into a
+part of the covariate space where one treatment was never observed.
 
 This check belongs before the outcome model, not after. A flexible outcome model
 will happily produce an estimate in a region with no data, and the interval will
 not tell you that is what happened.
 
+## One setting to change first
+
+The default splitting prior is a variable-selection prior. It can drop a
+predictor from every tree in the forest at once, which is what makes it worth
+having when the goal is prediction, and exactly what you do not want when the
+estimand is a contrast on one particular predictor.
+
+The reason is arithmetic. In a draw where the treatment is in no tree, the fitted
+outcome does not depend on it, so the contrast in that draw is not small but
+*exactly* zero. The posterior of the effect is then a mixture: a point mass at
+zero holding whatever share of draws dropped the treatment, and the rest spread
+over nonzero values. If that share exceeds 2.5%, the lower bound of a 95%
+interval is exactly zero however strong the evidence is, and the point estimate is
+pulled toward zero along with it. On a treatment effect of 0.2 against residual
+noise of 1, the prior halved the estimate and its interval covered the truth 60%
+of the time rather than 95%.
+
+So every outcome model below is fitted with `sparsity = FALSE`, which weights the
+predictors equally and cannot drop any of them.
+
+```{r sparsitynote, eval = FALSE}
+bartisan(model, data = rhc, family = binomial(), chains = 4, sparsity = FALSE)
+```
+
+The propensity score model above keeps the default, and should: predicting who
+was treated is a prediction problem, and no contrast is read off it.
+`?bartisan_control` has the measurements behind both halves of this, and
+`split_prior` is the alternative when there are enough covariates that weighting
+them all alike is wasteful.
+
 ## Potential outcomes
 
 The quantities underlying every effect below are the two average potential
-outcomes: what birth weight would average if every mother smoked, and if none
-did. `avg_predictions()` reports them directly.
+outcomes: the proportion who would die if every patient were catheterized, and if
+none were. `avg_predictions()` reports them directly.
 
 ```{r po, eval = run}
-fit <- bartisan(bwt ~ ., data = d,
-                family = dpm(), chains = 4)
+set.seed(2026)
 
-avg_predictions(fit, variables = "smoke")
+fit <- bartisan(model, data = rhc, family = binomial(), chains = 4,
+                sparsity = FALSE)
+
+avg_predictions(fit, variables = "rhc")
 ```
 
 The two rows are $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed
 covariate distribution. Reporting both is often more informative than reporting
-their difference alone, because a difference of 300 grams means something
-different at 3000 grams than it would at 1500.
+their difference alone, because a difference of six percentage points means
+something different against a baseline of 63% than it would against 5%.
 
 ## The average treatment effect
 
 The effect is the contrast between those two quantities, which is what
-g-computation computes: predict for everyone as if exposed, predict again as if
-unexposed, and average the difference.
+g-computation computes: predict for everyone as if treated, predict again as if
+untreated, and average the difference.
 
 ```{r ate, eval = run}
-ate <- avg_comparisons(fit, variables = "smoke")
+ate <- avg_comparisons(fit, variables = "rhc")
 
 ate
 ```
 
-Under the assumptions above this is the average treatment effect: about
-`r round(abs(ate$estimate))` grams lower, with an interval from roughly
-`r round(abs(ate$conf.low))` to `r round(abs(ate$conf.high))`. It is the
-difference of the two rows in the previous table, with an interval computed from
-the posterior of the difference rather than from the two intervals separately.
+Under the assumptions above this is the average treatment effect: catheterization
+raises the probability of death by about `r round(100 * abs(ate$estimate[1]))` percentage points, with an interval
+running from roughly `r round(100 * abs(ate$conf.low[1]))` to `r round(100 * abs(ate$conf.high[1]))`.
 
-The average treatment effect on the treated restricts the averaging to the mothers who actually smoked:
+Compare that with the raw difference in the first table, which was over nine
+points. Adjustment has moved the estimate toward zero, which is what you expect
+when the treated group was sicker. It has not moved it to zero, and it has not
+changed its sign. That was the finding that made this study influential.
 
-```{r att, eval = run}
-avg_comparisons(fit, variables = "smoke",
-                newdata = subset(smoke == "yes"))
+## A second example: a continuous outcome, and the ATT
+
+The catheterization question is about a whole population, so the ATE is the
+estimand. Many questions are not. When a program is offered to a particular group
+and the question is whether it helped *them*, the ATT is what to report, and the
+outcome is often continuous rather than binary.
+
+`lalonde`, from *cobalt*, is the standard example: a job training program, with
+earnings in 1978 as the outcome.
+
+```{r lalonde, eval = run && has_cobalt}
+data("lalonde", package = "cobalt")
+
+with(lalonde, tapply(re78, treat, mean))
 ```
 
-These are close here. They differ when the effect varies with the covariates and
-the exposed group is unlike the rest, which is exactly when the distinction
-matters. Decide which one answers your question before fitting.
+Participants earned less than non-participants. Taken at face value the program
+looks harmful, and it is not: participants were selected for being out of work,
+so they would have earned less anyway. This is confounding in the opposite
+direction to the catheterization example, and it is why the raw comparison is
+worth showing before the adjusted one.
+
+```{r lalondefit, eval = run && has_cobalt}
+set.seed(2026)
+
+fit_earn <- bartisan(
+  re78 ~ treat + age + educ + race + married + nodegree + re74 + re75,
+  data = lalonde, family = dpm(), chains = 4, sparsity = FALSE
+)
+
+avg_comparisons(fit_earn, variables = "treat",
+                newdata = subset(treat == 1))
+```
+
+`newdata = subset(treat == 1)` is what makes this the ATT: the individual
+contrasts are averaged over the participants alone rather than over everyone. The
+adjusted estimate is positive where the raw difference was negative, though its
+interval is wide enough that the size is not settled.
+
+`family = dpm()` is the default for a numeric outcome and the right choice here.
+Earnings are heavily skewed with a spike at zero, which a single normal describes
+badly; the Dirichlet process mixture estimates the shape instead of assuming it,
+and costs almost nothing when a normal would have done. See
+`vignette("families")`.
+
+The two potential outcomes are worth reporting alongside the difference, since a
+few hundred dollars means something different against a baseline of six thousand
+than it would against six hundred:
+
+```{r lalondepo, eval = run && has_cobalt}
+avg_predictions(fit_earn, variables = "treat",
+                newdata = subset(treat == 1))
+```
+
+Everything said above about identification applies here unchanged. The
+observational Lalonde sample is famous precisely because its covariates are *not*
+enough to recover the experimental benchmark, which is a caution rather than a
+counterexample: it is what the assumption failing looks like.
 
 ## Moderation
 
@@ -180,30 +265,32 @@ whether the effect differs across groups needs no interaction term and no refit.
 `by` splits the average.
 
 ```{r moderation, eval = run}
-avg_comparisons(fit, variables = "smoke", by = "race")
+avg_comparisons(fit, variables = "rhc", by = "card")
 ```
 
-The three estimates differ, and so does how close each interval comes to zero. It
-is tempting to read that as the effect being present in some groups and absent in
-others. That reading is not supported, and the reasoning behind it is not a test:
-whether one interval covers zero and another does not says nothing about whether
-the two effects differ. The question is whether they differ from each other,
-which needs the difference itself, with its own interval.
+The estimates differ a little between patients with and without cardiovascular
+disease. It is tempting to read a difference like that as moderation, and more
+tempting still when the two intervals do not overlap equally or when one covers
+zero and the other does not. Neither reading is a test. Comparing two intervals
+says nothing about whether the quantities they cover differ, because the
+comparison that matters has an uncertainty of its own that neither interval
+reports.
+
+The question is whether they differ from each other, which needs the difference
+itself:
 
 ```{r pairwise, eval = run}
-avg_comparisons(fit, variables = "smoke", by = "race",
+avg_comparisons(fit, variables = "rhc", by = "card",
                 hypothesis = ~pairwise)
 ```
 
-Every pairwise difference has an interval comfortably covering zero, and the
-intervals are wide relative to the differences. There is no evidence of
-moderation by race here, and the subgroup estimates above should be read as three
-noisy estimates of one common effect rather than as three different effects.
+The difference is small with an interval covering zero. There is no evidence of
+moderation by cardiovascular disease here, and the subgroup estimates should be
+read as two noisy estimates of one common effect.
 
-This is the honest reading and it is the usual one. Detecting moderation needs
-much more data than estimating a main effect, and a flexible model does not
-change that. What it changes is that you are not required to guess the form of
-the interaction in advance.
+Detecting moderation needs much more data than estimating a main effect, and a
+flexible model does not change that. What it changes is that you are not required
+to guess the form of the interaction in advance.
 
 ## Regularization-induced confounding
 
@@ -251,12 +338,14 @@ So, in order:
 - Include the propensity score as a covariate.
 
 ```{r pscovariate, eval = run}
-d$ps <- ps
+rhc_ps <- rhc
+rhc_ps$ps <- ps
 
-fit_ps <- bartisan(bwt ~ ., data = d,
-                   family = dpm(), chains = 4)
+set.seed(2026)
+fit_ps <- bartisan(update(model, . ~ . + ps), data = rhc_ps,
+                   family = binomial(), chains = 4, sparsity = FALSE)
 
-avg_comparisons(fit_ps, variables = "smoke")
+avg_comparisons(fit_ps, variables = "rhc")
 ```
 
 The estimate barely moves, which is what to expect when overlap is good and the

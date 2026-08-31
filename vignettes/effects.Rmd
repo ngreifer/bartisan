@@ -15,20 +15,20 @@ link-citations: true
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
-                      fig.height = 3.4, dpi = 110, fig.align = "center",
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
                       message = FALSE, warning = FALSE)
-options(digits = 4)
+options(digits = 4, marginaleffects_safe = FALSE)
 
 has_me <- rlang::is_installed("marginaleffects")
 has_gg <- rlang::is_installed("ggplot2")
-run <- rlang::is_installed("MASS") && has_me
+run <- has_me
 ```
 
 ## Introduction
 
 A forest has no coefficients. There is no table of slopes to read, and no
 standard error to put beside one. This is the part of the workflow that changes
-most when moving from `lm()` to BART, and it is the part where the change is an
+most when moving from `glm()` to BART, and it is the part where the change is an
 improvement rather than a cost.
 
 The replacement is to ask the fitted model questions about predictions. What does
@@ -45,18 +45,14 @@ interpreting the fit.
 library(bartisan)
 library(marginaleffects)
 
-data("birthwt", package = "MASS")
+data(rhc)
 
-d <- birthwt
-d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
-d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
-d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
-d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
-d$low   <- NULL
+model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+  hema + pafi + paco2 + crea + surv2m + card
 
 set.seed(2026)
 
-fit <- bartisan(bwt ~ ., data = d, family = gaussian(), chains = 4)
+fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
 ```
 
 ## Three questions
@@ -75,101 +71,142 @@ variable. It is the least useful of the three here, for a reason given below.
 
 ## Average effects
 
-`avg_comparisons()` with no other arguments gives every predictor at once.
+`avg_comparisons()` with no `variables` argument gives every predictor at once,
+which for this model is a long table. A few at a time is easier to read:
 
 ```{r avgcomp, eval = run}
-avg_comparisons(fit)
+avg_comparisons(fit, variables = c("rhc", "age", "card"))
 ```
 
-Read this as a coefficient table. For a categorical predictor the estimate is the
-average difference in predicted birth weight between the named levels, holding
-everything else at each person's own values. For a numeric predictor it is the
-average difference associated with an increase of one unit.
+Read this as a coefficient table. Each estimate is an average difference in
+predicted probability, holding everything else at each patient's own values: for
+a factor, between the levels named in the `Contrast` column, and for a numeric
+predictor, for an increase of one unit. `rhc` is coded 0 and 1, so its one-unit
+contrast is the treatment effect.
 
-Infants of mothers who smoked weigh about 290 grams less. Uterine irritability is
-associated with about 445 grams less. Age has an interval covering zero.
+### The splitting prior, if a contrast is the point
 
-The averaging matters and is worth being explicit about. The model's effect of
-smoking is not a single number: it can differ for every mother, because the
-forest is free to fit an interaction between smoking and anything else. What
-`avg_comparisons()` reports is the average of those individual differences over
-the sample, which is a well defined quantity whether or not the effect is
-constant.
+An estimate here can come back as exactly zero, and an interval bound with it.
+That is not a rounding artifact. The default splitting prior is a
+variable-selection prior, so in a draw where it uses the predictor in no tree the
+prediction does not depend on it and the contrast is exactly zero; the posterior
+of the contrast is a mixture with a point mass there, holding whatever share of
+draws dropped the predictor.
+
+It matters more than it sounds. On a simulated effect of 0.2 against residual
+noise of 1, the prior halved the estimate and its 95% interval covered the truth
+60% of the time. A strong effect is untouched, because the prior never has reason
+to drop a predictor that is earning its splits, so this is a weak-signal problem
+rather than a general one.
+
+If a contrast is what you are reporting, fit with `sparsity = FALSE`, or with
+`split_prior`, which fixes the weights and so cannot drop anything.
+`?bartisan_control` has the measurements for both.
 
 ### Choosing the step for a numeric predictor
 
-One unit is the default and is often the wrong scale. A pound of maternal weight
-is a small change; ten pounds is a quantity someone might act on.
+One unit is the default and is often the wrong scale. One point of an illness
+score is a small change; ten points is a difference someone would notice.
 
 ```{r step, eval = run}
-avg_comparisons(fit, variables = list(lwt = 10))
+avg_comparisons(fit, variables = list(aps = 10))
 ```
 
 Always say which step you used when reporting a numeric effect. Unlike a linear
-model, the answer here is not simply ten times the one-unit effect, because the
+model, the answer here is not ten times the one-unit effect, because the
 relationship is not assumed to be a straight line.
 
 ## Effects for subgroups
 
 `by` splits the average by a grouping variable.
 
-```{r byui, eval = run}
-avg_comparisons(fit, variables = "smoke", by = "ui")
+```{r bycard, eval = run}
+avg_comparisons(fit, variables = "rhc", by = "card")
 ```
 
-The smoking difference is about 300 grams among mothers without uterine
-irritability and about 245 grams among those with it. The intervals overlap
-heavily.
+The two subgroup estimates are close, and both intervals reach zero.
 
 A common mistake is to stop here and conclude that the effect differs between
-groups, because one interval excludes zero and the other does not. That
-comparison is not a test. The question is whether the two effects differ from
-each other, which needs the difference of the two, with its own interval.
+groups. That comparison is not a test. The question is whether the two effects
+differ from each other, which needs the difference of the two, with its own
+interval.
 
 ```{r hypo, eval = run}
-avg_comparisons(fit, variables = "smoke", by = "ui",
+avg_comparisons(fit, variables = "rhc", by = "card",
                 hypothesis = ~pairwise)
 ```
 
-The difference is about 27 grams with an interval from roughly -110 to 350. There
-is no evidence here that the effect of smoking depends on uterine irritability.
-This is how to test an interaction in a model that never had an interaction term
-to test.
+The difference is small with an interval covering zero. There is no evidence here
+that the effect of catheterization depends on cardiovascular disease. This is how
+to test an interaction in a model that never had an interaction term to test.
 
 `avg_predictions()` does the same thing for predictions rather than differences,
 which is useful for describing groups:
 
 ```{r bypred, eval = run}
-avg_predictions(fit, by = "race")
+avg_predictions(fit, by = "card")
 ```
 
 ## The shape of a relationship
 
 Averages hide shape. To see the fitted function, plot predictions against one
-predictor with everything else held fixed.
+predictor with everything else held fixed. Asking for the numbers rather than the
+plot gives more control over how it is drawn:
 
-```{r pdp, eval = run && has_gg}
-plot_predictions(fit, condition = "lwt")
+```{r pdp, eval = run && has_gg, fig.height = 3.0}
+library(ggplot2)
+
+curve <- plot_predictions(fit, condition = "aps", draw = FALSE)
+
+ggplot(curve, aes(aps, estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2) +
+  geom_line() +
+  labs(x = "APACHE III score on day 1", y = "fitted probability of death") +
+  theme_bw(base_size = 9)
 ```
 
-Predicted birth weight rises with maternal weight to about 125 pounds and is flat
-above that. This is the plot a linear model cannot produce, because it would
-report a single slope for the whole range. Nothing was specified to find the
-bend.
+The probability of death rises with the illness score, and the rise is not a
+straight line on any scale the model was told about. Nothing was specified to
+find the shape.
 
-The band is a credible interval and is wide at both ends, where few mothers were
-observed. Treat the ends with more caution than the middle.
+The band is a credible interval and is wide at the top, where few patients were
+that sick. Treat the ends with more caution than the middle.
 
 Adding a second variable shows how the shape differs across groups.
 
-```{r pdp2, eval = run && has_gg}
-plot_predictions(fit, condition = c("lwt", "smoke"))
+```{r pdp2, eval = run && has_gg, fig.height = 3.0}
+curve2 <- plot_predictions(fit, condition = c("aps", "rhc"), draw = FALSE)
+
+ggplot(curve2, aes(aps, estimate, colour = factor(rhc))) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = factor(rhc)),
+              alpha = 0.15, colour = NA) +
+  geom_line() +
+  labs(x = "APACHE III score on day 1", y = "fitted probability of death",
+       colour = "catheterized", fill = "catheterized") +
+  theme_bw(base_size = 9)
 ```
 
-The curves are close to parallel, which is the picture that goes with the
-non-significant interaction above. If they converged, crossed, or had different
-shapes, that would be a moderation worth reporting, and the difference of
-differences is how to put a number on it.
+The two curves run close together. If they diverged, that would be a moderation
+worth reporting, and the difference of differences above is how to put a number
+on it.
+
+## Scales
+
+`type` chooses the scale on which predictions are made and therefore the scale on
+which effects are reported.
+
+```{r link, eval = run}
+avg_comparisons(fit, variables = "rhc", type = "link")
+```
+
+On the link scale this is a difference in log-odds, which is what a logistic
+regression coefficient is. It is the less useful of the two here. A difference in
+probability is interpretable without reference to the model, and it is the number
+a reader can act on; a difference in log-odds needs a baseline before it means
+anything.
+
+For survival families, `type = "survival"` with a `times` argument gives a
+difference in survival probability at a horizon. See `vignette("survival")`.
 
 ## Why slopes are unreliable here
 
@@ -179,33 +216,22 @@ but that number should not be trusted for a fit made with the default settings.
 The reason is the predictor transform. By default numeric predictors are mapped
 through their empirical distribution function before the trees see them, which
 makes the fitted function a step function of the original predictor. Between two
-observed values of `lwt` the prediction does not change at all, so the difference
-quotient is either exactly zero or a whole step divided by a very small number,
-depending on where the step lands. On this fit `avg_slopes()` reports several
-hundred grams per pound where a one-unit comparison gives about 2.5.
+observed values the prediction does not change at all, so the difference quotient
+is either exactly zero or a whole step divided by a very small number, depending
+on where the step lands.
 
-Use `comparisons()` with a step you can interpret. If a genuine derivative is
-needed, refit with `x_transform = "range"` in `bartisan_control()`, which is
-linear and does have one. This is documented at `?bartisan-marginaleffects`.
-
-## Other scales
-
-`type` chooses the scale on which predictions are made and therefore the scale on
-which effects are reported. For a binomial fit, `type = "response"` gives a
-difference in probability and `type = "link"` a difference on the linear
-predictor. The first is almost always the one to report, since a difference in
-probability is interpretable without reference to the model.
-
-For survival families, `type = "survival"` with a `times` argument gives a
-difference in survival probability at a horizon. See `vignette("survival")`.
+Use `comparisons()` with a step you can interpret, as with `aps = 10` above. If a
+genuine derivative is needed, refit with `x_transform = "range"` in
+`bartisan_control()`, which is linear and does have one. This is documented at
+`?bartisan-marginaleffects`.
 
 ## What these are not
 
 Everything here is a description of the fitted model. `avg_comparisons()` reports
 what the model predicts would differ between two versions of the data, which is a
 causal quantity only if the model contains enough covariates to account for
-confounding. That is a question about the study design and not about the fit.
-`vignette("causal")` covers what is needed.
+confounding. Patients were not randomized to catheterization, so for this fit
+that is a strong assumption. `vignette("causal")` covers what is needed.
 
 The intervals are posterior credible intervals under the model. They cover the
 uncertainty in the fitted function, and they do not cover the possibility that

@@ -15,25 +15,23 @@ link-citations: true
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
-                      fig.height = 3.4, dpi = 110, fig.align = "center",
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
                       message = FALSE, warning = FALSE)
-options(digits = 4)
+options(digits = 4, marginaleffects_safe = FALSE)
 
 has_me <- rlang::is_installed("marginaleffects")
 has_gg <- rlang::is_installed("ggplot2")
 has_loo <- rlang::is_installed("loo")
-has_mass <- rlang::is_installed("MASS")
 has_bp <- rlang::is_installed("bayesplot")
-run <- has_mass
 ```
 
 ## Introduction
 
-*bartisan* fits Bayesian additive regression trees (BART) using the same interface
-as `glm()`. You supply a formula, a data frame, and a family, and the model
-estimates the relationship between the predictors and the outcome without you
-having to say what shape that relationship takes. Nonlinearity and interactions
-are found rather than specified.
+*bartisan* fits Bayesian additive regression trees (BART) using the same
+interface as `glm()`. You supply a formula, a data frame, and a family, and the
+model estimates the relationship between the predictors and the outcome without
+you having to say what shape that relationship takes. Nonlinearity and
+interactions are found rather than specified.
 
 This vignette walks through a complete analysis: fitting a model, checking that
 it worked, seeing which predictors it uses, reading off the effects, predicting
@@ -50,68 +48,58 @@ and the data.
 Each section ends with a pointer to a vignette that covers the same ground in
 more depth.
 
-```{r libs, eval = run}
+```{r libs}
 library(bartisan)
 ```
 
 ## The data
 
-We use the birth weight data from @venables2002, collected at Baystate Medical
-Center in 1986. The outcome is birth weight in grams, and the predictors are
-characteristics of the mother.
+`rhc` records 1500 critically ill patients from the SUPPORT study and whether
+each received right heart catheterization, a monitoring procedure, within a day
+of arriving in intensive care [@connors1996]. The question the study asked is
+whether the procedure helps or harms.
 
-```{r data, eval = run}
-data("birthwt", package = "MASS")
+```{r data}
+data(rhc)
 
-d <- birthwt
-
-# Give the categorical variables labels so the output is readable.
-d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
-d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
-d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
-d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
-
-# `low` is birth weight dichotomized at 2500g, so it is the outcome in disguise.
-d$low <- NULL
-
-str(d)
+str(rhc)
 ```
 
-The predictors are the mother's age (`age`), weight at her last menstrual period
-in pounds (`lwt`), race, smoking during pregnancy (`smoke`), number of previous
-premature labours (`ptl`), history of hypertension (`ht`), presence of uterine
-irritability (`ui`), and number of physician visits in the first trimester
-(`ftv`).
+The outcome comes in two forms. `death` is whether the patient died during
+follow-up, and `days` is how long that took. This vignette uses the binary form;
+`vignette("survival")` uses the other.
 
-The question is how these relate to birth weight, and in particular how much
-lower birth weight is among infants of mothers who smoked.
+The remaining variables are the patient's age, sex, race and years of education,
+seven physiological measurements taken on the first day, whether cardiovascular
+disease was among the diagnoses, and `surv2m`, the study's own estimate of the
+patient's chance of surviving two months. All were recorded before
+catheterization.
 
 ## Fitting the model
 
-```{r fit, eval = run}
+```{r fit}
 set.seed(2026)
 
-fit <- bartisan(bwt ~ ., data = d, family = gaussian(), chains = 4)
+fit <- bartisan(
+  death ~ rhc + age + sex + race + edu + aps + meanbp + resp + hema +
+    pafi + paco2 + crea + surv2m + card,
+  data = rhc, family = binomial(), chains = 4
+)
 
 fit
 ```
 
-That is the whole call. `family = gaussian()` says the outcome is continuous with
-additive noise, exactly as in `glm()`. The family may be omitted, in which case
-it is read off the outcome and reported; naming it is clearer and silences the
-message.
+That is the whole call. `family = binomial()` says the outcome is binary, exactly
+as in `glm()`. The family may be omitted, in which case it is read off the
+outcome and reported; naming it is clearer and silences the message.
 
 `chains = 4` runs the sampler four times from different starting points. The
 default is one chain, which is enough to get estimates, but running several is
-what makes the convergence diagnostics in the next section available. Each chain
-here takes under a second.
-
-The printed summary reports the structure of the fit and `sigma`, the residual
-standard deviation, at about 646 grams.
+what makes the convergence diagnostics in the next section available.
 
 Choosing a family is the one modeling decision that usually matters more than any
 sampler setting. `vignette("families")` covers the choice, and
-`vignette("survival")` covers censored outcomes.
+`vignette("survival")` covers censored outcomes such as this one's `days`.
 
 ## Checking the model
 
@@ -120,7 +108,7 @@ the model fits.
 
 ### Convergence
 
-```{r rhat, eval = run}
+```{r rhat}
 fit$rhat
 ```
 
@@ -129,35 +117,28 @@ indicate the chains have settled on the same answer. `ess_bulk` and `ess_tail`
 are effective sample sizes, and count how many independent draws the correlated
 ones are worth.
 
-Read the rows that correspond to quantities you will report. Here `aux.sigma`
-(the residual standard deviation) and `eta.eta` (the fitted values, summarized
-over the observation that mixes worst) are both close to 1, which is what
-matters. `sigma_mu.eta` is a prior scale parameter internal to the forest; it
-mixes slowly in most BART fits and running longer does not help much. Conclusions
-do not rest on it.
-
-If the rows you care about are far from 1, increase `num_burn` and `num_save` in
-`bartisan_control()`.
+Read the rows that correspond to quantities you will report. `eta.eta` is the
+fitted function, summarized over the observation that mixes worst, so it is the
+row that matters here. Forests mix slowly on their fitted values and a figure
+above 1.01 on that row is ordinary rather than alarming;
+`vignette("diagnostics")` explains what to do about it and when to worry.
 
 ### Fit
 
 A posterior predictive check simulates new outcomes from the fitted model and
 compares their distribution to the observed one.
 
-```{r ppcheck, eval = run && has_bp, fig.height = 3.2}
+```{r ppcheck, eval = has_bp, fig.height = 3.0}
 bayesplot::pp_check(fit)
 ```
 
-The simulated densities (light) track the observed density (dark) closely enough,
-with the observed data slightly heavier in the lower tail. Nothing here suggests
-the Gaussian family is the wrong choice.
-
-`vignette("diagnostics")` covers both questions in more detail, including trace
-plots and what to do when convergence is poor.
+For a binary outcome this is a weaker check than it is for a continuous one:
+there are only two values to get right, so the replicates match unless something
+has gone badly wrong. `vignette("diagnostics")` covers what to do instead.
 
 ## Which predictors the model uses
 
-```{r varimp, eval = run}
+```{r varimp}
 variable_importance(fit)
 ```
 
@@ -165,95 +146,95 @@ variable_importance(fit)
 predictor per draw, and `prop_used` is the proportion of draws in which the
 predictor received any rule at all.
 
-By default the forest uses a sparsity-inducing prior [@linero2018sparse] that
-lets it stop splitting on predictors that do not earn their place, so `prop_used`
-behaves like a posterior probability that a predictor belongs in the model. When
-a predictor is useless it typically falls to near zero.
+`surv2m` takes the most rules, which is unsurprising: it is a prognostic score
+built to predict survival. Age follows. At the bottom, race and sex are used in
+about half the draws, which says the model can often do without them.
 
-Here nothing falls. Every predictor is used in at least 92% of draws, which says
-the sample is not large enough to rule any of them out rather than that all of
-them matter. With 189 observations and a residual standard deviation not much
-below the outcome's own, there is little for the prior to work with. Do not read
-this table as a selection result.
+Two cautions. Usage is not effect size: a predictor can be split on constantly
+and still move the prediction very little, and `avg_comparisons()` in the next
+section is the better guide to that. And when predictors are correlated the usage
+distributes among them more or less arbitrarily.
 
-Two cautions that apply whatever the sample size. Usage is not effect size: a
-predictor can be split on constantly and still move the prediction very little,
-and `avg_comparisons()` in the next section is the better guide to that. And when
-predictors are correlated the usage distributes among them more or less
-arbitrarily, so a predictor can matter and still show low usage because a
-correlated partner absorbed it.
-
-`vignette("importance")` covers variable importance and selection.
+`vignette("importance")` covers variable importance and selection, including how
+to tell whether a difference in this table means anything.
 
 ## Interpreting the fit
 
 A forest has no coefficients, so there is no table of slopes to read. The
-question "what is the effect of smoking" is answered by asking the fitted model
-what it predicts when everyone smokes, asking again when nobody does, and taking
-the difference. `marginaleffects` does this.
+question "what is the effect of catheterization" is answered by asking the fitted
+model what it predicts when every patient receives it, asking again when none
+does, and taking the difference. `marginaleffects` does this.
 
-```{r effects, eval = run && has_me}
+```{r effects, eval = has_me}
 library(marginaleffects)
 
-avg_comparisons(fit)
+avg_comparisons(fit, variables = "rhc")
 ```
 
-This is the closest analogue to a coefficient table, and it is read the same way.
-For binary and categorical predictors the estimate is the average difference in
-predicted birth weight between levels. For numeric predictors it is the average
-change associated with a one-unit increase.
+Catheterization is associated with an increase of about six percentage points in
+the probability of death. The interval runs from roughly zero to eleven points,
+so the direction is reasonably clear and the size is not.
 
-Infants of mothers who smoked weigh about 290 grams less on average, with an
-interval from roughly 500 to 90 grams. Uterine irritability is associated with a
-larger difference, about 445 grams. Age and number of physician visits have
-intervals comfortably covering zero.
+The lower bound is exactly zero rather than merely close to it, and that is worth
+knowing about. The default splitting prior can drop a predictor from the forest
+entirely, and in a draw where it drops `rhc` the contrast is exactly zero, so the
+posterior has a point mass there. When a particular contrast is the estimand,
+`sparsity = FALSE` weights the predictors equally and removes it;
+`vignette("causal")` explains the trade and `?bartisan_control` has the
+measurements.
 
-The intervals are posterior credible intervals. A 95% interval is the range the
-model considers most plausible given the data, and it already includes
-uncertainty about the shape of the relationship, which a linear model excludes by
-assuming the shape is known.
+Because the outcome is binary, this is a difference in probability, which is
+interpretable without reference to the model. That is usually the number to
+report. The underlying probabilities are also worth showing:
 
-For comparison, a linear model gives a somewhat larger smoking coefficient:
+```{r risks, eval = has_me}
+avg_predictions(fit, variables = "rhc")
+```
 
-```{r lmcompare, eval = run}
-round(coef(summary(lm(bwt ~ ., data = d)))["smokeyes", ], 1)
+About 63% of patients would be expected to die without catheterization and 69%
+with it, averaging over the covariates as they actually occur in this sample.
+
+For comparison, a logistic regression gives a somewhat larger difference:
+
+```{r glmcompare, eval = has_me}
+avg_comparisons(glm(formula(fit), data = rhc, family = binomial()),
+                variables = "rhc")
 ```
 
 The two answers are compatible. The BART estimate is pulled toward zero because
 the prior shrinks the fitted function, and its interval is wider because it does
-not assume the relationship is linear. When the truth really is linear, a linear
-model will be more precise. The value of BART is that you do not have to know
-that in advance.
+not assume the relationship is linear on the log-odds scale. When the truth
+really is linear there, logistic regression will be more precise. The value of
+BART is that you do not have to know that in advance.
 
 ### Looking at a relationship
 
 Effects averaged over the sample hide the shape of the relationship. To see the
 shape, plot the model's predictions against one predictor.
 
-```{r pdp, eval = run && has_me && has_gg}
-plot_predictions(fit, condition = "lwt")
+Asking for the numbers rather than the plot gives more control over how it is
+drawn:
+
+```{r pdp, eval = has_me && has_gg, fig.height = 3.0}
+library(ggplot2)
+
+curve <- plot_predictions(fit, condition = "surv2m", draw = FALSE)
+
+ggplot(curve, aes(surv2m, estimate)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2) +
+  geom_line() +
+  labs(x = "estimated probability of surviving two months",
+       y = "fitted probability of death") +
+  theme_bw(base_size = 9)
 ```
 
-Predicted birth weight rises with the mother's weight up to about 125 pounds and
-is roughly flat above that. A linear model fits a straight line through this and
-reports a single slope, which understates the relationship at the low end and
-overstates it at the high end. Nothing had to be specified to find the bend; it
-came out of the fit.
+The fitted probability of death falls from about 0.88 to about 0.45 as the
+prognostic score rises, and the fall is not a straight line. A logistic
+regression reports one slope on the log-odds scale for the whole range. Nothing
+had to be specified to find the shape.
 
-The band is a credible interval, and it is wide at both ends where there are few
-observations.
-
-Conditioning on a second variable shows how the relationship differs across
-groups:
-
-```{r pdp2, eval = run && has_me && has_gg}
-plot_predictions(fit, condition = c("lwt", "smoke"))
-```
-
-The two curves are roughly parallel, which says the association with the mother's
-weight is similar for smokers and non-smokers and that the smoking difference is
-roughly constant across it. If they converged or crossed, that would be an
-interaction, and the forest would have found it without being told to look.
+The band is a credible interval, and it widens at the top where few patients
+were that healthy.
 
 `vignette("effects")` covers effects, curves, and interactions.
 
@@ -261,71 +242,59 @@ interaction, and the forest would have found it without being told to look.
 
 `predict()` returns the posterior mean prediction.
 
-```{r pred, eval = run}
-new_mother <- data.frame(age = 25, lwt = 130, race = "white", smoke = "yes",
-                         ptl = 0, ht = "no", ui = "no", ftv = 1)
+```{r pred}
+new_patient <- rhc[1, ]
+new_patient$rhc <- 1
 
-predict(fit, newdata = new_mother)
+predict(fit, newdata = new_patient)
 ```
 
 For a prediction with an interval, use `predictions()`:
 
-```{r predint, eval = run && has_me}
-predictions(fit, newdata = new_mother)
+```{r predint, eval = has_me}
+predictions(fit, newdata = new_patient)
 ```
 
-This interval describes the average birth weight for mothers with these
-characteristics. It is not the range within which a single infant's weight is
-likely to fall, because it excludes the residual variation around the mean. For
-that, simulate outcomes rather than means:
+This describes the probability that a patient with these characteristics dies. It
+is an interval for that probability, not a statement about which way any
+individual patient will go: the outcome itself is either 0 or 1, and a
+probability of 0.7 is entirely compatible with survival.
 
-```{r ppi, eval = run && rlang::is_installed("rstantools")}
-draws <- rstantools::posterior_predict(fit, newdata = new_mother)
-
-round(quantile(draws, c(0.025, 0.5, 0.975)))
-```
-
-The wider interval is the one to quote when the question is about an individual.
-Both are needed for different questions, and confusing them is a common mistake.
-
-Note that `predictions()` summarizes the posterior with the median while
-`predict()` reports the mean, so the two differ slightly for a skewed posterior.
+For a continuous outcome the distinction between an interval for the mean and an
+interval for a new observation matters a great deal, and
+`vignette("effects")` covers it. For a binary outcome the second is rarely what
+anyone wants.
 
 ## Comparing models
 
 Approximate leave-one-out cross-validation estimates how well a model predicts
 data it has not seen.
 
-```{r loo, eval = run && has_loo}
+```{r loo, eval = has_loo}
 library(loo)
 
 loo(fit)
 ```
 
 `elpd_loo` is the estimated log predictive density on held-out data, where higher
-is better. `p_loo` is the effective number of parameters, about 13 here, which is
-a measure of how much of the data the forest is actually using. The Pareto k
-diagnostics are all good, meaning the approximation is trustworthy for this fit.
+is better. `p_loo` is the effective number of parameters, which is a measure of
+how much of the data the forest is actually using. The Pareto k diagnostics are
+all good, meaning the approximation is trustworthy for this fit.
 
-Two models can be compared directly. Here we ask whether the predictors beyond
-age, weight, and smoking earn their keep:
+Two models can be compared directly. Here we ask whether the physiological
+measurements earn their keep over knowing the patient's demographics alone:
 
-```{r loocompare, eval = run && has_loo}
+```{r loocompare, eval = has_loo}
 set.seed(2026)
-reduced <- bartisan(bwt ~ age + lwt + smoke, data = d, family = gaussian(),
-                    chains = 4)
+demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
+                         family = binomial(), chains = 4)
 
-loo_compare(loo(fit), loo(reduced))
+loo_compare(list(full = loo(fit), demographics = loo(demographics)))
 ```
 
-The full model predicts better by about 14 points on the elpd scale, with a
-standard error of about 5. A difference of roughly three standard errors is
-reasonably clear evidence that the additional predictors help.
-
-Model comparison means something slightly different here than in linear
-regression. You are not choosing which terms to include, since the forest handles
-that. You are choosing which variables the model is allowed to see, and which
-likelihood to use.
+The full model predicts better by around six times the standard error of the
+difference, which is what you would expect: how sick a patient is on arrival is
+the main thing that predicts whether they die.
 
 `vignette("comparison")` covers model comparison, and the cases where
 leave-one-out fails.
@@ -334,17 +303,17 @@ leave-one-out fails.
 
 The model is flexible about the shape of the relationship and nothing else.
 
-It does not make an association causal. The smoking estimate above is an
-adjusted association. Whether it can be read as the effect of smoking depends on
-whether the variables in the model are enough to account for confounding, which
-is a question about the study and not about the fit. A forest fitted to
-confounded data returns a confounded answer with a tight interval around it.
-`vignette("causal")` covers what is required.
+It does not make an association causal. Patients were not randomized to
+catheterization; sicker patients were more likely to receive it, which is exactly
+the kind of confounding that can produce an apparent harm. Whether the estimate
+above can be read as the effect of the procedure depends on whether the
+covariates account for that selection, which is a question about the study and
+not about the fit. `vignette("causal")` covers what is required, using this same
+data.
 
 It does not extrapolate reliably. Predictions for predictor values outside the
 range of the training data are shrunk toward the overall mean rather than
-continuing any trend. This is usually the safer behaviour, but it means the model
-is not a tool for forecasting beyond the observed range.
+continuing any trend.
 
 It does not fix a badly chosen family. Getting the outcome distribution wrong
 matters more than any sampler setting.

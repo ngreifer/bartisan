@@ -37,7 +37,7 @@ trees and 300 draws after 300 warmup, on 400 observations. The defaults are 50
 trees and 500 draws after 500 warmup.
 
 ```{r control}
-ctrl <- bartisan_control(num_trees = 20, num_burn = 300, num_save = 300)
+ctrl <- bartisan_control(num_trees = 20, num_burn = 300, num_draws = 300)
 
 n <- 400
 ```
@@ -157,7 +157,7 @@ timed <- function(gate) {
   started <- proc.time()[["elapsed"]]
   fit <- bartisan(y ~ . - eta, data = train, family = gaussian(),
                   control = bartisan_control(num_trees = 20, num_burn = 300,
-                                             num_save = 300, gate = gate))
+                                             num_draws = 300, gate = gate))
   data.frame(rules = gate,
              test_rmse = sqrt(mean((predict(fit, newdata = test) - test$eta)^2)),
              seconds = round(proc.time()[["elapsed"]] - started, 1))
@@ -376,7 +376,7 @@ often changing one is worth it:
 
 | Setting | When to change it |
 | --- | --- |
-| `num_burn`, `num_save` | when `rhat` says the chain has not converged |
+| `num_burn`, `num_draws` | when `rhat` says the chain has not converged |
 | `num_trees` | more for a complex function and a large sample; fewer to speed up |
 | `gate` | `"hard"` when the truth really is a step function, or for speed |
 | `sparsity` | `FALSE` to recover classic BART, which is rarely what you want |

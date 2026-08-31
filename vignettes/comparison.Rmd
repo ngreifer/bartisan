@@ -20,7 +20,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
 options(digits = 4)
 
 has_loo <- rlang::is_installed("loo")
-run <- rlang::is_installed("MASS") && has_loo
+run <- has_loo
 ```
 
 ## Introduction
@@ -42,18 +42,19 @@ This vignette covers how to compare those choices.
 library(bartisan)
 library(loo)
 
-data("birthwt", package = "MASS")
+data(rhc)
 
-d <- birthwt
-d$race  <- factor(d$race,  levels = 1:3, labels = c("white", "black", "other"))
-d$smoke <- factor(d$smoke, levels = 0:1, labels = c("no", "yes"))
-d$ht    <- factor(d$ht,    levels = 0:1, labels = c("no", "yes"))
-d$ui    <- factor(d$ui,    levels = 0:1, labels = c("no", "yes"))
-d$low   <- NULL
+model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+  hema + pafi + paco2 + crea + surv2m + card
 
 set.seed(2026)
-full <- bartisan(bwt ~ ., data = d, family = gaussian(), chains = 4)
+full <- bartisan(model, data = rhc, family = binomial())
 ```
+
+The fits here use the default single chain rather than the four used elsewhere.
+Leave-one-out needs draws, not chains, and four times the fits would make this
+vignette slow to build for no gain. Check convergence separately, as in
+`vignette("diagnostics")`, before trusting any of these comparisons.
 
 ## Leave-one-out cross-validation
 
@@ -65,9 +66,9 @@ loo(full)
 with higher being better. It is computed by importance sampling from the fitted
 posterior rather than by refitting, which is why it is fast [@vehtari2017].
 
-`p_loo` is the effective number of parameters, about 13 here. For a forest of 50
-trees with hundreds of leaves, that number is small because the prior shrinks
-most of them toward zero. It is a useful measure of how much of the data the
+`p_loo` is the effective number of parameters, about 32 here. For a forest with
+hundreds of leaves across its trees, that number is small because the prior
+shrinks most of them toward zero. It is a useful measure of how much of the data the
 model is actually using.
 
 The Pareto $k$ diagnostics are the thing to check. Leave-one-out by
@@ -83,10 +84,10 @@ than for a parametric model. If many observations are flagged, the estimate is
 unreliable and the answer is held-out data rather than a different diagnostic:
 
 ```{r holdout, eval = FALSE}
-train <- d[1:150, ]
-held  <- d[151:nrow(d), ]
+train <- d[1:4000, ]
+held  <- d[4001:nrow(d), ]
 
-fit <- bartisan(bwt ~ ., data = train, family = gaussian())
+fit <- bartisan(death ~ ., data = train, family = binomial())
 
 sum(predict(fit, newdata = held, type = "density", log = TRUE))
 ```
@@ -97,48 +98,53 @@ This is the same quantity `elpd_loo` approximates, computed directly.
 
 ```{r compare, eval = run}
 set.seed(2026)
-reduced <- bartisan(bwt ~ age + lwt + smoke, data = d, family = gaussian(),
-                    chains = 4)
+demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
+                         family = binomial())
 
-loo_compare(list(full = loo(full), reduced = loo(reduced)))
+loo_compare(list(full = loo(full), demographics = loo(demographics)))
 ```
 
-The full model predicts better by about 14 on the elpd scale with a standard
-error of about 5. The standard error is the important half. A difference of
-roughly three standard errors is reasonably clear; a difference smaller than its
-own standard error is not evidence of anything.
+The full model predicts better by around six times the standard error of the
+difference. The standard error is the important half: a difference of many
+standard errors is clear, and a difference smaller than its own standard error is
+not evidence of anything.
 
 This is the right way to ask whether a set of variables earns its place, and it
 is a better question than the one variable importance answers, because it is
 about prediction rather than about how the forest happened to spend its splits.
+Here the answer is not in doubt: how sick a patient is on arrival predicts
+whether they die, and demographics alone do not.
 
-## Comparing families
+## Comparing links
 
-The other choice is the likelihood. Here the same predictors are fitted with
-three families: a constant-variance Gaussian, one where the variance is itself a
-function of the predictors, and one where the shape of the error is estimated.
+The other choice is the likelihood. For a binary outcome the family is settled
+and what remains is the link, which decides how the forest's output is mapped to
+a probability.
 
-```{r families, eval = run}
+```{r links, eval = run}
 set.seed(2026)
-loc_scale <- bartisan(bwt ~ ., data = d, family = location_scale(), chains = 4)
+probit <- bartisan(model, data = rhc, family = binomial("probit"))
 
 set.seed(2026)
-mixture <- bartisan(bwt ~ ., data = d, family = dpm(), chains = 4)
+cloglog <- bartisan(model, data = rhc, family = binomial("cloglog"))
 
-loo_compare(list(gaussian = loo(full),
-                 location_scale = loo(loc_scale),
-                 dpm = loo(mixture)))
+loo_compare(list(logit = loo(full), probit = loo(probit),
+                 cloglog = loo(cloglog)))
 ```
 
-All three are within a couple of points of each other, and the differences are
-smaller than or comparable to their standard errors. *loo* flags this
-directly. The reading is that the plain Gaussian family is adequate for this
-data: modelling the variance as a function of the predictors buys nothing here,
-and neither does relaxing the shape of the error.
+The three are within a point or two of each other, and the differences are
+smaller than their standard errors. *loo* flags this directly. The reading is
+that the link does not matter here.
 
-That is a useful negative result and worth reporting as one. It is also the
-expected outcome when the simple family is right, which is the property that
-makes the flexible families safe to try.
+That is a useful negative result and worth reporting as one. It is also the usual
+outcome: with a flexible function on the inside, the link has little left to do,
+because the forest can absorb the difference between one link and another. This
+is not true of a linear model, where the link carries the whole shape of the
+relationship.
+
+The one link worth thinking about separately is `cloglog`, which is asymmetric
+and is the right choice when the outcome is a discretized survival time. See
+`vignette("survival")`.
 
 ## A trap: the densities must be on the same scale
 
@@ -157,18 +163,18 @@ scale. If you transform the outcome, refit, and compare, the comparison is
 invalid unless you account for the Jacobian. Comparing a model of `y` to a model
 of `log(y)` is the everyday version of this mistake.
 
-## Comparing against a linear model
+## Comparing against a logistic regression
 
-There is no obstacle to this, and it is worth doing. If a linear model predicts
-as well as the forest, that is evidence the relationship is close to linear, and
-the linear model is easier to report.
+There is no obstacle to this, and it is worth doing. If a logistic regression
+predicts as well as the forest, that is evidence the relationship is close to
+linear on the log-odds scale, and the simpler model is easier to report.
 
 The comparison has to be like for like. Fit both in a framework that produces the
-same kind of pointwise log density, for example by fitting the linear model with
-*rstanarm* or *brms* and comparing with `loo_compare()`, or by comparing
+same kind of pointwise log density, for example by fitting the logistic
+regression with *rstanarm* or *brms* and comparing with `loo_compare()`, or by comparing
 held-out log scores computed the same way for both.
 
-Comparing `elpd_loo` from this package against `AIC` from `lm()` is not a
+Comparing `elpd_loo` from this package against `AIC` from `glm()` is not a
 comparison and should not be reported as one.
 
 ## What not to select on

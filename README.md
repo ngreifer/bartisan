@@ -199,27 +199,59 @@ sampler.
 ## Settings worth knowing about
 
 `bartisan_control()` groups its arguments so that the ones that matter
-come first. Three are worth a look before any fit.
+come first. Four are worth a look before any fit.
 
 `gate` is the one argument that chooses between hard and soft rules and,
-when soft, the shape of the gate. `sparsity` turns the Dirichlet
-variable-selection prior of Linero (2018) on and off, or names one of
-four strengths, in place of the four hyperparameters that actually
-parameterize it. And `num_trees` takes one value per additive predictor,
-not just one for the fit:
+when soft, the shape of the gate.
+
+`sparsity` turns the Dirichlet variable-selection prior of Linero (2018)
+on and off, or names one of four strengths, in place of the four
+hyperparameters that actually parameterize it. Which way to set it
+follows from what you are estimating rather than from the data, and the
+difference is large in both directions; see “Variable selection” below.
+
+`split_prior` is the other way to say which predictors matter, for when
+you already know. It takes a named vector of relative weights, every
+predictor starting at 1, and fixes the splitting probabilities at what
+you give rather than drawing them:
 
 ``` r
-bartisan(y ~ ., data = d, family = location_scale(), num_trees = c(50, 10))
+# x1 gets 3/4.5 of the splitting probability, x2 1/4.5, x3 0.5/4.5.
+bartisan(y ~ x1 + x2 + x3, data = d, split_prior = c(x1 = 3, x3 = 0.5))
 ```
 
-That last one is worth using. `location_scale()` spends about 90% of its
+A weight of zero is allowed and holds a predictor out of every tree
+while leaving it in the data.
+
+`num_trees` takes one value per additive predictor, not just one for the
+fit, and that is worth using. `location_scale()` spends about 90% of its
 time on the scale forest, and a variance surface needs less capacity
 than a mean surface, so a smaller second forest cuts the fit from ten
 times a Gaussian one to three and a half at the same accuracy.
 `?bartisan_control` has the measurements, along with the tree-count
 curves for the two kinds of rule — soft rules peak at around 20 trees
-and get worse past that, hard rules keep improving to 200 — and what the
-sparsity prior costs in exchange for dropping predictors.
+and get worse past that, hard rules keep improving to 200.
+
+### One forest at a time
+
+`num_trees` is not the only argument that can differ between the forests
+of a multi-forest family. Any of them can, and so can the model formula,
+which is what lets one forest have predictors another does not:
+
+``` r
+bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = location_scale(),
+         num_trees = c(mean = 50, log_sd = 10),
+         sparsity = c(mean = TRUE, log_sd = FALSE))
+```
+
+The first formula is the model for the main parameter and carries the
+response; the rest need no response. One value or one formula applies to
+every forest, which is the ordinary case. Each forest is named, so the
+arguments can be keyed by name instead of ordered, and a forest a named
+argument does not mention keeps that argument’s default.
+`?bartisan-families` lists the forests of each family in order, and the
+multinomial families are the exception: their forests are the levels of
+one parameter and take one setting between them.
 
 ## Example
 
@@ -262,27 +294,27 @@ summary(fit)          # includes how often each predictor was split on
     ## Predictor usage
     ## Splitting rules per draw, and how often used at all.
     ##      mean     sd lower upper prop_used
-    ## x1 39.410 12.496    19    65     1.000
-    ## x2 32.164 12.663     9    52     1.000
-    ## x4  2.488  3.047     0    10     0.610
-    ## x3  2.156  2.823     0    10     0.602
+    ## x1 30.734 10.491    12    49     1.000
+    ## x2 25.758 10.848    10    54     1.000
+    ## x4 11.998  6.785     1    26     0.984
+    ## x3  6.880  6.903     0    23     0.826
 
 ``` r
 head(predict(fit, type = "response"))
 ```
 
-    ## [1] 0.6334514 0.4320595 0.7682428 0.8133213 0.5981106 0.8445637
+    ## [1] 0.6302956 0.4442805 0.7714150 0.8234396 0.6101912 0.8475233
 
 ``` r
 predict(fit, newdata = d[1:5, ], type = "prob")
 ```
 
     ##              0         1
-    ## [1,] 0.3665486 0.6334514
-    ## [2,] 0.5679405 0.4320595
-    ## [3,] 0.2317572 0.7682428
-    ## [4,] 0.1866787 0.8133213
-    ## [5,] 0.4018894 0.5981106
+    ## [1,] 0.3697044 0.6302956
+    ## [2,] 0.5557195 0.4442805
+    ## [3,] 0.2285850 0.7714150
+    ## [4,] 0.1765604 0.8234396
+    ## [5,] 0.3898088 0.6101912
 
 Every draw of every tree is retained, so `predict()` can return the full
 posterior rather than a point estimate:
@@ -293,8 +325,8 @@ apply(draws, 2, quantile, c(0.025, 0.975))
 ```
 
     ##            [,1]      [,2]      [,3]      [,4]      [,5]
-    ## 2.5%  0.5063507 0.2833474 0.6221387 0.6946875 0.4310108
-    ## 97.5% 0.7655796 0.5800427 0.8922670 0.9007625 0.7366930
+    ## 2.5%  0.4998501 0.2873975 0.6256810 0.6977267 0.4631883
+    ## 97.5% 0.7586600 0.6158814 0.8881712 0.9086804 0.7585093
 
 `type = "density"` evaluates the conditional density of the outcome
 given the predictors, at the outcome’s own value, so the outcome has to
@@ -309,7 +341,7 @@ held_out$y <- rbinom(50, 1, plogis(3 * sin(pi * held_out$x1 * held_out$x2) - 1))
 sum(predict(fit, newdata = held_out, type = "density", log = TRUE))
 ```
 
-    ## [1] -31.79423
+    ## [1] -29.47686
 
 A right-censored survival model, with the response given as a `Surv`
 object:
@@ -419,11 +451,26 @@ leave-one-out estimate is strained for a model as flexible as a forest.
 
 Splitting variables are drawn from a Dirichlet prior that concentrates
 on few predictors, following Linero (2018), so the model filters out
-irrelevant ones. `summary()` reports the posterior distribution of the
-number of splitting rules using each predictor and the proportion of
-draws using it at all. The indicator columns of a factor share one
-weight, so a factor is selected as a whole rather than one level at a
-time.
+irrelevant ones. `variable_importance()` reports the average number of
+splitting rules using each predictor and the proportion of draws using
+it at all. The indicator columns of a factor share one weight, so a
+factor is selected as a whole rather than one level at a time.
+
+This is a real variable-selection prior, which means it can drop a
+predictor from every tree at once, and that cuts both ways. For
+prediction it is worth having: scored against the true function on
+held-out data, any of the four strengths beat turning it off, by 13% to
+26%. For a contrast on a predictor whose signal is weak it is worth
+turning off, and not only because a dropped predictor makes the contrast
+exactly zero. On a treatment effect of 0.2 against residual noise of 1
+the prior halved the estimate and its 95% interval covered the truth 60%
+of the time, against 100% with `sparsity = FALSE`. A strong effect is
+untouched, because the prior never has reason to drop a predictor that
+is earning its splits.
+
+So keep the default when predicting, and use `sparsity = FALSE` or
+`split_prior` when a particular contrast is the estimand.
+`?bartisan_control` has both tables.
 
 ## Correctness
 
