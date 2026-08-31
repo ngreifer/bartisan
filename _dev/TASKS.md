@@ -3449,19 +3449,167 @@ and not of soft against hard:
 | 500 (25) | **0.2732** | 0.2878 | 0.2467 | 0.2434 | 0.2814 |
 | 2000 (100) | 0.1385 | 0.1370 | 0.1059 | 0.0969 | 0.1475 |
 
-**The gain is real, modest, and confined to the regime it was predicted for.**
-Under hard rules subset beats one-hot by 7.5% at ten observations per level and
-5.1% at twenty-five, and the two are level at a hundred, where each level's mean
-is well estimated on its own and there is nothing to pool. Under soft rules the
-ordering reverses above the thinnest case, by one or two percent: soft rules on
-the numeric predictor already buy most of what there is to buy, and subset rules
-spread prior mass over `2^(K-1)` splits where one-hot spreads it over `K`, so the
-larger space costs more search than it returns. That is the honest reading and it
-argues against overselling the change in the documentation, which now says the
-same thing.
+**Superseded: this table was five replicates reported as means, with no standard
+error, and it did not survive twelve replicates and a paired analysis.** See the
+next entry. The corrected reading is that under hard rules subset is better at
+every size, and under soft rules the two are indistinguishable.
 
 `subset, hard` matches or beats flexBART at every sample size, which is the check
 that the implementation is right rather than merely different. Timing: bartisan
 is three times faster at n = 200 and 1.4 times slower at n = 2000, where
 flexBART's observation-to-leaf bookkeeping pays off. Subset rules cost bartisan
 20% to 27% more time than one-hot above the smallest n.
+
+## Correcting the subset-rule benchmark: five replicates were not enough
+
+The table in the entry above was five replicates, reported as means with no
+standard error, and two of the things I concluded from it were not there. Every
+method sees the same data within a replicate, so the comparison is paired and the
+standard error of the paired difference is what a gap has to beat. At twelve
+replicates, with that standard error:
+
+| per level | subset, hard | onehot, hard | subset, soft | onehot, soft | flexBART |
+|---|---|---|---|---|---|
+| 10 | 0.3705 | 0.3998 | **0.3435** | 0.3445 | 0.3715 |
+| 25 | 0.2617 | 0.2725 | 0.2265 | **0.2201** | 0.2709 |
+| 100 | 0.1421 | 0.1488 | 0.1098 | **0.1059** | 0.1499 |
+
+Paired standard errors against the best row run 0.0025 to 0.0112.
+
+**What changed.** I had said subset and one-hot were "level at a hundred
+observations per level" under hard rules; they are not, subset is better there
+too (0.1421 against 0.1488), by about 4% against a standard error around half
+that. And I had said the ordering "reverses" under soft rules "by one or two
+percent"; it does not reverse in any sense the data support -- under soft rules
+the largest gap between the two is 0.006 against a standard error of 0.005, so
+**they are indistinguishable**, and the apparent reversal was replicate noise.
+
+**What held.** Subset beats one-hot under hard rules at ten observations per
+level, 7.3% against a standard error of about 2%, which is the one clear
+categorical result. And `subset` with hard rules matches or beats flexBART at
+every size (0.3705 against 0.3715, 0.2617 against 0.2709, 0.1421 against
+0.1499), which was the check that the implementation is right rather than merely
+different.
+
+**The largest number in the table is not about categorical rules at all.** Soft
+rules beat hard rules by 7% to 26% at every size, which is far more than either
+categorical choice is worth. Worth remembering when reading any of the rest.
+
+The default stays `"subset"`: it is right about the prior, it wins under hard
+rules, and it never loses beyond noise. `?bartisan_control` now carries this
+table and says plainly that it will not visibly improve a fit rather than
+implying it will.
+
+**The methodological lesson, since this is the second time this session.** Five
+replicates and a difference of a few percent is not a measurement. The marginal
+RMSE varies far more across seeds than the paired difference does -- the same
+design gave 0.31 and 0.39 for one configuration under two seed sets -- so
+reporting means without pairing hides the only comparison that is stable. Paired
+differences with standard errors from here on.
+
+## A factor as a predictor or as a random intercept
+
+`_dev/factor-random-vs-fixed.R`. Now that a rule can pool levels, the fixed
+route can express what a random intercept does, so the comparison is worth
+making. Twenty levels, ten replicates, paired, RMSE against the true mean
+function. Two truths: level effects as independent normal draws, which is the
+random intercept's own prior, and level effects taking four distinct values,
+which is a partition and so the subset rule's.
+
+| truth | per level | fixed, subset | fixed, onehot | random intercept | both |
+|---|---|---|---|---|---|
+| iid | 10 | 0.3880 | 0.3830 | **0.3784** | 0.3941 |
+| iid | 50 | 0.1547 | **0.1500** | 0.1548 | 0.1551 |
+| clustered | 10 | 0.3883 | 0.3824 | **0.3753** | 0.3773 |
+| clustered | 50 | 0.1537 | **0.1509** | 0.1534 | 0.1576 |
+
+Paired standard errors run 0.0014 to 0.0084.
+
+**Everything is within noise of everything else, and that is the finding.** The
+largest gap that clears two standard errors is `both` at ten observations per
+level on the iid truth, which is *worse* than any single route -- putting the
+factor in as a predictor and as a random intercept at once costs something and
+buys nothing. Otherwise no route beats another by more than about two standard
+errors, in either direction, on either truth.
+
+**Neither prior wins on the truth that matches it**, which is the part I did not
+expect. The clustered truth is exactly a partition of the levels and the subset
+rule is exactly a prior over partitions, and it comes last there. The iid truth
+is exactly the random intercept's prior and the random intercept wins by 0.005
+against a standard error of 0.005. With four distinct effects of -3, -1, 1 and 3
+and ten or more observations per level, every route estimates each level well
+enough on its own that the prior over how levels group has almost nothing left to
+do, and a fifty-tree ensemble builds the structure additively whatever any single
+tree can express.
+
+So the practical answer is that the choice is not worth agonizing over at this
+number of levels, and the reason to prefer a random intercept is what it always
+was: it is a statement that the levels are exchangeable draws and that new levels
+are expected, which a predictor cannot represent at all. Where the two should
+start to separate is many more levels with very few observations each, which this
+design does not reach.
+
+**A bug in the first version of this script, worth recording because it announced
+itself.** The level effects were drawn inside the simulation from a seed that
+included which dataset was being generated, so the training and test sets got
+*different* level effects and every method scored an RMSE larger than the
+standard deviation of the truth. A fit that cannot beat predicting the mean is
+the signature of a target that is not there.
+
+## flexBART's bookkeeping: already here, and what they have that we do not
+
+Their paper attributes part of their speed to caching which observations reach
+which leaf and updating it incrementally, rather than looping over the whole
+dataset on every tree update.
+
+**bartisan already does that**, and this was checked two ways rather than
+asserted. In the code, `Node::idx` is that cache, `split_support()` divides a
+parent's cache between its two children and touches nothing else, `save_support`
+and `restore_support` snapshot it for rollback instead of recomputing, and the
+node pool keeps the vectors' capacity across births. The structural moves are
+local: a birth picks a leaf, a death picks a branch whose children are both
+leaves, and `change_rule` picks a node from `not_grand_branches`, so no move
+touches more than one node's support.
+
+And in the measurement, `_dev/bookkeeping-cost.R`, Friedman with p = 10, hard
+rules, 50 trees, best of three:
+
+| n | bartisan | dbarts | flexBART |
+|---|---|---|---|
+| 500 | 0.24 s (2.78x) | 0.09 s | 0.32 s (3.72x) |
+| 2000 | 0.82 s (3.19x) | 0.26 s | 0.62 s (2.40x) |
+| 8000 | 2.65 s (2.45x) | 1.08 s | 1.63 s (1.51x) |
+
+**bartisan's ratio to dbarts is flat in n** -- 2.78, 3.19, 2.45, no trend -- which
+is the decisive fact. A missing observation-to-leaf cache costs O(n) per tree
+update where the cache costs O(support), so its absence would show as a ratio
+that grows with n. It does not. Turning off the sparsity draw and fixing the leaf
+scale changed nothing either, so the constant factor is the generalized
+machinery, which is what it is for.
+
+**flexBART's ratio falls with n** -- 3.72, 2.40, 1.51 -- so its bookkeeping buys
+scaling over *dbarts as well*, and it is faster than bartisan above n of about
+1000 and slower below it. So there is something there, and it is not the thing
+bartisan is missing; it is something neither bartisan nor dbarts does.
+
+**What it would be here, and why it is awkward.** bartisan stores a support
+vector on every node, so total storage is O(n x depth) and a structural move
+allocates and copies the affected node's support. A single tree-level
+observation-to-leaf map is O(n) and a move rewrites only the entries that
+actually change. That is a real gain and it grows with n.
+
+The obstacle is soft rules. With a soft gate an observation reaches many leaves
+with different weights, so "which leaf does observation i reach" is not a
+function and there is no single map to keep -- which is exactly why `Node::wt`
+exists alongside `Node::idx`. So flexBART's representation is available only for
+hard rules, and adopting it means a second support representation maintained in
+parallel with the first, correct under rollback, under the bandwidth move, and
+under the categorical rules just added. Given that soft rules are the default and
+are worth 7% to 26% of RMSE against hard ones, the configuration this would speed
+up is not the one most fits use.
+
+Recorded as available and not taken. The place a soft-rule fit actually spends its
+extra time is the bandwidth move's `rebuild_support()`, which is a full O(n x
+depth) rebuild every `bandwidth_every` sweeps and has no flexBART analogue,
+because flexBART has no bandwidth. That is the better target if soft-rule speed
+becomes the goal.

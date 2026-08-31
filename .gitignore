@@ -49,6 +49,8 @@ _dev/*
 !_dev/categorical-priors.R
 !_dev/categorical-check.R
 !_dev/categorical-benchmark.R
+!_dev/factor-random-vs-fixed.R
+!_dev/bookkeeping-cost.R
 
 # Side effect of rendering README.Rmd to github_document.
 README.html

@@ -342,6 +342,27 @@
 #' reaches every partition, and the co-clustering probabilities come out far more
 #' even.
 #'
+#' **What it is worth depends on the decision rules.** Twenty levels in four
+#' groups of five sharing a mean, twelve replicates, paired within replicate,
+#' RMSE against the true mean function:
+#'
+#' | per level | subset, hard | onehot, hard | subset, soft | onehot, soft |
+#' | --- | --- | --- | --- | --- |
+#' | 10 | 0.3705 | 0.3998 | 0.3435 | 0.3445 |
+#' | 25 | 0.2617 | 0.2725 | 0.2265 | 0.2201 |
+#' | 100 | 0.1421 | 0.1488 | 0.1098 | 0.1059 |
+#'
+#' Under hard rules `"subset"` is better at every size, clearly so at ten
+#' observations per level, where the gap is 7% against a standard error of 2%,
+#' and by 4% at the two larger sizes, where the standard error is around half
+#' the gap. Under soft rules, which is the default, **the two are
+#' indistinguishable**: the largest gap is 0.006 against a standard error of
+#' 0.005. Soft rules are worth far more than either choice, which is the biggest
+#' number in the table and the one to act on.
+#'
+#' So `"subset"` is the default because it is right about the prior and never
+#' loses beyond noise, not because it will visibly improve a fit.
+#'
 #' Two consequences of `"subset"` worth knowing. A rule on a factor is always
 #' hard, even in a soft tree: a gate is a smooth function of the distance from a
 #' cutpoint and there is no distance between two levels. Under `"onehot"` the

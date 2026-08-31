@@ -408,6 +408,27 @@ whether the data want that or not. A rule that takes a subset of the levels
 reaches every partition, and the co-clustering probabilities come out far more
 even.
 
+\strong{What it is worth depends on the decision rules.} Twenty levels in four
+groups of five sharing a mean, twelve replicates, paired within replicate,
+RMSE against the true mean function:\tabular{lllll}{
+   per level \tab subset, hard \tab onehot, hard \tab subset, soft \tab onehot, soft \cr
+   10 \tab 0.3705 \tab 0.3998 \tab 0.3435 \tab 0.3445 \cr
+   25 \tab 0.2617 \tab 0.2725 \tab 0.2265 \tab 0.2201 \cr
+   100 \tab 0.1421 \tab 0.1488 \tab 0.1098 \tab 0.1059 \cr
+}
+
+
+Under hard rules \code{"subset"} is better at every size, clearly so at ten
+observations per level, where the gap is 7\% against a standard error of 2\%,
+and by 4\% at the two larger sizes, where the standard error is around half
+the gap. Under soft rules, which is the default, \strong{the two are
+indistinguishable}: the largest gap is 0.006 against a standard error of
+0.005. Soft rules are worth far more than either choice, which is the biggest
+number in the table and the one to act on.
+
+So \code{"subset"} is the default because it is right about the prior and never
+loses beyond noise, not because it will visibly improve a fit.
+
 Two consequences of \code{"subset"} worth knowing. A rule on a factor is always
 hard, even in a soft tree: a gate is a smooth function of the distance from a
 cutpoint and there is no distance between two levels. Under \code{"onehot"} the

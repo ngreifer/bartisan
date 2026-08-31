@@ -13,7 +13,7 @@ library(bartisan)
 CLUSTERS <- 4L
 PER_CLUSTER <- 5L
 K <- CLUSTERS * PER_CLUSTER
-REPS <- 5L
+REPS <- 12L
 BURN <- 500L
 DRAWS <- 500L
 TREES <- 50L
@@ -81,12 +81,28 @@ cat(sprintf("%d levels in %d clusters of %d. RMSE against the true mean function
 cat(sprintf("%d trees, %d warmup, %d draws, one chain, mean of %d replicates.\n",
             TREES, BURN, DRAWS, REPS))
 
+# Every method sees the same data within a replicate, so the comparison is
+# paired and the standard error of the paired difference is what a gap has to
+# beat. Reporting the means alone made a difference look established that the
+# replicate-to-replicate variation does not support.
 for (n_train in c(200L, 500L, 2000L)) {
-  acc <- Reduce(`+`, lapply(seq_len(REPS), function(r) run(n_train, r))) / REPS
+  each <- lapply(seq_len(REPS), function(r) run(n_train, r))
+  labels <- rownames(each[[1L]])
+  rmses <- vapply(each, function(m) m[, "rmse"], numeric(length(labels)))
+  secs <- rowMeans(vapply(each, function(m) m[, "secs"],
+                          numeric(length(labels))))
+  means <- rowMeans(rmses)
+  best <- which.min(means)
+
   cat(sprintf("\nn = %d  (%.0f observations per level)\n",
               n_train, n_train / K))
-  cat(sprintf("%-18s %8s %9s\n", "rule", "RMSE", "seconds"))
-  for (nm in rownames(acc)) {
-    cat(sprintf("%-18s %8.4f %9.2f\n", nm, acc[nm, "rmse"], acc[nm, "secs"]))
+  cat(sprintf("%-18s %8s %9s %9s %7s\n",
+              "rule", "RMSE", "vs best", "se", "seconds"))
+  for (i in seq_along(labels)) {
+    d <- rmses[i, ] - rmses[best, ]
+    cat(sprintf("%-18s %8.4f %+9.4f %9s %7.2f\n", labels[i], means[i],
+                means[i] - means[best],
+                if (i == best) "" else sprintf("%.4f", stats::sd(d) / sqrt(REPS)),
+                secs[i]))
   }
 }
