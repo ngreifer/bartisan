@@ -1,7 +1,7 @@
 # Small, fast settings. These tests check that the plumbing is right, not that
 # the fits are good; the statistical behavior is checked in test-recovery.R.
 quick_control <- function(...) {
-  args <- list(num_trees = 5L, num_burn = 30L, num_save = 30L, verbose = FALSE)
+  args <- list(num_trees = 5L, num_burn = 30L, num_draws = 30L, verbose = FALSE)
   args[names(list(...))] <- list(...)
   do.call(bartisan_control, args)
 }

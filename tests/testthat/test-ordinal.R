@@ -20,7 +20,7 @@ test_that("the complementary log-log link recovers a cloglog-generated fit", {
   fits <- lapply(c("cloglog", "logit", "probit"), function(lk) {
     set.seed(3)
     bartisan(y ~ ., d, family = ordinal(lk), gate = "hard", num_trees = 50,
-             num_burn = 300, num_save = 300)
+             num_burn = 300, num_draws = 300)
   })
   names(fits) <- c("cloglog", "logit", "probit")
 
@@ -81,7 +81,7 @@ test_that("the cloglog augmentation targets the same posterior as the direct fit
   fit <- function(augment) {
     set.seed(8)
     bartisan(y ~ ., d, family = ordinal("cloglog"), gate = "hard",
-             num_trees = 20, num_burn = 400, num_save = 400, augment = augment)
+             num_trees = 20, num_burn = 400, num_draws = 400, augment = augment)
   }
 
   direct <- fit(FALSE)
@@ -148,7 +148,7 @@ test_that("the chart is a change of chart: fitted probabilities are untouched", 
   d$y <- ordered(rowSums(outer(z, stats::quantile(z, c(1, 2) / 3), ">")) + 1L)
 
   fit <- bartisan(y ~ ., d, family = ordinal("probit"), gate = "hard",
-                  num_trees = 20, num_burn = 200, num_save = 200)
+                  num_trees = 20, num_burn = 200, num_draws = 200)
 
   e <- stats::predict(fit, newdata = d, type = "link", draws = TRUE)
   cuts <- fit[["aux"]]
@@ -211,7 +211,7 @@ test_that("the cutpoints are on the same scale as polr's", {
   d$y <- ordered(rowSums(outer(lp + stats::rnorm(n), zeta, ">")) + 1L)
 
   fit <- bartisan(y ~ x1 + x2, d, family = ordinal("probit"), gate = "hard",
-                  num_trees = 50, num_burn = 400, num_save = 400)
+                  num_trees = 50, num_burn = 400, num_draws = 400)
   cuts <- colMeans(fit[["aux"]])
 
   raw <- MASS::polr(y ~ x1 + x2, data = d, method = "probit")

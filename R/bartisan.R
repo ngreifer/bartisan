@@ -18,6 +18,23 @@
 #'   `y ~ .` is usually the right specification. Survival families take a
 #'   \pkgfun{survival}{Surv} object on the left. A `(1 | group)` term adds a
 #'   group-level random intercept, in the notation of \pkg{lme4}; see Details.
+#'
+#'   For a family with more than one additive predictor this may be a *list* of
+#'   formulas, one per forest, to give each one its own predictors. The first is
+#'   the model for the main parameter and carries the response; the rest need no
+#'   response, and follow the order in [bartisan-families], under "Several
+#'   additive predictors", which also gives the name of each forest so the list
+#'   can be named instead of ordered:
+#'
+#'   ```r
+#'   bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = location_scale())
+#'   bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
+#'            family = location_scale())
+#'   ```
+#'
+#'   One formula applies to every forest, which is the ordinary case. A predictor
+#'   left out of one forest's formula is still in the data and is never split on
+#'   by that forest.
 #' @param data a data frame containing the variables in `formula`.
 #' @param family the response distribution, as a [stats::family] object, one of
 #'   the families in [bartisan-families], or a name. The default, `NULL`, reads
@@ -35,13 +52,6 @@
 #'   any row with a missing value anywhere instead. Rows with a missing response,
 #'   weight or offset are dropped either way, with a warning, since there is
 #'   nothing to fit them to.
-#' @param chains how many independent chains to run. More than one requires the
-#'   \pkg{future.apply} package and runs them under whatever backend the caller
-#'   has planned with \pkgfun{future}{plan} -- `multisession`, `multicore`, a cluster,
-#'   or mirai's `mirai_multisession`. The draws are pooled and
-#'   [split-R-hat][bartisan()] is reported in the `rhat` element. One
-#'   `set.seed()` before the call reproduces the whole run whatever the backend,
-#'   because each chain is given its own L'Ecuyer stream.
 #' @param control a list of sampler and prior settings from
 #'   [bartisan_control()].
 #' @param ... further arguments to [bartisan_control()]. They are
@@ -83,7 +93,7 @@
 #' | logical, or two levels, or numeric zeros and ones | `binomial()` |
 #' | factor or character with more than two levels | `multinomial()` |
 #' | two-column matrix of successes and failures | `binomial()` |
-#' | anything else | `gaussian()` |
+#' | anything else | `dpm()` |
 #'
 #' A message reports the choice. Naming `family` yourself is what silences it,
 #' which is the same thing you would do to change the choice.
@@ -269,7 +279,7 @@
 #'
 #' fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = binomial(),
 #'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_save = 50, verbose = FALSE))
+#'                                          num_draws = 50, verbose = FALSE))
 #' fit
 #'
 #' head(predict(fit, type = "response"))
@@ -277,23 +287,38 @@
 #' @export
 bartisan <- function(formula, data, family = NULL, weights = NULL,
                      offset = NULL, subset = NULL,
-                    na.action = stats::na.pass,
-                    chains = 1L, control = bartisan_control(), ...) {
+                     na.action = stats::na.pass,
+                     control = bartisan_control(), ...) {
 
   cl <- match.call()
 
   warn_unoptimized()
 
-  arg::arg_formula(formula)
-  arg::arg_whole_number(chains)
-  arg::arg_gte(chains, 1)
-  chains <- as.integer(chains)
+  # One formula per forest. A single formula is the common case and comes back as
+  # a list of one, so everything below is written once.
+  #
+  # `one_sided = FALSE` on the first rather than a plain formula check: a formula
+  # with no response has nothing to fit, and catching it here is what keeps the
+  # `.` expansion below from inventing one. `update(~ x1 + x2, . ~ .)` returns
+  # `. ~ x1 + x2`, so the frame would go looking for a variable named `.` and the
+  # caller would get `object '.' not found` instead of the real problem.
+  # A bare formula is checked here; a list is checked inside
+  # `split_formula_list()`, which knows that a named one may carry the response
+  # on any element and so cannot just look at the first.
+  if (rlang::is_formula(formula)) {
+    arg::arg_formula(formula, one_sided = FALSE)
+  }
 
+  forest_formulas <- split_formula_list(formula)
   if (!inherits(control, "bartisan_control")) {
     arg::err("{.arg control} must be the result of {.fn bartisan_control}")
   }
 
   control <- merge_control(control, list(...))
+
+  # Read after the merge, so that `chains` given in `...` reaches this the same
+  # way every other setting does.
+  chains <- control[["chains"]]
 
   # `family` is resolved after the model frame, not before, because the default
   # is read off the response and the response is not available until then.
@@ -303,6 +328,14 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # ordinary sums, so the grouping variables come along and get the same
   # missing-value handling as everything else; the design matrix is built from
   # the version with the bars removed, so they are not also predictors.
+  # The frame is built from every predictor any forest uses. Each forest is held
+  # to its own subset further down, by zeroing its splitting weights on the terms
+  # its formula leaves out, rather than by carrying a design matrix of its own.
+  if (!rlang::is_formula(formula)) {
+    formula <- union_formula(forest_formulas,
+                             if (!missing(data) && is.data.frame(data)) data)
+  }
+
   split <- split_random(formula)
 
   mf <- match.call(expand.dots = FALSE)
@@ -321,6 +354,31 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # what `lm()` and `glm()` do with it.
   if (!is_null(na.action)) {
     mf[["na.action"]] <- na.action
+  }
+
+  # `model.frame()` keeps every variable named anywhere in the formula, so a term
+  # removed with `-` survives in the frame even though the terms correctly drop
+  # it. That leaves a column in the frame that is not a predictor, and the
+  # packages that read the frame to find out what the model uses then treat it as
+  # one: `avg_comparisons()` reported an effect for a variable the model had
+  # never seen. Resolving the formula through its own terms first expands `.` and
+  # carries out the subtraction, so what reaches `model.frame()` names exactly
+  # the variables the model uses. `.` can only be expanded when there is a
+  # data frame to expand it against.
+  # Left alone when the formula has random-effect terms: `.` would then expand
+  # over the grouping variables as well, and the fixed part is derived from the
+  # frame further down on the assumption that it has not been rewritten.
+  if (!missing(data) && is.data.frame(data) && identical(formula, split$fixed)) {
+    resolved <- stats::update(stats::terms(mf[["formula"]], data = data), . ~ .)
+    environment(resolved) <- environment(mf[["formula"]])
+    mf[["formula"]] <- resolved
+    split$fixed <- resolved
+
+    # Stored as well as used. `insight::find_formula()` reads this field, and
+    # from `death ~ . - days` it concluded that the model's one predictor was
+    # `days`, which is the variable the formula removes. Everything built on
+    # that -- `avg_comparisons()` most visibly -- then described the wrong model.
+    formula <- resolved
   }
 
   mf[[1L]] <- quote(stats::model.frame)
@@ -378,22 +436,100 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   group_probs <- make_group_probs(design$assign, design$term_labels)
 
   engine_control <- as.list(control)
+
+  # The names of the forests, which is what a per-forest argument may be keyed
+  # by and the order a positional one is read in. The trailing pinned forests
+  # standing in for a custom family's nuisance parameters are not among them:
+  # they are not additive predictors and nothing about them is the caller's to
+  # set per forest.
+  n_report <- response[["n_forest"]] - response[["n_aux"]]
+  labels <- forest_labels(response[["family"]], response[["opts"]],
+                          response[["levels"]], n_report)
+  joint <- joint_forests(response[["family"]])
+
+  if (length(forest_formulas) > 1L && joint) {
+    arg::err(c("{.arg formula} must be a single formula for this family, not
+                {length(forest_formulas)}",
+               i = "Its {length(labels)} forests are the levels of one parameter
+                  and act together, so they take the same predictors."))
+  }
+
+  if (length(forest_formulas) > n_report) {
+    arg::err(c("{.arg formula} has {length(forest_formulas)} formulas but this
+                family has {n_report} forest{?s}",
+               i = "Its forests are {.val {labels}}."))
+  }
+
+  # Names on the list of formulas are checked the same way any per-forest
+  # argument's are, and reorder it, so that `list(log_sd = ~ x2, mean = y ~ x1)`
+  # means what it says.
+  if (!is_null(names(forest_formulas))) {
+    forest_formulas <- resolve_per_forest(forest_formulas, labels, "formula",
+                                          default = forest_formulas[[1L]],
+                                          joint = joint)
+  }
+
+  # One formula given applies to every forest, which is the rule for every
+  # per-forest argument and is what makes the ordinary single-formula call reach
+  # the engine unchanged. Fewer formulas than forests, but more than one, is not
+  # a recycling anyone would mean.
+  if (length(forest_formulas) == 1L) {
+    forest_formulas <- rep(forest_formulas, n_report)
+  }
+  else if (length(forest_formulas) < n_report) {
+    arg::err(c("{.arg formula} has {length(forest_formulas)} formulas but this
+                family has {n_report} forests",
+               i = "Give one formula, or {n_report}, or name them:
+                  {.val {labels}}."))
+  }
+
+  # Matched against the predictors here rather than in `bartisan_control()`,
+  # which does not know them. The result is one weight per predictor group, so a
+  # factor's dummy columns share the weight given to the term, the way they
+  # already share one entry of the sparsity prior. One column per forest, since
+  # the weights are also how a forest is held to its own formula.
+  engine_control[["split_prior"]] <-
+    resolve_split_matrix(control[["split_prior"]], colnames(group_probs),
+                         labels, joint,
+                         forest_masks(forest_formulas, colnames(group_probs),
+                                      if (!missing(data) &&
+                                            is.data.frame(data)) data,
+                                      response_of(forest_formulas)),
+                         response[["n_forest"]])
+
   engine_control[["gate"]] <- gate_code(control[["gate"]])
 
+  # The rest of the settings the engine keeps one copy of per forest. Each is
+  # spread to one value per forest here, so the engine never has to decide what a
+  # scalar means, and each keeps its own default where a named argument left a
+  # forest out. `k` is not among them: it is a way of writing `sigma_mu`, and
+  # that is spread just below.
+  for (nm in names(PER_FOREST_DEFAULTS)) {
+    engine_control[[nm]] <- per_forest_vector(
+      control[[nm]], labels, nm,
+      control[[nm]][[1L]] %||% PER_FOREST_DEFAULTS[[nm]], joint)
+    engine_control[[nm]] <- rep(engine_control[[nm]],
+                                length.out = response[["n_forest"]])
+  }
+
   # One tree count per additive predictor. A scalar is recycled, so the common
-  # case reads the same as before; a vector lets a forest that needs less
-  # capacity be given less, which is most of what makes `location_scale()`
-  # affordable.
-  engine_control[["num_trees"]] <- resolve_num_trees(control[["num_trees"]],
-                                                     response[["n_forest"]],
-                                                     response[["n_aux"]])
+  # case reads the same as before; a vector, or one keyed by the forest names,
+  # lets a forest that needs less capacity be given less, which is most of what
+  # makes `location_scale()` affordable.
+  engine_control[["num_trees"]] <- resolve_num_trees(
+    per_forest_vector(control[["num_trees"]], labels, "num_trees", 50L, joint),
+    response[["n_forest"]], response[["n_aux"]])
 
   # The leaf scale divides by the square root of that forest's *own* tree count,
   # so a forest with fewer trees gets a proportionally larger prior per leaf and
-  # the prior on the sum is unchanged.
-  engine_control[["sigma_mu"]] <- control[["sigma_mu"]] %or%
-    (3 * response[["eta_scale"]] /
-       (control[["k"]] * sqrt(engine_control[["num_trees"]])))
+  # the prior on the sum is unchanged. `k` is the usual way to say it and is
+  # per-forest for the same reason `sigma_mu` is.
+  k <- rep(per_forest_vector(control[["k"]], labels, "k", 2, joint),
+           length.out = response[["n_forest"]])
+
+  engine_control[["sigma_mu"]] <-
+    per_forest_vector(control[["sigma_mu"]], labels, "sigma_mu", NULL, joint) %or%
+    (3 * response[["eta_scale"]] / (k * sqrt(engine_control[["num_trees"]])))
 
   if (length(engine_control[["sigma_mu"]]) != response[["n_forest"]]) {
     engine_control[["sigma_mu"]] <- rep(engine_control[["sigma_mu"]],
@@ -405,15 +541,15 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   engine <- function(ignored) {
     .bartisan_fit(X = unit$x,
                   has_na = as.integer(has_na),
-                 y = response[["y"]],
-                 weights = response[["weights"]],
-                 offset = response[["offset"]],
-                 group_probs = group_probs,
-                 family_name = response[["family"]],
-                 link = response[["link"]],
-                 family_opts = response[["opts"]],
-                 control = engine_control,
-                 random_spec = random_spec(random))
+                  y = response[["y"]],
+                  weights = response[["weights"]],
+                  offset = response[["offset"]],
+                  group_probs = group_probs,
+                  family_name = response[["family"]],
+                  link = response[["link"]],
+                  family_opts = response[["opts"]],
+                  control = engine_control,
+                  random_spec = random_spec(random))
   }
 
   draws <- {
@@ -513,7 +649,13 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
     out[["rhat"]] <- chain_diagnostics(out)
   }
 
-  warn_runaway_scale(out, engine_control[["sigma_mu"]])
+  # Trimmed to the reported forests. The target carries one value per forest the
+  # engine builds, which includes the depth-zero forests standing in for a custom
+  # family's nuisance parameters; `out$sigma_mu` records only the forests that are
+  # additive predictors. Passing the untrimmed target compared column 1 against
+  # the target of whichever forest happened to line up under recycling, and with
+  # two predictors and one nuisance parameter it also warned about the length.
+  warn_runaway_scale(out, engine_control[["sigma_mu"]][seq_len(out[["num_forest"]])])
 
   out
 }
@@ -557,14 +699,68 @@ warn_unoptimized <- function() {
 # `future.seed = TRUE` gives each chain its own L'Ecuyer stream, which is what
 # makes the result reproducible from a single `set.seed()` regardless of how many
 # workers happen to run it.
+# Without future.apply the chains run one after another rather than refusing to
+# run: parallelism is how fast the chains are, not whether the model is fitted,
+# and several chains run sequentially is still what makes the convergence
+# diagnostics available. The streams are drawn the same way in both branches, so
+# the draws do not depend on which one ran.
 run_chains <- function(engine, chains) {
-  if (!rlang::is_installed("future.apply")) {
-    arg::err("running more than one chain needs the {.pkg future.apply} package.
-              Install it, or use {.code chains = 1}")
+  # Generated here rather than left to `future.seed = TRUE`, so that both
+  # branches below draw from the same streams. Otherwise the same script would
+  # give different draws depending on whether future.apply happened to be
+  # installed, which is a worse failure than being slow.
+  seeds <- parallel_streams(chains)
+
+  if (rlang::is_installed("future.apply")) {
+    return(future.apply::future_lapply(seq_len(chains), engine,
+                                       future.seed = seeds,
+                                       future.packages = "bartisan"))
   }
 
-  future.apply::future_lapply(seq_len(chains), engine, future.seed = TRUE,
-                              future.packages = "bartisan")
+  restore <- restore_stream()
+  on.exit(restore(), add = TRUE)
+
+  lapply(seq_len(chains), function(i) {
+    assign(".Random.seed", seeds[[i]], envir = globalenv())
+    engine(i)
+  })
+}
+
+# One L'Ecuyer stream per chain, advanced from the current seed, which is what
+# `future.seed = TRUE` does. Taking them from the session's own state is what
+# makes a single `set.seed()` before the call reproduce the whole run.
+parallel_streams <- function(chains) {
+  old <- restore_stream()
+  on.exit(old(), add = TRUE)
+
+  RNGkind("L'Ecuyer-CMRG")
+  seed <- get(".Random.seed", envir = globalenv())
+
+  out <- vector("list", chains)
+
+  for (i in seq_len(chains)) {
+    out[[i]] <- seed
+    seed <- parallel::nextRNGStream(seed)
+  }
+
+  out
+}
+
+# Captures the session's RNG state and returns the function that puts it back,
+# including the kind, so that switching to L'Ecuyer for the streams does not
+# leave the session on a generator it did not choose.
+restore_stream <- function() {
+  kind <- RNGkind()
+
+  if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+    seed <- get(".Random.seed", envir = globalenv())
+    return(function() {
+      RNGkind(kind[1L], kind[2L], kind[3L])
+      assign(".Random.seed", seed, envir = globalenv())
+    })
+  }
+
+  function() RNGkind(kind[1L], kind[2L], kind[3L])
 }
 
 # Stack the chains into one set of draws, in chain order. The stored forests are
@@ -603,21 +799,26 @@ combine_chains <- function(fits) {
   # A flat vector with per-draw offsets is concatenated by shifting every
   # chain's offsets past what came before it. Each chain's own offsets start
   # with a zero, which belongs only to the first.
-  concatenate <- function(values, offsets) {
-    flat <- lapply(fits, `[[`, values)
-    at <- utils::head(cumsum(c(0L, lengths(flat))), -1L)
-    starts <- lapply(seq_along(fits), function(k) {
-      fits[[k]][[offsets]][-1L] + at[k]
-    })
 
-    out[[values]] <<- unlist(flat, use.names = FALSE)
-    out[[offsets]] <<- c(0L, unlist(starts, use.names = FALSE))
-  }
+  flat <- lapply(fits, `[[`, "forest_flat")
+  at <- utils::head(cumsum(c(0L, lengths(flat))), -1L)
+  starts <- lapply(seq_along(fits), function(k) {
+    fits[[k]][["tree_start"]][-1L] + at[k]
+  })
 
-  concatenate("forest_flat", "tree_start")
+  out[["forest_flat"]] <- unlist(flat, use.names = FALSE)
+  out[["tree_start"]] <- c(0L, unlist(starts, use.names = FALSE))
+
 
   if (!is_null(first[["mixture_flat"]])) {
-    concatenate("mixture_flat", "mixture_start")
+    flat <- lapply(fits, `[[`, "mixture_flat")
+    at <- utils::head(cumsum(c(0L, lengths(flat))), -1L)
+    starts <- lapply(seq_along(fits), function(k) {
+      fits[[k]][["mixture_start"]][-1L] + at[k]
+    })
+
+    out[["mixture_flat"]] <- unlist(flat, use.names = FALSE)
+    out[["mixture_start"]] <- c(0L, unlist(starts, use.names = FALSE))
   }
 
   out
@@ -676,6 +877,22 @@ chain_diagnostics <- function(object) {
   shape <- function(x) matrix(x[index], nrow = per, ncol = chains)
 
   scalars <- scalar_draws(object)
+
+  # The leaf scale is left out of the table, and only out of the table: it is
+  # still in `fit$sigma_mu` and still reaches `as_draws()`, so anyone who wants
+  # to diagnose it can.
+  #
+  # It mixes badly, and not for a reason this package can fix. On one dataset the
+  # same quantity comes out at rhat 1.12 with 22 effective draws in dbarts (chi
+  # hyperprior, slice sampler) and 1.16 with 17 in stochtree (inverse-gamma, an
+  # exact Gibbs draw), against 1.19 and 15 here, and the BART package avoids the
+  # question by never drawing it. Nothing beats an exact draw, so the sampler is
+  # not the cause in any of them. Reported beside the additive predictors at
+  # equal status it meant every fit on ordinary data showed a row above any
+  # threshold a reader would apply, for a hyperparameter nobody reports and whose
+  # disagreement between chains does not reach the fitted function -- on those
+  # same fits `eta` has rhat 1.00 and thousands of effective draws.
+  scalars <- scalars[!startsWith(names(scalars), "sigma_mu.")]
 
   rows <- lapply(names(scalars), function(nm) {
     x <- shape(scalars[[nm]])
@@ -868,7 +1085,7 @@ ess_from_split <- function(y) {
     t <- t + 2L
   }
 
-  extra <- if (utils::tail(kept, 2L)[1L] > 0) utils::tail(kept, 2L)[1L] else 0
+  extra <- max(utils::tail(kept, 2L)[1L], 0)
 
   # Force the paired sums to be non-increasing, which is what makes the
   # estimator conservative rather than merely unbiased. With too few kept lags
@@ -956,20 +1173,28 @@ warn_runaway_scale <- function(object, target) {
 
 # Names for the additive predictors, which are the columns of most outputs.
 predictor_names <- function(object) {
-  family <- object[["family"]][["family"]]
+  forest_labels(object[["family"]][["family"]], object[["family_opts"]],
+                object[["levels"]], object[["num_forest"]])
+}
 
+# Names of the additive predictors, in the order the engine builds them. The
+# first is always the main parameter -- the one a single-forest family would
+# have on its own -- and the rest follow in the order documented on
+# [bartisan-families]. These are the names that label the columns of most
+# outputs, and the names a per-forest argument may be keyed by.
+forest_labels <- function(family, opts, levels, n_report) {
   if (identical(family, "multinomial")) {
-    if (isTRUE(object[["family_opts"]][["symmetric"]])) {
-      return(object[["levels"]])
+    if (isTRUE(opts[["symmetric"]])) {
+      return(levels)
     }
 
-    return(object[["levels"]][-1L])
+    return(levels[-1L])
   }
 
   # One latent variable per non-reference category, named for the contrast it
   # carries.
   if (identical(family, "mnp")) {
-    return(sprintf("%s-%s", object[["levels"]][-1L], object[["levels"]][1L]))
+    return(sprintf("%s-%s", levels[-1L], levels[1L]))
   }
 
   if (identical(family, "location_scale")) {
@@ -980,11 +1205,21 @@ predictor_names <- function(object) {
     return(c("count", "zero"))
   }
 
-  if (identical(family, "custom") && object[["num_forest"]] > 1L) {
-    return(sprintf("eta%d", seq_len(object[["num_forest"]])))
+  if (identical(family, "custom") && n_report > 1L) {
+    return(sprintf("eta%d", seq_len(n_report)))
   }
 
   "eta"
+}
+
+# Whether the family's forests are components of the response distribution or
+# parts of one vector-valued parameter. The multinomial families are the second
+# kind: their forests are the levels of one categorical parameter and act
+# together rather than describing separate pieces of the distribution, so
+# splitting a setting across them says nothing a caller would mean. Every
+# per-forest argument therefore applies to all of their forests at once.
+joint_forests <- function(family) {
+  family %in% c("multinomial", "mnp")
 }
 
 # Rows the model cannot use. A missing predictor is handled by the splitting

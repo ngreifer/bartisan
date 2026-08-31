@@ -50,11 +50,16 @@ struct Hypers {
   // True during warmup only, while the bandwidth proposal is being tuned.
   bool adapt;
 
+  // `split_prior_` empty leaves the splitting proportions at the uniform prior
+  // and lets `update_s_` decide whether they are drawn. Non-empty fixes them at
+  // the caller's weights, which is what `split_prior` in `bartisan_control()`
+  // does, and then nothing draws them.
   Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
          double beta_, double alpha_, double alpha_scale_, double alpha_shape_1_,
          double alpha_shape_2_, bool update_sigma_mu_, bool update_s_,
          bool update_alpha_, bool soft_, double bandwidth_scale_,
-         bool update_bandwidth_, int bandwidth_every_, int gate_);
+         bool update_bandwidth_, int bandwidth_every_, int gate_,
+         const arma::vec& split_prior_ = arma::vec());
 
   // Draw a (group, variable) pair: the group from s, then the variable from
   // that group's column of group_probs. Grouping lets the dummy columns of one

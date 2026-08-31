@@ -12,7 +12,6 @@ bartisan(
   offset = NULL,
   subset = NULL,
   na.action = stats::na.pass,
-  chains = 1L,
   control = bartisan_control(),
   ...
 )
@@ -22,7 +21,23 @@ bartisan(
 predictors; the model finds interactions and nonlinearity on its own, so
 \code{y ~ .} is usually the right specification. Survival families take a
 \pkgfun{survival}{Surv} object on the left. A \code{(1 | group)} term adds a
-group-level random intercept, in the notation of \pkg{lme4}; see Details.}
+group-level random intercept, in the notation of \pkg{lme4}; see Details.
+
+For a family with more than one additive predictor this may be a \emph{list} of
+formulas, one per forest, to give each one its own predictors. The first is
+the model for the main parameter and carries the response; the rest need no
+response, and follow the order in \link{bartisan-families}, under "Several
+additive predictors", which also gives the name of each forest so the list
+can be named instead of ordered:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = location_scale())
+bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
+         family = location_scale())
+}\if{html}{\out{</div>}}
+
+One formula applies to every forest, which is the ordinary case. A predictor
+left out of one forest's formula is still in the data and is never split on
+by that forest.}
 
 \item{data}{a data frame containing the variables in \code{formula}.}
 
@@ -46,14 +61,6 @@ and \code{lm()} and \code{glm()} are not; see Details. Pass \link[stats:na.omit]
 any row with a missing value anywhere instead. Rows with a missing response,
 weight or offset are dropped either way, with a warning, since there is
 nothing to fit them to.}
-
-\item{chains}{how many independent chains to run. More than one requires the
-\pkg{future.apply} package and runs them under whatever backend the caller
-has planned with \pkgfun{future}{plan} -- \code{multisession}, \code{multicore}, a cluster,
-or mirai's \code{mirai_multisession}. The draws are pooled and
-\link[=bartisan]{split-R-hat} is reported in the \code{rhat} element. One
-\code{set.seed()} before the call reproduces the whole run whatever the backend,
-because each chain is given its own L'Ecuyer stream.}
 
 \item{control}{a list of sampler and prior settings from
 \code{\link[=bartisan_control]{bartisan_control()}}.}
@@ -130,7 +137,7 @@ the scale its family works on the same way.
    logical, or two levels, or numeric zeros and ones \tab \code{binomial()} \cr
    factor or character with more than two levels \tab \code{multinomial()} \cr
    two-column matrix of successes and failures \tab \code{binomial()} \cr
-   anything else \tab \code{gaussian()} \cr
+   anything else \tab \code{dpm()} \cr
 }
 
 
@@ -259,7 +266,7 @@ d$y <- rbinom(n, 1, plogis(3 * sin(pi * d$x1 * d$x2) - 1))
 
 fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = binomial(),
                control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_save = 50, verbose = FALSE))
+                                         num_draws = 50, verbose = FALSE))
 fit
 
 head(predict(fit, type = "response"))

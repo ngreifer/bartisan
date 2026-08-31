@@ -11,7 +11,7 @@
   bandwidth,
   num_forest,
   num_trees,
-  num_save,
+  num_draws,
   soft,
   gate,
   iterations
@@ -25,7 +25,7 @@
 
 \item{bandwidth}{a matrix of per-tree bandwidths.}
 
-\item{num_forest, num_trees, num_save}{dimensions of the stored chain.}
+\item{num_forest, num_trees, num_draws}{dimensions of the stored chain.}
 
 \item{soft}{whether the decision rules are soft.}
 

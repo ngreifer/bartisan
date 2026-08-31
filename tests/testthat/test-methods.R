@@ -5,7 +5,7 @@ test_that("variable_importance() reports usage and separates signal from noise",
 
   fit <- bartisan(y ~ ., d, family = stats::gaussian(),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_save = 200L, sparsity = TRUE))
+                                          num_draws = 200L, sparsity = TRUE))
 
   vi <- variable_importance(fit)
 

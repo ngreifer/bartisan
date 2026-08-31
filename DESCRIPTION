@@ -28,6 +28,7 @@ Imports:
     rlang,
     Matrix,
     Rcpp (>= 1.0.6),
+    parallel,
     reformulas,
     stats,
     utils
@@ -58,3 +59,4 @@ BugReports: https://github.com/ngreifer/bartisan/issues
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0
 Roxygen: list(markdown = TRUE)
+LazyData: true

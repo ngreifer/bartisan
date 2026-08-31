@@ -42,7 +42,7 @@ d$y <- 2 * d$x1 + rnorm(n, sd = 0.3)
 
 fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = gaussian(),
                control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_save = 50, verbose = FALSE))
+                                         num_draws = 50, verbose = FALSE))
 fit
 summary(fit)
 

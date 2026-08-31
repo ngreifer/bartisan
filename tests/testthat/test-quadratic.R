@@ -31,7 +31,7 @@ test_that("the closed forms reproduce the general path", {
     dd$y <- s$y
 
     ctrl <- function(exact) {
-      bartisan_control(num_trees = 10, num_burn = 0L, num_save = 20L,
+      bartisan_control(num_trees = 10, num_burn = 0L, num_draws = 20L,
                        gate = s$gate, augment = s$augment, verbose = FALSE,
                       exact_quadratic = exact)
     }
@@ -59,7 +59,7 @@ test_that("a family that is not quadratic is untouched by the shortcut", {
   d$y <- stats::rpois(150, exp(1 + d$x1))
 
   ctrl <- function(exact) {
-    bartisan_control(num_trees = 10, num_burn = 0L, num_save = 30L,
+    bartisan_control(num_trees = 10, num_burn = 0L, num_draws = 30L,
                      verbose = FALSE, exact_quadratic = exact)
   }
 
@@ -90,7 +90,7 @@ test_that("is_quadratic is declared per predictor, not per family", {
 
   fit <- bartisan(y ~ ., data = d, family = location_scale(),
                   control = bartisan_control(num_trees = 20, num_burn = 300,
-                                             num_save = 300, verbose = FALSE))
+                                             num_draws = 300, verbose = FALSE))
 
   eta <- predict(fit, type = "link")
   expect_gt(stats::cor(eta[, "mean"], mean_true), 0.9)

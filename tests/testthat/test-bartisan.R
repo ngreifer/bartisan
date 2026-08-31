@@ -170,6 +170,14 @@ test_that("degenerate inputs are rejected", {
   expect_error(bartisan(y ~ 1, data = d, control = quick_control()),
                "at least one predictor")
 
+  # A formula with no response is caught before the `.` expansion, which would
+  # otherwise turn `~ x1 + x2` into `. ~ x1 + x2` and report the invented
+  # response as a missing object.
+  expect_error(bartisan(~ x1 + x2, data = d, control = quick_control()),
+               "two-sided")
+  expect_error(bartisan(~ ., data = d, control = quick_control()),
+               "two-sided")
+
   d$constant <- 1
   expect_warning(bartisan(y ~ x1 + constant, data = d,
                           control = quick_control()),
@@ -191,6 +199,26 @@ test_that("degenerate inputs are rejected", {
   expect_error(bartisan(y ~ x1, data = d3, family = stats::Gamma("log"),
                        control = quick_control()),
                "strictly positive")
+})
+
+test_that("the runaway-scale check reads the reported forests only", {
+  d <- sim_x(seed = 21)
+  d$y <- stats::rnorm(nrow(d))
+
+  # `sigma_mu` is stored per reported forest; its prior target carries an entry
+  # for every forest the engine builds, which includes the depth-zero forests
+  # standing in for nuisance parameters. Comparing the two untrimmed warned
+  # about the length here and silently compared against the wrong target with
+  # one predictor.
+  fam <- custom_family(
+    function(y, eta, aux) stats::dnorm(y, eta[, 1], exp(aux[1]), log = TRUE),
+    num_predictors = 2, aux_names = "log_sigma")
+
+  expect_no_warning(
+    fit <- bartisan(y ~ x1 + x2, data = d, family = fam,
+                    control = quick_control(num_trees = c(4, 2))))
+
+  expect_identical(ncol(fit$sigma_mu), fit$num_forest)
 })
 
 test_that("print and summary report the fit", {

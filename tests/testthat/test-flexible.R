@@ -27,10 +27,10 @@ test_that("blocked evaluation reproduces the per-observation path", {
     # accept/reject and diverge for a reason that is not a defect.
     set.seed(5)
     plain <- bartisan(y ~ ., data = dd, family = responses[[nm]][["family"]],
-                      control = quick_control(num_burn = 0L, num_save = 20L))
+                      control = quick_control(num_burn = 0L, num_draws = 20L))
     set.seed(5)
     blocked <- bartisan(y ~ ., data = dd, family = responses[[nm]][["family"]],
-                        control = quick_control(num_burn = 0L, num_save = 20L,
+                        control = quick_control(num_burn = 0L, num_draws = 20L,
                                                 block_eval = TRUE))
 
     for (h in seq_along(plain[["eta"]])) {
@@ -326,7 +326,7 @@ test_that("a custom family with two predictors recovers both surfaces", {
                    num_predictors = 2L, start = c(0, -1),
                    name = "location-scale by hand"),
                  control = bartisan_control(num_trees = 20, num_burn = 300,
-                                            num_save = 300, verbose = FALSE))
+                                            num_draws = 300, verbose = FALSE))
 
   eta <- predict(fit, type = "link")
   expect_identical(colnames(eta), c("eta1", "eta2"))
@@ -390,21 +390,21 @@ test_that("a separable response is flagged rather than passed off silently", {
 
   expect_warning(bartisan(y ~ ., data = d, family = binomial(),
                          control = quick_control(num_burn = 200L,
-                                                 num_save = 200L)),
+                                                 num_draws = 200L)),
                  "close to separable")
 
   # Pinning the leaf scale is the documented remedy, and it silences the
   # warning because there is no longer a drawn scale to run away.
   expect_no_warning(bartisan(y ~ ., data = d, family = binomial(),
                             control = quick_control(num_burn = 200L,
-                                                    num_save = 200L,
+                                                    num_draws = 200L,
                                                     update_sigma_mu = FALSE)))
 
   # And it does not fire on a response the predictors do not separate.
   d$y <- stats::rbinom(200, 1, stats::plogis(3 * (d$x1 - 0.5)))
   expect_no_warning(bartisan(y ~ ., data = d, family = binomial(),
                             control = quick_control(num_burn = 200L,
-                                                    num_save = 200L)))
+                                                    num_draws = 200L)))
 })
 
 test_that("a fit holding R closures survives a round trip through a file", {
@@ -466,7 +466,7 @@ test_that("a nuisance parameter is declared, drawn, and reported as one", {
     aux_names = "log_sigma", aux_start = log(3), start = mean(d$y))
 
   fit <- bartisan(y ~ ., d, family = by_hand,
-                  control = bartisan_control(num_burn = 500, num_save = 1000,
+                  control = bartisan_control(num_burn = 500, num_draws = 1000,
                                              verbose = FALSE))
 
   # The interface keeps the two kinds apart: one additive predictor, one
@@ -490,7 +490,7 @@ test_that("a nuisance parameter is declared, drawn, and reported as one", {
   # agree on the spread as well, and on sigma / sqrt(2n) from theory.
   reference <- bartisan(y ~ ., d, family = gaussian(),
                         control = bartisan_control(num_burn = 500,
-                                                   num_save = 1000,
+                                                   num_draws = 1000,
                                                  verbose = FALSE))
   expect_equal(stats::sd(drawn), stats::sd(reference[["aux"]][, "sigma"]),
                tolerance = 0.25)
@@ -516,7 +516,7 @@ test_that("several nuisance parameters are kept in order and named", {
 
   fit <- bartisan(y ~ ., d, family = student,
                   control = bartisan_control(num_trees = 20, num_burn = 300,
-                                             num_save = 300, verbose = FALSE))
+                                             num_draws = 300, verbose = FALSE))
 
   expect_identical(colnames(fit[["aux"]]), c("log_sigma", "log_df"))
   expect_length(fit[["eta"]], 1L)

@@ -342,6 +342,47 @@
 #' `ordbeta()` fitted to a response with no boundary observations leaves its
 #' cutpoints with nothing to identify them.
 #'
+#' # Several additive predictors
+#'
+#' Most families model one parameter with one forest. Some model several, and
+#' then every argument that could mean something different for each of them may
+#' be given once, to apply to all, or one per forest: positionally, or keyed by
+#' the names below. This includes `formula`, so a forest can have predictors of
+#' its own; see [bartisan()].
+#'
+#' The first forest is always the main parameter, the one a single-forest family
+#' would have on its own. The order is:
+#'
+#' | Family | Forests, in order |
+#' | --- | --- |
+#' | `location_scale()` | `mean`, `log_sd` |
+#' | `zi_poisson()`, `zi_negbin()` | `count`, `zero` |
+#' | `custom_family(num_predictors = k)` | `eta1` ... `etak` |
+#' | `multinomial()` | one per level, or per non-reference level |
+#' | `mnp()` | one per non-reference level, named for its contrast |
+#' | everything else | `eta` |
+#'
+#' `mean` is the mean and `log_sd` is the logarithm of the standard deviation,
+#' which is the scale the forest works on. `count` is the linear predictor of the
+#' count component and `zero` that of the inflation component. A custom family's
+#' nuisance parameters are not on this list: they are carried as trailing forests
+#' pinned to a single leaf, and nothing about them is set per forest.
+#'
+#' So, for a location-scale model with a smaller scale forest and a restricted
+#' set of predictors for it:
+#'
+#' ```r
+#' bartisan(list(y ~ x1 + x2 + x3, log_sd = ~ x1), data = d,
+#'          family = location_scale(), num_trees = c(mean = 50, log_sd = 10))
+#' ```
+#'
+#' **The multinomial families are the exception.** Their forests are the levels of
+#' one categorical parameter and act together rather than describing separate
+#' components of the response distribution, so there is nothing a caller could
+#' mean by giving one level a different prior or a different set of predictors
+#' from another. Every argument applies to all of their forests at once, and more
+#' than one value is an error rather than a silent recycling.
+#'
 #' # Supplying a likelihood
 #'
 #' `custom_family()` takes the log density itself, as an R function, and fits the
@@ -608,9 +649,9 @@ ph <- function(num_bins = NULL, lambda_shape = 1, update_lambda = TRUE) {
 
   new_bartisan_family("ph", "log",
                       num_bins = if (is_null(num_bins)) NULL
-                                else as.integer(num_bins),
-                     lambda_shape = lambda_shape,
-                     update_lambda = update_lambda)
+                      else as.integer(num_bins),
+                      lambda_shape = lambda_shape,
+                      update_lambda = update_lambda)
 }
 
 #' @rdname bartisan-families
@@ -744,19 +785,19 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
 
   new_bartisan_family("custom", "identity", logdens = logdens,
                       num_predictors = num_predictors,
-                     start = rep(start, length.out = num_predictors),
-                     derivatives = derivatives,
-                     num_aux = num_aux,
-                     aux_names = aux_names,
-                     aux_start = rep(aux_start, length.out = max(num_aux, 1L)),
-                     name = name)
+                      start = rep(start, length.out = num_predictors),
+                      derivatives = derivatives,
+                      num_aux = num_aux,
+                      aux_names = aux_names,
+                      aux_start = rep(aux_start, length.out = max(num_aux, 1L)),
+                      name = name)
 }
 
 bartisan_family_names <- c("gaussian", "binomial", "poisson", "negbin", "Gamma",
                            "ordinal", "multinomial", "dpm",
-                          "weibull_aft", "loglogistic_aft", "lognormal_aft",
-                          "location_scale", "zi_poisson", "zi_negbin",
-                          "Beta", "ordbeta", "ph", "dpm_aft")
+                           "weibull_aft", "loglogistic_aft", "lognormal_aft",
+                           "location_scale", "zi_poisson", "zi_negbin",
+                           "Beta", "ordbeta", "ph", "dpm_aft")
 
 new_bartisan_family <- function(family, link, ...) {
   structure(c(list(family = family, link = link), list(...)),
@@ -1061,19 +1102,19 @@ compose_link <- function(custom_link, native) {
   # handled correctly and the only thing the warning does is emit one line per
   # rejected proposal, which on a default `Gamma()` fit is dozens of them.
   theta <- switch(native,
-    identity = function(eta) linkinv(eta),
-    log = function(eta) suppressWarnings(log(linkinv(eta))),
-    logit = function(eta) suppressWarnings(stats::qlogis(linkinv(eta))))
+                  identity = function(eta) linkinv(eta),
+                  log = function(eta) suppressWarnings(log(linkinv(eta))),
+                  logit = function(eta) suppressWarnings(stats::qlogis(linkinv(eta))))
 
   dtheta <- {
     if (is_null(mu_eta)) NULL
     else switch(native,
-      identity = function(eta) mu_eta(eta),
-      log = function(eta) mu_eta(eta) / linkinv(eta),
-      logit = function(eta) {
-        mu <- linkinv(eta)
-        mu_eta(eta) / (mu * (1 - mu))
-      })
+                identity = function(eta) mu_eta(eta),
+                log = function(eta) mu_eta(eta) / linkinv(eta),
+                logit = function(eta) {
+                  mu <- linkinv(eta)
+                  mu_eta(eta) / (mu * (1 - mu))
+                })
   }
 
   list(link_theta = theta, link_dtheta = dtheta)

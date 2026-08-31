@@ -430,6 +430,46 @@ whether it happens to in the sample: the two ask different questions, and
 cutpoints with nothing to identify them.
 }
 
+\section{Several additive predictors}{
+Most families model one parameter with one forest. Some model several, and
+then every argument that could mean something different for each of them may
+be given once, to apply to all, or one per forest: positionally, or keyed by
+the names below. This includes \code{formula}, so a forest can have predictors of
+its own; see \code{\link[=bartisan]{bartisan()}}.
+
+The first forest is always the main parameter, the one a single-forest family
+would have on its own. The order is:\tabular{ll}{
+   Family \tab Forests, in order \cr
+   \code{location_scale()} \tab \code{mean}, \code{log_sd} \cr
+   \code{zi_poisson()}, \code{zi_negbin()} \tab \code{count}, \code{zero} \cr
+   \code{custom_family(num_predictors = k)} \tab \code{eta1} ... \code{etak} \cr
+   \code{multinomial()} \tab one per level, or per non-reference level \cr
+   \code{mnp()} \tab one per non-reference level, named for its contrast \cr
+   everything else \tab \code{eta} \cr
+}
+
+
+\code{mean} is the mean and \code{log_sd} is the logarithm of the standard deviation,
+which is the scale the forest works on. \code{count} is the linear predictor of the
+count component and \code{zero} that of the inflation component. A custom family's
+nuisance parameters are not on this list: they are carried as trailing forests
+pinned to a single leaf, and nothing about them is set per forest.
+
+So, for a location-scale model with a smaller scale forest and a restricted
+set of predictors for it:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2 + x3, log_sd = ~ x1), data = d,
+         family = location_scale(), num_trees = c(mean = 50, log_sd = 10))
+}\if{html}{\out{</div>}}
+
+\strong{The multinomial families are the exception.} Their forests are the levels of
+one categorical parameter and act together rather than describing separate
+components of the response distribution, so there is nothing a caller could
+mean by giving one level a different prior or a different set of predictors
+from another. Every argument applies to all of their forests at once, and more
+than one value is an error rather than a silent recycling.
+}
+
 \section{Supplying a likelihood}{
 \code{custom_family()} takes the log density itself, as an R function, and fits the
 model that goes with it. Nothing else about the sampler changes: the

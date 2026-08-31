@@ -39,7 +39,7 @@ test_that("two categories are binary probit, exactly as the trace constraint say
                        "yes", "no"),
                 levels = c("no", "yes"))
 
-  chain <- quick_control(num_trees = 30L, num_burn = 300L, num_save = 300L)
+  chain <- quick_control(num_trees = 30L, num_burn = 300L, num_draws = 300L)
   probit <- bartisan(y ~ ., d, family = multinomial("probit"), control = chain)
   binary <- bartisan(y ~ ., d, family = stats::binomial("probit"),
                      control = chain)
@@ -67,7 +67,7 @@ test_that("the fit recovers the latent means and the category probabilities", {
 
   fit <- bartisan(y ~ ., d, family = multinomial("probit", reference = "ref"),
                   control = quick_control(num_trees = 50L, num_burn = 400L,
-                                          num_save = 400L))
+                                          num_draws = 400L))
 
   # One forest per non-reference category, named for the contrast it carries.
   expect_identical(fit[["num_forest"]], 2L)
@@ -89,7 +89,7 @@ test_that("the latent covariance respects the trace constraint and finds the cor
   d <- sim_x(n = 900, seed = 205)
   latent <- cbind(1.5 * sin(pi * d$x1), 1.4 * d$x2 - 0.7)
 
-  chain <- quick_control(num_trees = 50L, num_burn = 400L, num_save = 400L)
+  chain <- quick_control(num_trees = 50L, num_burn = 400L, num_draws = 400L)
   estimated <- vapply(c(-0.8, 0.8), function(rho) {
     sigma <- matrix(c(1, rho, rho, 1), 2L)
     d$y <- sim_mnp(latent, sigma, seed = 1205)
@@ -134,7 +134,7 @@ test_that("the reported likelihood is the simulated multinomial probit one", {
 
   fit <- bartisan(y ~ ., d, family = multinomial("probit", reference = "ref"),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_save = 200L))
+                                          num_draws = 200L))
 
   # Not the augmented Gaussian the sampler works with: a log probability, so
   # every term is negative and the total is on the scale a categorical
@@ -211,7 +211,7 @@ test_that("the categorical prediction types and the interop methods all work", {
 
   fit <- bartisan(y ~ ., d, family = multinomial("probit"),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_save = 200L))
+                                          num_draws = 200L))
 
   expect_s3_class(stats::predict(fit, type = "class"), "factor")
   expect_identical(dim(stats::predict(fit, type = "response")), c(300L, 3L))
@@ -240,12 +240,12 @@ test_that("a covariance is not something augment can be asked for", {
   d$y <- sim_mnp(latent, diag(2), seed = 1215)
 
   # And turning augmentation off changes nothing for it.
-  chain <- quick_control(num_trees = 20L, num_burn = 200L, num_save = 200L)
+  chain <- quick_control(num_trees = 20L, num_burn = 200L, num_draws = 200L)
   set.seed(6)
   on <- bartisan(y ~ ., d, family = multinomial("probit"), control = chain)
   set.seed(6)
   off <- bartisan(y ~ ., d, family = multinomial("probit"),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_save = 200L, augment = FALSE))
+                                          num_draws = 200L, augment = FALSE))
   expect_equal(on[["eta"]], off[["eta"]])
 })

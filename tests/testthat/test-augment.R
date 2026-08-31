@@ -113,7 +113,7 @@ test_that("augmentation targets the same posterior as the direct sampler", {
   d$y <- stats::rbinom(n, 1, stats::pnorm(truth))
 
   ctrl <- function(augment) {
-    bartisan_control(num_trees = 50, num_burn = 800, num_save = 800,
+    bartisan_control(num_trees = 50, num_burn = 800, num_draws = 800,
                      augment = augment, verbose = FALSE)
   }
 
@@ -254,7 +254,7 @@ test_that("the logit rewriting targets the same posterior", {
   d$y <- stats::rbinom(n, 1, stats::plogis(truth))
 
   ctrl <- function(a) {
-    bartisan_control(num_trees = 50, num_burn = 1000, num_save = 1000,
+    bartisan_control(num_trees = 50, num_burn = 1000, num_draws = 1000,
                      augment = a, verbose = FALSE)
   }
 
@@ -332,7 +332,7 @@ test_that("the ordinal probit augmentation targets the same posterior as the dir
   fit <- function(augment) {
     set.seed(5)
     bartisan(y ~ ., d, family = ordinal("probit"), gate = "hard",
-             num_trees = 20, num_burn = 400, num_save = 400, augment = augment)
+             num_trees = 20, num_burn = 400, num_draws = 400, augment = augment)
   }
 
   direct <- fit(FALSE)
@@ -403,7 +403,7 @@ test_that("the ordinal augmentation recovers known cutpoints", {
   d$y <- ordered(rowSums(outer(z, truth, ">")) + 1L)
 
   fit <- bartisan(y ~ ., d, family = ordinal("probit"), gate = "hard",
-                  num_trees = 20, num_burn = 400, num_save = 400,
+                  num_trees = 20, num_burn = 400, num_draws = 400,
                  augment = "ordinal")
 
   # The cutpoints are reported in the chart where the predictor has mean zero
@@ -459,7 +459,7 @@ test_that("the ordinal logit augmentation targets the same posterior as the dire
   fit <- function(augment) {
     set.seed(6)
     bartisan(y ~ ., d, family = ordinal("logit"), gate = "hard", num_trees = 20,
-             num_burn = 400, num_save = 400, augment = augment)
+             num_burn = 400, num_draws = 400, augment = augment)
   }
 
   direct <- fit(FALSE)
@@ -519,7 +519,7 @@ test_that("the ordinal logit augmentation recovers known cutpoints", {
   d$y <- ordered(rowSums(outer(lin + stats::rlogis(n), truth, ">")) + 1L)
 
   fit <- bartisan(y ~ ., d, family = ordinal("logit"), gate = "hard",
-                  num_trees = 20, num_burn = 400, num_save = 400,
+                  num_trees = 20, num_burn = 400, num_draws = 400,
                  augment = "ordinal")
 
   expect_equal(colMeans(fit[["aux"]]), truth - mean(lin), tolerance = 0.3,
@@ -591,7 +591,7 @@ test_that("the zero-inflated rewriting targets the same posterior", {
   truth <- exp(count_mean) * (1 - zero_prob)
 
   ctrl <- function(a) {
-    bartisan_control(num_trees = 50, num_burn = 800, num_save = 800,
+    bartisan_control(num_trees = 50, num_burn = 800, num_draws = 800,
                      augment = a, verbose = FALSE)
   }
 

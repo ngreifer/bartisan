@@ -33,8 +33,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // bartisan_predict
-List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat, const std::vector<int>& tree_start, const arma::mat& bandwidth, int num_forest, const std::vector<int>& num_trees, int num_save, bool soft, int gate, const std::vector<int>& iterations);
-RcppExport SEXP _bartisan_bartisan_predict(SEXP XSEXP, SEXP forest_flatSEXP, SEXP tree_startSEXP, SEXP bandwidthSEXP, SEXP num_forestSEXP, SEXP num_treesSEXP, SEXP num_saveSEXP, SEXP softSEXP, SEXP gateSEXP, SEXP iterationsSEXP) {
+List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat, const std::vector<int>& tree_start, const arma::mat& bandwidth, int num_forest, const std::vector<int>& num_trees, int num_draws, bool soft, int gate, const std::vector<int>& iterations);
+RcppExport SEXP _bartisan_bartisan_predict(SEXP XSEXP, SEXP forest_flatSEXP, SEXP tree_startSEXP, SEXP bandwidthSEXP, SEXP num_forestSEXP, SEXP num_treesSEXP, SEXP num_drawsSEXP, SEXP softSEXP, SEXP gateSEXP, SEXP iterationsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -44,11 +44,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type bandwidth(bandwidthSEXP);
     Rcpp::traits::input_parameter< int >::type num_forest(num_forestSEXP);
     Rcpp::traits::input_parameter< const std::vector<int>& >::type num_trees(num_treesSEXP);
-    Rcpp::traits::input_parameter< int >::type num_save(num_saveSEXP);
+    Rcpp::traits::input_parameter< int >::type num_draws(num_drawsSEXP);
     Rcpp::traits::input_parameter< bool >::type soft(softSEXP);
     Rcpp::traits::input_parameter< int >::type gate(gateSEXP);
     Rcpp::traits::input_parameter< const std::vector<int>& >::type iterations(iterationsSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_predict(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_save, soft, gate, iterations));
+    rcpp_result_gen = Rcpp::wrap(bartisan_predict(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations));
     return rcpp_result_gen;
 END_RCPP
 }

@@ -97,7 +97,7 @@ test_that("the standardized latent variable has the scale it claims", {
     d$y <- ordered(rowSums(outer(lp + errors[[lk]](n), cuts, ">")) + 1L)
 
     fit <- bartisan(y ~ x1 + x2, d, family = ordinal(lk), gate = "hard",
-                    num_trees = 30, num_burn = 300, num_save = 300)
+                    num_trees = 30, num_burn = 300, num_draws = 300)
 
     eta <- stats::predict(fit, newdata = d, type = "link", draws = TRUE)
     got <- stats::predict(fit, newdata = d, type = "stdlv", draws = TRUE)
@@ -139,7 +139,7 @@ test_that("the standardized latent variable matches WeightIt on scale", {
     d$y <- ordered(rowSums(outer(lp + err, c(-1, 0.5, 2), ">")) + 1L)
 
     fit <- bartisan(y ~ x1 + x2, d, family = ordinal(lk), gate = "hard",
-                    num_trees = 50, num_burn = 300, num_save = 300)
+                    num_trees = 50, num_burn = 300, num_draws = 300)
     wi <- WeightIt::ordinal_weightit(y ~ x1 + x2, data = d, link = lk)
 
     ours <- stats::predict(fit, type = "stdlv")
@@ -192,7 +192,7 @@ test_that("a binomial fit has a standardized latent variable too", {
                          stats::binomial(link)$linkinv(signal))
     fit <- bartisan(y ~ x1 + x2, d,
                     control = quick_control(num_trees = 20L, num_burn = 150L,
-                                            num_save = 150L),
+                                            num_draws = 150L),
                    family = stats::binomial(link))
 
     standardized <- stats::predict(fit, type = "stdlv")
@@ -232,7 +232,7 @@ test_that("a binomial and a two-category ordinal probit fit agree", {
 
   # Two ways of writing the same model. They are fitted by different samplers,
   # so they agree up to Monte Carlo error rather than exactly.
-  chain <- quick_control(num_trees = 20L, num_burn = 150L, num_save = 150L)
+  chain <- quick_control(num_trees = 20L, num_burn = 150L, num_draws = 150L)
   binary <- bartisan(y ~ x1 + x2, d, family = stats::binomial("probit"),
                      control = chain)
   ordinal_fit <- bartisan(ordered ~ x1 + x2, d, family = ordinal("probit"),
@@ -256,7 +256,7 @@ test_that("the complementary log-log error enters the two families with opposite
 
   fit <- bartisan(y ~ x1 + x2, d, family = stats::binomial("cloglog"),
                   control = quick_control(num_trees = 20L, num_burn = 150L,
-                                          num_save = 150L))
+                                          num_draws = 150L))
 
   # A binomial cloglog model says Y = 1 exactly when a smallest extreme value
   # variate falls below the index, so the latent is `eta - e` and the error it

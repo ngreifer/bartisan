@@ -2,6 +2,82 @@
 # only parallel axis this sampler has: a sweep conditions on the last one, so
 # there is nothing to split within a chain.
 
+test_that("more than one chain runs without future.apply, on the same streams", {
+  d <- sim_x(seed = 73)
+  d$y <- 2 * d$x1 + stats::rnorm(nrow(d))
+
+  run <- function(hide) {
+    set.seed(11)
+    if (!hide) {
+      return(bartisan(y ~ ., data = d, control = quick_control(chains = 3)))
+    }
+    installed <- rlang::is_installed
+    testthat::with_mocked_bindings(
+      bartisan(y ~ ., data = d, control = quick_control(chains = 3)),
+      is_installed = function(pkg, ...) {
+        if (identical(pkg, "future.apply")) FALSE else installed(pkg, ...)
+      },
+      .package = "rlang")
+  }
+
+  # Parallelism is how fast the chains are, not whether the model is fitted, so
+  # the package falls back to running them one after another.
+  expect_no_error(sequential <- run(TRUE))
+  expect_identical(sequential[["chains"]], 3L)
+
+  # And the two branches draw from the same streams, so a script does not change
+  # its answer depending on whether future.apply happens to be installed.
+  skip_if_not_installed("future.apply")
+  expect_equal(run(FALSE)[["eta"]][[1L]], sequential[["eta"]][[1L]])
+})
+
+test_that("running chains leaves the session generator alone", {
+  d <- sim_x(seed = 74)
+  d$y <- stats::rnorm(nrow(d))
+
+  set.seed(1)
+  before <- RNGkind()
+  bartisan(y ~ ., data = d, control = quick_control(chains = 2))
+
+  # The streams are L'Ecuyer, which the session did not ask for.
+  expect_identical(RNGkind(), before)
+})
+
+test_that("chains is a control setting and still reachable through the dots", {
+  d <- sim_x(seed = 71)
+  d$y <- stats::rnorm(nrow(d))
+
+  # It lives on `bartisan_control()` now.
+  expect_true("chains" %in% names(formals(bartisan_control)))
+  expect_false("chains" %in% names(formals(bartisan)))
+
+  # Both routes reach the same place, so the calls that passed it to
+  # `bartisan()` before the move still work.
+  a <- bartisan(y ~ ., data = d, control = quick_control(chains = 2))
+  b <- bartisan(y ~ ., data = d, chains = 2, control = quick_control())
+
+  expect_identical(a[["chains"]], 2L)
+  expect_identical(b[["chains"]], 2L)
+  expect_identical(a[["control"]][["chains"]], b[["control"]][["chains"]])
+})
+
+test_that("the leaf scale is not one of the diagnosed quantities", {
+  d <- sim_x(seed = 72)
+  d$y <- 2 * d$x1 + stats::rnorm(nrow(d))
+
+  fit <- bartisan(y ~ ., data = d, control = quick_control(chains = 2))
+
+  # It mixes badly in every BART implementation, including one that draws it
+  # exactly, and nothing reported depends on it, so it is out of the table. The
+  # draws stay on the fit.
+  expect_false(any(grepl("sigma_mu", fit[["rhat"]][["quantity"]])))
+
+  # Out of the table and only out of the table.
+  expect_true(is.matrix(fit[["sigma_mu"]]))
+  skip_if_not_installed("posterior")
+  expect_true("sigma_mu.eta" %in% posterior::variables(posterior::as_draws(fit)))
+})
+
 test_that("chains are pooled into one set of draws", {
   skip_if_not_installed("future.apply")
 
@@ -79,7 +155,7 @@ test_that("the diagnostics are reported as a table of the right shape", {
   expect_null(one[["rhat"]])
 
   fit <- bartisan(y ~ ., data = d, chains = 4,
-                  control = quick_control(num_burn = 200L, num_save = 200L))
+                  control = quick_control(num_burn = 200L, num_draws = 200L))
 
   diagnostics <- fit[["rhat"]]
   expect_s3_class(diagnostics, "data.frame")
@@ -200,18 +276,6 @@ test_that("the effective sample size recovers what theory says it should", {
   sticky <- matrix(replicate(4, ar1(2000, 0.95)), ncol = 4L)
   expect_true(is.finite(ess_tail(sticky)))
   expect_lt(ess_bulk(sticky), 8000 * 0.2)
-})
-
-test_that("more than one chain needs the parallel package installed", {
-  # The check is the message, since future.apply is installed here.
-  expect_error(
-    with_mocked_bindings(
-      bartisan(y ~ x1, data = data.frame(x1 = stats::runif(30),
-                                        y = stats::rnorm(30)),
-              chains = 2, control = quick_control()),
-      is_installed = function(...) FALSE,
-      .package = "rlang"),
-    "future.apply")
 })
 
 test_that("a quantity the sampler holds fixed reports NA rather than nonsense", {

@@ -172,7 +172,7 @@ test_that("a held-out log score prefers the informative model", {
   train <- d[1:140, ]
   test <- d[141:n, ]
 
-  ctrl <- bartisan_control(num_trees = 10, num_burn = 200, num_save = 200,
+  ctrl <- bartisan_control(num_trees = 10, num_burn = 200, num_draws = 200,
                            verbose = FALSE)
 
   informative <- bartisan(y ~ ., data = train, family = poisson(),
@@ -202,7 +202,7 @@ test_that("an undefined density warns rather than returning NaN silently", {
   fit <- suppressMessages(
     bartisan(y ~ ., d, family = stats::poisson("identity"),
              control = quick_control(num_trees = 20L, num_burn = 200L,
-                                     num_save = 200L)))
+                                     num_draws = 200L)))
 
   # In sample the predictor stays where the sampler kept it valid.
   expect_silent(in_sample <- predict(fit, type = "density"))

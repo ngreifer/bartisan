@@ -36,7 +36,7 @@ d$y <- 10 * d$x^3 + rt(n, 3)
 
 fit <- bartisan(y ~ x, data = d, family = dpm(),
                control = bartisan_control(num_trees = 20, num_burn = 100,
-                                         num_save = 100, verbose = FALSE))
+                                         num_draws = 100, verbose = FALSE))
 
 density <- error_density(fit)
 plot(density$at, density$mean, type = "l", xlab = "error", ylab = "density")

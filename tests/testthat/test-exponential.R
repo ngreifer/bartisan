@@ -89,7 +89,7 @@ test_that("the exponential shortcut reproduces the general path", {
     dd$y <- s$y
 
     ctrl <- function(exact) {
-      bartisan_control(num_trees = 10, num_burn = 0L, num_save = 1L,
+      bartisan_control(num_trees = 10, num_burn = 0L, num_draws = 1L,
                        gate = "hard", verbose = FALSE, exact_quadratic = exact,
                       augment = if (is.null(s$augment)) FALSE else s$augment)
     }
@@ -114,7 +114,7 @@ test_that("the exponential shortcut stands down for soft rules", {
   d$y <- stats::rpois(200, exp(1 + d$x1))
 
   ctrl <- function(exact) {
-    bartisan_control(num_trees = 10, num_burn = 0L, num_save = 20L,
+    bartisan_control(num_trees = 10, num_burn = 0L, num_draws = 20L,
                      verbose = FALSE, exact_quadratic = exact)
   }
 
@@ -167,7 +167,7 @@ test_that("the statically dispatched accumulators match the virtual ones", {
     dd$y <- s[[3L]]
 
     control <- function(generic) {
-      args <- c(list(num_trees = 10L, num_burn = 0L, num_save = 25L,
+      args <- c(list(num_trees = 10L, num_burn = 0L, num_draws = 25L,
                      verbose = FALSE, generic_accumulate = generic), s[[4L]])
       do.call(bartisan_control, args)
     }
@@ -296,7 +296,7 @@ test_that("the augmented negative binomial targets the same posterior", {
   d$y <- stats::rnbinom(n, mu = exp(truth), size = 2)
 
   ctrl <- function(augment) {
-    bartisan_control(num_trees = 50, num_burn = 1000, num_save = 1000,
+    bartisan_control(num_trees = 50, num_burn = 1000, num_draws = 1000,
                      gate = "hard", augment = augment, verbose = FALSE)
   }
 

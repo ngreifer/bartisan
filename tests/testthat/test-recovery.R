@@ -22,7 +22,7 @@ test_that("a flat likelihood reproduces the tree prior", {
   fit <- bartisan(y ~ ., data = d, family = gaussian(),
                   weights = rep(1e-10, n),
                  control = bartisan_control(num_trees = num_trees,
-                                            num_burn = 1000, num_save = 2000,
+                                            num_burn = 1000, num_draws = 2000,
                                            gate = "hard", sigma_mu = 0.4,
                                            update_sigma_mu = FALSE,
                                            update_s = FALSE,
@@ -57,7 +57,7 @@ test_that("a flat likelihood reproduces the leaf prior", {
   fit <- bartisan(y ~ ., data = d, family = gaussian(),
                   weights = rep(1e-10, n),
                  control = bartisan_control(num_trees = num_trees,
-                                            num_burn = 1000, num_save = 2000,
+                                            num_burn = 1000, num_draws = 2000,
                                            gate = "hard", sigma_mu = sigma_mu,
                                            update_sigma_mu = FALSE,
                                            update_s = FALSE,
@@ -83,7 +83,7 @@ test_that("nonlinear signal is recovered across families", {
   truth <- 2 * sin(pi * X[, 1] * X[, 2]) + 2 * (X[, 3] - 0.5)^2
   d <- as.data.frame(X)
 
-  ctrl <- bartisan_control(num_trees = 20, num_burn = 400, num_save = 400,
+  ctrl <- bartisan_control(num_trees = 20, num_burn = 400, num_draws = 400,
                            verbose = FALSE)
 
   d$y <- truth + stats::rnorm(n, sd = 0.3)
@@ -113,7 +113,7 @@ test_that("the residual scale is recovered for a Gaussian response", {
 
   fit <- bartisan(y ~ ., data = d, family = gaussian(),
                   control = bartisan_control(num_trees = 20, num_burn = 400,
-                                             num_save = 400, verbose = FALSE))
+                                             num_draws = 400, verbose = FALSE))
 
   expect_equal(mean(fit[["aux"]][, "sigma"]), 0.5, tolerance = 0.15)
 })
@@ -137,7 +137,7 @@ test_that("ordinal cutpoint spacing is recovered", {
 
   fit <- bartisan(y ~ ., data = d, family = ordinal(),
                   control = bartisan_control(num_trees = 20, num_burn = 500,
-                                             num_save = 500, verbose = FALSE))
+                                             num_draws = 500, verbose = FALSE))
 
   # Only the gaps between cutpoints are identified; the level is absorbed by
   # the intercept, which is why the first cutpoint is pinned at zero.
@@ -159,7 +159,7 @@ test_that("the beta precision and mean are recovered", {
 
   fit <- bartisan(y ~ ., data = d, family = Beta(),
                   control = bartisan_control(num_trees = 50, num_burn = 500,
-                                             num_save = 500, verbose = FALSE))
+                                             num_draws = 500, verbose = FALSE))
 
   expect_equal(mean(fit[["aux"]][, "phi"]), phi, tolerance = 0.2)
 
@@ -205,7 +205,7 @@ test_that("proportional hazards recovers the log hazard ratio and the baseline",
   # The predictors are named rather than taken with `.`, which would hand the
   # model the response's own columns.
   fit <- bartisan(cbind(time, status) ~ x1 + x2 + x3, data = d, family = ph(),
-                  control = bartisan_control(num_burn = 500, num_save = 500,
+                  control = bartisan_control(num_burn = 500, num_draws = 500,
                                              verbose = FALSE))
 
   # One hazard per bin, plus the rate its own prior is given.
@@ -283,7 +283,7 @@ test_that("the proportional hazards estimates do not depend on the bin count", {
   fit_with <- function(bins) {
     bartisan(cbind(time, status) ~ x1 + x2, data = d,
              family = ph(num_bins = bins),
-            control = bartisan_control(num_burn = 300, num_save = 300,
+            control = bartisan_control(num_burn = 300, num_draws = 300,
                                        verbose = FALSE))
   }
 
@@ -313,7 +313,7 @@ test_that("the survival scale is recovered under censoring", {
   fit <- bartisan(survival::Surv(time, status) ~ x1 + x2, data = d,
                   family = loglogistic_aft(),
                  control = bartisan_control(num_trees = 20, num_burn = 500,
-                                            num_save = 500, verbose = FALSE))
+                                            num_draws = 500, verbose = FALSE))
 
   expect_equal(mean(fit[["aux"]][, "sigma"]), 0.7, tolerance = 0.2)
 })
@@ -350,7 +350,7 @@ test_that("the augmented survival models target the same posterior", {
     dd$status <- as.numeric(time <= cut)
 
     ctrl <- function(augment) {
-      bartisan_control(num_trees = 50, num_burn = 1000, num_save = 1500,
+      bartisan_control(num_trees = 50, num_burn = 1000, num_draws = 1500,
                        augment = augment, verbose = FALSE)
     }
 
@@ -417,7 +417,7 @@ test_that("irrelevant predictors are used less than relevant ones", {
 
   fit <- bartisan(y ~ ., data = d,
                   control = bartisan_control(num_trees = 20, num_burn = 500,
-                                             num_save = 500, verbose = FALSE))
+                                             num_draws = 500, verbose = FALSE))
 
   used <- colMeans(fit[["counts"]][["eta"]])
 
@@ -463,7 +463,7 @@ test_that("a flat likelihood reproduces the whole prior distribution of tree siz
   fit <- bartisan(y ~ ., data = d, family = gaussian(),
                   weights = rep(1e-10, n),
                  control = bartisan_control(num_trees = 1, num_burn = 2000,
-                                            num_save = 20000, gate = "hard",
+                                            num_draws = 20000, gate = "hard",
                                            sigma_mu = 0.4,
                                            update_sigma_mu = FALSE,
                                            update_s = FALSE,
@@ -515,7 +515,7 @@ test_that("the two multinomial codings put the same prior on the log odds", {
   flat <- function(family) {
     bartisan(y ~ ., data = d, family = family, weights = rep(1e-10, n),
              control = bartisan_control(num_trees = 20, num_burn = 300,
-                                        num_save = 1500, gate = "hard",
+                                        num_draws = 1500, gate = "hard",
                                       update_sigma_mu = FALSE,
                                       update_s = FALSE, update_alpha = FALSE,
                                       sigma_mu_ramp = 0, verbose = FALSE))
@@ -569,7 +569,7 @@ test_that("dpm_aft recovers a bimodal error distribution under censoring", {
   d$status <- as.numeric(event_time <= cens)
 
   fit <- bartisan(cbind(time, status) ~ x1 + x2 + x3, d, family = dpm_aft(),
-                  control = bartisan_control(num_burn = 500, num_save = 500,
+                  control = bartisan_control(num_burn = 500, num_draws = 500,
                                              verbose = FALSE))
 
   # The predictor is the conditional mean of log T, as it is for `dpm()`, so it
@@ -621,7 +621,7 @@ test_that("dpm_aft costs nothing when a single normal error is right", {
 
   held <- d[1:200, ]
   train <- d[201:n, ]
-  ctrl <- bartisan_control(num_burn = 400, num_save = 400, verbose = FALSE)
+  ctrl <- bartisan_control(num_burn = 400, num_draws = 400, verbose = FALSE)
 
   score <- function(family) {
     fit <- bartisan(cbind(time, status) ~ x1 + x2, train, family = family,

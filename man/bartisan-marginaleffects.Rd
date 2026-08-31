@@ -217,7 +217,7 @@ d$y <- 2 * sin(pi * d$x1) - d$x2 + rnorm(n)
 
 fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
                control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_save = 50))
+                                         num_draws = 50))
 
 marginaleffects::avg_predictions(fit)
 marginaleffects::avg_comparisons(fit)

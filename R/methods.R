@@ -41,7 +41,7 @@ forest_label <- function(x) {
 #'
 #' fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = gaussian(),
 #'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_save = 50, verbose = FALSE))
+#'                                          num_draws = 50, verbose = FALSE))
 #' fit
 #' summary(fit)
 #'
@@ -171,7 +171,7 @@ summary.bartisan_fit <- function(object, level = 0.95, ...) {
               num_forest = object[["num_forest"]],
               num_trees = object[["num_trees"]],
               soft = object[["soft"]],
-              num_save = nrow(object[["sigma_mu"]]),
+              num_draws = nrow(object[["sigma_mu"]]),
               level = level,
               usage = usage,
               aux = aux,
@@ -196,7 +196,7 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
   cli_cat("Observations: {x$n}")
   rules <- if (x[["soft"]]) "soft" else "hard"
   cli_cat("Structure: {forest_label(x)}, {rules} decision rules")
-  cli_cat("Draws: {x$num_save}")
+  cli_cat("Draws: {x$num_draws}")
 
   if (!is_null(x[["random"]])) {
     cli_cat("Random intercepts: {ranef_label(x)}")

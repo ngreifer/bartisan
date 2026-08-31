@@ -28,6 +28,8 @@
 #' | how much a predictor moves the outcome | `marginaleffects::avg_comparisons()` |
 #' | a partial dependence plot | `marginaleffects::plot_predictions()` |
 #' | which predictors the forest uses | [variable_importance()] |
+#' | to tell the prior which predictors matter | `split_prior` in [bartisan_control()] |
+#' | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [bartisan-families] |
 #' | to check it converged | `fit$rhat`, then [as_draws()][bartisan-interop] with \pkg{bayesplot} |
 #' | to check it fits | [pp_check()][bartisan-interop], [residuals()][bartisan-interop] |
 #' | to compare two models | [loo()][bartisan-interop] |

@@ -126,7 +126,7 @@ test_that("`Beta()` is the interior of `ordbeta()` and says so about boundaries"
     set.seed(9)
     bartisan(y ~ ., d, family = Beta(link),
              control = quick_control(num_trees = 5L, num_burn = 10L,
-                                     num_save = 10L))
+                                     num_draws = 10L))
   }
   expect_false(identical(fit_link("logit")[["eta"]],
                          fit_link("probit")[["eta"]]))
@@ -147,7 +147,7 @@ test_that("`Beta()` is the interior of `ordbeta()` and says so about boundaries"
   # A fixed precision is respected exactly and reported as a constant.
   fit <- bartisan(y ~ ., d, family = Beta(phi = 7),
                   control = quick_control(num_trees = 5L, num_burn = 10L,
-                                          num_save = 10L))
+                                          num_draws = 10L))
   expect_true(all(fit[["aux"]][, "phi"] == 7))
 
   expect_error(Beta(phi = -1))
@@ -193,7 +193,7 @@ test_that("the gamma family overrules any link but the log one", {
 test_that("a composed link whose inverse has a restricted range is reported", {
   d <- sim_x(n = 120, seed = 71)
   d$y <- stats::rgamma(nrow(d), 4, 4 / exp(1 + d$x1))
-  ctrl <- quick_control(num_trees = 5L, num_burn = 20L, num_save = 20L)
+  ctrl <- quick_control(num_trees = 5L, num_burn = 20L, num_draws = 20L)
 
   # The gamma is no longer an example of this, because its link is replaced
   # rather than composed; the Poisson identity link is the remaining case.

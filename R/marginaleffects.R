@@ -176,7 +176,7 @@
 #'
 #' fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
 #'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_save = 50))
+#'                                          num_draws = 50))
 #'
 #' marginaleffects::avg_predictions(fit)
 #' marginaleffects::avg_comparisons(fit)
@@ -252,8 +252,16 @@ num_draws <- function(object) {
 # "class" is a factor, and "density" needs the outcome, which a counterfactual
 # grid does not have.
 me_type <- function(object, type) {
+  # A binomial fit is deliberately not in this list. Its two probabilities sum to
+  # one, so reporting both gives every estimand twice, as mirror images, where
+  # `glm()` gives one row; and because a binary outcome carries no `levels`, the
+  # two rows were labelled by the outcome's own values rather than by anything
+  # meaningful. Reporting the probability of the second level, which is what
+  # `predict(type = "response")` returns, matches `glm()` and keeps
+  # `hypothesis = ~pairwise` usable across subgroups. `type = "prob"` still asks
+  # for both columns.
   categorical <- object[["family"]][["family"]] %in%
-    c("binomial", "ordinal", "multinomial", "mnp")
+    c("ordinal", "multinomial", "mnp")
 
   if (is_null(type) || identical(type, "response")) {
     return(if (categorical) "prob" else "response")

@@ -104,7 +104,7 @@ test_that("zero-inflated recovery: both components are found", {
 
   fit <- bartisan(y ~ ., data = d, family = zi_poisson(),
                   control = bartisan_control(num_trees = 20, num_burn = 400,
-                                             num_save = 400, verbose = FALSE))
+                                             num_draws = 400, verbose = FALSE))
 
   link <- predict(fit, type = "link")
   expect_gt(stats::cor(link[, "count"], log_mu), 0.85)
@@ -141,7 +141,7 @@ test_that("ordered beta recovery: cutpoints and precision are found", {
 
   fit <- bartisan(y ~ ., data = d, family = ordbeta(),
                   control = bartisan_control(num_trees = 20, num_burn = 400,
-                                             num_save = 400, verbose = FALSE))
+                                             num_draws = 400, verbose = FALSE))
 
   expect_gt(stats::cor(predict(fit, type = "link"), eta), 0.9)
   expect_equal(mean(fit[["aux"]][, "cut1"]), cut1, tolerance = 0.35)

@@ -8,10 +8,12 @@ bartisan_control(
   num_trees = NULL,
   gate = "smoothstep",
   sparsity = TRUE,
+  split_prior = NULL,
   k = 2,
   bandwidth = 0.1,
+  chains = 1L,
   num_burn = 500L,
-  num_save = 500L,
+  num_draws = 500L,
   num_thin = 1L,
   augment = TRUE,
   x_transform = "quantile",
@@ -74,6 +76,19 @@ This argument sets \code{update_s}, \code{update_alpha}, \code{alpha_shape_1} an
 \code{alpha_shape_2} together; supplying any of those directly overrides it. Read
 the trade-off in Details before turning it off or up.}
 
+\item{split_prior}{relative prior weight on each predictor, for when you
+expect some to matter more than others. A named numeric vector, keyed by the
+names the predictors have in the formula; every predictor not named gets a
+weight of 1. The prior probability of splitting on a predictor is its weight
+divided by the total, so on a three-predictor model
+\code{split_prior = c(x1 = 3, x3 = 0.5)} gives \code{x1} a probability of \code{3 / 4.5},
+\code{x2} \code{1 / 4.5} and \code{x3} \code{0.5 / 4.5}. Weights must be finite and not
+than negative, and naming a predictor the model does not have is an error
+rather than silently ignored. A weight of zero is allowed and means the
+predictor is never split on: it stays in the model frame and out of every
+tree. The default, \code{NULL}, weights every predictor equally.
+Setting this overrides \code{sparsity}; see Details.}
+
 \item{k}{controls the leaf prior. The prior standard deviation of a forest is
 \code{3 / k} times the natural scale of its additive predictor, so larger \code{k}
 shrinks the fit harder towards the intercept-only model.}
@@ -82,11 +97,30 @@ shrinks the fit harder towards the intercept-only model.}
 scale of the transformed predictors, which lie in \verb{[0, 1]}. Smaller values
 approach hard rules. Ignored for \code{gate = "hard"}.}
 
-\item{num_burn}{number of warmup iterations to discard.}
+\item{chains}{how many independent chains to run. The draws are pooled and
+\link[=bartisan]{split-R-hat} is reported in the \code{rhat} element. With the
+\pkg{future.apply} package installed the chains run in parallel under
+whatever backend the caller has planned with \pkgfun{future}{plan} --
+\code{multisession}, \code{multicore}, a cluster, or \pkg{mirai}'s
+\code{mirai_multisession}; without it they run one after another, which is slower
+and otherwise identical. One \code{set.seed()} before the call reproduces the
+whole run either way, because each chain is given its own L'Ecuyer stream.}
 
-\item{num_save}{number of draws to keep.}
+\item{num_burn}{number of warmup iterations to discard. Warmup is where the
+trees grow into the data and the hyperparameters find their scale, so raising
+it buys convergence rather than precision: increase it when \code{rhat} says the
+chains have not agreed.}
 
-\item{num_thin}{keep one draw in every \code{num_thin} after warmup.}
+\item{num_draws}{number of draws to keep. These are what every estimate and
+interval is computed from, so raising it narrows Monte Carlo error and does
+nothing about convergence: increase it when \code{ess_bulk} or \code{ess_tail} is small
+relative to what the reported quantity needs.}
+
+\item{num_thin}{keep one draw in every \code{num_thin} after warmup. Thinning
+discards draws to make the kept ones less correlated, which costs
+information and is worth it only to hold down the memory a long chain would
+otherwise take: for a given amount of computing, more draws beat fewer
+less-correlated ones.}
 
 \item{augment}{\emph{Advanced.} Rewrite the likelihood as the margin of a Gaussian
 one, or of a Poisson one, which makes the target a shape the sampler can
@@ -274,10 +308,113 @@ and the four chains agreed to within 9\%. The variable-selection state mixes
 slowly: a predictor whose splitting proportion has gone small is rarely
 proposed, so it is hard to get back in.
 
-So: keep the default when prediction is the goal or the predictors are many
-and mostly irrelevant, and use \code{sparsity = FALSE} when a contrast or a partial
-effect on a particular predictor is the estimand. Run several chains either
-way, because one chain can look far more settled than the posterior is.
+\strong{What each setting is worth, measured.} The trade is real in both
+directions, and the strength barely matters in either: what matters is whether
+the prior is on at all.
+
+For prediction, any sparsity beats none. Scored against the true regression
+function on held-out data, Friedman with five relevant predictors:\tabular{lllll}{
+   predictors \tab \code{"none"} \tab \code{"weak"} \tab \code{"moderate"} \tab \code{"strong"} \cr
+   10 \tab 0.446 \tab 0.385 \tab 0.400 \tab 0.374 \cr
+   50 \tab 0.465 \tab 0.346 \tab 0.372 \tab 0.362 \cr
+}
+
+
+For a contrast on a predictor whose signal is weak, any sparsity is actively
+harmful, and not only in the atom-at-zero sense above. A binary treatment
+among 20 predictors, continuous outcome, residual standard deviation 1,
+n = 800, five replicates, with \code{covers} the share of replicates whose 95\%
+interval contains the truth:\tabular{lllll}{
+   true effect \tab setting \tab estimate \tab atom \tab covers \cr
+   0.05 \tab \code{FALSE} \tab 0.031 \tab 0.08 \tab 0.80 \cr
+   0.05 \tab \code{TRUE} \tab 0.000 \tab 0.89 \tab 0.40 \cr
+   0.10 \tab \code{FALSE} \tab 0.131 \tab 0.03 \tab 1.00 \cr
+   0.10 \tab \code{TRUE} \tab 0.029 \tab 0.69 \tab 1.00 \cr
+   0.20 \tab \code{FALSE} \tab 0.161 \tab 0.05 \tab 1.00 \cr
+   0.20 \tab \code{TRUE} \tab 0.094 \tab 0.55 \tab 0.60 \cr
+   0.50 \tab \code{FALSE} \tab 0.475 \tab 0.00 \tab 1.00 \cr
+   0.50 \tab \code{TRUE} \tab 0.474 \tab 0.00 \tab 1.00 \cr
+}
+
+
+The prior attenuates a weak effect by half or more and its interval covers
+well below its nominal rate. A strong effect is untouched, because the prior
+never has reason to drop a predictor that is earning its splits, so this is a
+weak-signal failure rather than a general one.
+
+So the setting is close to a switch, and which way to throw it follows from
+the estimand rather than from the data:
+\itemize{
+\item \strong{Prediction, or variable selection}: keep the default. \code{"weak"} is already
+worth most of what \code{"strong"} is worth, so reach past \code{TRUE} only when the
+predictors are many and you expect nearly all of them to be irrelevant.
+\item \strong{A contrast, a partial effect, or a treatment effect}: \code{sparsity = FALSE},
+or \code{split_prior}, which fixes the weights and so cannot drop anything. Use
+\code{split_prior} in preference when the other predictors are numerous enough
+that weighting them all alike is wasteful.
+}
+
+Run several chains either way, because one chain can look far more settled
+than the posterior is.
+}
+
+\section{Arguments that vary by forest}{
+A family with several additive predictors has one forest per predictor, each
+with its own prior. Every argument that could mean something different for one
+of them may be given once, to apply to all, or one per forest -- positionally,
+or keyed by the forest names listed in \link{bartisan-families}. A forest that a
+named argument does not mention keeps that argument's default rather than
+borrowing the value chosen for another forest.
+
+That covers \code{num_trees}, \code{k}, \code{sigma_mu}, \code{sparsity}, \code{split_prior},
+\code{bandwidth}, \code{gamma}, \code{beta}, the four \code{alpha} arguments, and the three
+\code{update_} flags for the leaf scale, the splitting proportions and the
+bandwidth. \code{formula} works the same way; see \code{\link[=bartisan]{bartisan()}}.
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# A scale forest with less capacity than the mean forest, and no sparsity
+# prior on it.
+bartisan_control(num_trees = c(mean = 50, log_sd = 10),
+                 sparsity = c(mean = TRUE, log_sd = FALSE))
+}\if{html}{\out{</div>}}
+
+The multinomial families are the exception, for the reason given in
+\link{bartisan-families}: their forests act as one, so these arguments take a
+single value.
+}
+
+\section{Telling the prior what you already know}{
+\code{sparsity} and \code{split_prior} answer different questions and cannot both be in
+force, so giving \code{split_prior} turns \code{sparsity} off. \code{sparsity} is for when you
+do not know which predictors matter and want the prior to work it out from the
+data; the splitting proportions are drawn, and a predictor can be dropped from
+the forest entirely. \code{split_prior} is for when you do know something and want
+it honored; the proportions are held at the weights you gave and nothing draws
+over them.
+
+A weight is a statement about relative attention, not about effect size. It
+changes how often the sampler proposes a split on a predictor, which is a
+prior, so the data can still overrule it: a predictor given a large weight
+whose splits do not improve the fit will collect rules that go nowhere, and
+one given a small weight that genuinely matters will still be found, more
+slowly. On pure noise, where nothing in the data prefers any predictor, the
+realized share of splitting rules matches the weights closely, which is the
+cleanest way to see what the argument does and the only case where the weights
+fully determine the outcome.
+
+Because the weights are fixed, \code{split_prior} does not accumulate the
+atom-at-zero mass described above. A predictor can still miss out on a rule in
+some draw of a small forest, but that is sampling variation at a fixed
+probability rather than a prior state that persists, and unlike the sparsity
+prior it does go away as trees are added: on four noise predictors with
+\code{split_prior = c(x1 = 8)}, \code{prop_used} runs from 0.89 to 1 at 20 trees and is
+1 for every predictor at 50 and at 200. The sparsity prior on the same data at
+50 trees left the most heavily weighted predictor out of 41\% of draws. So
+\code{split_prior} is a reasonable middle course when a particular contrast is the
+estimand but the predictors are still too many to treat alike.
+
+One weight per term in the formula, not per column of the design matrix, so a
+factor is named once and its levels share the weight, the way they already
+share one entry of the sparsity prior.
 }
 
 \section{Gaussian rewritings}{

@@ -147,7 +147,7 @@
 #'
 #' fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(),
 #'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_save = 50, verbose = FALSE))
+#'                                          num_draws = 50, verbose = FALSE))
 #'
 #' # Replicate outcomes, one per draw per observation
 #' yrep <- rstantools::posterior_predict(fit)
@@ -424,9 +424,9 @@ simulate.bartisan_fit <- function(object, nsim = 1, seed = NULL, ...) {
     set.seed(seed)
   }
 
-  num_save <- nrow(object[["sigma_mu"]])
-  iterations <- sample.int(num_save, size = nsim,
-                           replace = nsim > num_save)
+  num_draws <- nrow(object[["sigma_mu"]])
+  iterations <- sample.int(num_draws, size = nsim,
+                           replace = nsim > num_draws)
 
   draws <- posterior_predict.bartisan_fit(object, iterations = iterations, ...)
 
@@ -581,8 +581,8 @@ pp_check.bartisan_fit <- function(object, type = "dens_overlay", ndraws = 10, ..
                     predictor instead."))
   }
 
-  num_save <- nrow(object[["sigma_mu"]])
-  iterations <- sample.int(num_save, size = min(ndraws, num_save))
+  num_draws <- nrow(object[["sigma_mu"]])
+  iterations <- sample.int(num_draws, size = min(ndraws, num_draws))
 
   yrep <- posterior_predict.bartisan_fit(object, iterations = iterations)
 

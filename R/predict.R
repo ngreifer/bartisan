@@ -153,7 +153,7 @@
 #'
 #' fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(),
 #'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_save = 50, verbose = FALSE))
+#'                                          num_draws = 50, verbose = FALSE))
 #'
 #' head(predict(fit))
 #'
@@ -377,8 +377,8 @@ category_mean <- function(object, probs, values, draws) {
 predict_parts <- function(object, newdata = NULL, offset = NULL,
                           iterations = NULL) {
 
-  num_save <- nrow(object[["sigma_mu"]])
-  iterations <- resolve_iterations(iterations, num_save)
+  num_draws <- nrow(object[["sigma_mu"]])
+  iterations <- resolve_iterations(iterations, num_draws)
 
   eta <- {
     if (is_null(newdata)) {
@@ -397,18 +397,18 @@ predict_parts <- function(object, newdata = NULL, offset = NULL,
   list(eta = eta, aux = aux, iterations = iterations)
 }
 
-resolve_iterations <- function(iterations, num_save) {
+resolve_iterations <- function(iterations, num_draws) {
   arg::when_not_null(
     iterations,
     arg::arg_whole_numeric
   )
 
   if (is_null(iterations)) {
-    return(seq_len(num_save))
+    return(seq_len(num_draws))
   }
 
-  if (any(iterations < 1L) || any(iterations > num_save)) {
-    arg::err("{.arg iterations} must lie between 1 and {num_save}, the number of
+  if (any(iterations < 1L) || any(iterations > num_draws)) {
+    arg::err("{.arg iterations} must lie between 1 and {num_draws}, the number of
               stored draws")
   }
 
@@ -467,7 +467,7 @@ predict_eta <- function(object, newdata, offset, iterations) {
                           bandwidth = object[["bandwidth"]],
                           num_forest = object[["num_forest"]],
                           num_trees = object[["num_trees"]],
-                          num_save = nrow(object[["sigma_mu"]]),
+                          num_draws = nrow(object[["sigma_mu"]]),
                           soft = object[["soft"]],
                           gate = gate_code(object[["gate"]] %or% "logistic"),
                           iterations = as.integer(iterations) - 1L)
@@ -1181,7 +1181,7 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #'
 #' fit <- bartisan(y ~ x, data = d, family = dpm(),
 #'                control = bartisan_control(num_trees = 20, num_burn = 100,
-#'                                          num_save = 100, verbose = FALSE))
+#'                                          num_draws = 100, verbose = FALSE))
 #'
 #' density <- error_density(fit)
 #' plot(density$at, density$mean, type = "l", xlab = "error", ylab = "density")

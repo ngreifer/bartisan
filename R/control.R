@@ -51,15 +51,45 @@
 #'   This argument sets `update_s`, `update_alpha`, `alpha_shape_1` and
 #'   `alpha_shape_2` together; supplying any of those directly overrides it. Read
 #'   the trade-off in Details before turning it off or up.
+#' @param split_prior relative prior weight on each predictor, for when you
+#'   expect some to matter more than others. A named numeric vector, keyed by the
+#'   names the predictors have in the formula; every predictor not named gets a
+#'   weight of 1. The prior probability of splitting on a predictor is its weight
+#'   divided by the total, so on a three-predictor model
+#'   `split_prior = c(x1 = 3, x3 = 0.5)` gives `x1` a probability of `3 / 4.5`,
+#'   `x2` `1 / 4.5` and `x3` `0.5 / 4.5`. Weights must be finite and not
+#'   than negative, and naming a predictor the model does not have is an error
+#'   rather than silently ignored. A weight of zero is allowed and means the
+#'   predictor is never split on: it stays in the model frame and out of every
+#'   tree. The default, `NULL`, weights every predictor equally.
+#'   Setting this overrides `sparsity`; see Details.
 #' @param k controls the leaf prior. The prior standard deviation of a forest is
 #'   `3 / k` times the natural scale of its additive predictor, so larger `k`
 #'   shrinks the fit harder towards the intercept-only model.
 #' @param bandwidth prior mean of the gate bandwidth of a soft rule, on the
 #'   scale of the transformed predictors, which lie in `[0, 1]`. Smaller values
 #'   approach hard rules. Ignored for `gate = "hard"`.
-#' @param num_burn number of warmup iterations to discard.
-#' @param num_save number of draws to keep.
-#' @param num_thin keep one draw in every `num_thin` after warmup.
+#' @param chains how many independent chains to run. The draws are pooled and
+#'   [split-R-hat][bartisan()] is reported in the `rhat` element. With the
+#'   \pkg{future.apply} package installed the chains run in parallel under
+#'   whatever backend the caller has planned with \pkgfun{future}{plan} --
+#'   `multisession`, `multicore`, a cluster, or \pkg{mirai}'s
+#'   `mirai_multisession`; without it they run one after another, which is slower
+#'   and otherwise identical. One `set.seed()` before the call reproduces the
+#'   whole run either way, because each chain is given its own L'Ecuyer stream.
+#' @param num_burn number of warmup iterations to discard. Warmup is where the
+#'   trees grow into the data and the hyperparameters find their scale, so raising
+#'   it buys convergence rather than precision: increase it when `rhat` says the
+#'   chains have not agreed.
+#' @param num_draws number of draws to keep. These are what every estimate and
+#'   interval is computed from, so raising it narrows Monte Carlo error and does
+#'   nothing about convergence: increase it when `ess_bulk` or `ess_tail` is small
+#'   relative to what the reported quantity needs.
+#' @param num_thin keep one draw in every `num_thin` after warmup. Thinning
+#'   discards draws to make the kept ones less correlated, which costs
+#'   information and is worth it only to hold down the memory a long chain would
+#'   otherwise take: for a given amount of computing, more draws beat fewer
+#'   less-correlated ones.
 #' @param x_transform how numeric predictors are mapped to `[0, 1]`.
 #'   `"quantile"` uses each predictor's empirical distribution function, which
 #'   makes the cutpoint prior invariant to monotone reparameterization;
@@ -214,10 +244,113 @@
 #' slowly: a predictor whose splitting proportion has gone small is rarely
 #' proposed, so it is hard to get back in.
 #'
-#' So: keep the default when prediction is the goal or the predictors are many
-#' and mostly irrelevant, and use `sparsity = FALSE` when a contrast or a partial
-#' effect on a particular predictor is the estimand. Run several chains either
-#' way, because one chain can look far more settled than the posterior is.
+#' **What each setting is worth, measured.** The trade is real in both
+#' directions, and the strength barely matters in either: what matters is whether
+#' the prior is on at all.
+#'
+#' For prediction, any sparsity beats none. Scored against the true regression
+#' function on held-out data, Friedman with five relevant predictors:
+#'
+#' | predictors | `"none"` | `"weak"` | `"moderate"` | `"strong"` |
+#' | --- | --- | --- | --- | --- |
+#' | 10 | 0.446 | 0.385 | 0.400 | 0.374 |
+#' | 50 | 0.465 | 0.346 | 0.372 | 0.362 |
+#'
+#' For a contrast on a predictor whose signal is weak, any sparsity is actively
+#' harmful, and not only in the atom-at-zero sense above. A binary treatment
+#' among 20 predictors, continuous outcome, residual standard deviation 1,
+#' n = 800, five replicates, with `covers` the share of replicates whose 95%
+#' interval contains the truth:
+#'
+#' | true effect | setting | estimate | atom | covers |
+#' | --- | --- | --- | --- | --- |
+#' | 0.05 | `FALSE` | 0.031 | 0.08 | 0.80 |
+#' | 0.05 | `TRUE` | 0.000 | 0.89 | 0.40 |
+#' | 0.10 | `FALSE` | 0.131 | 0.03 | 1.00 |
+#' | 0.10 | `TRUE` | 0.029 | 0.69 | 1.00 |
+#' | 0.20 | `FALSE` | 0.161 | 0.05 | 1.00 |
+#' | 0.20 | `TRUE` | 0.094 | 0.55 | 0.60 |
+#' | 0.50 | `FALSE` | 0.475 | 0.00 | 1.00 |
+#' | 0.50 | `TRUE` | 0.474 | 0.00 | 1.00 |
+#'
+#' The prior attenuates a weak effect by half or more and its interval covers
+#' well below its nominal rate. A strong effect is untouched, because the prior
+#' never has reason to drop a predictor that is earning its splits, so this is a
+#' weak-signal failure rather than a general one.
+#'
+#' So the setting is close to a switch, and which way to throw it follows from
+#' the estimand rather than from the data:
+#'
+#' - **Prediction, or variable selection**: keep the default. `"weak"` is already
+#'   worth most of what `"strong"` is worth, so reach past `TRUE` only when the
+#'   predictors are many and you expect nearly all of them to be irrelevant.
+#' - **A contrast, a partial effect, or a treatment effect**: `sparsity = FALSE`,
+#'   or `split_prior`, which fixes the weights and so cannot drop anything. Use
+#'   `split_prior` in preference when the other predictors are numerous enough
+#'   that weighting them all alike is wasteful.
+#'
+#' Run several chains either way, because one chain can look far more settled
+#' than the posterior is.
+#'
+#' # Arguments that vary by forest
+#'
+#' A family with several additive predictors has one forest per predictor, each
+#' with its own prior. Every argument that could mean something different for one
+#' of them may be given once, to apply to all, or one per forest -- positionally,
+#' or keyed by the forest names listed in [bartisan-families]. A forest that a
+#' named argument does not mention keeps that argument's default rather than
+#' borrowing the value chosen for another forest.
+#'
+#' That covers `num_trees`, `k`, `sigma_mu`, `sparsity`, `split_prior`,
+#' `bandwidth`, `gamma`, `beta`, the four `alpha` arguments, and the three
+#' `update_` flags for the leaf scale, the splitting proportions and the
+#' bandwidth. `formula` works the same way; see [bartisan()].
+#'
+#' ```r
+#' # A scale forest with less capacity than the mean forest, and no sparsity
+#' # prior on it.
+#' bartisan_control(num_trees = c(mean = 50, log_sd = 10),
+#'                  sparsity = c(mean = TRUE, log_sd = FALSE))
+#' ```
+#'
+#' The multinomial families are the exception, for the reason given in
+#' [bartisan-families]: their forests act as one, so these arguments take a
+#' single value.
+#'
+#' # Telling the prior what you already know
+#'
+#' `sparsity` and `split_prior` answer different questions and cannot both be in
+#' force, so giving `split_prior` turns `sparsity` off. `sparsity` is for when you
+#' do not know which predictors matter and want the prior to work it out from the
+#' data; the splitting proportions are drawn, and a predictor can be dropped from
+#' the forest entirely. `split_prior` is for when you do know something and want
+#' it honored; the proportions are held at the weights you gave and nothing draws
+#' over them.
+#'
+#' A weight is a statement about relative attention, not about effect size. It
+#' changes how often the sampler proposes a split on a predictor, which is a
+#' prior, so the data can still overrule it: a predictor given a large weight
+#' whose splits do not improve the fit will collect rules that go nowhere, and
+#' one given a small weight that genuinely matters will still be found, more
+#' slowly. On pure noise, where nothing in the data prefers any predictor, the
+#' realized share of splitting rules matches the weights closely, which is the
+#' cleanest way to see what the argument does and the only case where the weights
+#' fully determine the outcome.
+#'
+#' Because the weights are fixed, `split_prior` does not accumulate the
+#' atom-at-zero mass described above. A predictor can still miss out on a rule in
+#' some draw of a small forest, but that is sampling variation at a fixed
+#' probability rather than a prior state that persists, and unlike the sparsity
+#' prior it does go away as trees are added: on four noise predictors with
+#' `split_prior = c(x1 = 8)`, `prop_used` runs from 0.89 to 1 at 20 trees and is
+#' 1 for every predictor at 50 and at 200. The sparsity prior on the same data at
+#' 50 trees left the most heavily weighted predictor out of 41% of draws. So
+#' `split_prior` is a reasonable middle course when a particular contrast is the
+#' estimand but the predictors are still too many to treat alike.
+#'
+#' One weight per term in the formula, not per column of the design matrix, so a
+#' factor is named once and its levels share the weight, the way they already
+#' share one entry of the sparsity prior.
 #'
 #' # Gaussian rewritings
 #'
@@ -429,24 +562,26 @@
 #' @export
 bartisan_control <- function(num_trees = NULL,
                              gate = "smoothstep",
-                            sparsity = TRUE,
-                            k = 2,
-                            bandwidth = 0.1,
-                            num_burn = 500L, num_save = 500L, num_thin = 1L,
-                            augment = TRUE,
-                            x_transform = "quantile",
-                            gamma = 0.95, beta = 2,
-                            sigma_mu = NULL, update_sigma_mu = TRUE,
-                            sigma_mu_ramp = 0.25,
-                            update_tau = TRUE,
-                            update_bandwidth = TRUE, bandwidth_every = 1L,
-                            alpha = NULL, alpha_scale = NULL,
-                            alpha_shape_1 = NULL, alpha_shape_2 = NULL,
-                            update_s = NULL, update_alpha = NULL,
-                            verbose = FALSE, num_print = 100L,
-                            block_eval = FALSE,
-                            exact_quadratic = TRUE,
-                            generic_accumulate = FALSE) {
+                             sparsity = TRUE,
+                             split_prior = NULL,
+                             k = 2,
+                             bandwidth = 0.1,
+                             chains = 1L,
+                             num_burn = 500L, num_draws = 500L, num_thin = 1L,
+                             augment = TRUE,
+                             x_transform = "quantile",
+                             gamma = 0.95, beta = 2,
+                             sigma_mu = NULL, update_sigma_mu = TRUE,
+                             sigma_mu_ramp = 0.25,
+                             update_tau = TRUE,
+                             update_bandwidth = TRUE, bandwidth_every = 1L,
+                             alpha = NULL, alpha_scale = NULL,
+                             alpha_shape_1 = NULL, alpha_shape_2 = NULL,
+                             update_s = NULL, update_alpha = NULL,
+                             verbose = FALSE, num_print = 100L,
+                             block_eval = FALSE,
+                             exact_quadratic = TRUE,
+                             generic_accumulate = FALSE) {
 
   # Record what the caller actually supplied, before any of the arguments below
   # are normalized. `bartisan()` uses this to rebuild the control list when extra
@@ -454,7 +589,7 @@ bartisan_control <- function(num_trees = NULL,
   supplied <- mget(as.character(setdiff(names(match.call())[-1], "")),
                    environment())
 
-  for (nm in c("num_burn", "num_save", "num_thin", "num_print",
+  for (nm in c("num_burn", "num_draws", "num_thin", "num_print",
                "bandwidth_every")) {
     value <- get(nm)
     arg::arg_whole_number(value, .arg = nm)
@@ -473,38 +608,49 @@ bartisan_control <- function(num_trees = NULL,
   )
 
   arg::arg_gte(bandwidth_every, 1)
-  arg::arg_gte(num_save, 1)
+  arg::arg_gte(num_draws, 1)
   arg::arg_gte(num_thin, 1)
 
-  for (nm in c("update_bandwidth", "update_sigma_mu", "update_tau",
-               "verbose", "block_eval",
+  arg::arg_whole_number(chains)
+  arg::arg_gte(chains, 1)
+
+  for (nm in c("update_tau", "verbose", "block_eval",
                "exact_quadratic", "generic_accumulate")) {
     value <- get(nm)
     arg::arg_flag(value, .arg = nm)
   }
 
+  # The per-forest settings are checked elementwise, since each may be one value
+  # or one per forest, named or not. Whether the length is right for the family
+  # is `bartisan()`'s business, because the forests are not known until the
+  # family is; all that can be checked here is that the values are usable.
+  for (nm in c("update_bandwidth", "update_sigma_mu")) {
+    for (value in as.list(get(nm))) {
+      arg::arg_flag(value, .arg = nm)
+    }
+  }
+
   for (nm in c("update_s", "update_alpha")) {
-    arg::when_not_null(get(nm), arg::arg_flag, .arg = nm)
+    for (value in as.list(get(nm))) {
+      arg::arg_flag(value, .arg = nm)
+    }
   }
 
   for (nm in c("bandwidth", "k", "gamma", "beta")) {
-    value <- get(nm)
-    arg::arg_number(value, .arg = nm)
-    arg::arg_gt(value, 0, .arg = nm)
+    for (value in as.list(get(nm))) {
+      arg::arg_number(value, .arg = nm)
+      arg::arg_gt(value, 0, .arg = nm)
+    }
   }
 
   for (nm in c("alpha", "alpha_scale", "alpha_shape_1", "alpha_shape_2")) {
-    arg::when_not_null(
-      get(nm),
-      arg::arg_and(
-        arg::arg_number,
-        arg::arg_gt(0)
-      ),
-      .arg = nm
-    )
+    for (value in as.list(get(nm))) {
+      arg::arg_number(value, .arg = nm)
+      arg::arg_gte(value, 0, .arg = nm)
+    }
   }
 
-  arg::arg_lte(gamma, 1)
+  for (value in as.list(gamma)) arg::arg_lte(value, 1, .arg = "gamma")
   arg::arg_number(sigma_mu_ramp)
   arg::arg_between(sigma_mu_ramp, c(0, 1))
 
@@ -525,17 +671,42 @@ bartisan_control <- function(num_trees = NULL,
                                  "hard", "step"))
   soft <- !gate %in% c("hard", "step")
 
+  split_prior <- resolve_split_prior(split_prior)
+
+  # A named splitting prior replaces the Dirichlet one rather than seeding it.
+  # The two say different things: `sparsity` says the caller does not know which
+  # predictors matter and wants the prior to find out, and `split_prior` says
+  # they do know and want it honored. Drawing `s` from a Dirichlet centered on
+  # the supplied weights would answer neither question, so the weights are held
+  # fixed and `sparsity` is ignored. Said out loud only when the caller asked
+  # for both, since `sparsity = TRUE` is the default and is not a request.
+  if (!is_null(split_prior)) {
+    if (!missing(sparsity) && !isFALSE(sparsity)) {
+      arg::wrn(c("{.arg split_prior} overrides {.arg sparsity}, which is
+                  ignored.",
+                 i = "{.arg split_prior} fixes the splitting probabilities;
+                    {.arg sparsity} draws them."))
+    }
+    sparsity <- FALSE
+  }
+
   sparse <- resolve_sparsity(sparsity)
   augment <- resolve_augment(augment, soft)
 
-  out <- list(num_trees = if (is_null(num_trees)) NULL else as.integer(num_trees),
+  out <- list(num_trees = if (is_null(num_trees)) NULL else {
+                # Names survive the coercion: they are the forests each count is
+                # for, and `as.integer()` drops them.
+                stats::setNames(as.integer(num_trees), names(num_trees))
+              },
               gate = gate,
               soft = soft,
               sparsity = sparsity,
+              split_prior = split_prior,
               k = k,
               bandwidth = bandwidth,
+              chains = as.integer(chains),
               num_burn = as.integer(num_burn),
-              num_save = as.integer(num_save),
+              num_draws = as.integer(num_draws),
               num_thin = as.integer(num_thin),
               augment = augment,
               x_transform = x_transform,
@@ -577,29 +748,79 @@ bartisan_control <- function(num_trees = NULL,
 # concentration: Beta(1, 1) is uniform on the transformed concentration and
 # selects gently, Beta(0.5, 1) is Linero's default, and Beta(0.5, 3) pushes
 # harder towards a few predictors.
+# Vectorized over forests: one value applies everywhere, and several are one per
+# forest, positionally or keyed by the forest names. `bartisan()` does the
+# spreading, because the forests are not known until the family is, so all this
+# does is carry the names through and resolve each element on its own.
 resolve_sparsity <- function(sparsity) {
-  arg::arg_or(sparsity,
-              arg::arg_flag,
-              arg::arg_string)
-
-  level <- {
-    if (isTRUE(sparsity)) "moderate"
-    else if (isFALSE(sparsity)) "none"
-    else arg::match_arg(sparsity, c("none", "weak", "moderate", "strong"),
-                        .arg = "sparsity")
+  if (length(sparsity) == 0L) {
+    arg::err("{.arg sparsity} must not be empty")
   }
 
-  shapes <- switch(level,
-                   none = c(0.5, 1),
-                   weak = c(1, 1),
-                   moderate = c(0.5, 1),
-                   strong = c(0.5, 3))
+  levels <- vapply(seq_along(sparsity), function(i) {
+    one <- sparsity[[i]]
 
-  list(update_s = !identical(level, "none"),
-       update_alpha = !identical(level, "none"),
-       alpha = 1,
-       alpha_shape_1 = shapes[1L],
-       alpha_shape_2 = shapes[2L])
+    arg::arg_or(one, arg::arg_flag, arg::arg_string, .arg = "sparsity")
+
+    if (isTRUE(one)) "moderate"
+    else if (isFALSE(one)) "none"
+    else arg::match_arg(one, c("none", "weak", "moderate", "strong"),
+                        .arg = "sparsity")
+  }, character(1L))
+
+  shapes <- vapply(levels, function(lv) {
+    switch(lv, none = c(0.5, 1), weak = c(1, 1), moderate = c(0.5, 1),
+           strong = c(0.5, 3))
+  }, numeric(2L))
+
+  keep <- function(x) {
+    names(x) <- names(sparsity)
+    x
+  }
+
+  list(update_s = keep(levels != "none"),
+       update_alpha = keep(levels != "none"),
+       alpha = keep(rep.int(1, length(levels))),
+       alpha_shape_1 = keep(shapes[1L, ]),
+       alpha_shape_2 = keep(shapes[2L, ]))
+}
+
+# Relative prior weights on the predictors, keyed by the name each has in the
+# formula. Kept as the caller wrote them here, because the predictors are not
+# known until the model frame is built; `bartisan()` matches the names against
+# the terms and normalizes. What is checked here is everything that can be
+# checked without the data: that it is a named numeric vector of finite positive
+# numbers with no duplicate and no empty name.
+resolve_split_prior <- function(split_prior) {
+  if (is_null(split_prior)) {
+    return(NULL)
+  }
+
+  arg::arg_numeric(split_prior)
+
+  nm <- names(split_prior)
+
+  if (is_null(nm) || any(!nzchar(nm))) {
+    arg::err("{.arg split_prior} must be named, with one name per predictor
+              given a weight")
+  }
+
+  if (anyDuplicated(nm)) {
+    dup <- unique(nm[duplicated(nm)])
+    arg::err("{.arg split_prior} names each predictor once; {.val {dup}} {?is/are} repeated")
+  }
+
+  if (anyNA(split_prior) || any(!is.finite(split_prior)) ||
+      any(split_prior < 0)) {
+    arg::err("all values in {.arg split_prior} must be finite and non-negative")
+  }
+
+  # Zero is allowed and means what it says: the predictor is never split on, so
+  # it stays in the model frame and out of every tree. Whether that leaves
+  # anything to split on depends on the predictors the model has, which are not
+  # known here; `resolve_split_weights()` checks it.
+
+  split_prior
 }
 
 # The engine family names whose likelihood should be rewritten as the margin of a

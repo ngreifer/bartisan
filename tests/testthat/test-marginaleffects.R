@@ -88,7 +88,7 @@ test_that("the estimands run, and their intervals come from the posterior", {
   d$y <- 2 * d$x1 - d$x2 + (d$z == "b") + stats::rnorm(n, sd = 0.5)
 
   fit <- bartisan(y ~ x1 + x2 + z, d, num_trees = 20L, num_burn = 200L,
-                  num_save = 200L)
+                  num_draws = 200L)
 
   p <- marginaleffects::avg_predictions(fit)
   expect_identical(nrow(p), 1L)
@@ -167,7 +167,7 @@ test_that("slopes are stable under a linear predictor transform and not under th
 
   slope_at <- function(transform, eps) {
     fit <- bartisan(y ~ x1 + x2, d, x_transform = transform, num_trees = 20L,
-                    num_burn = 200L, num_save = 200L)
+                    num_burn = 200L, num_draws = 200L)
     marginaleffects::avg_slopes(fit, variables = "x2", eps = eps)$estimate
   }
 
@@ -198,7 +198,7 @@ test_that("the ordinal mean and standardized latent scales are reachable", {
   # anything.
   fit <- bartisan(y ~ x1 + x2, d, family = ordinal(),
                   control = quick_control(num_trees = 20L, num_burn = 100L,
-                                          num_save = 100L))
+                                          num_draws = 100L))
 
   # Both are one number per observation, so they come back ungrouped and with
   # the same draws predict() would give.
@@ -239,7 +239,7 @@ test_that("a binomial fit reaches the standardized latent scale too", {
 
   fit <- bartisan(y ~ x1 + x2, d,
                   control = quick_control(num_trees = 20L, num_burn = 100L,
-                                          num_save = 100L),
+                                          num_draws = 100L),
                  family = stats::binomial())
 
   out <- marginaleffects::get_predict(fit, type = "stdlv")
@@ -303,7 +303,12 @@ test_that("the estimand functions work for a survival response", {
   # data.table, which cannot hold one, so every estimand failed for every
   # survival family -- whatever `type` was asked for -- with an error naming
   # data.table rather than the cause.
-  set.seed(43)
+  # The interval checks below are coverage assertions at a single seed, so they
+  # depend on how hard the prior shrinks this particular sample. Seed 43 sat on
+  # the edge: the truth fell 0.004 inside the accelerated failure time interval,
+  # against 0.03 to 0.10 at other seeds, so any change to the sampler flipped it.
+  # Seed 3 has room on both families.
+  set.seed(3)
   n <- 500
   d <- data.frame(x2 = stats::runif(n), trt = stats::rbinom(n, 1L, 0.5))
   event_time <- -log(stats::runif(n)) / exp(0.8 * d$trt)
@@ -311,7 +316,7 @@ test_that("the estimand functions work for a survival response", {
   d$time <- pmin(event_time, cens)
   d$status <- as.numeric(event_time <= cens)
 
-  ctrl <- bartisan_control(num_burn = 300, num_save = 300, verbose = FALSE)
+  ctrl <- bartisan_control(num_burn = 300, num_draws = 300, verbose = FALSE)
 
   for (family in list(ph(), weibull_aft())) {
     fit <- bartisan(cbind(time, status) ~ trt + x2, d, family = family,
@@ -361,7 +366,7 @@ test_that("predictions() on newdata returns one row per row of newdata", {
   d$y <- d$x1 + as.numeric(d$g) + stats::rnorm(nrow(d), sd = 0.3)
 
   fit <- bartisan(y ~ ., d, family = stats::gaussian(),
-                  control = quick_control(num_save = 60L))
+                  control = quick_control(num_draws = 60L))
 
   for (k in c(1L, 2L, 3L, 10L)) {
     got <- marginaleffects::predictions(fit, newdata = utils::head(d, k))

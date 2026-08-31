@@ -44,7 +44,7 @@ test_that("each gate has the smoothness it claims", {
     # to and is held fixed; this test is about the gate's shape, not the prior.
     fit <- bartisan(y ~ ., d, control = quick_control(
       gate = gate, bandwidth = 0.05, update_bandwidth = FALSE, num_trees = 1L,
-      num_burn = 100L, num_save = 100L, update_sigma_mu = FALSE))
+      num_burn = 100L, num_draws = 100L, update_sigma_mu = FALSE))
     p <- stats::predict(fit, type = "link")
     # Largest jump in the second difference, scaled by the curve's own range, so
     # a kink shows up as a large value and a smooth join as a small one.
@@ -77,9 +77,13 @@ test_that("the smoothstep gate saturates and the logistic one does not", {
     set.seed(6)
     # The family is incidental here -- this is about the gate -- so it is named
     # rather than inferred, which for a numeric response would be `dpm()`.
+    # The leaf scale is held fixed. This fit is one tree on a clean step, which
+    # is close to separable by design, and a drawn scale climbs far above its
+    # prior median there and trips `warn_runaway_scale()`. The subject here is
+    # the shape of the gate, so the warning is noise rather than a finding.
     fit <- bartisan(y ~ ., d, family = gaussian(), control = quick_control(
       gate = g, bandwidth = band, update_bandwidth = FALSE, num_trees = 1,
-      num_burn = 200, num_save = 200))
+      update_sigma_mu = FALSE, num_burn = 200, num_draws = 200))
     stats::predict(fit, type = "link")
   }
 
@@ -158,10 +162,10 @@ test_that("bandwidth_every skips the bandwidth move without disturbing anything 
   # Every sweep, and never: the bandwidth moves in the first and not the second.
   set.seed(14)
   every <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
-                                                      num_save = 100))
+                                                      num_draws = 100))
   set.seed(14)
   none <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
-                                                     num_save = 100,
+                                                     num_draws = 100,
                                                     update_bandwidth = FALSE))
 
   expect_gt(stats::sd(as.vector(every[["bandwidth"]])), 0)
@@ -171,14 +175,14 @@ test_that("bandwidth_every skips the bandwidth move without disturbing anything 
   # exactly as switching the move off does -- the two are the same sampler.
   set.seed(14)
   never <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
-                                                      num_save = 100,
+                                                      num_draws = 100,
                                                      bandwidth_every = 10000L))
   expect_equal(never[["eta"]], none[["eta"]])
 
   # An intermediate stride is a valid sampler that still moves the bandwidth.
   set.seed(14)
   half <- bartisan(y ~ ., d, control = quick_control(num_burn = 100,
-                                                     num_save = 100,
+                                                     num_draws = 100,
                                                     bandwidth_every = 4L))
   expect_gt(stats::sd(as.vector(half[["bandwidth"]])), 0)
   expect_predictor_invariant(half, d)

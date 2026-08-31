@@ -186,7 +186,7 @@ test_that("`type = \"survival\"` gives the survival curve for every survival fam
 
   for (family in families) {
     fit <- bartisan(cbind(time, status) ~ x1 + x2, d, family = family,
-                    control = bartisan_control(num_burn = 300, num_save = 300,
+                    control = bartisan_control(num_burn = 300, num_draws = 300,
                                                verbose = FALSE))
     label <- paste(family[["family"]], family[["link"]])
 
@@ -215,7 +215,7 @@ test_that("`type = \"survival\"` refuses what it cannot answer", {
   set.seed(192)
   d$time <- stats::rexp(nrow(d), 0.5)
   d$event <- stats::rbinom(nrow(d), 1L, 0.8)
-  ctrl <- quick_control(num_trees = 5L, num_burn = 10L, num_save = 10L)
+  ctrl <- quick_control(num_trees = 5L, num_burn = 10L, num_draws = 10L)
 
   fit <- bartisan(cbind(time, event) ~ x1 + x2, d, family = ph(), control = ctrl)
 

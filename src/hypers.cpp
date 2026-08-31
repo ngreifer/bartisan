@@ -8,11 +8,21 @@ Hypers::Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
                double alpha_shape_1_, double alpha_shape_2_,
                bool update_sigma_mu_, bool update_s_, bool update_alpha_,
                bool soft_, double bandwidth_scale_, bool update_bandwidth_,
-               int bandwidth_every_, int gate_) {
+               int bandwidth_every_, int gate_,
+               const arma::vec& split_prior_) {
 
   group_probs_ = group_probs;
   num_groups_ = static_cast<int>(group_probs_.n_cols);
-  s_ = arma::ones<arma::vec>(num_groups_) / static_cast<double>(num_groups_);
+
+  bool fixed_s = split_prior_.n_elem == static_cast<arma::uword>(num_groups_);
+
+  if (fixed_s) {
+    s_ = split_prior_ / arma::accu(split_prior_);
+  }
+  else {
+    s_ = arma::ones<arma::vec>(num_groups_) /
+      static_cast<double>(num_groups_);
+  }
   log_s_ = arma::log(s_);
 
   gamma = gamma_;
@@ -39,6 +49,15 @@ Hypers::Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
 
   // A single group carries no sparsity information, so leave s at its prior.
   if (num_groups_ < 2) {
+    update_s = false;
+    update_alpha = false;
+  }
+
+  // Weights the caller supplied are a statement about the predictors, not a
+  // starting point for one, so nothing draws over them. `bartisan_control()`
+  // already turns the sparsity prior off when `split_prior` is given; this makes
+  // the guarantee hold whatever reaches the constructor.
+  if (fixed_s) {
     update_s = false;
     update_alpha = false;
   }

@@ -69,7 +69,7 @@ test_that("the posterior predictive sampler agrees with the log density", {
   set.seed(1205)
   d$y <- signal + 2 * (rgamma(nrow(d), 1.5, 1.5) - 1)
   fit <- bartisan(y ~ x1 + x2, data = d, family = dpm(),
-                  control = quick_control(num_burn = 300L, num_save = 300L))
+                  control = quick_control(num_burn = 300L, num_draws = 300L))
 
   expect_gt(abs(mean(fit[["aux"]][, "center"])), 0.05)
 
@@ -235,7 +235,7 @@ test_that("the predictive draws have the mean the response scale reports", {
   d$y <- rpois(nrow(d), exp(0.5 + 2 * d$x1))
 
   fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(),
-                  control = quick_control(num_save = 400L))
+                  control = quick_control(num_draws = 400L))
 
   set.seed(1252)
   drawn <- rstantools::posterior_predict(fit)
@@ -400,7 +400,7 @@ test_that("loo and waic run on the pointwise likelihood", {
   d$y <- rpois(nrow(d), exp(0.5 + 2 * d$x1))
 
   fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(), chains = 2L,
-                  control = quick_control(num_save = 100L))
+                  control = quick_control(num_draws = 100L))
 
   # The chain structure is what loo needs to judge the efficiency of the draws.
   expect_identical(chain_ids(fit), rep(1:2, each = 100L))
@@ -429,7 +429,7 @@ test_that("the Bayesian R-squared is a posterior of a ratio", {
   set.seed(1331)
   d$y <- 3 * d$x1 - 2 * d$x2 + rnorm(nrow(d), sd = 0.5)
 
-  fit <- bartisan(y ~ x1 + x2, data = d, control = quick_control(num_save = 60L))
+  fit <- bartisan(y ~ x1 + x2, data = d, control = quick_control(num_draws = 60L))
 
   draws <- performance::r2_posterior(fit)[["R2_Bayes"]]
   expect_length(draws, 60L)
@@ -486,7 +486,7 @@ test_that("as_draws hands the scalar parameters over with their chain structure"
   # Named, because `aux.sigma` below is the Gaussian family's nuisance parameter
   # and the numeric default is now the mixture.
   fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(), chains = 3L,
-                  control = quick_control(num_save = 40L))
+                  control = quick_control(num_draws = 40L))
 
   draws <- posterior::as_draws(fit)
   expect_s3_class(draws, "draws_array")
@@ -554,7 +554,7 @@ test_that("as_draws() carries the additive predictor, which is what mixing is ab
   d$y <- d$x1 + stats::rnorm(nrow(d), sd = 0.3)
 
   fit <- bartisan(y ~ ., d, family = stats::gaussian(), chains = 2L,
-                  control = quick_control(num_save = 60L))
+                  control = quick_control(num_draws = 60L))
 
   vars <- posterior::variables(posterior::as_draws(fit))
 

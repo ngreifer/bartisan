@@ -157,7 +157,7 @@ test_that("informative missingness is recovered", {
 
   fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
                   control = bartisan_control(num_trees = 20, num_burn = 300,
-                                             num_save = 300, verbose = FALSE))
+                                             num_draws = 300, verbose = FALSE))
 
   p <- predict(fit)
   expect_equal(mean(p[gone]), 2, tolerance = 0.15)
@@ -205,7 +205,7 @@ test_that("a flat likelihood still reproduces the tree prior with missing data",
   fit <- bartisan(y ~ ., data = d, family = gaussian(),
                   weights = rep(1e-10, n), na.action = stats::na.pass,
                  control = bartisan_control(num_trees = 1, num_burn = 2000,
-                                            num_save = 20000, gate = "hard",
+                                            num_draws = 20000, gate = "hard",
                                            sigma_mu = 0.4,
                                            update_sigma_mu = FALSE,
                                            update_s = FALSE,

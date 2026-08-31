@@ -175,12 +175,25 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   }
   int num_burn = as<int>(control["num_burn"]);
   int num_thin = as<int>(control["num_thin"]);
-  int num_save = as<int>(control["num_save"]);
+  int num_draws = as<int>(control["num_draws"]);
   int num_print = as<int>(control["num_print"]);
   bool verbose = as<bool>(control["verbose"]);
   bool soft = as<bool>(control["soft"]);
   int gate = as<int>(control["gate"]);
-  bool update_sigma_mu = as<bool>(control["update_sigma_mu"]);
+
+  // Settings that mean something different for each forest. R sends one value
+  // per forest, so a scalar the caller gave once has already been spread and
+  // this side never has to decide what recycling would mean. Both readers
+  // tolerate a length-one vector so that a control list assembled by hand -- as
+  // the entry points are called in tests -- still works.
+  auto at = [&](const char* name, int h) {
+    arma::vec v = as<arma::vec>(control[name]);
+    return v(v.n_elem == 1 ? 0 : h);
+  };
+  auto flag_at = [&](const char* name, int h) {
+    Rcpp::LogicalVector v = control[name];
+    return static_cast<bool>(v[v.size() == 1 ? 0 : h]);
+  };
 
   // One leaf scale per additive predictor, since a location-scale model puts
   // its two predictors on quite different scales.
@@ -197,6 +210,20 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   double ramp_fraction = as<double>(control["sigma_mu_ramp"]);
   int num_ramp = static_cast<int>(std::floor(ramp_fraction * num_burn));
 
+  // Empty unless there is something to say, in which case it is one column per
+  // forest of one weight per predictor group, already normalized in R. Two
+  // things put values in it: weights the caller asked for, and the zeros that
+  // hold a forest to the predictors its own formula names.
+  arma::mat split_prior;
+  if (control.containsElementNamed("split_prior") &&
+      !Rf_isNull(control["split_prior"])) {
+    split_prior = as<arma::mat>(control["split_prior"]);
+
+    if (static_cast<int>(split_prior.n_cols) != H) {
+      stop("`control$split_prior` must have one column per forest (%d).", H);
+    }
+  }
+
   std::vector<std::unique_ptr<Hypers>> hypers;
   std::vector<std::vector<Tree*>> forests(H);
   ForestGuard guard = {forests};
@@ -209,14 +236,15 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     bool pinned = h >= n_report;
     hypers.push_back(std::unique_ptr<Hypers>(new Hypers(
       group_probs, sigma_mu_target(h),
-      pinned ? 0.0 : as<double>(control["gamma"]),
-      as<double>(control["beta"]), as<double>(control["alpha"]),
-      as<double>(control["alpha_scale"]), as<double>(control["alpha_shape_1"]),
-      as<double>(control["alpha_shape_2"]), pinned ? false : update_sigma_mu,
-      as<bool>(control["update_s"]), as<bool>(control["update_alpha"]), soft,
-      as<double>(control["bandwidth"]),
-      as<bool>(control["update_bandwidth"]),
-      as<int>(control["bandwidth_every"]), gate)));
+      pinned ? 0.0 : at("gamma", h),
+      at("beta", h), at("alpha", h),
+      at("alpha_scale", h), at("alpha_shape_1", h),
+      at("alpha_shape_2", h), pinned ? false : flag_at("update_sigma_mu", h),
+      flag_at("update_s", h), flag_at("update_alpha", h), soft,
+      at("bandwidth", h),
+      flag_at("update_bandwidth", h),
+      static_cast<int>(at("bandwidth_every", h)), gate,
+      split_prior.n_cols > 0 ? arma::vec(split_prior.col(h)) : arma::vec())));
 
     for (int t = 0; t < num_trees[h]; t++) {
       forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na));
@@ -246,14 +274,14 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   int num_aux = static_cast<int>(aux_names.size());
 
   std::vector<arma::mat> eta_out(n_report,
-                                 arma::mat(num_save, n, arma::fill::zeros));
-  std::vector<arma::umat> counts(n_report, arma::umat(num_save, num_groups,
+                                 arma::mat(num_draws, n, arma::fill::zeros));
+  std::vector<arma::umat> counts(n_report, arma::umat(num_draws, num_groups,
                                                      arma::fill::zeros));
-  arma::mat sigma_mu_out(num_save, n_report, arma::fill::zeros);
-  arma::mat aux_out(num_save, std::max(num_aux, 1), arma::fill::zeros);
-  arma::mat bandwidth_out(num_save, std::max(tree_offset[n_report], 1),
+  arma::mat sigma_mu_out(num_draws, n_report, arma::fill::zeros);
+  arma::mat aux_out(num_draws, std::max(num_aux, 1), arma::fill::zeros);
+  arma::mat bandwidth_out(num_draws, std::max(tree_offset[n_report], 1),
                           arma::fill::zeros);
-  arma::vec loglik_out(num_save, arma::fill::zeros);
+  arma::vec loglik_out(num_draws, arma::fill::zeros);
 
   std::vector<double> forest_flat;
   std::vector<int> tree_start;
@@ -282,11 +310,11 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   }
 
   std::vector<arma::mat> ranef_out(
-    ranef->empty() ? 0 : H, arma::mat(num_save, std::max(num_ranef, 1),
+    ranef->empty() ? 0 : H, arma::mat(num_draws, std::max(num_ranef, 1),
                                       arma::fill::zeros));
   std::vector<arma::mat> tau_out(
     ranef->empty() ? 0 : H,
-    arma::mat(num_save, ranef->empty() ? 1 : ranef->terms[0].size(),
+    arma::mat(num_draws, ranef->empty() ? 1 : ranef->terms[0].size(),
               arma::fill::zeros));
 
   auto sweep = [&]() {
@@ -304,7 +332,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   };
 
   if (verbose) {
-    Rcout << "Running " << num_burn << " warmup and " << num_save * num_thin
+    Rcout << "Running " << num_burn << " warmup and " << num_draws * num_thin
           << " sampling iterations\n";
   }
 
@@ -326,6 +354,25 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
         hypers[h]->sigma_mu = sigma_mu_target(h);
       }
     }
+    else if (iter == num_ramp) {
+      // The ramp is over, so hand the leaf scale back to its own update for the
+      // rest of warmup. Without this the update stays switched off for every
+      // remaining warmup iteration, because the block above is the only thing
+      // that ever touches the flag and the restore below the loop does not run
+      // until warmup has finished. The scale then took its first draw at the
+      // first retained iteration, jumping from the ramp target to wherever the
+      // leaves wanted it, and the trees spent the sampling phase equilibrating
+      // to the new scale: `sigma_mu` drifted across the retained draws and its
+      // rhat came out between 1.2 and 1.9 on ordinary data.
+      //
+      // Fires only when the ramp is shorter than warmup. With
+      // `sigma_mu_ramp = 1` there is no iteration left for it and the restore
+      // below the loop is still what puts the scale back.
+      for (int h = 0; h < H; h++) {
+        hypers[h]->update_sigma_mu =
+          h < n_report ? flag_at("update_sigma_mu", h) : false;
+      }
+    }
 
     sweep();
     Rcpp::checkUserInterrupt();
@@ -345,11 +392,12 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   // would leave the leaf scale pinned for the entire sampling phase.
   for (int h = 0; h < H; h++) {
     hypers[h]->sigma_mu = sigma_mu_target(h);
-    hypers[h]->update_sigma_mu = h < n_report ? update_sigma_mu : false;
+    hypers[h]->update_sigma_mu =
+      h < n_report ? flag_at("update_sigma_mu", h) : false;
     hypers[h]->adapt = false;
   }
 
-  for (int iter = 0; iter < num_save; iter++) {
+  for (int iter = 0; iter < num_draws; iter++) {
     for (int j = 0; j < num_thin; j++) {
       sweep();
     }
@@ -402,10 +450,10 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     loglik_out(iter) = family->reported_loglik(eta);
 
     if (verbose && num_print > 0 && (iter + 1) % num_print == 0) {
-      Rcout << "\rSampling " << iter + 1 << " / " << num_save << "        ";
+      Rcout << "\rSampling " << iter + 1 << " / " << num_draws << "        ";
     }
   }
-  if (verbose && num_save > 0) {
+  if (verbose && num_draws > 0) {
     Rcout << "\n";
   }
 
@@ -445,7 +493,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
 //' @param forest_flat,tree_start the encoded forests returned by
 //'   `.bartisan_fit()`.
 //' @param bandwidth a matrix of per-tree bandwidths.
-//' @param num_forest,num_trees,num_save dimensions of the stored chain.
+//' @param num_forest,num_trees,num_draws dimensions of the stored chain.
 //' @param soft whether the decision rules are soft.
 //' @param gate which gate the soft rules use; see `GateShape` in `node.h`.
 //' @param iterations the zero-based saved iterations to evaluate.
@@ -456,7 +504,7 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
                      const std::vector<int>& tree_start,
                      const arma::mat& bandwidth, int num_forest,
                      const std::vector<int>& num_trees,
-                     int num_save, bool soft, int gate,
+                     int num_draws, bool soft, int gate,
                      const std::vector<int>& iterations) {
 
   int n = static_cast<int>(X.n_rows);
@@ -477,7 +525,7 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
 
   for (int s = 0; s < num_iter; s++) {
     int iter = iterations[s];
-    if (iter < 0 || iter >= num_save) {
+    if (iter < 0 || iter >= num_draws) {
       stop("`iterations` must index the saved draws.");
     }
     for (int h = 0; h < num_forest; h++) {

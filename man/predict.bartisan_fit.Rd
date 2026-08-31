@@ -179,7 +179,7 @@ d$y <- rpois(n, exp(0.5 + d$x1))
 
 fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(),
                control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_save = 50, verbose = FALSE))
+                                         num_draws = 50, verbose = FALSE))
 
 head(predict(fit))
 

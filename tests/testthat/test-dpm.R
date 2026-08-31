@@ -10,7 +10,7 @@ test_that("the mixture is stored, weighted and shaped as a mixture", {
 
   fit <- bartisan(y ~ ., d, family = dpm(),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_save = 200L))
+                                          num_draws = 200L))
 
   expect_identical(colnames(fit[["aux"]]),
                    c("alpha", "clusters", "center", "error_sd"))
@@ -47,7 +47,7 @@ test_that("the reporting chart puts the mixture at zero and the mean on the pred
 
   fit <- bartisan(y ~ x, d, family = dpm(),
                   control = quick_control(num_trees = 50L, num_burn = 400L,
-                                          num_save = 400L))
+                                          num_draws = 400L))
 
   # The sampler works in a chart where nothing forces the mixture to be centred;
   # reporting is done in the one where it is, so the error mean is zero exactly
@@ -76,7 +76,7 @@ test_that("`error_density()` reports a centred density", {
 
   fit <- bartisan(y ~ ., d, family = dpm(),
                   control = quick_control(num_trees = 20L, num_burn = 300L,
-                                          num_save = 300L))
+                                          num_draws = 300L))
 
   grid <- seq(-12, 12, length.out = 1201L)
   density <- error_density(fit, at = grid)[, "mean"]
@@ -95,7 +95,7 @@ test_that("the reported likelihood is the mixture's own predictive", {
 
   fit <- bartisan(y ~ ., d, family = dpm(),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_save = 200L))
+                                          num_draws = 200L))
 
   # The C++ sums the same expression `predict(type = "density")` builds in R from
   # the stored components, so the two have to agree exactly rather than closely.
@@ -121,7 +121,7 @@ test_that("error_density integrates to one and finds the shape of the errors", {
 
   fit <- bartisan(y ~ x, d, family = dpm(),
                   control = quick_control(num_trees = 50L, num_burn = 500L,
-                                          num_save = 500L))
+                                          num_draws = 500L))
 
   estimated <- error_density(fit, at = seq(-8, 8, length.out = 401L))
   expect_identical(nrow(estimated), 401L)
@@ -150,7 +150,7 @@ test_that("the mixture adapts to heavy tails and stays put when the errors are n
 
   d <- data.frame(x = stats::runif(800, -1, 1))
   truth <- 10 * d$x^3
-  chain <- quick_control(num_trees = 50L, num_burn = 500L, num_save = 500L)
+  chain <- quick_control(num_trees = 50L, num_burn = 500L, num_draws = 500L)
 
   # Normal errors: the mixture should not need many components, and should agree
   # with the Gaussian family on the scale it reports.
@@ -198,7 +198,7 @@ test_that("a fixed concentration is honored and the drawn one moves", {
   set.seed(1313)
   d$y <- 2 * d$x1 + 2 * stats::rt(nrow(d), 3)
 
-  chain <- quick_control(num_trees = 20L, num_burn = 200L, num_save = 200L)
+  chain <- quick_control(num_trees = 20L, num_burn = 200L, num_draws = 200L)
 
   fixed <- bartisan(y ~ ., d, family = dpm(alpha = 2), control = chain)
   expect_true(all(fixed[["aux"]][, "alpha"] == 2))
@@ -222,7 +222,7 @@ test_that("the interop methods work on a mixture fit", {
 
   fit <- bartisan(y ~ ., d, family = dpm(),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_save = 200L))
+                                          num_draws = 200L))
 
   # A replicate picks a component -- one of the occupied ones or a fresh draw
   # from the baseline -- so its spread has to be at least the error

@@ -19,7 +19,7 @@ test_that("a random intercept is recovered, and its scale with it", {
   d$y <- f + b[as.integer(g)] + stats::rnorm(n)
 
   fit <- bartisan(y ~ x1 + x2 + x3 + x4 + (1 | g), d, num_trees = 50,
-                  num_burn = 400, num_save = 400)
+                  num_burn = 400, num_draws = 400)
 
   expect_identical(dim(fit[["ranef"]][[1L]]), c(400L, ng))
   expect_identical(dim(fit[["tau"]][[1L]]), c(400L, 1L))
@@ -38,7 +38,7 @@ test_that("a random intercept is recovered, and its scale with it", {
 
   # And it is worth having here: without it the group variation is unexplained.
   plain <- bartisan(y ~ x1 + x2 + x3 + x4, d, num_trees = 50, num_burn = 400,
-                    num_save = 400)
+                    num_draws = 400)
   truth <- f + b[as.integer(g)]
   expect_lt(sqrt(mean((fit[["fitted"]] - truth)^2)),
             0.6 * sqrt(mean((plain[["fitted"]] - truth)^2)))
@@ -64,7 +64,7 @@ test_that("several grouping factors each get their own scale", {
     stats::rnorm(n)
 
   fit <- bartisan(y ~ x1 + x2 + x3 + (1 | g) + (1 | h), d, num_trees = 50,
-                  num_burn = 400, num_save = 400)
+                  num_burn = 400, num_draws = 400)
 
   expect_identical(names(fit[["random"]]), c("g", "h"))
   expect_identical(ncol(fit[["ranef"]][[1L]]), ng + nh)
@@ -158,7 +158,7 @@ test_that("each additive predictor gets its own set of intercepts", {
   d$y <- stats::rnorm(n, mu, exp(lsd))
 
   fit <- bartisan(y ~ x1 + x2 + x3 + (1 | g), d, family = location_scale(),
-                  num_trees = 30, num_burn = 400, num_save = 400)
+                  num_trees = 30, num_burn = 400, num_draws = 400)
 
   expect_identical(length(fit[["ranef"]]), 2L)
   expect_identical(length(fit[["tau"]]), 2L)
@@ -200,13 +200,13 @@ test_that("the intercepts work through the general and exponential target paths"
   fits <- list(
     probit = bartisan(yb ~ x1 + x2 + (1 | g), d, family = binomial("probit"),
                       gate = "hard", num_trees = 30, num_burn = 300,
-                     num_save = 300),
+                     num_draws = 300),
     poisson = bartisan(yc ~ x1 + x2 + (1 | g), d, family = poisson(),
                        gate = "hard", num_trees = 30, num_burn = 300,
-                      num_save = 300),
+                      num_draws = 300),
     ordinal = bartisan(yo ~ x1 + x2 + (1 | g), d, family = ordinal("logit"),
                        gate = "hard", augment = FALSE, num_trees = 30,
-                      num_burn = 300, num_save = 300))
+                      num_burn = 300, num_draws = 300))
 
   for (nm in names(fits)) {
     est <- colMeans(fits[[nm]][["ranef"]][[1L]])
@@ -252,7 +252,7 @@ test_that("chains pool the intercepts and diagnose them", {
   d$y <- d$x1 + stats::rnorm(nrow(d))
 
   fit <- bartisan(y ~ x1 + x2 + (1 | g), d, chains = 3L, num_trees = 20L,
-                  num_burn = 150L, num_save = 150L)
+                  num_burn = 150L, num_draws = 150L)
 
   expect_identical(nrow(fit[["ranef"]][[1L]]), 450L)
   expect_identical(nrow(fit[["tau"]][[1L]]), 450L)

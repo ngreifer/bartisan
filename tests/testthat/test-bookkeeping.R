@@ -16,7 +16,7 @@ test_that("recycling nodes leaves the fit unchanged", {
 
   for (gate in c("smoothstep", "hard")) {
     fit <- bartisan(y ~ ., d, control = quick_control(
-      gate = gate, num_trees = 25L, num_burn = 200L, num_save = 200L))
+      gate = gate, num_trees = 25L, num_burn = 200L, num_draws = 200L))
     expect_predictor_invariant(fit, d)
   }
 
@@ -24,7 +24,7 @@ test_that("recycling nodes leaves the fit unchanged", {
   # and with a deep tree prior so nodes are taken and given at several depths.
   deep <- bartisan(y ~ ., d, control = quick_control(
     gate = "hard", gamma = 0.99, beta = 0.5, num_trees = 10L,
-    num_burn = 300L, num_save = 300L))
+    num_burn = 300L, num_draws = 300L))
   expect_predictor_invariant(deep, d)
 })
 
@@ -40,7 +40,7 @@ test_that("the bandwidth of a tree with no splits is drawn from its prior", {
   d$y <- stats::rnorm(300)
 
   fit <- bartisan(y ~ ., d, gamma = 1e-10, bandwidth = 0.1, num_trees = 20L,
-                  num_burn = 200L, num_save = 2000L)
+                  num_burn = 200L, num_draws = 2000L)
 
   b <- as.vector(fit[["bandwidth"]])
   expect_gt(length(b), 1000)
@@ -55,7 +55,7 @@ test_that("the bandwidth of a tree with no splits is drawn from its prior", {
   # A different prior scale moves it, so the draw is using the prior rather than
   # anything hard-coded.
   wide <- bartisan(y ~ ., d, gamma = 1e-10, bandwidth = 0.4, num_trees = 20L,
-                   num_burn = 200L, num_save = 2000L)
+                   num_burn = 200L, num_draws = 2000L)
   expect_equal(mean(as.vector(wide[["bandwidth"]])), 0.4, tolerance = 0.03)
 })
 
@@ -69,7 +69,7 @@ test_that("a rejected bandwidth move leaves the tree exactly as it was", {
 
   for (gate in c("logistic", "smoothstep", "smootherstep")) {
     fit <- bartisan(y ~ ., d, control = quick_control(
-      gate = gate, num_trees = 20L, num_burn = 300L, num_save = 300L))
+      gate = gate, num_trees = 20L, num_burn = 300L, num_draws = 300L))
     expect_predictor_invariant(fit, d)
     # The bandwidth actually moved, so rejections really happened.
     expect_gt(stats::sd(as.vector(fit[["bandwidth"]])), 0)
@@ -88,7 +88,7 @@ test_that("the child weights the split records are the ones the target needs", {
   for (gate in c("smoothstep", "hard")) {
     fit <- bartisan(y ~ ., d, family = binomial("probit"),
                     control = quick_control(gate = gate, num_trees = 20L,
-                                            num_burn = 200L, num_save = 200L))
+                                            num_burn = 200L, num_draws = 200L))
     expect_predictor_invariant(fit, d)
   }
 
@@ -100,6 +100,6 @@ test_that("the child weights the split records are the ones the target needs", {
   fit <- bartisan(y ~ ., d2, family = binomial("probit"),
                   na.action = stats::na.pass,
                  control = quick_control(num_trees = 20L, num_burn = 200L,
-                                         num_save = 200L))
+                                         num_draws = 200L))
   expect_predictor_invariant(fit, d2)
 })

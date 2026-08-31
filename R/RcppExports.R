@@ -30,14 +30,14 @@
 #' @param forest_flat,tree_start the encoded forests returned by
 #'   `.bartisan_fit()`.
 #' @param bandwidth a matrix of per-tree bandwidths.
-#' @param num_forest,num_trees,num_save dimensions of the stored chain.
+#' @param num_forest,num_trees,num_draws dimensions of the stored chain.
 #' @param soft whether the decision rules are soft.
 #' @param gate which gate the soft rules use; see `GateShape` in `node.h`.
 #' @param iterations the zero-based saved iterations to evaluate.
 #' @return A list of `num_forest` matrices of additive predictors.
 #' @keywords internal
-.bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_save, soft, gate, iterations) {
-    .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_save, soft, gate, iterations)
+.bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations) {
+    .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations)
 }
 
 #' Conditional log density of the outcome at stored posterior draws
