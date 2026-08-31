@@ -224,7 +224,7 @@ xte <- d$x[d$test, , drop = FALSE];  truth <- d$eta[d$test]
 dtr <- data.frame(xtr, y = ytr); dte <- data.frame(xte)
 
 ctrl <- function(...) {
-  bartisan_control(num_trees = trees, num_burn = draws, num_save = draws,
+  bartisan_control(num_trees = trees, num_burn = draws, num_draws = draws,
                    verbose = FALSE, ...)
 }
 
@@ -508,7 +508,7 @@ tree_sweep <- do.call(rbind, lapply(c("smoothstep", "hard"), function(g) {
     r <- timer(bartisan(y ~ ., data = dtr, family = gaussian(),
                        control = bartisan_control(num_trees = nt, gate = g,
                                                   num_burn = draws,
-                                                 num_save = draws,
+                                                 num_draws = draws,
                                                  verbose = FALSE)))
     e <- predict(r$value, newdata = dte, type = "link")
     data.frame(gate = g, trees = nt, seconds = round(r$seconds, 2),
@@ -528,7 +528,7 @@ per_forest <- do.call(rbind, lapply(list(c(trees, trees), c(trees, 10L),
   r <- timer(bartisan(y ~ ., data = dtr_ls, family = location_scale(),
                      control = bartisan_control(num_trees = nt,
                                                 num_burn = draws,
-                                               num_save = draws,
+                                               num_draws = draws,
                                                verbose = FALSE)))
   e <- predict(r$value, newdata = dte, type = "link")
   data.frame(num_trees = paste(nt, collapse = ","),
@@ -575,7 +575,7 @@ if (started) {
   r <- timer(bartisan(y ~ ., data = dtr, chains = workers,
                       control = bartisan_control(num_trees = trees,
                                                  num_burn = draws,
-                                               num_save = chain_draws,
+                                               num_draws = chain_draws,
                                                verbose = FALSE)))
 
   if (!is.null(r$value)) {

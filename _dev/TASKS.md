@@ -8,7 +8,7 @@ This file is organized by subject, not by session. Each entry states the problem
 
 1358 tests passing, 0 failures, 0 warnings, 0 skips. `R CMD check` reports `Status: OK` with no warnings and no notes when run outside the agent sandbox; inside it, `OMP: Warning #179` and an `nm` cache-file NOTE appear, and both are artifacts of the sandbox rather than the package. the suite run inside the check passes 1055 of them, skipping 51 for Suggests packages that environment does not have.
 
-**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, `NEWS.md`, three vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`.
+**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, nine vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`. No `NEWS.md`: nothing has been released, so there is no previous version for a user to have seen.
 
 Benchmark, Friedman function, n = 1000, p = 10, 50 trees, 500 warmup plus 500 saved, best of 2, scored against the true regression function on a held-out thousand. Reproducible with `_dev/benchmark.Rmd`.
 
@@ -515,6 +515,18 @@ Totals: 9 files in the class pass, then 92 files and 1504 occurrences in the glo
 A snapshot of the tree went to the session scratchpad before any of this, since 82 files of uncommitted work were at stake and nothing here was committed.
 
 Verified after the move: 1358 tests pass, `R CMD check` reports `Status: OK`, all nine vignettes rebuild, `bartisan:::.bartisan_optimized()` is `TRUE`, and no file outside `.git` contains the string `genbart`.
+
+## The examples moved from birthwt to the RHC data
+
+`MASS::birthwt` was 189 rows with one continuous outcome. The worked examples now use the SUPPORT right heart catheterization data: a binary `death` and the time `days` it took, so the same event serves a binary analysis and a right-censored one. The package ships a random 1500 of the 5735 patients, drawn under a fixed seed in `data-raw/rhc.R` so the shipped file is reproducible. Added as `data/rhc.rda`, built by `data-raw/rhc.R` from <https://hbiostat.org/data/repo/rhc.csv>, with the thirteen covariates from the maintainer's own worked example.
+
+Verified the reconstruction against the reduced file the maintainer supplied: every shared covariate agrees to within 5e-06, which is CSV rounding, and `RHC` matches `swang1` exactly. One discrepancy worth recording: the published description calls `death` "died at 60 days", but the variable is death during follow-up. Its mean is 0.649, which matches the raw `death` column; 60-day death would be 0.404. The variable was used as it is.
+
+**The change is not cosmetic, and three of the vignettes got better for it.** The causal vignette has real confounding in a known direction, since sicker patients were both more likely to be catheterized and more likely to die; the raw mortality gap is 9.2 points and adjustment brings it to 5.9 without changing sign. And the outcome being binary forced two genuine improvements: `pp_check()` is a weak check when there are only two values to get right, so `diagnostics` gained a decile calibration plot, and `comparison` now compares links rather than families, which came out as a clean negative (logit, probit and cloglog within 1.5 elpd, standard errors around 2).
+
+**Two defects found on the way**, both since fixed rather than worked around; see "The subsample, and the two defects it stopped hiding" below.
+
+**Build time was the binding constraint** at the full 5735 rows: a four-chain binomial fit took about 53 seconds and the survival fit about 63, and `R CMD check` rebuilding all nine vignettes ran to roughly half an hour. The 1500-row subsample is what brought that down. `comparison` still uses the default single chain, since leave-one-out needs draws rather than chains.
 
 ## The `. + external` formula warning, and the ACIC evidence for the propensity score
 
@@ -1482,7 +1494,7 @@ Three cautions found along the way.
 
 - **An earlier reading of this was wrong.** Comparing K = 4 against K = n at the same n suggested the cutpoints were 77% of runtime. They were not: a finely graded response supports deeper trees, so that comparison confounds cutpoint cost with tree cost. Direct instrumentation settled it. The superlinear growth in n at K = n is tree work.
 - **The computational barrier is gone; the mixing one is not.** Adjacent cutpoints are tightly coupled, and updating them one at a time gives a median effective sample size of only 7 to 21 per 100 draws. The regression function itself mixes fine, so this matters for inference on the thresholds — which for a continuous response *are* the baseline distribution function. The natural fix is again `orm()`'s: the cutpoints' information matrix is **tridiagonal**, so a joint Newton step and a joint Gaussian proposal both cost O(K) by the Thomas algorithm. The obstacle is the ordering constraint, which a Gaussian proposal does not respect; the usual reparameterization to log-gaps destroys the banded structure.
-- Storage grows as `num_save * K`. At n = K = 3200 with 1000 draws the cutpoint matrix alone is 26 MB.
+- Storage grows as `num_draws * K`. At n = K = 3200 with 1000 draws the cutpoint matrix alone is 26 MB.
 
 ## Log: features and interfaces
 
@@ -2712,3 +2724,539 @@ So a general target costs five to ten times a quadratic one here, which is the s
 
 A caution on measurement, learned here: **`exact_quadratic = FALSE` is not a proxy for a general target.** On a Gaussian fit it costs 1.16x and on a Poisson fit nothing at all, because the underlying target really is quadratic or exponential and the iteration terminates immediately whichever path it takes. The five-to-ten-times figures above are direct comparisons between families, which is the only way to see it.
 
+
+## The subsample, and the two defects it stopped hiding
+
+The shipped `rhc` is a random 1500 of the 5735, and `rhc` and `death` are integer 0/1 rather than factors. Neither the roxygen block nor `data-raw/rhc.R` mentions build time as the reason for the subsample; the documented reason is what it is, a random sample, and there is no case for advertising to a reader that the analysis they are about to run is slow.
+
+The 0/1 coding is documented for the reason that motivated it: a contrast between two levels is then a single number rather than one row per level of a factor.
+
+### `~pairwise` worked once binomial stopped being a categorical family
+
+The expected fix was the 0/1 recoding, and it was not the fix. The duplicated rows never came from the outcome's *type*; they came from `me_type()` listing binomial alongside `ordinal`, `multinomial` and `mnp`, which puts the fit on the probability scale and returns one group per outcome category. Removing binomial from that list is the change. Its two probabilities sum to one, so reporting both gave every estimand twice as mirror images where `glm()` gives one row, and `hypothesis = ~pairwise` then paired across outcome levels as well as subgroups. `type = "prob"` still asks for both columns for anyone who wants them.
+
+With that removed, `avg_comparisons(fit, variables = "rhc", by = "card", hypothesis = ~pairwise)` returns the single clean row it should, and the vignettes no longer name `"b4 - b2 = 0"`.
+
+### The `. - days` defect was in the *stored* formula
+
+The vignettes now write model formulas out in full, which is closer to how a reader would write one and removes the need to subset the data. That alone sidesteps the defect, but the defect was also worth fixing, and the diagnosis in the entry above was wrong about where it lived. `model.frame()` keeping `days` is real and shared with `glm`, but it is not what collapsed the table: `insight::find_formula()` reads the formula stored on the fit, and from the *unresolved* `death ~ . - days` it concluded the model's one predictor was `days`, the variable the formula removes.
+
+`bartisan()` now resolves `.` before storing, via `terms(formula, data = data) |> update(. ~ .)`, and stores the resolved formula as well as using it. Left alone when the formula has random-effect terms, where `.` would expand over the grouping variables too.
+
+### Variable importance at n = 1500, and the claim that had to be withdrawn
+
+At 5735 rows the three noise controls sorted below every real predictor. At 1500 they do not: one lands above five of the real predictors and another sits in the middle of them. The vignette says so. The lesson is better than the one it replaced, because it is the lesson the section exists to teach: the ranking alone was never the finding, the gap against a variable known to be noise is, and here that gap says the top of the table is real and the bottom half is not distinguishable from random numbers.
+
+Every other number in the five RHC vignettes was re-read off a fresh render rather than scaled, and the prose corrected against it.
+
+## A one-sided formula reported a missing object named `.`
+
+`bartisan(~ x1 + x2, data = d)` gave `object '.' not found`. The `.` expansion
+added for the `- days` defect is what produced it: `update(~ x1 + x2, . ~ .)`
+returns `. ~ x1 + x2`, inventing a response named `.`, and the model frame then
+went looking for a variable by that name. Before the expansion existed the
+message was no better, since a formula with no response fell through to the
+family default and came back as "The dpm family requires a numeric response".
+
+Fixed at the top of `bartisan()` rather than inside the expansion:
+`arg::arg_formula(formula, one_sided = FALSE)` already says
+"`formula` must be a two-sided formula", so the case never reaches the
+expansion at all. Tested for both `~ x1 + x2` and `~ .`.
+
+## Varying-coefficient BART works through `custom_family()`, and the interface is open
+
+Full write-up in `_dev/bcf-interfaces.md`; the runnable proof is
+`_dev/bcf-proof.R` and the mixing follow-up `_dev/bcf-mixing.R`.
+
+`g(mu_i) = f_0(x_i) + z_i * tau(x_i)` with both surfaces forests, written as a
+`custom_family()` with `num_predictors = 2` and the chain rule supplied as the
+analytic derivatives. It samples, and it recovers `tau(x)` better than the
+alternative available today: correlation with truth 0.986 against 0.969, RMSE
+0.150 against 0.233, ATE 0.964 against a truth of 0.981. Binomial the same on
+the logit scale.
+
+**The device, and the gap behind it.** A custom likelihood is handed `y` for the
+rows reaching a leaf and is not told which rows they are, so a treatment vector
+held outside cannot be aligned. The proof carries `z` inside the response and
+unpacks it, exactly for a binary outcome and by a scale shift otherwise. The
+reason that was necessary is worth recording on its own: **`custom_family()`
+cannot see per-observation covariates.** Any hand-written censored or truncated
+likelihood needs its indicator and hits the same wall.
+
+**Two architectural findings, both checked rather than assumed.** `LinkFamily`
+in `src/family.cpp` is already a decorator that transforms the predictor inward
+and applies a chain rule to `d1` and `d2` outward, so a varying-coefficient
+decorator is the same object with a different map, and it would work for every
+family without per-family code. And because the map is linear in each `eta_j`, a
+target quadratic in `mu` stays quadratic in each `eta_j`: `gaussian()`, `dpm()`
+and every augmented family keep their closed-form leaf draws. The exponential
+form does not survive, because `exp_rate()` returns one scalar per predictor and
+a varying coefficient makes the rate vary by observation, so `poisson()` and
+`Gamma()` would drop to `TARGET_GENERAL`.
+
+**A mixing claim withdrawn.** The proof's rhat of 1.39 on the prognostic forest
+looked like the weak separation of the two surfaces that the BCF literature
+warns about. It is not: on the same data, the compiled `gaussian()` with `z` as
+an ordinary predictor and no varying coefficient anywhere mixes the same
+(`sigma_mu` 1.36, `eta` 1.35), and a hand-written one-forest Gaussian is worse
+(1.54). The varying coefficient does not degrade mixing.
+
+## `sigma_mu` mixes poorly across every design tried
+
+Fell out of the above and is not related to it. `_dev/sigma-mu-mixing.R`,
+compiled `gaussian()`, n = 1000, four chains, 750 saved each:
+
+| Design | `sigma_mu` rhat | `sigma_mu` ess_bulk | `eta` rhat | `eta` ess_bulk |
+|---|---|---|---|---|
+| Friedman, high signal | 1.37 | 8.9 | 1.37 | 9.2 |
+| Friedman, low signal | 1.22 | 13.3 | 1.06 | 70.5 |
+| pure noise | 1.85 | 5.8 | 1.49 | 7.5 |
+| one linear predictor | 1.24 | 12.5 | 1.01 | 538.4 |
+| Friedman, `update_sigma_mu = FALSE` | -- | -- | 1.29 | 10.5 |
+
+The `eta` column is a maximum over 1000 per-observation values, so it is
+inflated by selection and should be read the way `vignette("diagnostics")`
+already reads it, as quantiles rather than a max. `sigma_mu` is one scalar per
+forest, so no such excuse applies: ess_bulk under 15 out of 3000 draws, on every
+design including the package's own benchmark.
+
+Investigated below.
+
+## The ramp left the leaf scale frozen for most of warmup
+
+Found while investigating the above. It is a real bug and it is **not** the
+cause; see the next entry.
+
+`sigma_mu_ramp` holds `sigma_mu` at a fraction of its target over the first part
+of warmup, per Linero (2025) Remark 2, and switches its update off while doing
+so. Nothing switched the update back on when the ramp ended. The ramp block was
+the only thing that ever touched the flag, and the restore sits after the warmup
+loop, so with the default `sigma_mu_ramp = 0.25` the scale was frozen for the
+remaining 75% of warmup and took its first draw at the first *retained*
+iteration. On a 500-iteration warmup it jumped from 0.212 to about 0.8 in one
+step, and the trees then spent the sampling phase equilibrating to a leaf scale
+four times larger than the one they had been fitted under: the mean of the first
+50 retained draws was 0.756 against 0.880 for the last 50.
+
+Fixed with an `else if (iter == num_ramp)` branch that hands the scale back for
+the rest of warmup. It fires only when the ramp is shorter than warmup, so
+`sigma_mu_ramp = 1` still relies on the restore below the loop, which is why
+that restore was moved out of the loop in the first place. After the fix the
+systematic opening drift is gone. Two regression tests.
+
+## Why `sigma_mu` mixes badly: three hypotheses, two refuted, and an honest stop
+
+`_dev/sigma-mu-cause.R`. The ramp fix changed the mixing numbers not at all
+(Friedman `sigma_mu` rhat 1.370 before, 1.371 after; pure noise 1.848 before,
+1.888 after), so the cause is elsewhere.
+
+n = 600, Friedman, four chains:
+
+| trees | burn/save | acceptance | `sigma_mu` rhat | `sigma_mu` ess | `sd(eta)` ess | `eta` rhat |
+|---|---|---|---|---|---|---|
+| 10 | 750 | 0.89 | 1.230 | 12.4 | 2501 | 1.496 |
+| 50 | 750 | 0.94 | 1.322 | 10.1 | 2768 | 1.224 |
+| 200 | 750 | 0.97 | 2.015 | 5.4 | 1687 | 1.108 |
+| 50 | 4000 | 0.95 | 1.418 | 8.1 | 8023 | 1.197 |
+
+**Not the sampler.** The step is an independence Metropolis proposal from
+`Gamma(n/2 + 1, 2/sse)`, the conditional posterior of the precision under a flat
+prior, corrected by the half-Cauchy term. Read against the definitions the
+proposal and the correction are both right, and the acceptance rate is 0.89 to
+0.97, so nothing is sticking.
+
+**Not the forest's mixing.** `sd(eta)`, a global aggregate of the fitted surface
+and the same kind of quantity, has an ess in the thousands while `sigma_mu` has
+single digits. `sigma_mu` is not inheriting anything.
+
+**Not slow mixing either.** Its ess does not grow with the run: 10.1 at 750
+saved draws and 8.1 at 4000, a 5.3-fold increase in length. A quantity mixing
+slowly but ergodically would have gained roughly in proportion. Each chain
+settles somewhere and stays.
+
+**What is actually going on, as far as the evidence reaches.** The per-chain
+means tell it. At 50 trees: 1.083, 1.083, 1.189, 1.085. At 200 trees: 0.450,
+0.465, 0.569, 0.526. The within-chain distribution is very tight, because the
+proposal is the flat-prior posterior over hundreds of leaf parameters and has a
+coefficient of variation around `1 / sqrt(n_leaves)`, measured at 0.09. rhat is
+the ratio of between-chain to within-chain variance, so a small but persistent
+offset between chains against a very tight within-chain spread gives a large
+rhat for a disagreement that is practically negligible. Adding trees tightens
+the proposal further without shrinking the offset, which is exactly why more
+trees makes `sigma_mu` worse while making `eta` better.
+
+**A hypothesis that did not survive.** The obvious explanation for the offsets is
+that an additive ensemble can trade leaf magnitude against tree structure
+without changing its sum, so `sigma_mu` distinguishes configurations the
+likelihood cannot. The test was whether chains with more splits show a smaller
+`sigma_mu`. The correlation came out +0.90 at 50 trees and -0.92 at 200, on four
+points each. That reverses sign and is four points, so it is noise and the
+hypothesis is unsupported. **Why the chains settle at slightly different levels
+is not established.**
+
+## The other packages do it too, so the leaf scale is closed
+
+`_dev/sigma-mu-others.R`. Same data, four chains, 750 saved draws each, every
+row's rhat and ess computed by this package's own functions:
+
+| Package | Quantity | Prior and sampler | rhat | ess |
+|---|---|---|---|---|
+| bartisan | `sigma_mu` | half-Cauchy, independence Metropolis | 1.188 | 14.8 |
+| dbarts | `k` | chi hyperprior, slice | 1.122 | 21.8 |
+| stochtree | `sigma2_leaf` | inverse-gamma, **conjugate Gibbs** | 1.163 | 17.1 |
+| BART | `k` | not drawn: fixed at 2 | -- | -- |
+| bartisan | `sd(eta)`, for contrast | -- | 1.000 | 2440 |
+
+**stochtree settles it.** Its prior is conjugate, so its leaf scale is drawn
+exactly from its full conditional. Nothing can mix better than an exact draw,
+and it gets ess 17.1 out of 3000 with rhat 1.163 -- the same range as the other
+two, on the same data. The sampler is therefore not the cause anywhere, which is
+what the acceptance rate had already suggested for this package. Three
+independent implementations with three different samplers show the same
+behaviour, and the fourth avoids the question by never drawing the parameter,
+which is itself a comment on how much anyone gets out of it.
+
+So this is a property of the leaf scale in an additive tree ensemble, not a bug
+in bartisan, and bartisan's numbers are unremarkable among its peers. Closed. Why
+the chains settle at slightly different levels is still not established and no
+longer worth establishing.
+
+**What remains is presentational, and is a real problem.** `fit$rhat` puts a
+`sigma_mu` row next to the `eta` rows at equal status, that row sits above any
+conventional threshold on ordinary data including the package's own benchmark
+design, and a reader following `vignette("diagnostics")` has no way to know it is
+expected. Nothing about the fitted function is affected: on every design where
+`eta` has signal to mix on, `eta` is fine while `sigma_mu` is not. Two things
+worth deciding, neither done here because both change what the package reports:
+
+- Drop `sigma_mu` from `fit$rhat`, or mark it as a hyperparameter whose rhat is
+  not a reason to distrust the fit.
+- Say so in `vignette("diagnostics")` either way, now that there is a
+  cross-package answer to point at.
+
+## Per-predictor splitting priors: `split_prior`
+
+`bartisan_control(split_prior = c(x1 = 3, x3 = 0.5))`. Every predictor starts at
+a weight of 1, the named ones take the value given, and the prior probability of
+splitting on a predictor is its weight over the total, so on three predictors
+that example gives 3/4.5, 1/4.5 and 0.5/4.5.
+
+One weight per *term*, not per design-matrix column, so a factor is named once
+and its levels share the weight. That is the same granularity the sparsity prior
+already uses, and `make_group_probs()` already labels its columns by term, so the
+weights match by name against `colnames(group_probs)`.
+
+Implemented by fixing `Hypers::s_` at the normalized weights and turning
+`update_s` and `update_alpha` off. The C++ change is one optional constructor
+argument; an empty vector keeps the old uniform initialization, and a full one
+also forces the two flags off inside the constructor, so the guarantee holds
+whatever reaches it rather than depending on R having set them.
+
+**It overrides `sparsity`, and warns only when asked for both.** The two answer
+different questions: `sparsity` is for not knowing which predictors matter and
+wanting the prior to find out, `split_prior` is for knowing something and wanting
+it honored. Drawing `s` from a Dirichlet centered on the weights would answer
+neither, so the weights are held fixed. Since `sparsity = TRUE` is the default
+and therefore not a request, the warning fires only when the caller passed
+`sparsity` explicitly, which `missing()` distinguishes.
+
+**Verified against the specification.** On four pure-noise predictors, where
+nothing in the data prefers any of them, the realized share of splitting rules
+matches the weights: `c(x1 = 8)` gave 0.740 against 8/11 = 0.727, and
+`c(x1 = 3, x3 = 0.1)` gave 0.577 / 0.201 / 0.199 / 0.023 against
+0.588 / 0.196 / 0.196 / 0.020.
+
+**A documentation claim corrected before it shipped.** The first draft said
+`split_prior` leaves `prop_used` at 1 for every predictor, since nothing is
+dropped from the forest. The test failed. A predictor can still miss out on a
+rule in some draw of a small forest, and at 20 trees `prop_used` ran 0.89 to
+1.00. The distinction that survives is better than the one I wrote: under fixed
+weights the exclusion is sampling variation at a fixed probability and goes away
+as trees are added, reaching 1 for every predictor at 50 and at 200, whereas the
+sparsity prior on the same data at 50 trees left the *most heavily weighted*
+predictor out of 41% of draws. Documented as measured.
+
+Errors rather than silence on a name the model does not have, since a weight is a
+claim about a particular predictor and a typo would otherwise change nothing and
+say nothing. Zero and negative weights refused, with the reason: a zero would
+forbid splitting rather than discourage it, and dropping the predictor from the
+formula is the way to say that.
+
+## Zero is a legitimate `split_prior` weight
+
+Was refused with a message suggesting the predictor be dropped from the formula
+instead. Wrong: a weight of zero is a use for the argument, not a mistake in it.
+It holds the predictor out of every tree while leaving it in the model frame, so
+the formula, `predict()` and `newdata` all stay as they are, and for the
+varying-coefficient work it is how a covariate is given to one forest and
+withheld from another.
+
+Now allowed. Negative and non-finite still refused. Every predictor at zero is
+refused, since nothing would be left to split on, and that check belongs in
+`resolve_split_weights()` rather than in `bartisan_control()`: the control
+function sees only the names the caller gave, so `c(x2 = 0)` on a three-predictor
+model looks all-zero there while the two unnamed predictors default to one. The
+first version of the check was in the wrong place and a test caught it.
+
+Verified that a zero weight really does hold the predictor out: `splits` and
+`prop_used` both come back exactly 0 for it, the term is still in
+`terms(fit)`, and `predict()` still works.
+
+## The atom at zero in the ATE, and what actually removes it
+
+`_dev/ate-atom.R`. The question was whether it is expected that a credible bound
+comes out exactly zero whenever the treatment's `prop_used` is below the
+confidence level, and whether the treatment should be given a larger splitting
+weight.
+
+**It is exact arithmetic, not a coincidence.** Under the DART sparsity prior a
+draw in which the treatment is in no tree makes the contrast exactly zero, so the
+posterior of the ATE is a mixture: mass `1 - prop_used` at the point zero, the
+rest spread over nonzero values. If the nonzero part is one-signed, the 2.5%
+quantile is zero as soon as `1 - prop_used > 0.025`, that is as soon as
+`prop_used < 0.975`. Measured on the RHC fit: `prop_used` 0.898 and the share of
+draws whose average contrast is exactly zero is 0.102, which is `1 - 0.898` to
+three places.
+
+RHC, four chains:
+
+| | `prop_used` | atom mass | ATE |
+|---|---|---|---|
+| `sparsity = TRUE` (default) | 0.898 | 0.102 | 0.0531 [0.0000, 0.1058] |
+| `sparsity = FALSE` | 0.999 | 0.001 | 0.0623 [0.0137, 0.1114] |
+| `split_prior = c(rhc = 1)` | 0.999 | 0.001 | 0.0623 [0.0137, 0.1114] |
+| `split_prior = c(rhc = 5)` | 1.000 | 0.000 | 0.0668 [0.0172, 0.1154] |
+| `split_prior = c(rhc = 20)` | 1.000 | 0.000 | 0.0670 [0.0183, 0.1187] |
+
+**A larger weight on the treatment is not the answer, and is barely even an
+answer.** What creates the atom is the prior being *able to drop* the treatment,
+not the treatment being under-weighted. Fixing the weights at all removes it:
+`split_prior = c(rhc = 1)` is uniform weights and reproduces `sparsity = FALSE`
+exactly. Going from a weight of 1 to 5 to 20 moves the estimate 0.0623 to 0.0668
+to 0.0670, which is inside the noise and flat after the first step.
+
+**And the vignette's headline number is affected.** With the atom gone the
+interval no longer reaches zero: 0.0623 [0.0137, 0.1114] rather than
+0.0531 [0, 0.1058]. So `vignette("causal")` currently reports an interval whose
+lower bound is a property of the prior rather than of the data, under prose
+saying the direction is reasonably clear -- which understates it. Not changed
+here, because the vignette is being edited.
+
+The general statement, which `?bartisan_control` already makes for contrasts and
+which this makes concrete for the ATE: a variable-selection prior on the variable
+whose contrast is the estimand is answering a question the analysis did not ask.
+For a causal estimand, either `sparsity = FALSE` or any `split_prior` is right,
+and `split_prior` is the better of the two when the other predictors are many
+enough that treating them all alike is wasteful.
+
+## Should `sparsity = TRUE` stay the default? Yes, and the guidance had to get sharper
+
+`_dev/sparsity-default.R` and `_dev/sparsity-effect-size.R`.
+
+**The first pass found no atom at all**, at any sparsity level, with a treatment
+effect of 0.5 against residual sd 1: `prop_used` 1.000 for the treatment at
+p = 10 and at p = 50, estimates and intervals identical across the four
+settings. So the atom is not a property of the prior on its own. It is what the
+prior does to a predictor weak enough to be droppable, which is why RHC shows it
+(`prop_used` 0.898, an ATE of 0.06 on a probability scale) and this design does
+not. Effect size was the variable to sweep, and sweeping it turned the default
+question into a measurable one.
+
+**Prediction: any sparsity beats none, and the strength hardly matters.** RMSE
+against the true regression function on held-out data, Friedman, five relevant
+predictors, mean of three replicates:
+
+| predictors | none | weak | moderate | strong |
+|---|---|---|---|---|
+| 10 | 0.446 | 0.385 | 0.400 | 0.374 |
+| 50 | 0.465 | 0.346 | 0.372 | 0.362 |
+
+Between 13% and 26% better than `"none"`, and `"weak"` is within noise of
+`"strong"`. Worth noting that the gain is no larger at p = 50 than at p = 10,
+which is not what the high-dimensional framing of DART would suggest.
+
+**A weak contrast: sparsity is actively harmful, not just cosmetically.** Binary
+treatment among 20 predictors, continuous outcome, residual sd 1, n = 800, five
+replicates:
+
+| true effect | setting | estimate | bias | atom | covers |
+|---|---|---|---|---|---|
+| 0.05 | none | 0.031 | -0.019 | 0.08 | 0.80 |
+| 0.05 | moderate | 0.000 | -0.050 | 0.89 | 0.40 |
+| 0.05 | strong | 0.000 | -0.050 | 0.92 | 0.40 |
+| 0.10 | none | 0.131 | +0.031 | 0.03 | 1.00 |
+| 0.10 | moderate | 0.029 | -0.071 | 0.69 | 1.00 |
+| 0.20 | none | 0.161 | -0.039 | 0.05 | 1.00 |
+| 0.20 | moderate | 0.094 | -0.106 | 0.55 | 0.60 |
+| 0.20 | strong | 0.085 | -0.115 | 0.51 | 0.60 |
+| 0.50 | none | 0.475 | -0.025 | 0.00 | 1.00 |
+| 0.50 | moderate | 0.474 | -0.026 | 0.00 | 1.00 |
+
+The estimate is attenuated by half or more and the 95% interval covers at 0.40
+to 0.60. That is a wrong answer presented confidently, not a reporting quirk, and
+it is the thing the atom was a symptom of. At a true effect of 0.5 every setting
+agrees to three places, because the prior never has reason to drop a predictor
+that is earning its splits.
+
+**So a moderate default does not split the difference, and that was the useful
+finding.** `"moderate"` is as bad as `"strong"` on the contrast side (coverage
+0.40 and 0.60, bias -0.05 to -0.12) and `"weak"` is as good as `"strong"` on the
+prediction side. The argument behaves close to a switch rather than a dial, so
+there is no middle setting to retreat to.
+
+**Default kept at `TRUE`.** Whoever does not set it is more likely predicting
+than estimating a treatment effect, the literature expects DART on by default,
+and the cost of the wrong choice is asymmetric in the other direction too: with
+sparsity off you lose 13% to 26% of predictive accuracy, which is a worse answer
+but not a misleading one, whereas with it on you can get a halved effect with a
+60% interval. What changed is the documentation, which now carries both tables
+and a recommendation indexed by estimand rather than the previous general
+warning.
+
+**The principled fix is the varying-coefficient work, not a new sparsity
+setting.** What is wanted is a sparsity prior over the covariates that cannot
+touch the treatment, and putting the treatment in its own forest is exactly that:
+it is why Bayesian causal forests separate the prognostic and treatment surfaces
+in the first place. `split_prior` is the interim answer and turns the prior off
+altogether, which is coarser.
+
+## `chains` moved, `num_save` became `num_draws`, `sigma_mu` left the rhat table
+
+`chains` is a `bartisan_control()` argument. Backward compatible without doing
+anything: `merge_control()` takes its allowed set from
+`names(formals(bartisan_control))`, so every existing `bartisan(..., chains = 4)`
+call still reaches it through `...`, which is how the vignettes and 28 test call
+sites keep working unchanged.
+
+`num_save` renamed to `num_draws` at 373 sites across R, C++, tests, vignettes
+and `_dev`.
+
+`num_burn`, `num_draws` and `num_thin` each gained a sentence saying what raising
+it does: warmup buys convergence, draws buy precision, and thinning buys neither
+and is only for holding down memory.
+
+`sigma_mu` is out of `scalar_draws()` and so out of `fit$rhat`, with the
+cross-package numbers as the comment explaining why. `fit$sigma_mu` is unchanged.
+`vignette("diagnostics")` lost its `sigma_mu.*` row description and gained a
+paragraph saying the quantity is deliberately absent and what the other packages
+do. Two tests.
+
+**One test had to change and one had to move.** `test-gate.R` deliberately fits a
+single tree to a clean step, which is near-separable, and now that the ramp fix
+lets the leaf scale actually equilibrate it climbs high enough to trip
+`warn_runaway_scale()`. The test is about gate shape, so it pins the scale with
+`update_sigma_mu = FALSE`. And `test-marginaleffects.R` asserted that a survival
+credible interval covers the truth at seed 43, where the truth fell 0.004 inside
+the accelerated failure time interval against 0.03 to 0.10 at other seeds; any
+change to the sampler flipped it, and the ramp fix did. Ten seeds all cover, so
+the assertion is sound and the seed was the problem. Moved to seed 3.
+
+## More than one chain no longer needs future.apply
+
+It refused to run without it. Parallelism is how fast the chains are, not
+whether the model is fitted, and several chains run one after another is still
+what makes the convergence diagnostics available, so the absence of an optional
+package should not be an error.
+
+**The seeds are generated here now rather than by `future.seed = TRUE`.** That
+was the part worth getting right: the two branches would otherwise draw from
+different streams, and the same script would give different answers depending on
+whether future.apply happened to be installed, which is a worse failure than
+being slow. `parallel_streams()` advances one L'Ecuyer stream per chain from the
+session's own seed and both branches consume the same list, so the draws are
+identical either way -- verified, and a stronger guarantee than the package made
+before. `parallel` moved to Imports for `nextRNGStream()`.
+
+The session's generator is put back afterwards, kind included, since the streams
+need L'Ecuyer and the session did not ask for it. Two tests, one of them mocking
+`rlang::is_installed()` to take the sequential branch with future.apply present.
+The old test asserting the refusal is gone.
+
+## Per-forest arguments, including the formula
+
+The interface change behind varying coefficients, and useful on its own. Any
+argument that could mean something different for each forest of a multi-forest
+family may now be given once, to apply to all, or one per forest: positionally,
+or keyed by the forest names. That covers `formula`, `num_trees`, `k`,
+`sigma_mu`, `sparsity`, `split_prior`, `bandwidth`, `gamma`, `beta`, the four
+`alpha` arguments, and the three `update_` flags.
+
+```r
+bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = location_scale(),
+         num_trees = c(mean = 50, log_sd = 10))
+```
+
+**Per-forest predictors cost no new machinery in the engine, because zero
+splitting weights already do the job.** The frame is built from the union of
+every forest's formula, and each forest is then held to its own subset by zeroing
+its splitting weights on the terms its formula leaves out. So a predictor absent
+from one forest's formula is present in that forest's data and never split on,
+which is the right semantics, and the tree and node code is untouched. This is
+what the zero weight in `split_prior` was for. Measured: on
+`list(y ~ x1 + x2, ~ x2 + x3)` the mean forest takes 42.3 and 33.4 rules on `x1`
+and `x2` and exactly 0 on `x3`, and the scale forest exactly 0 on `x1`.
+
+`split_prior` became a matrix with one column per forest, and the engine reads
+column `h`. The other per-forest settings are read through two small lambdas
+that index by forest, so R sends one value per forest and the engine never has
+to decide what a scalar means. `NULL` is returned when there is nothing to say --
+no weights asked for and every forest using every predictor -- so the ordinary
+call reaches the engine exactly as before, and a test checks the draws are
+identical between `y ~ x` and `list(y ~ x)`.
+
+**A forest a named argument does not mention keeps that argument's default**
+rather than borrowing the value chosen for another forest. Naming one forest is
+the natural way to say "leave the other alone", and the alternative would make
+`k = c(log_sd = 8)` silently set the mean forest's `k` to 8 as well.
+
+**The multinomial families are the exception**, as asked. Their forests are the
+levels of one categorical parameter and act together, so every per-forest
+argument takes a single value and more than one is an error naming the reason.
+
+**`sparsity` had to be vectorized** rather than just spread, because it is one
+argument standing in for four: `resolve_sparsity()` now resolves each element on
+its own and carries the names through, and `bartisan()` spreads the four derived
+settings. That makes `sparsity = c(mean = TRUE, log_sd = FALSE)` work, which is
+the setting the atom-at-zero finding wants and the shape a BCF fit needs.
+
+`bartisan-families` gained a "Several additive predictors" section with the forest
+order and names per family, linked from `bartisan()`'s `formula` argument.
+`bartisan_control()` gained an "Arguments that vary by forest" section. The names
+are the ones already in `fit$eta` and the diagnostics table -- `mean` and
+`log_sd` for `location_scale()`, `count` and `zero` for the zero-inflated
+families -- rather than `mu` and `sigma`, so that one set of names labels
+everything.
+
+### Six bugs the tests found, none of which I would have found by reading
+
+Written down because every one of them was in code that looked right.
+
+- **A named list may carry the response on any element.**
+  `list(log_sd = ~ x3, mean = y ~ x1)` is legitimate, and both
+  `split_formula_list()` and `bartisan()` required the response on element 1.
+  Names say which forest each formula is for, so position carries nothing; an
+  unnamed list is still positional and must lead with the response.
+- **`union_formula()` read the response off element 1** for the same reason, and
+  so built `x3 ~ ...` from the list above. It now finds whichever element carries
+  one, since the union is built before the family is known and therefore before
+  the list can be put in forest order.
+- **`as.integer(num_trees)` dropped the forest names**, so
+  `num_trees = c(mu = 8)` reached the resolver unnamed and the bad name went
+  unreported.
+- **`~ .` on a later formula expanded over the response**, making the outcome a
+  predictor of itself. The first formula's left-hand side is put back before the
+  terms are taken.
+- **`x1:x2` and `x2:x1` became two predictors.** Term labels are compared by
+  their set of variables now, so an interaction written either way is one term.
+- **`forest_masks()` returned a vector, not a matrix**, with a single predictor
+  group, and everything downstream indexes by column.
+
+Two more, smaller: a list of one formula left `formula` as a list and broke
+`terms(fit)`; and `split_prior`'s own names are predictor names, so a bare named
+vector cannot also be read as keyed by forest -- `c(x3 = 0)` is a weight on `x3`
+for every forest, and a *list* is what says per-forest.
+
+`arg::when_not_null()` does not accept a plain closure as its checker, which
+three recovery tests found; the optional per-forest checks use plain R instead.
+And one existing test matched on the old `num_trees` error message, which now
+comes from the per-forest resolver and names the forests the family does have.

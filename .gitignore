@@ -37,3 +37,15 @@ _dev/*
 !_dev/survival-bins.R
 !_dev/survival-timing.R
 !_dev/survival-results.R
+!_dev/bcf-interfaces.md
+!_dev/bcf-proof.R
+!_dev/bcf-mixing.R
+!_dev/sigma-mu-mixing.R
+!_dev/sigma-mu-cause.R
+!_dev/sigma-mu-others.R
+!_dev/ate-atom.R
+!_dev/sparsity-default.R
+!_dev/sparsity-effect-size.R
+
+# Side effect of rendering README.Rmd to github_document.
+README.html

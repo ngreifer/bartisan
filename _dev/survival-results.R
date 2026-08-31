@@ -68,7 +68,7 @@ bins_tab <- data.frame(
   `Pareto k above 0.7` = pair("bad_pct", "%.1f%%"),
   check.names = FALSE)
 
-meta <- list(n_train = 700L, n_test = 700L, num_trees = 50L, num_save = 500L,
+meta <- list(n_train = 700L, n_test = 700L, num_trees = 50L, num_draws = 500L,
              num_burn = 500L, n_rep = 5L, truth_order = truth_order,
              fam_levels = fam_levels, when = sim$when)
 

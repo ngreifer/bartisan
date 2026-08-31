@@ -20,7 +20,7 @@ N_REP   <- 5L
 N_GRID  <- 20L
 CENSOR  <- 0.3
 
-ctrl <- bartisan_control(num_trees = 50, num_burn = 500, num_save = 500)
+ctrl <- bartisan_control(num_trees = 50, num_burn = 500, num_draws = 500)
 
 # ---- covariates and the signal ------------------------------------------------
 
