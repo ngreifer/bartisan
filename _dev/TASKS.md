@@ -3260,3 +3260,91 @@ for every forest, and a *list* is what says per-forest.
 three recovery tests found; the optional per-forest checks use plain R instead.
 And one existing test matched on the old `num_trees` error message, which now
 comes from the per-forest resolver and names the forests the family does have.
+
+## Three papers assessed: VCBART, flexBART, SBT
+
+All three are the VCBART citation neighborhood, which is worth noticing: the
+VCBART discussion cites Luo and Pratola's sharding paper as its scaling route and
+Deshpande's flexBART for its categorical decision rules.
+
+### VCBART (Deshpande, Bai, Balocchi, Starling, Weiss; Bayesian Analysis 2026)
+
+The varying coefficient model with a BART ensemble per coefficient, over the
+*modifiers* rather than the covariates. BCF is named in the paper as a special
+case with one covariate.
+
+**Build it.** It is the paper the package is closest to and the gap is one
+decorator: the map from forests to the likelihood is
+$\mu_i = \eta_{i0} + \sum_j x_{ij}\eta_{ij}$, and by the chain rule the score
+and information for forest $j$ scale by $x_{ij}$ and $x_{ij}^2$. That is
+`_dev/bcf-interfaces.md`'s finding arrived at independently, and this term's
+per-forest work supplies the rest: a formula per forest is exactly the
+covariate-versus-modifier split, and per-forest `sparsity` is their per-ensemble
+modifier selection.
+
+**Two of their stated future work items are things this package already has.**
+Their hard trees cap the recoverable smoothness at Holder $\alpha_j \le 1$ and
+they name soft rules as the fix and as ongoing work; bartisan has had soft rules
+from the start. They also describe a heteroskedastic VCBART needing a variance
+ensemble in the manner of Pratola (2019); that is `location_scale()`.
+
+**One thing they have that we do not**, and it is not the varying coefficient: a
+compound-symmetry within-subject correlation with $\rho$ drawn, which makes the
+leaf update an intercept-free conjugate linear regression per leaf rather than a
+scalar draw. bartisan models repeated measures with a random intercept instead,
+which is a different model rather than a worse one, but it is not the same thing
+and should not be described as if it were.
+
+**Their diagnostics advice corroborates the `sigma_mu` decision made this term.**
+They tell users to track $\sigma$ rather than trees, note that individual trees
+are not identified, and report needing 20,000 to 50,000 iterations for
+$\hat{R} < 1.1$ while 2,000 gives good predictions and calibrated intervals. That
+is the same shape as the finding here: the ensemble mixes slowly on quantities
+nobody reports and fast enough on the ones they do.
+
+### flexBART (Deshpande; arXiv 2211.04459)
+
+One-hot encoding a $K$-level factor lets a tree express only $2^K - K$ of the
+$B_K$ partitions of its levels, because a rule on a single indicator can only
+peel off one level at a time. At $K = 5$ that is 27 of 52; at $K = 10$ it is
+1,014 of 115,975. The paper re-implements BART with rules that assign subsets of
+levels to each branch, plus a decision-rule prior that produces spatially
+contiguous clusters by deleting an edge from a random spanning tree.
+
+**This is a real gap here, and it was checked rather than assumed.**
+`build_design()` calls `contrasts(..., contrasts = FALSE)`, so a factor becomes
+$K$ full dummy columns, and the engine's rules are thresholds on single columns.
+bartisan is exactly in the described regime. What `make_group_probs()` already
+does is the *other* half: it makes a factor one unit for the sparsity prior, so
+selection treats it as a whole. Partitioning of its levels is untouched by that,
+and the two should not be conflated.
+
+The cost is partial pooling, not fit. On five levels with a strong signal
+bartisan recovers the level means fine, because four splits isolate five levels.
+It bites where levels are many and thin, which is what their baseball and census
+tract examples are.
+
+**Worth doing, and it is the deepest of the three**, because a decision rule
+would have to become a subset rather than a threshold, which reaches the node
+representation, the prediction path and the missing-value handling. One design
+question has no obvious answer: a soft gate is a smooth function of a threshold,
+and there is no evident soft analogue of "this subset of levels goes left", so
+soft rules and categorical subsets would need a decision about how they compose.
+
+### SBT (Luo and Pratola; arXiv 2306.00361)
+
+A sharding tree on an auxiliary uniform variable partitions the data into $B$
+shards, a separate BART is fitted to each, and predictions are a weighted
+aggregate. The theory gives posterior concentration for the aggregate and shows
+the weights should equalize $w_b^{-1}\varepsilon_{b,n}$, so equal shards want
+equal weights. Prediction draws a fresh $u_*$ per iteration.
+
+**Do not build it.** It is a scalability device rather than a modeling extension,
+and it changes what the model is: the fit becomes a mixture over shardings, so
+every family, every estimand and `marginaleffects` would have to account for the
+sharding, and prediction stops being a function of the covariates alone. The
+payoff is parallelism across shards, and this package's cost is not
+sharding-shaped -- the measured wins have been leaf-target form and augmentation,
+which cut five to ten times off the general families and leave the interface
+alone. Recorded as the route to look at if sample size ever becomes the binding
+constraint, which it is not.
