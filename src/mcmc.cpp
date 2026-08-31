@@ -176,8 +176,7 @@ void Context::make_base_children(const Node* parent, std::vector<double>& base,
 
   for (std::size_t k = 0; k < n; k++) {
     int i = parent->idx[k];
-    double g = left_prob(X(i, parent->var), parent->val,
-                         parent->tree->bandwidth, soft, parent->na_rule, gate);
+    double g = parent->gate(i);
     double parent_wt = wt == nullptr ? 1.0 : wt[k];
     double wl = parent_wt * g;
     double wr = parent_wt - wl;
@@ -1388,6 +1387,7 @@ void node_birth(Tree* tree, Context& ctx, const Hypers& hypers) {
     leaf->var = 0;
     leaf->group = 0;
     leaf->na_rule = NA_LEFT;
+    leaf->mask.clear();
   }
 }
 
@@ -1448,6 +1448,7 @@ void node_death(Tree* tree, Context& ctx, const Hypers& hypers) {
     branch->var = 0;
     branch->group = 0;
     branch->na_rule = NA_LEFT;
+    branch->mask.clear();
     commit_single(branch, *ctx.eta, ctx.h, base, mu_new);
   }
   else {

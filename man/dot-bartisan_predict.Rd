@@ -14,7 +14,8 @@
   num_draws,
   soft,
   gate,
-  iterations
+  iterations,
+  codes
 )
 }
 \arguments{

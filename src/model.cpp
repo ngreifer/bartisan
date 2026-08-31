@@ -19,7 +19,11 @@ namespace {
 // records: whether the node is a leaf, its splitting variable, its cutpoint,
 // what its rule does with a missing value, and its leaf value. A branch's two
 // subtrees follow it immediately, so decoding is a single pass with a cursor.
-const int RECORD_SIZE = 5;
+// Fixed part of one node's record. A categorical rule appends its level mask
+// after it, so records are variable length; the reader advances by whatever it
+// consumed, and nothing outside this file parses the encoding -- R only
+// concatenates the vectors and shifts the tree offsets.
+const int RECORD_SIZE = 6;
 
 // `leaf_shift` is subtracted from every leaf value as the tree is written out.
 // A tree's membership weights sum to one for every observation, so subtracting
@@ -28,11 +32,20 @@ const int RECORD_SIZE = 5;
 // by 1/num_trees of the shift per tree. See Family::report_shift().
 void encode_tree(const Node* node, std::vector<double>& out,
                  double leaf_shift) {
+  int words = node->is_leaf ? 0 : static_cast<int>(node->mask.size());
+
   out.push_back(node->is_leaf ? 1.0 : 0.0);
   out.push_back(static_cast<double>(node->var));
   out.push_back(node->val);
   out.push_back(static_cast<double>(node->na_rule));
   out.push_back(node->mu - leaf_shift);
+  out.push_back(static_cast<double>(words));
+
+  // A word is 32 bits, which a double holds exactly.
+  for (int w = 0; w < words; w++) {
+    out.push_back(static_cast<double>(node->mask[w]));
+  }
+
   if (!node->is_leaf) {
     encode_tree(node->left, out, leaf_shift);
     encode_tree(node->right, out, leaf_shift);
@@ -41,23 +54,47 @@ void encode_tree(const Node* node, std::vector<double>& out,
 
 // Both subtrees are always walked, even when a hard rule gives one of them zero
 // weight, so that the cursor advances past the whole tree exactly once.
-double eval_tree(const double* record, int& pos, const arma::mat& X, int i,
-                 double weight, double bandwidth, bool soft, int gate) {
+double eval_tree(const double* record, int& pos, const arma::mat& X,
+                 const arma::imat& codes, int i, double weight,
+                 double bandwidth, bool soft, int gate) {
   bool leaf = record[pos] > 0.5;
   int var = static_cast<int>(record[pos + 1]);
   double val = record[pos + 2];
   int na_rule = static_cast<int>(record[pos + 3]);
   double mu = record[pos + 4];
-  pos += RECORD_SIZE;
+  int words = static_cast<int>(record[pos + 5]);
+  const double* mask_at = record + pos + RECORD_SIZE;
+  pos += RECORD_SIZE + words;
 
   if (leaf) {
     return weight * mu;
   }
 
-  double g = left_prob(X(i, var), val, bandwidth, soft, na_rule, gate);
-  double left = eval_tree(record, pos, X, i, weight * g, bandwidth, soft, gate);
-  double right = eval_tree(record, pos, X, i, weight * (1.0 - g), bandwidth,
-                           soft, gate);
+  double g;
+
+  if (words > 0) {
+    int level = codes(i, var);
+
+    if (level < 0) {
+      g = na_rule == NA_RIGHT ? 0.0 : 1.0;
+    }
+    else if (na_rule == NA_ONLY) {
+      g = 0.0;
+    }
+    else {
+      std::uint32_t word =
+        static_cast<std::uint32_t>(mask_at[static_cast<std::size_t>(level) >> 5]);
+      g = ((word >> (level & 31)) & 1u) ? 1.0 : 0.0;
+    }
+  }
+  else {
+    g = left_prob(X(i, var), val, bandwidth, soft, na_rule, gate);
+  }
+
+  double left = eval_tree(record, pos, X, codes, i, weight * g, bandwidth, soft,
+                          gate);
+  double right = eval_tree(record, pos, X, codes, i, weight * (1.0 - g),
+                           bandwidth, soft, gate);
   return left + right;
 }
 
@@ -115,7 +152,8 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
                  const arma::vec& weights, const arma::mat& offset,
                  const arma::sp_mat& group_probs, std::string family_name,
                  std::string link, List family_opts, List control,
-                 List random_spec) {
+                 List random_spec, const arma::imat& codes,
+                 const arma::ivec& cat_col, const arma::ivec& n_levels) {
 
   int n = static_cast<int>(X.n_rows);
 
@@ -247,7 +285,8 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
       split_prior.n_cols > 0 ? arma::vec(split_prior.col(h)) : arma::vec())));
 
     for (int t = 0; t < num_trees[h]; t++) {
-      forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na));
+      forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na, &codes,
+                                    &cat_col, &n_levels));
     }
   }
 
@@ -505,7 +544,8 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
                      const arma::mat& bandwidth, int num_forest,
                      const std::vector<int>& num_trees,
                      int num_draws, bool soft, int gate,
-                     const std::vector<int>& iterations) {
+                     const std::vector<int>& iterations,
+                     const arma::imat& codes) {
 
   int n = static_cast<int>(X.n_rows);
   int num_iter = static_cast<int>(iterations.size());
@@ -537,7 +577,8 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
         double band = bandwidth(iter, tree_offset[h] + t);
         for (int i = 0; i < n; i++) {
           int pos = begin;
-          out[h](s, i) += eval_tree(forest_flat.data(), pos, X, i, 1.0, band,
+          out[h](s, i) += eval_tree(forest_flat.data(), pos, X, codes, i, 1.0,
+                                    band,
                                     soft, gate);
         }
       }

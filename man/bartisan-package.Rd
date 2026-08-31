@@ -31,6 +31,8 @@ need rather than reimplementing them. This table is the map.\tabular{ll}{
    how much a predictor moves the outcome \tab \code{marginaleffects::avg_comparisons()} \cr
    a partial dependence plot \tab \code{marginaleffects::plot_predictions()} \cr
    which predictors the forest uses \tab \code{\link[=variable_importance]{variable_importance()}} \cr
+   to tell the prior which predictors matter \tab \code{split_prior} in \code{\link[=bartisan_control]{bartisan_control()}} \cr
+   to give one forest its own predictors or settings \tab a list of formulas, and per-forest arguments; see \link{bartisan-families} \cr
    to check it converged \tab \code{fit$rhat}, then \link[=bartisan-interop]{as_draws()} with \pkg{bayesplot} \cr
    to check it fits \tab \link[=bartisan-interop]{pp_check()}, \link[=bartisan-interop]{residuals()} \cr
    to compare two models \tab \link[=bartisan-interop]{loo()} \cr

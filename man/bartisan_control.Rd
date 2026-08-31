@@ -9,6 +9,7 @@ bartisan_control(
   gate = "smoothstep",
   sparsity = TRUE,
   split_prior = NULL,
+  categorical = "subset",
   k = 2,
   bandwidth = 0.1,
   chains = 1L,
@@ -88,6 +89,16 @@ rather than silently ignored. A weight of zero is allowed and means the
 predictor is never split on: it stays in the model frame and out of every
 tree. The default, \code{NULL}, weights every predictor equally.
 Setting this overrides \code{sparsity}; see Details.}
+
+\item{categorical}{how a splitting rule divides the levels of a factor.
+\code{"subset"}, the default, draws a subset of the levels still available at the
+node and sends those left, which is the rule of Deshpande (2024).
+\code{"onehot"} is what most BART implementations do: it splits on one indicator
+column, which peels a single level off the rest. The choice matters because
+\code{"onehot"} reaches only \code{2^K - K} of the \code{B_K} partitions of \code{K} levels --
+27 of 52 at \code{K = 5}, and 1,014 of 115,975 at \code{K = 10} -- and the partitions
+it can form all have at most one cell with more than one level in it, so the
+bulk of the levels is never divided. See Details.}
 
 \item{k}{controls the leaf prior. The prior standard deviation of a forest is
 \code{3 / k} times the natural scale of its additive predictor, so larger \code{k}
@@ -380,6 +391,33 @@ bartisan_control(num_trees = c(mean = 50, log_sd = 10),
 The multinomial families are the exception, for the reason given in
 \link{bartisan-families}: their forests act as one, so these arguments take a
 single value.
+}
+
+\section{Splitting a factor}{
+A rule on one indicator column of a factor can only separate one level from
+the rest. Applied repeatedly down a path that produces a partition with some
+number of singleton levels and one cell holding everything else, and those are
+the only partitions available: \code{2^K - K} of the \code{B_K} partitions of \code{K}
+levels, which is 27 of 52 at \code{K = 5} and under 1\% at \code{K = 10}.
+
+What that costs is partial pooling. Simulating the tree prior directly at
+\code{K = 10}, the probability that two levels land in the same leaf is 0.77 under
+\code{"onehot"} against 0.46 under \code{"subset"}, and a typical \code{"onehot"} tree has
+1.18 singleton levels out of 2.18 leaves: one level alone, the rest together,
+whether the data want that or not. A rule that takes a subset of the levels
+reaches every partition, and the co-clustering probabilities come out far more
+even.
+
+Two consequences of \code{"subset"} worth knowing. A rule on a factor is always
+hard, even in a soft tree: a gate is a smooth function of the distance from a
+cutpoint and there is no distance between two levels. Under \code{"onehot"} the
+distance-based gate did apply to the 0 and 1 of an indicator, and at the
+default bandwidth it left one level with a fractional membership weight for
+81\% of cutpoints, which is not a smoothing anyone asked for. And a rule can no
+longer land on an indicator that a path has already used up, which \code{"onehot"}
+did for between 1\% and 7\% of its draws on a factor depending on \code{K}.
+
+A two-level factor is unaffected either way, since \code{2^2 - 2} is \code{B_2}.
 }
 
 \section{Telling the prior what you already know}{

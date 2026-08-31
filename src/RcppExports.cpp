@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // bartisan_fit
-List bartisan_fit(const arma::mat& X, const arma::uvec& has_na, const arma::vec& y, const arma::vec& weights, const arma::mat& offset, const arma::sp_mat& group_probs, std::string family_name, std::string link, List family_opts, List control, List random_spec);
-RcppExport SEXP _bartisan_bartisan_fit(SEXP XSEXP, SEXP has_naSEXP, SEXP ySEXP, SEXP weightsSEXP, SEXP offsetSEXP, SEXP group_probsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP controlSEXP, SEXP random_specSEXP) {
+List bartisan_fit(const arma::mat& X, const arma::uvec& has_na, const arma::vec& y, const arma::vec& weights, const arma::mat& offset, const arma::sp_mat& group_probs, std::string family_name, std::string link, List family_opts, List control, List random_spec, const arma::imat& codes, const arma::ivec& cat_col, const arma::ivec& n_levels);
+RcppExport SEXP _bartisan_bartisan_fit(SEXP XSEXP, SEXP has_naSEXP, SEXP ySEXP, SEXP weightsSEXP, SEXP offsetSEXP, SEXP group_probsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP controlSEXP, SEXP random_specSEXP, SEXP codesSEXP, SEXP cat_colSEXP, SEXP n_levelsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -28,13 +28,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< List >::type family_opts(family_optsSEXP);
     Rcpp::traits::input_parameter< List >::type control(controlSEXP);
     Rcpp::traits::input_parameter< List >::type random_spec(random_specSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_fit(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec));
+    Rcpp::traits::input_parameter< const arma::imat& >::type codes(codesSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type cat_col(cat_colSEXP);
+    Rcpp::traits::input_parameter< const arma::ivec& >::type n_levels(n_levelsSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_fit(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels));
     return rcpp_result_gen;
 END_RCPP
 }
 // bartisan_predict
-List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat, const std::vector<int>& tree_start, const arma::mat& bandwidth, int num_forest, const std::vector<int>& num_trees, int num_draws, bool soft, int gate, const std::vector<int>& iterations);
-RcppExport SEXP _bartisan_bartisan_predict(SEXP XSEXP, SEXP forest_flatSEXP, SEXP tree_startSEXP, SEXP bandwidthSEXP, SEXP num_forestSEXP, SEXP num_treesSEXP, SEXP num_drawsSEXP, SEXP softSEXP, SEXP gateSEXP, SEXP iterationsSEXP) {
+List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat, const std::vector<int>& tree_start, const arma::mat& bandwidth, int num_forest, const std::vector<int>& num_trees, int num_draws, bool soft, int gate, const std::vector<int>& iterations, const arma::imat& codes);
+RcppExport SEXP _bartisan_bartisan_predict(SEXP XSEXP, SEXP forest_flatSEXP, SEXP tree_startSEXP, SEXP bandwidthSEXP, SEXP num_forestSEXP, SEXP num_treesSEXP, SEXP num_drawsSEXP, SEXP softSEXP, SEXP gateSEXP, SEXP iterationsSEXP, SEXP codesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -48,7 +51,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type soft(softSEXP);
     Rcpp::traits::input_parameter< int >::type gate(gateSEXP);
     Rcpp::traits::input_parameter< const std::vector<int>& >::type iterations(iterationsSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_predict(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations));
+    Rcpp::traits::input_parameter< const arma::imat& >::type codes(codesSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_predict(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -140,8 +144,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_bartisan_bartisan_fit", (DL_FUNC) &_bartisan_bartisan_fit, 11},
-    {"_bartisan_bartisan_predict", (DL_FUNC) &_bartisan_bartisan_predict, 10},
+    {"_bartisan_bartisan_fit", (DL_FUNC) &_bartisan_bartisan_fit, 14},
+    {"_bartisan_bartisan_predict", (DL_FUNC) &_bartisan_bartisan_predict, 11},
     {"_bartisan_bartisan_logdens", (DL_FUNC) &_bartisan_bartisan_logdens, 7},
     {"_bartisan_bartisan_mnp_probs", (DL_FUNC) &_bartisan_bartisan_mnp_probs, 3},
     {"_bartisan_bartisan_derivs", (DL_FUNC) &_bartisan_bartisan_derivs, 10},

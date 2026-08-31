@@ -47,6 +47,111 @@ make_unit_map <- function(x, type = "quantile") {
   function(z) f(z)
 }
 
+# Which predictor groups are a set of mutually exclusive indicators, and each
+# observation's level within them.
+#
+# A rule on one indicator column of a factor can only peel one level off the
+# rest, so the tree prior reaches 2^K - K of the B_K partitions of K levels:
+# 27 of 52 at K = 5, and 1,014 of 115,975 at K = 10. Deshpande (2024) shows what
+# that costs, which is partial pooling: the bulk is never divided, so a typical
+# tree puts one level alone and the rest together whether the data want that or
+# not. A rule that takes a *subset* of the levels reaches all of them, and it
+# needs to know which level each observation is in.
+#
+# The test is on the columns rather than on the terms, because it is the columns
+# that have to be mutually exclusive indicators for a level code to exist. That
+# admits a factor's main effect and an interaction of factors, whose cells are
+# also a partition, and correctly excludes a factor crossed with a numeric
+# predictor, whose columns are not indicators.
+level_codes <- function(x, assign) {
+  groups <- sort(unique(assign))
+  n <- nrow(x)
+
+  n_levels <- integer(length(groups))
+  cat_col <- rep.int(-1L, length(groups))
+  codes <- vector("list", length(groups))
+
+  for (g in seq_along(groups)) {
+    cols <- which(assign == groups[g])
+
+    if (length(cols) < 2L) {
+      next
+    }
+
+    block <- x[, cols, drop = FALSE]
+    observed <- !apply(is.na(block), 1L, any)
+
+    if (!any(observed)) {
+      next
+    }
+
+    seen <- block[observed, , drop = FALSE]
+
+    # Indicators, and exactly one of them set per observation.
+    if (!all(seen == 0 | seen == 1) || !all(rowSums(seen) == 1)) {
+      next
+    }
+
+    code <- rep.int(-1L, n)
+    code[observed] <- max.col(seen, ties.method = "first") - 1L
+
+    n_levels[g] <- length(cols)
+    codes[[g]] <- code
+  }
+
+  keep <- which(n_levels > 0L)
+
+  if (length(keep) == 0L) {
+    return(list(codes = matrix(-1L, n, 0L), cat_col = cat_col,
+                n_levels = n_levels))
+  }
+
+  cat_col[keep] <- seq_along(keep) - 1L
+
+  list(codes = matrix(unlist(codes[keep], use.names = FALSE), nrow = n),
+       cat_col = cat_col,
+       n_levels = n_levels)
+}
+
+# The level codes of new data, under the structure the fit recorded.
+#
+# Which groups are categorical, and how many levels each has, is a property of
+# the fitted trees rather than of the data being predicted for, so it is read
+# from the fit. Re-deriving it would let a `newdata` that happens not to satisfy
+# the indicator test -- one row, or a group missing throughout -- disagree with
+# the rules the trees actually carry, which would be wrong rather than merely
+# unsupported.
+apply_level_codes <- function(x, assign, info) {
+  n_levels <- info[["n_levels"]]
+  cat_col <- info[["cat_col"]]
+  groups <- sort(unique(assign))
+  n_cat <- sum(n_levels > 0L)
+
+  if (n_cat == 0L) {
+    return(matrix(-1L, nrow(x), 0L))
+  }
+
+  out <- matrix(-1L, nrow(x), n_cat)
+
+  for (g in seq_along(groups)) {
+    if (n_levels[g] == 0L) {
+      next
+    }
+
+    cols <- which(assign == groups[g])
+    block <- x[, cols, drop = FALSE]
+    observed <- !apply(is.na(block), 1L, any)
+
+    if (any(observed)) {
+      seen <- block[observed, , drop = FALSE]
+      out[observed, cat_col[g] + 1L] <-
+        max.col(seen, ties.method = "first") - 1L
+    }
+  }
+
+  out
+}
+
 # Prior weight of each predictor group in the sparsity prior. One group per term
 # in the formula, so the dummy columns of a factor are selected as a unit rather
 # than competing with each other.

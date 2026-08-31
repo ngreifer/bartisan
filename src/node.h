@@ -3,6 +3,7 @@
 
 #include <RcppArmadillo.h>
 #include <vector>
+#include <cstdint>
 #include "hypers.h"
 
 namespace bartisan {
@@ -83,6 +84,27 @@ struct Tree {
   // prior is exactly what it was before missing data was supported.
   const arma::uvec* has_na;
 
+  // The level of each observation within each predictor group whose columns are
+  // mutually exclusive indicators, so that a rule on such a group can name a
+  // *subset* of its levels rather than a threshold on one indicator. `codes` is
+  // observations by categorical groups and holds -1 where the group is missing;
+  // `cat_col` maps a group to its column of `codes`, or -1; `n_levels` maps a
+  // group to its number of levels, or 0.
+  //
+  // A threshold on one indicator can only peel a single level off the rest, so
+  // it reaches 2^K - K of the B_K partitions of K levels and leaves the bulk
+  // undivided. Deshpande (2024) is the reference; a subset rule reaches all of
+  // them.
+  const arma::imat* codes;
+  const arma::ivec* cat_col;
+  const arma::ivec* n_levels;
+
+  int levels_of(int group) const {
+    return n_levels == nullptr ? 0 : (*n_levels)(group);
+  }
+
+  int code_col(int group) const { return (*cat_col)(group); }
+
   // State for the adaptive bandwidth proposal. The step is the half-width of
   // the multiplicative random walk on the log scale, tuned during warmup
   // towards the acceptance rate that is optimal for a one-dimensional random
@@ -101,7 +123,9 @@ struct Tree {
   // them again either.
   std::vector<Node*> pool;
 
-  Tree(Hypers* hypers_, const arma::mat* X_, const arma::uvec* has_na_);
+  Tree(Hypers* hypers_, const arma::mat* X_, const arma::uvec* has_na_,
+       const arma::imat* codes_ = nullptr, const arma::ivec* cat_col_ = nullptr,
+       const arma::ivec* n_levels_ = nullptr);
   ~Tree();
 
   // A fresh child of `parent`, from the pool if one is waiting. Identical in
@@ -147,6 +171,14 @@ struct Node {
   double upper;
   NaRule na_rule;
 
+  // Non-empty exactly when this node's rule names a subset of a categorical
+  // group's levels, in which case a set bit is a level that goes left and
+  // `val`, `lower` and `upper` are unused. Empty for a numeric rule, so the
+  // common case allocates nothing, and a node from the pool keeps its capacity.
+  std::vector<std::uint32_t> mask;
+
+  bool is_categorical() const { return !mask.empty(); }
+
   double mu;
 
   // Center and standard deviation of the Laplace approximation to this node's
@@ -183,6 +215,11 @@ struct Node {
   // hand-written list of fields is what silently dropped `na_rule` the first
   // time the rule grew a field. The list lives here, next to the declarations,
   // and nowhere else.
+  // A whole rule, for the change move to put back when its proposal is
+  // rejected. The level set belongs in here as much as the cutpoint does:
+  // restoring `var` and `group` from a categorical rule while leaving the mask
+  // cleared, or the other way round, leaves a node whose rule says it is one
+  // kind and whose `var` indexes the other kind's matrix.
   struct Rule {
     int var;
     int group;
@@ -190,9 +227,12 @@ struct Node {
     double lower;
     double upper;
     NaRule na_rule;
+    std::vector<std::uint32_t> mask;
   };
 
-  Rule rule() const { return Rule{var, group, val, lower, upper, na_rule}; }
+  Rule rule() const {
+    return Rule{var, group, val, lower, upper, na_rule, mask};
+  }
 
   void set_rule(const Rule& r) {
     var = r.var;
@@ -201,11 +241,15 @@ struct Node {
     lower = r.lower;
     upper = r.upper;
     na_rule = r.na_rule;
+    mask = r.mask;
   }
 
   // Draw a splitting rule from the prior: a variable, what to do with its
   // missing values if it has any, and a cutpoint.
   void draw_rule();
+  void draw_categorical_rule(int levels);
+  void available_levels(int group_id, int levels,
+                        std::vector<std::uint32_t>& out) const;
 
   // Draw a splitting rule from the prior and build the two children, dividing
   // this node's support between them.
@@ -240,6 +284,38 @@ struct Node {
 // the whole scheme rests on, and it makes a missing value's path through the
 // tree a hard one even when the rules are soft -- correctly, since there is
 // nothing about being absent to smooth over.
+// A level set as a bitmask, 32 levels to a word.
+inline int mask_words(int levels) { return (levels + 31) / 32; }
+
+inline bool mask_test(const std::vector<std::uint32_t>& mask, int level) {
+  return (mask[static_cast<std::size_t>(level) >> 5] >>
+          (level & 31)) & 1u;
+}
+
+inline void mask_set(std::vector<std::uint32_t>& mask, int level) {
+  mask[static_cast<std::size_t>(level) >> 5] |= 1u << (level & 31);
+}
+
+// Whether a categorical rule sends this level's observations left. A rule on a
+// set of levels is always hard, even in a soft tree: a gate is a smooth function
+// of the distance from a cutpoint and there is no distance between two levels of
+// a factor. On a 0/1 indicator column the old distance-based gate did apply, and
+// at the default bandwidth it left one level with a fractional membership weight
+// for 81% of cutpoints, which is not something anyone asked for.
+inline double left_prob_categorical(int level,
+                                    const std::vector<std::uint32_t>& mask,
+                                    int na_rule) {
+  if (level < 0) {
+    return na_rule == NA_RIGHT ? 0.0 : 1.0;
+  }
+
+  if (na_rule == NA_ONLY) {
+    return 0.0;
+  }
+
+  return mask_test(mask, level) ? 1.0 : 0.0;
+}
+
 inline double left_prob(double x, double val, double bandwidth, bool soft,
                         int na_rule, int gate = GATE_LOGISTIC) {
   if (std::isnan(x)) {
@@ -323,7 +399,12 @@ void accumulate(Node* node, arma::rowvec& eta, double sign);
 // Evaluate the tree at new data.
 void predict_accumulate(Node* node, const arma::mat& X, arma::vec& out,
                         double weight, int i);
-arma::vec predict_tree(Tree* tree, const arma::mat& X);
+// A tree's prediction for one dataset used to live here as `predict_tree()` and
+// `predict_accumulate()`. Both were dead -- nothing in the package or the tests
+// called them -- and both read a rule as a threshold on a column of X, which a
+// categorical rule is not, so they would have silently mishandled one for
+// whoever called them next. Prediction goes through the encoded forest in
+// `bartisan_predict()`.
 
 void get_var_counts(Node* node, arma::uvec& counts);
 void collect_leaf_params(Node* node, std::vector<double>& out);

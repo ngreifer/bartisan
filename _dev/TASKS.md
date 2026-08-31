@@ -3348,3 +3348,120 @@ sharding-shaped -- the measured wins have been leaf-target form and augmentation
 which cut five to ten times off the general families and leave the interface
 alone. Recorded as the route to look at if sample size ever becomes the binding
 constraint, which it is not.
+
+## Subset splitting rules for a factor, and what they are actually worth
+
+`_dev/categorical-priors.R`, `_dev/categorical-check.R`,
+`_dev/categorical-benchmark.R`. flexBART's contribution, written from the paper
+rather than from their code.
+
+### What the package was doing, established rather than assumed
+
+A factor became `K` full indicator columns, the sparsity prior picked the factor
+as one *group*, then one indicator *column* uniformly, and the rule was a
+threshold on that column -- so it peeled a single level off the rest. What
+`make_group_probs()` already did was the other half of the problem, selection,
+and that half was right; the partition of the levels was untouched by it.
+
+Simulating the tree prior directly, at K = 10:
+
+| | reachable partitions | mean co-clustering | spread | singleton levels per tree |
+|---|---|---|---|---|
+| one-hot | 1,014 of 115,975 | 0.770 | 0.003 | 1.18 of 2.18 leaves |
+| subsets | all | 0.459 | 0.004 | 0.33 of 2.48 leaves |
+
+A typical one-hot tree put one level alone and the other nine together.
+
+**The shuffle-and-treat-as-ordinal idea was tested and is worse than the status
+quo.** A threshold on one fixed order cuts a contiguous block of it, so it
+reaches the `2^(K-1)` interval partitions, and `2^(K-1) < 2^K - K` for every
+K >= 2: 16 against 27 at K = 5. It is also *rigid*, which is the more serious
+objection: co-clustering spread 0.230 against 0.003, so adjacent levels are
+pooled almost always and distant ones almost never, under an order chosen at
+random. Reshuffling per tree removes the rigidity (spread 0.001) but each tree
+still reaches only interval partitions. Recorded and not pursued.
+
+**Two incidental findings, both fixed by the same change.** Between 1% and 7% of
+factor rule draws landed on an indicator the path had already used up, giving an
+empty child, because `get_limits()` tracked an interval per column and not
+whether the column was exhausted. And 81% of cutpoints on a 0/1 column left one
+level with a *fractional* membership weight under the default soft gate, which is
+meaningless for a category. A categorical rule is now always hard, in a soft tree
+too: a gate is a smooth function of a distance and there is no distance between
+two levels.
+
+### The implementation
+
+A rule on a categorical group holds a bitmask of the levels that go left.
+`Node::mask` is empty for a numeric rule, so the common case allocates nothing
+and a node from the pool keeps its capacity. The available levels come from
+intersecting over every ancestor that split on the same group, masks being
+absolute level sets. The prior is the uniform distribution over the `2^m - 2`
+non-degenerate subsets of the `m` available levels, drawn by assigning each level
+to the left with probability one half and rejecting the two degenerate draws --
+which is drawing from the prior, so the rule still cancels out of the acceptance
+ratio the way the variable and the cutpoint do.
+
+The engine gets an integer matrix of level codes alongside X, and a rule's `var`
+is then a column of that rather than of X. Testing a level is a shift and an
+`and`, which is where the efficiency is: flexBART keeps a `std::set<int>` per
+rule. Which groups are categorical is decided by the columns rather than the
+terms -- indicators, exactly one set per row -- which admits a factor and an
+interaction of factors and correctly excludes a factor crossed with a numeric
+predictor.
+
+`categorical = "onehot"` in `bartisan_control()` keeps the old rule, expressed by
+telling the engine that no group has levels. Useful for comparison and it is what
+the benchmark below uses.
+
+**Verified against the thing it is for.** On a one-tree forest on pure noise at
+K = 5, the sampler visits 51 of the 52 partitions, 25 of which one-hot cannot
+form at all, and 41% of draws are in one of those 25. Under
+`categorical = "onehot"` the count of such draws is exactly zero rather than
+merely small.
+
+### Three bugs, two of them mine and one pre-existing
+
+- **`Node::Rule` did not carry the mask.** The change move restores the old rule
+  when its proposal is rejected, and restoring `var` and `group` from a
+  categorical rule while leaving the mask cleared leaves a node whose rule says
+  numeric and whose `var` indexes the codes matrix, or the reverse. That read
+  out of bounds on the first fit mixing a factor with a numeric predictor. Found
+  by instrumenting `gate()` rather than by reading, after three wrong guesses.
+- **`get_limits()` compared `y->var == var` across rule kinds.** A categorical
+  rule's `var` is a column of level codes, so it could collide with a numeric
+  column index and constrain a cutpoint for no reason.
+- **`predict_tree()` and `predict_accumulate()` were dead** -- nothing in the
+  package or the tests called them -- and both read a rule as a threshold on a
+  column of X. Deleted rather than fixed: a dead path that silently mishandles a
+  categorical rule is a trap for whoever calls it next.
+
+### What it is worth, measured
+
+20 levels in 4 clusters of 5 sharing a mean, 50 trees, one chain, five
+replicates, RMSE against the true mean function. Hard rules for the first two
+rows, which is what flexBART has, so the comparison is of the categorical rule
+and not of soft against hard:
+
+| n (per level) | subset, hard | onehot, hard | subset, soft | onehot, soft | flexBART |
+|---|---|---|---|---|---|
+| 200 (10) | **0.3364** | 0.3635 | 0.3132 | 0.3223 | 0.3398 |
+| 500 (25) | **0.2732** | 0.2878 | 0.2467 | 0.2434 | 0.2814 |
+| 2000 (100) | 0.1385 | 0.1370 | 0.1059 | 0.0969 | 0.1475 |
+
+**The gain is real, modest, and confined to the regime it was predicted for.**
+Under hard rules subset beats one-hot by 7.5% at ten observations per level and
+5.1% at twenty-five, and the two are level at a hundred, where each level's mean
+is well estimated on its own and there is nothing to pool. Under soft rules the
+ordering reverses above the thinnest case, by one or two percent: soft rules on
+the numeric predictor already buy most of what there is to buy, and subset rules
+spread prior mass over `2^(K-1)` splits where one-hot spreads it over `K`, so the
+larger space costs more search than it returns. That is the honest reading and it
+argues against overselling the change in the documentation, which now says the
+same thing.
+
+`subset, hard` matches or beats flexBART at every sample size, which is the check
+that the implementation is right rather than merely different. Timing: bartisan
+is three times faster at n = 200 and 1.4 times slower at n = 2000, where
+flexBART's observation-to-leaf bookkeeping pays off. Subset rules cost bartisan
+20% to 27% more time than one-hot above the smallest n.

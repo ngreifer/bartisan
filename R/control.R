@@ -51,6 +51,15 @@
 #'   This argument sets `update_s`, `update_alpha`, `alpha_shape_1` and
 #'   `alpha_shape_2` together; supplying any of those directly overrides it. Read
 #'   the trade-off in Details before turning it off or up.
+#' @param categorical how a splitting rule divides the levels of a factor.
+#'   `"subset"`, the default, draws a subset of the levels still available at the
+#'   node and sends those left, which is the rule of Deshpande (2024).
+#'   `"onehot"` is what most BART implementations do: it splits on one indicator
+#'   column, which peels a single level off the rest. The choice matters because
+#'   `"onehot"` reaches only `2^K - K` of the `B_K` partitions of `K` levels --
+#'   27 of 52 at `K = 5`, and 1,014 of 115,975 at `K = 10` -- and the partitions
+#'   it can form all have at most one cell with more than one level in it, so the
+#'   bulk of the levels is never divided. See Details.
 #' @param split_prior relative prior weight on each predictor, for when you
 #'   expect some to matter more than others. A named numeric vector, keyed by the
 #'   names the predictors have in the formula; every predictor not named gets a
@@ -317,6 +326,33 @@
 #' [bartisan-families]: their forests act as one, so these arguments take a
 #' single value.
 #'
+#' # Splitting a factor
+#'
+#' A rule on one indicator column of a factor can only separate one level from
+#' the rest. Applied repeatedly down a path that produces a partition with some
+#' number of singleton levels and one cell holding everything else, and those are
+#' the only partitions available: `2^K - K` of the `B_K` partitions of `K`
+#' levels, which is 27 of 52 at `K = 5` and under 1% at `K = 10`.
+#'
+#' What that costs is partial pooling. Simulating the tree prior directly at
+#' `K = 10`, the probability that two levels land in the same leaf is 0.77 under
+#' `"onehot"` against 0.46 under `"subset"`, and a typical `"onehot"` tree has
+#' 1.18 singleton levels out of 2.18 leaves: one level alone, the rest together,
+#' whether the data want that or not. A rule that takes a subset of the levels
+#' reaches every partition, and the co-clustering probabilities come out far more
+#' even.
+#'
+#' Two consequences of `"subset"` worth knowing. A rule on a factor is always
+#' hard, even in a soft tree: a gate is a smooth function of the distance from a
+#' cutpoint and there is no distance between two levels. Under `"onehot"` the
+#' distance-based gate did apply to the 0 and 1 of an indicator, and at the
+#' default bandwidth it left one level with a fractional membership weight for
+#' 81% of cutpoints, which is not a smoothing anyone asked for. And a rule can no
+#' longer land on an indicator that a path has already used up, which `"onehot"`
+#' did for between 1% and 7% of its draws on a factor depending on `K`.
+#'
+#' A two-level factor is unaffected either way, since `2^2 - 2` is `B_2`.
+#'
 #' # Telling the prior what you already know
 #'
 #' `sparsity` and `split_prior` answer different questions and cannot both be in
@@ -564,6 +600,7 @@ bartisan_control <- function(num_trees = NULL,
                              gate = "smoothstep",
                              sparsity = TRUE,
                              split_prior = NULL,
+                            categorical = "subset",
                              k = 2,
                              bandwidth = 0.1,
                              chains = 1L,
@@ -672,6 +709,7 @@ bartisan_control <- function(num_trees = NULL,
   soft <- !gate %in% c("hard", "step")
 
   split_prior <- resolve_split_prior(split_prior)
+  categorical <- arg::match_arg(categorical, c("subset", "onehot"))
 
   # A named splitting prior replaces the Dirichlet one rather than seeding it.
   # The two say different things: `sparsity` says the caller does not know which
@@ -702,6 +740,7 @@ bartisan_control <- function(num_trees = NULL,
               soft = soft,
               sparsity = sparsity,
               split_prior = split_prior,
+              categorical = categorical,
               k = k,
               bandwidth = bandwidth,
               chains = as.integer(chains),

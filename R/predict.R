@@ -459,6 +459,10 @@ predict_eta <- function(object, newdata, offset, iterations) {
               to send them")
   }
 
+  # Before the unit maps, which are for the numeric columns; the level codes come
+  # off the indicator columns as they are.
+  codes <- apply_level_codes(x, object[["assign"]], object[["level_codes"]])
+
   x <- apply_unit_maps(x, object[["unit_maps"]])
 
   eta <- .bartisan_predict(X = x,
@@ -470,7 +474,8 @@ predict_eta <- function(object, newdata, offset, iterations) {
                           num_draws = nrow(object[["sigma_mu"]]),
                           soft = object[["soft"]],
                           gate = gate_code(object[["gate"]] %or% "logistic"),
-                          iterations = as.integer(iterations) - 1L)
+                          iterations = as.integer(iterations) - 1L,
+                          codes = codes)
 
   intercept <- object[["intercept"]]
   n_new <- nrow(x)

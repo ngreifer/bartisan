@@ -46,6 +46,9 @@ _dev/*
 !_dev/ate-atom.R
 !_dev/sparsity-default.R
 !_dev/sparsity-effect-size.R
+!_dev/categorical-priors.R
+!_dev/categorical-check.R
+!_dev/categorical-benchmark.R
 
 # Side effect of rendering README.Rmd to github_document.
 README.html

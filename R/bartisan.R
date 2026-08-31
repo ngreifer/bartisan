@@ -435,6 +435,20 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   group_probs <- make_group_probs(design$assign, design$term_labels)
 
+  # A predictor group whose columns are mutually exclusive indicators gets a
+  # level code per observation, so a rule on it can name a subset of its levels
+  # rather than a threshold on one indicator. Taken from the design matrix rather
+  # than the unit-mapped one, since the mapping sends a two-valued column to
+  # exactly 0 and 1 and leaves the indicators alone either way.
+  levels_info <- level_codes(design$x, design$assign)
+
+  # `categorical = "onehot"` is expressed by telling the engine that no group has
+  # levels, which sends every rule down the threshold-on-one-column path. The
+  # codes are still built and stored, so `predict()` needs no second case.
+  if (identical(control[["categorical"]], "onehot")) {
+    levels_info[["n_levels"]] <- integer(length(levels_info[["n_levels"]]))
+  }
+
   engine_control <- as.list(control)
 
   # The names of the forests, which is what a per-forest argument may be keyed
@@ -549,7 +563,10 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
                   link = response[["link"]],
                   family_opts = response[["opts"]],
                   control = engine_control,
-                  random_spec = random_spec(random))
+                  random_spec = random_spec(random),
+                  codes = levels_info[["codes"]],
+                  cat_col = levels_info[["cat_col"]],
+                  n_levels = levels_info[["n_levels"]])
   }
 
   draws <- {
@@ -606,6 +623,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
               term_labels = design$term_labels,
               group_names = colnames(group_probs),
               unit_maps = unit$maps,
+              level_codes = levels_info,
               has_na = has_na,
               x_transform = control[["x_transform"]])
 

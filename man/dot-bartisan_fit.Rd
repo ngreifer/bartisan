@@ -15,7 +15,10 @@
   link,
   family_opts,
   control,
-  random_spec
+  random_spec,
+  codes,
+  cat_col,
+  n_levels
 )
 }
 \arguments{

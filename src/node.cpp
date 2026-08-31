@@ -2,8 +2,11 @@
 
 namespace bartisan {
 
-Tree::Tree(Hypers* hypers_, const arma::mat* X_, const arma::uvec* has_na_)
-  : hypers(hypers_), X(X_), has_na(has_na_) {
+Tree::Tree(Hypers* hypers_, const arma::mat* X_, const arma::uvec* has_na_,
+           const arma::imat* codes_, const arma::ivec* cat_col_,
+           const arma::ivec* n_levels_)
+  : hypers(hypers_), X(X_), has_na(has_na_), codes(codes_), cat_col(cat_col_),
+    n_levels(n_levels_) {
   bandwidth = hypers_->bandwidth_scale;
   log_step = std::log(5.0);
   attempts = 0;
@@ -61,6 +64,7 @@ Node::Node(Tree* tree_, int n_obs) {
   lower = 0.0;
   upper = 1.0;
   na_rule = NA_LEFT;
+  mask.clear();
   mu = 0.0;
   mu_star = 0.0;
   v_star = 1.0;
@@ -94,6 +98,7 @@ void Node::init_as_child(Node* parent_) {
   lower = 0.0;
   upper = 1.0;
   na_rule = NA_LEFT;
+  mask.clear();
   mu = 0.0;
   mu_star = 0.0;
   v_star = 1.0;
@@ -124,7 +129,11 @@ void Node::get_limits() {
     bool from_left = y->is_left();
     y = y->parent;
     keep_going = !y->is_root;
-    if (y->var == var && y->na_rule != NA_ONLY) {
+    // A categorical ancestor constrains a set of levels, not an interval, and
+    // its `var` is a column of level codes rather than of X, so it can collide
+    // with a numeric column index. Both have to be numeric rules for the
+    // ancestor to say anything about where this cutpoint may fall.
+    if (y->var == var && !y->is_categorical() && y->na_rule != NA_ONLY) {
       keep_going = false;
       if (from_left) {
         upper = y->val;
@@ -139,8 +148,43 @@ void Node::get_limits() {
 }
 
 double Node::gate(int i) const {
+  if (is_categorical()) {
+    return left_prob_categorical((*tree->codes)(i, var), mask, na_rule);
+  }
+
   return left_prob((*tree->X)(i, var), val, tree->bandwidth,
                    tree->hypers->soft, na_rule, tree->hypers->gate);
+}
+
+// The levels of this node's categorical group that can still reach it. Every
+// ancestor splitting on the same group narrows it: going left keeps that
+// ancestor's set, going right keeps its complement. Masks are absolute level
+// sets, so intersecting over all such ancestors in any order gives the same
+// answer as walking down from the root.
+void Node::available_levels(int group_id, int levels,
+                            std::vector<std::uint32_t>& out) const {
+  int words = mask_words(levels);
+  out.assign(words, 0u);
+
+  for (int k = 0; k < levels; k++) {
+    mask_set(out, k);
+  }
+
+  const Node* y = this;
+
+  while (!y->is_root) {
+    bool from_left = y->is_left();
+    y = y->parent;
+
+    if (y->group != group_id || !y->is_categorical() ||
+        y->na_rule == NA_ONLY) {
+      continue;
+    }
+
+    for (int w = 0; w < words; w++) {
+      out[w] &= from_left ? y->mask[w] : ~y->mask[w];
+    }
+  }
 }
 
 // The variable comes from the sparsity weights and the cutpoint is uniform on
@@ -159,6 +203,14 @@ void Node::draw_rule() {
   group = static_cast<int>(group_var(0));
   var = static_cast<int>(group_var(1));
 
+  int levels = tree->levels_of(group);
+
+  if (levels > 0) {
+    draw_categorical_rule(levels);
+    return;
+  }
+
+  mask.clear();
   na_rule = NA_LEFT;
 
   if (tree->splits_on_missing(var)) {
@@ -167,6 +219,82 @@ void Node::draw_rule() {
 
   get_limits();
   val = lower + (upper - lower) * unif_rand();
+}
+
+// A subset of the levels still available at this node, drawn by sending each of
+// them left with probability one half and rejecting the two draws that would
+// leave a child empty. That rejection is part of the prior rather than a repair
+// of it: the prior on a categorical rule *is* the uniform distribution over the
+// 2^m - 2 non-degenerate subsets of the m available levels, and rejection
+// sampling draws from exactly that, so the rule still cancels out of every
+// acceptance ratio the way the variable and the cutpoint do.
+//
+// `var` becomes the group's column of level codes rather than a column of X,
+// which is what `gate()` and the encoded tree both index by.
+void Node::draw_categorical_rule(int levels) {
+  var = tree->code_col(group);
+
+  na_rule = NA_LEFT;
+
+  if (tree->codes != nullptr && tree->cat_col != nullptr) {
+    // A group with a missing value needs the rule to say what becomes of it,
+    // drawn from its prior exactly as for a numeric column.
+    bool any_missing = false;
+
+    for (arma::uword i = 0; i < tree->codes->n_rows && !any_missing; i++) {
+      any_missing = (*tree->codes)(i, var) < 0;
+    }
+
+    if (any_missing) {
+      na_rule = static_cast<NaRule>(sample_class(NUM_NA_RULES));
+    }
+  }
+
+  std::vector<std::uint32_t> avail;
+  available_levels(group, levels, avail);
+
+  std::vector<int> open;
+  open.reserve(levels);
+
+  for (int k = 0; k < levels; k++) {
+    if (mask_test(avail, k)) {
+      open.push_back(k);
+    }
+  }
+
+  int words = mask_words(levels);
+
+  // Fewer than two levels left: nothing to divide. The rule is recorded as a
+  // categorical one that sends everything left, and the empty child makes the
+  // move fail the same way an exhausted numeric column does.
+  if (open.size() < 2u) {
+    mask = avail;
+    if (mask.empty()) {
+      mask.assign(words, 0u);
+    }
+    return;
+  }
+
+  mask.assign(words, 0u);
+
+  while (true) {
+    int taken = 0;
+
+    for (int w = 0; w < words; w++) {
+      mask[w] = 0u;
+    }
+
+    for (std::size_t j = 0; j < open.size(); j++) {
+      if (unif_rand() < 0.5) {
+        mask_set(mask, open[j]);
+        taken++;
+      }
+    }
+
+    if (taken > 0 && taken < static_cast<int>(open.size())) {
+      return;
+    }
+  }
 }
 
 void Node::birth_leaves(std::vector<double>* w_left,
@@ -416,31 +544,6 @@ void accumulate(Node* node, arma::rowvec& eta, double sign) {
   }
   accumulate(node->left, eta, sign);
   accumulate(node->right, eta, sign);
-}
-
-void predict_accumulate(Node* node, const arma::mat& X, arma::vec& out,
-                        double weight, int i) {
-  if (weight <= Node::WEIGHT_TOL) {
-    return;
-  }
-  if (node->is_leaf) {
-    out(i) += weight * node->mu;
-    return;
-  }
-  double g = left_prob(X(i, node->var), node->val, node->tree->bandwidth,
-                       node->tree->hypers->soft, node->na_rule,
-                       node->tree->hypers->gate);
-  predict_accumulate(node->left, X, out, weight * g, i);
-  predict_accumulate(node->right, X, out, weight * (1.0 - g), i);
-}
-
-arma::vec predict_tree(Tree* tree, const arma::mat& X) {
-  arma::vec out = arma::zeros<arma::vec>(X.n_rows);
-  int n = static_cast<int>(X.n_rows);
-  for (int i = 0; i < n; i++) {
-    predict_accumulate(tree->root, X, out, 1.0, i);
-  }
-  return out;
 }
 
 void get_var_counts(Node* node, arma::uvec& counts) {

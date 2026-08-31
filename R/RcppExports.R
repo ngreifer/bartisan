@@ -20,8 +20,8 @@
 #' @param control a list of sampler and prior settings.
 #' @return A list of posterior draws and the encoded forests.
 #' @keywords internal
-.bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec) {
-    .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec)
+.bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels) {
+    .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels)
 }
 
 #' Evaluate stored forests at new data
@@ -36,8 +36,8 @@
 #' @param iterations the zero-based saved iterations to evaluate.
 #' @return A list of `num_forest` matrices of additive predictors.
 #' @keywords internal
-.bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations) {
-    .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations)
+.bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes) {
+    .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes)
 }
 
 #' Conditional log density of the outcome at stored posterior draws
