@@ -392,6 +392,72 @@ are well determined without pooling, and a split can interact the group
 with the covariates. The random intercept wins once there are many small
 groups, which is where partial pooling earns its keep.
 
+## Varying coefficients
+
+A `vc()` term makes a predictor’s coefficient a forest of its own, so
+the model is a control function plus one function-valued coefficient per
+marked predictor:
+
+``` r
+bartisan(y ~ x1 + x2 + vc(z), data = d)             # f0(x1,x2) + z*f1(x1,x2)
+bartisan(y ~ x1 + x2 + vc(z, ~ x1), data = d)       # f1 splits on x1 only
+bartisan(y ~ x1 + vc(z1) + vc(z2), data = d)        # several
+bcf(y ~ x1 + x2, treatment = ~ z, data = d)         # the causal wrapper
+```
+
+This is VCBART, and Bayesian causal forests are the case of one binary
+covariate. `coef()` returns the coefficient at each observation, which
+is what a coefficient becomes when it varies, and every
+**marginaleffects** estimand works unchanged because the combination
+happens inside the model.
+
+What the reparameterization buys over putting `z` in as an ordinary
+predictor is a prior on the effect itself, so regularizing the
+prognostic part does not regularize the effect. Against
+`VCBART::VCBART_ind()` on a design with five coefficient functions of
+different kinds, 8 replicates, paired within replicate:
+
+| coefficient function | RMSE, bartisan | RMSE, VCBART | interval width, bartisan | VCBART |
+|----|----|----|----|----|
+| control | 0.204 | 0.239 | 0.840 | 1.104 |
+| strongly varying | 0.125 | 0.162 | 0.655 | 0.922 |
+| mildly varying | 0.133 | 0.194 | 0.568 | 0.972 |
+| constant at 1 | 0.107 | 0.192 | 0.626 | 1.030 |
+| identically 0 | **0.052** | 0.200 | **0.399** | 1.098 |
+
+Better on every function, and the margin grows as the function gets
+simpler: four times better on the null coefficient, with intervals 64%
+narrower and coverage no lower. VCBART is about three times faster per
+fit.
+
+A family with several additive predictors gets a coefficient per
+parameter, read out of that parameter’s own formula:
+
+``` r
+# forests: mean, mean:z, log_sd
+bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
+         family = location_scale())
+
+# one formula reaches every parameter, so both get a coefficient of `z`
+bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+```
+
+So `z` shifting the mean and `z` widening the spread are two coefficient
+functions fitted at once, and `coef()` returns both. No other package
+fits a varying coefficient on a distributional parameter other than the
+mean.
+
+Three things are worth knowing before reaching for it. A covariate whose
+coefficient varies should not also be a predictor of the control
+function, since any function of it can move between the two —
+`bartisan()` warns. The effect is linear in the covariate unless the
+coefficient’s forest may split on it, which `vc(z, ~ z + x1)` allows and
+which is how a dose response becomes a curve. And a factor gets one
+forest per level, coded symmetrically rather than against a reference;
+`center = "estimate"` draws the coding instead, which is free for a
+binary covariate and a real restriction above two levels. `?vc` has the
+numbers on all three.
+
 ## Counterfactual estimands
 
 A fit works with **marginaleffects**, so predictions, comparisons and

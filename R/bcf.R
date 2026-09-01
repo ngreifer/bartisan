@@ -50,6 +50,13 @@
 #'   absorb the selection without letting the effect vary with it.
 #' * The effect forest gets fewer trees than the control function, since patterns
 #'   of effect heterogeneity are usually simpler than prognostic surfaces.
+#' * A **binary** treatment has its coding drawn rather than fixed, which is
+#'   `center = "estimate"` in [vc()] and the parameter expansion of Hahn et al.'s
+#'   section 5.3. At two levels it restricts nothing and costs nothing in
+#'   recovery, and it removes the dependence on which level was written as 1. A
+#'   treatment with more levels keeps the symmetric per-level coding, because
+#'   there the drawn coding gives every contrast one shared shape; `?vc` has the
+#'   numbers on both.
 #' * `sparsity = FALSE` on the outcome model. A variable-selection prior on the
 #'   variable whose contrast is the estimand puts a point mass at exactly zero in
 #'   the posterior of the effect; see the measurements in [bartisan_control()].
@@ -133,6 +140,8 @@
 bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
                 propensity = TRUE, propensity_args = list(), ...) {
 
+  cl <- match.call()
+
   arg::arg_formula(formula, one_sided = FALSE)
   arg::arg_formula(treatment, one_sided = TRUE)
 
@@ -147,9 +156,8 @@ bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
     arg::err("{.arg data} has no column {.val {name}}")
   }
 
-  if (!is_null(moderators)) {
-    arg::arg_formula(moderators, one_sided = TRUE)
-  }
+  arg::when_not_null(moderators,
+                     arg::arg_formula(one_sided = TRUE))
 
   # The treatment is not one of the covariates. Removing it rather than
   # complaining is the friendly reading of `y ~ .`, which is how most callers
@@ -182,44 +190,99 @@ bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
     }
   }
 
-  outcome <- stats::reformulate(
-    c(covariates,
-      sprintf("vc(%s, ~ %s)", name, paste(moderator_terms, collapse = " + "))),
-    response = formula[[2L]])
-  environment(outcome) <- environment(formula)
+  # A binary treatment gets its coding drawn rather than fixed, which is what
+  # Hahn, Murray and Carvalho (2020, section 5.3) recommend and what their own
+  # software does. At two levels it restricts nothing -- the identified content is
+  # one function either way -- and it costs nothing in recovery: on the
+  # simulation in `_dev/coding-comparison.R` the effect's root mean squared error
+  # is 0.2014 against 0.1991 for a fixed zero, a paired difference of 0.0023 with
+  # a standard error of 0.0140. What it buys is that the answer stops depending
+  # on which level was written as 1. Coding the same treatment both ways and
+  # adding the two effects, which is zero if the coding does not matter, gives
+  # 0.0045 under a drawn coding against 0.0125 under a fixed zero, and on weak
+  # data (n = 150, effect 0.2) 0.0389 against 0.0830.
+  #
+  # Above two levels it stops being free -- every contrast is then one shared
+  # function times a scalar -- so a categorical treatment keeps the symmetric
+  # per-level coding. Measured on a truth where that restriction is false, the
+  # drawn coding's error is 0.696 against 0.242.
+  kind <- treatment_kind(data[[name]])
+  adaptive <- identical(kind, "binary")
 
   dots <- list(...)
-
-  # Fewer trees for the effect than for the control function, since patterns of
-  # effect heterogeneity are usually simpler than prognostic surfaces, and no
-  # variable-selection prior, since the estimand is a contrast on the treatment.
-  #
-  # A categorical treatment gets one effect forest per level, so the count has to
-  # be built from the treatment rather than assumed to be two.
-  if (is_null(dots[["num_trees"]])) {
-    z <- data[[name]]
-    effects <- if (is.factor(z) || is.character(z)) {
-      length(levels(as.factor(z)))
-    } else {
-      1L
-    }
-
-    dots[["num_trees"]] <- c(50L, rep.int(25L, effects))
-  }
+  supplied_trees <- !is_null(dots[["num_trees"]])
 
   if (is_null(dots[["sparsity"]])) {
     dots[["sparsity"]] <- FALSE
   }
 
-  out <- do.call(bartisan,
-                 c(list(formula = outcome, data = data, family = family), dots))
+  # Both the formula and the default tree count follow the coding: a drawn coding
+  # is one effect forest whatever the number of levels, where the symmetric one
+  # is a forest per level.
+  #
+  # Fewer trees for the effect than for the control function, since patterns of
+  # effect heterogeneity are usually simpler than prognostic surfaces, and no
+  # variable-selection prior, since the estimand is a contrast on the treatment.
+  fit_with <- function(drawn) {
+    coding <- if (drawn) ', center = "estimate"' else ""
+
+    outcome <- stats::reformulate(
+      c(covariates,
+        sprintf("vc(%s, ~ %s%s)", name,
+                paste(moderator_terms, collapse = " + "), coding)),
+      response = formula[[2L]])
+    environment(outcome) <- environment(formula)
+
+    if (!supplied_trees) {
+      z <- data[[name]]
+      effects <- {
+        if (!drawn && (is.factor(z) || is.character(z))) {
+          length(levels(as.factor(z)))
+        }
+        else 1L
+      }
+
+      dots[["num_trees"]] <- c(50L, rep.int(25L, effects))
+    }
+
+    do.call(bartisan,
+            c(list(formula = outcome, data = data, family = family), dots))
+  }
+
+  # A drawn coding needs a leaf target that is quadratic in the predictor, which
+  # not every family has -- a cloglog binomial, a Poisson, a negative binomial
+  # under soft rules. The coding is this wrapper's choice rather than the
+  # caller's, so where it does not apply the fixed default is the right answer;
+  # refusing would turn an internal choice into a model the caller cannot fit.
+  # The refusal comes when the family is built, before any sampling, so the
+  # retry costs a family construction and nothing else.
+  out <- {
+    if (!adaptive) fit_with(FALSE)
+    else {
+      tryCatch(fit_with(TRUE),
+               error = function(e) {
+                 if (!grepl("leaf target is\\s+quadratic",
+                            conditionMessage(e))) {
+                   stop(e)
+                 }
+                 fit_with(FALSE)
+               })
+    }
+  }
+
+  # `bartisan()` is reached through `do.call()`, so the call it recorded is the
+  # anonymous function it was handed rather than anything a reader would
+  # recognize. What `print()` should show is the call the caller made.
+  out[["call"]] <- cl
 
   # The propensity model is kept so that `predict()` on data the caller has can
   # rebuild the score. Without it the fit depends on a column the caller's data
   # does not have, and every prediction on new data fails on a missing variable
   # whose name they never chose.
-  out[["bcf"]] <- list(treatment = name, propensity = score,
-                       model = scored[["model"]], moderators = moderator_terms)
+  out[["bcf"]] <- list(treatment = name,
+                       propensity = score,
+                       model = scored[["model"]],
+                       moderators = moderator_terms)
   out
 }
 
@@ -302,6 +365,7 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
 
   score <- as.matrix(stats::fitted(fit))
   colnames(score) <- bcf_score_names(ncol(score))
+
   list(score = score, model = fit)
 }
 

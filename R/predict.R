@@ -172,9 +172,9 @@
 #'
 #' @export
 predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
-                            draws = FALSE, iterations = NULL, offset = NULL,
-                            weights = NULL, values = NULL, log = FALSE,
-                            times = NULL, ...) {
+                                 draws = FALSE, iterations = NULL, offset = NULL,
+                                 weights = NULL, values = NULL, log = FALSE,
+                                 times = NULL, ...) {
 
   type <- arg::match_arg(type, c("link", "response", "prob", "class",
                                  "mean", "stdlv", "density", "survival"))
@@ -393,7 +393,7 @@ predict_parts <- function(object, newdata = NULL, offset = NULL,
   # coefficients, and what a prediction wants is what they combine to. Done here
   # rather than in `predict_eta()` because the stored draws take the other branch
   # above and would otherwise come back uncombined.
-  eta <- vc_combine(object, eta, newdata)
+  eta <- vc_combine(object, eta, newdata, iterations)
 
   aux <- {
     if (is_null(object[["aux"]])) NULL
@@ -462,17 +462,28 @@ predict_eta <- function(object, newdata, offset, iterations) {
   # for it. Elsewhere every rule would send it the same arbitrary way.
   na_now <- colnames(x)[vapply(seq_len(ncol(x)),
                                function(j) anyNA(x[, j]), logical(1L))]
+
+  known <- object[["has_na"]]
+
   na_then <- {
-    known <- object[["has_na"]]
     if (is_null(known)) character()
     else names(known)[known]
   }
+
   unsupported <- setdiff(na_now, na_then)
 
   if (!is_null(unsupported)) {
     arg::err("{.arg newdata} has missing values in {.val {unsupported}}, which
               had none when the model was fit, so no splitting rule knows where
               to send them")
+  }
+
+  # An offset is not a function of the predictors, so it cannot be rebuilt from
+  # `newdata`. Silently treating it as zero would return predictions that are
+  # wrong by exactly the omitted offset, so insist on being given one.
+  if (is_null(offset) && isTRUE(object[["has_offset"]])) {
+    arg::err("this model was fit with an offset, so predicting new data
+              requires {.arg offset} to be supplied for those rows")
   }
 
   # Before the unit maps, which are for the numeric columns; the level codes come
@@ -483,26 +494,18 @@ predict_eta <- function(object, newdata, offset, iterations) {
 
   eta <- .bartisan_predict(X = x,
                            forest_flat = object[["forest_flat"]],
-                          tree_start = object[["tree_start"]],
-                          bandwidth = object[["bandwidth"]],
-                          num_forest = object[["num_forest"]],
-                          num_trees = object[["num_trees"]],
-                          num_draws = nrow(object[["sigma_mu"]]),
-                          soft = object[["soft"]],
-                          gate = gate_code(object[["gate"]] %or% "logistic"),
-                          iterations = as.integer(iterations) - 1L,
-                          codes = codes)
+                           tree_start = object[["tree_start"]],
+                           bandwidth = object[["bandwidth"]],
+                           num_forest = object[["num_forest"]],
+                           num_trees = object[["num_trees"]],
+                           num_draws = nrow(object[["sigma_mu"]]),
+                           soft = object[["soft"]],
+                           gate = gate_code(object[["gate"]] %or% "logistic"),
+                           iterations = as.integer(iterations) - 1L,
+                           codes = codes)
 
   intercept <- object[["intercept"]]
   n_new <- nrow(x)
-
-  # An offset is not a function of the predictors, so it cannot be rebuilt from
-  # `newdata`. Silently treating it as zero would return predictions that are
-  # wrong by exactly the omitted offset, so insist on being given one.
-  if (is_null(offset) && isTRUE(object[["has_offset"]])) {
-    arg::err("this model was fit with an offset, so predicting new data
-              requires {.arg offset} to be supplied for those rows")
-  }
 
   user_offset <- {
     if (is_null(offset)) matrix(0, nrow = n_new, ncol = object[["num_forest"]])
@@ -521,26 +524,125 @@ predict_eta <- function(object, newdata, offset, iterations) {
     }
   }
 
-  names(eta) <- names(object[["eta"]])
-
-  eta
+  setNames(eta, names(object[["eta"]]))
 }
 
-vc_combine <- function(object, eta, newdata) {
+vc_combine <- function(object, eta, newdata, iterations = NULL) {
   vc <- object[["vc"]]
 
   if ((vc[["slopes"]] %or% 0L) == 0L) {
     return(eta)
   }
 
-  basis <- vc_newdata_basis(object, newdata)
-  mu <- eta[[1L]]
+  columns <- vc_columns(object, newdata, iterations, nrow(eta[[1L]]))
 
-  for (j in seq_len(ncol(basis))) {
-    mu <- mu + rep(basis[, j], each = nrow(mu)) * eta[[j + 1L]]
+  # One additive predictor per parameter, each the sum of its control function
+  # and every coefficient of it times that coefficient's column. `param` says
+  # which parameter a forest feeds and `column` which column it multiplies, so
+  # the loop is the same whether the family has one parameter or four.
+  param <- vc[["param"]][seq_along(eta)]
+  column <- vc[["column"]][seq_along(eta)]
+
+  out <- vector("list", max(param))
+
+  for (h in seq_along(param)) {
+    j <- column[h]
+    term <- if (j == 0L) eta[[h]] else columns[[j]] * eta[[h]]
+    p <- param[h]
+
+    out[[p]] <- if (is_null(out[[p]])) term else out[[p]] + term
   }
 
-  list(mu)
+  out
+}
+
+# What each coefficient forest is multiplied by, as a draws-by-observations
+# matrix.
+#
+# A fixed coding gives the same column in every draw, so it is recycled. An
+# estimated one does not: the coding coefficients are drawn every sweep, so each
+# draw has its own column, read out of the coding coefficients that draw
+# recorded.
+vc_columns <- function(object, newdata, iterations, num_draws) {
+  vc <- object[["vc"]]
+  basis <- vc_newdata_basis(object, newdata)
+  codes <- vc_newdata_codes(object, newdata)
+  n <- nrow(basis)
+
+  widths <- vapply(vc[["parts"]], function(p) length(p[["scale"]]), integer(1L))
+  at <- 0L
+  out <- vector("list", sum(widths))
+
+  for (j in seq_along(vc[["parts"]])) {
+    part <- vc[["parts"]][[j]]
+    columns <- at + seq_len(widths[j])
+    at <- at + widths[j]
+
+    if (!identical(part[["kind"]], "estimate")) {
+      for (k in columns) {
+        out[[k]] <- matrix(basis[, k], nrow = num_draws, ncol = n, byrow = TRUE)
+      }
+      next
+    }
+
+    b <- vc_coding_draws(object, j, iterations)
+    code <- codes[[j]] + 1L
+    is.na(code[is.na(code) | code < 1L]) <- TRUE
+
+    # b is draws by levels; picking each observation's level gives the column.
+    out[[columns]] <- b[, code, drop = FALSE]
+  }
+
+  out
+}
+
+# The coding coefficients of one term, as draws by levels.
+vc_coding_draws <- function(object, j, iterations) {
+  part <- object[["vc"]][["parts"]][[j]]
+  wanted <- part[["b_names"]]
+  aux <- object[["aux"]]
+
+  if (is_null(aux) || !all(wanted %in% colnames(aux))) {
+    arg::err("this fit records no coding coefficients for
+              {.val {object[['vc']][['specs']][[j]][['covariate']]}}")
+  }
+
+  draws <- aux[, wanted, drop = FALSE]
+
+  if (is_null(iterations)) draws else draws[iterations, , drop = FALSE]
+}
+
+# Each observation's level, for the terms whose coding is estimated.
+vc_newdata_codes <- function(object, newdata) {
+  lapply(seq_along(object[["vc"]][["parts"]]), function(j) {
+    part <- object[["vc"]][["parts"]][[j]]
+
+    if (!identical(part[["kind"]], "estimate")) {
+      return(NULL)
+    }
+
+    if (is_null(newdata)) {
+      return(part[["code"]])
+    }
+
+    name <- object[["vc"]][["specs"]][[j]][["covariate"]]
+
+    if (!name %in% names(newdata)) {
+      arg::err("{.arg newdata} has no column {.val {name}}, whose coefficient
+                varies")
+    }
+
+    x <- newdata[[name]]
+    x <- if (is.character(part[["levels"]])) as.character(x) else x
+    code <- match(x, part[["levels"]]) - 1L
+
+    if (anyNA(code) && !anyNA(x)) {
+      arg::err("{.arg newdata} has {.val {name}} values the model never saw, and
+                a drawn coding has nothing to give them")
+    }
+
+    code
+  })
 }
 
 as_offset_matrix <- function(offset, n, n_forest) {
@@ -948,14 +1050,26 @@ conditional_density <- function(object, newdata, eta, aux, weights, draws, log,
     else as.matrix(aux)
   }
 
+  # `eta` arrives already combined across the coefficient forests, so the
+  # density is the plain family's at that predictor: no basis to hand over, and
+  # the coding coefficients are not this family's nuisance parameters. Handing
+  # over the stored basis instead would ask for one matrix per forest -- and for
+  # a drawn coding that basis is the zero placeholder, which would price every
+  # observation as though the covariate had no effect at all.
+  coding <- vc_coding(object[["vc"]])
+
+  if (!is_null(coding) && ncol(aux_matrix) > 0L) {
+    aux_matrix <- aux_matrix[, setdiff(colnames(aux_matrix), coding[["names"]]),
+                             drop = FALSE]
+  }
+
   out <- .bartisan_logdens(y = parts[["y"]],
                            weights = parts[["weights"]],
-                          eta_draws = eta,
-                          family_name = object[["family"]][["family"]],
-                          link = object[["family"]][["link"]],
-                          family_opts = parts[["opts"]],
-                          aux = aux_matrix,
-                          vc_basis = vc_stored_basis(object))
+                           eta_draws = eta,
+                           family_name = object[["family"]][["family"]],
+                           link = object[["family"]][["link"]],
+                           family_opts = parts[["opts"]],
+                           aux = aux_matrix)
 
   warn_undefined_density(out, object)
 
@@ -1007,7 +1121,7 @@ warn_undefined_density <- function(out, object) {
   total_obs <- ncol(out)
   link <- object[["family"]][["link"]]
 
-  arg::wrn(c("the conditional density is undefined for {n_draws} of
+  arg::wrn(c("The conditional density is undefined for {n_draws} of
               {length(bad)} draw-by-observation values, which makes {n_obs} of
               {total_obs} returned {cli::qty(total_obs)}value{?s} {.code NaN}.",
              i = "The {.val {link}} link's inverse does not cover the whole
@@ -1291,7 +1405,7 @@ density_response_vector <- function(object, newdata) {
 
   mf <- stats::model.frame(object[["terms"]], newdata,
                            na.action = stats::na.pass,
-                          xlev = object[["xlevels"]])
+                           xlev = object[["xlevels"]])
 
   stats::model.response(mf, "any")
 }

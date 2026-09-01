@@ -56,8 +56,8 @@
 #'   the family has none.
 #' @return A matrix of draws by observations.
 #' @keywords internal
-.bartisan_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux, vc_basis) {
-    .Call(`_bartisan_bartisan_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux, vc_basis)
+.bartisan_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux) {
+    .Call(`_bartisan_bartisan_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux)
 }
 
 #' Category probabilities of a multinomial probit fit, by simulation

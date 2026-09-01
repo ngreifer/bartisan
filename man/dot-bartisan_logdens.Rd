@@ -4,16 +4,7 @@
 \alias{.bartisan_logdens}
 \title{Conditional log density of the outcome at stored posterior draws}
 \usage{
-.bartisan_logdens(
-  y,
-  weights,
-  eta_draws,
-  family_name,
-  link,
-  family_opts,
-  aux,
-  vc_basis
-)
+.bartisan_logdens(y, weights, eta_draws, family_name, link, family_opts, aux)
 }
 \arguments{
 \item{y}{the outcome, coerced as the family expects.}

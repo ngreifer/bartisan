@@ -326,24 +326,63 @@ interaction of any shape.
 
 Whether to reach for this at all depends on the shape of the data, and the answer
 is not "always". A grouping factor can go in the fixed part instead, where a tree
-splits on it like anything else. Measured against `dbarts::rbart_vi()` on data
-with a true group effect, held-out RMSE:
-
-| groups | per group | group as a predictor | random intercept |
-|---|---|---|---|
-| 5 | 100 | **0.190** | 0.279 |
-| 25 | 20 | **0.306** | 0.341 |
-| 100 | 5 | 0.541 | **0.468** |
-| 250 | 4 | 0.708 | **0.493** |
-
-With few large groups the predictor route is better — the group means are well
+splits on it like anything else. With few large groups the predictor route is better — the group means are well
 determined without pooling, and a split can interact the group with the
 covariates. The random intercept wins once there are many small groups, which is
 where partial pooling earns its keep.
 
+## Varying coefficients
+
+A `vc()` term makes a predictor's coefficient a forest of its own, so the model
+is a control function plus one function-valued coefficient per marked predictor:
+
+```r
+bartisan(y ~ x1 + x2 + vc(z), data = d)             # f0(x1,x2) + z*f1(x1,x2)
+bartisan(y ~ x1 + x2 + vc(z, ~ x1), data = d)       # f1 splits on x1 only
+bartisan(y ~ x1 + vc(z1) + vc(z2), data = d)        # several
+bcf(y ~ x1 + x2, treatment = ~ z, data = d)         # the causal wrapper
+```
+
+This is VCBART, and Bayesian causal forests are the case of one binary
+covariate. `coef()` returns the coefficient at each observation, which is what a
+coefficient becomes when it varies, and every **marginaleffects** estimand works
+unchanged because the combination happens inside the model.
+
+What the reparameterization buys over putting `z` in as an ordinary predictor is
+a prior on the effect itself, so regularizing the prognostic part does not
+regularize the effect, and vice-versa.
+
+A family with several additive predictors gets a coefficient per parameter, read
+out of that parameter's own formula:
+
+```r
+# forests: mean, mean:z, log_sd
+bartisan(list(mean = y ~ x1 + x2 + vc(z),
+             log_sd = ~ x1 + x2),
+         data = d,
+         family = location_scale())
+
+# one formula reaches every parameter, so both get a coefficient of `z`
+bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+```
+
+So `z` shifting the mean and `z` widening the spread are two coefficient
+functions fitted at once, and `coef()` returns both. No other package fits a
+varying coefficient on a distributional parameter other than the mean.
+
+Three things are worth knowing before reaching for it. A covariate whose
+coefficient varies should not also be a predictor of the control function, since
+any function of it can move between the two — `bartisan()` warns. The effect is
+linear in the covariate unless the coefficient's forest may split on it, which
+`vc(z, ~ z + x1)` allows and which is how a dose response becomes a curve. And a
+factor gets one forest per level, coded symmetrically rather than against a
+reference; `center = "estimate"` draws the coding instead, which is free for a
+binary covariate and a real restriction above two levels. `?vc` has the numbers
+on all three.
+
 ## Counterfactual estimands
 
-A fit works with **marginaleffects**, so predictions, comparisons and slopes — and
+A fit works with *marginaleffects*, so predictions, comparisons and slopes — and
 hypothesis tests on any of them — come out without extracting draws by hand:
 
 ```r
@@ -387,7 +426,7 @@ posterior::summarise_draws(posterior::as_draws(fit))
 ```
 
 `fitted()`, `residuals()`, `weights()`, `sigma()` and `simulate()` behave as they
-do for a `glm`, and `insight` reads the fit through them, so the **easystats**
+do for a `glm`, and `insight` reads the fit through them, so the *easystats*
 packages see it too. `?bartisan-interop` documents the scale each replicate comes
 back on — a binomial replicate is a proportion, a categorical one a category
 index, an accelerated-failure-time one an uncensored event time — and why a
@@ -662,16 +701,6 @@ Any `future` backend works, including mirai's. One `set.seed()` reproduces the
 whole run whatever the backend.
 
 ## Notes and limitations
-
-Cox's *partial* likelihood is not available here: it couples observations
-through risk sets, so it does not decompose into a sum over the observations
-reaching a leaf, which is what the leafwise Laplace approximation requires. What
-`ph()` fits instead is the full likelihood of the piecewise-exponential
-proportional hazards model, which does decompose and which approaches the partial
-likelihood as the bins shrink. Its `num_bins` is not a tuning knob: over a
-sixty-fold range the estimates are flat, and what the bin count changes is the
-effective number of parameters, which is what keeps `loo()` and `waic()`
-usable.
 
 Soft rules cost more per iteration than hard ones, because a leaf touches every
 observation rather than only those in its cell. Negligible weights are pruned,

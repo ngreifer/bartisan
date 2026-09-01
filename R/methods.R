@@ -1,16 +1,3 @@
-# "1 forest of 50 trees", or "2 forests of 50 and 10 trees" when the tree count
-# differs by additive predictor.
-forest_label <- function(x) {
-  trees <- x[["num_trees"]]
-
-  if (length(unique(trees)) == 1L) {
-    return(cli::format_inline(
-      "{x$num_forest} forest{?s} of {trees[1L]} tree{?s}"))
-  }
-
-  cli::format_inline("{x$num_forest} forests of {.and {trees}} trees")
-}
-
 #' Summarize a generalized BART model
 #'
 #' @description
@@ -73,12 +60,25 @@ print.bartisan_fit <- function(x, digits = 3L, ...) {
   invisible(x)
 }
 
+# "1 forest of 50 trees", or "2 forests of 50 and 10 trees" when the tree count
+# differs by additive predictor.
+forest_label <- function(x) {
+  trees <- x[["num_trees"]]
+
+  .lab <- {
+    if (length(unique(trees)) == 1L)
+      "{x$num_forest} forest{?s} of {trees[1L]} tree{?s}"
+    else
+      "{x$num_forest} forests of {.and {trees}} trees"
+  }
+
+  cli::format_inline(.lab)
+}
+
 # "g (40 levels), site (7 levels)", which is the part of the model that the
 # formula says and the family label does not.
 ranef_label <- function(x) {
-  terms <- x[["random"]]
-
-  vapply(terms, function(z) {
+  vapply(x[["random"]], function(z) {
     sprintf("%s (%s levels)", z[["label"]], z[["num_levels"]])
   }, character(1L)) |>
     toString()
@@ -330,7 +330,7 @@ variable_importance <- function(object, level = 0.95) {
 
   counts <- object[["counts"]]
 
-  if (is_null(counts) || length(counts) == 0L) {
+  if (is_null(counts)) {
     arg::err("this fit carries no splitting counts")
   }
 
@@ -356,9 +356,11 @@ variable_importance <- function(object, level = 0.95) {
     out[["predictor"]] <- NULL
   }
 
-  out[order(out[["prop_used"]], out[["splits"]], decreasing = TRUE), ,
-      drop = FALSE] |>
-    `rownames<-`(NULL)
+  out <- out[order(out[["prop_used"]], out[["splits"]], decreasing = TRUE), , drop = FALSE]
+
+  rownames(out) <- NULL
+
+  out
 }
 
 #' Varying coefficients
@@ -423,17 +425,20 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
     else predict_eta(object, newdata, offset = NULL, iterations = NULL)
   }
 
-  # The control function is dropped: it is a prediction, not a coefficient.
-  slopes <- eta[-1L]
-  names(slopes) <- names(object[["eta"]])[-1L]
+  # The control functions are dropped: one is a prediction, not a coefficient.
+  # With several additive predictors there is one per parameter, so which
+  # forests to keep comes from the map rather than from a position.
+  keep <- which(vc[["column"]][seq_along(eta)] > 0L)
+  slopes <- eta[keep]
+  names(slopes) <- names(object[["eta"]])[keep]
 
-  slopes <- vc_recenter(slopes, vc)
+  slopes <- vc_recenter(slopes, vc, object)
 
   if (draws) {
     return(slopes)
   }
 
-  out <- vapply(slopes, colMeans, numeric(ncol(slopes[[1L]])))
-  matrix(out, ncol = length(slopes),
-         dimnames = list(NULL, names(slopes)))
+  vapply(slopes, colMeans, numeric(ncol(slopes[[1L]]))) |>
+    matrix(ncol = length(slopes),
+           dimnames = list(NULL, names(slopes)))
 }

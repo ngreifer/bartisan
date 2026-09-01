@@ -22,7 +22,10 @@ one, for the reason in Details. \code{"mean"} centers \code{x}, so the control
 function is the surface at its average; \code{"zero"} leaves \code{x} alone, so the
 control function is the surface at \code{x = 0}; \code{"mid"} uses the midpoint of
 \code{x}'s range; a number uses that number. For a factor, \code{center} is \code{"mean"}
-or the name of a level to report against.}
+or the name of a level to report against. \code{"estimate"} draws the coding
+rather than fixing it, which is the parameter expansion of Hahn, Murray and
+Carvalho (2020); see Details, and note that it needs a covariate with a few
+distinct values rather than a continuous one.}
 }
 \value{
 Nothing. \code{vc()} is a marker read out of the formula and never evaluated.
@@ -72,23 +75,111 @@ rather than unidentified.
 }
 
 \section{Where the control function sits}{
-Centring is a reparameterization of \eqn{f_0} alone: every coefficient and
+Centering is a reparameterization of \eqn{f_0} alone: every coefficient and
 every estimand is identical under any choice, and what changes is what the
 control function means. \code{"auto"} picks by the covariate, because neither
 answer wins everywhere. For a \code{0}/\code{1} covariate it uses zero, so \eqn{f_0} is
 the surface among the untreated -- a quantity with its own meaning, and the
 one that recovers the coefficient best, at a correlation of 0.987 against
-0.975 for mean-centring on the simulation in \verb{_dev/}. For any other numeric
+0.975 for mean-centering on the simulation in \verb{_dev/}. For any other numeric
 covariate it uses the mean, because zero may be nowhere near the data: with a
 covariate around 50 the control function at zero is an extrapolation and
 recovery collapses to a correlation of 0.42.
 
-A factor is always fitted mean-centred and gets one forest per level, coded
+A factor is always fitted mean-centered and gets one forest per level, coded
 symmetrically the way \code{\link[=multinomial]{multinomial()}} codes its predictors rather than as
 contrasts against a level that happened to sort first. That coding carries one
 spare function-valued dimension, which is what makes the reference a reporting
 choice: \code{center} names the level \code{\link[=coef]{coef()}} reports against, and no refit is
 needed to change it.
+}
+
+\section{Drawing the coding instead of fixing it}{
+\code{center = "estimate"} is different in kind from the choices above. Rather than
+subtract a number from \code{x}, it gives each of \code{x}'s values a coefficient of its
+own and draws it: the model is
+
+\deqn{g(\mu_i) = f_0(Z_i) + b_{x_i}\, \tilde f(Z_i), \qquad
+      b_k \sim \mathrm{N}(0, 1/2)}
+
+so the effect of moving from value \eqn{j} to value \eqn{k} is
+\eqn{(b_k - b_j)\tilde f(Z)}, and because \eqn{b_k - b_j} is marginally
+standard normal every contrast carries the same prior whatever the number of
+values and no value is a reference. This is the parameter expansion of Hahn,
+Murray and Carvalho (2020, section 5.3), whose point is that a fixed coding is
+never neutral: coding a treatment \code{0}/\code{1}, \code{1}/\code{0} or \eqn{\pm 1/2} makes the
+control function carry a different part of the fit each time, and the prior on
+the effect moves with it. \code{\link[=coef]{coef()}} returns the identified contrasts, never the
+raw \eqn{\tilde f}.
+
+It needs between two and twenty distinct values, and a continuous covariate is
+refused rather than quietly binned.
+
+\strong{At two values it is free, and it is what \code{\link[=bcf]{bcf()}} uses.} Recovery is a tie:
+on the simulation in \verb{_dev/coding-comparison.R} the effect's root mean squared
+error is 0.2014 against 0.1991 for a fixed zero, a paired difference of 0.0023
+with a standard error of 0.0140. What it buys is that the answer stops
+depending on which level was written as 1. Fitting the same data with the
+treatment coded \code{0}/\code{1} and again \code{1}/\code{0} and adding the two effects, which is
+zero if the coding does not matter, gives 0.0045 under a drawn coding against
+0.0125 under a fixed zero -- and on weak data, where the prior has more to
+say, 0.0389 against 0.0830.
+
+\strong{Above two values it stops being free, and the restriction is a real one.}
+Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels
+share one shape of heterogeneity where the symmetric coding gives each its
+own. That is worth a great deal when it holds and expensive when it does not.
+Measured on a three-level covariate over 12 replicates:\tabular{lll}{
+   truth \tab symmetric, a forest per level \tab \code{"estimate"}, one shared forest \cr
+   every level the same shape \tab 0.266 \tab \strong{0.191} \cr
+   each level its own shape \tab \strong{0.242} \tab 0.696 \cr
+}
+
+
+So the two are what they look like: \code{"estimate"} is the parsimonious model and
+the default is the general one. Reach for it when the levels plausibly differ
+in degree rather than in kind.
+}
+
+\section{Families with several additive predictors}{
+\code{location_scale()}, \code{zi_poisson()} and the rest fit one forest per
+distributional parameter, and each parameter's formula carries its own \code{vc()}
+terms. The forests are then two-dimensional -- a control function and its
+coefficients, for each parameter -- and named accordingly, which is what
+per-forest settings are keyed by:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# forests: mean, mean:z, log_sd
+bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
+         family = location_scale())
+
+# forests: mean, mean:z, log_sd, log_sd:z -- one formula reaches every
+# parameter, which is the rule every per-forest argument follows
+bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+
+# each coefficient with its own modifiers
+bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
+              log_sd = ~ x1 + x2 + vc(z, ~ x1)), data = d,
+         family = location_scale())
+}\if{html}{\out{</div>}}
+
+So the same covariate may have a coefficient on more than one parameter --
+\eqn{z} shifting the mean and widening the spread are different questions, and
+both are answered at once. \code{\link[=coef]{coef()}} returns one column per coefficient, named
+for its forest.
+
+Two things follow from the parameters being different. A group intercept from
+\code{(1 | g)} reaches every control function and no coefficient, since a
+group-varying coefficient is a random slope. And \code{center = "estimate"} is
+judged per parameter: the drawn coding needs a leaf target that is quadratic
+in the predictor it feeds, which \code{location_scale()} is in the mean and is not
+in the log standard deviation, so the same request is accepted on one and
+refused on the other.
+
+\code{multinomial()} and \code{mnp()} are the exception and refuse \code{vc()}. Their forests
+are the levels of one parameter rather than separate parameters, identified
+only up to a function they all share, and reporting removes it; a coefficient
+forest per level would add one such direction per coefficient and the
+reporting does not carry them.
 }
 
 \examples{
@@ -99,8 +190,10 @@ y ~ x1 + x2 + vc(z)
 y ~ x1 + x2 + vc(z, ~ x1)
 
 # The effect of `z` varies across `z` itself, so the dose response is a
-# curve rather than a line.
-y ~ x1 + z + vc(z, ~ z + x1)
+# curve rather than a line. `z` appears only inside `vc()`: writing it in the
+# fixed part as well would leave the control function and the coefficient
+# unidentified, which is a warning rather than a refusal.
+y ~ x1 + vc(z, ~ z + x1)
 
 }
 \seealso{

@@ -314,18 +314,20 @@ set.seed(2026)
 
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
                  pafi + paco2 + crea + surv2m + card,
-               treatment = ~ rhc, data = rhc, family = binomial(), chains = 4)
+               treatment = ~ rhc, data = rhc,
+               family = binomial(), chains = 4)
 
 avg_comparisons(fit_bcf, variables = "rhc")
 ```
 
 The model is a *control function* for the probability of death with no
 catheterization, and a separate forest for the effect. Writing it as `bcf()`
-rather than by hand sets four things: the effect gets a forest of its own, the
+rather than by hand sets five things: the effect gets a forest of its own, the
 estimated propensity score goes into the control function and not into the effect
 forest, the effect forest gets fewer trees because effect heterogeneity is
-usually simpler than a prognostic surface, and `sparsity = FALSE` for the reason
-in the section above.
+usually simpler than a prognostic surface, `sparsity = FALSE` for the reason in
+the section above, and a binary treatment's coding is drawn rather than fixed, so
+the answer does not depend on which arm was written as 1.
 
 Because the effect is a parameter of the model rather than a difference of
 predictions, it can be read off directly, one value per patient:

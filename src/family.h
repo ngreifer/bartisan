@@ -202,6 +202,19 @@ struct Family {
     return target_form(h) == TARGET_QUADRATIC;
   }
 
+  // Whether a drawn varying-coefficient coding is valid for this family. The
+  // coding is drawn by a conjugate normal step, which is exact only where the
+  // leaf target is quadratic in the predictor; elsewhere the same update would
+  // be a Laplace approximation with no Metropolis correction, which is a wrong
+  // answer rather than a slow one. Asked of the family that actually reaches the
+  // sampler, since augmentation can make a target quadratic that was not --
+  // which is how a logit or probit binomial qualifies.
+  virtual bool coding_is_exact() const { return true; }
+
+  // Which forest's drawn coding is not exact, or -1 if every one is. Reported as
+  // an index so that the refusal can name the coefficient at fault.
+  virtual int coding_not_exact() const { return -1; }
+
   // The rate in exp(rate * eta) for the two exponential forms, and zero for the
   // others. The Poisson and the gamma have rates of exactly +1 and -1, which is
   // why this started life as a sign; a family whose exponential runs at another

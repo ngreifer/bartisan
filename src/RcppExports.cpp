@@ -58,8 +58,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // bartisan_logdens
-arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights, const List& eta_draws, std::string family_name, std::string link, List family_opts, const arma::mat& aux, const arma::mat& vc_basis);
-RcppExport SEXP _bartisan_bartisan_logdens(SEXP ySEXP, SEXP weightsSEXP, SEXP eta_drawsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP auxSEXP, SEXP vc_basisSEXP) {
+arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights, const List& eta_draws, std::string family_name, std::string link, List family_opts, const arma::mat& aux);
+RcppExport SEXP _bartisan_bartisan_logdens(SEXP ySEXP, SEXP weightsSEXP, SEXP eta_drawsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP auxSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -70,8 +70,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::string >::type link(linkSEXP);
     Rcpp::traits::input_parameter< List >::type family_opts(family_optsSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type aux(auxSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type vc_basis(vc_basisSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_logdens(y, weights, eta_draws, family_name, link, family_opts, aux, vc_basis));
+    rcpp_result_gen = Rcpp::wrap(bartisan_logdens(y, weights, eta_draws, family_name, link, family_opts, aux));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -148,7 +147,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_bartisan_bartisan_fit", (DL_FUNC) &_bartisan_bartisan_fit, 15},
     {"_bartisan_bartisan_predict", (DL_FUNC) &_bartisan_bartisan_predict, 11},
-    {"_bartisan_bartisan_logdens", (DL_FUNC) &_bartisan_bartisan_logdens, 8},
+    {"_bartisan_bartisan_logdens", (DL_FUNC) &_bartisan_bartisan_logdens, 7},
     {"_bartisan_bartisan_mnp_probs", (DL_FUNC) &_bartisan_bartisan_mnp_probs, 3},
     {"_bartisan_bartisan_derivs", (DL_FUNC) &_bartisan_bartisan_derivs, 10},
     {"_bartisan_bartisan_rpg", (DL_FUNC) &_bartisan_bartisan_rpg, 3},

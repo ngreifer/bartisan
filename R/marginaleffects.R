@@ -276,11 +276,11 @@ me_type <- function(object, type) {
              # the dots and become the groups.
              survival = "survival", surv = "survival")
 
-  if (type %in% names(known)) {
-    return(unname(known[[type]]))
+  if (!type %in% names(known)) {
+    arg::err("{.arg type} must be {.or {.val {c('response', unique(names(known)))}}}")
   }
 
-  arg::err("{.arg type} must be {.or {.val {c('response', unique(names(known)))}}}")
+  unname(known[[type]])
 }
 
 # Draws of whatever quantity was asked for, as a matrix of draws by rows -- or,
@@ -383,13 +383,7 @@ predict_args <- function(...) {
 #' @rdname bartisan-marginaleffects
 #' @exportS3Method marginaleffects::get_group_names
 get_group_names.bartisan_fit <- function(model, ...) {
-  levs <- model[["levels"]]
-
-  if (is_null(levs)) {
-    return("main_marginaleffect")
-  }
-
-  levs
+  model[["levels"]] %or% "main_marginaleffect"
 }
 
 # A forest has no coefficient vector. Returning an empty one rather than erroring
@@ -398,7 +392,7 @@ get_group_names.bartisan_fit <- function(model, ...) {
 #' @rdname bartisan-marginaleffects
 #' @exportS3Method marginaleffects::get_coef
 get_coef.bartisan_fit <- function(model, ...) {
-  stats::setNames(numeric(), character())
+  setNames(numeric(), character())
 }
 
 #' @rdname bartisan-marginaleffects
@@ -447,12 +441,11 @@ flatten_matrix_columns <- function(data) {
     column <- data[[nm]]
 
     if (!(is.matrix(column) && ncol(column) > 1L)) {
-      return(stats::setNames(list(column), nm))
+      return(setNames(list(column), nm))
     }
 
-    parts <- lapply(seq_len(ncol(column)), function(j) column[, j])
-    names(parts) <- paste0(nm, ".", seq_len(ncol(column)))
-    parts
+    lapply(seq_len(ncol(column)), function(j) column[, j]) |>
+      setNames(paste0(nm, ".", seq_len(ncol(column))))
   })
 
   out <- do.call(c, pieces)

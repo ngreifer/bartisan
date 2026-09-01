@@ -71,14 +71,16 @@ struct RandomEffects {
 // Build the whole structure from what the R side passes down. `spec` is a list
 // with one element per grouping term, each a list of `label`, `levels` (the
 // zero-based level of every observation) and `num_levels`.
-// `vc_slopes` is how many of the H forests are varying coefficients rather than
-// control functions; they get no group intercepts, since a group-varying
-// coefficient is a random slope and this package does not fit those.
+// `vc_column` is one entry per forest, non-negative where that forest is a
+// varying coefficient rather than a control function; those get no group
+// intercepts, since a group-varying coefficient is a random slope and this
+// package does not fit those. Empty means no varying coefficients at all.
 std::unique_ptr<RandomEffects> make_random_effects(const Rcpp::List& spec, int H,
                                                    double tau_scale,
                                                    bool update_tau,
                                                    const arma::mat* X,
-                                                   int vc_slopes = 0);
+                                                   const arma::ivec& vc_column =
+                                                     arma::ivec());
 
 } // namespace bartisan
 

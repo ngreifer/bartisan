@@ -31,7 +31,10 @@
 #'   function is the surface at its average; `"zero"` leaves `x` alone, so the
 #'   control function is the surface at `x = 0`; `"mid"` uses the midpoint of
 #'   `x`'s range; a number uses that number. For a factor, `center` is `"mean"`
-#'   or the name of a level to report against.
+#'   or the name of a level to report against. `"estimate"` draws the coding
+#'   rather than fixing it, which is the parameter expansion of Hahn, Murray and
+#'   Carvalho (2020); see Details, and note that it needs a covariate with a few
+#'   distinct values rather than a continuous one.
 #'
 #' @returns
 #' Nothing. `vc()` is a marker read out of the formula and never evaluated.
@@ -77,23 +80,112 @@
 #'
 #' # Where the control function sits
 #'
-#' Centring is a reparameterization of \eqn{f_0} alone: every coefficient and
+#' Centering is a reparameterization of \eqn{f_0} alone: every coefficient and
 #' every estimand is identical under any choice, and what changes is what the
 #' control function means. `"auto"` picks by the covariate, because neither
 #' answer wins everywhere. For a `0`/`1` covariate it uses zero, so \eqn{f_0} is
 #' the surface among the untreated -- a quantity with its own meaning, and the
 #' one that recovers the coefficient best, at a correlation of 0.987 against
-#' 0.975 for mean-centring on the simulation in `_dev/`. For any other numeric
+#' 0.975 for mean-centering on the simulation in `_dev/`. For any other numeric
 #' covariate it uses the mean, because zero may be nowhere near the data: with a
 #' covariate around 50 the control function at zero is an extrapolation and
 #' recovery collapses to a correlation of 0.42.
 #'
-#' A factor is always fitted mean-centred and gets one forest per level, coded
+#' A factor is always fitted mean-centered and gets one forest per level, coded
 #' symmetrically the way [multinomial()] codes its predictors rather than as
 #' contrasts against a level that happened to sort first. That coding carries one
 #' spare function-valued dimension, which is what makes the reference a reporting
 #' choice: `center` names the level [coef()] reports against, and no refit is
 #' needed to change it.
+#'
+#' # Drawing the coding instead of fixing it
+#'
+#' `center = "estimate"` is different in kind from the choices above. Rather than
+#' subtract a number from `x`, it gives each of `x`'s values a coefficient of its
+#' own and draws it: the model is
+#'
+#' \deqn{g(\mu_i) = f_0(Z_i) + b_{x_i}\, \tilde f(Z_i), \qquad
+#'       b_k \sim \mathrm{N}(0, 1/2)}
+#'
+#' so the effect of moving from value \eqn{j} to value \eqn{k} is
+#' \eqn{(b_k - b_j)\tilde f(Z)}, and because \eqn{b_k - b_j} is marginally
+#' standard normal every contrast carries the same prior whatever the number of
+#' values and no value is a reference. This is the parameter expansion of Hahn,
+#' Murray and Carvalho (2020, section 5.3), whose point is that a fixed coding is
+#' never neutral: coding a treatment `0`/`1`, `1`/`0` or \eqn{\pm 1/2} makes the
+#' control function carry a different part of the fit each time, and the prior on
+#' the effect moves with it. [coef()] returns the identified contrasts, never the
+#' raw \eqn{\tilde f}.
+#'
+#' It needs between two and twenty distinct values, and a continuous covariate is
+#' refused rather than quietly binned.
+#'
+#' **At two values it is free, and it is what [bcf()] uses.** Recovery is a tie:
+#' on the simulation in `_dev/coding-comparison.R` the effect's root mean squared
+#' error is 0.2014 against 0.1991 for a fixed zero, a paired difference of 0.0023
+#' with a standard error of 0.0140. What it buys is that the answer stops
+#' depending on which level was written as 1. Fitting the same data with the
+#' treatment coded `0`/`1` and again `1`/`0` and adding the two effects, which is
+#' zero if the coding does not matter, gives 0.0045 under a drawn coding against
+#' 0.0125 under a fixed zero -- and on weak data, where the prior has more to
+#' say, 0.0389 against 0.0830.
+#'
+#' **Above two values it stops being free, and the restriction is a real one.**
+#' Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels
+#' share one shape of heterogeneity where the symmetric coding gives each its
+#' own. That is worth a great deal when it holds and expensive when it does not.
+#' Measured on a three-level covariate over 12 replicates:
+#'
+#' | truth | symmetric, a forest per level | `"estimate"`, one shared forest |
+#' |---|---|---|
+#' | every level the same shape | 0.266 | **0.191** |
+#' | each level its own shape | **0.242** | 0.696 |
+#'
+#' So the two are what they look like: `"estimate"` is the parsimonious model and
+#' the default is the general one. Reach for it when the levels plausibly differ
+#' in degree rather than in kind.
+#'
+#' # Families with several additive predictors
+#'
+#' `location_scale()`, `zi_poisson()` and the rest fit one forest per
+#' distributional parameter, and each parameter's formula carries its own `vc()`
+#' terms. The forests are then two-dimensional -- a control function and its
+#' coefficients, for each parameter -- and named accordingly, which is what
+#' per-forest settings are keyed by:
+#'
+#' ```r
+#' # forests: mean, mean:z, log_sd
+#' bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
+#'          family = location_scale())
+#'
+#' # forests: mean, mean:z, log_sd, log_sd:z -- one formula reaches every
+#' # parameter, which is the rule every per-forest argument follows
+#' bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+#'
+#' # each coefficient with its own modifiers
+#' bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
+#'               log_sd = ~ x1 + x2 + vc(z, ~ x1)), data = d,
+#'          family = location_scale())
+#' ```
+#'
+#' So the same covariate may have a coefficient on more than one parameter --
+#' \eqn{z} shifting the mean and widening the spread are different questions, and
+#' both are answered at once. [coef()] returns one column per coefficient, named
+#' for its forest.
+#'
+#' Two things follow from the parameters being different. A group intercept from
+#' `(1 | g)` reaches every control function and no coefficient, since a
+#' group-varying coefficient is a random slope. And `center = "estimate"` is
+#' judged per parameter: the drawn coding needs a leaf target that is quadratic
+#' in the predictor it feeds, which `location_scale()` is in the mean and is not
+#' in the log standard deviation, so the same request is accepted on one and
+#' refused on the other.
+#'
+#' `multinomial()` and `mnp()` are the exception and refuse `vc()`. Their forests
+#' are the levels of one parameter rather than separate parameters, identified
+#' only up to a function they all share, and reporting removes it; a coefficient
+#' forest per level would add one such direction per coefficient and the
+#' reporting does not carry them.
 #'
 #' @seealso [bartisan()] for the formula interface, [bcf()] for the causal case,
 #'   [coef.bartisan_fit()] for reading the coefficients out, and
@@ -107,8 +199,10 @@
 #' y ~ x1 + x2 + vc(z, ~ x1)
 #'
 #' # The effect of `z` varies across `z` itself, so the dose response is a
-#' # curve rather than a line.
-#' y ~ x1 + z + vc(z, ~ z + x1)
+#' # curve rather than a line. `z` appears only inside `vc()`: writing it in the
+#' # fixed part as well would leave the control function and the coefficient
+#' # unidentified, which is a warning rather than a refusal.
+#' y ~ x1 + vc(z, ~ z + x1)
 #'
 #' @export
 vc <- function(x, modifiers = NULL, center = "auto") {
@@ -128,7 +222,11 @@ vc <- function(x, modifiers = NULL, center = "auto") {
 # partial and positional matching behave the way they would in any other call,
 # without the term being evaluated -- `vc(z)` names a variable and evaluating it
 # would look for an object called `z`.
-split_vc_terms <- function(formula) {
+# `unique_covariates` is the within-one-formula rule: `y ~ vc(z) + vc(z)` is a
+# mistake. It is switched off for the union across a family's formulas, where the
+# same covariate legitimately appears once per additive predictor -- the mean and
+# the log standard deviation may each give `z` a coefficient of its own.
+split_vc_terms <- function(formula, unique_covariates = TRUE) {
   rhs <- formula[[length(formula)]]
   parts <- formula_addends(rhs)
   marked <- vapply(parts, is_vc_call, logical(1L))
@@ -205,7 +303,7 @@ split_vc_terms <- function(formula) {
 
   duplicated_at <- duplicated(names(specs))
 
-  if (any(duplicated_at)) {
+  if (unique_covariates && any(duplicated_at)) {
     arg::err("{.arg formula} gives {.val {unique(names(specs)[duplicated_at])}}
               a varying coefficient more than once")
   }
@@ -300,14 +398,19 @@ uses_dot <- function(formula) {
 #     variable is constant on exactly those rows, so such a split separates rows
 #     that contribute from rows that contribute nothing. Wasted rather than
 #     unidentified, so it goes quietly.
-vc_modifiers <- function(specs, groups, dot, categorical) {
+vc_modifiers <- function(specs, groups, dot, categorical, where = NULL) {
+  # Which formula, when the family has more than one. Otherwise there is only
+  # one of them and naming it would be noise. Plain text rather than markup,
+  # since an interpolated value is inserted rather than parsed.
+  which <- sprintf("the %s formula", where %or% "model")
+
   covariates <- vapply(specs, `[[`, character(1L), "covariate")
   present <- intersect(covariates, groups)
 
   control <- setdiff(groups, present)
 
   if (!is_null(present) && !dot) {
-    arg::wrn(c("{.arg formula} lets the control function split on
+    arg::wrn(c("{which} lets the control function split on
                 {length(present)} predictor{?s} whose coefficient varies:
                 {.val {present}}",
                i = "The control function and those coefficients are then not
@@ -334,9 +437,9 @@ vc_modifiers <- function(specs, groups, dot, categorical) {
       unknown <- setdiff(asked, c(groups, own))
 
       if (!is_null(unknown)) {
-        arg::err(c("the modifiers of {.code {spec[['label']]}} name {length(unknown)} thing{?s} that {?is/are} not
+        arg::err(c("The modifiers of {.code {spec[['label']]}} name {length(unknown)} thing{?s} that {?is/are} not
                          {?a predictor/predictors} of this model: {.val {unknown}}",
-                   i = "Its predictors are {.val {groups}}."))
+                   i = "The predictors of {which} are {.val {groups}}."))
       }
 
       allowed <- intersect(asked, groups)
@@ -356,7 +459,7 @@ vc_modifiers <- function(specs, groups, dot, categorical) {
        slope = slope)
 }
 
-# The basis columns each varying coefficient multiplies, and the centring behind
+# The basis columns each varying coefficient multiplies, and the centering behind
 # them.
 #
 # One column per forest, in the order the forests are built: a numeric covariate
@@ -364,10 +467,10 @@ vc_modifiers <- function(specs, groups, dot, categorical) {
 # so the covariate has already been through the same missing-value handling as
 # any predictor.
 #
-# Centring is a reparameterization of the control function alone -- every
+# Centering is a reparameterization of the control function alone -- every
 # coefficient and every estimand is identical under any choice -- so what it
 # decides is what the control function *means* and how well the two forests mix.
-# An uncentred binary covariate leaves the coefficient informed only by the rows
+# An uncentered binary covariate leaves the coefficient informed only by the rows
 # where it is nonzero while the control function absorbs the rest, which is the
 # correlation that makes the pair mix badly.
 vc_basis <- function(specs, mf) {
@@ -402,9 +505,19 @@ vc_basis_numeric <- function(x, spec) {
   )
 
   if (is.character(center)) {
+    # Matched once and reused, since `match_arg()` completes an abbreviation and
+    # a second test against the unmatched string would take `"est"` down the
+    # fixed-centering path without a word.
+    center <- arg::match_arg(center, c("auto", "mean", "zero", "mid", "estimate"),
+                             .arg = sprintf("center of %s", spec[["label"]]))
+
+    if (identical(center, "estimate")) {
+      return(vc_basis_estimated(x, spec,
+                                levels = sort(unique(stats::na.omit(x)))))
+    }
+
     center <- switch(
-      arg::match_arg(center, c("auto", "mean", "zero", "mid"),
-                     .arg = sprintf("center of %s", spec[["label"]])),
+      center,
       # Measured rather than assumed, because neither choice wins everywhere.
       # For a 0/1 covariate, zero is a value it actually takes and the control
       # function is then the surface among the untreated, which is the prognostic
@@ -413,7 +526,7 @@ vc_basis_numeric <- function(x, spec) {
       # against 0.208 on the simulation in `_dev/varying-coefficients.md`. For
       # anything else zero may be nowhere near the data: with a covariate around
       # 50 the control function at zero is an extrapolation, and recovery
-      # collapses to a correlation of 0.42 where mean-centring holds at 0.99.
+      # collapses to a correlation of 0.42 where mean-centering holds at 0.99.
       auto = if (all(stats::na.omit(x) %in% c(0, 1))) 0 else mean(x, na.rm = TRUE),
       mean = mean(x, na.rm = TRUE),
       zero = 0,
@@ -427,21 +540,60 @@ vc_basis_numeric <- function(x, spec) {
        kind = "numeric", scale = stats::sd(x, na.rm = TRUE))
 }
 
+# The data-adaptive coding of Hahn, Murray and Carvalho (2020) section 5.3.
+#
+# Rather than fix what the covariate's levels are coded as -- 0 and 1, or 1 and
+# 0, or plus and minus a half, all of which give different inferences because the
+# control function and the coefficient alias one another -- the coding is drawn.
+# One scalar per level, each with a N(0, 1/2) prior, so every pairwise contrast
+# is marginally N(0, 1) and no level is a reference.
+#
+# One column and one forest whatever the number of levels, which is the
+# difference from the symmetric coding a factor gets by default: there every
+# level has its own coefficient function, here they share one and differ by a
+# scalar. That is a restriction above two levels and no restriction at two.
+vc_basis_estimated <- function(x, spec, levels) {
+  if (length(levels) < 2L) {
+    arg::err("{.code {spec[['label']]}} needs a predictor with at least two
+              values to code")
+  }
+
+  if (length(levels) > 20L) {
+    arg::err(c("{.code {spec[['label']]}} has {length(levels)} distinct values,
+                which is too many to code one at a time",
+               i = "{.val estimate} draws a coefficient per level, so it is for
+                  a treatment with a few levels. Use a fixed {.arg center} for a
+                  continuous predictor."))
+  }
+
+  code <- match(x, levels) - 1L
+  code[is.na(x)] <- -1L
+
+  # A starting column only. The engine rewrites it from the drawn coding on
+  # every sweep, so its values matter no more than any other initialization.
+  columns <- matrix(0, nrow = length(x), ncol = 1L,
+                    dimnames = list(NULL, spec[["covariate"]]))
+
+  list(columns = columns, center = "estimate", levels = levels,
+       code = code, kind = "estimate", scale = 1,
+       covariate = spec[["covariate"]])
+}
+
 # A factor gets one forest per level, symmetrically, the way `multinomial()`
 # codes its predictors -- not K-1 contrasts against a reference level, which
 # would shrink every level towards whichever one sorted first and give that one a
 # different prior from the rest.
 #
-# The coding is over-parameterized by exactly one function. Mean-centred, the
+# The coding is over-parameterized by exactly one function. Mean-centered, the
 # columns sum to zero across levels within a row, so adding any g(Z) to *every*
 # level's forest changes the fit by g(Z) times zero -- the control function is
 # not even involved. That is the same redundancy the symmetric multinomial coding
 # carries, and it is handled the same way: a proper leaf prior, the 1/sqrt(2)
-# scale correction, and recentring at reporting.
+# scale correction, and recentering at reporting.
 #
 # The upshot is that the reference is a *reporting* choice here rather than a
 # fitting one, which the numeric case does not get. So the fit is always
-# mean-centred and `center` names the level to report against.
+# mean-centered and `center` names the level to report against.
 vc_basis_factor <- function(x, spec) {
   x <- as.factor(x)
   levels <- levels(x)
@@ -460,9 +612,13 @@ vc_basis_factor <- function(x, spec) {
     center <- "mean"
   }
 
+  if (identical(center, "estimate")) {
+    return(vc_basis_estimated(as.character(x), spec, levels = levels))
+  }
+
   if (is.numeric(center) || !center %in% c("mean", levels)) {
-    arg::err(c("the center of {.code {spec[['label']]}} must be {.val mean} or
-                one of {.val {levels}}",
+    arg::err(c("the center of {.code {spec[['label']]}} must be {.val mean},
+                {.val estimate} or one of {.val {levels}}",
                i = "{.val {spec[['covariate']]}} is categorical, so
                   {.val zero}, {.val mid} and a number do not name a value it
                   can take."))
@@ -472,7 +628,7 @@ vc_basis_factor <- function(x, spec) {
                        numeric(length(x)))
   indicators[is.na(x), ] <- NA_real_
 
-  # Mean-centred, which puts the control function at the average composition of
+  # Mean-centered, which puts the control function at the average composition of
   # the levels. Reporting against a particular level is exact from these draws.
   shares <- colMeans(indicators, na.rm = TRUE)
   columns <- sweep(indicators, 2L, shares, "-")
@@ -543,46 +699,116 @@ vc_forest_labels <- function(parameter, specs, parts, drop_parameter) {
   c(parameter, sprintf("%s:%s", parameter, slopes))
 }
 
-# Everything the engine and `predict()` need from the `vc()` terms of one
-# formula: the centred basis, which predictor groups each forest may split on,
-# and enough of the centring to rebuild the basis for new data.
-resolve_vc <- function(specs, mf, design, dot) {
+# Everything the engine and `predict()` need from the `vc()` terms: the centered
+# basis, which predictor groups each forest may split on, and enough of the
+# centering to rebuild the basis for new data.
+#
+# The forest space is two-dimensional. One axis is the family's additive
+# predictor -- the mean and the log standard deviation of `location_scale()`, the
+# count and the zero part of `zi_poisson()` -- and the other is the coefficient.
+# A parameter whose formula has no `vc()` term keeps its single forest; one with
+# J of them gets 1 + J, its control function first. So the forests run parameter
+# by parameter, and two small index vectors say what each one is: `param` is the
+# inner predictor it feeds and `column` is the basis column it multiplies, or
+# zero for a control function.
+#
+# `forest_vc` is one entry per additive predictor, carrying that parameter's
+# specs and whether its formula reached them through `.`; `base_masks` is one
+# column per additive predictor, saying which predictor groups its own formula
+# allows. Everything below is that mask narrowed further by the `vc()` rules,
+# which is what keeps a per-forest formula and a varying coefficient composable
+# rather than mutually exclusive.
+resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
+                       labels = NULL) {
   groups <- unique(design[["term_labels"]][design[["assign"]]])
+  n_param <- length(forest_vc)
+  aux <- if (n_aux > 0L) n_param + seq_len(n_aux) else integer()
 
-  if (length(specs) == 0L) {
-    return(list(specs = list(), basis = NULL, parts = list(),
-                slopes = 0L, masks = NULL, groups = groups))
+  if (!any(vapply(forest_vc, function(f) length(f[["specs"]]) > 0L,
+                  logical(1L)))) {
+    masks <- cbind(base_masks,
+                   matrix(TRUE, nrow = length(groups), ncol = n_aux))
+    rownames(masks) <- groups
+
+    return(list(specs = list(), basis = NULL, parts = list(), slopes = 0L,
+                n_slope = integer(n_param),
+                param = c(seq_len(n_param), aux),
+                column = integer(n_param + n_aux),
+                masks = masks, groups = groups))
   }
 
-  missing_from_frame <- setdiff(vapply(specs, `[[`, character(1L), "covariate"),
-                                names(mf))
+  missing_from_frame <- setdiff(
+    unlist(lapply(forest_vc, function(f) {
+      vapply(f[["specs"]], `[[`, character(1L), "covariate")
+    }), use.names = FALSE),
+    names(mf))
 
   if (length(missing_from_frame) > 0L) {
     arg::err("{.arg data} has no column {.val {missing_from_frame}}")
   }
 
-  basis <- vc_basis(specs, mf)
+  per <- lapply(seq_len(n_param), function(h) {
+    specs <- forest_vc[[h]][["specs"]]
+    allowed <- groups[base_masks[, h]]
 
-  categorical <- vapply(basis[["parts"]],
-                        function(p) identical(p[["kind"]], "factor"),
-                        logical(1L))
-  names(categorical) <- vapply(specs, `[[`, character(1L), "covariate")
+    if (length(specs) == 0L) {
+      return(list(specs = list(), parts = list(), columns = NULL,
+                  masks = matrix(base_masks[, h], ncol = 1L)))
+    }
 
-  modifiers <- vc_modifiers(specs, groups, dot, categorical)
+    basis <- vc_basis(specs, mf)
 
-  # One mask column per forest, in the order the forests are built: the control
-  # function, then each coefficient's, a factor's levels consecutively. A
-  # factor's levels share one modifier set, since they are one predictor.
-  columns <- c(list(modifiers[["control"]]),
-               unlist(lapply(seq_along(specs), function(j) {
-                 rep(list(modifiers[["slope"]][[j]]),
-                     length(basis[["parts"]][[j]][["scale"]]))
-               }), recursive = FALSE))
+    # A drawn coding's coefficients are reported as nuisance parameters, so they
+    # need names, and the name has to say which parameter's coding it is: the
+    # mean and the log standard deviation can both draw a coding for the same
+    # covariate and they are different quantities. Settled here, where the
+    # parameter is known, so that reporting and reading back share one
+    # definition.
+    basis[["parts"]] <- lapply(basis[["parts"]], function(part) {
+      if (!identical(part[["kind"]], "estimate")) {
+        return(part)
+      }
 
-  masks <- vapply(columns, function(allowed) groups %in% allowed,
-                  logical(length(groups))) |>
-    matrix(nrow = length(groups), ncol = length(columns),
-           dimnames = list(groups, NULL))
+      stem <- part[["covariate"]]
+
+      if (!is_null(labels)) {
+        stem <- sprintf("%s:%s", labels[h], stem)
+      }
+
+      c(part, list(b_names = sprintf("b.%s.%s", stem, part[["levels"]])))
+    })
+
+    categorical <- vapply(basis[["parts"]],
+                          function(p) identical(p[["kind"]], "factor"),
+                          logical(1L))
+    names(categorical) <- vapply(specs, `[[`, character(1L), "covariate")
+
+    modifiers <- vc_modifiers(specs, allowed, forest_vc[[h]][["dot"]],
+                              categorical, labels[h])
+
+    # One mask column per forest, in the order the forests are built: the
+    # control function, then each coefficient's, a factor's levels
+    # consecutively. A factor's levels share one modifier set, since they are
+    # one predictor.
+    columns <- c(list(modifiers[["control"]]),
+                 unlist(lapply(seq_along(specs), function(j) {
+                   rep(list(modifiers[["slope"]][[j]]),
+                       length(basis[["parts"]][[j]][["scale"]]))
+                 }), recursive = FALSE))
+
+    list(specs = lapply(specs, function(spec) c(spec, list(param = h))),
+         parts = basis[["parts"]],
+         columns = basis[["columns"]],
+         masks = vapply(columns, function(allow) groups %in% allow,
+                        logical(length(groups))) |>
+           matrix(nrow = length(groups)))
+  })
+
+  n_slope <- vapply(per, function(p) ncol(p[["columns"]]) %or% 0L, integer(1L))
+
+  masks <- cbind(do.call(cbind, lapply(per, `[[`, "masks")),
+                 matrix(TRUE, nrow = length(groups), ncol = n_aux))
+  rownames(masks) <- groups
 
   empty <- !apply(masks, 2L, any)
 
@@ -590,22 +816,30 @@ resolve_vc <- function(specs, mf, design, dot) {
     arg::err("{sum(empty)} of the model's forests {?has/have} no predictor left to split on")
   }
 
-  list(specs = specs, basis = basis[["columns"]], parts = basis[["parts"]],
-       slopes = ncol(basis[["columns"]]), masks = masks, groups = groups)
+  # The forests parameter by parameter, each one's control function first. An
+  # aux forest -- a custom family's pinned nuisance parameter -- is not an
+  # additive predictor and carries no coefficient, so it maps straight through.
+  param <- integer()
+  column <- integer()
+  at <- 0L
+
+  for (h in seq_len(n_param)) {
+    param <- c(param, h, rep.int(h, n_slope[h]))
+    column <- c(column, 0L, at + seq_len(n_slope[h]))
+    at <- at + n_slope[h]
+  }
+
+  list(specs = unlist(lapply(per, `[[`, "specs"), recursive = FALSE),
+       basis = do.call(cbind, lapply(per, `[[`, "columns")),
+       parts = unlist(lapply(per, `[[`, "parts"), recursive = FALSE),
+       slopes = sum(n_slope), n_slope = n_slope,
+       param = c(param, aux), column = c(column, integer(n_aux)),
+       masks = masks, groups = groups)
 }
 
-# The basis the fit was built with, for the entry points that evaluate the
-# likelihood at stored draws. Empty when the model has no varying coefficient,
-# which is what tells the engine to leave the family alone.
-vc_stored_basis <- function(object) {
-  basis <- object[["vc"]][["basis"]]
-
-  if (is_null(basis)) matrix(0, 0L, 0L) else basis
-}
-
-# The basis for new data, under the centring the fit was built with.
+# The basis for new data, under the centering the fit was built with.
 #
-# The centring values are the fit's, not the new data's: re-centring on
+# The centering values are the fit's, not the new data's: re-centering on
 # `newdata` would move the control function's reference between the fit and the
 # prediction, so the same covariate value would predict two different things.
 # That matters most for the counterfactual grids `avg_comparisons()` builds,
@@ -628,6 +862,13 @@ vc_newdata_basis <- function(object, newdata) {
     }
 
     x <- newdata[[name]]
+
+    # An estimated coding has no fixed column: the coding coefficients carry it
+    # and `vc_columns()` builds the column from the draws. A placeholder keeps
+    # the matrix rectangular.
+    if (identical(part[["kind"]], "estimate")) {
+      return(matrix(0, nrow = length(x), ncol = 1L))
+    }
 
     if (identical(part[["kind"]], "factor")) {
       x <- factor(as.character(x), levels = part[["levels"]])
@@ -657,13 +898,14 @@ vc_newdata_basis <- function(object, newdata) {
 # A factor's coefficients, recentered to sum to zero across its levels.
 #
 # The symmetric coding is over-parameterized by one function -- adding the same
-# g(Z) to every level's forest changes nothing, because the centred indicators
+# g(Z) to every level's forest changes nothing, because the centered indicators
 # sum to zero within a row -- so the level forests are not individually
 # identified and their raw draws are not meaningful on their own. Removing their
-# mean across levels is the recentring that makes each one the deviation it is
+# mean across levels is the recentering that makes each one the deviation it is
 # reported as, and it is exact rather than an approximation.
-vc_recenter <- function(slopes, vc) {
+vc_recenter <- function(slopes, vc, object, iterations = NULL) {
   at <- 0L
+  out <- list()
 
   for (j in seq_along(vc[["specs"]])) {
     part <- vc[["parts"]][[j]]
@@ -671,16 +913,82 @@ vc_recenter <- function(slopes, vc) {
     columns <- at + seq_len(width)
     at <- at + width
 
+    # A drawn coding leaves the forest itself unidentified: only differences of
+    # the coding coefficients are, so the forest alone is not the effect and
+    # reporting it would be reporting a quantity with an arbitrary scale. What is
+    # identified is the contrast between two levels, so that is what comes back,
+    # against the first level.
+    if (identical(part[["kind"]], "estimate")) {
+      b <- vc_coding_draws(object, j, iterations)
+      levels <- part[["levels"]]
+
+      # Built from the forest's own name rather than the covariate's, which is
+      # the same string when the family has one additive predictor and is what
+      # keeps `mean:z` and `log_sd:z` apart when it has several.
+      base <- names(slopes)[columns]
+
+      for (k in seq_along(levels)[-1L]) {
+        label <- if (length(levels) == 2L) base
+                 else sprintf("%s%s", base, levels[k])
+        out[[label]] <- (b[, k] - b[, 1L]) * slopes[[columns]]
+      }
+
+      next
+    }
+
     if (!identical(part[["kind"]], "factor")) {
+      out[[names(slopes)[columns]]] <- slopes[[columns]]
       next
     }
 
     shared <- Reduce(`+`, slopes[columns]) / width
 
     for (k in columns) {
-      slopes[[k]] <- slopes[[k]] - shared
+      out[[names(slopes)[k]]] <- slopes[[k]] - shared
     }
   }
 
-  slopes
+  out
+}
+
+# The coding matrix the engine draws against: one column per forest, holding
+# each observation's level for the terms whose coding is estimated and -1 for
+# the terms whose coding is fixed.
+vc_coding <- function(vc) {
+  parts <- vc[["parts"]]
+
+  if (length(parts) == 0L) {
+    return(NULL)
+  }
+
+  adaptive <- vapply(parts, function(p) identical(p[["kind"]], "estimate"),
+                     logical(1L))
+
+  if (!any(adaptive)) {
+    return(NULL)
+  }
+
+  widths <- vapply(parts, function(p) length(p[["scale"]]), integer(1L))
+  n <- nrow(vc[["basis"]])
+
+  codes <- matrix(-1L, nrow = n, ncol = sum(widths))
+  levels <- integer(sum(widths))
+  labels <- character(0L)
+  at <- 0L
+
+  for (j in seq_along(parts)) {
+    part <- parts[[j]]
+    columns <- at + seq_len(widths[j])
+    at <- at + widths[j]
+
+    if (!adaptive[j]) {
+      next
+    }
+
+    codes[, columns] <- part[["code"]]
+    levels[columns] <- length(part[["levels"]])
+    labels <- c(labels, part[["b_names"]])
+  }
+
+  list(codes = codes, levels = levels, names = labels)
 }

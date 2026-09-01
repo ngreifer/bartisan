@@ -66,6 +66,13 @@ and this package all provide; the point is to let the control function
 absorb the selection without letting the effect vary with it.
 \item The effect forest gets fewer trees than the control function, since patterns
 of effect heterogeneity are usually simpler than prognostic surfaces.
+\item A \strong{binary} treatment has its coding drawn rather than fixed, which is
+\code{center = "estimate"} in \code{\link[=vc]{vc()}} and the parameter expansion of Hahn et al.'s
+section 5.3. At two levels it restricts nothing and costs nothing in
+recovery, and it removes the dependence on which level was written as 1. A
+treatment with more levels keeps the symmetric per-level coding, because
+there the drawn coding gives every contrast one shared shape; \code{?vc} has the
+numbers on both.
 \item \code{sparsity = FALSE} on the outcome model. A variable-selection prior on the
 variable whose contrast is the estimand puts a point mass at exactly zero in
 the posterior of the effect; see the measurements in \code{\link[=bartisan_control]{bartisan_control()}}.
@@ -106,6 +113,22 @@ predictor or give \code{f1} the treatment among its moderators, which makes the
 effect vary across the dose; see \code{\link[=vc]{vc()}}.
 }
 
+\section{Predicting for new data}{
+The propensity score is a predictor of the control function, and it is one the
+caller never named, so \code{newdata} taken from their own frame does not carry it.
+\code{predict()} rebuilds it from the model this kept, which is what makes that
+work at all.
+
+One consequence is worth knowing. A predictor goes through the quantile
+transform, which is a step function, so a score that rebuilds to within 1e-11
+can still land on the other side of a step: predictions for the \emph{training}
+data come back to within a few percent of the response's spread rather than
+exactly. Passing the stored score in \code{newdata} -- it is in
+\code{fit$bcf$propensity} -- removes the reconstruction and reproduces the fit to
+machine precision. Supplying \code{propensity} as a number rather than fitting it
+has the same effect, and then \code{newdata} must carry the column.
+}
+
 \examples{
 set.seed(1)
 n <- 300
@@ -127,21 +150,7 @@ effects. \emph{Bayesian Analysis}, 15(3), 965--1056. \doi{10.1214/19-BA1195}
 
 Woody, S., Carvalho, C. M., Hahn, P. R., & Murray, J. S. (2020). Estimating
 heterogeneous effects of continuous exposures using Bayesian tree ensembles.
-\doi{10.48550/arXiv.2007.09845}Predicting for new data
-
-The propensity score is a predictor of the control function, and it is one the
-caller never named, so \code{newdata} taken from their own frame does not carry it.
-\code{predict()} rebuilds it from the model this kept, which is what makes that
-work at all.
-
-One consequence is worth knowing. A predictor goes through the quantile
-transform, which is a step function, so a score that rebuilds to within 1e-11
-can still land on the other side of a step: predictions for the \emph{training}
-data come back to within a few percent of the response's spread rather than
-exactly. Passing the stored score in \code{newdata} -- it is in
-\code{fit$bcf$propensity} -- removes the reconstruction and reproduces the fit to
-machine precision. Supplying \code{propensity} as a number rather than fitting it
-has the same effect, and then \code{newdata} must carry the column.
+\doi{10.48550/arXiv.2007.09845}
 }
 \seealso{
 \code{\link[=bartisan]{bartisan()}} and \code{\link[=vc]{vc()}} for the general interface this is written in

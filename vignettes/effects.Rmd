@@ -235,7 +235,9 @@ $$f_0(x) + z\,f_1(x)$$
 
 Here $f_1$ is a forest of its own, and it *is* the effect of `z`: how much the
 prediction moves per unit of `z`, as a function of the other predictors. `vc()`
-asks for it.
+asks for it. This is the varying-coefficient model of @deshpande2026, of which
+@hahn2020 is the case of one binary covariate and @woody2020 the case of one
+continuous one.
 
 ```{r vc, eval = run}
 fit_vc <- bartisan(death ~ age + sex + race + edu + aps + meanbp + resp +
@@ -266,11 +268,28 @@ removes it, and then the effect varies across the covariate's own range:
 
 ```{r vcnonlinear, eval = FALSE}
 # The effect of `aps` may itself change across `aps`.
-y ~ age + aps + vc(aps, ~ aps + age)
+y ~ age + vc(aps, ~ aps + age)
 ```
 
 And a covariate whose coefficient varies should not also be a predictor of the
 control function. With it in both, the two are not separately identified: any
+function of it can move between them. Writing the covariate only inside `vc()`
+is what keeps them apart, and `bartisan()` warns if the formula does otherwise.
+
+For a family with several additive predictors, each parameter's formula carries
+its own `vc()` terms, so a covariate can have a coefficient on more than one of
+them:
+
+```{r vcmulti, eval = FALSE}
+# The effect of `z` on the mean, and separately on the spread.
+bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2 + vc(z)),
+         data = d, family = location_scale())
+```
+
+`coef()` then returns one column per coefficient, named `mean:z` and `log_sd:z`
+for the forests they come from, which is also how per-forest settings like
+`num_trees` are keyed. `?vc` covers the rest, including the one family that
+refuses this. With it in both, the two are not separately identified: any
 function of it can move between them. Writing the covariate only inside `vc()`
 is what keeps them apart, and `bartisan()` warns if the formula does otherwise.
 

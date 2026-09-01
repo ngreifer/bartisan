@@ -101,7 +101,7 @@ level_codes <- function(x, assign) {
 
   keep <- which(n_levels > 0L)
 
-  if (length(keep) == 0L) {
+  if (is_null(keep)) {
     return(list(codes = matrix(-1L, n, 0L), cat_col = cat_col,
                 n_levels = n_levels))
   }
@@ -128,10 +128,10 @@ apply_level_codes <- function(x, assign, info) {
   n_cat <- sum(n_levels > 0L)
 
   if (n_cat == 0L) {
-    return(matrix(-1L, nrow(x), 0L))
+    return(matrix(-1L, nrow = nrow(x), ncol = 0L))
   }
 
-  out <- matrix(-1L, nrow(x), n_cat)
+  out <- matrix(-1L, nrow = nrow(x), ncol = n_cat)
 
   for (g in seq_along(groups)) {
     if (n_levels[g] == 0L) {
@@ -144,8 +144,7 @@ apply_level_codes <- function(x, assign, info) {
 
     if (any(observed)) {
       seen <- block[observed, , drop = FALSE]
-      out[observed, cat_col[g] + 1L] <-
-        max.col(seen, ties.method = "first") - 1L
+      out[observed, cat_col[g] + 1L] <- max.col(seen, ties.method = "first") - 1L
     }
   }
 
@@ -230,10 +229,8 @@ resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
     weights[!masks[, h]] <- 0
 
     if (sum(weights) == 0) {
-      arg::err(c("the {.val {labels[h]}} forest has no predictor left to split
-                  on",
-                 i = "Its formula and its {.arg split_prior} weights have
-                    nothing in common."))
+      arg::err(c("The {.val {labels[h]}} forest has no predictor left to split on.",
+                 i = "Its formula and its {.arg split_prior} weights have nothing in common."))
     }
 
     weights / sum(weights)
@@ -256,7 +253,7 @@ resolve_split_weights <- function(split_prior, groups) {
 
   unknown <- setdiff(names(split_prior), groups)
 
-  if (length(unknown) > 0L) {
+  if (!is_null(unknown)) {
     arg::err(c("{.arg split_prior} names {?a predictor/predictors} the model
                 does not have: {.val {unknown}}",
                i = "The model's predictors are {.val {groups}}."))
@@ -278,8 +275,6 @@ resolve_split_weights <- function(split_prior, groups) {
 
   weights / sum(weights)
 }
-
-`%||%` <- function(x, y) if (is.null(x)) y else x
 
 # The settings the engine holds one copy of per forest, with the value a forest
 # takes when a named argument does not mention it. Each is a hyperparameter of
@@ -315,14 +310,14 @@ split_formula_list <- function(formula, arg = "formula") {
     return(list(formula))
   }
 
-  if (!is.list(formula) || length(formula) == 0L) {
+  if (is_null(formula) || !is.list(formula)) {
     arg::err("{.arg {arg}} must be a formula, or a list of formulas with one
               per forest")
   }
 
   bad <- which(!vapply(formula, rlang::is_formula, logical(1L)))
 
-  if (length(bad) > 0L) {
+  if (!is_null(bad)) {
     arg::err("{.arg {arg}} must contain formulas; element {bad[1L]} is
               {.cls {class(formula[[bad[1L]]])[1L]}}")
   }
@@ -330,7 +325,7 @@ split_formula_list <- function(formula, arg = "formula") {
   two_sided <- vapply(formula, rlang::is_formula, logical(1L), lhs = TRUE)
 
   if (!any(two_sided)) {
-    arg::err(c("one element of {.arg {arg}} must be two-sided",
+    arg::err(c("One element of {.arg {arg}} must be two-sided.",
                i = "The model for the main parameter carries the response; the
                   rest need no response."))
   }
@@ -367,8 +362,7 @@ split_formula_list <- function(formula, arg = "formula") {
     f
   })
 
-  names(out) <- names(formula)
-  out
+  setNames(out, names(formula))
 }
 
 # The term labels of one forest's formula, with `.` expanded against the data the
@@ -383,8 +377,8 @@ forest_terms <- function(f, data, response = NULL) {
   }
 
   tt <- {
-    if (!is_null(data)) stats::terms(f, data = data)
-    else stats::terms(f)
+    if (is_null(data)) stats::terms(f)
+    else stats::terms(f, data = data)
   }
 
   attr(tt, "term.labels")
@@ -456,10 +450,11 @@ forest_masks <- function(formulas, groups, data, response) {
   # `matrix()` rather than relying on `vapply()` to build one: with a single
   # predictor group it returns a bare vector, and everything downstream indexes
   # by column.
-  matrix(vapply(formulas, function(f) {
+  vapply(formulas, function(f) {
     keys %in% term_key(forest_terms(f, data, response))
-  }, logical(length(groups))),
-  nrow = length(groups), ncol = length(formulas))
+  }, logical(length(groups))) |>
+    matrix(nrow = length(groups),
+           ncol = length(formulas))
 }
 
 # Spread a per-forest argument over the reported forests.
@@ -490,8 +485,7 @@ resolve_per_forest <- function(value, labels, arg, default = NULL,
   }
 
   if (joint) {
-    arg::err(c("{.arg {arg}} must be one value for this family, not
-                {length(value)}",
+    arg::err(c("{.arg {arg}} must be one value for this family, not {length(value)}.",
                i = "Its {n} forests are the levels of one parameter and act
                   together, so they take the same setting."))
   }
@@ -510,7 +504,7 @@ resolve_per_forest <- function(value, labels, arg, default = NULL,
   named <- nzchar(nms)
   unknown <- setdiff(nms[named], labels)
 
-  if (length(unknown) > 0L) {
+  if (!is_null(unknown)) {
     arg::err(c("{.arg {arg}} names {?a forest/forests} this family does not
                 have: {.val {unknown}}",
                i = "Its forests are {.val {labels}}."))

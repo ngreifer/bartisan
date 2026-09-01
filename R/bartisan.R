@@ -1,4 +1,4 @@
-#' Fit a generalized Bayesian additive regression trees model
+#' Fit a generalized Bayesian additive regression trees (BART) model
 #'
 #' @description
 #' Fits a BART model in which the response distribution is arbitrary rather than
@@ -35,6 +35,20 @@
 #'   One formula applies to every forest, which is the ordinary case. A predictor
 #'   left out of one forest's formula is still in the data and is never split on
 #'   by that forest.
+#'
+#'   [vc()] terms are read out of each formula in turn, so a parameter has the
+#'   varying coefficients its own formula asks for and no others. That makes the
+#'   forests two-dimensional -- one axis the parameter, the other the coefficient
+#'   -- and the names below are what per-forest settings are keyed by:
+#'
+#'   ```r
+#'   # forests: mean, mean:z, log_sd
+#'   bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
+#'            family = location_scale())
+#'
+#'   # one formula reaches every parameter, so both get a coefficient of `z`
+#'   bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+#'   ```
 #' @param data a data frame containing the variables in `formula`.
 #' @param family the response distribution, as a [stats::family] object, one of
 #'   the families in [bartisan-families], or a name. The default, `NULL`, reads
@@ -341,11 +355,15 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # `vc()` terms come out of the barless fixed part, so `terms()` never has to
   # make sense of a `|`. What is left is the design: the covariate whose
   # coefficient varies is not also a splitting predictor unless the caller put it
-  # there. Whether `.` was used is recorded now, before any expansion, because it
-  # is what separates a slip from a choice in the overlap rule.
-  vc_split <- split_vc_terms(split[["fixed"]])
-  vc_specs <- vc_split[["vc"]]
-  vc_dot <- uses_dot(split[["fixed"]])
+  # there.
+  #
+  # This is the union across every forest's formula, and it settles the design
+  # alone -- a covariate that one parameter wraps in `vc()` and another names
+  # outright stays a design column, because the union names it both ways and only
+  # the wrapped mention is removed. Which forest may split on what is settled
+  # later, per parameter, from that parameter's own formula.
+  vc_split <- split_vc_terms(split[["fixed"]], unique_covariates = FALSE)
+  vc_any <- length(vc_split[["vc"]]) > 0L
   split[["fixed"]] <- vc_split[["fixed"]]
 
   mf <- match.call(expand.dots = FALSE)
@@ -426,7 +444,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   if (is_null(attr(mt, "term.labels"))) {
     arg::err(c("{.arg formula} must include at least one predictor a forest can
                 split on",
-               i = if (length(vc_specs) > 0L) {
+               i = if (vc_any) {
                  "A {.fn vc} covariate is what a coefficient multiplies, not
                   something its own forest can split on, so a model of nothing
                   but {.fn vc} terms has no predictors left."
@@ -451,11 +469,6 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
     arg::err("no usable observations remain")
   }
 
-  # The basis each varying coefficient multiplies, centred, plus which forests
-  # may split on what. Built from the frame rather than the design, because the
-  # covariate is deliberately not a design column unless the caller put it there.
-  vc <- resolve_vc(vc_specs, mf, design, vc_dot)
-
   unit <- unit_transform(design$x, control[["x_transform"]])
   has_na <- vapply(seq_len(ncol(unit$x)), function(j) anyNA(unit$x[, j]),
                    logical(1L))
@@ -464,7 +477,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   random <- random_terms(split$bars, mf)
 
   response <- prepare_response(family, y, model_weights, model_offset,
-                               unit$x, n, vc)
+                               unit$x, n)
 
   group_probs <- make_group_probs(design$assign, design$term_labels)
 
@@ -484,34 +497,40 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   engine_control <- as.list(control)
 
-  # The names of the forests, which is what a per-forest argument may be keyed
-  # by and the order a positional one is read in. The trailing pinned forests
-  # standing in for a custom family's nuisance parameters are not among them:
-  # they are not additive predictors and nothing about them is the caller's to
-  # set per forest.
-  n_report <- response[["n_forest"]] - response[["n_aux"]]
-  labels <- forest_labels(response[["family"]], response[["opts"]],
-                          response[["levels"]], n_report, vc)
+  # The names of the family's additive predictors, which is what one formula per
+  # forest is keyed by. Varying coefficients then split each of these into a
+  # control function and its coefficients, so there are two label sets from here
+  # on: these, for the formulas, and the enlarged set below for everything that
+  # is set per forest.
+  #
+  # The trailing pinned forests standing in for a custom family's nuisance
+  # parameters are in neither: they are not additive predictors and nothing
+  # about them is the caller's to set per forest.
+  n_param <- response[["n_forest"]] - response[["n_aux"]]
+  param_labels <- forest_labels(response[["family"]], response[["opts"]],
+                                response[["levels"]], n_param)
   joint <- joint_forests(response[["family"]])
 
   if (length(forest_formulas) > 1L && joint) {
     arg::err(c("{.arg formula} must be a single formula for this family, not
                 {length(forest_formulas)}",
-               i = "Its {length(labels)} forests are the levels of one parameter
-                  and act together, so they take the same predictors."))
+               i = "Its {length(param_labels)} forests are the levels of one
+                  parameter and act together, so they take the same
+                  predictors."))
   }
 
-  if (length(forest_formulas) > n_report) {
+  if (length(forest_formulas) > n_param) {
     arg::err(c("{.arg formula} has {length(forest_formulas)} formulas but this
-                family has {n_report} forest{?s}",
-               i = "Its forests are {.val {labels}}."))
+                family has {n_param} forest{?s}",
+               i = "Its forests are {.val {param_labels}}."))
   }
 
   # Names on the list of formulas are checked the same way any per-forest
   # argument's are, and reorder it, so that `list(log_sd = ~ x2, mean = y ~ x1)`
   # means what it says.
   if (!is_null(names(forest_formulas))) {
-    forest_formulas <- resolve_per_forest(forest_formulas, labels, "formula",
+    forest_formulas <- resolve_per_forest(forest_formulas, param_labels,
+                                          "formula",
                                           default = forest_formulas[[1L]],
                                           joint = joint)
   }
@@ -521,13 +540,91 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # the engine unchanged. Fewer formulas than forests, but more than one, is not
   # a recycling anyone would mean.
   if (length(forest_formulas) == 1L) {
-    forest_formulas <- rep(forest_formulas, n_report)
+    forest_formulas <- rep(forest_formulas, n_param)
   }
-  else if (length(forest_formulas) < n_report) {
+  else if (length(forest_formulas) < n_param) {
     arg::err(c("{.arg formula} has {length(forest_formulas)} formulas but this
-                family has {n_report} forests",
-               i = "Give one formula, or {n_report}, or name them:
-                  {.val {labels}}."))
+                family has {n_param} forests",
+               i = "Give one formula, or {n_param}, or name them:
+                  {.val {param_labels}}."))
+  }
+
+  # `vc()` terms come out of each parameter's own formula, so the mean can have a
+  # varying coefficient the log standard deviation does not -- and a single
+  # formula gives every parameter the same ones, which is the recycling rule
+  # every other per-forest argument follows. Read after the reordering above so
+  # that a named list lines its `vc()` terms up with the right parameter.
+  forest_vc <- lapply(forest_formulas, function(f) {
+    fixed <- split_random(f)[["fixed"]]
+
+    list(specs = split_vc_terms(fixed)[["vc"]],
+         dot = uses_dot(fixed))
+  })
+
+  # The formulas the masks are built from carry no `vc()` terms: a covariate
+  # whose coefficient varies is what a coefficient multiplies, not something a
+  # forest splits on.
+  forest_fixed <- lapply(forest_formulas, function(f) {
+    parts <- split_random(f)
+    out <- split_vc_terms(parts[["fixed"]])[["fixed"]]
+    environment(out) <- environment(f)
+    out
+  })
+
+  # The basis each varying coefficient multiplies, centered, plus which forests
+  # may split on what. Built from the frame rather than the design, because the
+  # covariate is deliberately not a design column unless the caller put it there.
+  vc <- resolve_vc(forest_vc, mf, design,
+                   forest_masks(forest_fixed, colnames(group_probs),
+                                if (!missing(data) &&
+                                      is.data.frame(data)) data,
+                                response_of(forest_fixed)),
+                   response[["n_aux"]],
+                   if (n_param > 1L) param_labels)
+
+  if (vc[["slopes"]] > 0L && joint) {
+    arg::err(c("{.fn vc} is not available for this family.",
+               i = "Its {n_param} forests are the levels of one parameter and are
+                  identified only up to a shared function, which is removed when
+                  they are reported. A coefficient forest per level would add one
+                  such direction per coefficient, and the reporting does not
+                  carry them."))
+  }
+
+  response <- expand_for_vc(response, vc, y, response[["intercept"]])
+  response[["offset"]] <- build_offset(response[["intercept"]], model_offset,
+                                       response[["n_forest"]], n)
+  response[["intercept"]] <- NULL
+
+  # The enlarged set: one label per forest the engine builds, which is what every
+  # per-forest setting below is keyed by.
+  labels <- forest_labels(response[["family"]], response[["opts"]],
+                          response[["levels"]],
+                          response[["n_forest"]] - response[["n_aux"]], vc)
+
+  # Which additive predictor each forest feeds, and which basis column it is
+  # multiplied by. Zero-based for the engine, with -1 for a control function --
+  # and for a custom family's pinned nuisance forests, which carry no
+  # coefficient. This is the whole of what the engine needs to know about the
+  # shape: the family reads it to combine the forests, and the random-effect
+  # builder reads it to give group intercepts to control functions only.
+  if (vc[["slopes"]] > 0L) {
+    response[["opts"]] <- c(response[["opts"]],
+                            list(vc_param = as.integer(vc[["param"]]) - 1L,
+                                 vc_column = as.integer(vc[["column"]]) - 1L,
+                                 vc_labels = labels))
+  }
+
+  # The coding coefficients ride along in the family's options, since it is the
+  # family that draws them: they are a nuisance parameter of the same kind as a
+  # scale, drawn once a sweep on the same hook.
+  coding <- vc_coding(vc)
+
+  if (!is_null(coding)) {
+    response[["opts"]] <- c(response[["opts"]],
+                            list(vc_coding = coding[["codes"]],
+                                 vc_coding_levels = coding[["levels"]],
+                                 vc_coding_names = coding[["names"]]))
   }
 
   # Matched against the predictors here rather than in `bartisan_control()`,
@@ -537,12 +634,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # the weights are also how a forest is held to its own formula.
   engine_control[["split_prior"]] <-
     resolve_split_matrix(control[["split_prior"]], colnames(group_probs),
-                         labels, joint,
-                         vc[["masks"]] %or%
-                           forest_masks(forest_formulas, colnames(group_probs),
-                                        if (!missing(data) &&
-                                              is.data.frame(data)) data,
-                                        response_of(forest_formulas)),
+                         labels, joint, vc[["masks"]],
                          response[["n_forest"]])
 
   engine_control[["gate"]] <- gate_code(control[["gate"]])
@@ -555,7 +647,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   for (nm in names(PER_FOREST_DEFAULTS)) {
     engine_control[[nm]] <- per_forest_vector(
       control[[nm]], labels, nm,
-      control[[nm]][[1L]] %||% PER_FOREST_DEFAULTS[[nm]], joint)
+      control[[nm]][[1L]] %or% PER_FOREST_DEFAULTS[[nm]], joint)
     engine_control[[nm]] <- rep(engine_control[[nm]],
                                 length.out = response[["n_forest"]])
   }
@@ -1240,16 +1332,20 @@ predictor_names <- function(object) {
 forest_labels <- function(family, opts, levels, n_report, vc = NULL) {
   slopes <- vc[["slopes"]] %or% 0L
 
-  # A varying-coefficient model's forests are the control function and one per
-  # coefficient. The parameter's own name is dropped when the family has only
-  # one, so the common case is `(Intercept)` and the covariate's name rather
-  # than `eta` and `eta:z`, which is what per-forest arguments have to be typed
-  # as.
+  # A varying-coefficient model's forests are, for each of the family's additive
+  # predictors, its control function and one per coefficient. The parameter's own
+  # name is dropped when the family has only one, so the common case is
+  # `(Intercept)` and the covariate's name rather than `eta` and `eta:z`, which
+  # is what per-forest arguments have to be typed as. With several parameters the
+  # name has to stay, since `mean:z` and `log_sd:z` are different forests.
   if (slopes > 0L) {
     base <- forest_labels(family, opts, levels, n_report - slopes)
+    drop <- length(base) == 1L && identical(base, "eta")
 
-    return(vc_forest_labels(base, vc[["specs"]], vc[["parts"]],
-                            length(base) == 1L && identical(base, "eta")))
+    return(unlist(lapply(seq_along(base), function(h) {
+      keep <- which(vapply(vc[["specs"]], `[[`, integer(1L), "param") == h)
+      vc_forest_labels(base[h], vc[["specs"]][keep], vc[["parts"]][keep], drop)
+    }), use.names = FALSE))
   }
 
   if (identical(family, "multinomial")) {

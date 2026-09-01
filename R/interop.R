@@ -451,8 +451,8 @@ simulate.bartisan_fit <- function(object, nsim = 1, seed = NULL, ...) {
   }
 
   out <- lapply(seq_len(nrow(draws)), function(s) as_factor(draws[s, ])) |>
-    setNames(sprintf("sim_%d", seq_len(nsim))) |>
-    as.data.frame()
+    list2DF() |>
+    setNames(sprintf("sim_%d", seq_len(nsim)))
 
   attr(out, "seed") <- seed
 
@@ -767,7 +767,7 @@ model_performance.bartisan_fit <- function(model, metrics = "all", verbose = TRU
     }
   }
 
-  out <- as.data.frame(out)
+  out <- list2DF(out)
 
   class(out) <- c("performance_model", class(out))
 

@@ -27,7 +27,9 @@ docs/
 #
 # The `survival-*.R` scripts are the provenance of every number in
 # `vignette("survival")`, which names them, so they are kept while their `.rds`
-# outputs are not: `vignettes/survival-results.rds` is the one that ships.
+# outputs are not: `vignettes/survival-results.rds` is the one that ships. The
+# same rule keeps the varying-coefficient measurements, which `?vc`, the README
+# and `varying-coefficients.md` all cite by filename.
 _dev/*
 !_dev/TASKS.md
 !_dev/SHIP.md
@@ -52,6 +54,9 @@ _dev/*
 !_dev/factor-random-vs-fixed.R
 !_dev/bookkeeping-cost.R
 !_dev/varying-coefficients.md
+!_dev/coding-comparison.R
+!_dev/vcbart-benchmark.R
+!_dev/sparsity-null.R
 
 # Side effect of rendering README.Rmd to github_document.
 README.html

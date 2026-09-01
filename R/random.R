@@ -49,7 +49,7 @@ random_terms <- function(bars, mf) {
     label <- deparse(expr)
     value <- eval(expr, mf, environment())
 
-    if (is.null(value)) {
+    if (is_null(value)) {
       arg::err("grouping variable {.val {label}} was not found in the data")
     }
 
@@ -80,8 +80,7 @@ random_terms <- function(bars, mf) {
               {.val {labels[anyDuplicated(labels)]}}")
   }
 
-  names(out) <- labels
-  out
+  setNames(out, labels)
 }
 
 # What the engine needs: the label, the codes and the level count.

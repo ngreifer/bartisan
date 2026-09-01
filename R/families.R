@@ -766,7 +766,7 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
 
   num_aux <- length(aux_names)
 
-  if (anyDuplicated(aux_names) > 0L || any(!nzchar(aux_names))) {
+  if (anyDuplicated(aux_names) > 0L || !all(nzchar(aux_names))) {
     arg::err("{.arg aux_names} must be distinct and non-empty")
   }
 
@@ -934,7 +934,8 @@ is_survival_matrix <- function(y) {
   # is counts of successes and failures, so it fails the second test unless
   # every count is zero or one -- and then it is ambiguous, and survival is the
   # reading a two-column *numeric* matrix more often has.
-  all(y[, 1L] >= 0, na.rm = TRUE) && length(events) > 0L &&
+  all(y[, 1L] >= 0, na.rm = TRUE) &&
+    !is_null(events) > 0L &&
     all(events %in% c(0, 1))
 }
 
@@ -1102,19 +1103,18 @@ compose_link <- function(custom_link, native) {
   # handled correctly and the only thing the warning does is emit one line per
   # rejected proposal, which on a default `Gamma()` fit is dozens of them.
   theta <- switch(native,
-                  identity = function(eta) linkinv(eta),
+                  identity = linkinv,
                   log = function(eta) suppressWarnings(log(linkinv(eta))),
                   logit = function(eta) suppressWarnings(stats::qlogis(linkinv(eta))))
 
-  dtheta <- {
-    if (is_null(mu_eta)) NULL
-    else switch(native,
-                identity = function(eta) mu_eta(eta),
-                log = function(eta) mu_eta(eta) / linkinv(eta),
-                logit = function(eta) {
-                  mu <- linkinv(eta)
-                  mu_eta(eta) / (mu * (1 - mu))
-                })
+  dtheta <- if (!is_null(mu_eta)) {
+    switch(native,
+           identity = mu_eta,
+           log = function(eta) mu_eta(eta) / linkinv(eta),
+           logit = function(eta) {
+             mu <- linkinv(eta)
+             mu_eta(eta) / (mu * (1 - mu))
+           })
   }
 
   list(link_theta = theta, link_dtheta = dtheta)

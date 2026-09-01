@@ -621,7 +621,7 @@ bartisan_control <- function(num_trees = NULL,
                              gate = "smoothstep",
                              sparsity = TRUE,
                              split_prior = NULL,
-                            categorical = "subset",
+                             categorical = "subset",
                              k = 2,
                              bandwidth = 0.1,
                              chains = 1L,
@@ -708,7 +708,10 @@ bartisan_control <- function(num_trees = NULL,
     }
   }
 
-  for (value in as.list(gamma)) arg::arg_lte(value, 1, .arg = "gamma")
+  for (value in as.list(gamma)) {
+    arg::arg_lte(value, 1, .arg = "gamma")
+  }
+
   arg::arg_number(sigma_mu_ramp)
   arg::arg_between(sigma_mu_ramp, c(0, 1))
 
@@ -741,10 +744,8 @@ bartisan_control <- function(num_trees = NULL,
   # for both, since `sparsity = TRUE` is the default and is not a request.
   if (!is_null(split_prior)) {
     if (!missing(sparsity) && !isFALSE(sparsity)) {
-      arg::wrn(c("{.arg split_prior} overrides {.arg sparsity}, which is
-                  ignored.",
-                 i = "{.arg split_prior} fixes the splitting probabilities;
-                    {.arg sparsity} draws them."))
+      arg::wrn(c("{.arg split_prior} overrides {.arg sparsity}, which is ignored.",
+                 i = "{.arg split_prior} fixes the splitting probabilities; {.arg sparsity} draws them."))
     }
     sparsity <- FALSE
   }
@@ -752,11 +753,7 @@ bartisan_control <- function(num_trees = NULL,
   sparse <- resolve_sparsity(sparsity)
   augment <- resolve_augment(augment, soft)
 
-  out <- list(num_trees = if (is_null(num_trees)) NULL else {
-                # Names survive the coercion: they are the forests each count is
-                # for, and `as.integer()` drops them.
-                stats::setNames(as.integer(num_trees), names(num_trees))
-              },
+  out <- list(num_trees = if (!is_null(num_trees)) stats::setNames(as.integer(num_trees), names(num_trees)),
               gate = gate,
               soft = soft,
               sparsity = sparsity,
@@ -813,7 +810,7 @@ bartisan_control <- function(num_trees = NULL,
 # spreading, because the forests are not known until the family is, so all this
 # does is carry the names through and resolve each element on its own.
 resolve_sparsity <- function(sparsity) {
-  if (length(sparsity) == 0L) {
+  if (is_null(sparsity)) {
     arg::err("{.arg sparsity} must not be empty")
   }
 
@@ -828,14 +825,14 @@ resolve_sparsity <- function(sparsity) {
                         .arg = "sparsity")
   }, character(1L))
 
-  shapes <- vapply(levels, function(lv) {
-    switch(lv, none = c(0.5, 1), weak = c(1, 1), moderate = c(0.5, 1),
-           strong = c(0.5, 3))
-  }, numeric(2L))
+  shapes <- vapply(levels, switch, numeric(2L),
+                   none = c(0.5, 1),
+                   weak = c(1, 1),
+                   moderate = c(0.5, 1),
+                   strong = c(0.5, 3))
 
   keep <- function(x) {
-    names(x) <- names(sparsity)
-    x
+    setNames(x, names(sparsity))
   }
 
   list(update_s = keep(levels != "none"),
@@ -856,7 +853,8 @@ resolve_split_prior <- function(split_prior) {
     return(NULL)
   }
 
-  arg::arg_numeric(split_prior)
+  arg::when_not_null(split_prior,
+                     arg::arg_numeric)
 
   nm <- names(split_prior)
 

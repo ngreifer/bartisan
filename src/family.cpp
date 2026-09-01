@@ -4964,37 +4964,156 @@ struct VaryingCoefficientFamily : Family {
   std::unique_ptr<Family> inner;
   arma::mat basis;
 
-  VaryingCoefficientFamily(Family* inner_, const arma::mat& basis_)
-    : Family(inner_->y, inner_->w, 1 + static_cast<int>(basis_.n_cols)),
-      inner(inner_), basis(basis_) {}
+  // Data-adaptive coding, Hahn, Murray and Carvalho (2020) sec. 5.3. Rather than
+  // fix what the covariate's levels are coded as, draw them: the model becomes
+  // mu = eta_0 + b_{z_i} * eta_1 with b_k ~ N(0, 1/2) independently, so every
+  // pairwise contrast b_j - b_k is marginally N(0, 1) and no level is a
+  // reference. `coding(i, j)` is observation i's level in term j, or -1 when
+  // that term's coding is fixed; `coding_levels(j)` is how many levels it has.
+  arma::imat coding;
+  arma::ivec coding_levels;
+  std::vector<arma::vec> b;
+  std::vector<std::string> b_labels;
+
+  // One entry per forest: which of the wrapped family's additive predictors it
+  // feeds, and which basis column it is multiplied by (-1 for a control
+  // function, and for a pinned nuisance forest passing straight through).
+  arma::ivec param;
+  arma::ivec column;
+
+  VaryingCoefficientFamily(Family* inner_, const arma::mat& basis_,
+                           const arma::imat& coding_,
+                           const arma::ivec& coding_levels_,
+                           const std::vector<std::string>& b_labels_,
+                           const arma::ivec& param_,
+                           const arma::ivec& column_)
+    : Family(inner_->y, inner_->w, static_cast<int>(param_.n_elem)),
+      inner(inner_), basis(basis_), coding(coding_),
+      coding_levels(coding_levels_), b_labels(b_labels_),
+      param(param_), column(column_) {
+
+    if (coding_levels.n_elem == 0) {
+      return;
+    }
+
+    // Initialized at evenly spaced quantiles of the prior rather than drawn, so
+    // the levels start apart: with every b_k equal the coefficient forest is
+    // multiplied by a constant and has nothing to identify it.
+    for (arma::uword j = 0; j < coding_levels.n_elem; j++) {
+      int levels = coding_levels(j);
+      arma::vec start(std::max(levels, 1), arma::fill::zeros);
+
+      for (int k = 0; k < levels; k++) {
+        start(k) = R::qnorm((k + 0.5) / levels, 0.0, 1.0, 1, 0) / std::sqrt(2.0);
+      }
+
+      b.push_back(start);
+
+      if (levels > 0) {
+        refresh_coding_column(static_cast<int>(j));
+      }
+    }
+  }
+
+  bool has_coding() const {
+    return arma::any(coding_levels > 0);
+  }
+
+  // Exact only where the wrapped family's leaf target is quadratic; see
+  // `Family::coding_is_exact()`. Asked of the predictor the drawn coding
+  // actually feeds, since a family can be quadratic in one and not another.
+  // With no drawn coding there is nothing to be exact about, so every fixed
+  // centring passes.
+  bool coding_is_exact() const override {
+    return coding_not_exact() < 0;
+  }
+
+  // Which forest's drawn coding is not exact, or -1 if every one is. The index
+  // rather than a flag, so the refusal can name the coefficient at fault: with
+  // several additive predictors the family may be quadratic in one and not
+  // another, and `location_scale()` is exactly that -- a drawn coding is fine on
+  // the mean and not on the log standard deviation.
+  int coding_not_exact() const override {
+    for (arma::uword j = 0; j < coding_levels.n_elem; j++) {
+      if (coding_levels(j) > 0 &&
+          inner->target_form(param_of_column(static_cast<int>(j))) !=
+            TARGET_QUADRATIC) {
+        return forest_of_column(static_cast<int>(j));
+      }
+    }
+
+    return -1;
+  }
+
+  // The forest a basis column belongs to, and through it the predictor it feeds.
+  // Each column is multiplied by exactly one forest, so the search is a lookup.
+  int param_of_column(int j) const {
+    for (arma::uword h = 0; h < column.n_elem; h++) {
+      if (column(h) == j) {
+        return param(h);
+      }
+    }
+
+    return 0;
+  }
+
+  int forest_of_column(int j) const {
+    for (arma::uword h = 0; h < column.n_elem; h++) {
+      if (column(h) == j) {
+        return static_cast<int>(h);
+      }
+    }
+
+    return 0;
+  }
+
+  void refresh_coding_column(int j) {
+    for (int i = 0; i < N; i++) {
+      int level = coding(i, j);
+      basis(i, j) = level < 0 ? 0.0 : b[j](level);
+    }
+  }
 
   bool wants_block() const override { return inner->wants_block(); }
 
-  // d mu / d eta_h. The control function is not multiplied by anything, and a
-  // coefficient is multiplied by its own column.
+  // The wrapped family's trailing nuisance forests stay pinned. They are not
+  // additive predictors and carry no coefficient, so the wrapper leaves them
+  // exactly where they were -- at the end -- and has to say so, or the engine
+  // treats each as an ordinary forest and the nuisance parameter is never drawn.
+  int num_pinned() const override { return inner->num_pinned(); }
+
+  // d mu_p / d eta_h, where p is the predictor forest h feeds. A control function
+  // is not multiplied by anything and a coefficient is multiplied by its own
+  // column; every other predictor does not involve eta_h at all, which is what
+  // makes the chain rule below one factor rather than a sum.
   double slope(int i, int h) const {
-    return h == 0 ? 1.0 : basis(i, h - 1);
+    int j = column(h);
+    return j < 0 ? 1.0 : basis(i, j);
   }
 
-  double combine(int i, const double* eta) const {
-    double mu = eta[0];
-
-    for (arma::uword j = 0; j < basis.n_cols; j++) {
-      mu += basis(i, j) * eta[j + 1];
+  // The wrapped family's predictors at observation i, from this family's. Each
+  // one is its control function plus every coefficient of it times its column.
+  void combine_all(int i, const double* eta, double* mu) const {
+    for (int p = 0; p < inner->H; p++) {
+      mu[p] = 0.0;
     }
 
-    return mu;
+    for (arma::uword h = 0; h < param.n_elem; h++) {
+      mu[param(h)] += slope(i, static_cast<int>(h)) * eta[h];
+    }
   }
 
   double logdens_unit(int i, const double* eta) const override {
-    double mu = combine(i, eta);
-    return inner->logdens_unit(i, &mu);
+    std::vector<double> mu(inner->H);
+    combine_all(i, eta, mu.data());
+    return inner->logdens_unit(i, mu.data());
   }
 
   void score_info_unit(int i, const double* eta, int h, double* d1,
                        double* d2) const override {
-    double mu = combine(i, eta);
-    inner->score_info_unit(i, &mu, 0, d1, d2);
+    std::vector<double> mu(inner->H);
+    combine_all(i, eta, mu.data());
+    inner->score_info_unit(i, mu.data(), param(h), d1, d2);
 
     double s = slope(i, h);
     *d1 *= s;
@@ -5002,39 +5121,45 @@ struct VaryingCoefficientFamily : Family {
   }
 
   double dlogdens_unit(int i, const double* eta, int h) const override {
-    double mu = combine(i, eta);
-    return inner->dlogdens_unit(i, &mu, 0) * slope(i, h);
+    std::vector<double> mu(inner->H);
+    combine_all(i, eta, mu.data());
+    return inner->dlogdens_unit(i, mu.data(), param(h)) * slope(i, h);
   }
 
   double info_unit(int i, const double* eta, int h) const override {
-    double mu = combine(i, eta);
+    std::vector<double> mu(inner->H);
+    combine_all(i, eta, mu.data());
     double s = slope(i, h);
-    return inner->info_unit(i, &mu, 0) * s * s;
+    return inner->info_unit(i, mu.data(), param(h)) * s * s;
   }
 
   // The block form gets the same treatment. `block` is H doubles per
-  // observation, laid out the way the sampler stores eta, and the inner family
-  // wants one.
-  void logdens_block(const int* idx, int n, const double* block,
-                     double* out) const override {
-    std::vector<double> mu(n);
+  // observation, laid out the way the sampler stores eta; the inner family wants
+  // its own H per observation, in the same layout.
+  void combine_block(const int* idx, int n, const double* block,
+                     std::vector<double>* mu) const {
+    mu->assign(static_cast<std::size_t>(n) * inner->H, 0.0);
 
     for (int k = 0; k < n; k++) {
-      mu[k] = combine(idx[k], block + static_cast<std::size_t>(k) * H);
+      combine_all(idx[k], block + static_cast<std::size_t>(k) * H,
+                  mu->data() + static_cast<std::size_t>(k) * inner->H);
     }
+  }
+
+  void logdens_block(const int* idx, int n, const double* block,
+                     double* out) const override {
+    std::vector<double> mu;
+    combine_block(idx, n, block, &mu);
 
     inner->logdens_block(idx, n, mu.data(), out);
   }
 
   void score_info_block(const int* idx, int n, const double* block, int h,
                         double* d1, double* d2) const override {
-    std::vector<double> mu(n);
+    std::vector<double> mu;
+    combine_block(idx, n, block, &mu);
 
-    for (int k = 0; k < n; k++) {
-      mu[k] = combine(idx[k], block + static_cast<std::size_t>(k) * H);
-    }
-
-    inner->score_info_block(idx, n, mu.data(), 0, d1, d2);
+    inner->score_info_block(idx, n, mu.data(), param(h), d1, d2);
 
     for (int k = 0; k < n; k++) {
       double s = slope(idx[k], h);
@@ -5043,15 +5168,13 @@ struct VaryingCoefficientFamily : Family {
     }
   }
 
-  // The map is linear in each eta_h, so a target that is quadratic in mu is
-  // quadratic in every predictor and the closed-form leaf draw survives. The
-  // exponential form does not: `exp_rate()` is one scalar per predictor and a
-  // varying coefficient makes the rate basis(i, h - 1), which varies by
-  // observation. Those families fall back to the general path.
+  // The map is linear in each eta_h, so a target that is quadratic in the
+  // predictor this forest feeds is quadratic in eta_h and the closed-form leaf
+  // draw survives. The exponential form does not: `exp_rate()` is one scalar per
+  // predictor and a varying coefficient makes the rate its own basis column,
+  // which varies by observation. Those families fall back to the general path.
   TargetForm target_form(int h) const override {
-    TargetForm form = inner->target_form(0);
-
-    if (form == TARGET_QUADRATIC) {
+    if (inner->target_form(param(h)) == TARGET_QUADRATIC) {
       return TARGET_QUADRATIC;
     }
 
@@ -5071,23 +5194,108 @@ struct VaryingCoefficientFamily : Family {
   }
 
   // The nuisance parameters belong to the wrapped family and are drawn on its
-  // scale, so the predictors are combined before they are handed over.
+  // scale, so the predictors are combined before they are handed over. The
+  // coding coefficients are drawn here too, since this is the once-a-sweep hook
+  // and they are a nuisance parameter of exactly the same kind.
   void update_aux(const arma::mat& eta) override {
-    arma::vec mu(eta.n_cols);
+    draw_coding(eta);
+
+    arma::mat mu(inner->H, eta.n_cols);
 
     for (arma::uword i = 0; i < eta.n_cols; i++) {
-      mu(i) = combine(static_cast<int>(i), eta.colptr(i));
+      combine_all(static_cast<int>(i), eta.colptr(i), mu.colptr(i));
     }
 
-    inner->update_aux(arma::mat(mu.memptr(), 1, eta.n_cols));
+    inner->update_aux(mu);
     refresh_eta_free();
   }
 
-  std::vector<std::string> aux_names() const override {
-    return inner->aux_names();
+  // One conjugate normal draw per level.
+  //
+  // Only the observations at level k carry b_k, so the design is block diagonal
+  // and the levels are independent given everything else -- no matrix to build
+  // or invert. Writing the target as a weighted least squares problem in mu,
+  // which is what a quadratic target is, the level's precision is its prior
+  // precision of 2 plus the sum of d2 * eta_1^2 over its own rows, and its mean
+  // follows from the score at the current value.
+  //
+  // Terms are drawn one at a time with mu recomputed between them, since mu
+  // depends on all of them.
+  void draw_coding(const arma::mat& eta) {
+    if (!has_coding()) {
+      return;
+    }
+
+    for (arma::uword j = 0; j < coding_levels.n_elem; j++) {
+      int levels = coding_levels(j);
+
+      if (levels <= 0) {
+        continue;
+      }
+
+      int h = forest_of_column(static_cast<int>(j));
+      int p = param(h);
+      arma::vec info(levels, arma::fill::zeros);
+      arma::vec score(levels, arma::fill::zeros);
+      std::vector<double> mu(inner->H);
+
+      for (int i = 0; i < N; i++) {
+        int level = coding(i, static_cast<int>(j));
+
+        if (level < 0) {
+          continue;
+        }
+
+        combine_all(i, eta.colptr(i), mu.data());
+        double d1;
+        double d2;
+        inner->score_info(i, mu.data(), p, &d1, &d2);
+
+        double slope_i = eta(h, i);
+        info(level) += d2 * slope_i * slope_i;
+        score(level) += d1 * slope_i;
+      }
+
+      for (int k = 0; k < levels; k++) {
+        // The prior is N(0, 1/2), so its precision is 2 and every pairwise
+        // contrast is marginally N(0, 1).
+        double prec = info(k) + 2.0;
+        double mean = (b[j](k) * info(k) + score(k)) / prec;
+        b[j](k) = mean + norm_rand() / std::sqrt(prec);
+      }
+
+      refresh_coding_column(static_cast<int>(j));
+    }
   }
 
-  arma::vec aux_values() const override { return inner->aux_values(); }
+  std::vector<std::string> aux_names() const override {
+    std::vector<std::string> out = inner->aux_names();
+    out.insert(out.end(), b_labels.begin(), b_labels.end());
+    return out;
+  }
+
+  arma::vec aux_values() const override {
+    arma::vec inner_values = inner->aux_values();
+
+    if (b_labels.empty()) {
+      return inner_values;
+    }
+
+    arma::vec out(inner_values.n_elem + b_labels.size());
+    out.head(inner_values.n_elem) = inner_values;
+
+    arma::uword at = inner_values.n_elem;
+
+    for (arma::uword j = 0; j < b.size(); j++) {
+      for (arma::uword k = 0; k < b[j].n_elem; k++) {
+        if (coding_levels(j) > 0) {
+          out(at++) = b[j](k);
+        }
+      }
+    }
+
+    return out;
+  }
 
   void set_aux(const arma::vec& values) override {
     inner->set_aux(values);
@@ -5095,7 +5303,11 @@ struct VaryingCoefficientFamily : Family {
   }
 
   arma::vec aux_values_shifted(const arma::vec& shift) const override {
-    return inner->aux_values_shifted(shift);
+    if (b_labels.empty()) {
+      return inner->aux_values_shifted(shift);
+    }
+
+    return aux_values();
   }
 
   arma::vec mixture_flat() const override { return inner->mixture_flat(); }
@@ -5303,6 +5515,66 @@ Family* make_base_family(const std::string& name, const std::string& link,
 // The family the sampler sees. `vc_basis` empty is the ordinary case and the
 // base family is returned untouched, so a model with no varying coefficient
 // reaches the engine exactly as it did before.
+// Everything a varying-coefficient model needs beyond the basis, kept together
+// so the two places that build one stay in step.
+struct VaryingSpec {
+  arma::mat basis;
+  arma::imat coding;
+  arma::ivec coding_levels;
+  std::vector<std::string> b_labels;
+
+  // One entry per forest the sampler builds. `param` is the wrapped family's
+  // additive predictor it feeds, zero-based; `column` is the basis column it is
+  // multiplied by, or -1 for a control function -- and for a custom family's
+  // pinned nuisance forests, which pass straight through.
+  arma::ivec param;
+  arma::ivec column;
+
+  bool adaptive() const {
+    return coding_levels.n_elem > 0 && arma::any(coding_levels > 0);
+  }
+};
+
+VaryingSpec varying_spec(const List& opts, const arma::mat& basis) {
+  VaryingSpec out;
+  out.basis = basis;
+  out.coding = arma::imat(basis.n_rows, basis.n_cols);
+  out.coding.fill(-1);
+  out.coding_levels = arma::ivec(basis.n_cols, arma::fill::zeros);
+
+  if (opts.containsElementNamed("vc_coding") && !Rf_isNull(opts["vc_coding"])) {
+    out.coding = as<arma::imat>(opts["vc_coding"]);
+    out.coding_levels = as<arma::ivec>(opts["vc_coding_levels"]);
+    out.b_labels = as<std::vector<std::string> >(opts["vc_coding_names"]);
+  }
+
+  // Absent only from a path that predates several additive predictors, where the
+  // map is the one this reconstructs: a control function followed by every
+  // coefficient, all feeding the family's single predictor.
+  if (opts.containsElementNamed("vc_param") && !Rf_isNull(opts["vc_param"])) {
+    out.param = as<arma::ivec>(opts["vc_param"]);
+    out.column = as<arma::ivec>(opts["vc_column"]);
+  }
+  else {
+    out.param = arma::ivec(basis.n_cols + 1, arma::fill::zeros);
+    out.column = arma::regspace<arma::ivec>(-1, static_cast<int>(basis.n_cols) - 1);
+  }
+
+  return out;
+}
+
+Family* wrap_varying(Family* base, const VaryingSpec& spec) {
+  // Whether a drawn coding is exact here is settled by the family that reaches
+  // the sampler, not by this one: augmentation can replace a non-quadratic
+  // target with a quadratic one, which is how a logit or probit binomial
+  // qualifies. `coding_is_exact()` is asked once in `model.cpp`, after the
+  // augmentation choice is made.
+  return finish(new VaryingCoefficientFamily(base, spec.basis, spec.coding,
+                                             spec.coding_levels,
+                                             spec.b_labels,
+                                             spec.param, spec.column));
+}
+
 Family* make_family(const std::string& name, const std::string& link,
                     const arma::vec& y, const arma::vec& w,
                     const List& opts, const arma::mat& vc_basis) {
@@ -5313,21 +5585,13 @@ Family* make_family(const std::string& name, const std::string& link,
     return base;
   }
 
-  if (base->H != 1) {
-    // Reached only through a bug: the R side refuses a varying coefficient on a
-    // family with several additive predictors before it gets here.
-    std::unique_ptr<Family> guard(base);
-    stop("a varying coefficient needs a family with one additive predictor; "
-         "this one has %d.", base->H);
-  }
-
   if (static_cast<int>(vc_basis.n_rows) != base->N) {
     std::unique_ptr<Family> guard(base);
     stop("the varying-coefficient basis has %d rows and the response has %d.",
          static_cast<int>(vc_basis.n_rows), base->N);
   }
 
-  return finish(new VaryingCoefficientFamily(base, vc_basis));
+  return wrap_varying(base, varying_spec(opts, vc_basis));
 }
 
 namespace {
@@ -5437,7 +5701,7 @@ Family* augmented_family(const std::string& name, const std::string& link,
     return base;
   }
 
-  return finish(new VaryingCoefficientFamily(base, vc_basis));
+  return wrap_varying(base, varying_spec(opts, vc_basis));
 }
 
 } // namespace bartisan

@@ -184,6 +184,33 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     }
   }
 
+  // Asked here rather than where the wrapper is built, because augmentation can
+  // replace a non-quadratic target with a quadratic one and the drawn coding
+  // only needs the family that actually reaches the sampler to be quadratic.
+  // That is what lets a logit or probit binomial have its coding drawn.
+  int bad_coding = family->coding_not_exact();
+
+  if (bad_coding >= 0) {
+    std::string which = "this family's";
+
+    if (family_opts.containsElementNamed("vc_labels") &&
+        !Rf_isNull(family_opts["vc_labels"])) {
+      std::vector<std::string> labels =
+        as<std::vector<std::string> >(family_opts["vc_labels"]);
+
+      if (bad_coding < static_cast<int>(labels.size())) {
+        which = "`" + labels[bad_coding] + "`'s";
+      }
+    }
+
+    // The wording matters: `bcf()` recognizes this refusal by the phrase "leaf
+    // target is quadratic" so that it can fall back to a fixed coding rather
+    // than pass the failure on. Keep that phrase intact.
+    stop("`center = \"estimate\"` needs a family whose leaf target is "
+         "quadratic in the additive predictor, and %s is not. Use a fixed "
+         "`center` there.", which.c_str());
+  }
+
   int H = family->H;
 
   if (static_cast<int>(offset.n_rows) != H ||
@@ -337,10 +364,16 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   // scale starts at, and is given a half-Cauchy prior with, the same value the
   // leaf scale uses, so a group effect and a tree's leaf are shrunk on the same
   // footing.
+  arma::ivec vc_column;
+
+  if (vc_basis.n_cols > 0 && family_opts.containsElementNamed("vc_column") &&
+      !Rf_isNull(family_opts["vc_column"])) {
+    vc_column = as<arma::ivec>(family_opts["vc_column"]);
+  }
+
   std::unique_ptr<RandomEffects> ranef =
     make_random_effects(random_spec, H, sigma_mu_target(0),
-                        as<bool>(control["update_tau"]), &X,
-                        static_cast<int>(vc_basis.n_cols));
+                        as<bool>(control["update_tau"]), &X, vc_column);
 
   int num_ranef = 0;
 
@@ -615,13 +648,14 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
 arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights,
                           const List& eta_draws, std::string family_name,
                           std::string link, List family_opts,
-                          const arma::mat& aux, const arma::mat& vc_basis) {
+                          const arma::mat& aux) {
 
-  // The basis has to come along: with a varying coefficient the stored draws
-  // are the control function and the coefficients, and the log density is a
-  // function of their combination rather than of any one of them.
+  // No varying-coefficient basis here. The caller combines the control function
+  // and the coefficients itself, because under a drawn coding the basis differs
+  // from draw to draw and a single matrix could not carry it. So what arrives is
+  // one predictor and the density is the plain family's.
   std::unique_ptr<Family> family(make_family(family_name, link, y, weights,
-                                             family_opts, vc_basis));
+                                             family_opts, arma::mat()));
 
   int H = family->H;
   int n = static_cast<int>(y.n_elem);

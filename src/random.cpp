@@ -138,7 +138,7 @@ std::unique_ptr<RandomEffects> make_random_effects(const Rcpp::List& spec, int H
                                                    double tau_scale,
                                                    bool update_tau,
                                                    const arma::mat* X,
-                                                   int vc_slopes) {
+                                                   const arma::ivec& vc_column) {
   std::unique_ptr<RandomEffects> out(new RandomEffects());
 
   if (spec.size() == 0) {
@@ -153,7 +153,7 @@ std::unique_ptr<RandomEffects> make_random_effects(const Rcpp::List& spec, int H
     // vary by group, which is a random slope -- and `split_random()` refuses
     // `(x | g)` in as many words, so producing one here without being asked
     // would contradict that refusal silently.
-    if (vc_slopes > 0 && h > 0 && h <= vc_slopes) {
+    if (static_cast<int>(vc_column.n_elem) > h && vc_column(h) >= 0) {
       continue;
     }
 
