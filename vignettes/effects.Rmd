@@ -225,6 +225,55 @@ genuine derivative is needed, refit with `x_transform = "range"` in
 `bartisan_control()`, which is linear and does have one. This is documented at
 `?bartisan-marginaleffects`.
 
+## When the coefficient is the thing you want
+
+Everything above reads an effect out of a fitted surface by asking the model what
+it predicts under two versions of the data. There is another way to write the
+model, in which the effect is a parameter rather than a contrast:
+
+$$f_0(x) + z\,f_1(x)$$
+
+Here $f_1$ is a forest of its own, and it *is* the effect of `z`: how much the
+prediction moves per unit of `z`, as a function of the other predictors. `vc()`
+asks for it.
+
+```{r vc, eval = run}
+fit_vc <- bartisan(death ~ age + sex + race + edu + aps + meanbp + resp +
+                     hema + pafi + paco2 + crea + surv2m + card + vc(rhc),
+                   data = rhc, family = binomial(), chains = 4,
+                   sparsity = FALSE)
+
+head(coef(fit_vc))
+```
+
+`coef()` returns one value per patient, which is what a coefficient becomes when
+it is allowed to vary. It is on the link scale, so for this binary outcome it is
+a difference in log odds rather than in probability; `avg_comparisons()` is still
+what reports an effect on the scale a reader can act on.
+
+What the reparameterization buys is a prior on the effect itself. The forest for
+$f_1$ is regularized separately from the forest for the rest of the outcome, so
+shrinking the prognostic part does not shrink the effect. `vignette("causal")`
+covers why that matters and `bcf()` sets it up for the causal case.
+
+Two things worth knowing before reaching for it.
+
+The effect is **linear in the covariate** unless you say otherwise. For a binary
+treatment that is no assumption at all, since there are only two values. For a
+continuous predictor it says the effect is proportional to it, which is a real
+restriction. Letting the coefficient's forest split on the covariate itself
+removes it, and then the effect varies across the covariate's own range:
+
+```{r vcnonlinear, eval = FALSE}
+# The effect of `aps` may itself change across `aps`.
+y ~ age + aps + vc(aps, ~ aps + age)
+```
+
+And a covariate whose coefficient varies should not also be a predictor of the
+control function. With it in both, the two are not separately identified: any
+function of it can move between them. Writing the covariate only inside `vc()`
+is what keeps them apart, and `bartisan()` warns if the formula does otherwise.
+
 ## What these are not
 
 Everything here is a description of the fitted model. `avg_comparisons()` reports

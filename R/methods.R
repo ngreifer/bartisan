@@ -360,3 +360,80 @@ variable_importance <- function(object, level = 0.95) {
       drop = FALSE] |>
     `rownames<-`(NULL)
 }
+
+#' Varying coefficients
+#'
+#' The coefficient functions of a model fitted with [vc()] terms, evaluated at
+#' each observation. A forest has no coefficient vector, so for any other model
+#' this returns nothing; for a varying-coefficient model the coefficients are
+#' functions and this is what they come to.
+#'
+#' @param object a fitted [bartisan()] model.
+#' @param newdata optional data to evaluate the coefficients at. The default,
+#'   `NULL`, uses the data the model was fitted to.
+#' @param draws `FALSE`, the default, returns the posterior mean of each
+#'   coefficient at each observation. `TRUE` returns every draw, as a list of
+#'   draws-by-observations matrices, one per coefficient.
+#' @param ... ignored.
+#'
+#' @returns
+#' With `draws = FALSE`, a matrix with one row per observation and one column per
+#' coefficient. With `draws = TRUE`, a named list of matrices.
+#'
+#' @details
+#' The control function is not among them. It is the surface at the value each
+#' covariate was centered on, which is a prediction rather than a coefficient;
+#' `predict(object)` is what reports predictions.
+#'
+#' For a factor the coefficients are recentered to sum to zero across its levels,
+#' which is what makes them the deviations they are reported as. The symmetric
+#' coding carries one spare function-valued dimension, so this is exact rather
+#' than an approximation, and it is the reason a factor's reference level is a
+#' choice made here rather than at fitting time.
+#'
+#' @examples
+#' set.seed(1)
+#' n <- 200
+#' d <- data.frame(x1 = rnorm(n), x2 = rnorm(n), z = rbinom(n, 1, 0.5))
+#' d$y <- d$x1 + d$z * (1 + d$x2) + rnorm(n)
+#'
+#' fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
+#'                 control = bartisan_control(num_trees = 10, num_burn = 50,
+#'                                            num_draws = 50, verbose = FALSE))
+#'
+#' head(coef(fit))
+#'
+#' @exportS3Method stats::coef
+coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
+  vc <- object[["vc"]]
+
+  if ((vc[["slopes"]] %or% 0L) == 0L) {
+    arg::err(c("this model has no varying coefficients, and a forest has no
+                coefficient vector",
+               i = "Use {.fn variable_importance} for which predictors the
+                  forest uses, or
+                  {.code marginaleffects::avg_comparisons()} for how much one
+                  moves the outcome."))
+  }
+
+  arg::arg_flag(draws)
+
+  eta <- {
+    if (is_null(newdata)) object[["eta"]]
+    else predict_eta(object, newdata, offset = NULL, iterations = NULL)
+  }
+
+  # The control function is dropped: it is a prediction, not a coefficient.
+  slopes <- eta[-1L]
+  names(slopes) <- names(object[["eta"]])[-1L]
+
+  slopes <- vc_recenter(slopes, vc)
+
+  if (draws) {
+    return(slopes)
+  }
+
+  out <- vapply(slopes, colMeans, numeric(ncol(slopes[[1L]])))
+  matrix(out, ncol = length(slopes),
+         dimnames = list(NULL, names(slopes)))
+}

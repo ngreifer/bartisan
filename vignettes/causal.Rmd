@@ -306,7 +306,47 @@ it, so the result is a confident estimate biased toward no effect.
 
 @hahn2020 identified this mechanism. Their remedy is to give the treatment effect
 its own forest with its own prior, so that shrinking the confounding part does
-not shrink the effect, which is the Bayesian causal forest model.
+not shrink the effect, which is the Bayesian causal forest model. `bcf()` fits
+it.
+
+```{r bcffit, eval = run}
+set.seed(2026)
+
+fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
+                 pafi + paco2 + crea + surv2m + card,
+               treatment = ~ rhc, data = rhc, family = binomial(), chains = 4)
+
+avg_comparisons(fit_bcf, variables = "rhc")
+```
+
+The model is a *control function* for the probability of death with no
+catheterization, and a separate forest for the effect. Writing it as `bcf()`
+rather than by hand sets four things: the effect gets a forest of its own, the
+estimated propensity score goes into the control function and not into the effect
+forest, the effect forest gets fewer trees because effect heterogeneity is
+usually simpler than a prognostic surface, and `sparsity = FALSE` for the reason
+in the section above.
+
+Because the effect is a parameter of the model rather than a difference of
+predictions, it can be read off directly, one value per patient:
+
+```{r bcfcoef, eval = run}
+summary(coef(fit_bcf)[, "rhc"])
+```
+
+That column is the conditional effect for each patient, **on the link scale** --
+here a difference in log odds, because the outcome is binary. It is not the same
+number as the contrast above, which is on the probability scale, and for a binary
+outcome the probability scale is the one to report. `coef()` is for looking at how
+the effect varies from patient to patient, not for reporting its size.
+
+For a family whose link is the identity, the two coincide exactly: the
+coefficient *is* the contrast, and averaging it gives the average treatment
+effect with nothing lost in between.
+
+None of this changes what has to be true for the number to be causal. It changes
+how the prior treats the effect, not whether the covariates account for
+selection.
 
 A cheaper mitigation is to include the estimated propensity score as an
 additional covariate in the outcome model, and there is direct evidence on how

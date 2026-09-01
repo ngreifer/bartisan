@@ -89,7 +89,7 @@ test_that("a composed link gives the derivatives its closed form does", {
 
   # And the log density itself, which is what the acceptance ratio uses.
   got <- .bartisan_logdens(y, rep(1, n), list(eta), "binomial", "logit", opts,
-                           matrix(0, 3L, 0L))
+                           matrix(0, 3L, 0L), vc_basis = matrix(0, 0L, 0L))
   expect_equal(got, y_wide * log(p) + (1 - y_wide) * log(1 - p),
                tolerance = 1e-12)
 })
@@ -175,9 +175,9 @@ test_that("custom_family reproduces the family it imitates", {
                derivatives = NULL, name = "poisson-by-hand")
 
   compiled <- .bartisan_logdens(y, rep(1, n), list(eta), "poisson", "log",
-                                list(), matrix(0, 4L, 0L))
+                                list(), matrix(0, 4L, 0L), vc_basis = matrix(0, 0L, 0L))
   supplied <- .bartisan_logdens(y, rep(1, n), list(eta), "custom", "identity",
-                                opts, matrix(0, 4L, 0L))
+                                opts, matrix(0, 4L, 0L), vc_basis = matrix(0, 0L, 0L))
 
   expect_equal(compiled, supplied - rep(lgamma(y + 1), each = 4L),
                tolerance = 1e-12)
@@ -223,14 +223,14 @@ test_that("supplied derivatives are used and must be the right shape", {
     .bartisan_logdens(y, rep(1, n), list(eta), "custom", "identity",
                       list(num_predictors = 1L, name = "p", derivatives = NULL,
                            logdens = function(y, eta) 0),
-                     matrix(0, 2L, 0L)),
+                     matrix(0, 2L, 0L), vc_basis = matrix(0, 0L, 0L)),
     "returned 1 values")
 
   expect_error(
     .bartisan_logdens(y, rep(1, n), list(eta), "custom", "identity",
                       list(num_predictors = 1L, name = "p", derivatives = NULL,
                            logdens = function(y, eta) rep("a", length(y))),
-                     matrix(0, 2L, 0L)),
+                     matrix(0, 2L, 0L), vc_basis = matrix(0, 0L, 0L)),
     "must return a numeric vector")
 })
 
@@ -546,7 +546,7 @@ test_that("the nuisance parameters reach the density and derivative routes", {
   eta <- list(matrix(1, 2L, n), rbind(rep(log(0.5), n), rep(log(2), n)))
   aux <- matrix(c(log(0.5), log(2)), 2L, 1L)
 
-  got <- .bartisan_logdens(y, rep(1, n), eta, "custom", "identity", opts, aux)
+  got <- .bartisan_logdens(y, rep(1, n), eta, "custom", "identity", opts, aux, vc_basis = matrix(0, 0L, 0L))
   want <- rbind(stats::dnorm(y, 1, 0.5, log = TRUE),
                 stats::dnorm(y, 1, 2, log = TRUE))
 

@@ -20,8 +20,8 @@
 #' @param control a list of sampler and prior settings.
 #' @return A list of posterior draws and the encoded forests.
 #' @keywords internal
-.bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels) {
-    .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels)
+.bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis) {
+    .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis)
 }
 
 #' Evaluate stored forests at new data
@@ -56,8 +56,8 @@
 #'   the family has none.
 #' @return A matrix of draws by observations.
 #' @keywords internal
-.bartisan_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux) {
-    .Call(`_bartisan_bartisan_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux)
+.bartisan_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux, vc_basis) {
+    .Call(`_bartisan_bartisan_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux, vc_basis)
 }
 
 #' Category probabilities of a multinomial probit fit, by simulation

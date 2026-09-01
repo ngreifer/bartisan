@@ -456,18 +456,6 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # covariate is deliberately not a design column unless the caller put it there.
   vc <- resolve_vc(vc_specs, mf, design, vc_dot)
 
-  # The specification is complete and the engine is not. Refusing is the only
-  # honest state to be in meanwhile: everything above resolves the `vc()` terms
-  # correctly, and a fit that ignored them would silently be the model without
-  # them, which is the failure mode this whole feature exists to avoid.
-  if (vc[["slopes"]] > 0L) {
-    arg::err(c("varying coefficients are not fitted yet",
-               i = "The formula was read correctly -- {vc[['slopes']]}
-                  coefficient forest{?s} over
-                  {length(vc[['groups']])} predictor{?s} -- but the sampler
-                  does not yet carry them."))
-  }
-
   unit <- unit_transform(design$x, control[["x_transform"]])
   has_na <- vapply(seq_len(ncol(unit$x)), function(j) anyNA(unit$x[, j]),
                    logical(1L))
@@ -476,7 +464,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   random <- random_terms(split$bars, mf)
 
   response <- prepare_response(family, y, model_weights, model_offset,
-                               unit$x, n)
+                               unit$x, n, vc)
 
   group_probs <- make_group_probs(design$assign, design$term_labels)
 
@@ -503,7 +491,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # set per forest.
   n_report <- response[["n_forest"]] - response[["n_aux"]]
   labels <- forest_labels(response[["family"]], response[["opts"]],
-                          response[["levels"]], n_report)
+                          response[["levels"]], n_report, vc)
   joint <- joint_forests(response[["family"]])
 
   if (length(forest_formulas) > 1L && joint) {
@@ -550,10 +538,11 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   engine_control[["split_prior"]] <-
     resolve_split_matrix(control[["split_prior"]], colnames(group_probs),
                          labels, joint,
-                         forest_masks(forest_formulas, colnames(group_probs),
-                                      if (!missing(data) &&
-                                            is.data.frame(data)) data,
-                                      response_of(forest_formulas)),
+                         vc[["masks"]] %or%
+                           forest_masks(forest_formulas, colnames(group_probs),
+                                        if (!missing(data) &&
+                                              is.data.frame(data)) data,
+                                        response_of(forest_formulas)),
                          response[["n_forest"]])
 
   engine_control[["gate"]] <- gate_code(control[["gate"]])
@@ -611,7 +600,8 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
                   random_spec = random_spec(random),
                   codes = levels_info[["codes"]],
                   cat_col = levels_info[["cat_col"]],
-                  n_levels = levels_info[["n_levels"]])
+                  n_levels = levels_info[["n_levels"]],
+                  vc_basis = vc[["basis"]] %or% matrix(0, 0L, 0L))
   }
 
   draws <- {
@@ -669,6 +659,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
               group_names = colnames(group_probs),
               unit_maps = unit$maps,
               level_codes = levels_info,
+              vc = vc,
               has_na = has_na,
               x_transform = control[["x_transform"]])
 
@@ -706,7 +697,8 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   class(out) <- "bartisan_fit"
 
-  out[["fitted"]] <- fitted_from_eta(out, out[["eta"]], average = TRUE)
+  out[["fitted"]] <- fitted_from_eta(out, vc_combine(out, out[["eta"]], NULL),
+                                     average = TRUE)
 
   if (chains > 1L) {
     out[["rhat"]] <- chain_diagnostics(out)
@@ -1237,7 +1229,7 @@ warn_runaway_scale <- function(object, target) {
 # Names for the additive predictors, which are the columns of most outputs.
 predictor_names <- function(object) {
   forest_labels(object[["family"]][["family"]], object[["family_opts"]],
-                object[["levels"]], object[["num_forest"]])
+                object[["levels"]], object[["num_forest"]], object[["vc"]])
 }
 
 # Names of the additive predictors, in the order the engine builds them. The
@@ -1245,7 +1237,21 @@ predictor_names <- function(object) {
 # have on its own -- and the rest follow in the order documented on
 # [bartisan-families]. These are the names that label the columns of most
 # outputs, and the names a per-forest argument may be keyed by.
-forest_labels <- function(family, opts, levels, n_report) {
+forest_labels <- function(family, opts, levels, n_report, vc = NULL) {
+  slopes <- vc[["slopes"]] %or% 0L
+
+  # A varying-coefficient model's forests are the control function and one per
+  # coefficient. The parameter's own name is dropped when the family has only
+  # one, so the common case is `(Intercept)` and the covariate's name rather
+  # than `eta` and `eta:z`, which is what per-forest arguments have to be typed
+  # as.
+  if (slopes > 0L) {
+    base <- forest_labels(family, opts, levels, n_report - slopes)
+
+    return(vc_forest_labels(base, vc[["specs"]], vc[["parts"]],
+                            length(base) == 1L && identical(base, "eta")))
+  }
+
   if (identical(family, "multinomial")) {
     if (isTRUE(opts[["symmetric"]])) {
       return(levels)

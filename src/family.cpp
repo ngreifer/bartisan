@@ -4945,6 +4945,162 @@ Family* finish(Family* family) {
   return family;
 }
 
+// A varying-coefficient model, as a decorator.
+//
+//   g(mu_i) = eta_i0 + sum_j basis(i, j) * eta_i(j+1)
+//
+// The wrapped family never learns this is happening: it is handed one predictor,
+// mu, exactly as it would be in a single-forest model, and hands back a score
+// and an information with respect to it. The chain rule is the whole of what
+// this class adds -- d mu / d eta_h is 1 for the control function and
+// basis(i, h - 1) for a coefficient -- so *every* family gets varying
+// coefficients with no per-family code, which is the reason to write it this
+// way rather than as a family of its own.
+//
+// This is Deshpande, Bai, Balocchi, Starling and Weiss (2026), and the case of
+// one binary column is the Bayesian causal forest of Hahn, Murray and Carvalho
+// (2020).
+struct VaryingCoefficientFamily : Family {
+  std::unique_ptr<Family> inner;
+  arma::mat basis;
+
+  VaryingCoefficientFamily(Family* inner_, const arma::mat& basis_)
+    : Family(inner_->y, inner_->w, 1 + static_cast<int>(basis_.n_cols)),
+      inner(inner_), basis(basis_) {}
+
+  bool wants_block() const override { return inner->wants_block(); }
+
+  // d mu / d eta_h. The control function is not multiplied by anything, and a
+  // coefficient is multiplied by its own column.
+  double slope(int i, int h) const {
+    return h == 0 ? 1.0 : basis(i, h - 1);
+  }
+
+  double combine(int i, const double* eta) const {
+    double mu = eta[0];
+
+    for (arma::uword j = 0; j < basis.n_cols; j++) {
+      mu += basis(i, j) * eta[j + 1];
+    }
+
+    return mu;
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double mu = combine(i, eta);
+    return inner->logdens_unit(i, &mu);
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double mu = combine(i, eta);
+    inner->score_info_unit(i, &mu, 0, d1, d2);
+
+    double s = slope(i, h);
+    *d1 *= s;
+    *d2 *= s * s;
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double mu = combine(i, eta);
+    return inner->dlogdens_unit(i, &mu, 0) * slope(i, h);
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double mu = combine(i, eta);
+    double s = slope(i, h);
+    return inner->info_unit(i, &mu, 0) * s * s;
+  }
+
+  // The block form gets the same treatment. `block` is H doubles per
+  // observation, laid out the way the sampler stores eta, and the inner family
+  // wants one.
+  void logdens_block(const int* idx, int n, const double* block,
+                     double* out) const override {
+    std::vector<double> mu(n);
+
+    for (int k = 0; k < n; k++) {
+      mu[k] = combine(idx[k], block + static_cast<std::size_t>(k) * H);
+    }
+
+    inner->logdens_block(idx, n, mu.data(), out);
+  }
+
+  void score_info_block(const int* idx, int n, const double* block, int h,
+                        double* d1, double* d2) const override {
+    std::vector<double> mu(n);
+
+    for (int k = 0; k < n; k++) {
+      mu[k] = combine(idx[k], block + static_cast<std::size_t>(k) * H);
+    }
+
+    inner->score_info_block(idx, n, mu.data(), 0, d1, d2);
+
+    for (int k = 0; k < n; k++) {
+      double s = slope(idx[k], h);
+      d1[k] *= s;
+      d2[k] *= s * s;
+    }
+  }
+
+  // The map is linear in each eta_h, so a target that is quadratic in mu is
+  // quadratic in every predictor and the closed-form leaf draw survives. The
+  // exponential form does not: `exp_rate()` is one scalar per predictor and a
+  // varying coefficient makes the rate basis(i, h - 1), which varies by
+  // observation. Those families fall back to the general path.
+  TargetForm target_form(int h) const override {
+    TargetForm form = inner->target_form(0);
+
+    if (form == TARGET_QUADRATIC) {
+      return TARGET_QUADRATIC;
+    }
+
+    return TARGET_GENERAL;
+  }
+
+  double log_norm_const(int i) const override {
+    return inner->log_norm_const(i);
+  }
+
+  double logdens_extra_total() const override {
+    return inner->logdens_extra_total();
+  }
+
+  arma::vec compute_eta_free() const override {
+    return inner->eta_free_part();
+  }
+
+  // The nuisance parameters belong to the wrapped family and are drawn on its
+  // scale, so the predictors are combined before they are handed over.
+  void update_aux(const arma::mat& eta) override {
+    arma::vec mu(eta.n_cols);
+
+    for (arma::uword i = 0; i < eta.n_cols; i++) {
+      mu(i) = combine(static_cast<int>(i), eta.colptr(i));
+    }
+
+    inner->update_aux(arma::mat(mu.memptr(), 1, eta.n_cols));
+    refresh_eta_free();
+  }
+
+  std::vector<std::string> aux_names() const override {
+    return inner->aux_names();
+  }
+
+  arma::vec aux_values() const override { return inner->aux_values(); }
+
+  void set_aux(const arma::vec& values) override {
+    inner->set_aux(values);
+    refresh_eta_free();
+  }
+
+  arma::vec aux_values_shifted(const arma::vec& shift) const override {
+    return inner->aux_values_shifted(shift);
+  }
+
+  arma::vec mixture_flat() const override { return inner->mixture_flat(); }
+};
+
 } // namespace
 
 namespace {
@@ -4981,9 +5137,11 @@ Family* with_link(Family* family, const List& opts) {
 
 } // namespace
 
-Family* make_family(const std::string& name, const std::string& link,
-                    const arma::vec& y, const arma::vec& w,
-                    const List& opts) {
+namespace {
+
+Family* make_base_family(const std::string& name, const std::string& link,
+                         const arma::vec& y, const arma::vec& w,
+                         const List& opts) {
 
   if (name == "custom") {
     // The nuisance-parameter fields are optional, so that opts assembled by hand
@@ -5140,10 +5298,44 @@ Family* make_family(const std::string& name, const std::string& link,
   stop("Unsupported family '%s'.", name);
 }
 
-Family* augmented_family(const std::string& name, const std::string& link,
-                         const arma::vec& y, const arma::vec& w,
-                         const List& opts,
-                         const std::vector<std::string>& enabled) {
+} // namespace
+
+// The family the sampler sees. `vc_basis` empty is the ordinary case and the
+// base family is returned untouched, so a model with no varying coefficient
+// reaches the engine exactly as it did before.
+Family* make_family(const std::string& name, const std::string& link,
+                    const arma::vec& y, const arma::vec& w,
+                    const List& opts, const arma::mat& vc_basis) {
+
+  Family* base = make_base_family(name, link, y, w, opts);
+
+  if (vc_basis.n_cols == 0) {
+    return base;
+  }
+
+  if (base->H != 1) {
+    // Reached only through a bug: the R side refuses a varying coefficient on a
+    // family with several additive predictors before it gets here.
+    std::unique_ptr<Family> guard(base);
+    stop("a varying coefficient needs a family with one additive predictor; "
+         "this one has %d.", base->H);
+  }
+
+  if (static_cast<int>(vc_basis.n_rows) != base->N) {
+    std::unique_ptr<Family> guard(base);
+    stop("the varying-coefficient basis has %d rows and the response has %d.",
+         static_cast<int>(vc_basis.n_rows), base->N);
+  }
+
+  return finish(new VaryingCoefficientFamily(base, vc_basis));
+}
+
+namespace {
+
+Family* augmented_base(const std::string& name, const std::string& link,
+                       const arma::vec& y, const arma::vec& w,
+                       const List& opts,
+                       const std::vector<std::string>& enabled) {
   bool wanted = false;
 
   for (std::size_t k = 0; k < enabled.size(); k++) {
@@ -5225,6 +5417,27 @@ Family* augmented_family(const std::string& name, const std::string& link,
   }
 
   return nullptr;
+}
+
+} // namespace
+
+// The rewriting builds a fresh family from the name and the options, so a
+// varying-coefficient wrapper put on by `make_family()` would be discarded here.
+// Wrapping the rewritten one is what keeps the two paths equivalent -- without
+// it, an augmented family reaches the sampler claiming one additive predictor
+// while the rest of the fit expects 1 + J of them.
+Family* augmented_family(const std::string& name, const std::string& link,
+                         const arma::vec& y, const arma::vec& w,
+                         const List& opts,
+                         const std::vector<std::string>& enabled,
+                         const arma::mat& vc_basis) {
+  Family* base = augmented_base(name, link, y, w, opts, enabled);
+
+  if (base == nullptr || vc_basis.n_cols == 0) {
+    return base;
+  }
+
+  return finish(new VaryingCoefficientFamily(base, vc_basis));
 }
 
 } // namespace bartisan

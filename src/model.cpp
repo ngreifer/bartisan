@@ -153,7 +153,8 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
                  const arma::sp_mat& group_probs, std::string family_name,
                  std::string link, List family_opts, List control,
                  List random_spec, const arma::imat& codes,
-                 const arma::ivec& cat_col, const arma::ivec& n_levels) {
+                 const arma::ivec& cat_col, const arma::ivec& n_levels,
+                 const arma::mat& vc_basis) {
 
   int n = static_cast<int>(X.n_rows);
 
@@ -162,7 +163,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   }
 
   std::unique_ptr<Family> family(make_family(family_name, link, y, weights,
-                                             family_opts));
+                                             family_opts, vc_basis));
 
   // The probit likelihood is the margin of a Gaussian one, and working with the
   // Gaussian makes the target quadratic in the predictor -- which is worth a
@@ -176,7 +177,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
 
   if (!augment.empty()) {
     Family* rewritten = augmented_family(family_name, link, y, weights,
-                                         family_opts, augment);
+                                         family_opts, augment, vc_basis);
 
     if (rewritten != nullptr) {
       family.reset(rewritten);
@@ -338,7 +339,8 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   // footing.
   std::unique_ptr<RandomEffects> ranef =
     make_random_effects(random_spec, H, sigma_mu_target(0),
-                        as<bool>(control["update_tau"]), &X);
+                        as<bool>(control["update_tau"]), &X,
+                        static_cast<int>(vc_basis.n_cols));
 
   int num_ranef = 0;
 
@@ -613,10 +615,13 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
 arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights,
                           const List& eta_draws, std::string family_name,
                           std::string link, List family_opts,
-                          const arma::mat& aux) {
+                          const arma::mat& aux, const arma::mat& vc_basis) {
 
+  // The basis has to come along: with a varying coefficient the stored draws
+  // are the control function and the coefficients, and the log density is a
+  // function of their combination rather than of any one of them.
   std::unique_ptr<Family> family(make_family(family_name, link, y, weights,
-                                             family_opts));
+                                             family_opts, vc_basis));
 
   int H = family->H;
   int n = static_cast<int>(y.n_elem);

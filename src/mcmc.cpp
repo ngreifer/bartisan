@@ -166,9 +166,6 @@ void Context::make_base_children(const Node* parent, std::vector<double>& base,
   w_left.resize(n);
   w_right.resize(n);
   const arma::mat& e = *eta;
-  bool soft = parent->tree->hypers->soft;
-  int gate = parent->tree->hypers->gate;
-  const arma::mat& X = *parent->tree->X;
   double mu_left = parent->left->mu;
   double mu_right = parent->right->mu;
 

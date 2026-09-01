@@ -18,7 +18,8 @@
   random_spec,
   codes,
   cat_col,
-  n_levels
+  n_levels,
+  vc_basis
 )
 }
 \arguments{

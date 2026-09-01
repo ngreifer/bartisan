@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // bartisan_fit
-List bartisan_fit(const arma::mat& X, const arma::uvec& has_na, const arma::vec& y, const arma::vec& weights, const arma::mat& offset, const arma::sp_mat& group_probs, std::string family_name, std::string link, List family_opts, List control, List random_spec, const arma::imat& codes, const arma::ivec& cat_col, const arma::ivec& n_levels);
-RcppExport SEXP _bartisan_bartisan_fit(SEXP XSEXP, SEXP has_naSEXP, SEXP ySEXP, SEXP weightsSEXP, SEXP offsetSEXP, SEXP group_probsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP controlSEXP, SEXP random_specSEXP, SEXP codesSEXP, SEXP cat_colSEXP, SEXP n_levelsSEXP) {
+List bartisan_fit(const arma::mat& X, const arma::uvec& has_na, const arma::vec& y, const arma::vec& weights, const arma::mat& offset, const arma::sp_mat& group_probs, std::string family_name, std::string link, List family_opts, List control, List random_spec, const arma::imat& codes, const arma::ivec& cat_col, const arma::ivec& n_levels, const arma::mat& vc_basis);
+RcppExport SEXP _bartisan_bartisan_fit(SEXP XSEXP, SEXP has_naSEXP, SEXP ySEXP, SEXP weightsSEXP, SEXP offsetSEXP, SEXP group_probsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP controlSEXP, SEXP random_specSEXP, SEXP codesSEXP, SEXP cat_colSEXP, SEXP n_levelsSEXP, SEXP vc_basisSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -31,7 +31,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::imat& >::type codes(codesSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type cat_col(cat_colSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type n_levels(n_levelsSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_fit(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels));
+    Rcpp::traits::input_parameter< const arma::mat& >::type vc_basis(vc_basisSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_fit(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -57,8 +58,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // bartisan_logdens
-arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights, const List& eta_draws, std::string family_name, std::string link, List family_opts, const arma::mat& aux);
-RcppExport SEXP _bartisan_bartisan_logdens(SEXP ySEXP, SEXP weightsSEXP, SEXP eta_drawsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP auxSEXP) {
+arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights, const List& eta_draws, std::string family_name, std::string link, List family_opts, const arma::mat& aux, const arma::mat& vc_basis);
+RcppExport SEXP _bartisan_bartisan_logdens(SEXP ySEXP, SEXP weightsSEXP, SEXP eta_drawsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP auxSEXP, SEXP vc_basisSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -69,7 +70,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::string >::type link(linkSEXP);
     Rcpp::traits::input_parameter< List >::type family_opts(family_optsSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type aux(auxSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_logdens(y, weights, eta_draws, family_name, link, family_opts, aux));
+    Rcpp::traits::input_parameter< const arma::mat& >::type vc_basis(vc_basisSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_logdens(y, weights, eta_draws, family_name, link, family_opts, aux, vc_basis));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -144,9 +146,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_bartisan_bartisan_fit", (DL_FUNC) &_bartisan_bartisan_fit, 14},
+    {"_bartisan_bartisan_fit", (DL_FUNC) &_bartisan_bartisan_fit, 15},
     {"_bartisan_bartisan_predict", (DL_FUNC) &_bartisan_bartisan_predict, 11},
-    {"_bartisan_bartisan_logdens", (DL_FUNC) &_bartisan_bartisan_logdens, 7},
+    {"_bartisan_bartisan_logdens", (DL_FUNC) &_bartisan_bartisan_logdens, 8},
     {"_bartisan_bartisan_mnp_probs", (DL_FUNC) &_bartisan_bartisan_mnp_probs, 3},
     {"_bartisan_bartisan_derivs", (DL_FUNC) &_bartisan_bartisan_derivs, 10},
     {"_bartisan_bartisan_rpg", (DL_FUNC) &_bartisan_bartisan_rpg, 3},

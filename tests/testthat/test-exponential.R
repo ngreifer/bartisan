@@ -16,7 +16,7 @@ test_that("the families that claim the exponential form really have it", {
     at <- function(e) {
       .bartisan_logdens(y, rep(1, n),
                         list(matrix(e, nrow = 1L, ncol = n)), family, "log",
-                       opts, aux)[1L, ]
+                       opts, aux, vc_basis = matrix(0, 0L, 0L))[1L, ]
     }
 
     design <- cbind(1, probe, exp(sign * probe))

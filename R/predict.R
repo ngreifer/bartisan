@@ -389,6 +389,12 @@ predict_parts <- function(object, newdata = NULL, offset = NULL,
     }
   }
 
+  # A varying-coefficient model's forests are a control function and a set of
+  # coefficients, and what a prediction wants is what they combine to. Done here
+  # rather than in `predict_eta()` because the stored draws take the other branch
+  # above and would otherwise come back uncombined.
+  eta <- vc_combine(object, eta, newdata)
+
   aux <- {
     if (is_null(object[["aux"]])) NULL
     else object[["aux"]][iterations, , drop = FALSE]
@@ -421,6 +427,16 @@ predict_eta <- function(object, newdata, offset, iterations) {
 
   if (!is.data.frame(newdata)) {
     newdata <- as.data.frame(newdata)
+  }
+
+  # A `bcf()` fit uses a propensity score the caller never named, so `newdata`
+  # taken from their own frame does not carry it. Rebuilding it from the model
+  # the fit kept is what makes `predict()` on their own data work at all; without
+  # it every prediction fails on a missing variable they never chose.
+  score <- bcf_newdata_score(object, newdata)
+
+  if (!is_null(score)) {
+    newdata <- cbind(newdata, score)
   }
 
   tt <- stats::delete.response(object[["terms"]])
@@ -508,6 +524,23 @@ predict_eta <- function(object, newdata, offset, iterations) {
   names(eta) <- names(object[["eta"]])
 
   eta
+}
+
+vc_combine <- function(object, eta, newdata) {
+  vc <- object[["vc"]]
+
+  if ((vc[["slopes"]] %or% 0L) == 0L) {
+    return(eta)
+  }
+
+  basis <- vc_newdata_basis(object, newdata)
+  mu <- eta[[1L]]
+
+  for (j in seq_len(ncol(basis))) {
+    mu <- mu + rep(basis[, j], each = nrow(mu)) * eta[[j + 1L]]
+  }
+
+  list(mu)
 }
 
 as_offset_matrix <- function(offset, n, n_forest) {
@@ -863,6 +896,7 @@ category_probs <- function(object, eta, aux) {
 fitted_from_eta <- function(object, eta, average = TRUE) {
   family <- object[["family"]][["family"]]
 
+
   if (family %in% c("ordinal", "multinomial", "mnp")) {
     probs <- category_probs(object, eta, object[["aux"]])
     out <- apply(probs, c(2L, 3L), mean)
@@ -920,7 +954,8 @@ conditional_density <- function(object, newdata, eta, aux, weights, draws, log,
                           family_name = object[["family"]][["family"]],
                           link = object[["family"]][["link"]],
                           family_opts = parts[["opts"]],
-                          aux = aux_matrix)
+                          aux = aux_matrix,
+                          vc_basis = vc_stored_basis(object))
 
   warn_undefined_density(out, object)
 

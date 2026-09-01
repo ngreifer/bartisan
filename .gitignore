@@ -51,6 +51,7 @@ _dev/*
 !_dev/categorical-benchmark.R
 !_dev/factor-random-vs-fixed.R
 !_dev/bookkeeping-cost.R
+!_dev/varying-coefficients.md
 
 # Side effect of rendering README.Rmd to github_document.
 README.html

@@ -43,7 +43,7 @@ test_that("a vc() covariate leaves the design and stays in the frame", {
 test_that("vc() reads its arguments the way any call would", {
   one <- split_vc_terms(y ~ x1 + vc(z))[["vc"]][["z"]]
   expect_null(one[["modifiers"]])
-  expect_identical(one[["center"]], "mean")
+  expect_identical(one[["center"]], "auto")
 
   positional <- split_vc_terms(y ~ x1 + vc(z, ~ x1))[["vc"]][["z"]]
   named <- split_vc_terms(y ~ x1 + vc(z, modifiers = ~ x1))[["vc"]][["z"]]
@@ -139,7 +139,7 @@ test_that("the two overlap rules are separate", {
 test_that("the basis is centred, and centring says what it says", {
   d <- sim_vc()
 
-  mean_centred <- spec_of(y ~ x1 + vc(z), d)
+  mean_centred <- spec_of(y ~ x1 + vc(z, center = "mean"), d)
   expect_equal(mean(mean_centred[["basis"]][, 1L]), 0, tolerance = 1e-12)
 
   at_zero <- spec_of(y ~ x1 + vc(z, center = "zero"), d)
@@ -216,12 +216,224 @@ test_that("a model of nothing but vc() terms is refused", {
                "at least one predictor")
 })
 
-test_that("the sampler refuses varying coefficients rather than ignoring them", {
-  d <- sim_vc()
 
-  # Until the engine carries them, a fit would silently be the model without
-  # them, which is the failure this feature exists to avoid.
-  expect_error(bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
-                        control = quick_control()),
-               "not fitted yet")
+
+# ---- fitting -------------------------------------------------------------
+
+sim_effect <- function(n = 600, seed = 3) {
+  set.seed(seed)
+  d <- data.frame(x1 = stats::rnorm(n), x2 = stats::rnorm(n),
+                  z = stats::rbinom(n, 1L, 0.5))
+  d$tau <- 1 + 0.8 * d$x2
+  d$y <- 2 * d$x1 + d$z * d$tau + stats::rnorm(n, sd = 0.5)
+  d
+}
+
+vc_control <- function(...) {
+  bartisan_control(num_trees = 20, num_burn = 250, num_draws = 250,
+                   verbose = FALSE, ...)
+}
+
+test_that("a varying coefficient is fitted and recovers its function", {
+  d <- sim_effect()
+
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
+                  control = vc_control())
+
+  expect_identical(fit[["num_forest"]], 2L)
+  expect_named(fit[["eta"]], c("(Intercept)", "z"))
+
+  expect_gt(cor(colMeans(fit[["eta"]][["z"]]), d$tau), 0.9)
+})
+
+test_that("the estimand path and the coefficient path agree", {
+  skip_if_not_installed("marginaleffects")
+
+  d <- sim_effect(seed = 4)
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
+                  control = vc_control())
+
+  # Every estimand reaches this through `predict()` on modified `newdata`, which
+  # recomputes the basis and contrasts the combination. For an identity link that
+  # has to be *exactly* the coefficient, and if it is not, one of the two is
+  # wrong.
+  treated <- predict(fit, newdata = transform(d, z = 1), type = "link",
+                     summary = FALSE, draws = TRUE)
+  control <- predict(fit, newdata = transform(d, z = 0), type = "link",
+                     summary = FALSE, draws = TRUE)
+
+  expect_equal(mean(rowMeans(treated - control)),
+               mean(colMeans(fit[["eta"]][["z"]])), tolerance = 1e-10)
+
+  # And marginaleffects gets the same answer through its own grid, which builds
+  # and averages the counterfactuals its own way, so it agrees to its own
+  # precision rather than to the last bit.
+  ate <- marginaleffects::avg_comparisons(fit, variables = "z")
+
+  expect_equal(ate[["estimate"]], mean(colMeans(fit[["eta"]][["z"]])),
+               tolerance = 1e-3)
+})
+
+test_that("predict rebuilds the basis and agrees with the fit", {
+  d <- sim_effect(seed = 5)
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
+                  control = vc_control())
+
+  expect_equal(as.numeric(predict(fit, newdata = d)),
+               as.numeric(fitted(fit)), tolerance = 1e-7)
+
+  # The centring is the fit's, not the new data's. Re-centring on `newdata` would
+  # move the control function's reference between fitting and prediction, so the
+  # same covariate value would predict two different things -- which is exactly
+  # what the counterfactual grids `avg_comparisons()` builds would trip over,
+  # since every row of one holds the treatment at a single value.
+  all_treated <- transform(d, z = 1)
+  expect_equal(as.numeric(predict(fit, newdata = all_treated)),
+               as.numeric(fitted(fit)) +
+                 (1 - d$z) * coef(fit)[, "z"],
+               tolerance = 1e-6)
+})
+
+test_that("a continuous covariate may modify its own coefficient", {
+  # The effect is then no longer linear in the covariate: the slope moves across
+  # its range. With the truth y = 2 x1 + z^2, the slope at z is z, which a model
+  # whose coefficient cannot see z has no way to produce.
+  set.seed(6)
+  n <- 900
+  d <- data.frame(x1 = stats::rnorm(n), z = stats::runif(n, -2, 2))
+  d$truth <- 2 * d$x1 + d$z^2
+  d$y <- d$truth + stats::rnorm(n, sd = 0.4)
+
+  linear <- bartisan(y ~ x1 + vc(z), data = d, family = gaussian(),
+                     control = vc_control())
+  curved <- suppressWarnings(
+    bartisan(y ~ x1 + z + vc(z, ~ z + x1), data = d, family = gaussian(),
+             control = vc_control()))
+
+  expect_lt(sqrt(mean((fitted(curved) - d$truth)^2)),
+            sqrt(mean((fitted(linear) - d$truth)^2)) / 3)
+
+  # And the coefficient traces the slope of z^2, which is z.
+  at <- stats::approx(d$z[order(d$z)],
+                      coef(curved)[order(d$z), "z"],
+                      xout = c(-1, 0, 1))$y
+
+  expect_equal(at, c(-1, 0, 1), tolerance = 0.35)
+})
+
+test_that("centring moves the control function and leaves the effect alone", {
+  d <- sim_effect(seed = 7)
+
+  at_mean <- bartisan(y ~ x1 + x2 + vc(z, center = "mean"), data = d,
+                      family = gaussian(), control = vc_control())
+  at_zero <- bartisan(y ~ x1 + x2 + vc(z, center = "zero"), data = d,
+                      family = gaussian(), control = vc_control())
+
+  # Both estimate the same coefficient function.
+  expect_gt(cor(coef(at_mean)[, "z"], coef(at_zero)[, "z"]), 0.85)
+
+  # The control function differs by the effect times the reference, since
+  # f0_mean = f0_zero + mean(z) * f1.
+  gap <- colMeans(at_mean[["eta"]][[1L]]) - colMeans(at_zero[["eta"]][[1L]])
+  expect_gt(mean(gap), 0)
+})
+
+test_that("the default reference depends on the covariate", {
+  d <- sim_effect(seed = 8)
+  d$w <- d$z + 50
+
+  binary <- spec_of(y ~ x1 + vc(z), d)
+  shifted <- spec_of(y ~ x1 + vc(w), d)
+
+  # Zero is a value a 0/1 covariate takes, and the control function there is the
+  # surface among the untreated. Zero is nowhere near `w`, so its control
+  # function there would be an extrapolation.
+  expect_identical(binary[["parts"]][[1L]][["center"]], 0)
+  expect_equal(shifted[["parts"]][[1L]][["center"]], mean(d$w))
+})
+
+test_that("a factor gets one forest per level and coef recenters them", {
+  set.seed(9)
+  n <- 700
+  d <- data.frame(x1 = stats::rnorm(n),
+                  g = factor(sample(c("a", "b", "c"), n, TRUE)))
+  effect <- c(a = -1, b = 0, c = 1)[as.character(d$g)]
+  d$y <- 2 * d$x1 + effect + stats::rnorm(n, sd = 0.4)
+
+  fit <- bartisan(y ~ x1 + vc(g), data = d, family = gaussian(),
+                  control = vc_control())
+
+  expect_identical(fit[["num_forest"]], 4L)
+  expect_named(fit[["eta"]], c("(Intercept)", "ga", "gb", "gc"))
+
+  cf <- coef(fit)
+  expect_identical(colnames(cf), c("ga", "gb", "gc"))
+
+  # Recentred to sum to zero across levels, which is what makes each one the
+  # deviation it is reported as.
+  expect_equal(unname(rowSums(cf)), rep(0, n), tolerance = 1e-10)
+
+  # And the deviations order the way the truth does.
+  expect_lt(mean(cf[, "ga"]), mean(cf[, "gc"]))
+})
+
+test_that("a group intercept reaches the control function and not the effect", {
+  set.seed(10)
+  n <- 600
+  d <- data.frame(x1 = stats::rnorm(n), z = stats::rbinom(n, 1L, 0.5),
+                  g = factor(sample(letters[1:5], n, TRUE)))
+  d$y <- d$x1 + as.numeric(d$g) * 0.5 + 1.5 * d$z + stats::rnorm(n, sd = 0.4)
+
+  fit <- bartisan(y ~ x1 + (1 | g) + vc(z), data = d, family = gaussian(),
+                  control = vc_control())
+
+  # A group effect on a coefficient's forest is a random slope, and
+  # `split_random()` refuses `(x | g)` in as many words -- so producing one here
+  # without being asked would contradict that refusal silently.
+  expect_false(all(fit[["ranef"]][[1L]] == 0))
+  expect_true(all(fit[["ranef"]][[2L]] == 0))
+})
+
+test_that("an augmented family carries varying coefficients too", {
+  # The augmented families are built a second time, from the name and the
+  # options, by the rewriting that turns them into Gaussian ones. A wrapper put
+  # on the first family is discarded there, so an augmented family reached the
+  # sampler claiming one additive predictor while the rest of the fit expected
+  # two. Every family that has an augmented counterpart is worth checking.
+  set.seed(13)
+  n <- 600
+  d <- data.frame(x1 = stats::rnorm(n), x2 = stats::rnorm(n),
+                  z = stats::rbinom(n, 1L, 0.5))
+  d$y <- stats::rbinom(n, 1L, stats::plogis(d$x1 + d$z * (1 + d$x2)))
+
+  for (link in c("logit", "probit")) {
+    fit <- bartisan(y ~ x1 + x2 + vc(z), data = d,
+                    family = stats::binomial(link), control = vc_control())
+
+    expect_identical(fit[["num_forest"]], 2L)
+    expect_named(fit[["eta"]], c("(Intercept)", "z"))
+    expect_gt(mean(coef(fit)[, "z"]), 0)
+  }
+
+  # And a family with a nuisance parameter, which the decorator has to pass
+  # through to the wrapped family rather than claim as its own.
+  d$count <- stats::rpois(n, exp(0.5 + 0.3 * d$z))
+  expect_no_error(bartisan(count ~ x1 + vc(z), data = d,
+                           family = stats::poisson(), control = vc_control()))
+})
+
+test_that("a varying coefficient needs a single-predictor family", {
+  d <- sim_effect(seed = 11)
+
+  expect_error(bartisan(y ~ x1 + x2 + vc(z), data = d,
+                        family = location_scale(), control = vc_control()),
+               "one additive predictor")
+})
+
+test_that("coef refuses a model that has no coefficients", {
+  d <- sim_effect(seed = 12)
+  fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
+                  control = vc_control())
+
+  expect_error(coef(fit), "no varying coefficients")
 })

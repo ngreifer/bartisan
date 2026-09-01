@@ -137,7 +137,8 @@ void RandomEffects::update(Context& ctx, int h) {
 std::unique_ptr<RandomEffects> make_random_effects(const Rcpp::List& spec, int H,
                                                    double tau_scale,
                                                    bool update_tau,
-                                                   const arma::mat* X) {
+                                                   const arma::mat* X,
+                                                   int vc_slopes) {
   std::unique_ptr<RandomEffects> out(new RandomEffects());
 
   if (spec.size() == 0) {
@@ -147,6 +148,15 @@ std::unique_ptr<RandomEffects> make_random_effects(const Rcpp::List& spec, int H
   out->terms.resize(H);
 
   for (int h = 0; h < H; h++) {
+    // A group intercept belongs to the control function, not to a coefficient.
+    // Giving one to a coefficient's forest would make the coefficient itself
+    // vary by group, which is a random slope -- and `split_random()` refuses
+    // `(x | g)` in as many words, so producing one here without being asked
+    // would contradict that refusal silently.
+    if (vc_slopes > 0 && h > 0 && h <= vc_slopes) {
+      continue;
+    }
+
     for (int r = 0; r < spec.size(); r++) {
       Rcpp::List one = spec[r];
       std::string label = Rcpp::as<std::string>(one["label"]);

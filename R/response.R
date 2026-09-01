@@ -15,7 +15,7 @@
 # on a standardized scale, and a spread of the response for those, such as the
 # Gaussian and the accelerated failure time families, whose predictor lives on
 # the scale of the data.
-prepare_response <- function(family, y, weights, offset, x, n) {
+prepare_response <- function(family, y, weights, offset, x, n, vc = NULL) {
 
   name <- family[["family"]]
   link <- family[["link"]]
@@ -464,7 +464,65 @@ prepare_response <- function(family, y, weights, offset, x, n) {
     out$opts <- c(out$opts, compose_link(family[["custom_link"]], native))
   }
 
-  out$offset <- build_offset(intercept, offset, out$n_forest, n)
+  out <- expand_for_vc(out, vc, y, intercept)
+
+  out$offset <- build_offset(out$intercept, offset, out$n_forest, n)
+  out$intercept <- NULL
+
+  out
+}
+
+# The forests a varying-coefficient model adds, on top of whatever the family
+# asked for.
+#
+# The family is handed one predictor and never learns any of this -- the
+# decorator in `src/family.cpp` combines them before it sees anything -- so what
+# has to change here is the bookkeeping: how many forests the engine builds,
+# where each starts, and what prior scale each gets.
+expand_for_vc <- function(out, vc, y, intercept) {
+  out$intercept <- intercept
+
+  slopes <- vc[["slopes"]] %or% 0L
+
+  if (slopes == 0L) {
+    return(out)
+  }
+
+  if (out$n_forest != 1L) {
+    arg::err(c("a varying coefficient needs a family with one additive
+                predictor; {.val {out$family}} has {out$n_forest}",
+               i = "Fit the varying coefficient on a single-predictor family,
+                  or drop the {.fn vc} terms."))
+  }
+
+  out$n_forest <- 1L + slopes
+
+  # A coefficient's prior scale is the response's spread over the covariate's,
+  # so a coefficient is shrunk the same amount whatever units its covariate
+  # happens to be in. VCBART and flexBART both use a flat leaf scale here and
+  # neither adapts to the covariate.
+  scale <- lapply(vc[["parts"]], function(part) {
+    if (identical(part[["kind"]], "factor")) {
+      # An indicator's spread is not a unit anyone chose, and the levels are one
+      # over-parameterized set whose contrasts are differences of two forests --
+      # so the correction is the same 1/sqrt(2) the symmetric multinomial coding
+      # already uses, which puts the identified contrast's prior where reference
+      # coding would put it.
+      return(rep.int(1 / sqrt(2), length(part[["levels"]])))
+    }
+
+    spread <- part[["scale"]]
+
+    if (!isTRUE(spread > 0)) 1 else 1 / spread
+  }) |>
+    unlist(use.names = FALSE)
+
+  base <- (out$eta_scale %or% 1)[1L]
+  out$eta_scale <- c(rep.int(base, 1L), base * scale)
+
+  # The control function starts where a single-forest fit would; a coefficient
+  # starts at zero, which is the model with no effect.
+  out$intercept <- c(intercept[1L], rep.int(0, slopes))
 
   out
 }

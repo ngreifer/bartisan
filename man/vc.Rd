@@ -4,7 +4,7 @@
 \alias{vc}
 \title{Give a predictor a varying coefficient}
 \usage{
-vc(x, modifiers = NULL, center = "mean")
+vc(x, modifiers = NULL, center = "auto")
 }
 \arguments{
 \item{x}{the predictor whose coefficient varies. A numeric variable gets one
@@ -16,22 +16,81 @@ forest may split on. The default, \code{NULL}, is every predictor in the model
 except \code{x} itself.}
 
 \item{center}{the value of \code{x} at which the control function is read, which is
-both how the model is fitted and how it is reported. \code{"mean"}, the default,
-centers \code{x} so that the control function is the surface at its average;
-\code{"zero"} leaves \code{x} alone, so the control function is the surface at
-\code{x = 0}; \code{"mid"} uses the midpoint of \code{x}'s range, which is \code{0.5} for a
-binary predictor; a number uses that number. \code{"estimate"} draws the coding
-rather than fixing it, following Hahn et al. (2020) section 5.3. For a
-factor, \code{center} is \code{"mean"} or the name of a level.}
+both how the model is fitted and how it is reported. \code{"auto"}, the default,
+uses \code{"zero"} for a \code{0}/\code{1} covariate and \code{"mean"} for any other numeric
+one, for the reason in Details. \code{"mean"} centers \code{x}, so the control
+function is the surface at its average; \code{"zero"} leaves \code{x} alone, so the
+control function is the surface at \code{x = 0}; \code{"mid"} uses the midpoint of
+\code{x}'s range; a number uses that number. For a factor, \code{center} is \code{"mean"}
+or the name of a level to report against.}
 }
 \value{
-A list of class \code{bartisan_vc}, which is of no use outside a formula.
+Nothing. \code{vc()} is a marker read out of the formula and never evaluated.
 }
 \description{
 Used only inside a \code{\link[=bartisan]{bartisan()}} formula, where it says that the coefficient of
 \code{x} is a function of other predictors rather than a constant. It is not meant
 to be called directly and does nothing if it is.
 }
+\details{
+The model is
+
+\deqn{g(\mu_i) = f_0(Z_i) + \sum_j (X_{ij} - c_j) f_j(Z_i)}
+
+with a forest for the control function \eqn{f_0} and one for each varying
+coefficient \eqn{f_j}. Every forest is fitted at once, so the coefficient has
+a prior of its own rather than being whatever difference a single forest with
+\code{x} among its predictors happens to produce.
+}
+\section{Which predictors a coefficient may vary with}{
+By default every predictor in the model except \code{x} itself. The \code{modifiers}
+argument narrows that, and naming something that is not a predictor is an
+error rather than a silent restriction.
+
+\strong{A varying covariate may not modify the control function.} With \code{z} among
+\eqn{f_0}'s predictors, \eqn{f_0(Z) + z f_1(Z)} is not identified: any
+function of \code{z} moves between the two. Reached through \code{.}, the covariate is
+dropped from the control function without comment, since \code{.} did not name it.
+Named outright, the model is fitted as asked and a warning says why that is a
+choice.
+
+\strong{A numeric covariate may modify its own coefficient, and doing so is how the
+effect stops being linear.} \code{vc(z, ~ z + x1)} fits \eqn{z f_1(z, x_1)}, so
+the slope itself moves across \code{z}'s range and the dose response is a curve
+rather than a line. This is worth reaching for whenever the effect of a
+continuous predictor might not be proportional to it. On a simulation where
+the truth is \eqn{y = 2x_1 + z^2}, letting \eqn{f_1} split on \code{z} recovers
+the fitted surface to a root mean squared error of 0.099 where forbidding it
+gives 1.187, and the fitted coefficient traces the truth: -1.15, 0.15 and 1.09
+at \code{z} of -1, 0 and 1, where the slope of \eqn{z^2} is -1, 0 and 1.
+
+\strong{A categorical covariate may not}, and is removed from its own forests
+quietly. A level's indicator is nonzero only on the rows where that level
+holds, and the variable is constant on exactly those rows, so such a split
+separates rows that contribute from rows that contribute nothing. It is wasted
+rather than unidentified.
+}
+
+\section{Where the control function sits}{
+Centring is a reparameterization of \eqn{f_0} alone: every coefficient and
+every estimand is identical under any choice, and what changes is what the
+control function means. \code{"auto"} picks by the covariate, because neither
+answer wins everywhere. For a \code{0}/\code{1} covariate it uses zero, so \eqn{f_0} is
+the surface among the untreated -- a quantity with its own meaning, and the
+one that recovers the coefficient best, at a correlation of 0.987 against
+0.975 for mean-centring on the simulation in \verb{_dev/}. For any other numeric
+covariate it uses the mean, because zero may be nowhere near the data: with a
+covariate around 50 the control function at zero is an extrapolation and
+recovery collapses to a correlation of 0.42.
+
+A factor is always fitted mean-centred and gets one forest per level, coded
+symmetrically the way \code{\link[=multinomial]{multinomial()}} codes its predictors rather than as
+contrasts against a level that happened to sort first. That coding carries one
+spare function-valued dimension, which is what makes the reference a reporting
+choice: \code{center} names the level \code{\link[=coef]{coef()}} reports against, and no refit is
+needed to change it.
+}
+
 \examples{
 # The coefficient of `z` varies with `x1` and `x2`.
 y ~ x1 + x2 + vc(z)
@@ -39,8 +98,13 @@ y ~ x1 + x2 + vc(z)
 # ... and with `x1` alone.
 y ~ x1 + x2 + vc(z, ~ x1)
 
+# The effect of `z` varies across `z` itself, so the dose response is a
+# curve rather than a line.
+y ~ x1 + z + vc(z, ~ z + x1)
+
 }
 \seealso{
-\code{\link[=bartisan]{bartisan()}} for the formula interface and \link{bartisan-families} for
-the order the forests come in.
+\code{\link[=bartisan]{bartisan()}} for the formula interface, \code{\link[=bcf]{bcf()}} for the causal case,
+\code{\link[=coef.bartisan_fit]{coef.bartisan_fit()}} for reading the coefficients out, and
+\link{bartisan-families} for the order the forests come in.
 }

@@ -25,19 +25,79 @@
 #'   forest may split on. The default, `NULL`, is every predictor in the model
 #'   except `x` itself.
 #' @param center the value of `x` at which the control function is read, which is
-#'   both how the model is fitted and how it is reported. `"mean"`, the default,
-#'   centers `x` so that the control function is the surface at its average;
-#'   `"zero"` leaves `x` alone, so the control function is the surface at
-#'   `x = 0`; `"mid"` uses the midpoint of `x`'s range, which is `0.5` for a
-#'   binary predictor; a number uses that number. `"estimate"` draws the coding
-#'   rather than fixing it, following Hahn et al. (2020) section 5.3. For a
-#'   factor, `center` is `"mean"` or the name of a level.
+#'   both how the model is fitted and how it is reported. `"auto"`, the default,
+#'   uses `"zero"` for a `0`/`1` covariate and `"mean"` for any other numeric
+#'   one, for the reason in Details. `"mean"` centers `x`, so the control
+#'   function is the surface at its average; `"zero"` leaves `x` alone, so the
+#'   control function is the surface at `x = 0`; `"mid"` uses the midpoint of
+#'   `x`'s range; a number uses that number. For a factor, `center` is `"mean"`
+#'   or the name of a level to report against.
 #'
 #' @returns
-#' A list of class `bartisan_vc`, which is of no use outside a formula.
+#' Nothing. `vc()` is a marker read out of the formula and never evaluated.
 #'
-#' @seealso [bartisan()] for the formula interface and [bartisan-families] for
-#'   the order the forests come in.
+#' @details
+#' The model is
+#'
+#' \deqn{g(\mu_i) = f_0(Z_i) + \sum_j (X_{ij} - c_j) f_j(Z_i)}
+#'
+#' with a forest for the control function \eqn{f_0} and one for each varying
+#' coefficient \eqn{f_j}. Every forest is fitted at once, so the coefficient has
+#' a prior of its own rather than being whatever difference a single forest with
+#' `x` among its predictors happens to produce.
+#'
+#' # Which predictors a coefficient may vary with
+#'
+#' By default every predictor in the model except `x` itself. The `modifiers`
+#' argument narrows that, and naming something that is not a predictor is an
+#' error rather than a silent restriction.
+#'
+#' **A varying covariate may not modify the control function.** With `z` among
+#' \eqn{f_0}'s predictors, \eqn{f_0(Z) + z f_1(Z)} is not identified: any
+#' function of `z` moves between the two. Reached through `.`, the covariate is
+#' dropped from the control function without comment, since `.` did not name it.
+#' Named outright, the model is fitted as asked and a warning says why that is a
+#' choice.
+#'
+#' **A numeric covariate may modify its own coefficient, and doing so is how the
+#' effect stops being linear.** `vc(z, ~ z + x1)` fits \eqn{z f_1(z, x_1)}, so
+#' the slope itself moves across `z`'s range and the dose response is a curve
+#' rather than a line. This is worth reaching for whenever the effect of a
+#' continuous predictor might not be proportional to it. On a simulation where
+#' the truth is \eqn{y = 2x_1 + z^2}, letting \eqn{f_1} split on `z` recovers
+#' the fitted surface to a root mean squared error of 0.099 where forbidding it
+#' gives 1.187, and the fitted coefficient traces the truth: -1.15, 0.15 and 1.09
+#' at `z` of -1, 0 and 1, where the slope of \eqn{z^2} is -1, 0 and 1.
+#'
+#' **A categorical covariate may not**, and is removed from its own forests
+#' quietly. A level's indicator is nonzero only on the rows where that level
+#' holds, and the variable is constant on exactly those rows, so such a split
+#' separates rows that contribute from rows that contribute nothing. It is wasted
+#' rather than unidentified.
+#'
+#' # Where the control function sits
+#'
+#' Centring is a reparameterization of \eqn{f_0} alone: every coefficient and
+#' every estimand is identical under any choice, and what changes is what the
+#' control function means. `"auto"` picks by the covariate, because neither
+#' answer wins everywhere. For a `0`/`1` covariate it uses zero, so \eqn{f_0} is
+#' the surface among the untreated -- a quantity with its own meaning, and the
+#' one that recovers the coefficient best, at a correlation of 0.987 against
+#' 0.975 for mean-centring on the simulation in `_dev/`. For any other numeric
+#' covariate it uses the mean, because zero may be nowhere near the data: with a
+#' covariate around 50 the control function at zero is an extrapolation and
+#' recovery collapses to a correlation of 0.42.
+#'
+#' A factor is always fitted mean-centred and gets one forest per level, coded
+#' symmetrically the way [multinomial()] codes its predictors rather than as
+#' contrasts against a level that happened to sort first. That coding carries one
+#' spare function-valued dimension, which is what makes the reference a reporting
+#' choice: `center` names the level [coef()] reports against, and no refit is
+#' needed to change it.
+#'
+#' @seealso [bartisan()] for the formula interface, [bcf()] for the causal case,
+#'   [coef.bartisan_fit()] for reading the coefficients out, and
+#'   [bartisan-families] for the order the forests come in.
 #'
 #' @examples
 #' # The coefficient of `z` varies with `x1` and `x2`.
@@ -46,8 +106,12 @@
 #' # ... and with `x1` alone.
 #' y ~ x1 + x2 + vc(z, ~ x1)
 #'
+#' # The effect of `z` varies across `z` itself, so the dose response is a
+#' # curve rather than a line.
+#' y ~ x1 + z + vc(z, ~ z + x1)
+#'
 #' @export
-vc <- function(x, modifiers = NULL, center = "mean") {
+vc <- function(x, modifiers = NULL, center = "auto") {
   arg::err(c("{.fn vc} is a marker for a {.fn bartisan} formula and cannot be
               called on its own",
              i = "Write it in the formula, as in
@@ -125,7 +189,7 @@ split_vc_terms <- function(formula) {
       }
     }
 
-    center <- matched[["center"]] %or% "mean"
+    center <- matched[["center"]] %or% "auto"
 
     if (!is.numeric(center)) {
       center <- eval(center, envir = environment(formula))
@@ -152,7 +216,7 @@ split_vc_terms <- function(formula) {
   keep <- parts[!marked]
 
   new_rhs <- {
-    if (length(keep) == 0L) quote(1)
+    if (is_null(keep)) quote(1)
     else Reduce(function(a, b) call("+", a, b), keep)
   }
 
@@ -242,7 +306,7 @@ vc_modifiers <- function(specs, groups, dot, categorical) {
 
   control <- setdiff(groups, present)
 
-  if (length(present) > 0L && !dot) {
+  if (!is_null(present) && !dot) {
     arg::wrn(c("{.arg formula} lets the control function split on
                 {length(present)} predictor{?s} whose coefficient varies:
                 {.val {present}}",
@@ -254,41 +318,42 @@ vc_modifiers <- function(specs, groups, dot, categorical) {
     control <- groups
   }
 
-  list(control = control, covariates = covariates,
-       slope = lapply(specs, function(spec) {
-         own <- spec[["covariate"]]
+  slope <- lapply(specs, function(spec) {
+    own <- spec[["covariate"]]
 
-         allowed <- groups
+    allowed <- groups
 
-         if (!is_null(spec[["modifiers"]])) {
-           asked <- attr(stats::terms(spec[["modifiers"]]), "term.labels")
+    if (!is_null(spec[["modifiers"]])) {
+      asked <- attr(stats::terms(spec[["modifiers"]]), "term.labels")
 
-           # A name that is not a predictor is a typo, not a restriction, and
-           # silently fitting a forest with fewer modifiers than were asked for
-           # is the failure mode worth spending an error on. The covariate's own
-           # name is the exception: it is legitimately absent from the design,
-           # since `vc()` took it out.
-           unknown <- setdiff(asked, c(groups, own))
+      # A name that is not a predictor is a typo, not a restriction, and
+      # silently fitting a forest with fewer modifiers than were asked for
+      # is the failure mode worth spending an error on. The covariate's own
+      # name is the exception: it is legitimately absent from the design,
+      # since `vc()` took it out.
+      unknown <- setdiff(asked, c(groups, own))
 
-           if (length(unknown) > 0L) {
-             arg::err(c("the modifiers of {.code {spec[['label']]}} name
-                         {length(unknown)} thing{?s} that {?is/are} not
-                         {?a predictor/predictors} of this model:
-                         {.val {unknown}}",
-                        i = "Its predictors are {.val {groups}}."))
-           }
+      if (!is_null(unknown)) {
+        arg::err(c("the modifiers of {.code {spec[['label']]}} name {length(unknown)} thing{?s} that {?is/are} not
+                         {?a predictor/predictors} of this model: {.val {unknown}}",
+                   i = "Its predictors are {.val {groups}}."))
+      }
 
-           allowed <- intersect(asked, groups)
-         }
+      allowed <- intersect(asked, groups)
+    }
 
-         # A numeric covariate modifying its own coefficient is a nonlinearity
-         # in it, is identified, and is something a caller might mean.
-         if (isTRUE(categorical[[own]])) {
-           allowed <- setdiff(allowed, own)
-         }
+    # A numeric covariate modifying its own coefficient is a nonlinearity
+    # in it, is identified, and is something a caller might mean.
+    if (isTRUE(categorical[[own]])) {
+      allowed <- setdiff(allowed, own)
+    }
 
-         allowed
-       }))
+    allowed
+  })
+
+  list(control = control,
+       covariates = covariates,
+       slope = slope)
 }
 
 # The basis columns each varying coefficient multiplies, and the centring behind
@@ -329,19 +394,31 @@ vc_basis <- function(specs, mf) {
 vc_basis_numeric <- function(x, spec) {
   center <- spec[["center"]]
 
+  arg::arg_or(
+    center,
+    arg::arg_string,
+    arg::arg_number,
+    .arg = sprintf("center of %s", spec[["label"]])
+  )
+
   if (is.character(center)) {
     center <- switch(
-      arg::match_arg(center, c("mean", "zero", "mid", "estimate"),
+      arg::match_arg(center, c("auto", "mean", "zero", "mid"),
                      .arg = sprintf("center of %s", spec[["label"]])),
-      # Drawn rather than fixed, so the column is the covariate as written and
-      # the coding coefficients carry the reference; see `vc_coding()`.
-      estimate = 0,
+      # Measured rather than assumed, because neither choice wins everywhere.
+      # For a 0/1 covariate, zero is a value it actually takes and the control
+      # function is then the surface among the untreated, which is the prognostic
+      # score Hahn, Murray and Carvalho (2020) parameterize -- and it recovers
+      # the coefficient better, at correlation 0.987 against 0.975 and RMSE 0.144
+      # against 0.208 on the simulation in `_dev/varying-coefficients.md`. For
+      # anything else zero may be nowhere near the data: with a covariate around
+      # 50 the control function at zero is an extrapolation, and recovery
+      # collapses to a correlation of 0.42 where mean-centring holds at 0.99.
+      auto = if (all(stats::na.omit(x) %in% c(0, 1))) 0 else mean(x, na.rm = TRUE),
       mean = mean(x, na.rm = TRUE),
       zero = 0,
       mid = mean(range(x, na.rm = TRUE)))
   }
-
-  arg::arg_number(center, .arg = sprintf("center of %s", spec[["label"]]))
 
   columns <- matrix(x - center, ncol = 1L,
                     dimnames = list(NULL, spec[["covariate"]]))
@@ -377,6 +454,12 @@ vc_basis_factor <- function(x, spec) {
 
   center <- spec[["center"]]
 
+  # A factor has no numeric zero to sit at, so `"auto"` is the average level
+  # composition.
+  if (identical(center, "auto")) {
+    center <- "mean"
+  }
+
   if (is.numeric(center) || !center %in% c("mean", levels)) {
     arg::err(c("the center of {.code {spec[['label']]}} must be {.val mean} or
                 one of {.val {levels}}",
@@ -395,7 +478,7 @@ vc_basis_factor <- function(x, spec) {
   columns <- sweep(indicators, 2L, shares, "-")
   colnames(columns) <- sprintf("%s%s", spec[["covariate"]], levels)
 
-  list(columns = columns, center = center, levels = levels,
+  list(columns = columns, center = center, levels = levels, shares = shares,
        kind = "factor", scale = rep.int(1, length(levels)))
 }
 
@@ -437,7 +520,7 @@ missing_arg_at <- function(expr, i) {
 # dropped from the labels when the family has only one -- so the common case is
 # `(Intercept)` and the covariate's own name rather than `eta` and `eta:z`.
 vc_forest_labels <- function(parameter, specs, parts, drop_parameter) {
-  if (length(specs) == 0L) {
+  if (is_null(specs)) {
     return(parameter)
   }
 
@@ -497,17 +580,107 @@ resolve_vc <- function(specs, mf, design, dot) {
                }), recursive = FALSE))
 
   masks <- vapply(columns, function(allowed) groups %in% allowed,
-                  logical(length(groups)))
-  masks <- matrix(masks, nrow = length(groups), ncol = length(columns),
-                  dimnames = list(groups, NULL))
+                  logical(length(groups))) |>
+    matrix(nrow = length(groups), ncol = length(columns),
+           dimnames = list(groups, NULL))
 
-  empty <- which(!apply(masks, 2L, any))
+  empty <- !apply(masks, 2L, any)
 
-  if (length(empty) > 0L) {
-    arg::err("{length(empty)} of the model's forests {?has/have} no predictor
-              left to split on")
+  if (any(empty)) {
+    arg::err("{sum(empty)} of the model's forests {?has/have} no predictor left to split on")
   }
 
   list(specs = specs, basis = basis[["columns"]], parts = basis[["parts"]],
        slopes = ncol(basis[["columns"]]), masks = masks, groups = groups)
+}
+
+# The basis the fit was built with, for the entry points that evaluate the
+# likelihood at stored draws. Empty when the model has no varying coefficient,
+# which is what tells the engine to leave the family alone.
+vc_stored_basis <- function(object) {
+  basis <- object[["vc"]][["basis"]]
+
+  if (is_null(basis)) matrix(0, 0L, 0L) else basis
+}
+
+# The basis for new data, under the centring the fit was built with.
+#
+# The centring values are the fit's, not the new data's: re-centring on
+# `newdata` would move the control function's reference between the fit and the
+# prediction, so the same covariate value would predict two different things.
+# That matters most for the counterfactual grids `avg_comparisons()` builds,
+# which hold every row at one covariate value.
+vc_newdata_basis <- function(object, newdata) {
+  vc <- object[["vc"]]
+
+  if (is_null(newdata)) {
+    return(vc[["basis"]])
+  }
+
+  columns <- lapply(seq_along(vc[["specs"]]), function(j) {
+    spec <- vc[["specs"]][[j]]
+    part <- vc[["parts"]][[j]]
+    name <- spec[["covariate"]]
+
+    if (!name %in% names(newdata)) {
+      arg::err("{.arg newdata} has no column {.val {name}}, whose coefficient
+                varies")
+    }
+
+    x <- newdata[[name]]
+
+    if (identical(part[["kind"]], "factor")) {
+      x <- factor(as.character(x), levels = part[["levels"]])
+
+      if (anyNA(x) && !anyNA(newdata[[name]])) {
+        arg::err("{.arg newdata} has {.val {name}} levels the model never saw:
+                  {.val {setdiff(unique(as.character(newdata[[name]])),
+                                 part[['levels']])}}")
+      }
+
+      indicators <- vapply(part[["levels"]],
+                           function(l) as.numeric(!is.na(x) & x == l),
+                           numeric(length(x)))
+      indicators[is.na(x), ] <- NA_real_
+
+      return(sweep(indicators, 2L, part[["shares"]], "-"))
+    }
+
+    matrix(as.numeric(x) - part[["center"]], ncol = 1L)
+  })
+
+  out <- do.call(cbind, columns)
+  colnames(out) <- colnames(vc[["basis"]])
+  out
+}
+
+# A factor's coefficients, recentered to sum to zero across its levels.
+#
+# The symmetric coding is over-parameterized by one function -- adding the same
+# g(Z) to every level's forest changes nothing, because the centred indicators
+# sum to zero within a row -- so the level forests are not individually
+# identified and their raw draws are not meaningful on their own. Removing their
+# mean across levels is the recentring that makes each one the deviation it is
+# reported as, and it is exact rather than an approximation.
+vc_recenter <- function(slopes, vc) {
+  at <- 0L
+
+  for (j in seq_along(vc[["specs"]])) {
+    part <- vc[["parts"]][[j]]
+    width <- length(part[["scale"]])
+    columns <- at + seq_len(width)
+    at <- at + width
+
+    if (!identical(part[["kind"]], "factor")) {
+      next
+    }
+
+    shared <- Reduce(`+`, slopes[columns]) / width
+
+    for (k in columns) {
+      slopes[[k]] <- slopes[[k]] - shared
+    }
+  }
+
+  slopes
 }

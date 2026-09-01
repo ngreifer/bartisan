@@ -872,9 +872,13 @@ struct Concrete : Family {
 };
 
 // Build a family from the name and options passed down from R.
+// `vc_basis` is the columns each varying coefficient multiplies, one per forest
+// after the first. Empty -- the default -- is the ordinary single-coefficient
+// model and the family is returned as it was built.
 Family* make_family(const std::string& name, const std::string& link,
                     const arma::vec& y, const arma::vec& w,
-                    const Rcpp::List& opts);
+                    const Rcpp::List& opts,
+                    const arma::mat& vc_basis = arma::mat());
 
 // The same likelihood written as the margin of a Gaussian one, where that is
 // possible and the data allow it, which makes the target quadratic in the
@@ -887,7 +891,8 @@ Family* make_family(const std::string& name, const std::string& link,
 Family* augmented_family(const std::string& name, const std::string& link,
                          const arma::vec& y, const arma::vec& w,
                          const Rcpp::List& opts,
-                         const std::vector<std::string>& enabled);
+                         const std::vector<std::string>& enabled,
+                         const arma::mat& vc_basis = arma::mat());
 
 } // namespace bartisan
 

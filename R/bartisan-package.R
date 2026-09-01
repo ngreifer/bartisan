@@ -30,6 +30,8 @@
 #' | which predictors the forest uses | [variable_importance()] |
 #' | to tell the prior which predictors matter | `split_prior` in [bartisan_control()] |
 #' | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [bartisan-families] |
+#' | a coefficient that varies with the other predictors | [vc()] in the formula, then [coef()] |
+#' | a treatment effect with its own prior | [bcf()], `vignette("causal")` |
 #' | to check it converged | `fit$rhat`, then [as_draws()][bartisan-interop] with \pkg{bayesplot} |
 #' | to check it fits | [pp_check()][bartisan-interop], [residuals()][bartisan-interop] |
 #' | to compare two models | [loo()][bartisan-interop] |
