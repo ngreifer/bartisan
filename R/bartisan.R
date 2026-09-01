@@ -338,11 +338,23 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   split <- split_random(formula)
 
+  # `vc()` terms come out of the barless fixed part, so `terms()` never has to
+  # make sense of a `|`. What is left is the design: the covariate whose
+  # coefficient varies is not also a splitting predictor unless the caller put it
+  # there. Whether `.` was used is recorded now, before any expansion, because it
+  # is what separates a slip from a choice in the overlap rule.
+  vc_split <- split_vc_terms(split[["fixed"]])
+  vc_specs <- vc_split[["vc"]]
+  vc_dot <- uses_dot(split[["fixed"]])
+  split[["fixed"]] <- vc_split[["fixed"]]
+
   mf <- match.call(expand.dots = FALSE)
   keep <- match(c("formula", "data", "subset", "weights", "offset"),
                 names(mf), 0L)
   mf <- mf[c(1L, keep)]
-  mf[["formula"]] <- reformulas::subbars(formula)
+  # The frame carries the varying covariates, so they get the same missing-value
+  # handling as any predictor; the design does not.
+  mf[["formula"]] <- reformulas::subbars(vc_to_names(formula))
   mf[["drop.unused.levels"]] <- TRUE
 
   # Set from the formal rather than carried over from the call. `match.call()`
@@ -368,16 +380,26 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # Left alone when the formula has random-effect terms: `.` would then expand
   # over the grouping variables as well, and the fixed part is derived from the
   # frame further down on the assumption that it has not been rewritten.
-  if (!missing(data) && is.data.frame(data) && identical(formula, split$fixed)) {
+  # The frame's formula and the design's are expanded separately, because they
+  # differ: `y ~ . + vc(z)` puts `z` in the frame either way, and whether it is
+  # also a splitting predictor is what `.` decides.
+  if (!missing(data) && is.data.frame(data) && length(split[["bars"]]) == 0L) {
     resolved <- stats::update(stats::terms(mf[["formula"]], data = data), . ~ .)
     environment(resolved) <- environment(mf[["formula"]])
     mf[["formula"]] <- resolved
-    split$fixed <- resolved
+
+    design_formula <- stats::update(
+      stats::terms(split[["fixed"]], data = data), . ~ .)
+    environment(design_formula) <- environment(split[["fixed"]])
+    split[["fixed"]] <- design_formula
 
     # Stored as well as used. `insight::find_formula()` reads this field, and
     # from `death ~ . - days` it concluded that the model's one predictor was
     # `days`, which is the variable the formula removes. Everything built on
     # that -- `avg_comparisons()` most visibly -- then described the wrong model.
+    # It is the *frame's* formula that is stored, so a varying covariate is a
+    # variable of the model as far as the estimand packages are concerned, which
+    # is what makes `avg_comparisons(fit, variables = "z")` work.
     formula <- resolved
   }
 
@@ -402,7 +424,13 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   attr(mt, "dataClasses") <- attr(attr(mf, "terms"), "dataClasses")
 
   if (is_null(attr(mt, "term.labels"))) {
-    arg::err("{.arg formula} must include at least one predictor")
+    arg::err(c("{.arg formula} must include at least one predictor a forest can
+                split on",
+               i = if (length(vc_specs) > 0L) {
+                 "A {.fn vc} covariate is what a coefficient multiplies, not
+                  something its own forest can split on, so a model of nothing
+                  but {.fn vc} terms has no predictors left."
+               }))
   }
 
   # With na.action = na.pass the caller is asking for missing predictors to be
@@ -421,6 +449,23 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   if (n == 0L) {
     arg::err("no usable observations remain")
+  }
+
+  # The basis each varying coefficient multiplies, centred, plus which forests
+  # may split on what. Built from the frame rather than the design, because the
+  # covariate is deliberately not a design column unless the caller put it there.
+  vc <- resolve_vc(vc_specs, mf, design, vc_dot)
+
+  # The specification is complete and the engine is not. Refusing is the only
+  # honest state to be in meanwhile: everything above resolves the `vc()` terms
+  # correctly, and a fit that ignored them would silently be the model without
+  # them, which is the failure mode this whole feature exists to avoid.
+  if (vc[["slopes"]] > 0L) {
+    arg::err(c("varying coefficients are not fitted yet",
+               i = "The formula was read correctly -- {vc[['slopes']]}
+                  coefficient forest{?s} over
+                  {length(vc[['groups']])} predictor{?s} -- but the sampler
+                  does not yet carry them."))
   }
 
   unit <- unit_transform(design$x, control[["x_transform"]])
