@@ -22,58 +22,58 @@ options(digits = 4, marginaleffects_safe = FALSE)
 has_me <- rlang::is_installed("marginaleffects")
 has_cobalt <- rlang::is_installed("cobalt")
 run <- has_me
+
+if (rlang::is_installed("future")) {
+  future::plan(future::multisession)
+}
 ```
 
 ## Introduction
 
-BART is a popular choice for causal inference [@hill2011], for a good reason: the
-step a flexible model helps with is the one people get wrong. Estimating a
-treatment effect from observational data requires modelling how the outcome
-depends on the covariates, and a linear model imposes a functional form that is
-rarely justified and can bias the answer when it is wrong.
+BART is a popular choice for causal inference because it allows one to fit the nuisance functionals required for effect estimation (the relationships among the outcome, the treatment, and the potential confounders) in a flexible manner [@hill2011]. BART has repeatedly been shown to outperform other effect estimation methods in competitions [@dorie2019]. In this vignette, we demonstrate how to use BART implemented in *bartisan* to estimate treatment effects. This includes both standard BART as well as Bayesian causal forests (BCF), which is an improvement on traditional BART that works by fitting separate BART models for the outcome under control and for the treatment effect itself.
 
-What BART does not do is deliver identification. The assumptions that turn an
-association into a causal effect are assumptions about the design, and no model
-supplies them. This vignette covers the part BART does help with, the checks that
-come before it, and one specific way a regularized model can go wrong in this
-setting that does not arise elsewhere.
+However, it's important to remember that BART is not a "causal inference method"; it is just a method of estimating certain quantities, which often are interpretable as associations. The assumptions that turn an association into a causal effect are assumptions about the design, and no model supplies them.
 
-The example is the one the data were collected for: whether right heart
-catheterization helps or harms critically ill patients [@connors1996].
+The example is the one the data were collected for: whether right heart catheterization helps or harms critically ill patients [@connors1996].
 
 ```{r libs, eval = run}
 library(bartisan)
+library(cobalt)
 library(marginaleffects)
 
 data(rhc)
-
-model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
-  hema + pafi + paco2 + crea + surv2m + card
 ```
 
-## The confounding is the whole problem
+## Confounding is the whole problem
 
 Catheterization was not randomized. Doctors chose it, and they chose it more
 often for patients who were already doing badly. Those patients were also more
-likely to die. So the raw comparison is confounded in a specific and predictable
-direction:
+likely to die. We can use `cobalt::bal.tab()` to see how the patients differ between groups:
+
+```{r}
+bal.tab(rhc ~ age + sex + race + edu + aps + meanbp + resp +
+          hema + pafi + paco2 + crea + surv2m + card,
+        data = rhc, stats = c("m", "ovl"), disp = "m")
+```
+
+The `M.0.Un` column indicates the mean for each variable in control group and the `M.1.Un` column indicates the mean for each variable in treated group. `Diff.Un` and `OVL.Un` are measures of the distributional difference between the groups for each covariate; values far from 0 indicate imbalance due to differential selection into treatment. In particular, we can see that patients with higher values of `aps` and `crea` and lower values of `meanbp, hema`, `pafi`, `paco2`, and `surv2m` are overrepresented among treated units.
+
+Given that sicker patients are both more likely to die and more likely to receive RHC, it would not be unexpected to see that patients who receive RHC are more likely to die, and we do see that:
 
 ```{r naive, eval = run}
 with(rhc, tapply(death, rhc, mean))
 ```
 
-Patients who were catheterized died more often. Some of that difference is the
-procedure and some of it is that they were sicker to begin with, and nothing in
-this table separates the two. Everything below is an attempt to.
+However, that doesn't mean RHC causes death; to distangle the effects of RHC from the confounding effects of pateitns characteristics, we need to adjust for them.
 
 ## What has to be true
 
-Four assumptions, none of which the fit can check.
+Several assumptions are required to interpret an adjusted effect estimate as causal, none of which the fit can check.
 
 **No unmeasured confounding.** Every common cause of catheterization and death is
 in the model. Here that is the crux: the covariates include a physiological
 profile and the study's own prognostic score, which is a serious attempt, but a
-doctor's judgment at the bedside is not fully captured by fourteen variables.
+doctor's judgment at the bedside may not be fully captured by these fourteen variables.
 
 **Positivity.** Every kind of patient could have received the procedure or not.
 This one is partly checkable and is checked below.
@@ -86,7 +86,7 @@ The first is the one that usually fails and the one to be explicit about. State
 it as an assumption in what you write, rather than letting the interval imply it
 has been handled.
 
-## Checking positivity
+### Checking positivity
 
 Positivity fails when some combination of covariates makes the treatment nearly
 certain. To look for that, model the treatment and inspect the fitted
@@ -103,22 +103,16 @@ ps_fit <- bartisan(
   data = rhc, family = binomial(), chains = 4
 )
 
-ps <- fitted(ps_fit)
-
-round(do.call(rbind, tapply(ps, rhc$rhc, range)), 3)
+prop_score <- fitted(ps_fit)
 ```
 
-*cobalt* draws the standard picture:
+We can use `cobalt::bal.plot()` to examine the overlap of the propensity score distribution between the groups:
 
 ```{r balplot, eval = run && has_cobalt, fig.height = 2.8}
-library(cobalt)
-
-bal.plot(rhc ~ ps, data = rhc, type = "hist", mirror = TRUE)
+bal.plot(rhc ~ prop_score, data = rhc, type = "hist", mirror = TRUE)
 ```
 
-The treated distribution sits to the right of the untreated one, which is the
-confounding made visible: patients more likely to be catheterized were different
-patients. What matters for positivity is that the two overlap over most of their
+What matters for positivity is that the two groups overlap over most of their
 range, and they do. Distributions pushed against zero and one with little overlap
 are what failure looks like, and the honest response then is to restrict the
 analysis to the region of overlap rather than let the model extrapolate into a
@@ -128,29 +122,30 @@ This check belongs before the outcome model, not after. A flexible outcome model
 will happily produce an estimate in a region with no data, and the interval will
 not tell you that is what happened.
 
-## One setting to change first
+## The estimator: g-computation
 
-The default splitting prior is a variable-selection prior. It can drop a
+To estimate the average treatment effect $\tau_{\text{ATE}} = E[Y(1)] - E[Y(0)]$, which is a function of the unoabsevred potential outcoem $Y(1)$ and $Y(0)$, we can use the assumptions above to express it as a function of observed quantities:
+
+$$
+E[Y(1)] - E[Y(0)] = E \left[ E[Y | X, A = 1] \right] - E \left[ E[Y | X, A = 0] \right]
+$$
+To estimate $E \left[ E[Y | X, A = a] \right] = \theta_a$, we use g-computation:
+
+$$
+\hat{\theta}_a = \frac{1}{n}\sum_{i=1}^n {\mu(a, x_i)}
+$$
+
+where $\mu(a, x_i)$ is the predicted value from a regression of $Y$ on $A$ and $X$ for a unit with covariate profile $X=x_i$ and treatment $A$ set to $a$. This estimator is sometimes also known as the "regression estimator" or the "plug-in estimator".
+
+Here, we use traditional BART and BCF to model $\mu(A, X)$. The rest of the analysis comes from the definitions above.
+
+### One setting to change first
+
+Before we fit the outcome model, we need to change one setting to make traditional BART suitable for estimating the ATE. The default splitting prior is a variable-selection prior. It can drop a
 predictor from every tree in the forest at once, which is what makes it worth
 having when the goal is prediction, and exactly what you do not want when the
-estimand is a contrast on one particular predictor.
-
-The reason is arithmetic. In a draw where the treatment is in no tree, the fitted
-outcome does not depend on it, so the contrast in that draw is not small but
-*exactly* zero. The posterior of the effect is then a mixture: a point mass at
-zero holding whatever share of draws dropped the treatment, and the rest spread
-over nonzero values. If that share exceeds 2.5%, the lower bound of a 95%
-interval is exactly zero however strong the evidence is, and the point estimate is
-pulled toward zero along with it. On a treatment effect of 0.2 against residual
-noise of 1, the prior halved the estimate and its interval covered the truth 60%
-of the time rather than 95%.
-
-So every outcome model below is fitted with `sparsity = FALSE`, which weights the
+estimand is a contrast on one particular predictor. Every outcome model below is fitted with `sparsity = FALSE`, which weights the
 predictors equally and cannot drop any of them.
-
-```{r sparsitynote, eval = FALSE}
-bartisan(model, data = rhc, family = binomial(), chains = 4, sparsity = FALSE)
-```
 
 The propensity score model above keeps the default, and should: predicting who
 was treated is a prediction problem, and no contrast is read off it.
@@ -158,31 +153,38 @@ was treated is a prediction problem, and no contrast is read off it.
 `split_prior` is the alternative when there are enough covariates that weighting
 them all alike is wasteful.
 
-## Potential outcomes
+## The outcome model
 
-The quantities underlying every effect below are the two average potential
-outcomes: the proportion who would die if every patient were catheterized, and if
-none were. `avg_predictions()` reports them directly.
+We can fit the outcome model as follows:
 
 ```{r po, eval = run}
 set.seed(2026)
 
-fit <- bartisan(model, data = rhc, family = binomial(), chains = 4,
-                sparsity = FALSE)
+fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+                  hema + pafi + paco2 + crea + surv2m + card,
+                data = rhc, family = binomial(), chains = 4, sparsity = FALSE)
+```
 
+We include both the treatment and covariate in the formula's right-hand side, set `family = binomial()` to model the binary outcome with logistic regression, and `sparsity = FALSE` to remove the sparsity-inducing prior. Normally, we would examine convergence diagnostics for this model to make sure it was fit correctly; see `vignette("diagnostics")` for more information on how to do that.
+
+## Potential outcomes
+
+The quantities underlying every effect below are the two average potential
+outcomes: the proportion who would die if every patient were catheterized, and if
+none were. `marginaleffects::avg_predictions()` reports them directly.
+
+```{r}
 avg_predictions(fit, variables = "rhc")
 ```
 
-The two rows are $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed
+The two rows are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed
 covariate distribution. Reporting both is often more informative than reporting
 their difference alone, because a difference of six percentage points means
 something different against a baseline of 63% than it would against 5%.
 
 ## The average treatment effect
 
-The effect is the contrast between those two quantities, which is what
-g-computation computes: predict for everyone as if treated, predict again as if
-untreated, and average the difference.
+The effect is the contrast between those two quantities, which can be requested using `marginaleffects::avg_comparisons()`^[Here we report the risk difference, the default quantity returned by `avg_comparisons()` with a binary outcome. You can also set `comparison = "lnratioavg", transform = "exp"` to report the risk ratio and its credible interval.]:
 
 ```{r ate, eval = run}
 ate <- avg_comparisons(fit, variables = "rhc")
@@ -194,10 +196,66 @@ Under the assumptions above this is the average treatment effect: catheterizatio
 raises the probability of death by about `r round(100 * abs(ate$estimate[1]))` percentage points, with an interval
 running from roughly `r round(100 * abs(ate$conf.low[1]))` to `r round(100 * abs(ate$conf.high[1]))`.
 
-Compare that with the raw difference in the first table, which was over nine
-points. Adjustment has moved the estimate toward zero, which is what you expect
-when the treated group was sicker. It has not moved it to zero, and it has not
-changed its sign. That was the finding that made this study influential.
+## Using Bayesian causal forests
+
+Traditional BART shrinks the fitted function toward a constant; that shrinkage applies to
+everything the forest fits, including the part of the outcome that depends on the
+exposure. When the exposure is strongly predicted by the covariates, the forest
+can explain the outcome using the covariates alone, leave little for the exposure
+to explain, and shrink the estimated effect toward zero. The interval shrinks with
+it, so the result is a confident estimate biased toward no effect.
+
+@hahn2020 identified this mechanism. Their remedy is to give the treatment effect
+its own forest with its own prior, so that shrinking the confounding part does
+not shrink the effect, which is the Bayesian causal forest (BCF) model, a special case of the varying coefficients BART model. `bcf()` fits it.
+
+One specifies the control function in the model formula and identifies the treatment in the `treatment` argument. `bcf()` then fits a varying coefficient BART model, the BCF. 
+
+```{r bcffit, eval = run}
+set.seed(2026)
+
+fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
+                 pafi + paco2 + crea + surv2m + card,
+               treatment = ~ rhc, data = rhc,
+               family = binomial(), chains = 4)
+
+fit_bcf
+```
+
+Using `bcf()` rather than writing the varying coefficient BART model by hand sets five settings to improve effect estimation: the effect gets a forest of its own, the estimated propensity score goes into the control function and not into the effect
+forest, the effect forest gets fewer trees because effect heterogeneity is
+usually simpler than a prognostic surface, `sparsity = FALSE` for the reason in
+the section above, and a binary treatment's coding is drawn rather than fixed, so
+the answer does not depend on which arm was written as 1.
+
+The output is just like a regular BART model, so we can use `avg_comparisons()` to extract the average treatment effect estimate.
+
+```{r}
+avg_comparisons(fit_bcf, variables = "rhc")
+```
+
+Because the effect is a parameter of the model rather than a difference of
+predictions, it can be read off directly, one value per patient:
+
+```{r bcfcoef, eval = run}
+coef(fit_bcf)[, "rhc"] |>
+  quantile(probs = c(0, .25, .5, .75, 1)) |>
+  round(3)
+```
+
+That column is the conditional effect for each patient, **on the link scale** --
+here a difference in log odds, because the outcome is binary. It is not the same
+number as the contrast above, which is on the probability scale, and for a binary
+outcome the probability scale is the one to report. `coef()` is for looking at how
+the effect varies from patient to patient, not for reporting its size.
+
+For a family whose link is the identity, the two coincide exactly: the
+coefficient *is* the contrast, and averaging it gives the average treatment
+effect with nothing lost in between.
+
+None of this changes what has to be true for the number to be causal. It changes
+how the prior treats the effect, not whether the covariates account for
+selection.
 
 ## A second example: a continuous outcome, and the ATT
 
@@ -292,106 +350,7 @@ Detecting moderation needs much more data than estimating a main effect, and a
 flexible model does not change that. What it changes is that you are not required
 to guess the form of the interaction in advance.
 
-## Regularization-induced confounding
 
-This is the failure specific to using a regularized model for causal inference,
-and it is worth understanding rather than filing away.
-
-BART shrinks the fitted function toward a constant. That shrinkage applies to
-everything the forest fits, including the part of the outcome that depends on the
-exposure. When the exposure is strongly predicted by the covariates, the forest
-can explain the outcome using the covariates alone, leave little for the exposure
-to explain, and shrink the estimated effect toward zero. The interval shrinks with
-it, so the result is a confident estimate biased toward no effect.
-
-@hahn2020 identified this mechanism. Their remedy is to give the treatment effect
-its own forest with its own prior, so that shrinking the confounding part does
-not shrink the effect, which is the Bayesian causal forest model. `bcf()` fits
-it.
-
-```{r bcffit, eval = run}
-set.seed(2026)
-
-fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
-                 pafi + paco2 + crea + surv2m + card,
-               treatment = ~ rhc, data = rhc,
-               family = binomial(), chains = 4)
-
-avg_comparisons(fit_bcf, variables = "rhc")
-```
-
-The model is a *control function* for the probability of death with no
-catheterization, and a separate forest for the effect. Writing it as `bcf()`
-rather than by hand sets five things: the effect gets a forest of its own, the
-estimated propensity score goes into the control function and not into the effect
-forest, the effect forest gets fewer trees because effect heterogeneity is
-usually simpler than a prognostic surface, `sparsity = FALSE` for the reason in
-the section above, and a binary treatment's coding is drawn rather than fixed, so
-the answer does not depend on which arm was written as 1.
-
-Because the effect is a parameter of the model rather than a difference of
-predictions, it can be read off directly, one value per patient:
-
-```{r bcfcoef, eval = run}
-summary(coef(fit_bcf)[, "rhc"])
-```
-
-That column is the conditional effect for each patient, **on the link scale** --
-here a difference in log odds, because the outcome is binary. It is not the same
-number as the contrast above, which is on the probability scale, and for a binary
-outcome the probability scale is the one to report. `coef()` is for looking at how
-the effect varies from patient to patient, not for reporting its size.
-
-For a family whose link is the identity, the two coincide exactly: the
-coefficient *is* the contrast, and averaging it gives the average treatment
-effect with nothing lost in between.
-
-None of this changes what has to be true for the number to be causal. It changes
-how the prior treats the effect, not whether the covariates account for
-selection.
-
-A cheaper mitigation is to include the estimated propensity score as an
-additional covariate in the outcome model, and there is direct evidence on how
-much it is worth. The 2016 Atlantic Causal Inference Competition compared a large
-number of methods across 77 data generating processes [@dorie2019], and
-@carnegie2019 used those data to decompose which features of a BART fit
-contributed to its performance.
-
-Two findings are worth carrying over. Bias was small for every BART variant, and
-including the propensity score reduced average absolute bias by about a tenth,
-which on that scale is a refinement rather than a rescue. Interval coverage is
-where the differences showed: base BART covered at 83%, and the best combination
-without targeted learning, using ten chains, symmetric intervals and the
-propensity score as a covariate, reached about 92%. Both running several chains
-and including the score contributed.
-
-Carnegie notes a limitation that matters for how far to carry this: ignorability
-and overlap held by construction in every competition dataset, so the value of
-modelling treatment assignment may well be larger when they are strained, which
-is the situation this section is about.
-
-So, in order:
-
-- Check how strongly the exposure is predicted by the covariates. The overlap
-  plot above is the diagnostic. Densities concentrated at the ends mean strong
-  prediction and more scope for this bias; here they are spread out and heavily
-  overlapping, which is the benign case.
-- Run several chains, which the fits here already do.
-- Include the propensity score as a covariate.
-
-```{r pscovariate, eval = run}
-rhc_ps <- rhc
-rhc_ps$ps <- ps
-
-set.seed(2026)
-fit_ps <- bartisan(update(model, . ~ . + ps), data = rhc_ps,
-                   family = binomial(), chains = 4, sparsity = FALSE)
-
-avg_comparisons(fit_ps, variables = "rhc")
-```
-
-The estimate barely moves, which is what to expect when overlap is good and the
-exposure is not strongly predicted by the covariates.
 
 ## What the interval means
 

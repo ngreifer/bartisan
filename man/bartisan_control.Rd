@@ -198,9 +198,12 @@ their concentration. The defaults, \code{NULL}, follow \code{sparsity}. Turning 
 off recovers a uniform prior over predictors, which is what
 \code{sparsity = FALSE} does.}
 
-\item{verbose}{\emph{Advanced.} Report progress while sampling.}
+\item{verbose}{\emph{Advanced.} Print progress to the console while sampling. For
+a progress bar instead, see the Progress section below, which needs no
+argument here.}
 
-\item{num_print}{\emph{Advanced.} How many iterations between progress reports.}
+\item{num_print}{\emph{Advanced.} How many iterations between the reports
+\code{verbose} prints.}
 
 \item{block_eval}{\emph{Validation.} Evaluate the likelihood one leaf at a time
 rather than one observation at a time. A family built by \code{\link[=custom_family]{custom_family()}}
@@ -606,6 +609,34 @@ whenever the count is positive. For \code{zi_negbin()} the Poisson-gamma rate go
 on top of that, so the count forest gets the exponential form as well; the
 indicator is drawn with the rate integrated out and the rate redrawn
 afterwards, which is a valid partially collapsed Gibbs step in that order.
+}
+
+\section{Progress}{
+\code{verbose = TRUE} prints a line to the console every \code{num_print} iterations,
+which is the whole of what this package decides about progress. A progress
+bar is \CRANpkg{progressr}'s business, and the sampler reports to it
+unconditionally: nothing is shown unless a handler is active, so there is no
+argument to switch on.
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{progressr::with_progress(
+  bartisan(y ~ ., data = d, family = gaussian())
+)
+
+# or once, for the session
+progressr::handlers(global = TRUE)
+}\if{html}{\out{</div>}}
+
+The bar is sized for the whole fit, so \code{chains = 4} fills one bar once rather
+than four in sequence, and progress from chains running in parallel under
+\CRANpkg{future} is relayed back as it arrives. Warmup and sampling are one
+run for this purpose, because they cost the same per iteration and a bar that
+restarts halfway is a worse report than one that does not.
+
+Reporting is capped at 50 steps per chain rather than one per iteration. The
+callback itself is nothing next to a sweep, but a handler that redraws a bar
+is not, and it would otherwise be possible for the reporting to cost more than
+the sampling. Progress does not touch the draws: the same seed gives the same
+fit whether or not anything was listening.
 }
 
 \section{Soft rules and the cost of a gate}{

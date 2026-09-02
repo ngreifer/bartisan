@@ -38,7 +38,7 @@ package [@arelbundock2024] asks all of them, and returns posterior intervals wit
 the answers.
 
 This vignette covers the questions worth asking and how to phrase them.
-`vignette("workflow")` is the shorter tour, and this expands its section on
+`vignette("bartisan")` is the shorter tour, and this expands its section on
 interpreting the fit.
 
 ```{r libs, eval = run}

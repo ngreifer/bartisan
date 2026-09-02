@@ -211,6 +211,14 @@ record <- function(task, package, call, seconds, draws_matrix, point, truth,
 }
 ```
 
+```{r save-hook, include = FALSE}
+# The table is saved as well as rendered, so the numbers quoted in `README.Rmd`
+# can be taken from the measurement rather than retyped from the page.
+save_results <- function() {
+  saveRDS(do.call(rbind, results), "/private/tmp/claude/benchmark-results.rds")
+}
+```
+
 ## Gaussian response
 
 The case every package supports, so it is the cleanest comparison of the
@@ -232,34 +240,44 @@ ctrl <- function(...) {
 # and, when soft, the shape of the gate; "smoothstep" is the default, and its
 # support is bounded, so an observation past it takes one side of a rule outright
 # and the subtree on the other side is never visited. See ?bartisan_control.
-r <- timer(bartisan(y ~ ., data = dtr, control = ctrl()))
+# `family = gaussian()` is named, and that matters: a numeric response with no
+# family reaches `default_family()`, which returns `dpm()` -- a Dirichlet process
+# mixture for the error distribution rather than a Gaussian. Omitting it timed a
+# DPM against three packages fitting a Gaussian, which cost about 35%.
+r <- timer(bartisan(y ~ ., data = dtr, family = gaussian(), control = ctrl()))
 e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
 record("gaussian", "bartisan", "soft, smoothstep gate (default)", r$seconds, e,
        colMeans(e), truth)
 
-r <- timer(bartisan(y ~ ., data = dtr, control = ctrl(gate = "hard")))
+r <- timer(bartisan(y ~ ., data = dtr, family = gaussian(),
+                    control = ctrl(gate = "hard")))
 e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
 record("gaussian", "bartisan", "hard rules", r$seconds, e, colMeans(e), truth)
 
 for (g in c("smootherstep", "logistic")) {
-  r <- timer(bartisan(y ~ ., data = dtr, control = ctrl(gate = g)))
+  r <- timer(bartisan(y ~ ., data = dtr, family = gaussian(),
+                      control = ctrl(gate = g)))
   e <- predict(r$value, newdata = dte, type = "link", draws = TRUE)
   record("gaussian", "bartisan", paste("soft,", g, "gate"), r$seconds, e,
          colMeans(e), truth)
 }
 
-# dbarts.
-r <- timer(bart(xtr, ytr, xte, ntree = trees, nskip = draws, ndpost = draws,
-                verbose = FALSE, keeptrees = FALSE))
-record("gaussian", "dbarts", "bart()", r$seconds, r$value$yhat.test,
-       colMeans(r$value$yhat.test), truth)
+# dbarts. No test data in the timed call, and `keeptrees = TRUE`, so that the
+# comparison is fit-against-fit: passing `xte` makes dbarts evaluate a thousand
+# test points at every draw *inside* the timer, which bartisan does afterwards in
+# `predict()`. Charging one and not the other overstated bartisan by about 1.7x
+# on this task.
+r <- timer(bart(xtr, ytr, ntree = trees, nskip = draws, ndpost = draws,
+                verbose = FALSE, keeptrees = TRUE))
+e <- predict(r$value, xte)
+record("gaussian", "dbarts", "bart()", r$seconds, e, colMeans(e), truth)
 
 if (installed[["BART"]]) {
-  r <- timer(BART::wbart(xtr, ytr, xte, ntree = trees, nskip = draws,
+  r <- timer(BART::wbart(xtr, ytr, ntree = trees, nskip = draws,
                          ndpost = draws, printevery = draws + 1L))
   if (!is.null(r$value)) {
-    record("gaussian", "BART", "wbart()", r$seconds, r$value$yhat.test,
-           colMeans(r$value$yhat.test), truth)
+    e <- predict(r$value, xte)
+    record("gaussian", "BART", "wbart()", r$seconds, e, colMeans(e), truth)
   }
 }
 
@@ -269,12 +287,12 @@ if (installed[["BART"]]) {
 # its default for what the package actually recommends.
 if (installed[["stochtree"]]) {
   for (gfr in c(0L, 5L)) {
-    r <- timer(stochtree::bart(X_train = xtr, y_train = ytr, X_test = xte,
+    r <- timer(stochtree::bart(X_train = xtr, y_train = ytr,
                                num_gfr = gfr, num_burnin = draws,
                                num_mcmc = draws,
                                mean_forest_params = list(num_trees = trees)))
     if (!is.null(r$value)) {
-      e <- t(r$value$y_hat_test)
+      e <- t(predict(r$value, xte)$y_hat)
       record("gaussian", "stochtree",
              sprintf("bart(num_gfr = %d)", gfr), r$seconds, e, colMeans(e),
              truth)
@@ -328,29 +346,29 @@ record("probit", "bartisan", "hard, augment = TRUE", r$seconds, e, colMeans(e),
 
 if (installed[["stochtree"]]) {
   r <- timer(stochtree::bart(
-    X_train = xtr, y_train = yb[d$train], X_test = xte, num_gfr = 0L,
+    X_train = xtr, y_train = yb[d$train], num_gfr = 0L,
     num_burnin = draws, num_mcmc = draws,
     general_params = list(outcome_model = stochtree::OutcomeModel(
       outcome = "binary", link = "probit")),
     mean_forest_params = list(num_trees = trees)))
   if (!is.null(r$value)) {
-    e <- pnorm(t(r$value$y_hat_test))
+    e <- pnorm(t(predict(r$value, xte)$y_hat))
     record("probit", "stochtree", "bart(binary/probit)", r$seconds, e,
            colMeans(e), truth_b)
   }
 }
 
-r <- timer(bart(xtr, factor(yb[d$train]), xte, ntree = trees, nskip = draws,
-                ndpost = draws, verbose = FALSE, keeptrees = FALSE))
-e <- pnorm(r$value$yhat.test)
+r <- timer(bart(xtr, factor(yb[d$train]), ntree = trees, nskip = draws,
+                ndpost = draws, verbose = FALSE, keeptrees = TRUE))
+e <- predict(r$value, xte, type = "response")
 record("probit", "dbarts", "bart()", r$seconds, e, colMeans(e), truth_b)
 
 if (installed[["BART"]]) {
-  r <- timer(BART::pbart(xtr, yb[d$train], xte, ntree = trees, nskip = draws,
+  r <- timer(BART::pbart(xtr, yb[d$train], ntree = trees, nskip = draws,
                          ndpost = draws, printevery = draws + 1L))
   if (!is.null(r$value)) {
-    record("probit", "BART", "pbart()", r$seconds, r$value$prob.test,
-           colMeans(r$value$prob.test), truth_b)
+    e <- predict(r$value, xte)$prob.test
+    record("probit", "BART", "pbart()", r$seconds, e, colMeans(e), truth_b)
   }
 }
 ```
@@ -376,11 +394,11 @@ for (aug in c(FALSE, TRUE)) {
 }
 
 if (installed[["BART"]]) {
-  r <- timer(BART::lbart(xtr, yl[d$train], xte, ntree = trees, nskip = draws,
+  r <- timer(BART::lbart(xtr, yl[d$train], ntree = trees, nskip = draws,
                          ndpost = draws, printevery = draws + 1L))
   if (!is.null(r$value)) {
-    record("logit", "BART", "lbart()", r$seconds, r$value$prob.test,
-           colMeans(r$value$prob.test), truth_l)
+    e <- predict(r$value, xte)$prob.test
+    record("logit", "BART", "lbart()", r$seconds, e, colMeans(e), truth_l)
   }
 }
 ```
@@ -481,13 +499,13 @@ for (setting in list(list(lab = "hard, probit, augment = TRUE",
 # comparison. The RMSE column still is not comparable across links.
 if (installed[["stochtree"]]) {
   r <- timer(stochtree::bart(
-    X_train = xtr, y_train = as.integer(dtr_o$y), X_test = xte, num_gfr = 0L,
+    X_train = xtr, y_train = as.integer(dtr_o$y), num_gfr = 0L,
     num_burnin = draws, num_mcmc = draws,
     general_params = list(outcome_model = stochtree::OutcomeModel(
       outcome = "ordinal", link = "cloglog")),
     mean_forest_params = list(num_trees = trees)))
   if (!is.null(r$value)) {
-    e <- t(r$value$y_hat_test)
+    e <- t(predict(r$value, xte)$y_hat)
     record("ordinal", "stochtree", "bart(ordinal/cloglog)", r$seconds, e,
            colMeans(e), truth)
   }
@@ -635,6 +653,10 @@ if (length(skipped)) {
 } else {
   "none"
 }
+```
+
+```{r save-results, include = FALSE}
+save_results()
 ```
 
 ```{r sessioninfo}

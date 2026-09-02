@@ -35,7 +35,7 @@ need rather than reimplementing them. This table is the map.\tabular{ll}{
    to give one forest its own predictors or settings \tab a list of formulas, and per-forest arguments; see \link{bartisan-families} \cr
    a coefficient that varies with the other predictors \tab \code{\link[=vc]{vc()}} in the formula, then \code{\link[=coef]{coef()}} \cr
    a treatment effect with its own prior \tab \code{\link[=bcf]{bcf()}}, \code{vignette("causal")} \cr
-   to check it converged \tab \code{fit$rhat}, then \link[=bartisan-interop]{as_draws()} with \pkg{bayesplot} \cr
+   to check it converged and mixed \tab \code{\link[=diagnose]{diagnose()}}, then \link[=bartisan-interop]{as_draws()} with \pkg{bayesplot} \cr
    to check it fits \tab \link[=bartisan-interop]{pp_check()}, \link[=bartisan-interop]{residuals()} \cr
    to compare two models \tab \link[=bartisan-interop]{loo()} \cr
    survival data \tab \code{\link[=ph]{ph()}}, \code{\link[=dpm_aft]{dpm_aft()}}, \code{vignette("survival")} \cr

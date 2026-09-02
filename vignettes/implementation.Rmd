@@ -27,7 +27,7 @@ set.seed(2026)
 ```
 
 This vignette describes what the model is and how it is fitted. It is the
-reference document rather than the entry point: `vignette("workflow")` shows how
+reference document rather than the entry point: `vignette("bartisan")` shows how
 to use the package on a real analysis, and `vignette("families")` covers choosing
 a likelihood. Read this one when you want to know what the fit is doing, why the
 defaults are what they are, or what an advanced setting changes.

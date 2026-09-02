@@ -6,47 +6,48 @@ This file is organized by subject, not by session. Each entry states the problem
 
 ## Status
 
-1358 tests passing, 0 failures, 0 warnings, 0 skips. `R CMD check` reports `Status: OK` with no warnings and no notes when run outside the agent sandbox; inside it, `OMP: Warning #179` and an `nm` cache-file NOTE appear, and both are artifacts of the sandbox rather than the package. the suite run inside the check passes 1055 of them, skipping 51 for Suggests packages that environment does not have.
+1637 tests passing, 0 failures, 0 warnings, 0 skips (the nine `diagnose()` tests were run on their own; the full suite and `R CMD check` were not re-run after them). `R CMD check` reports `Status: OK` with no warnings and no notes when run outside the agent sandbox; inside it, `OMP: Warning #179` and an `nm` cache-file NOTE appear, and both are artifacts of the sandbox rather than the package. the suite run inside the check passes 1055 of them, skipping 51 for Suggests packages that environment does not have.
 
 **What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, nine vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`. No `NEWS.md`: nothing has been released, so there is no previous version for a user to have seen.
 
-Benchmark, Friedman function, n = 1000, p = 10, 50 trees, 500 warmup plus 500 saved, best of 2, scored against the true regression function on a held-out thousand. Reproducible with `_dev/benchmark.Rmd`.
+Benchmark, Friedman function, n = 1000, p = 10, 50 trees, 1000 warmup plus 1000 saved, best of 3, scored against the true regression function on a held-out thousand. Reproducible with `_dev/benchmark.Rmd`. **The table below is not comparable with versions of it from before 2026-09-02**: until then bartisan's Gaussian rows omitted `family = gaussian()` and so timed a `dpm()` fit, and the competing packages were passed test data inside the timed call while bartisan's `predict()` ran outside it. Both are fixed; see the Log entry.
 
 | Task | Package and call | Seconds | ESS | RMSE |
 |---|---|---|---|---|
-| gaussian | dbarts | 0.239 | 19.6 | 0.221 |
-| | **bartisan hard** | **0.441** | 17.6 | 0.219 |
-| | stochtree | 0.697 | 18.3 | 0.218 |
-| | bartMachine | 0.866 | — | 0.230 |
-| | BART `wbart()` | 1.061 | 21.3 | 0.228 |
-| | bartisan soft, smoothstep gate (default) | 1.399 | 42.0 | **0.135** |
-| | bartisan soft, smootherstep gate | 1.420 | 43.2 | 0.140 |
-| | bartisan soft, logistic gate | 2.003 | 43.7 | 0.145 |
-| probit | dbarts | 0.271 | 35.8 | 0.134 |
-| | **bartisan hard** | **0.491** | 34.8 | 0.122 |
-| | stochtree | 0.985 | 29.4 | 0.134 |
-| | BART `pbart()` | 1.133 | 35.9 | 0.125 |
-| | bartisan soft, logistic gate | 2.049 | 33.4 | **0.111** |
-| | bartisan soft, `augment = FALSE` | 23.578 | 65.2 | 0.106 |
-| logit | bartisan soft, logistic gate | **2.111** | 128.8 | 0.088 |
-| | bartisan soft, `augment = FALSE` | 13.861 | 103.8 | 0.085 |
-| | BART `lbart()` | 20.820 | 37.8 | 0.109 |
-| ordinal | bartisan hard, probit | **0.868** | 35.0 | — |
-| | bartisan hard, logit | 0.932 | 30.5 | — |
-| | bartisan soft, probit | 2.383 | 50.5 | — |
-| | bartisan soft, logit | 2.520 | 48.1 | — |
-| | bartisan hard, cloglog | 3.030 | 24.3 | — |
-| | stochtree (cloglog) | 4.010 | 20.3 | — |
-| | bartisan hard, logit, `augment = FALSE` | 14.903 | 42.3 | — |
-| | bartisan hard, cloglog, `augment = FALSE` | 17.005 | 37.2 | — |
-| | bartisan hard, probit, `augment = FALSE` | 25.186 | 36.4 | — |
-| poisson | bartisan hard | **1.715** | 20.0 | 0.207 |
-| | bartisan hard, no shortcut | 3.351 | 24.1 | 0.192 |
-| gamma | bartisan hard | **3.600** | 21.5 | 0.198 |
-| | bartisan hard, no shortcut | 6.234 | 18.8 | 0.204 |
-| negative binomial | bartisan hard, augmented | 3.494 | 25.8 | 0.276 |
-| | bartisan hard, direct | 6.566 | 33.1 | 0.286 |
-| log-logistic AFT | bartisan hard | 9.465 | 35.6 | — |
+| gaussian | dbarts bart() | 0.281 | 24.0 | 0.225 |
+|  | bartisan hard rules | 0.905 | 21.8 | 0.193 |
+|  | stochtree bart(num_gfr = 0) | 1.189 | 19.5 | 0.245 |
+|  | stochtree bart(num_gfr = 5) | 1.248 | 22.5 | 0.228 |
+|  | BART wbart() | 1.932 | 23.1 | 0.231 |
+|  | bartMachine bartMachine() | 2.082 | — | 0.234 |
+|  | bartisan soft, smoothstep gate (default) | 2.887 | 50.1 | 0.130 |
+|  | bartisan soft, smootherstep gate | 2.979 | 56.5 | 0.126 |
+|  | bartisan soft, logistic gate | 4.206 | 54.4 | 0.130 |
+| probit | dbarts bart() | 0.360 | 51.4 | 0.113 |
+|  | bartisan hard, augment = TRUE | 1.094 | 35.8 | 0.107 |
+|  | stochtree bart(binary/probit) | 1.876 | 34.0 | 0.122 |
+|  | BART pbart() | 2.055 | 39.4 | 0.117 |
+|  | bartisan soft, augment = TRUE | 3.104 | 64.2 | 0.086 |
+|  | bartisan soft, augment = FALSE | 42.082 | 72.9 | 0.085 |
+| logit | bartisan soft, augment = TRUE | 3.973 | 178.8 | 0.082 |
+|  | bartisan soft, augment = FALSE | 25.036 | 253.1 | 0.088 |
+|  | BART lbart() | 48.884 | 68.6 | 0.108 |
+| ordinal | bartisan hard, logit, augment = TRUE | 1.872 | 44.2 | — |
+|  | bartisan hard, probit, augment = TRUE | 2.405 | 43.6 | — |
+|  | bartisan soft, logit, augment = TRUE | 3.919 | 51.7 | — |
+|  | bartisan soft, probit, augment = TRUE | 5.152 | 99.7 | — |
+|  | bartisan hard, cloglog, augment = TRUE | 6.421 | 35.9 | — |
+|  | stochtree bart(ordinal/cloglog) | 8.102 | 27.0 | — |
+|  | bartisan hard, logit, augment = FALSE | 32.143 | 46.8 | — |
+|  | bartisan hard, cloglog, augment = FALSE | 38.243 | 32.9 | — |
+|  | bartisan hard, probit, augment = FALSE | 51.737 | 55.2 | — |
+| gamma (log link) | bartisan hard rules | 10.486 | 26.1 | 0.192 |
+|  | bartisan hard, no shortcut | 17.996 | 29.0 | 0.209 |
+| log-logistic AFT | bartisan hard rules | 2.094 | 54.9 | 0.305 |
+| negative binomial | bartisan hard, augment = TRUE | 10.012 | 28.3 | 0.290 |
+|  | bartisan hard, augment = FALSE | 17.774 | 45.8 | 0.303 |
+| poisson | bartisan hard rules | 5.112 | 21.0 | 0.189 |
+|  | bartisan hard, no shortcut | 9.864 | 22.5 | 0.196 |
 
 Four things this says.
 
@@ -85,8 +86,6 @@ difference.
 - [ ] **`predict(type = "density")` returns NaN silently** when a composed link's inverse sends the predictor outside the family's support. Measured on `stats::Gamma("inverse")` with heavy-tailed data: five of eight replicates had draws where the predictor went non-positive, and each produced NaN densities for two to five test points out of 800. A negative fitted mean is not a gamma mean, so NaN is arguably the right *value*, but it should not be silent -- `bartisan()` already warns about the link at fit time and `predict()` says nothing. Left alone deliberately: it changes the output contract of `predict()`, which is the user's call. See the gamma comparison entry.
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
 - [ ] **Soft random tree features**, as a fast approximate fit and as a warm start for the sampler. Measured at 0.840 average out-of-sample R-squared against full soft BART's 0.872 at 200 features, for a fraction of the cost, and a soft basis beats a hard one by 0.16 R-squared at five trees. See the McCartan and Huang entry, which has three further items.
-- [ ] **Categorical splits on subsets of levels**, as in `flexBART`, rather than one-hot columns sharing a sparsity weight. More expressive rules.
-- [ ] **Causal-inference structure** — a separate treatment forest, ATE/CATE (`bcf`, `bartCause`, `stochtree`). Substantial work, and `marginaleffects` now covers the estimand side of it for a model fitted by hand.
 
 ## Speeding up the survival models
 
@@ -735,6 +734,137 @@ Four deliberate differences from Linero's `FlexBart`, each verified:
 2.  **Deterministic Laplace fits.** `FlexBart` starts Fisher scoring from the node's previously stored mode and stops at `|score| < sqrt(info)/10`, which makes the resulting proposal depend on the sampler's history rather than only on the current state — a quiet violation of detailed balance. Here every fit starts at zero and converges to a fixed tolerance, so the birth and death moves provably build the same proposal, which Linero (2025) calls essential.
 3.  **Corrected death-move transition ratio.** The published `R_DEATH` has the primes on `|L|` and `|NOG|` swapped relative to its own derivation, and `FlexBart` evaluates the reverse birth probability on the pre-collapse tree, so it uses 0.5 even when collapsing the root, where the correct value is 1. Both are fixed.
 4.  **Bounded slice sampler.** `FlexBart`'s interval expansion is an unbounded `while (true)` that spins forever if the log density returns a non-finite value, which is reachable when a nuisance parameter wanders into a region where the likelihood underflows. All three loops are capped.
+
+## `diagnose()`, and a drift statistic that had to be abandoned
+
+**One call for convergence and mixing**, in `R/diagnose.R`. Split-R-hat, bulk and
+tail effective sample size for every scalar the sampler draws, for the fitted
+function over its worst 5% of observations, and for the total number of splitting
+rules in the forest -- then the checks that failed and what to change. All from
+the stored draws; no other package.
+
+Three things it does that the plain `fit$rhat` table does not:
+
+- **Works with one chain**, by folding it into halves, rather than reporting
+  nothing. The one-chain warning is still the first line of advice.
+- **Keys the checks to the share of a row's components that failed**, not to the
+  worst one. The worst of a thousand per-observation R-hats is extreme even when
+  every chain has converged, so a threshold on a maximum condemns every fit; the
+  table shows the worst-5% boundary for reading and the checks use the share.
+- **Repeats R-hat on the second half of the draws alone.** Discarding the early
+  retained draws is exactly what more `num_burn` would have done, so if that
+  fixes R-hat then warmup was the problem and the advice says only "raise
+  `num_burn`"; if it does not, the chains have settled in different places and
+  the advice is the other list. That decomposition is what makes the output
+  advice rather than a menu.
+
+**The drift statistic was built, calibrated, and thrown away.** A Geweke-style z
+on each chain's first half against its own second half would answer the warmup
+question directly. Three variance estimators were calibrated against stationary
+AR(1) series, where by construction there is nothing to find:
+
+| estimator | fires at rho = 0.995 (want 5%) | misses a 6-sd trend |
+|---|---|---|
+| each half's own effective sample size | 31% | no |
+| the whole chain's effective sample size | under 3% | 73% of the time |
+| batch means, sqrt(n) batches | 92% | no |
+
+The first is anti-conservative because a window shorter than the autocorrelation
+time overstates its effective sample size; the second is blind to trends because
+the trend inflates the autocorrelation estimate that sets its own error bar; the
+third because batches of length sqrt(n) are still correlated. A forest is sticky
+enough to sit where all three fail, and there is no threshold that separates slow
+mixing from non-convergence in one chain -- which is why the literature uses
+multiple chains. Re-running an already-calibrated statistic on a subset avoids
+the problem. The measurements are in the roxygen block so the next person does
+not repeat them.
+
+**A feature comparison against the other packages** is now in `README.Rmd`,
+checked against the installed versions rather than from memory. Two things it
+corrected: *flexBART* 2.0.3 is no longer the minimal package an earlier session
+described -- it has a formula interface, a `family` argument, heteroskedastic
+regression, VCBART, the DART prior and four chains by default -- and *stochtree*
+supports ordinal cloglog, which was not obvious from its exports. The table names
+what this package lacks: no threads inside a chain, no cross-validation over
+hyperparameters, no grow-from-root warm start, no JSON serialization, no
+recurrent-event or competing-risks survival, and no formal variable-selection
+test. Partial dependence, interaction detection and estimands go through
+*marginaleffects* and are marked as a helper's rather than as this package's.
+
+Also fixed: the vignette rename in 3b5eb75 left three dangling
+`vignette("workflow")` references, in `effects.Rmd`, `implementation.Rmd` and
+`diagnostics.Rmd`. `workflow.Rmd` is now `bartisan.Rmd`.
+
+## The benchmark measured the wrong thing twice, and a progress bar
+
+**Two errors in `_dev/benchmark.Rmd`, in opposite directions.** The reported gap
+to dbarts, "within a factor of 1.8", is really about three.
+
+The first: the Gaussian section called `bartisan(y ~ ., data = dtr)` with no
+`family`. A numeric response with no family reaches `default_family()`, which
+returns `dpm()` -- a Dirichlet process mixture for the error distribution. So
+every row labelled "Gaussian" timed a DPM against three packages fitting a
+Gaussian, and its RMSE column described a different model. Worth 1.35x.
+
+The second, and larger: the competitors were called as `bart(xtr, ytr, xte, ...)`,
+which evaluates a thousand test points at every draw *inside* the timed call,
+while bartisan's `predict()` ran after the timer stopped. dbarts is 0.281 s
+without the test matrix and 0.467 s with it, so the comparison charged dbarts for
+two thirds again as much work. Fixed by giving nobody test data in the timed call
+and predicting afterwards, which needed `keeptrees = TRUE` for dbarts and a
+post-fit `predict()` for BART and stochtree.
+
+Two settings that looked unfair and are not, measured in
+`_dev/parity-benchmark.R`: the Dirichlet sparsity prior and the drawn leaf scale,
+neither of which dbarts has, are both free to within noise (0.95x and 0.99x).
+`keeptrees = TRUE` costs dbarts 1.03x. Matched, the ratio is 2.87.
+
+**What dbarts does that this package cannot.** Reading its source: nodes hold a
+pointer into one shared index array, so a split is an in-place partition with no
+allocation and no copy; each node caches a mean and an effective count computed
+in the same recursion as that partition, so the marginal likelihood reads two
+doubles; and predictors are pre-discretized to `misc_xint_t` cutpoint codes, so
+the split test is an integer compare over one or two bytes and the partition is
+hand-vectorized with runtime dispatch to `partition_avx2`, `_sse4_1`, `_sse2` or
+`_neon`. BART has none of the three -- `getsuff()` loops over all n on every move
+-- which is most of why it is six times slower than dbarts here.
+
+All three are unavailable under a soft rule, where an observation reaches both
+children with a weight: there is no partition, the target is not a function of two
+summaries, and the gate needs the covariate value rather than a side. They are
+available under `gate = "hard"`, but only by splitting a code path that soft and
+hard share on purpose (`Node` caches `idx` plus `wt`, and `split_support()`
+already skips the weights when rules are hard). Not attempted: it is a second
+sampler for the configuration that loses on accuracy.
+
+**A C++ audit found no correctness bugs.** Checked: the birth and death move
+probabilities, including the two boundary cases where the root is a stump or is
+being collapsed, and their evaluation order relative to the tree mutation -- all
+correct, and `p_birth_after_death()` documents a bug in Linero's reference code
+that this fixes. The node pool recycles only leaves and deletes anything else,
+so no subtree leaks. `ForestGuard` is RAII and already covers the interrupt and
+R-error paths. All five `-Wfloat-equal` sites are exact `-Inf` sentinels or
+bit-identical cache invalidation. Every unguarded-looking `c(cat - 1)` and
+`cuts(k - 1)` is in fact guarded upstream. Of 1819 warnings under
+`-Wall -Wextra -Wconversion -Wshadow -Wold-style-cast`, 1650 are `int`-into-
+`arma::uword` noise, 123 are unused virtual-override parameters, and the two real
+ones were shadowed names, now renamed.
+
+**A progress bar, through progressr.** The sampler is one C++ call, so it reports
+by calling back into R: `control$progress` is a function of no arguments and
+`control$progress_ticks` says how many times to call it. `R/progress.R` builds
+the reporter in the calling session, which is what lets it work under
+future.apply -- the closure is captured by the engine, sent to each worker, and
+the conditions it signals are relayed back. Sized for every chain at once, so
+four chains fill one bar once. Capped at 50 reports per chain: the callback is
+nothing next to a sweep but a handler that redraws a bar is not.
+
+Verified at 50/50, 150/150, 150/150 and 150/150 for one sequential chain, three
+sequential, three under multisession and three under multicore. The multisession
+case appears to fail under `devtools::load_all()` and does not: the worker runs
+`library(bartisan)` and gets the installed build, so the test is only meaningful
+after `R CMD INSTALL`. Progress consumes no randomness -- the same seed gives the
+same draws whether or not anything is listening, which is a test.
 
 ## Log: how the sampler got fast
 

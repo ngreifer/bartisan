@@ -676,6 +676,15 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
                                         length.out = response[["n_forest"]])
   }
 
+  # Progress, if the caller has asked for any. Sized for the whole run across
+  # every chain, so one bar fills once rather than one per chain restarting the
+  # count. Built here, in the calling session, because that is what lets it work
+  # under `future.apply`: the reporter is captured by the engine closure, sent to
+  # each worker, and the conditions it signals are relayed back.
+  progress <- progress_reporter(chains, control)
+  engine_control[["progress"]] <- progress[["report"]]
+  engine_control[["progress_ticks"]] <- progress[["ticks"]]
+
   # Everything above is a deterministic function of the data and is done once;
   # only the sampler itself is repeated per chain.
   engine <- function(ignored) {

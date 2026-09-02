@@ -1,4 +1,5 @@
 #include <RcppArmadillo.h>
+#include <algorithm>
 #include <memory>
 #include <vector>
 #include "family.h"
@@ -244,6 +245,59 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   int num_draws = as<int>(control["num_draws"]);
   int num_print = as<int>(control["num_print"]);
   bool verbose = as<bool>(control["verbose"]);
+
+  // Progress reported back to R rather than printed here, so that whatever the
+  // caller has set up renders it -- a *progressr* handler, typically. Absent
+  // unless R put a function in `control$progress`, and then called at a bounded
+  // rate rather than every sweep: the call itself is cheap next to a sweep, but
+  // a handler that redraws a bar is not, and one tick per sweep would make the
+  // reporting cost more than the sampling.
+  //
+  // Safe from here even though it re-enters R: an interrupt or an error raised
+  // by the callback unwinds through `ForestGuard`, which is what already covers
+  // the interrupt the loops below check for.
+  std::unique_ptr<Rcpp::Function> progress;
+
+  if (control.containsElementNamed("progress") &&
+      Rf_isFunction(control["progress"])) {
+    progress.reset(new Rcpp::Function(as<Rcpp::Function>(control["progress"])));
+  }
+
+  // The interval that gives `progress_ticks` reports over the whole run, which
+  // is what the R side sized the progressor for. Both loops step by it, so the
+  // number of calls matches what R promised no matter how warmup and sampling
+  // divide the total.
+  int progress_ticks = 0;
+
+  if (progress && control.containsElementNamed("progress_ticks")) {
+    progress_ticks = as<int>(control["progress_ticks"]);
+  }
+
+  long long progress_total =
+    static_cast<long long>(num_burn) +
+    static_cast<long long>(num_draws) * static_cast<long long>(num_thin);
+  long long progress_every =
+    progress_ticks > 0
+      ? std::max<long long>(1, progress_total / progress_ticks)
+      : 0;
+  long long progress_done = 0;
+  long long progress_sent = 0;
+
+  // One sweep's worth of progress. `step` is how many sweeps the caller just
+  // did, which is 1 in warmup and `num_thin` per retained draw.
+  auto tick = [&](long long step) {
+    if (progress_every <= 0) {
+      return;
+    }
+
+    progress_done += step;
+
+    while (progress_sent < progress_ticks &&
+           progress_done >= (progress_sent + 1) * progress_every) {
+      progress_sent++;
+      (*progress)();
+    }
+  };
   bool soft = as<bool>(control["soft"]);
   int gate = as<int>(control["gate"]);
 
@@ -450,6 +504,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
 
     sweep();
     Rcpp::checkUserInterrupt();
+    tick(1);
 
     if (verbose && num_print > 0 && (iter + 1) % num_print == 0) {
       Rcout << "\rWarmup " << iter + 1 << " / " << num_burn << "        ";
@@ -476,6 +531,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
       sweep();
     }
     Rcpp::checkUserInterrupt();
+    tick(num_thin);
 
     // The chart the draw is recorded in may differ from the one the sampler
     // works in; for every family but the ordinal ones this is zero.
@@ -512,13 +568,16 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     }
 
     for (std::size_t h = 0; h < ranef_out.size(); h++) {
-      int at = 0;
+      // `column` rather than `at`, which is the name of the per-forest flag
+      // reader this function uses throughout and would otherwise be shadowed
+      // here.
+      int column = 0;
 
       for (std::size_t r = 0; r < ranef->terms[h].size(); r++) {
         arma::vec b = ranef->terms[h][r]->values();
-        ranef_out[h](iter, arma::span(at, at + b.n_elem - 1)) = b.t();
+        ranef_out[h](iter, arma::span(column, column + b.n_elem - 1)) = b.t();
         tau_out[h](iter, r) = ranef->terms[h][r]->tau;
-        at += static_cast<int>(b.n_elem);
+        column += static_cast<int>(b.n_elem);
       }
     }
     loglik_out(iter) = family->reported_loglik(eta);

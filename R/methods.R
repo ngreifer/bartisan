@@ -41,7 +41,13 @@ print.bartisan_fit <- function(x, digits = 3L, ...) {
   cli_cat("Observations: {x$n}")
   rules <- if (x[["soft"]]) "soft" else "hard"
   cli_cat("Structure: {forest_label(x)}, {rules} decision rules")
-  cli_cat("Draws: {nrow(x$sigma_mu)} kept after {x$control$num_burn} warmup")
+
+  if (x$control$chains == 1) {
+    cli_cat("Draws: {nrow(x$sigma_mu)} kept after {x$control$num_burn} warmup")
+  }
+  else {
+    cli_cat("Draws: {nrow(x$sigma_mu)} kept across {x$control$chains} chains after {x$control$num_burn} warmup")
+  }
 
   if (!is_null(x[["random"]])) {
     cli_cat("Random intercepts: {ranef_label(x)}")
@@ -141,7 +147,7 @@ family_label <- function(family) {
 print_header <- function(call) {
   cli_cat("{.strong Generalized BART}")
   cli::cat_line()
-  cli_cat("Call: {.code {deparse(call, width.cutoff = 500L)[1L]}}")
+  cli::cat_line("Call:\n", paste(deparse(call), collapse = "\n"))
   cli::cat_line()
 }
 

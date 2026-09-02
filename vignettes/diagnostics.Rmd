@@ -50,6 +50,19 @@ fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
 
 ## Convergence
 
+### One call for all of it
+
+`diagnose()` computes every convergence and mixing statistic in this section,
+says which of them fall short, and says what to do about each. Everything it
+reports comes from the stored draws, so it needs no other package.
+
+```{r diagnose, eval = run}
+diagnose(fit)
+```
+
+The rest of this section is what it is reporting and why, which is worth reading
+once. Skip to `vignette("bartisan")` if the summary is enough.
+
 ### Run more than one chain
 
 `chains = 4` above is doing the work. The default is one chain, which produces
@@ -70,7 +83,17 @@ distribution and in the tails.
 The conventional thresholds are `rhat` below 1.01 and effective sample sizes above
 about 400 for a quantity you intend to report precisely. Those come from the
 general MCMC literature and are a reasonable default here, with one exception
-described below.
+described below. `diagnose()` applies them, and takes both as arguments if you
+want to move them.
+
+`diagnose()` adds two things this table does not have. It repeats `rhat` on the
+second half of the retained draws alone, which is what tells a warmup that ended
+too early from chains that have each settled somewhere different: throwing away
+the early draws is exactly what more `num_burn` would have done, so if that fixes
+`rhat`, warmup was the problem. And it reports the total number of splitting
+rules in the forest at each draw, which is the one quantity here that is about
+the trees rather than about the fitted values, and which no general-purpose MCMC
+diagnostic would think to look at.
 
 ### What the rows are
 
@@ -287,8 +310,9 @@ read it as a relative measure rather than against any absolute standard.
 Before reporting anything from a fit:
 
 1. Fit with `chains = 4`.
-2. Check `fit$rhat`. The `loglik` and `aux` rows should be near 1. If `eta` is
-   the only elevated row, look at the per-observation distribution.
+2. Run `diagnose(fit)` and read what it says to change. It covers steps 2 and 3
+   of the older advice: the thresholds, which rows are exempt, and whether a
+   short warmup or genuinely disagreeing chains is the problem.
 3. Run `pp_check()` and look for systematic differences.
 4. If the outcome is bounded, check that the replicates respect the bound.
 

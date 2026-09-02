@@ -1202,12 +1202,15 @@ struct NegBinFamily : Family {
       return;
     }
     const arma::rowvec& e = eta.row(0);
-    auto logf = [this, &e](double log_theta) {
-      double th = std::exp(log_theta);
+    // `lt` rather than `log_theta`, which is the name of the cached member this
+    // lambda would otherwise shadow: an edit inside here that meant the cache
+    // would silently get the argument instead.
+    auto logf = [this, &e](double lt) {
+      double th = std::exp(lt);
       if (!(th > 0.0) || !std::isfinite(th)) {
         return R_NegInf;
       }
-      double out = prior_shape * log_theta - prior_rate * th;
+      double out = prior_shape * lt - prior_rate * th;
       for (int i = 0; i < N; i++) {
         out += w(i) * loglik_one(y(i), e(i), th);
       }

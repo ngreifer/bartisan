@@ -111,20 +111,30 @@ the model fits.
 
 ### Convergence
 
-```{r rhat}
-fit$rhat
+`diagnose()` is the one call to make. It computes the convergence and mixing
+statistics, applies the conventional thresholds, and says what to change about
+whichever of them fall short.
+
+```{r diagnose}
+diagnose(fit)
 ```
 
-`rhat` compares variation between chains to variation within them. Values near 1
-indicate the chains have settled on the same answer. `ess_bulk` and `ess_tail`
-are effective sample sizes, and count how many independent draws the correlated
-ones are worth.
+`rhat` compares variation between chains to variation within them; values near 1
+indicate the chains have settled on the same answer. `rhat_late` is the same
+statistic on the second half of the draws alone, which is what distinguishes a
+warmup that ended too early from chains that have each settled somewhere
+different. `ess_bulk` and `ess_tail` are effective sample sizes, and count how
+many independent draws the correlated ones are worth, in the middle of the
+distribution and in the tails.
 
 Read the rows that correspond to quantities you will report. `eta.eta` is the
-fitted function, summarized over the observation that mixes worst, so it is the
-row that matters here. Forests mix slowly on their fitted values and a figure
-above 1.01 on that row is ordinary rather than alarming;
-`vignette("diagnostics")` explains what to do about it and when to worry.
+fitted function, summarized over its worst 5% of observations, so it is the row
+that matters here. Forests mix slowly on their fitted values, so a figure above
+1.01 on that row is ordinary rather than alarming; `vignette("diagnostics")`
+explains what to do about it and when to worry.
+
+The table is also in `fit$rhat` for a fit with more than one chain, if what you
+want is the numbers rather than the report.
 
 ### Fit
 
