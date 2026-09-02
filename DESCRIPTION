@@ -52,6 +52,7 @@ Suggests:
     rmarkdown,
     rstantools,
     survival,
+    collapse,
     testthat (>= 3.0.0),
     WeightIt
 VignetteBuilder: knitr
