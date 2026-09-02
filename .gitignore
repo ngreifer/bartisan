@@ -57,6 +57,8 @@ _dev/*
 !_dev/coding-comparison.R
 !_dev/vcbart-benchmark.R
 !_dev/sparsity-null.R
+!_dev/parity-benchmark.R
 
 # Side effect of rendering README.Rmd to github_document.
 README.html
+docs

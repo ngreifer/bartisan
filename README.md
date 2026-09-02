@@ -116,6 +116,86 @@ which shapes of hazard each can and cannot represent, how they compare
 across six data-generating truths and across censoring from none to 70%,
 and what to do when hazards are not proportional.
 
+## How this compares with the other BART packages
+
+Checked against the installed versions of each package rather than from
+memory: *dbarts* 0.9.34, *BART* 2.9.10, *flexBART* 2.0.3, *SoftBart*
+1.0.3, *bartMachine* 1.4.2 and *stochtree* 0.4.5. A dash means the
+package does not offer it, not that it fits badly.
+
+|  | bartisan | dbarts | BART | flexBART | SoftBart | bartMachine | stochtree |
+|----|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| **Responses** |  |  |  |  |  |  |  |
+| Gaussian | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Binary, probit | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Binary, logit | ✓ | — | ✓ | ✓ | — | — | — |
+| Count: Poisson, negative binomial | ✓ | — | — | — | — | — | — |
+| Gamma, beta, ordered beta | ✓ | — | — | — | — | — | — |
+| Ordinal | ✓ 3 links | — | — | — | — | — | ✓ cloglog |
+| Multinomial | ✓ logit, probit | — | ✓ | — | — | — | — |
+| Zero-inflated counts | ✓ | — | — | — | — | — | — |
+| Survival | ✓ 3 AFT, PH | — | ✓ **+ recurrent, competing risks** | — | — | — | — |
+| Heteroskedastic | ✓ | — | — | ✓ | — | — | ✓ |
+| Error distribution itself modeled | ✓ | — | — | — | — | — | — |
+| A likelihood you write | ✓ | — | — | — | — | — | — |
+| **Rules and priors** |  |  |  |  |  |  |  |
+| Hard decision rules | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
+| Soft decision rules | ✓ 4 gates | — | — | — | ✓ | — | — |
+| Dirichlet sparsity prior (DART) | ✓ | — | ✓ | ✓ | ✓ | — | — |
+| Splitting weights you fix | ✓ | — | — | — | ✓ groups | ✓ | — |
+| Categorical splits on level subsets | ✓ | — | — | ✓ **+ nested, network** | — | — | — |
+| Missing predictors, no imputation | ✓ default | — | — | — | — | ✓ | — |
+| **Structure** |  |  |  |  |  |  |  |
+| Random intercepts | ✓ | ✓ | — | — | — | — | ✓ |
+| Varying coefficients | ✓ | — | — | ✓ | ✓ | — | ✓ |
+| Treatment-effect (BCF) structure | ✓ | — | — | — | — | — | ✓ |
+| Formula interface | ✓ | ✓ | — | ✓ | — | — | — |
+| **Running it** |  |  |  |  |  |  |  |
+| Several chains | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
+| Threads inside one chain | — | ✓ | ✓ | — | — | ✓ | ✓ |
+| Grow-from-root warm start | — | — | — | — | — | — | ✓ |
+| Cross-validation over hyperparameters | — | ✓ | — | — | — | ✓ | — |
+| Save and reload a fitted model | RDS | — | — | — | — | ✓ | ✓ JSON |
+| **Reading the fit** |  |  |  |  |  |  |  |
+| `predict()` on new data | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Convergence diagnostics built in | ✓ | — | ✓ | — | — | ✓ | — |
+| Variable importance | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| Formal variable-selection test | ✎ | — | ✓ | — | ✓ | ✓ | — |
+| Partial dependence | ✎ | ✓ | — | — | ✓ | ✓ | — |
+| Interaction detection | ✎ | — | — | — | — | ✓ | — |
+| Counterfactual estimands with intervals | ✓ | — | — | — | — | — | — |
+| Cross-validated model comparison | ✓ | — | — | — | — | — | — |
+
+**✎ means a helper package covers it, not this one.** All three of those
+rows are things *bartMachine* does natively and bartisan does through
+[*marginaleffects*](https://CRAN.R-project.org/package=marginaleffects),
+because a fit works with it and every estimand there is computed by
+pushing the draws through: `plot_predictions()` is a partial dependence
+plot, `avg_comparisons(variables = "x", by = "z")` and
+`hypotheses(~pairwise)` are interaction detection, and neither needs
+code here. What is genuinely missing is a *formal* variable-selection
+test: this package reports split counts and the share of draws that used
+a predictor, which is not a test, where *bartMachine* permutes the
+response and *SoftBart* reports posterior inclusion probabilities.
+
+The other columns worth reading as gaps rather than as differences: **no
+threads inside a chain**, so a single chain is single-core here where
+*dbarts*, *BART*, *bartMachine* and *stochtree* all use several (chains
+do run in parallel, which is the cheaper win, but it does not help one
+chain); **no cross-validation** over `k`, `num_trees` and the tree
+prior, which `dbarts::xbart()` and `bartMachine::bartMachineCV()` both
+automate; **no grow-from-root warm start**, which is *stochtree*’s way
+of shortening burn-in; and **no JSON serialization**, so a fit
+round-trips through `saveRDS()` and not into another language. On
+survival, *BART* is ahead: recurrent events and competing risks are
+there and here they are not.
+
+Three more packages are single-purpose rather than general, so they are
+not columns above: [*bcf*](https://CRAN.R-project.org/package=bcf) fits
+Bayesian causal forests only,
+[*VCBART*](https://github.com/skdeshpande91/VCBART) varying-coefficient
+models only, and *bartCause* wraps *dbarts* for causal estimands.
+
 ## Links and likelihoods of your own
 
 The links in the table are the ones the sampler evaluates in compiled
@@ -232,6 +312,27 @@ times a Gaussian one to three and a half at the same accuracy.
 curves for the two kinds of rule — soft rules peak at around 20 trees
 and get worse past that, hard rules keep improving to 200.
 
+### Watching a fit go by
+
+A long fit reports progress through
+[*progressr*](https://CRAN.R-project.org/package=progressr), so the
+choice of bar — or of no bar — is yours rather than the package’s:
+
+``` r
+progressr::with_progress(
+  bartisan(y ~ ., data = d, family = gaussian(), chains = 4)
+)
+
+# or once, for the session
+progressr::handlers(global = TRUE)
+```
+
+One bar covers the whole fit, so four chains fill it once rather than
+four times, and chains running in parallel under *future* report back as
+they go. Nothing is printed unless a handler is active, and the draws
+are the same either way. `verbose = TRUE` is the plainer alternative and
+writes a line to the console instead.
+
 ### One forest at a time
 
 `num_trees` is not the only argument that can differ between the forests
@@ -271,7 +372,8 @@ fit
 
     ## Generalized BART
     ## 
-    ## Call: `bartisan(formula = y ~ ., data = d, family = binomial())`
+    ## Call:
+    ## bartisan(formula = y ~ ., data = d, family = binomial())
     ## 
     ## Family: "binomial" with the "logit" link
     ## Observations: 400
@@ -284,7 +386,8 @@ summary(fit)          # includes how often each predictor was split on
 
     ## Generalized BART
     ## 
-    ## Call: `bartisan(formula = y ~ ., data = d, family = binomial())`
+    ## Call:
+    ## bartisan(formula = y ~ ., data = d, family = binomial())
     ## 
     ## Family: "binomial" with the "logit" link
     ## Observations: 400
@@ -377,20 +480,11 @@ variable together and get an interaction of any shape.
 
 Whether to reach for this at all depends on the shape of the data, and
 the answer is not “always”. A grouping factor can go in the fixed part
-instead, where a tree splits on it like anything else. Measured against
-`dbarts::rbart_vi()` on data with a true group effect, held-out RMSE:
-
-| groups | per group | group as a predictor | random intercept |
-|--------|-----------|----------------------|------------------|
-| 5      | 100       | **0.190**            | 0.279            |
-| 25     | 20        | **0.306**            | 0.341            |
-| 100    | 5         | 0.541                | **0.468**        |
-| 250    | 4         | 0.708                | **0.493**        |
-
-With few large groups the predictor route is better — the group means
-are well determined without pooling, and a split can interact the group
-with the covariates. The random intercept wins once there are many small
-groups, which is where partial pooling earns its keep.
+instead, where a tree splits on it like anything else. With few large
+groups the predictor route is better — the group means are well
+determined without pooling, and a split can interact the group with the
+covariates. The random intercept wins once there are many small groups,
+which is where partial pooling earns its keep.
 
 ## Varying coefficients
 
@@ -413,29 +507,16 @@ happens inside the model.
 
 What the reparameterization buys over putting `z` in as an ordinary
 predictor is a prior on the effect itself, so regularizing the
-prognostic part does not regularize the effect. Against
-`VCBART::VCBART_ind()` on a design with five coefficient functions of
-different kinds, 8 replicates, paired within replicate:
-
-| coefficient function | RMSE, bartisan | RMSE, VCBART | interval width, bartisan | VCBART |
-|----|----|----|----|----|
-| control | 0.204 | 0.239 | 0.840 | 1.104 |
-| strongly varying | 0.125 | 0.162 | 0.655 | 0.922 |
-| mildly varying | 0.133 | 0.194 | 0.568 | 0.972 |
-| constant at 1 | 0.107 | 0.192 | 0.626 | 1.030 |
-| identically 0 | **0.052** | 0.200 | **0.399** | 1.098 |
-
-Better on every function, and the margin grows as the function gets
-simpler: four times better on the null coefficient, with intervals 64%
-narrower and coverage no lower. VCBART is about three times faster per
-fit.
+prognostic part does not regularize the effect, and vice-versa.
 
 A family with several additive predictors gets a coefficient per
 parameter, read out of that parameter’s own formula:
 
 ``` r
 # forests: mean, mean:z, log_sd
-bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
+bartisan(list(mean = y ~ x1 + x2 + vc(z),
+             log_sd = ~ x1 + x2),
+         data = d,
          family = location_scale())
 
 # one formula reaches every parameter, so both get a coefficient of `z`
@@ -460,7 +541,7 @@ numbers on all three.
 
 ## Counterfactual estimands
 
-A fit works with **marginaleffects**, so predictions, comparisons and
+A fit works with *marginaleffects*, so predictions, comparisons and
 slopes — and hypothesis tests on any of them — come out without
 extracting draws by hand:
 
@@ -507,7 +588,7 @@ posterior::summarise_draws(posterior::as_draws(fit))
 
 `fitted()`, `residuals()`, `weights()`, `sigma()` and `simulate()`
 behave as they do for a `glm`, and `insight` reads the fit through them,
-so the **easystats** packages see it too. `?bartisan-interop` documents
+so the *easystats* packages see it too. `?bartisan-interop` documents
 the scale each replicate comes back on — a binomial replicate is a
 proportion, a categorical one a category index, an
 accelerated-failure-time one an uncensored event time — and why a
@@ -571,60 +652,88 @@ A non-conjugate sampler costs more than a conjugate one, and it is worth
 being precise about how much – and about what the extra buys. From
 `_dev/benchmark.Rmd`, which you can run yourself: the Friedman function,
 n = 1000, 10 predictors, 50 trees, 1000 warmup and 1000 saved draws,
-scored against the true regression function on a held-out thousand.
+scored against the true regression function on a held-out thousand, best
+of three runs.
+
+Every package fits training data only and predicts afterwards, so what
+is timed is the sampler rather than the sampler plus a thousand test
+evaluations, and bartisan names `family = gaussian()` rather than taking
+the default. Both of those were wrong in an earlier version of this
+table and in opposite directions; see the note below.
 
 | Task | Package | Time | Effective sample size | Held-out RMSE |
 |----|----|----|----|----|
-| Gaussian | `dbarts` | 0.24 s | 20 | 0.221 |
-|  | **bartisan, hard rules** | **0.44 s** | 18 | 0.219 |
-|  | `stochtree` | 0.70 s | 18 | 0.218 |
-|  | `bartMachine` | 0.87 s | — | 0.230 |
-|  | `BART::wbart` | 1.06 s | 21 | 0.228 |
-|  | bartisan, soft, smoothstep gate (default) | 1.40 s | 42 | **0.135** |
-|  | bartisan, soft, smootherstep gate | 1.42 s | 43 | 0.140 |
-|  | bartisan, soft, logistic gate | 2.00 s | 44 | 0.145 |
-| probit | `dbarts` | 0.27 s | 36 | 0.134 |
-|  | **bartisan, hard rules** | **0.49 s** | 35 | 0.122 |
-|  | `stochtree` | 0.99 s | 29 | 0.134 |
-|  | `BART::pbart` | 1.13 s | 36 | 0.125 |
-|  | bartisan, soft, logistic gate | 2.05 s | 33 | **0.111** |
-|  | bartisan, `augment = FALSE` | 23.6 s | 65 | 0.106 |
-| logit | bartisan, soft, logistic gate | 2.11 s | 129 | **0.088** |
-|  | bartisan, `augment = FALSE` | 13.9 s | 104 | 0.085 |
-|  | `BART::lbart` | 20.8 s | 38 | 0.109 |
-| ordinal | bartisan, hard, probit | 0.87 s | 35 | — |
-|  | bartisan, hard, logit | 0.93 s | 31 | — |
-|  | bartisan, soft, probit | 2.38 s | 51 | — |
-|  | bartisan, soft, logit | 2.52 s | 48 | — |
-|  | **bartisan, hard, cloglog** | **3.03 s** | 24 | — |
-|  | `stochtree` (cloglog) | 4.01 s | 20 | — |
-|  | bartisan, hard, logit, `augment = FALSE` | 14.9 s | 42 | — |
-|  | bartisan, hard, cloglog, `augment = FALSE` | 17.0 s | 37 | — |
-|  | bartisan, hard, probit, `augment = FALSE` | 25.2 s | 36 | — |
+| Gaussian | `dbarts` | **0.28 s** | 24 | 0.225 |
+|  | bartisan, hard rules | 0.91 s | 22 | 0.193 |
+|  | `stochtree` | 1.19 s | 20 | 0.245 |
+|  | `BART::wbart` | 1.93 s | 23 | 0.231 |
+|  | `bartMachine` | 2.08 s | – | 0.234 |
+|  | bartisan, soft, smoothstep gate (default) | 2.89 s | 50 | 0.130 |
+|  | bartisan, soft, smootherstep gate | 2.98 s | 56 | **0.126** |
+|  | bartisan, soft, logistic gate | 4.21 s | 54 | 0.130 |
+| probit | `dbarts` | **0.36 s** | 51 | 0.113 |
+|  | bartisan, hard rules | 1.09 s | 36 | 0.107 |
+|  | `stochtree` | 1.88 s | 34 | 0.122 |
+|  | `BART::pbart` | 2.06 s | 39 | 0.117 |
+|  | bartisan, soft, logistic gate | 3.10 s | 64 | 0.086 |
+|  | bartisan, `augment = FALSE` | 42.1 s | 73 | **0.085** |
+| logit | bartisan, soft, logistic gate | **3.97 s** | 179 | **0.082** |
+|  | bartisan, `augment = FALSE` | 25.0 s | 253 | 0.088 |
+|  | `BART::lbart` | 48.9 s | 69 | 0.108 |
+| ordinal | bartisan, hard, logit | **1.87 s** | 44 | – |
+|  | bartisan, hard, probit | 2.41 s | 44 | – |
+|  | bartisan, soft, logit | 3.92 s | 52 | – |
+|  | bartisan, soft, probit | 5.15 s | 100 | – |
+|  | bartisan, hard, cloglog | 6.42 s | 36 | – |
+|  | `stochtree` (cloglog) | 8.10 s | 27 | – |
+|  | bartisan, hard, logit, `augment = FALSE` | 32.1 s | 47 | – |
+|  | bartisan, hard, cloglog, `augment = FALSE` | 38.2 s | 33 | – |
+|  | bartisan, hard, probit, `augment = FALSE` | 51.7 s | 55 | – |
 
-With hard rules bartisan is **within a factor of 1.8 of `dbarts`** on
-the two tasks `dbarts` supports — 0.426 s against 0.241 s on the
-Gaussian task and 0.482 s against 0.272 s on probit, best of six runs
-each — at the same mixing and better accuracy, and it is faster *and*
-more accurate than every other package here on both. On the
-complementary log-log ordinal model, the one task `stochtree` supports
-and `dbarts` does not, bartisan is now the faster of the two.
+With hard rules bartisan is **about three times slower than `dbarts`**
+on the two tasks `dbarts` supports – 0.91 s against 0.28 s on the
+Gaussian task and 1.09 s against 0.36 s on probit – at comparable mixing
+and better accuracy, and it is faster *and* more accurate than every
+other package here on both. On the complementary log-log ordinal model,
+the one task `stochtree` supports and `dbarts` does not, bartisan is the
+faster of the two. On a logit link it is 12 times faster than
+`BART::lbart` and mixes two and a half times better.
 
-The other rows come from `_dev/benchmark.Rmd` at two replicates, which
-is noisy at the ten to thirty percent level; the two ratios above are
-quoted from a longer run because a claim about a factor of two should
-not rest on a best-of-two. On a logit link it is 9.9 times faster than
-`BART::lbart` and mixes three times better. Soft rules – the default –
-cost a further four to five times and cut the held-out error by 30 to
-40%, which makes the default configuration the most accurate fit in the
-table; with a bounded gate that falls to about three times.
+Soft rules – the default – cost a further three times and cut the
+held-out error by about a third, which makes the default configuration
+the most accurate fit in the table.
+
+**Two earlier versions of this table were not measuring what they
+claimed**, and both errors are worth stating because they cut in
+opposite directions and the net was a gap reported as 1.8x that is
+really about 3x.
+
+The first: bartisan’s Gaussian rows called `bartisan(y ~ ., data = dtr)`
+with no `family`. A numeric response with no family reaches
+`default_family()`, which returns `dpm()` – a Dirichlet process mixture
+for the error distribution, not a Gaussian – so those rows timed a
+strictly more expensive model than the three packages they were compared
+against, and their accuracy column described a different fit. Naming the
+family is worth about 35%.
+
+The second, and the larger: the competing packages were called as
+`bart(xtr, ytr, xte, ...)`, which evaluates a thousand test points at
+every draw *inside* the timed call, while bartisan’s `predict()` ran
+after the timer stopped. On this task that is 0.28 s against 0.47 s for
+`dbarts` – so the comparison charged `dbarts` for two thirds again as
+much work as bartisan was doing. `_dev/parity-benchmark.R` isolates each
+of these, along with two settings that turned out not to matter:
+bartisan’s Dirichlet sparsity prior and its drawn leaf scale, neither of
+which `dbarts` has, are both free to within measurement noise.
 
 The ordinal rows have no RMSE column because the links put the additive
 predictor on different scales, so the numbers would compare scales
 rather than fits; the timings and the mixing are comparable.
 
-The remaining families are the expensive ones, at 2 to 8 seconds, which
-is the price of the general machinery where no rewriting is available.
+The remaining families are the expensive ones – 2.1 s for a log-logistic
+accelerated failure time model, 5.1 s for a Poisson, 10.0 s for a
+negative binomial and 10.5 s for a Gamma – which is the price of the
+general machinery where no rewriting is available.
 
 Both bartisan figures use `augment = TRUE`. The gap decomposes into
 factors that were measured rather than guessed, and profiling the
@@ -640,6 +749,29 @@ Nothing in that gap is the likelihood: the acceptance ratio bartisan
 forms for a Gaussian response is algebraically the same
 marginal-likelihood ratio `dbarts` forms, because a quadratic target
 makes the Laplace approximation exact.
+
+Reading `dbarts`’s source says where the rest of it is, and all three of
+its techniques are things soft rules give up. Its nodes hold a pointer
+into **one shared index array** rather than a vector of their own, so a
+split is an in-place partition and costs no allocation and no copy; each
+node caches its **sufficient statistics** – a mean and an effective
+count – computed in the same recursion as that partition, so the
+marginal likelihood reads two doubles and never touches the data; and
+the predictors are pre-discretized to **small integer cutpoint codes**,
+so the split test is an integer compare over one or two bytes instead of
+a gather over doubles, and the partition itself is hand-vectorized with
+runtime dispatch to AVX2, SSE4.1, SSE2 or NEON.
+
+None of the three survives a soft rule, where an observation reaches
+both children with a weight rather than going to one of them: there is
+no partition to do in place, the leaf target is not a function of two
+summaries, and the gate needs the covariate’s value rather than which
+side of a cutpoint it fell. They are all available under
+`gate = "hard"`, but only by specializing a code path that soft and hard
+currently share – which is the trade this package has made deliberately,
+since the soft default is the configuration that wins on accuracy.
+`BART` has none of the three and reaches every observation on every
+move, which is most of why it is six times slower than `dbarts` here.
 
 What has actually paid, in order, is worth knowing before reaching for
 the obvious ideas. **Sizing the children’s index vectors and filling
@@ -793,7 +925,7 @@ Independent chains run in parallel:
 future::plan(future::multisession, workers = 4)
 
 fit <- bartisan(y ~ ., data = d, chains = 4)
-fit$rhat
+diagnose(fit)
 ```
 
 The chain is the only parallel axis this sampler has – a sweep
@@ -801,17 +933,33 @@ conditions on the last one – and it is also what makes a convergence
 diagnostic possible. Any `future` backend works, including mirai’s. One
 `set.seed()` reproduces the whole run whatever the backend.
 
-## Notes and limitations
+`diagnose()` is the one call for whether the fit can be reported. It
+computes split-R-hat and the bulk and tail effective sample sizes for
+every scalar the sampler draws, for the fitted function over its worst
+5% of observations, and for the size of the forest itself – then says
+which of them fall short and what to change. Two of its choices are
+worth knowing about. It repeats R-hat on the second half of the draws
+alone, which is what distinguishes a warmup that ended too early from
+chains that have each settled somewhere different: discarding the early
+draws is what more `num_burn` would have done, so if that fixes R-hat
+then warmup was the problem, and the advice says so instead of listing
+everything a reader might try. And it leaves the leaf scale out, because
+it mixes badly in every implementation – 1.12 in *dbarts* and 1.16 in
+*stochtree* against 1.19 here, on the same data – and its disagreement
+never reaches the fitted function.
 
-Cox’s *partial* likelihood is not available here: it couples
-observations through risk sets, so it does not decompose into a sum over
-the observations reaching a leaf, which is what the leafwise Laplace
-approximation requires. What `ph()` fits instead is the full likelihood
-of the piecewise-exponential proportional hazards model, which does
-decompose and which approaches the partial likelihood as the bins
-shrink. Its `num_bins` is not a tuning knob: over a sixty-fold range the
-estimates are flat, and what the bin count changes is the effective
-number of parameters, which is what keeps `loo()` and `waic()` usable.
+A within-chain drift test would answer the warmup question more directly
+and is not offered, because it cannot be made to work at a forest’s
+autocorrelation. Three versions were calibrated against stationary
+series, where there is nothing to find by construction: taking each
+half’s Monte Carlo error from that half alone fires 31% of the time at
+an autocorrelation of 0.995 against a nominal 5%, taking it from the
+whole chain holds specificity under 3% but then misses a
+six-standard-deviation trend three times in four, and batch means catch
+everything and fire 92% of the time on a chain that has converged.
+Re-running a statistic that is already calibrated sidesteps the choice.
+
+## Notes and limitations
 
 Soft rules cost more per iteration than hard ones, because a leaf
 touches every observation rather than only those in its cell. Negligible

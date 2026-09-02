@@ -48,13 +48,14 @@ Suggests:
     marginaleffects,
     performance,
     posterior,
+    progressr,
     rmarkdown,
     rstantools,
     survival,
     testthat (>= 3.0.0),
     WeightIt
 VignetteBuilder: knitr
-URL: https://github.com/ngreifer/bartisan
+URL: https://github.com/ngreifer/bartisan, https://ngreifer.github.io/bartisan/
 BugReports: https://github.com/ngreifer/bartisan/issues
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0
