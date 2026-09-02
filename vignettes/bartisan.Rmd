@@ -1,10 +1,12 @@
 ---
-title: "Generalized BART with bartisan"
+title: "Getting started with bartisan"
+author: "Noah Greifer"
+date: "`r Sys.Date()`"
 output:
-  rmarkdown::html_vignette:
+  html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Generalized BART with bartisan}
+  %\VignetteIndexEntry{Getting started with bartisan}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
@@ -13,397 +15,300 @@ link-citations: true
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
-                      fig.height = 3.6, dpi = 110, fig.align = "center",
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
                       message = FALSE, warning = FALSE)
-options(digits = 3)
+options(digits = 4, marginaleffects_safe = FALSE)
 
+has_me <- rlang::is_installed("marginaleffects")
 has_gg <- rlang::is_installed("ggplot2")
+has_loo <- rlang::is_installed("loo")
+has_bp <- rlang::is_installed("bayesplot")
 ```
+
+## Introduction
+
+*bartisan* fits Bayesian additive regression trees (BART) using the same
+interface as `glm()`. You supply a formula, a data frame, and a family, and the
+model estimates the relationship between the predictors and the outcome without
+you having to say what shape that relationship takes. Nonlinearity and
+interactions are found rather than specified.
+
+This vignette walks through a complete analysis: fitting a model, checking that
+it worked, seeing which predictors it uses, reading off the effects, predicting
+for new observations, and comparing models. It assumes you are comfortable with
+regression but does not assume familiarity with machine learning or Bayesian
+methods.
+
+The main thing to take from it is that the defaults are meant to be used. The
+priors, the number of trees, and the sampler settings are chosen to work across a
+wide range of problems, and tuning them is rarely where the gains are. Almost
+everything below is a single function call with no arguments beyond the formula
+and the data.
+
+Each section ends with a pointer to a vignette that covers the same ground in
+more depth.
 
 ```{r libs}
 library(bartisan)
+```
 
+## The data
+
+`rhc` records 1500 critically ill patients from the SUPPORT study and whether
+each received right heart catheterization, a monitoring procedure, within a day
+of arriving in intensive care [@connors1996]. The question the study asked is
+whether the procedure helps or harms.
+
+```{r data}
+data(rhc)
+
+str(rhc)
+```
+
+The outcome comes in two forms. `death` is whether the patient died during
+follow-up, and `days` is how long that took. This vignette uses the binary form;
+`vignette("survival")` uses the other.
+
+The remaining variables are the patient's age, sex, race and years of education,
+seven physiological measurements taken on the first day, whether cardiovascular
+disease was among the diagnoses, and `surv2m`, the study's own estimate of the
+patient's chance of surviving two months. All were recorded before
+catheterization.
+
+## Fitting the model
+
+```{r fit}
 set.seed(2026)
+
+# For parallelization; optional
+future::plan(future::multisession)
+
+fit <- bartisan(
+  death ~ rhc + age + sex + race + edu + aps + meanbp + resp + hema +
+    pafi + paco2 + crea + surv2m + card,
+  data = rhc, family = binomial(), chains = 4
+)
+
+fit
 ```
 
-This vignette describes what the model is and how it is fitted. It is the
-reference document rather than the entry point: `vignette("workflow")` shows how
-to use the package on a real analysis, and `vignette("families")` covers choosing
-a likelihood. Read this one when you want to know what the fit is doing, why the
-defaults are what they are, or what an advanced setting changes.
+That is the whole call. `family = binomial()` says the outcome is binary, exactly
+as in `glm()`. The family may be omitted, in which case it is read off the
+outcome and reported; naming it is clearer and silences the message.
 
-Fits below use a deliberately small chain so the vignette builds quickly: 20
-trees and 300 draws after 300 warmup, on 400 observations. The defaults are 50
-trees and 500 draws after 500 warmup.
+`chains = 4` runs the sampler four times from different starting points. The
+default is one chain, which is enough to get estimates, but running several is
+what makes the convergence diagnostics in the next section available.
 
-```{r control}
-ctrl <- bartisan_control(num_trees = 20, num_burn = 300, num_draws = 300)
+Choosing a family is the one modeling decision that usually matters more than any
+sampler setting. `vignette("families")` covers the choice, and
+`vignette("survival")` covers censored outcomes such as this one's `days`.
 
-n <- 400
+## Checking the model
+
+Two questions are worth separating: whether the sampler converged, and whether
+the model fits.
+
+### Convergence
+
+```{r rhat}
+fit$rhat
 ```
 
-# The model
+`rhat` compares variation between chains to variation within them. Values near 1
+indicate the chains have settled on the same answer. `ess_bulk` and `ess_tail`
+are effective sample sizes, and count how many independent draws the correlated
+ones are worth.
 
-## A sum of trees
+Read the rows that correspond to quantities you will report. `eta.eta` is the
+fitted function, summarized over the observation that mixes worst, so it is the
+row that matters here. Forests mix slowly on their fitted values and a figure
+above 1.01 on that row is ordinary rather than alarming;
+`vignette("diagnostics")` explains what to do about it and when to worry.
 
-A binary regression tree is a pair $(T, M)$, where $T$ is the tree structure,
-meaning the splitting rules at the interior nodes, and
-$M = \{\mu_1, \dots, \mu_B\}$ collects one parameter for each of its $B$ leaves.
-The tree defines a function $g(x; T, M)$ that sends $x$ down the tree according
-to the rules and returns the parameter in the leaf it reaches. A single tree is
-a step function.
+### Fit
 
-BART sums many of them [@chipman2010]:
+A posterior predictive check simulates new outcomes from the fitted model and
+compares their distribution to the observed one.
 
-$$f(x) = \sum_{m=1}^{M} g(x; T_m, M_m).$$
-
-Each tree is kept small by its prior, so no single one explains much. The sum is
-flexible while each term is a weak learner, which is what makes the fit stable.
-Interactions come free: a path through a tree that splits on $x_1$ and then on
-$x_2$ is an interaction between them, and nothing had to be specified for it to
-appear.
-
-In ordinary BART the sum is the conditional mean of a Gaussian outcome,
-
-$$Y = f(x) + \varepsilon, \qquad \varepsilon \sim \mathrm{N}(0, \sigma^2).$$
-
-## The generalization
-
-*bartisan* keeps the sum of trees and replaces what sits on top of it. The forest
-supplies an additive predictor $\eta(x)$, and the outcome follows whatever
-density the family names,
-
-$$\eta(x) = \sum_{m=1}^{M} g(x; T_m, M_m), \qquad
-  Y \mid x \sim p\{y \mid \eta(x), \theta\},$$
-
-with $\theta$ collecting any parameters of the density that are not functions of
-$x$, such as a residual standard deviation or a shape. These are the nuisance
-parameters, and they are drawn alongside the trees.
-
-Some families need more than one function of $x$. A location-scale model has a
-mean and a log standard deviation; a zero-inflated count has a rate and a
-probability of a structural zero. Those get one forest each:
-
-$$\eta_h(x) = \sum_{m=1}^{M_h} g(x; T_{hm}, M_{hm}), \qquad h = 1, \dots, H,$$
-
-and the sampler cycles over all the forests. `vignette("families")` says how many
-each family uses.
-
-## The prior
-
-Three pieces, all with defaults chosen so that the fit is regularized without
-being tuned [@chipman2010].
-
-**Tree structure.** A node at depth $d$ is split rather than left as a leaf with
-probability
-
-$$\alpha (1 + d)^{-\beta}, \qquad \alpha = 0.95, \; \beta = 2.$$
-
-This falls off quickly, so trees are shallow: most have two or three leaves. It
-is the main reason a forest of 50 trees does not overfit.
-
-**Leaf values.** Each $\mu_b$ is normal with mean zero and a standard deviation
-that shrinks as trees are added, so that the sum has a sensible scale whatever
-$M$ is. The `k` argument in `bartisan_control()` sets how hard this shrinks:
-larger `k` pulls the fit toward the intercept-only model. The default is a
-compromise that works across a wide range of problems, and it is rarely worth
-changing.
-
-**Nuisance parameters.** Each family sets its own, for example a half-Cauchy on a
-scale parameter.
-
-The prior does the work that cross-validation does in other tree ensembles. There
-is no learning rate, no depth limit, and no early stopping.
-
-## Soft rules
-
-A rule in classic BART is a step: an observation with $x_j \le c$ goes left and
-everything else goes right. The fitted function is then a step function, which is
-a poor description of a smooth truth.
-
-Soft rules replace the step with a gate [@linero2018]. An observation goes left
-with weight
-
-$$\psi\left(\frac{x_j - c}{\tau}\right),$$
-
-where $\psi$ is a cumulative distribution function and $\tau$ is a bandwidth, and
-right with the remaining weight. Every observation reaches every leaf with some
-weight, and the fitted function is smooth. As $\tau \to 0$ the gate becomes a
-step and the hard rule is recovered.
-
-The `gate` argument chooses $\psi$: `"smoothstep"` (the default),
-`"smootherstep"`, `"logistic"`, or `"hard"`. The first two are polynomial and
-reach exactly zero and one outside a finite window, which is faster than the
-logistic and usually just as good. `bandwidth` sets the prior mean of $\tau$,
-which is drawn rather than fixed.
-
-Soft rules cost about three times as much per iteration and are usually worth
-it:
-
-```{r softhard}
-friedman <- function(n) {
-  x <- as.data.frame(matrix(runif(n * 10), n, 10))
-  names(x) <- paste0("x", 1:10)
-  x$eta <- 10 * sin(pi * x$x1 * x$x2) + 20 * (x$x3 - 0.5)^2 +
-    10 * x$x4 + 5 * x$x5
-  x
-}
-
-train <- friedman(n)
-test  <- friedman(1000)
-train$y <- train$eta + rnorm(n)
-
-timed <- function(gate) {
-  started <- proc.time()[["elapsed"]]
-  fit <- bartisan(y ~ . - eta, data = train, family = gaussian(),
-                  control = bartisan_control(num_trees = 20, num_burn = 300,
-                                             num_draws = 300, gate = gate))
-  data.frame(rules = gate,
-             test_rmse = sqrt(mean((predict(fit, newdata = test) - test$eta)^2)),
-             seconds = round(proc.time()[["elapsed"]] - started, 1))
-}
-
-rbind(timed("smoothstep"), timed("hard"))
+```{r ppcheck, eval = FALSE, fig.height = 3.0}
+bayesplot::pp_check(fit)
 ```
 
-The true function has a standard deviation of about
-`r round(sd(test$eta), 1)`, so both are fitting real structure and the soft fit
-is the more accurate.
+For a binary outcome this is a weaker check than it is for a continuous one:
+there are only two values to get right, so the replicates match unless something
+has gone badly wrong. `vignette("diagnostics")` covers what to do instead.
 
-## Sparsity
+## Which predictors the model uses
 
-By default the variable a rule splits on is drawn from a categorical
-distribution whose probabilities have a Dirichlet prior [@linero2018sparse]:
-
-$$s \sim \mathrm{Dirichlet}(\alpha/p, \dots, \alpha/p),$$
-
-with $\alpha$ itself drawn. Small $\alpha$ concentrates the probability on a few
-predictors, so the forest can stop splitting on the rest entirely. This is DART,
-and it is what `sparsity = TRUE` means. It is the default.
-
-The alternative, `sparsity = FALSE`, gives every predictor the same splitting
-probability, which is classic BART.
-
-The difference matters for variable selection. @chipman2010 note that counting
-splits works poorly when there are many trees, "because the redundancy offered by
-so many trees tends to mix many irrelevant predictors in with the relevant ones",
-and recommend reducing the number of trees so that predictors compete. The
-Dirichlet prior addresses the same problem directly, by letting irrelevant
-predictors be dropped rather than crowded out.
-
-Both effects are visible on the Friedman function, where `x1` to `x5` matter and
-`x6` to `x10` are noise. The table reports the average posterior probability of
-being used, over three replicates at $n = 500$:
-
-```{r sparsitytable, echo = FALSE}
-knitr::kable(data.frame(
-  Trees = c(10, 20, 50, 100),
-  `noise, sparsity = FALSE` = c(0.28, 0.50, 0.95, 1.00),
-  `noise, sparsity = TRUE` = c(0.09, 0.08, 0.09, 0.14),
-  check.names = FALSE),
-  caption = "Mean prop_used for the five noise predictors. The five real predictors sit at 1.00 in every cell.")
+```{r varimp}
+variable_importance(fit)
 ```
 
-Without the sparsity prior the advice to use fewer trees is essential: at 50
-trees the noise predictors are used in 95% of draws and are indistinguishable
-from the real ones. With it, the noise predictors stay near zero at every tree
-count, and reducing the trees buys little. The recommendation is a workaround for
-the absence of the prior rather than a property of variable selection in general.
+`splits` is the average number of splitting rules the forest spends on each
+predictor per draw, and `prop_used` is the proportion of draws in which the
+predictor received any rule at all.
 
-Two things this does not fix. Sparsity needs signal: on a small sample with a
-weak fit nothing separates, and the honest reading of a flat table is that the
-data cannot rule anything out. And it says nothing about effect size.
-`vignette("importance")` covers both.
+`surv2m` takes the most rules, which is unsurprising: it is a prognostic score
+built to predict survival. Age follows. At the bottom, race and sex are used in
+about half the draws, which says the model can often do without them.
 
-# How it is fitted
+Two cautions. Usage is not effect size: a predictor can be split on constantly
+and still move the prediction very little, and `marginaleffects::avg_comparisons()` in the next
+section is the better guide to that. And, when predictors are correlated, the usage
+distributes among them more or less arbitrarily.
 
-## Bayesian backfitting
+`vignette("importance")` covers variable importance and selection, including how
+to tell whether a difference in this table means anything.
 
-The trees are updated one at a time. To update tree $m$, subtract the
-contribution of every other tree from the predictor, leaving a partial residual
-that only tree $m$ has to explain, then draw $(T_m, M_m)$ given that residual.
-Cycling over all trees, and then over the nuisance parameters, is one sweep. The
-draws saved after warmup are the posterior sample.
+## Interpreting the fit
 
-## Moving the trees
+A forest has no coefficients, so there is no table of slopes to read. The
+question "what is the effect of catheterization" is answered by asking the fitted
+model what it predicts when every patient receives it, asking again when none
+does, and taking the difference. *marginaleffects* does this.
 
-A tree is proposed by a small local change: growing a leaf into two, pruning a
-pair of leaves back into one, or changing a splitting rule. The proposal is
-accepted or rejected by a Metropolis-Hastings step. Because growing and pruning
-change the number of parameters, this is a reversible-jump sampler.
+```{r effects, eval = has_me}
+library(marginaleffects)
 
-The acceptance ratio needs the likelihood of the tree with the leaf parameters
-integrated out,
-
-$$p(\text{residual} \mid T) = \int p(\text{residual} \mid T, M) \, p(M) \, dM.$$
-
-## Why the general case is hard, and what this package does
-
-For a Gaussian outcome with a normal leaf prior that integral is a normal
-integral and has a closed form. This is what confines classic BART to Gaussian
-likelihoods, or to likelihoods that can be made Gaussian by augmentation.
-
-For anything else the integral has no closed form. @linero2025 replaces it with a
-Laplace approximation: expand the log integrand around its mode, integrate the
-resulting quadratic, and use that both to score the tree and to propose the leaf
-values. A Metropolis correction then makes the chain target the exact posterior.
-The approximation only has to be good enough to be accepted often; it does not
-have to be right.
-
-The practical consequence is the reason the package exists. A family needs only
-the log density of one observation and its first two derivatives with respect to
-the predictor. Anything that can supply those can be fitted, which is why
-`custom_family()` takes an R function and works.
-
-The sampler recognizes three shapes of the leaf-level target and uses the
-cheapest machinery each admits:
-
-| Shape | Meaning | Cost |
-| --- | --- | --- |
-| Quadratic | the target is exactly Gaussian, so the Laplace step is exact | closed form, no rejection |
-| Exponential | of the form $a\eta + b e^{r\eta}$, as for a count or a Weibull | one mode-solve |
-| General | anything else | Newton iteration |
-
-A family that reaches the quadratic shape is several times faster than one that
-does not. This is what data augmentation is for.
-
-## Data augmentation
-
-Some likelihoods are not Gaussian but become Gaussian once an extra latent
-variable is imagined and drawn alongside everything else.
-
-- A **probit** model is a Gaussian one on a latent scale that is truncated by the
-  observed category [@albert1993]. Draw the latent value and the target is
-  exactly quadratic.
-- A **logistic** model becomes Gaussian conditional on a Pólya-Gamma variable
-  [@polson2013], which acts as a per-observation precision.
-- A **censored** outcome becomes an ordinary one once the unobserved value is
-  imputed from its truncated distribution.
-
-`augment = TRUE`, the default where a scheme exists, turns these on. They change
-the sampler and not the model: the posterior is the same, reached faster.
-`vignette("families")` says which families have one.
-
-## Nuisance parameters
-
-Anything in the density that is not a function of $x$ is drawn once per sweep,
-after the trees. A residual standard deviation, a negative binomial dispersion,
-the cutpoints of an ordinal model, and the baseline hazard of a proportional
-hazards model are all handled this way. They come back in `fit$aux` and are
-summarized by `summary()`.
-
-A likelihood written with `custom_family()` can have them too, by naming them in
-`aux_names`. There is no prior argument: a parameter with a restricted range is
-handled by writing the transform into the density, exactly as it would be for a
-real predictor.
-
-## The Dirichlet process mixture
-
-Two families, `dpm()` and `dpm_aft()`, do not assume a shape for the error at
-all. They model it as a mixture of normals with a Dirichlet process prior on the
-mixing distribution [@escobar1995; @george2019], which lets the number of
-components grow with the data. The mixture is constrained to have mean zero so
-that the forest still carries the conditional mean.
-
-Conditional on which component each observation belongs to, the model is Gaussian
-and the target is quadratic, so the extra flexibility is cheap. `error_density()`
-reports the fitted error distribution, which is the diagnostic the family exists
-to provide. Because the mixture can collapse to a single component, it costs
-little when a single normal was right.
-
-# Practical matters
-
-## Missing predictor values
-
-Missing predictor values are handled natively, by treating missingness as
-something to split on [@twala2008]. A rule can send missing values left, send
-them right, or split on missingness itself, and which of these is used is part of
-the posterior. No imputation is required and rows are not dropped.
-
-```{r missing}
-d_miss <- train
-d_miss$x1[sample(n, 60)] <- NA
-
-fit_miss <- bartisan(y ~ . - eta, data = d_miss, family = gaussian(),
-                     control = ctrl)
-
-sqrt(mean((predict(fit_miss, newdata = test) - test$eta)^2))
+avg_comparisons(fit, variables = "rhc")
 ```
 
-The fit uses the incomplete variable rather than discarding it. This is a
-prediction tool and not a substitute for thinking about why values are missing;
-it assumes the pattern of missingness is itself informative, which is sometimes
-true and sometimes not.
+Catheterization is associated with an increase of about six percentage points in
+the probability of death. The interval runs from roughly zero to eleven points,
+so the direction is reasonably clear and the size is not.
 
-## Several chains
+The lower bound is exactly zero rather than merely close to it, and that is worth
+knowing about. The default splitting prior can drop a predictor from the forest
+entirely, and in a draw where it drops `rhc` the contrast is exactly zero, so the
+posterior has a point mass there. The default settings are not necessarily the best ones to use for causal effect estimation; more specialized methods, like Bayesian causal forests (BCF) and BART without sparsity-inducing priors, are described at `vignette("causal")`.
 
-`chains` runs the sampler more than once from different starting points. The
-default is one, which is enough for estimates. Running several is what makes
-`fit$rhat` available, which is the only way to see whether the sampler has
-converged.
+Because the outcome is binary, this is a difference in probability, which is
+interpretable without reference to the model. That is usually the number to
+report. The underlying probabilities are also worth showing:
 
-```{r chains}
-fit_chains <- bartisan(y ~ . - eta, data = train, family = gaussian(),
-                       chains = 4, control = ctrl)
-
-fit_chains$rhat
+```{r risks, eval = has_me}
+avg_predictions(fit, variables = "rhc")
 ```
 
-Read this table selectively. `aux.sigma` and `loglik` are close to 1, which is
-what you want, and they respond to longer chains in the usual way.
+About 63% of patients would be expected to die without catheterization and 69%
+with it, averaging over the covariates as they actually occur in this sample.
 
-The `eta` row does not, and it is worth knowing why before it alarms you. It is
-the worst value over all `r n` observations, so it is a maximum by construction,
-and forests mix slowly on their fitted values: two chains can visit quite
-different sets of trees that imply very similar predictions, which inflates a
-between-chain statistic without meaning the answers disagree. Adding draws does
-not reliably bring it down. Values above 1.05 on this row are ordinary for a
-BART fit, and it is characteristic of the method rather than of this
-implementation.
+### Looking at a relationship
 
-What to do instead is check that the quantities you will report are stable. If
-`sigma` and the log likelihood have converged and an `avg_comparisons()` estimate
-is the same across chains, the fit is usable whatever the `eta` row says.
+Effects averaged over the sample hide the shape of the relationship. To see the
+shape, plot the model's predictions against one predictor.
 
-Chains run sequentially unless a `future` plan is set, in which case they run in
-parallel. `vignette("diagnostics")` covers this properly, including which
-statistic to look at when the fitted values are the estimand.
+```{r pdp, eval = has_me && has_gg, fig.height = 3.0}
+plot_predictions(fit, condition = "surv2m") +
+  ggplot2::labs(x = "estimated probability of surviving two months",
+                y = "fitted probability of death") +
+  ggplot2::theme_bw()
+```
 
-## Choosing the settings
+The fitted probability of death falls from about 0.88 to about 0.45 as the
+prognostic score rises, and the fall is not a straight line. A logistic
+regression reports one slope on the log-odds scale for the whole range. Nothing
+had to be specified to find the shape.
 
-Most of `bartisan_control()` does not need to be touched. In rough order of how
-often changing one is worth it:
+The band is a credible interval, and it widens at the top where few patients
+were that healthy.
 
-| Setting | When to change it |
+`vignette("effects")` covers effects, curves, and interactions.
+
+## Predicting new observations
+
+`predict()` returns the posterior mean prediction.
+
+```{r pred}
+new_patient <- rhc[1, ]
+new_patient$rhc <- 1
+
+predict(fit, newdata = new_patient)
+```
+
+For a prediction with an interval, use `marginaleffects::predictions()`^[Note that by default, *marginaleffects* uses the posterior median as the point estimate, whereas `predict()` uses the posterior mean, so these values may differ slightly. Use `options("marginaleffects_posterior_center" = "mean")` prior to running `predictions()` to produce the posterior mean.]:
+
+```{r predint, eval = has_me}
+predictions(fit, newdata = new_patient)
+```
+
+This describes the probability that a patient with these characteristics dies. It
+is an interval for that probability, not a statement about which way any
+individual patient will go: the outcome itself is either 0 or 1, and a
+probability of 0.7 is entirely compatible with survival.
+
+For a continuous outcome, the distinction between an interval for the mean and an
+interval for a new observation matters a great deal, and
+`vignette("effects")` covers it. For a binary outcome the second is rarely what
+anyone wants.
+
+## Comparing models
+
+Approximate leave-one-out cross-validation estimates how well a model predicts
+data it has not seen.
+
+```{r loo, eval = has_loo}
+library(loo)
+
+loo(fit)
+```
+
+`elpd_loo` is the estimated log predictive density on held-out data, where higher
+is better. `p_loo` is the effective number of parameters, which is a measure of
+how much of the data the forest is actually using. The Pareto k diagnostics are
+all good, meaning the approximation is trustworthy for this fit.
+
+Two models can be compared directly. Here we ask whether the physiological
+measurements earn their keep over knowing the patient's demographics alone:
+
+```{r loocompare, eval = has_loo}
+set.seed(2026)
+demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
+                         family = binomial(), chains = 4)
+
+loo_compare(list(full = loo(fit), demographics = loo(demographics)))
+```
+
+The full model predicts better by around six times the standard error of the
+difference, which is what you would expect: how sick a patient is on arrival is
+the main thing that predicts whether they die.
+
+`vignette("comparison")` covers model comparison, and the cases where
+leave-one-out fails.
+
+## What to be careful about
+
+The model is flexible about the shape of the relationship and nothing else.
+
+It does not make an association causal. Patients were not randomized to
+catheterization; sicker patients were more likely to receive it, which is exactly
+the kind of confounding that can produce an apparent harm. Whether the estimate
+above can be read as the effect of the procedure depends on whether the
+covariates account for that selection, which is a question about the study and
+not about the fit. `vignette("causal")` covers what is required, using this same
+data.
+
+It does not extrapolate reliably. Predictions for predictor values outside the
+range of the training data are shrunk toward the overall mean rather than
+continuing any trend.
+
+It does not fix a badly chosen family. Getting the outcome distribution wrong
+matters more than any sampler setting.
+
+## Where to go next
+
+| Topic | Vignette |
 | --- | --- |
-| `num_burn`, `num_draws` | when `rhat` says the chain has not converged |
-| `num_trees` | more for a complex function and a large sample; fewer to speed up |
-| `gate` | `"hard"` when the truth really is a step function, or for speed |
-| `sparsity` | `FALSE` to recover classic BART, which is rarely what you want |
-| `k` | to shrink harder toward the mean, in a very small sample |
+| How BART works, and the sampler | `vignette("implementation")` |
+| Choosing a family | `vignette("families")` |
+| Convergence and fit | `vignette("diagnostics")` |
+| Variable importance and selection | `vignette("importance")` |
+| Effects, curves, and interactions | `vignette("effects")` |
+| Model comparison | `vignette("comparison")` |
+| Causal inference | `vignette("causal")` |
+| Censored and survival outcomes | `vignette("survival")` |
 
-Everything else exists so that the checks in the test suite can be written, or
-because a specific family needs it.
+`?bartisan-package` has a shorter version of the same map, organized by task.
 
-The single decision that matters more than all of these is the family.
-`vignette("families")` covers it.
-
-## Where the time goes
-
-Cost per sweep is roughly linear in the number of observations and the number of
-trees. The family matters more than either: a family that reaches the quadratic
-target is several times faster than one that does not, which is why
-`lognormal_aft()` fits in about a second where `weibull_aft()` takes eight on the
-same data.
-
-# Further reading
-
-@hill2020 is a review of BART covering the model, its extensions and its
-applications. @chipman2010 is the original. @linero2018 introduces soft rules and
-@linero2018sparse the sparsity prior. @linero2025 is the sampler this package
-implements. For causal inference with BART, @hill2011 is the starting point and
-@hahn2020 the standard treatment of what goes wrong when treatment assignment is
-strongly predicted by the covariates. @murray2021 gives an alternative route to
-count and multinomial outcomes.
-
-# References
+## References
