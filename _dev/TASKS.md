@@ -76,7 +76,7 @@ difference.
 - [ ] A joint tridiagonal update for the ordinal cutpoints, which is what makes inference on the thresholds usable when there are many of them. The obstacle is the ordering constraint, not the algebra.
 - [ ] A `quasi()` family parameterized by link, variance function and dispersion update rule. Needs a documented weakening of the exactness claim.
 - [ ] **Partial dependence plots** and a **formal variable-selection test** rather than raw split counts, both of which `dbarts`, `SoftBart` and `bartMachine` have and this does not. Partial dependence is now largely reachable through `marginaleffects::plot_predictions()`, so this is less of a gap than it was.
-- [ ] Possibly a grow-from-root warm start for hard-rule fits, using a one-step Laplace criterion, to shorten burn-in. See the XBART assessment for why this is not obviously worth the code. It became more attractive, not less, once the augmentations landed: they made the per-sweep cost small enough that burn-in length is now the binding constraint on an ordinal fit.
+- [x] ~~Possibly a grow-from-root warm start for hard-rule fits, to shorten burn-in.~~ Struck: the transient is 34 to 70 sweeps against a default warmup of 500, so there is almost nothing to shorten. See the warm-start assessment.
 - [ ] Consider the `draw_prior` move from SoftBart, which proposes a whole fresh tree and helps escape local modes. It needs an `L`-dimensional Laplace proposal for the new leaves, so it is real work, not a port.
 - [ ] `vignette("bartisan")` does not cover the bounded gates or either ordinal augmentation; `vignette("families")` covers the augmentations but not the gates. The first runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
 - [ ] Missing data, further work: nothing forces the three missing-value rules to be equally likely, and a variable with a handful of missing values probably does not want a third of its rules spent on splitting by missingness. A prior weight on the third rule is a one-line change and an open question.
@@ -85,7 +85,7 @@ difference.
 - [ ] A lighter-tailed prior on the leaf scale, or an upper bound, would remove the separation pathology at the cost of changing the default prior. Not done unilaterally; the warning is the interim measure.
 - [ ] **`predict(type = "density")` returns NaN silently** when a composed link's inverse sends the predictor outside the family's support. Measured on `stats::Gamma("inverse")` with heavy-tailed data: five of eight replicates had draws where the predictor went non-positive, and each produced NaN densities for two to five test points out of 800. A negative fitted mean is not a gamma mean, so NaN is arguably the right *value*, but it should not be silent -- `bartisan()` already warns about the link at fit time and `predict()` says nothing. Left alone deliberately: it changes the output contract of `predict()`, which is the user's call. See the gamma comparison entry.
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
-- [ ] **Soft random tree features**, as a fast approximate fit and as a warm start for the sampler. Measured at 0.840 average out-of-sample R-squared against full soft BART's 0.872 at 200 features, for a fraction of the cost, and a soft basis beats a hard one by 0.16 R-squared at five trees. See the McCartan and Huang entry, which has three further items.
+- [x] ~~**Soft random tree features** as a warm start for the sampler.~~ Struck for the same reason; see the warm-start assessment, which also has what the prototype is worth as a standalone estimator (0.876 in 0.25 s against the sampler's 0.975 in 14 s).
 
 ## Speeding up the survival models
 
@@ -4783,3 +4783,77 @@ four now, and the vignette says why it is not among them. The vignette's own
 exactly the single-forest case the setting is for: the treatment is one
 predictor among many there. All of its reported numbers come from evaluated
 chunks rather than prose, so nothing there goes stale.
+
+## Assessment: the two warm-start items, and what to do instead
+
+Both To Do items aimed at the same thing, shortening burn-in: soft random tree
+features as a warm start, and a grow-from-root warm start for hard rules. The
+McCartan entry already noticed they are one item, since prior-drawn features
+cost one ridge solve and come from the prior. **Neither is worth building.** The
+measurement that settles it is not about either technique; it is about how much
+burn-in there is to save.
+
+### The transient is 34 to 70 sweeps, against a default of 500
+
+Fitted with `num_burn = 0` so that every sweep is retained, the log likelihood
+reaches within two standard deviations of its eventual level at:
+
+| fit | sweep |
+|---|---|
+| Gaussian, soft | 36 |
+| Gaussian, hard | 55 |
+| `ordinal()`, hard | 61 |
+
+And on the case that should be worst for warmup, 30 predictors with 25
+irrelevant, the share of splits on the five that matter goes 0.20 at sweep 1,
+0.59 at 25, 0.84 at 100, and reaches its plateau by sweep 34 under soft rules
+and 48 under hard.
+
+**So a warm start can remove at most 34 to 70 sweeps of a 1000-sweep run, or
+about 5%.** It cannot even reach that: it would have to be *better* than what
+the sampler does in those sweeps, and a basis drawn from a uniform prior over
+predictors is what the McCartan replication above measures as worse on exactly
+the sparse case where warmup takes longest (0.874 against DART's 0.958). The
+sampler would spend its early sweeps undoing the warm start.
+
+**The premise in the XBART entry is false as measured.** It said burn-in length
+had become the binding constraint on an ordinal fit once the augmentations
+landed. Burn-in length is not binding: it is already five to ten times longer
+than the transient. What binds is effective sample size per sweep, which a warm
+start does not touch, since it changes the starting point and not the kernel.
+
+### What the random-feature prototype is actually worth
+
+Sixty lines of R, n = 1500, p = 10 Friedman, out-of-sample R-squared:
+
+| trees | features | R-squared | seconds |
+|---|---|---|---|
+| 5 | 13 | 0.196 | 0.02 |
+| 20 | 53 | 0.722 | 0.05 |
+| 50 | 132 | 0.876 | 0.25 |
+| 200 | 515 | 0.900 | 5.33 |
+| 500 | 1261 | 0.908 | 45.04 |
+
+Full soft BART with DART at 50 trees, four chains, reaches **0.975 in 14.0 s**.
+
+Two things worth recording. The residual variance at 50 features is five times
+BART's (0.124 against 0.025), so this is a real accuracy sacrifice and not a
+free lunch; and the ridge solve is cubic in the feature count, so "a fraction of
+the cost" stops being true past a few hundred features (45 s at 500 trees is
+three times the full fit). Where it stands up is the middle of the table: 0.876
+in a quarter of a second, 56 times faster than the sampler. That is a case for a
+`random_features()` estimator for use inside a loop, which is a separate
+deliverable from anything about speed, and not a case for a warm start.
+
+### What was done instead
+
+`num_burn`'s default went from 500 to 200. Measured across seven designs and
+four families, out-of-sample error at 200 is within a standard error or two of
+500 and better on three of them, effective sample size per second improves by
+1.4 to 2.0 times, and wall clock falls by about a third. `dpm()` is the one
+family with a real cost, 4 standard errors and about 2.5% of its error, which
+`?bartisan_control` now says.
+
+Both items are struck. The third McCartan item, a sparsity-aware feature draw,
+is untouched and is the only one of the three that addresses the measured
+weakness.

@@ -94,9 +94,12 @@
 #'   reproduces the whole run either way, because each chain is given its own
 #'   L'Ecuyer stream.
 #' @param num_burn `numeric`; the number of warmup iterations to discard. Default
-#'   is 500. Warmup is where the trees grow into the data and the hyperparameters
+#'   is 200. Warmup is where the trees grow into the data and the hyperparameters
 #'   find their scale, so raising it buys convergence rather than precision:
-#'   increase it when `rhat` says the chains have not agreed.
+#'   increase it when `rhat` says the chains have not agreed. It was 500 through
+#'   earlier development, which measurement says is several times longer than
+#'   anything here needs; see Details for what was measured, and raise it for a
+#'   `dpm()` fit, which is the one family that showed a cost.
 #' @param num_draws `numeric`; the number of draws to keep. Default is 500. These
 #'   are what every estimate and interval is computed from, so raising it narrows
 #'   Monte Carlo error and does nothing about convergence: increase it when
@@ -195,6 +198,51 @@
 #' [bartisan()].
 #'
 #' @details
+#' ## How Long Warmup Needs to Be
+#'
+#' `num_burn` was 500 through earlier development and is now 200, because 500 is
+#' several times longer than the sampler takes to settle and warmup is time that
+#' produces no draws.
+#'
+#' **The transient is short.** Run with no warmup at all, so that every sweep is
+#' retained, the log likelihood reaches within two standard deviations of its
+#' eventual level by sweep 36 under soft rules, 55 under hard ones, and 61 for a
+#' hard-rule `ordinal()` fit. On the harder case for warmup, a sparse one with 30
+#' predictors of which 25 are irrelevant, the share of splits landing on the five
+#' that matter climbs from 0.20 to its plateau by sweep 34 under soft rules and
+#' 48 under hard, which is the variable-selection state settling and is the
+#' slowest thing warmup has to do.
+#'
+#' **Shortening it costs nothing measurable, and buys effective sample size per
+#' second.** Out-of-sample root mean squared error against the true regression
+#' function, four chains of 500 draws, against the same fit at `num_burn = 500`.
+#' A positive difference is worse; the standard error is of the paired
+#' difference.
+#'
+#' | design | 100 | 200 | paired SE |
+#' | --- | --- | --- | --- |
+#' | Gaussian, soft, n = 1500, p = 10 | -0.001 | +0.001 | 0.002 |
+#' | Gaussian, soft, n = 500, p = 30 | +0.003 | -0.002 | 0.003 |
+#' | Gaussian, hard, n = 1500, p = 10 | -0.001 | -0.002 | 0.003 |
+#' | `ordinal()`, hard | -0.021 | -0.007 | 0.011 |
+#' | `negbin()` | -0.002 | +0.001 | 0.003 |
+#' | `binomial()` | -0.019 | -0.016 | 0.009 |
+#' | `dpm()` | **+0.011** | **+0.006** | 0.002 |
+#'
+#' Every design but the last is within a standard error or two of the longer
+#' warmup, and several are better with the shorter one. Effective sample size per
+#' second improves everywhere, by 1.4 to 2.0 times, because the sweeps saved were
+#' producing nothing.
+#'
+#' **`dpm()` is the exception.** Its mixture carries a component-count state that
+#' settles more slowly than a forest does, and the cost is real rather than
+#' noise: 4 standard errors at 200 and 4 at 100. It is small in absolute terms,
+#' about 2.5% of the error at 200, and `num_burn = 500` is the setting to reach
+#' for when the error distribution itself is the object of interest.
+#'
+#' Raising `num_burn` is still what a large `rhat` calls for. What the
+#' measurement says is that 500 is not a good place to start from.
+#'
 #' ## How Many Trees, and How Many per Forest
 #'
 #' The tree count is the setting most worth thinking about after the family, and
@@ -716,7 +764,7 @@ bartisan_control <- function(num_trees = NULL,
                              k = 2,
                              bandwidth = 0.1,
                              chains = 1L,
-                             num_burn = 500L, num_draws = 500L, num_thin = 1L,
+                             num_burn = 200L, num_draws = 500L, num_thin = 1L,
                              augment = TRUE,
                              x_transform = "quantile",
                              gamma = 0.95, beta = 2,
