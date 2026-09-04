@@ -1039,7 +1039,24 @@ split_rhat <- function(x) {
   }
 
   half <- nrow(y)
-  within <- mean(apply(y, 2L, stats::var))
+
+  # A quantity the sampler holds fixed has nothing to diagnose, and the
+  # arithmetic below cannot be trusted to say so. `var()` returns a clean zero
+  # for a constant column; subtracting a column mean does not, because the mean
+  # of many copies of a value need not be that value back -- exact for 0 and for
+  # 2.5, not for `qnorm()` of an average rank, which is what this is handed. The
+  # rounding error then passes the guard below and turns nothing into an R-hat of
+  # 1. Asked here instead, the same way `ess_from()` asks it.
+  if (isTRUE(diff(range(y)) == 0)) {
+    return(NA_real_)
+  }
+
+  # The within-chain variances directly rather than through `apply()`, which
+  # splits the matrix into a list and calls a closure per column. This runs four
+  # times per column of draws (twice here, twice more on the late half), and the
+  # arithmetic is the same two passes either way: 4.3x faster, agreeing to the
+  # last bit of a variance.
+  within <- mean(colSums((y - rep(colMeans(y), each = half))^2) / (half - 1))
 
   # `isTRUE()` rather than a `<=` comparison because the quantity being guarded
   # can be NaN as well as zero -- a chain of one draw, or a constant -- and
@@ -1072,9 +1089,29 @@ split_chains <- function(x) {
 # transform guarantees it whatever the posterior looks like -- which also makes
 # the diagnostic invariant to any monotone reparameterization. Blom's offsets.
 rank_normalize <- function(x) {
-  r <- rank(x, ties.method = "average")
+  n <- length(x)
+  o <- order(x)
+  sorted <- x[o]
 
-  stats::qnorm((r - 3 / 8) / (length(r) - 1 / 4)) |>
+  # With no ties, averaging them is a no-op and the ranks are just the inverse
+  # of the ordering, which on its own is 1.67x faster than asking `rank()` for
+  # average ties, and worth 3% to 5% of the convergence pass measured end to
+  # end. Draws of a continuous quantity have no ties, and those are every column
+  # the pass walks bar a handful of scalar rows, so the fast path is nearly all
+  # of the work. Where there are ties, or a missing value, `rank()` answers as
+  # before; that costs the ordering twice, about 20% on those rows.
+  r <- {
+    if (anyNA(x) || any(sorted[-1L] == sorted[-n], na.rm = TRUE)) {
+      rank(x, ties.method = "average")
+    }
+    else {
+      out <- numeric(n)
+      out[o] <- seq_len(n)
+      out
+    }
+  }
+
+  stats::qnorm((r - 3 / 8) / (n - 1 / 4)) |>
     matrix(nrow = nrow(x), ncol = ncol(x))
 }
 
@@ -1084,12 +1121,15 @@ rank_normalize <- function(x) {
 # -- the same computation applied to the distance from the median -- catches
 # chains that agree about the middle and disagree about the spread, which the
 # first is blind to.
-rhat_rank <- function(x) {
+rhat_rank <- function(x, normalized = NULL) {
   if (is_null(split_chains(x)) || !all(is.finite(x))) {
     return(NA_real_)
   }
 
-  bulk <- rank_normalize(x) |>
+  # `normalized` is `rank_normalize(x)` when a caller already has it;
+  # `diagnosis_stats()` does, because the bulk effective sample size starts from
+  # the same thing.
+  bulk <- (normalized %or% rank_normalize(x)) |>
     split_rhat()
 
   folded <- abs(x - stats::median(x)) |>
@@ -1256,8 +1296,15 @@ ess_bulk <- function(x) {
 ess_tail <- function(x) {
   q <- stats::quantile(x, c(0.05, 0.95), names = FALSE, na.rm = TRUE)
 
-  worst(c(ess_from(rank_normalize((x <= q[1L]) * 1)),
-          ess_from(rank_normalize((x >= q[2L]) * 1))), min)
+  # The indicator takes two values, so rank-normalizing it is an affine map, and
+  # an effective sample size is built from ratios of autocovariances and so is
+  # invariant to one. It used to be rank-normalized anyway, which cost two of
+  # the seven rankings a column needs and changed nothing: measured over
+  # randomized cases the two agree to 8e-16 or exactly. Dropping it is also what
+  # the quantity is defined as, the effective sample size of the indicator
+  # itself.
+  worst(c(ess_from((x <= q[1L]) * 1),
+          ess_from((x >= q[2L]) * 1)), min)
 }
 
 # The leaf scale is drawn under a half-Cauchy prior, which has no upper bound.

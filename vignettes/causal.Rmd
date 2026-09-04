@@ -29,6 +29,10 @@ run <- has_me
 if (rlang::is_installed("future")) {
   future::plan(future::multisession)
 }
+
+if (interactive() && rlang::is_installed("progressr")) {
+  progressr::handlers(global = TRUE)
+}
 ```
 
 ## Introduction
@@ -134,7 +138,7 @@ set.seed(2026)
 ps_fit <- bartisan(
   rhc ~ age + sex + race + edu + aps + meanbp + resp + hema + pafi +
     paco2 + crea + surv2m + card,
-  data = rhc, family = binomial(), chains = 4
+  data = rhc, family = binomial("probit"), chains = 4
 )
 
 prop_score <- fitted(ps_fit)

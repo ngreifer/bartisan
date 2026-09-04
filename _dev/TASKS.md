@@ -4569,3 +4569,118 @@ representation recorded as available-and-not-taken below, and
 `rebuild_support()`, which is a full O(n x depth) rebuild every
 `bandwidth_every` sweeps and is where a soft-rule fit actually spends its extra
 time.
+
+## Log: the convergence pass, 35% to 40% faster, and the chunking that does not help
+
+### The suggestion that does not hold up
+
+Asked whether chunking into as many pieces as there are columns beats chunking
+into `nbrOfWorkers()` pieces. It does not. At n = 8000, all agreeing bitwise
+with the sequential result:
+
+| | 4 workers | 8 workers |
+|---|---|---|
+| `nbrOfWorkers()` chunks (current) | 3.90 s | 4.53 s |
+| one chunk per column, default scheduling | 5.01 s | 4.62 s |
+| 4x workers chunks, one future each | 5.74 s | 6.19 s |
+
+Under `future_lapply`'s default scheduling the change is close to a no-op,
+because it re-chunks whatever it is given into one future per worker; the extra
+cost is the per-element bookkeeping. Forcing one future per chunk, which is what
+would actually buy dynamic load balancing on a machine whose cores differ, is
+worse still and gets worse the more chunks there are: the dispatch dominates,
+and the chunks are equal in cost anyway, so there is no imbalance to correct.
+More chunks was monotonically worse at every multiple tried, up to 6.28 s at 16x
+workers.
+
+### What did help: doing less per column
+
+Profiled per column, `rank_normalize()` was the cost, and it ran **seven** times
+for every column. Three changes, in order of what they were worth:
+
+**The tail effective sample size does not need ranking at all.** The indicator
+takes two values, so rank-normalizing it is an affine map, and an effective
+sample size is built from ratios of autocovariances and so invariant to one.
+Over randomized cases the two agree to 8e-16 or exactly. It is also what the
+quantity is defined as. Two of the seven rankings, gone.
+
+**R-hat and the bulk effective sample size start from the same ranking.** Both
+began by computing `rank_normalize(x)` on the same draws. Computed once in
+`diagnosis_stats()` and handed to both, which is exact.
+
+**The within-chain variances without `apply()`.** `mean(apply(y, 2, var))` splits
+the matrix into a list and calls a closure per column, four times per column of
+draws. `colSums()` on the centered matrix is the same two passes, 4.3x faster,
+agreeing to the last bit.
+
+Then one smaller one: with no ties, average ranks are just the inverse of the
+ordering, so `order()` answers what `rank(ties.method = "average")` does at 1.67x
+the speed. Draws of a continuous quantity have no ties and those are every
+column the pass walks bar a handful of scalar rows; ties and missing values fall
+back to `rank()`. Worth 3% to 5% end to end, not the 20% the microbenchmark
+implied.
+
+Together, at n = 4000, alternating old and new implementations inside one R
+session, six rounds each:
+
+| | min | median |
+|---|---|---|
+| before | 6.505 s | 6.605 s |
+| after | 3.913 s | 4.300 s |
+
+**39.8% on the min, 34.9% on the median, faster in six of six rounds**, with the
+table agreeing to 1.6e-15. Rankings per column went from seven to four, which
+the shimmed call counts confirm: 28,021 against 16,012 over 4000 columns.
+
+### A measurement trap worth recording
+
+**pueue's default group runs four tasks at once, and this machine has four
+performance cores.** Two timings queued together compete for the same cores, and
+three measurements taken that way were wrong by up to 20% before the overlap was
+noticed. Worse, a `R CMD INSTALL` into the library a queued test run was reading
+truncated that run. Timing jobs go one at a time, and the queue gets checked
+before each.
+
+Cross-run variance on this machine is around 20% even with the queue empty,
+which is larger than several of the effects being chased here. Every claim above
+that is smaller than that comes from a **paired** comparison inside one session,
+alternating implementations, rather than from comparing two runs.
+
+## Open bug: a restricted forest silently turns the sparsity prior off
+
+Asked whether `bcf()` could take a sparsity prior on the effect forest but not
+the control function. It can be *written*, and for a varying-coefficient model
+in general it works. In `bcf()` with a propensity score, which is the default,
+it silently does nothing.
+
+Localized by spying on the engine call. `bcf(propensity = FALSE)` with
+`sparsity = c(FALSE, TRUE)` reaches the engine as `update_s = FALSE,TRUE` and no
+split matrix. With a propensity score it reaches the engine as `update_s =
+FALSE,TRUE` **and a 9x2 `split_prior` matrix**, and then
+
+- `resolve_split_matrix()` builds that matrix whenever `!all(masks)`, that is
+  whenever some forest may not split on some predictor, even though the caller
+  gave no `split_prior` at all. A `vc()` term is exactly such a restriction, and
+  the propensity score is what makes it a strict one: without it the moderators
+  are all the covariates and `all(masks)` holds, which is why the bug needs a
+  propensity score to show up.
+- `Hypers::Hypers()` (`src/hypers.cpp:58`) then sets `update_s = false` and
+  `update_alpha = false` because a column was supplied, on the reasoning that
+  "weights the caller supplied are a statement about the predictors, not a
+  starting point for one". Which is right for a `split_prior` a caller gave and
+  wrong for a mask the package generated.
+
+Measured: with a propensity score, `sparsity = TRUE`, `FALSE`, `c(FALSE, TRUE)`
+and `c(TRUE, FALSE)` all give **bitwise identical** fits. Without one they all
+differ. No warning is emitted, unlike the explicit `split_prior` case, which
+does warn.
+
+The two mechanisms are being sent down one channel. A mask says *which*
+predictors a forest may split on; `split_prior` says *hold these probabilities
+fixed*. They should compose -- a Dirichlet drawn over the allowed subset, zero
+elsewhere -- rather than the second cancelling the first. That needs the engine
+to take the mask separately from the weights, so `fixed_s` is true only when the
+caller actually fixed them.
+
+Reported, not fixed. Anything measured about sparsity in a `bcf()` fit with a
+propensity score is measuring `sparsity = FALSE`, whatever was asked for.

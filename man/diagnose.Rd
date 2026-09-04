@@ -101,12 +101,7 @@ that, because none of them looks at the forest.
 \subsection{The Leaf Scale Is Left Out}{
 
 \code{sigma_mu} is deliberately absent from the table. It mixes badly
-and not for a reason this package can fix: on the same data the same quantity
-comes out at R-hat 1.12 in \CRANpkg{dbarts} and 1.16 in \code{stochtree}, both of
-which draw it a different way, against 1.19 here. It is a hyperparameter
-nobody reports, and its disagreement between chains does not reach the fitted
-function: on those same fits the additive predictor has R-hat 1.00 and
-thousands of effective draws. It is still in \code{fit$sigma_mu} and still reaches
+and not for a reason this package can fix. It is still in \code{fit$sigma_mu} and still reaches
 \link[=bartisan-interop]{as_draws()} for anyone who wants to look.
 }
 
@@ -117,7 +112,7 @@ order matters because the fixes are not interchangeable.
 
 \strong{One chain} comes first, because nothing else can be diagnosed properly
 until there are several. \code{chains = 4} is the setting to reach for, and with
-\CRANpkg{future} installed the chains run in parallel, so it usually costs
+\CRANpkg{future} installed and a parallel backend used, the chains run in parallel, so it usually costs
 little wall clock.
 
 \strong{R-hat elevated but acceptable on the late draws} says warmup ended too

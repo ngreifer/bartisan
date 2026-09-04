@@ -197,7 +197,7 @@ diagnose <- function(object, rhat_max = 1.01, ess_min = 400) {
 
   out <- list(table = table,
               checks = checks,
-              advice = diagnosis_advice(checks),
+              advice = diagnosis_advice(checks, object[["control"]]),
               chains = chains,
               draws = draws,
               rhat_max = rhat_max,
@@ -293,9 +293,15 @@ diagnosis_table <- function(object, chains, rhat_max, step = NULL) {
 diagnosis_stats <- function(x) {
   wide <- if (ncol(x) < 2L) fold_halves(x) else x
 
-  c(rhat = rhat_rank(wide),
+  # R-hat and the bulk effective sample size are both computed from the
+  # rank-normalized draws, and ranking them is the single most expensive step in
+  # the pass, so it happens once here and both are handed the result. Worth
+  # about a twelfth of the pass.
+  normalized <- rank_normalize(wide)
+
+  c(rhat = rhat_rank(wide, normalized),
     rhat_late = rhat_late(wide),
-    ess_bulk = ess_bulk(wide),
+    ess_bulk = ess_from(normalized),
     ess_tail = ess_tail(wide))
 }
 
@@ -354,6 +360,8 @@ diagnosis_columns <- function(wide, chains, step) {
   # because below it the whole pass is a few hundredths of a second and the
   # first parallel call in a session still has to start the workers.
   workers <- if (rlang::is_installed("future.apply")) future::nbrOfWorkers() else 1L
+
+  # workers <- length(columns)
 
   if (columns < 100L || !isTRUE(workers > 1L)) {
     return(block(wide))
@@ -497,13 +505,14 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   }
 
   if (chains < 2L) {
-    add("chains", "warn",
-        sprintf("one chain, so R-hat can only compare it with itself; %s",
-                "set `chains = 4`"))
+    rows <- add(rows, "chains", "warn",
+                sprintf("one chain, so R-hat can only compare it with itself; %s",
+                        "set `chains = 4`"))
   }
   else {
-    add("chains", "ok", sprintf("%d chains, %d draws kept in total", chains,
-                                draws))
+    rows <- add(rows, "chains", "ok",
+                sprintf("%d chains, %d draws kept in total", chains,
+                        draws))
   }
 
   worst_at <- function(column, f) {
@@ -533,32 +542,32 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   bad_rhat <- worst_share("rhat_bad")
 
   if (is_null(bad_rhat)) {
-    add("rhat", "note", "not available")
+    rows <- add(rows, "rhat", "note", "not available")
   }
   else if (bad_rhat[["share"]] > FAIL_SHARE) {
-    add("rhat", "warn",
-        sprintf("above %.2f for %s%s", rhat_max, bad_rhat[["quantity"]],
-                share_suffix(bad_rhat[["share"]])))
+    rows <- add(rows, "rhat", "warn",
+                sprintf("above %.2f for %s%s", rhat_max, bad_rhat[["quantity"]],
+                        share_suffix(bad_rhat[["share"]])))
   }
   else {
-    add("rhat", "ok", sprintf("below %.2f throughout", rhat_max))
+    rows <- add(rows, "rhat", "ok", sprintf("below %.2f throughout", rhat_max))
   }
 
   bad_late <- worst_share("late_bad")
 
   if (is_null(bad_late) || is_null(bad_rhat)) {
-    add("warmup", "note", "not available")
+    rows <- add(rows, "warmup", "note", "not available")
   }
   else if (bad_rhat[["share"]] <= FAIL_SHARE) {
-    add("warmup", "ok", "long enough, since R-hat is already fine")
+    rows <- add(rows, "warmup", "ok", "long enough, since R-hat is already fine")
   }
   else if (bad_late[["share"]] <= FAIL_SHARE) {
-    add("warmup", "warn",
-        sprintf("too short: R-hat is fine on the second half of the draws alone, which is what more `num_burn` would have given"))
+    rows <- add(rows, "warmup", "warn",
+                sprintf("too short: R-hat is fine on the second half of the draws alone, which is what more `num_burn` would have given"))
   }
   else {
-    add("warmup", "note",
-        "not the whole story: R-hat stays high on the second half of the draws alone, so the chains disagree rather than merely start badly")
+    rows <- add(rows, "warmup", "note",
+                "not the whole story: R-hat stays high on the second half of the draws alone, so the chains disagree rather than merely start badly")
   }
 
   # The forest's own size gets its own line, because it is the one signal that
@@ -570,13 +579,13 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     at <- which.max(forest[["rhat"]])
 
     if (isTRUE(forest[["rhat_bad"]][at] > 0)) {
-      add("forest size", "warn",
-          sprintf("the chains disagree about how many splitting rules the forest has (R-hat %.2f)",
-                  forest[["rhat"]][at]))
+      rows <- add(rows, "forest size", "warn",
+                  sprintf("the chains disagree about how many splitting rules the forest has (R-hat %.2f)",
+                          forest[["rhat"]][at]))
     }
     else {
-      add("forest size", "ok",
-          "the chains agree about the size of the forest")
+      rows <- add(rows, "forest size", "ok",
+                  "the chains agree about the size of the forest")
     }
   }
 
@@ -585,25 +594,25 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     label <- if (identical(which, "ess_bulk")) "bulk ESS" else "tail ESS"
 
     if (is_null(lo)) {
-      add(label, "note", "not available")
+      rows <- add(rows, label, "note", "not available")
     }
     else if (lo[["value"]] < ess_min) {
-      add(label, "warn",
-          sprintf("%.0f for %s, below %.0f", lo[["value"]], lo[["quantity"]],
-                  ess_min))
+      rows <- add(rows, label, "warn",
+                  sprintf("%.0f for %s, below %.0f", lo[["value"]], lo[["quantity"]],
+                          ess_min))
     }
     else {
-      add(label, "ok", sprintf("at least %.0f, above %.0f", lo[["value"]],
-                               ess_min))
+      rows <- add(rows, label, "ok", sprintf("at least %.0f, above %.0f", lo[["value"]],
+                                             ess_min))
     }
   }
 
   lo_frac <- worst_at("ess_frac", min)
 
   if (!is_null(lo_frac) && lo_frac[["value"]] < 0.05) {
-    add("autocorrelation", "note",
-        sprintf("%s carries %.1f effective draws per hundred kept",
-                lo_frac[["quantity"]], 100 * lo_frac[["value"]]))
+    rows <- add(rows, "autocorrelation", "note",
+                sprintf("%s carries %.1f effective draws per hundred kept",
+                        lo_frac[["quantity"]], 100 * lo_frac[["value"]]))
   }
 
   out <- do.call(rbind, rows)
@@ -624,9 +633,30 @@ share_suffix <- function(share) {
 # What to do, in the order to try it. Keyed to which check failed rather than to
 # the numbers, so that the two reasons chains disagree get the two different
 # fixes instead of one list of everything.
-diagnosis_advice <- function(checks) {
+diagnosis_advice <- function(checks, control = NULL) {
   failed <- function(name) {
     any(checks[["check"]] == name & checks[["status"]] == "warn")
+  }
+
+  # What the fit used, so that "raise `num_draws`" names a number the reader can
+  # act on rather than sending them back to the call to find out what it was.
+  # A clause rather than a sentence, so it reads as an aside where it lands. It
+  # comes out empty when the setting is not a single number, which `num_trees`
+  # is not when it differs by forest; naming one of several would be worse than
+  # naming none.
+  had <- function(...) {
+    nms <- c(...)
+    got <- control[nms]
+
+    if (!all(vapply(got, function(v) length(v) == 1L, logical(1L)))) {
+      return("")
+    }
+
+    values <- paste(sprintf("`%s`", vapply(got, format, character(1L))),
+                    collapse = " and ")
+
+    sprintf(", %s %s", if (length(nms) > 1L) "which were" else "which was",
+            values)
   }
 
   out <- character()
@@ -643,18 +673,23 @@ diagnosis_advice <- function(checks) {
 
   if (warmup) {
     out <- c(out, paste(
-      "Raise `num_burn`. R-hat is already acceptable on the second half of the",
+      paste0("Raise `num_burn`", had("num_burn"), "."),
+      "R-hat is already acceptable on the second half of the",
       "retained draws on their own, which is what a longer warmup would have",
       "given, so it is the early draws the chains disagree about."))
   }
 
   if (failed("rhat") && !warmup) {
     out <- c(out, paste(
-      "Raise `num_burn` and `num_draws` together. R-hat stays high even on the",
+      paste0("Raise `num_burn` and `num_draws` together",
+             had("num_burn", "num_draws"), "."),
+      "R-hat stays high even on the",
       "second half of the draws alone, so the chains have each settled",
       "somewhere different rather than merely started badly."))
     out <- c(out, paste(
-      "If that does not settle it, reduce `num_trees`. A smaller forest has",
+      paste0("If that does not settle it, reduce `num_trees`",
+             had("num_trees"), "."),
+      "A smaller forest has",
       "fewer ways to represent the same fit, so the sampler has less room to",
       "move between them."))
     out <- c(out, paste(
@@ -664,7 +699,8 @@ diagnosis_advice <- function(checks) {
 
   if ((failed("bulk ESS") || failed("tail ESS")) && !failed("rhat")) {
     out <- c(out, paste(
-      "Raise `num_draws`. The chains agree and are stationary, so they simply",
+      paste0("Raise `num_draws`", had("num_draws"), "."),
+      "The chains agree and are stationary, so they simply",
       "have not run long enough. Do not reach for `num_thin`: thinning",
       "discards draws already paid for and lowers the effective sample size",
       "per unit of time."))
@@ -673,7 +709,8 @@ diagnosis_advice <- function(checks) {
   if (failed("tail ESS") && !failed("bulk ESS")) {
     out <- c(out, paste(
       "The tail is the binding constraint, so a posterior mean is already fine",
-      "and an interval endpoint is not. Raise `num_draws` if intervals are",
+      paste0("and an interval endpoint is not. Raise `num_draws`",
+             had("num_draws"), " if intervals are"),
       "what gets reported."))
   }
 
@@ -703,11 +740,13 @@ print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
 
   for (i in seq_len(nrow(x[["checks"]]))) {
     row <- x[["checks"]][i, ]
-    bullet <- stats::setNames(list(row[["detail"]]), mark[[row[["status"]]]])
-    cli::cli_bullets(bullet)
+
+    list(row[["detail"]]) |>
+      setNames(mark[[row[["status"]]]]) |>
+      cli::cli_bullets()
   }
 
-  if (length(x[["advice"]]) == 0L) {
+  if (is_null(x[["advice"]])) {
     cli::cat_line()
     cli::cli_alert_success("Nothing to change.")
     return(invisible(x))
@@ -718,7 +757,9 @@ print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
   cli::cat_line()
 
   for (i in seq_along(x[["advice"]])) {
-    cli::cli_bullets(stats::setNames(list(x[["advice"]][i]), as.character(i)))
+    list(x[["advice"]][i]) |>
+      setNames(as.character(i)) |>
+      cli::cli_bullets()
   }
 
   invisible(x)
