@@ -8,10 +8,12 @@
 #
 # Run on ten cores it gives about 2.6x, 2.8x and 3.5x on eight workers at
 # n = 500, 2000 and 8000, and the pass is 53% to 77% of a four-chain fit's own
-# time when run sequentially. The ceiling is memory bandwidth rather than a
-# serial section: given the same columns to work on, a worker takes 1.17s alone
-# and 1.97s when eight run at once. Nothing in `diagnose()` is left to remove,
-# so treat a shortfall against linear scaling here as expected.
+# time when run sequentially. The ceiling is the number of fast cores rather
+# than a serial section: that machine is an M4, four performance cores and six
+# efficiency ones, and per-worker time is nearly flat to four workers and climbs
+# after. A compute-bound loop over 8 KB of data gives the same curve, so it is
+# not the size of the draws. Nothing in `diagnose()` is left to remove, and the
+# same script should scale further on more than four equal cores.
 #
 # Needs a machine with cores. On one where `parallelly::availableCores()` reports
 # 1 every worker contends for the same core and the numbers say nothing.

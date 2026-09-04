@@ -2546,11 +2546,30 @@ and timing them concurrently:
 | 4 | 1.32 s | 1.13x |
 | 8 | 1.97 s | 1.69x |
 
-The work per worker is identical, so a compute-bound pass would be flat. It is
-memory bandwidth: the pass streams 12.8 MB per block through an FFT and eight of
-those contend. 1.17 x 1.69 + 0.37 of transfer accounts for the 2.36 s measured.
-So `O` in the `T(p) = O + W/p` fit is not a serial section that could be
-removed; it is contention, which that model can only represent as one.
+The work per worker is identical, so a pass with cores to spare would be flat.
+1.17 x 1.69 + 0.37 of transfer accounts for the 2.36 s measured, so `O` in the
+`T(p) = O + W/p` fit is not a serial section that could be removed; it is
+contention, which that model can only represent as one.
+
+**And the contention is the core topology, not memory bandwidth.** Calling it
+bandwidth was the same mistake as the 819 MB: a cause assigned without a test
+that could rule it out. The machine is an M4, **four performance cores and six
+efficiency ones**, not ten equal ones. Running p copies of a compute-bound loop
+over 8 KB of data, which fits in L1 and so cannot be bandwidth-limited, against
+p copies of a loop that streams 100 MB and reuses nothing:
+
+| workers | compute-bound, 8 KB | bandwidth-bound, 100 MB |
+|---|---|---|
+| 2 | 1.08x | 1.04x |
+| 4 | 1.16x | 1.14x |
+| 6 | 1.43x | 1.51x |
+| 8 | 1.65x | 1.59x |
+
+The same curve, with the knee just after four. So the ceiling is four fast cores
+plus a fractional contribution from the slow ones, which is what 3.5x on "eight
+workers" means, and it is a fact about this machine rather than about the pass.
+More than four equal cores should scale further; the script is worth re-running
+if that ever gets measured.
 
 **Reverted the slicing.** No speed difference, and it holds a second 102 MB copy
 of the draws for the length of the pass. Both forms are bit-identical to the
@@ -4494,3 +4513,59 @@ not on the chain.
 
 The request is not lost, and the documentation says where it went:
 `attr(control, "supplied")` still holds what the caller asked for.
+
+## Log: what four chains on four cores actually cost
+
+Asked directly: is a four-chain fit on four cores as fast as a one-chain fit?
+Nearly. Measured on the M4 (four performance cores), `num_burn = num_draws =
+400`, 50 trees, hard rules:
+
+| | n = 2000 | n = 8000 |
+|---|---|---|
+| 1 chain, sequential | 0.73 s | 2.98 s |
+| 4 chains, sequential | 3.01 s (4.11x) | 12.12 s (4.06x) |
+| 4 chains, 4 workers | 0.89 s (**1.22x**) | 3.81 s (**1.28x**) |
+| 4 chains, 8 workers | 0.94 s | 3.95 s |
+
+So four chains cost about a quarter more wall clock than one, a speedup of 3.4x
+and 3.2x over running them in sequence. Sequential four chains costs 4.1x one
+chain, so the per-chain work really is the whole cost and the setup that
+`bartisan()` hoists out of the chain closure is not a meaningful share of it.
+
+**None of the remaining 25% is overhead that could be engineered away.** Two
+measurements settle it. Returning the draws costs 0.02 s at n = 2000 and 0.05 s
+at n = 8000 for all four chains together, against fits of 0.89 s and 3.81 s, so
+serialization is nothing. And running p concurrent one-chain fits that return
+only a scalar reproduces the whole gap: 1.18x per worker at p = 4 for n = 2000
+and 1.37x for n = 8000. It is the four-fast-cores ceiling from the entry above.
+
+That proxy is *worse* than the real four-chain fit at n = 8000 (1.37x against
+1.28x) because each worker in the proxy rebuilds the model frame, the design
+matrix and the quantile transform, which `bartisan()` does once in the calling
+session. Which is a small confirmation that hoisting the setup out of `engine()`
+was worth doing.
+
+**Eight workers for four chains is slower than four**, at both sizes. There are
+only four tasks, so the extra workers do nothing but get started. `workers` is
+worth setting to the chain count rather than to `availableCores()`.
+
+**`multicore` saves the startup and nothing else.** At n = 2000, four chains:
+
+| plan | cold plan + first fit | warm fit |
+|---|---|---|
+| `multisession` | 1.48 s | 0.90 s |
+| `multicore` | 0.98 s | 0.95 s |
+
+Setting the plan alone is 0.21 s for `multisession` and 0.00 s for `multicore`,
+the rest of the difference being each worker loading the package. Steady state
+is a wash. Worth knowing for a single fit in a script, not worth recommending
+generally, since forking is unavailable in RStudio and `supportsMulticore()` is
+`FALSE` there.
+
+**Where the remaining time is.** Since four chains cost 1.25x one chain, the wall
+clock of a fit is one chain's sampling, and chain parallelism has nothing left to
+give. Making fits faster means making a single chain faster: the flexBART support
+representation recorded as available-and-not-taken below, and
+`rebuild_support()`, which is a full O(n x depth) rebuild every
+`bandwidth_every` sweeps and is where a soft-rule fit actually spends its extra
+time.

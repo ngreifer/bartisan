@@ -107,12 +107,7 @@
 #' ## The Leaf Scale Is Left Out
 #'
 #' `sigma_mu` is deliberately absent from the table. It mixes badly
-#' and not for a reason this package can fix: on the same data the same quantity
-#' comes out at R-hat 1.12 in \CRANpkg{dbarts} and 1.16 in `stochtree`, both of
-#' which draw it a different way, against 1.19 here. It is a hyperparameter
-#' nobody reports, and its disagreement between chains does not reach the fitted
-#' function: on those same fits the additive predictor has R-hat 1.00 and
-#' thousands of effective draws. It is still in `fit$sigma_mu` and still reaches
+#' and not for a reason this package can fix. It is still in `fit$sigma_mu` and still reaches
 #' [as_draws()][bartisan-interop] for anyone who wants to look.
 #'
 #' ## What to Do About Poor Mixing
@@ -122,7 +117,7 @@
 #'
 #' **One chain** comes first, because nothing else can be diagnosed properly
 #' until there are several. `chains = 4` is the setting to reach for, and with
-#' \CRANpkg{future} installed the chains run in parallel, so it usually costs
+#' \CRANpkg{future} installed and a parallel backend used, the chains run in parallel, so it usually costs
 #' little wall clock.
 #'
 #' **R-hat elevated but acceptable on the late draws** says warmup ended too
@@ -376,15 +371,24 @@ diagnosis_columns <- function(wide, chains, step) {
   # holds a second copy of the draws for the length of the pass. Both forms are
   # bit-identical to the sequential result.
   #
-  # What actually limits the speedup is memory bandwidth. Given the same 1000
-  # columns to work on, a worker takes 1.17s alone and 1.97s when eight of them
-  # run at once, so the pass reaches about 3.5x on eight cores at n = 8000 and
-  # less at smaller sizes. There is no serial section left to remove.
-  parts <- future.apply::future_lapply(
-    chunks,
-    function(js) block(wide[, js, drop = FALSE]),
-    future.seed = FALSE,
-    future.packages = "bartisan")
+  # What limits the speedup is how many fast cores there are, and nothing in
+  # here. Given the same 1000 columns, a worker takes 1.17s alone and 1.97s when
+  # eight run at once; per-worker time is nearly flat to four workers and climbs
+  # after. That knee is the machine: the M4 this was measured on has four
+  # performance cores and six efficiency ones, and a compute-bound loop over
+  # 8 KB of data, where memory bandwidth cannot come into it, gives the same
+  # curve (1.16x at four workers, 1.43x at six, 1.65x at eight). So expect about
+  # 3.5x here and better where there are more than four equal cores.
+  if (rlang::is_installed("future.apply")) {
+    parts <- future.apply::future_lapply(
+      chunks,
+      function(js) block(wide[, js, drop = FALSE]),
+      future.seed = FALSE,
+      future.packages = "bartisan")
+  }
+  else {
+    parts <- lapply(chunks, function(js) block(wide[, js, drop = FALSE]))
+  }
 
   do.call(cbind, parts)
 }
@@ -485,9 +489,11 @@ FAIL_SHARE <- 0.2
 diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   rows <- list()
 
-  add <- function(check, status, detail) {
-    rows[[length(rows) + 1L]] <<- data.frame(check = check, status = status,
-                                             detail = detail)
+  add <- function(rows, check, status, detail) {
+    rows[[length(rows) + 1L]] <- data.frame(check = check, status = status,
+                                            detail = detail)
+
+    rows
   }
 
   if (chains < 2L) {
