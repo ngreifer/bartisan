@@ -158,18 +158,53 @@ progress_stepper <- function(report, total, steps) {
     return(function() invisible(NULL))
   }
 
-  every <- max(1L, as.integer(ceiling(total / steps)))
+  steps <- min(as.integer(steps), as.integer(total))
+
+  # The counts at which each tick is due, rather than a fixed stride. A stride of
+  # `ceiling(total / steps)` fires `floor(total / stride)` times, which is fewer
+  # than `steps` whenever the two do not divide, and the bar then stops short of
+  # full and is finished off by the handler rather than by the work. Thresholds
+  # fire exactly `steps` times by the time `total` is reached.
+  at <- as.integer(round(seq_len(steps) * total / steps))
   seen <- 0L
   fired <- 0L
 
   function() {
     seen <<- seen + 1L
 
-    if (seen %% every == 0L && fired < steps) {
+    while (fired < steps && seen >= at[fired + 1L]) {
       fired <<- fired + 1L
       report()
     }
 
     invisible(NULL)
+  }
+}
+
+# Hands out steppers whose tick counts add up to `steps` across however many
+# calls are made, so that a pass split into pieces fills its bar exactly once.
+#
+# The parallel convergence pass needs this. A single stepper sent to several
+# workers is *copied*, so each worker counts from zero and fires the share of
+# the ticks its own columns earn under a stride computed from the whole pass;
+# the shares add up to less than the bar, by more the more workers there are.
+# Asking for one stepper per chunk, with its own budget, adds up exactly.
+progress_budget <- function(report, total, steps) {
+  if (is_null(report) || !isTRUE(total > 0) || !isTRUE(steps > 0)) {
+    return(function(n) function() invisible(NULL))
+  }
+
+  columns <- 0L
+  ticks <- 0L
+
+  function(n) {
+    columns <<- columns + as.integer(n)
+
+    # Rounded against the running total rather than per piece, so the rounding
+    # error cannot accumulate.
+    share <- as.integer(round(steps * min(columns, total) / total)) - ticks
+    ticks <<- ticks + max(share, 0L)
+
+    progress_stepper(report, n, max(share, 0L))
   }
 }

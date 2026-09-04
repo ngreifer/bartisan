@@ -190,9 +190,12 @@ diagnose <- function(object, rhat_max = 1.01, ess_min = 400) {
   columns <- diagnosis_column_count(object)
   ticks <- min(PROGRESS_DIAG_TICKS, max(columns, 0))
 
-  step <- progress_stepper(diagnosis_reporter(ticks), columns, ticks)
+  # A budget rather than one stepper, because the pass is split by forest and
+  # then by chunk, and each piece needs its own share of the bar; see
+  # `progress_budget()`.
+  budget <- progress_budget(diagnosis_reporter(ticks), columns, ticks)
 
-  table <- diagnosis_table(object, chains, rhat_max, step)
+  table <- diagnosis_table(object, chains, rhat_max, budget)
   checks <- diagnosis_checks(table, chains, draws, rhat_max, ess_min)
 
   out <- list(table = table,
@@ -257,7 +260,7 @@ scalar_draws <- function(object) {
   out
 }
 
-diagnosis_table <- function(object, chains, rhat_max, step = NULL) {
+diagnosis_table <- function(object, chains, rhat_max, budget = NULL) {
   scalars <- scalar_draws(object)
 
   # Left out for the reason in the documentation: it mixes badly in every
@@ -276,7 +279,7 @@ diagnosis_table <- function(object, chains, rhat_max, step = NULL) {
     diagnosis_row(nm, as_chains(scalars[[nm]], chains), rhat_max)
   })
 
-  rows <- c(rows, diagnosis_worst_rows(object, chains, rhat_max, step))
+  rows <- c(rows, diagnosis_worst_rows(object, chains, rhat_max, budget))
 
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
@@ -343,10 +346,10 @@ diagnosis_row <- function(quantity, x, rhat_max) {
 # ascending order, so `cbind()` puts the columns back where they were. Without
 # \CRANpkg{future.apply} it is the same `vapply()` it always was, which is the
 # same choice `run_chains()` makes for the chains themselves.
-diagnosis_columns <- function(wide, chains, step) {
+diagnosis_columns <- function(wide, chains, budget) {
   columns <- ncol(wide)
 
-  block <- function(part) {
+  block <- function(part, step) {
     vapply(seq_len(ncol(part)), function(j) {
       out <- diagnosis_stats(as_chains(part[, j], chains))
       step()
@@ -361,10 +364,8 @@ diagnosis_columns <- function(wide, chains, step) {
   # first parallel call in a session still has to start the workers.
   workers <- if (rlang::is_installed("future.apply")) future::nbrOfWorkers() else 1L
 
-  # workers <- length(columns)
-
   if (columns < 100L || !isTRUE(workers > 1L)) {
-    return(block(wide))
+    return(block(wide, budget(columns)))
   }
 
   chunks <- split(seq_len(columns),
@@ -387,33 +388,41 @@ diagnosis_columns <- function(wide, chains, step) {
   # 8 KB of data, where memory bandwidth cannot come into it, gives the same
   # curve (1.16x at four workers, 1.43x at six, 1.65x at eight). So expect about
   # 3.5x here and better where there are more than four equal cores.
+  # One stepper per chunk, drawn here before anything is dispatched, so that the
+  # shares add up to the whole bar however many chunks there are. A single
+  # stepper is copied to each worker, and the copies each count from zero, which
+  # left the bar short of full by two ticks at four workers and more above that.
+  steppers <- lapply(chunks, function(js) budget(length(js)))
+
   if (rlang::is_installed("future.apply")) {
     parts <- future.apply::future_lapply(
-      chunks,
-      function(js) block(wide[, js, drop = FALSE]),
+      seq_along(chunks),
+      function(k) block(wide[, chunks[[k]], drop = FALSE], steppers[[k]]),
       future.seed = FALSE,
       future.packages = "bartisan")
   }
   else {
-    parts <- lapply(chunks, function(js) block(wide[, js, drop = FALSE]))
+    parts <- lapply(seq_along(chunks),
+                    function(k) block(wide[, chunks[[k]], drop = FALSE],
+                                      steppers[[k]]))
   }
 
   do.call(cbind, parts)
 }
 
-diagnosis_worst_rows <- function(object, chains, rhat_max, step = NULL) {
+diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
   out <- list()
 
   parts <- list(list(draws = object[["eta"]], stem = "eta", over = "observations"),
                 list(draws = object[["ranef"]], stem = "ranef", over = "levels"))
 
-  step <- step %or% function() invisible(NULL)
+  budget <- budget %or% function(n) function() invisible(NULL)
 
   for (part in parts) {
     for (h in seq_along(part[["draws"]])) {
       wide <- part[["draws"]][[h]]
 
-      per_column <- diagnosis_columns(wide, chains, step)
+      per_column <- diagnosis_columns(wide, chains, budget)
 
       # The worst 5% boundary rather than the single worst column, because the
       # worst of a thousand values is extreme even when every chain has

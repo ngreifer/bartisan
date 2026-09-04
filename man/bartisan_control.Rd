@@ -14,7 +14,7 @@ bartisan_control(
   bandwidth = 0.1,
   chains = 1L,
   num_burn = 200L,
-  num_draws = 500L,
+  num_draws = 800L,
   num_thin = 1L,
   augment = TRUE,
   x_transform = "quantile",
@@ -132,7 +132,7 @@ earlier development, which measurement says is several times longer than
 anything here needs; see Details for what was measured, and raise it for a
 \code{dpm()} fit, which is the one family that showed a cost.}
 
-\item{num_draws}{\code{numeric}; the number of draws to keep. Default is 500. These
+\item{num_draws}{\code{numeric}; the number of draws to keep. Default is 800. These
 are what every estimate and interval is computed from, so raising it narrows
 Monte Carlo error and does nothing about convergence: increase it when
 \code{ess_bulk} or \code{ess_tail} is small relative to what the reported quantity
@@ -175,7 +175,13 @@ from \code{k} and that forest's own tree count.}
 
 \item{update_sigma_mu}{\emph{Advanced.} \code{logical}; whether to draw the leaf
 standard deviation under a half-Cauchy prior rather than fixing it. Default
-is \code{TRUE}.}
+is \code{TRUE}. \code{FALSE} is worth reaching for when a binary fit mixes badly:
+where the predictors separate the response well the leaf scale is barely
+identified, and it wanders rather than settling, which drags the effective
+sample size of everything built on it down with it. On the propensity model
+of \code{vignette("causal")} it takes the additive predictor's effective sample
+size from 91 to 301 and the log likelihood's from 18 to 249, for about 1\%
+of held-out AUC.}
 
 \item{sigma_mu_ramp}{\emph{Advanced.} \code{numeric}; the fraction of warmup over which
 the leaf standard deviation is raised from near zero to its target. Default
@@ -299,7 +305,10 @@ difference.\tabular{llll}{
 Every design but the last is within a standard error or two of the longer
 warmup, and several are better with the shorter one. Effective sample size per
 second improves everywhere, by 1.4 to 2.0 times, because the sweeps saved were
-producing nothing.
+producing nothing. \code{num_draws} went from 500 to 800 at the same time, which
+spends some of what warmup gave back on draws that do count towards an
+effective sample size; the two together still run in less time than the old
+pair did.
 
 \strong{\code{dpm()} is the exception.} Its mixture carries a component-count state that
 settles more slowly than a forest does, and the cost is real rather than

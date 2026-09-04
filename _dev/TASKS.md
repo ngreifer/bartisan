@@ -4857,3 +4857,50 @@ family with a real cost, 4 standard errors and about 2.5% of its error, which
 Both items are struck. The third McCartan item, a sparsity-aware feature draw,
 is untouched and is the only one of the three that addresses the measured
 weakness.
+
+## Log: why a propensity model mixes badly, and the setting that fixes it
+
+Reported as the propensity model in `vignette("causal")` never mixing well, even
+at 8 chains and 10,000 draws. It is not the chains or the draws. On `rhc` with
+its 13 covariates, four chains of 1000 draws after 500 warmup:
+
+| setting | loglik R-hat / ESS | eta R-hat / ESS | mean `sigma_mu` | seconds |
+|---|---|---|---|---|
+| default | 1.163 / 18 | 1.099 / 28 | 0.420 | 16.6 |
+| `sparsity = FALSE` | 1.099 / 29 | 1.057 / 57 | 0.401 | 17.1 |
+| `probit` link | 1.188 / 16 | 1.087 / 34 | 0.210 | 19.5 |
+| `augment = FALSE` | 1.109 / 28 | 1.058 / 56 | 0.382 | 175.1 |
+| 200 trees | 1.114 / 26 | 1.030 / 146 | 0.208 | 95.6 |
+| hard rules | 1.077 / 36 | 1.077 / 39 | 0.289 | 10.9 |
+| **`update_sigma_mu = FALSE`** | **1.006 / 249** | **1.020 / 235** | 0.212 | 25.2 |
+
+**It is the leaf scale.** This is the failure `warn_runaway_scale()` names, one
+notch below the threshold that makes it warn. Predicting who was treated is a
+classification problem the covariates do well at, the likelihood rewards an
+ever-larger predictor, and a half-Cauchy prior with no upper bound is not enough
+to pin the scale down. It does not run away here, it merely fails to settle:
+`sigma_mu` averages 0.420 against the 0.21 it takes when it is fixed or when 200
+trees identify it. Everything downstream inherits that, which is why R-hat sits
+above 1.1 however many draws are taken.
+
+The two other things that help say the same thing. More trees works because each
+leaf then carries less and the scale is better identified, and it costs 5.8x the
+time to get a third of the benefit. Turning off the sparsity prior is worth about
+2x on its own, which is the separate and already-documented fact that the
+variable-selection state mixes slowly.
+
+**Held out, on four 75/25 splits:**
+
+| setting | eta ESS | ESS/second | log score | AUC |
+|---|---|---|---|---|
+| default | 91 | 5.02 | -0.5764 | 0.7390 |
+| `sparsity = FALSE` | 80 | 4.40 | -0.5771 | 0.7373 |
+| `update_sigma_mu = FALSE` | 301 | 16.61 | -0.5806 | 0.7318 |
+| both | **443** | **27.51** | -0.5803 | 0.7324 |
+| 200 trees | 185 | 4.06 | -0.5780 | 0.7363 |
+
+**5.5x the effective sample size per second for about 1% of AUC.** For a score
+that goes on to be a covariate in the outcome model that is a good trade, and
+badly mixed is the worse failure. Not made a default for `bcf()`'s propensity
+model on the strength of one dataset; it is written up under
+`?bartisan_control`'s `update_sigma_mu` so that it is findable.

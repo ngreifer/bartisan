@@ -208,7 +208,7 @@ bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
   covariates <- setdiff(
     attr(stats::terms(formula, data = data), "term.labels"), name)
 
-  if (length(covariates) == 0L) {
+  if (is_null(covariates)) {
     arg::err("{.arg formula} must name at least one covariate besides the
               treatment")
   }
