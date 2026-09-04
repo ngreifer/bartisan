@@ -2464,7 +2464,7 @@ Kept together because the pattern is the lesson.
 - "The zero-inflated gain would be smaller than the multinomial's, because only one of its two forests gains." 3.9x to 10.1x in ESS/s, and it pays under soft rules where neither forest gets the exponential form -- the direct target's log-sum-exp was the expensive part, not the missing shape.
 - "The Gaussian hard-rule fit regressed by 35%." It had not: two consecutive benchmark runs of the same build read 0.441 s and 0.593 s, and a best-of-five standalone measurement read 0.426 s both times. `_dev/benchmark.Rmd` defaults to two replicates, which is not enough to support a claim about a factor near two.
 
-## Log: the parallel pass was sending every worker the whole matrix
+## Log: what limits the parallel pass is memory bandwidth (a correction)
 
 `_dev/diagnose-timing.R` run on ten cores, which is the measurement the entry
 below could not take. `_dev/diagnose-timing.rds` holds it.
@@ -2509,8 +2509,64 @@ the FFT path, but the mechanism was never established and is not claimed here.
 The test keeps its tolerance rather than asserting exactness, on the grounds that
 an unexplained agreement is not something to depend on.
 
-Not re-benchmarked: the numbers above predate the fix, and no speedup figure goes
-into user-facing documentation until it is measured again on real cores.
+### The correction, after re-running on ten cores
+
+**The fix did nothing, and the diagnosis above is wrong.** Everything from "The
+cap had a findable cause" onward is left standing as the record of what was
+believed; this is what measurement says instead.
+
+Re-run with the slicing in place, against the same run above at eight workers:
+
+| n | before | after |
+|---|---|---|
+| 500 | 2.72x | 2.58x |
+| 2000 | 2.98x | 2.77x |
+| 8000 | 3.35x | 3.52x |
+
+Unchanged, within run-to-run variance. Head to head at n = 8000, the two forms
+were the same speed at every worker count (the slicing +0.9% at eight, +5.7% at
+four), even though `getGlobalsAndPackages()` reports 102.4 MB of globals per
+worker for the index form against 0.03 MB for the slicing. **The 819 MB was a
+size, and a time cost was inferred from it that does not exist.** Exporting the
+same object to a persistent `multisession` worker is not what its size suggests,
+and the honest lesson is that a size measured with `getGlobalsAndPackages()` is
+not a measurement of anything until it is timed.
+
+**What the ceiling actually is.** Profiled at n = 8000 on eight workers: the
+whole pass computes in 9.34 s sequentially, one eighth of the columns takes
+1.17 s with the machine to itself, and the parallel run takes 2.36 s. Slicing
+the blocks costs 0.016 s and `cbind`-ing the results 0.000 s, so there is no
+serial section to speak of. Giving each of `p` workers the *same* 1000 columns
+and timing them concurrently:
+
+| workers | per-worker compute | against one |
+|---|---|---|
+| 1 | 1.17 s | 1.00x |
+| 2 | 1.26 s | 1.08x |
+| 4 | 1.32 s | 1.13x |
+| 8 | 1.97 s | 1.69x |
+
+The work per worker is identical, so a compute-bound pass would be flat. It is
+memory bandwidth: the pass streams 12.8 MB per block through an FFT and eight of
+those contend. 1.17 x 1.69 + 0.37 of transfer accounts for the 2.36 s measured.
+So `O` in the `T(p) = O + W/p` fit is not a serial section that could be
+removed; it is contention, which that model can only represent as one.
+
+**Reverted the slicing.** No speed difference, and it holds a second 102 MB copy
+of the draws for the length of the pass. Both forms are bit-identical to the
+sequential result at 2, 3, 4, 5 and 8 workers, so the claim above that the
+slicing is what made the pass reproducible across worker counts is also wrong;
+whatever the 587 differing entries were, it was not this.
+
+**Also corrected: the `columns < 400` floor.** Its comment said the hand-off
+costs more than the work below that size. Measured on four workers, the split
+pays at every size tried: 3.09x at 2000 columns, 2.01x at 400, 3.03x at 200,
+2.07x at 50. Lowered to 100, and the comment now says what the floor is really
+for, which is that the first parallel call in a session has to start the workers.
+
+**The one claim that survives.** Deferring the pass out of `bartisan()` was
+right: sequentially it is 53%, 77% and 77% of a four-chain fit's own time at
+n = 500, 2000 and 8000.
 
 ## Log: the diagnostics moved to diagnose(), and the pass got parallel
 

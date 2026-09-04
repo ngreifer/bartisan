@@ -353,28 +353,36 @@ diagnosis_columns <- function(wide, chains, step) {
     }, numeric(4L))
   }
 
-  # Below this the hand-off costs more than the work: at 25 MB of draws the
-  # export is about a sixth of a second, which is most of a small pass.
+  # The hand-off is cheap enough that splitting pays well below the sizes that
+  # motivated it: measured on four workers, 200 columns went 3.0x and even 50
+  # went 2.1x. The floor is not there because the split stops paying, then, but
+  # because below it the whole pass is a few hundredths of a second and the
+  # first parallel call in a session still has to start the workers.
   workers <- if (rlang::is_installed("future.apply")) future::nbrOfWorkers() else 1L
 
-  if (columns < 400L || !isTRUE(workers > 1L)) {
+  if (columns < 100L || !isTRUE(workers > 1L)) {
     return(block(wide))
   }
 
   chunks <- split(seq_len(columns),
                   cut(seq_len(columns), workers, labels = FALSE))
 
-  # Cut into blocks *here*, so that what crosses to a worker is that worker's own
-  # columns. Mapping over the column indices instead and slicing inside the
-  # worker reads more naturally and is much worse: the closure then refers to
-  # `wide`, which makes it a global, and a global is sent to every worker. At
-  # 8000 observations that was 102 MB each, so 819 MB of serialization at eight
-  # workers against 102 MB now, and it was what capped the speedup at about
-  # three no matter how many workers were given. The cost is holding the blocks
-  # alongside the draws for the length of the pass, which is one extra copy.
+  # One block per worker, each worker slicing its own columns out of `wide`.
+  # That makes `wide` a global, which `future` exports to every worker, and by
+  # size that looks alarming: 102 MB at 8000 observations, so 819 MB across
+  # eight workers. Measured, it costs nothing. Cutting the blocks in this
+  # session first, so that only a worker's own columns cross, was within noise
+  # of this at every worker count tried (+0.9% at eight, +5.7% at four) and
+  # holds a second copy of the draws for the length of the pass. Both forms are
+  # bit-identical to the sequential result.
+  #
+  # What actually limits the speedup is memory bandwidth. Given the same 1000
+  # columns to work on, a worker takes 1.17s alone and 1.97s when eight of them
+  # run at once, so the pass reaches about 3.5x on eight cores at n = 8000 and
+  # less at smaller sizes. There is no serial section left to remove.
   parts <- future.apply::future_lapply(
-    lapply(chunks, function(js) wide[, js, drop = FALSE]),
-    block,
+    chunks,
+    function(js) block(wide[, js, drop = FALSE]),
     future.seed = FALSE,
     future.packages = "bartisan")
 

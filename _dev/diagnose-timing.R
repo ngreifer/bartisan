@@ -6,10 +6,15 @@
 # not obvious is whether the split pays, because the draws have to reach the
 # workers first (about 25 MB at n = 2000 with four chains of 400).
 #
-# This was never measured on real hardware: it was written on a machine where
-# `parallelly::availableCores()` reports 1, so every worker contended for one
-# core and the observed speedup of 1.16x said nothing. Run it somewhere with
-# cores.
+# Run on ten cores it gives about 2.6x, 2.8x and 3.5x on eight workers at
+# n = 500, 2000 and 8000, and the pass is 53% to 77% of a four-chain fit's own
+# time when run sequentially. The ceiling is memory bandwidth rather than a
+# serial section: given the same columns to work on, a worker takes 1.17s alone
+# and 1.97s when eight run at once. Nothing in `diagnose()` is left to remove,
+# so treat a shortfall against linear scaling here as expected.
+#
+# Needs a machine with cores. On one where `parallelly::availableCores()` reports
+# 1 every worker contends for the same core and the numbers say nothing.
 #
 # Run with: Rscript _dev/diagnose-timing.R
 # Writes:   _dev/diagnose-timing.rds
