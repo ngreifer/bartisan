@@ -93,7 +93,8 @@
 #' control function means. `"auto"` picks by the covariate, because neither
 #' answer wins everywhere. For a `0`/`1` covariate it uses zero, so \eqn{f_0} is
 #' the surface among the untreated (a quantity with its own meaning, and the one
-#' that recovers the coefficient best). For any other numeric
+#' that recovers the coefficient best, at a correlation of 0.987 against 0.975
+#' for mean-centering on the simulation in `_dev/`). For any other numeric
 #' covariate it uses the mean, because zero may be nowhere near the data: with a
 #' covariate around 50 the control function at zero is an extrapolation and
 #' recovery collapses to a correlation of 0.42.
@@ -127,7 +128,10 @@
 #' It needs between two and twenty distinct values, and a continuous covariate is
 #' refused rather than quietly binned.
 #'
-#' **At two values it is free, and it is what [bcf()] uses.** What it buys is that the answer stops
+#' **At two values it is free, and it is what [bcf()] uses.** Recovery is a tie:
+#' on the simulation in `_dev/coding-comparison.R` the effect's root mean squared
+#' error is 0.2014 against 0.1991 for a fixed zero, a paired difference of 0.0023
+#' with a standard error of 0.0140. What it buys is that the answer stops
 #' depending on which level was written as 1. Fitting the same data with the
 #' treatment coded `0`/`1` and again `1`/`0` and adding the two effects, which is
 #' zero if the coding does not matter, gives 0.0045 under a drawn coding against

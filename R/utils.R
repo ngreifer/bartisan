@@ -200,12 +200,21 @@ make_group_probs <- function(assign, term_labels) {
 # Returns NULL when there is nothing to say -- no weights asked for and every
 # forest using every predictor -- so that the ordinary case reaches the engine
 # exactly as it did before and the sparsity prior is left alone.
+# Two matrices, because the engine has to tell two things apart. `prior` is
+# weights the caller fixed, and fixing them is a statement that nothing should
+# draw over them. `mask` is which predictors a forest's own formula lets it split
+# on, which restricts what may be drawn without saying anything about how. Sent
+# down one channel, as they were, the second silently cancelled the sparsity
+# prior: a `vc()` term whose moderators are a strict subset of the covariates
+# produced a matrix the caller never asked for, and the engine read any matrix as
+# fixed weights. That is how `bcf()` with a propensity score lost its sparsity
+# prior on both forests at once.
 resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
                                  n_forest) {
   restricted <- !all(masks)
 
   if (is_null(split_prior) && !restricted) {
-    return(NULL)
+    return(list(prior = NULL, mask = NULL))
   }
 
   # `split_prior`'s own names are predictors, so a bare named vector cannot also
@@ -221,37 +230,52 @@ resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
     }
   }
 
-  out <- vapply(seq_len(ncol(masks)), function(h) {
-    # An intercept-only forest never splits, so its column is never read; a
-    # uniform one keeps the matrix rectangular, exactly as for the trailing
-    # pinned forests below.
-    if (!any(masks[, h])) {
-      return(rep.int(1 / length(groups), length(groups)))
-    }
+  uniform <- rep.int(1 / length(groups), length(groups))
+  allow_all <- rep.int(1, length(groups))
 
-    weights <- resolve_split_weights(per_forest[[h]], groups) %or%
-      rep.int(1 / length(groups), length(groups))
-
-    # A term this forest's formula does not name is not a term it may split on.
-    weights[!masks[, h]] <- 0
-
-    if (sum(weights) == 0) {
-      arg::err(c("The {.val {labels[h]}} forest has no predictor left to split on.",
-                 i = "Its formula names only predictors its {.arg split_prior}
-                      gives a weight of zero."))
-    }
-
-    weights / sum(weights)
+  # An intercept-only forest never splits, so neither column is ever read; an
+  # all-allowed mask keeps the arithmetic on the engine's side away from a
+  # support of no groups, exactly as for the trailing pinned forests below.
+  mask <- vapply(seq_len(ncol(masks)), function(h) {
+    if (!any(masks[, h])) allow_all else as.numeric(masks[, h])
   }, numeric(length(groups)))
 
-  # The trailing pinned forests are one leaf that never splits, so their column
-  # is never read; a uniform one keeps the matrix rectangular.
-  if (ncol(out) < n_forest) {
-    out <- cbind(out, matrix(1 / length(groups), nrow = length(groups),
-                             ncol = n_forest - ncol(out)))
+  prior <- {
+    if (is_null(split_prior)) NULL
+    else {
+      vapply(seq_len(ncol(masks)), function(h) {
+        if (!any(masks[, h])) {
+          return(uniform)
+        }
+
+        weights <- resolve_split_weights(per_forest[[h]], groups) %or% uniform
+
+        # A term this forest's formula does not name is not a term it may split
+        # on, so the caller's weight on it is not one the engine should see.
+        weights[!masks[, h]] <- 0
+
+        if (sum(weights) == 0) {
+          arg::err(c("The {.val {labels[h]}} forest has no predictor left to split on.",
+                     i = "Its formula names only predictors its {.arg split_prior}
+                          gives a weight of zero."))
+        }
+
+        weights / sum(weights)
+      }, numeric(length(groups)))
+    }
   }
 
-  out
+  # The trailing pinned forests are one leaf that never splits, so their columns
+  # are never read; these keep the matrices rectangular.
+  pad <- function(m, fill) {
+    if (is_null(m) || ncol(m) >= n_forest) {
+      return(m)
+    }
+
+    cbind(m, matrix(fill, nrow = length(groups), ncol = n_forest - ncol(m)))
+  }
+
+  list(prior = pad(prior, 1 / length(groups)), mask = pad(mask, 1))
 }
 
 resolve_split_weights <- function(split_prior, groups) {

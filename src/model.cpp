@@ -339,19 +339,33 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   double ramp_fraction = as<double>(control["sigma_mu_ramp"]);
   int num_ramp = static_cast<int>(std::floor(ramp_fraction * num_burn));
 
-  // Empty unless there is something to say, in which case it is one column per
-  // forest of one weight per predictor group, already normalized in R. Two
-  // things put values in it: weights the caller asked for, and the zeros that
-  // hold a forest to the predictors its own formula names.
+  // Both are empty unless there is something to say, and both are one column per
+  // forest of one value per predictor group.
+  //
+  // `split_prior` is weights the caller fixed, already normalized in R, and
+  // fixing them stops anything drawing them. `split_mask` is which groups a
+  // forest may split on at all, from its own formula, and leaves the drawing
+  // alone. They were one matrix once, which meant a `vc()` term naming fewer
+  // moderators than there are covariates silently turned the sparsity prior off.
   arma::mat split_prior;
-  if (control.containsElementNamed("split_prior") &&
-      !Rf_isNull(control["split_prior"])) {
-    split_prior = as<arma::mat>(control["split_prior"]);
+  arma::mat split_mask;
 
-    if (static_cast<int>(split_prior.n_cols) != H) {
-      stop("`control$split_prior` must have one column per forest (%d).", H);
+  auto forest_matrix = [&](const char* name) {
+    arma::mat out;
+
+    if (control.containsElementNamed(name) && !Rf_isNull(control[name])) {
+      out = as<arma::mat>(control[name]);
+
+      if (static_cast<int>(out.n_cols) != H) {
+        stop("`control$%s` must have one column per forest (%d).", name, H);
+      }
     }
-  }
+
+    return out;
+  };
+
+  split_prior = forest_matrix("split_prior");
+  split_mask = forest_matrix("split_mask");
 
   std::vector<std::unique_ptr<Hypers>> hypers;
   std::vector<std::vector<Tree*>> forests(H);
@@ -373,7 +387,8 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
       at("bandwidth", h),
       flag_at("update_bandwidth", h),
       static_cast<int>(at("bandwidth_every", h)), gate,
-      split_prior.n_cols > 0 ? arma::vec(split_prior.col(h)) : arma::vec())));
+      split_prior.n_cols > 0 ? arma::vec(split_prior.col(h)) : arma::vec(),
+      split_mask.n_cols > 0 ? arma::vec(split_mask.col(h)) : arma::vec())));
 
     for (int t = 0; t < num_trees[h]; t++) {
       forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na, &codes,

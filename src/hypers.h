@@ -54,12 +54,19 @@ struct Hypers {
   // and lets `update_s_` decide whether they are drawn. Non-empty fixes them at
   // the caller's weights, which is what `split_prior` in `bartisan_control()`
   // does, and then nothing draws them.
+  //
+  // `split_mask_` is a different statement and must not be confused with it: a
+  // zero says this forest may never split on that group, because its own formula
+  // does not name it, and says nothing about the weights of the groups that are
+  // left. The proportions are still drawn when asked for, over the allowed
+  // groups alone. Empty allows every group.
   Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
          double beta_, double alpha_, double alpha_scale_, double alpha_shape_1_,
          double alpha_shape_2_, bool update_sigma_mu_, bool update_s_,
          bool update_alpha_, bool soft_, double bandwidth_scale_,
          bool update_bandwidth_, int bandwidth_every_, int gate_,
-         const arma::vec& split_prior_ = arma::vec());
+         const arma::vec& split_prior_ = arma::vec(),
+         const arma::vec& split_mask_ = arma::vec());
 
   // Draw a (group, variable) pair: the group from s, then the variable from
   // that group's column of group_probs. Grouping lets the dummy columns of one
@@ -77,6 +84,12 @@ private:
   arma::vec s_;
   arma::vec log_s_;
   int num_groups_;
+
+  // The groups this forest may split on, as indices into s_. Every group unless
+  // a mask said otherwise. The Dirichlet is over these and s_ is zero off them,
+  // so `sample_var()` cannot propose one that is not here.
+  arma::uvec allowed_;
+
   arma::sp_mat group_probs_;
 };
 

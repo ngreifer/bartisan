@@ -654,14 +654,19 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   }
 
   # Matched against the predictors here rather than in `bartisan_control()`,
-  # which does not know them. The result is one weight per predictor group, so a
-  # factor's dummy columns share the weight given to the term, the way they
-  # already share one entry of the sparsity prior. One column per forest, since
-  # the weights are also how a forest is held to its own formula.
-  engine_control[["split_prior"]] <-
-    resolve_split_matrix(control[["split_prior"]], colnames(group_probs),
-                         labels, joint, vc[["masks"]],
-                         response[["n_forest"]])
+  # which does not know them. Each is one value per predictor group, so a
+  # factor's dummy columns share what the term was given, the way they already
+  # share one entry of the sparsity prior, and one column per forest.
+  #
+  # `split_prior` is weights the caller fixed; `split_mask` is which predictors
+  # each forest's own formula lets it split on. Separate, because the first says
+  # nothing may be drawn and the second only says over what.
+  split <- resolve_split_matrix(control[["split_prior"]], colnames(group_probs),
+                                labels, joint, vc[["masks"]],
+                                response[["n_forest"]])
+
+  engine_control[["split_prior"]] <- split[["prior"]]
+  engine_control[["split_mask"]] <- split[["mask"]]
 
   engine_control[["gate"]] <- gate_code(control[["gate"]])
 

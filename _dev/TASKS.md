@@ -4646,7 +4646,7 @@ which is larger than several of the effects being chased here. Every claim above
 that is smaller than that comes from a **paired** comparison inside one session,
 alternating implementations, rather than from comparing two runs.
 
-## Open bug: a restricted forest silently turns the sparsity prior off
+## Fixed: a restricted forest silently turned the sparsity prior off
 
 Asked whether `bcf()` could take a sparsity prior on the effect forest but not
 the control function. It can be *written*, and for a varying-coefficient model
@@ -4682,5 +4682,78 @@ elsewhere -- rather than the second cancelling the first. That needs the engine
 to take the mask separately from the weights, so `fixed_s` is true only when the
 caller actually fixed them.
 
-Reported, not fixed. Anything measured about sparsity in a `bcf()` fit with a
-propensity score is measuring `sparsity = FALSE`, whatever was asked for.
+### The fix
+
+The two statements now travel down two channels. `resolve_split_matrix()`
+returns both a `prior` and a `mask`, and it fills `prior` only when the caller
+actually supplied weights; `model.cpp` reads `control$split_mask` alongside
+`control$split_prior`; and `Hypers` keeps an `allowed_` index of the groups a
+forest may split on. The Dirichlet is drawn over those groups alone, with
+concentration `alpha / length(allowed)`, and `s` is held at zero off them, so
+`sample_var()` still cannot propose a predictor the formula did not name.
+`update_alpha_param()` averages `log_s` over the allowed groups, since the
+masked entries are negative infinity. `fixed_s`, and with it the refusal to
+draw, now means only what it says: the caller fixed the weights.
+
+Verified. With a propensity score, `sparsity = FALSE`, `TRUE`, `c(FALSE, TRUE)`
+and `c(TRUE, FALSE)` now give four different fits where all four used to be
+bitwise identical, and a `vc()` model whose moderators are a strict subset does
+too. The mask is still absolute: the effect forest in a `vc(z, ~ x1 + x2)` model
+took 2,314 splits, none of them on `x3` to `x8`. An explicit `split_prior` still
+fixes the weights, `sparsity` making no difference to it.
+
+Nothing else moved. Built the previous commit into a second library and compared
+ten configurations bitwise -- `bcf()` with and without a propensity score, plain
+fits with the prior on and off, soft rules, a restricted and an unrestricted
+`vc()` fit, an empty `~ 1` forest, a factor, and an explicit `split_prior` --
+and every one is identical. The only behavior that changes is the one that was
+broken.
+
+## Log: sparsity in bcf(), now that it can be asked for
+
+With the mask bug fixed, the original question is answerable. Twenty
+covariates, only `x2` moderates, n = 800, five replicates, propensity score
+included. `cateRMSE` and `cor` are against the true conditional effect;
+`x2/noise` is that predictor's share of the effect forest's splits over the
+average of the other nineteen; `atom@0` is the share of draws in which the
+effect forest took no splits at all.
+
+| tau | sparsity | ATE | cateRMSE | cor | x2/noise | atom@0 |
+|---|---|---|---|---|---|---|
+| 1 + 1.5 x2 | `FALSE` (default) | 1.009 | 0.417 | 0.963 | 6 | 0.00 |
+| | `TRUE` | 1.011 | 0.303 | 0.987 | 3689 | 0.00 |
+| | control off, effect on | 0.994 | **0.254** | 0.986 | 401 | 0.00 |
+| | control on, effect off | 0.992 | 0.394 | 0.967 | 6 | 0.00 |
+| 1 + 0.3 x2 | `FALSE` (default) | 1.008 | 0.223 | 0.717 | 2 | 0.00 |
+| | `TRUE` | 0.998 | **0.174** | 0.866 | 22 | 0.00 |
+| | control off, effect on | 1.001 | 0.217 | 0.724 | 8 | 0.00 |
+| | control on, effect off | 0.999 | 0.219 | 0.757 | 2 | 0.00 |
+| 1 + 0 x2 | `FALSE` (default) | 1.005 | 0.150 | | 1 | 0.00 |
+| | `TRUE` | 1.017 | **0.143** | | 1 | 0.00 |
+| | control off, effect on | 1.003 | 0.161 | | 1 | 0.00 |
+| | control on, effect off | 1.019 | 0.158 | | 1 | 0.00 |
+
+**The failure mode that motivates `sparsity = FALSE` does not appear.** The
+atom at zero is exactly zero in every cell, the ATE is within 0.02 of the truth
+everywhere, and nothing is attenuated. That is the structural argument holding
+up: the prior can only drop a predictor a forest splits on, and the treatment
+is not one, so there is no mass to pile at zero. Where the prior does drop
+every moderator it leaves a constant effect, and a constant effect estimates
+the ATE rather than zero, which is why the null row is the one it costs least
+on.
+
+**Sparsity on the effect forest buys conditional-effect accuracy.** Root mean
+squared error against the true conditional effect falls from 0.417 to 0.254
+under strong moderation, and the effect forest goes from spending six splits on
+the real moderator per noise predictor to four hundred.
+
+**Under weak moderation the control forest wants it too**, which the earlier
+measurements in `?bartisan_control` predict: for prediction any sparsity beats
+none, and the control function is a prediction problem. `TRUE` on both beats
+the effect forest alone, 0.174 against 0.217.
+
+Not enough to move the default on: one data-generating process, five
+replicates, and the ATE column here comes from recentring the effect forest's
+draws rather than from a proper contrast, so treat the coverage column as
+indicative only. What it does settle is that the reason the documentation gave
+for the default was the wrong reason, which the documentation now says.

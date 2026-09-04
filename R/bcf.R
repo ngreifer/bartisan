@@ -68,10 +68,22 @@
 #' coding gives every contrast one shared shape; `?vc` has the numbers on both.
 #'
 #' **The outcome model is fitted with `sparsity = FALSE`.** A variable-selection
-#' prior on the variable whose contrast is the estimand puts a point mass at
-#' exactly zero in the posterior of the effect; see the measurements in
-#' [bartisan_control()]. The propensity model keeps the default, because
-#' predicting who was treated is a prediction problem.
+#' prior can drop a predictor from a forest entirely, and where the estimand is a
+#' contrast on a predictor being split on, that puts a point mass at exactly zero
+#' in the posterior of the effect; see the measurements in [bartisan_control()].
+#'
+#' That particular failure cannot reach the effect here, because the treatment is
+#' not split on: it is the coefficient, carried by a forest of its own. What the
+#' prior would select among on that forest is the moderators, and dropping all of
+#' them leaves an effect that does not vary rather than one that is zero. So the
+#' default is the cautious choice rather than a forced one, and the two forests
+#' may be set separately: `sparsity = c(FALSE, TRUE)` leaves the control function
+#' every predictor, the propensity score included, and asks the effect forest to
+#' work out which covariates moderate. That is worth considering when the
+#' moderators are many and few of them are expected to matter.
+#'
+#' The propensity model keeps the default, because predicting who was treated is
+#' a prediction problem.
 #'
 #' ## The Treatment's Type
 #'

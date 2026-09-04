@@ -386,6 +386,17 @@ expected to be irrelevant.
 cannot drop anything. \code{split_prior} is preferable when the other predictors
 are numerous enough that weighting them all alike is wasteful.
 
+\strong{For a varying-coefficient model, the two answers can differ by forest.}
+What the prior can drop is a predictor a forest splits on, and in a \code{\link[=vc]{vc()}}
+model the treatment is not one of those: it is the coefficient, carried by a
+forest of its own, so no splitting proportion can drop it. The prior on that
+forest selects among the moderators instead, and dropping all of them leaves
+a coefficient that does not vary rather than one that is zero. So
+\code{sparsity = c(FALSE, TRUE)} is a coherent thing to ask for, and in \code{\link[=bcf]{bcf()}} it
+is the asymmetry worth considering: the control function keeps every
+predictor, the propensity score included, and the effect forest is left to
+work out which covariates moderate.
+
 Run several chains either way, because one chain can look far more settled
 than the posterior is.
 }
@@ -468,7 +479,11 @@ A two-level factor is unaffected either way, since \code{2^2 - 2} is \code{B_2}.
 \subsection{Telling the Prior What Is Already Known}{
 
 \code{sparsity} and \code{split_prior} answer different questions and cannot both be in
-force, so giving \code{split_prior} turns \code{sparsity} off. \code{sparsity} is for the case
+force, so giving \code{split_prior} turns \code{sparsity} off. This is about weights a
+caller supplies, and not about a forest being held to the predictors its own
+formula names: a \code{\link[=vc]{vc()}} term whose moderators are only some of the covariates
+still draws its splitting proportions, over those moderators. \code{sparsity} is
+for the case
 in which which predictors matter is unknown and the prior is to work it out
 from the data; the splitting proportions are drawn, and a predictor can be
 dropped from the forest entirely. \code{split_prior} is for the case in which
