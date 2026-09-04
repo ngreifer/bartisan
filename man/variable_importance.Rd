@@ -7,37 +7,48 @@
 variable_importance(object, level = 0.95)
 }
 \arguments{
-\item{object}{a fit from \code{\link[=bartisan]{bartisan()}}.}
+\item{object}{a \verb{<bartisan_fit>} object; the output of a call to \code{\link[=bartisan]{bartisan()}}.}
 
-\item{level}{the width of the interval reported for \code{splits}. Default \code{0.95}.}
+\item{level}{\code{numeric}; the width of the interval reported for \code{splits}.
+Default is .95 for a 95\% interval.}
 }
 \value{
-A data frame, one row per predictor, sorted by \code{prop_used} and then \code{splits},
-both decreasing. Columns are \code{variable}, \code{splits}, \code{splits_lower},
-\code{splits_upper} and \code{prop_used}. A family with more than one additive predictor
-has a forest for each, and gains a leading \code{predictor} column naming which.
+A data frame with one row per predictor, sorted by \code{prop_used} and then
+\code{splits}, both decreasing, and with the following columns:
+\itemize{
+\item \code{variable}: the predictor, under the name the formula gave it
+\item \code{splits}: the mean number of splitting rules per draw that use it
+\item \code{splits_lower} and \code{splits_upper}: the endpoints of the \code{level} interval on
+that number
+\item \code{prop_used}: the proportion of draws in which it received at least one rule
+}
+
+A family with more than one additive predictor has a forest for each, and the
+data frame then gains a leading \code{predictor} column naming which.
 }
 \description{
 Reports, for every predictor, how many splitting rules the forest spends on
-it and how often it is used at all. This is the quantity people mean by
-"variable importance" for a BART model, and it is the same table
-\code{\link[=summary.bartisan_fit]{summary.bartisan_fit()}} prints -- this returns it as a data frame instead, ready
-to sort, filter or plot.
+it and how often it is used at all, which is what "variable importance" means
+for a BART model. This is the table \code{\link[=summary.bartisan_fit]{summary.bartisan_fit()}} prints, returned
+as a data frame rather than displayed (i.e., ready to sort, filter, or plot).
 }
-\section{Which column answers which question}{
-\code{prop_used} -- the proportion of posterior draws in which the predictor
-received at least one splitting rule -- is the one to read first. It behaves
+\details{
+\subsection{Which Column Answers Which Question}{
+
+\code{prop_used} (the proportion of posterior draws in which the predictor
+received at least one splitting rule) is the one to read first. It behaves
 like a posterior probability that the predictor belongs in the model, and it
 separates signal from noise sharply once \code{sparsity = TRUE} in
 \code{\link[=bartisan_control]{bartisan_control()}}, which puts a Dirichlet prior on how the rules are shared
 out and lets unused predictors be dropped rather than merely used rarely.
 
-\code{splits} -- the mean number of rules per draw -- says how much of the forest's
+\code{splits}, the mean number of rules per draw, says how much of the forest's
 structure a predictor accounts for. It is the more familiar number and the
 easier one to over-read.
 }
 
-\section{Three things this is not}{
+\subsection{Three Things This Is Not}{
+
 \strong{It is not an effect size.} A predictor can be split on constantly and move
 the prediction very little, and the reverse happens too. If the question is
 how much a predictor moves the outcome, that is a job for
@@ -47,37 +58,41 @@ table. See \link{bartisan-marginaleffects}.
 \strong{It is not stable under correlated predictors.} When two predictors carry
 the same information the trees split on whichever is convenient, and the usage
 distributes between them more or less arbitrarily. A predictor can matter and
-still show a low \code{prop_used} because a collinear partner absorbed it. Treat a
-group of correlated predictors as a group.
+still show a low \code{prop_used} because a collinear partner absorbed it, so a
+group of correlated predictors is best read as a group.
 
 \strong{It is not causal.} A ranking of predictors by usage is a description of
 this fitted function, not of what would happen if any of them were changed.
 }
 
-\section{Reading it as variable selection}{
+\subsection{Reading It as Variable Selection}{
+
 With \code{sparsity = TRUE}, \code{prop_used} is usable as a selection rule: predictors
 the forest genuinely needs sit near 1 and the rest fall near 0, usually with a
-wide gap rather than a continuum. There is no threshold that is correct in
-general; look at the gap and check that your conclusion does not depend on
-where in it you cut.
+wide gap rather than a continuum. No threshold is correct in general, so the
+gap is the thing to look at, and a conclusion worth reporting will not depend
+on where in it the cut is made.
 }
-
+}
 \examples{
-set.seed(1)
-n <- 300
-d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n), x4 = runif(n))
+data("rhc")
+set.seed(123)
 
-# Only x1 and x2 are in the truth.
-d$y <- 2 * d$x1 + sin(3 * d$x2) + rnorm(n, sd = 0.3)
+# The sparsity prior concentrates the splitting rules on the predictors that
+# earn them, which is what makes `prop_used` readable as a selection rule
+fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50, sparsity = TRUE,
+                verbose = FALSE)
 
-fit <- bartisan(y ~ ., data = d, family = gaussian(),
-               control = bartisan_control(sparsity = TRUE))
+imp <- variable_importance(fit)
+imp
 
-variable_importance(fit)
+# The predictors the forest reaches for in nearly every draw
+subset(imp, prop_used > .9)
 
 }
 \seealso{
 \code{\link[=summary.bartisan_fit]{summary.bartisan_fit()}}, which prints the same table;
 \code{\link[=bartisan_control]{bartisan_control()}} for \code{sparsity}; \link{bartisan-marginaleffects} for effects
-rather than usage.
+rather than usage
 }

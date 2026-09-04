@@ -3,9 +3,9 @@
 #include "utils.h"
 
 //' Polya-Gamma draws, for checking the sampler
-//' @param n number of draws.
-//' @param b,c parameters of the distribution.
-//' @return A numeric vector of draws.
+//' @param n `integer`; the number of draws.
+//' @param b,c `numeric`; the parameters of the distribution.
+//' @returns A numeric vector of draws.
 //' @keywords internal
 // [[Rcpp::export(.bartisan_rpg)]]
 Rcpp::NumericVector bartisan_rpg(int n, double b, double c) {

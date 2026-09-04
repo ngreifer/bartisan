@@ -4,46 +4,65 @@
 \alias{error_density}
 \title{Error distribution of a Dirichlet process mixture fit}
 \usage{
-error_density(object, at = NULL, level = 0.95, iterations = NULL)
+error_density(object, at = NULL, level = 0.95, plot = FALSE, iterations = NULL)
 }
 \arguments{
-\item{object}{a fitted model from \code{\link[=bartisan]{bartisan()}} with \code{family = dpm()}.}
+\item{object}{a \verb{<bartisan_fit>} object fit with \code{family = dpm()} or
+\code{family = dpm_aft()}; every other family fixes the error distribution, so
+its density is a closed form rather than something to estimate.}
 
-\item{at}{the grid to evaluate on. Defaults to 201 points spanning four
-posterior-mean error standard deviations either side of zero.}
+\item{at}{\code{numeric}; the grid to evaluate the density on. Default is \code{NULL}
+for 201 points spanning four posterior-mean error standard deviations
+either side of zero.}
 
-\item{level}{width of the pointwise interval.}
+\item{level}{\code{numeric}; the width of the pointwise interval. Default is .95
+for 95\% intervals.}
 
-\item{iterations}{optional integer vector selecting which stored draws to
-use. Defaults to all of them.}
+\item{plot}{\code{logical}; whether to return a plot of the density rather than the
+density itself. Default is \code{FALSE} to return the values. \code{TRUE} needs
+\CRANpkg{ggplot2} and returns a \code{ggplot} object, so it can be added to in
+the usual way; the values are the thing to reach for when the density is to
+be drawn against something else, as \code{vignette("survival")} draws it against
+the normal a \code{lognormal_aft()} fit would have assumed.}
+
+\item{iterations}{\code{numeric}; optional indices of the stored draws to use,
+between 1 and the number of draws the fit retains. Default is \code{NULL} to use
+all of them.}
 }
 \value{
-A data frame with one row per grid point and columns \code{at}, \code{mean}, \code{lower} and
-\code{upper} -- the posterior mean density and a pointwise interval, ready to plot
-against the normal density a Gaussian fit would have assumed.
+When \code{plot = FALSE}, a data frame with one row per grid point and columns
+\code{at}, \code{mean}, \code{lower}, and \code{upper}, giving the posterior mean density and a
+pointwise interval. When \code{plot = TRUE}, a \code{ggplot} object drawing the
+posterior mean density with that interval as a ribbon.
 }
 \description{
-The estimated density of the errors of a \code{\link[=dpm]{dpm()}} fit, which is the object the
-method exists to produce: BART commits to one normal, and this says what
-shape the errors actually have. It is the posterior of the density of a new
-error, evaluated on a grid.
+Estimates the density of the errors of a \code{\link[=dpm]{dpm()}} or \code{\link[=dpm_aft]{dpm_aft()}} fit, as the
+posterior of the density of a new error evaluated on a grid. Where BART
+commits to one normal, this says what shape the errors actually have.
 }
 \examples{
-set.seed(1)
-n <- 300
-d <- data.frame(x = runif(n, -1, 1))
-d$y <- 10 * d$x^3 + rt(n, 3)
+data("rhc")
+set.seed(123)
 
-fit <- bartisan(y ~ x, data = d, family = dpm(),
-               control = bartisan_control(num_trees = 20, num_burn = 100,
-                                         num_draws = 100, verbose = FALSE))
+# How long a patient survived, among those who died, so that the outcome is
+# a complete rather than a censored time
+died <- rhc[rhc$death == 1, ]
+died$log_days <- log(died$days)
 
-density <- error_density(fit)
-plot(density$at, density$mean, type = "l", xlab = "error", ylab = "density")
-lines(density$at, density$lower, lty = 2)
-lines(density$at, density$upper, lty = 2)
+fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
+                num_trees = 10, num_burn = 50, num_draws = 50)
+
+# What shape the errors have, which is what a Gaussian fit would have
+# assumed to be normal
+head(error_density(fit, at = c(-2, 0, 2)))
+
+# The same thing drawn, with the pointwise interval as a ribbon
+if (rlang::is_installed("ggplot2")) {
+  error_density(fit, plot = TRUE)
+}
 
 }
 \seealso{
-\code{\link[=dpm]{dpm()}}, \code{\link[=bartisan]{bartisan()}}
+\code{\link[=dpm]{dpm()}} and \code{\link[=dpm_aft]{dpm_aft()}} for the families with an estimated error
+distribution; \code{\link[=bartisan]{bartisan()}}
 }

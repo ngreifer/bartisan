@@ -502,7 +502,7 @@ test_that("as_draws hands the scalar parameters over with their chain structure"
   # And the summary of them has to agree with the fit's own diagnostics, which
   # are computed from the same vectors by a different implementation.
   summary_draws <- posterior::summarise_draws(draws)
-  own <- fit[["rhat"]]
+  own <- diagnose(fit)[["table"]]
   expect_equal(summary_draws$rhat[summary_draws$variable == "loglik"],
                own$rhat[own$quantity == "loglik"], tolerance = 0.01)
 })

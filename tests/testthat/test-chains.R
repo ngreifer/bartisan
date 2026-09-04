@@ -70,7 +70,7 @@ test_that("the leaf scale is not one of the diagnosed quantities", {
   # It mixes badly in every BART implementation, including one that draws it
   # exactly, and nothing reported depends on it, so it is out of the table. The
   # draws stay on the fit.
-  expect_false(any(grepl("sigma_mu", fit[["rhat"]][["quantity"]])))
+  expect_false(any(grepl("sigma_mu", diagnose(fit)[["table"]][["quantity"]])))
 
   # Out of the table and only out of the table.
   expect_true(is.matrix(fit[["sigma_mu"]]))
@@ -151,16 +151,21 @@ test_that("the diagnostics are reported as a table of the right shape", {
   d <- sim_x(n = 100, seed = 84)
   d$y <- 2 * d$x1 + stats::rnorm(100, sd = 0.4)
 
+  # The fit carries no diagnostics table, whatever the chain count: the pass
+  # costs more than the sampling and `diagnose()` recomputed it anyway, so it
+  # runs there and only when asked for.
   one <- bartisan(y ~ ., data = d, control = quick_control())
   expect_null(one[["rhat"]])
 
   fit <- bartisan(y ~ ., data = d, chains = 4,
                   control = quick_control(num_burn = 200L, num_draws = 200L))
 
-  diagnostics <- fit[["rhat"]]
+  expect_null(fit[["rhat"]])
+
+  diagnostics <- diagnose(fit)[["table"]]
   expect_s3_class(diagnostics, "data.frame")
-  expect_identical(names(diagnostics),
-                   c("quantity", "rhat", "ess_bulk", "ess_tail"))
+  expect_true(all(c("quantity", "rhat", "ess_bulk", "ess_tail") %in%
+                    names(diagnostics)))
   expect_true("loglik" %in% diagnostics$quantity)
   expect_true(any(grepl("^eta\\.", diagnostics$quantity)))
   expect_true(all(is.finite(diagnostics$rhat)))
@@ -322,7 +327,8 @@ test_that("the diagnostics table survives a pinned cutpoint", {
                                gate = "hard", chains = 2L,
                                control = quick_control()))
 
-  cut1 <- fit[["rhat"]][fit[["rhat"]]$quantity == "aux.cut1", ]
+  table <- diagnose(fit)[["table"]]
+  cut1 <- table[table$quantity == "aux.cut1", ]
   expect_identical(nrow(cut1), 1L)
   expect_true(is.na(cut1$rhat))
   expect_true(is.na(cut1$ess_bulk))
@@ -330,6 +336,70 @@ test_that("the diagnostics table survives a pinned cutpoint", {
 
   # The other rows are still populated, so one pinned quantity does not take the
   # table down with it.
-  rest <- fit[["rhat"]][fit[["rhat"]]$quantity != "aux.cut1", ]
+  rest <- table[table$quantity != "aux.cut1", ]
   expect_true(all(is.finite(rest$rhat)))
+})
+
+test_that("the autocovariance matches the acf it replaced", {
+  # `ess_from_split()` used to call `stats::acf()` once per chain. The FFT route
+  # is the same estimator -- biased, demeaned, every lag -- and this is what says
+  # so, because `acf()`'s own arithmetic is the reference the ESS values were
+  # calibrated against.
+  acf_reference <- function(y) {
+    draws <- nrow(y)
+    out <- vapply(seq_len(ncol(y)), function(m) {
+      stats::acf(y[, m], lag.max = draws - 1L, type = "covariance",
+                 plot = FALSE, demean = TRUE)$acf[, 1L, 1L]
+    }, numeric(draws))
+
+    if (!is.matrix(out)) matrix(out, ncol = 1L) else out
+  }
+
+  set.seed(17)
+
+  for (spec in list(c(4L, 1L), c(37L, 3L), c(100L, 4L), c(200L, 8L))) {
+    y <- matrix(stats::rnorm(spec[1L] * spec[2L]), spec[1L], spec[2L])
+
+    for (m in seq_len(spec[2L])) {
+      y[, m] <- as.numeric(stats::filter(y[, m], 0.8, method = "recursive"))
+    }
+
+    expect_equal(autocovariance(y), acf_reference(y), tolerance = 1e-12,
+                 info = paste(spec, collapse = "x"))
+  }
+
+  # A constant series has zero autocovariance at every lag, and the padding must
+  # not turn that into a rounding artifact large enough to pass the variance
+  # guard in `ess_from_split()`.
+  expect_true(all(abs(autocovariance(matrix(3, 20L, 2L))) < 1e-12))
+})
+
+test_that("the convergence pass gives the same answer however it is split", {
+  skip_if_not_installed("future")
+  skip_if_not_installed("future.apply")
+  skip_on_cran()
+
+  # The columns are independent and no random numbers are drawn, so the answer
+  # must not depend on the plan, and in testing it does not differ by even a
+  # bit. The tolerance is kept anyway rather than asserting exactness: an
+  # earlier arrangement, which sent every worker the whole draws matrix instead
+  # of its own columns, did differ in the last bit or two, always in the
+  # effective sample sizes and never in either R-hat column, which are the
+  # statistics computed through the FFT.
+  d <- sim_x(n = 500L, seed = 91)
+  d$y <- 2 * d$x1 + stats::rnorm(nrow(d))
+
+  fit <- bartisan(y ~ ., data = d, chains = 4L,
+                  control = quick_control(num_burn = 100L, num_draws = 100L))
+
+  old <- future::plan(future::sequential)
+  on.exit(future::plan(old), add = TRUE)
+  sequential <- diagnose(fit)
+
+  future::plan(future::multicore, workers = 2L)
+  parallel <- diagnose(fit)
+
+  expect_identical(sequential[["checks"]], parallel[["checks"]])
+  expect_identical(sequential[["advice"]], parallel[["advice"]])
+  expect_equal(sequential[["table"]], parallel[["table"]], tolerance = 1e-8)
 })

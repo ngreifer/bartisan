@@ -38,27 +38,36 @@
 \method{get_data}{bartisan_fit}(x, ...)
 }
 \arguments{
-\item{...}{further arguments. \code{values}, \code{iterations}, \code{offset}, \code{weights} and
-\code{log} are passed on to \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}; anything else is ignored, since
-\pkg{marginaleffects} puts arguments of its own here too. \pkg{marginaleffects}
-warns that it does not recognize \code{values}, which is expected -- it is this
-package's argument, not one of its own -- and the value is used regardless.}
+\item{...}{further arguments. \code{values}, \code{iterations}, \code{offset}, \code{weights},
+\code{log} and \code{times} are passed on to \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}; anything else
+is ignored, since \pkg{marginaleffects} puts arguments of its own here too.
+Note that \pkg{marginaleffects} warns that it does not recognize \code{values},
+which is expected (it is this package's argument, not one of its own), and
+the value is used regardless.}
 
-\item{model, x, object, formula}{a fitted \code{bartisan} object. The last is named
-that only because \code{\link[stats:model.frame]{stats::model.frame()}} names its first argument that way.}
+\item{model, x, object, formula}{a \verb{<bartisan_fit>} object; the output of a call
+to \code{\link[=bartisan]{bartisan()}}. The last is named \code{formula} only because
+\code{\link[stats:model.frame]{stats::model.frame()}} names its first argument that way.}
 
-\item{newdata}{data at which to evaluate the fit. Defaults to the data the
-model was fitted to, which is retained in the fit for this purpose.}
+\item{newdata}{optional; a data frame at which to evaluate the fit. Default
+is \code{NULL} to use the data the model was fitted to, which is retained in the
+fit for this purpose.}
 
-\item{type}{the scale to work on. \code{"response"} is the fitted mean, \code{"link"}
-the additive predictor, \code{"prob"} the per-category probabilities of a
-categorical family, \code{"mean"} the mean of a categorical response with its
-labels read as numbers, and \code{"stdlv"} the standardized latent variable of an
-ordinal fit; the last three are described under \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. A
-categorical family has no mean, so \code{"response"} gives \code{"prob"} there.
-\code{"probs"}, \code{"lp"} and \code{"lv"} are accepted as aliases for \code{"prob"}, \code{"link"}
-and \code{"link"}, since those are the names the same quantities go by for other
-ordinal fits in \pkg{marginaleffects}.}
+\item{type}{string; the scale to work on. Allowable options include
+\code{"response"} (the default), \code{"link"}, \code{"prob"}, \code{"mean"}, \code{"stdlv"}, and
+\code{"survival"}. \code{"response"} is the fitted mean, \code{"link"} the additive
+predictor, \code{"prob"} the per-category probabilities of a categorical family,
+\code{"mean"} the mean of a categorical response with its labels read as
+numbers, \code{"stdlv"} the standardized latent variable of an ordinal fit, and
+\code{"survival"} the survival function at the times given in \code{times}; all but
+the first two are described under \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. An \code{ordinal()}
+or \code{multinomial()} response has no single mean, so \code{"response"} gives
+\code{"prob"} for those families, while a binomial fit reports the probability
+of its second level, as \code{\link[stats:glm]{stats::glm()}} does, and \code{"prob"} is what asks for
+both of its columns. \code{"probs"}, \code{"lp"}, \code{"lv"} and \code{"surv"} are accepted as
+aliases for \code{"prob"}, \code{"link"}, \code{"link"} and \code{"survival"}, since those are
+the names the same quantities go by for other ordinal fits in
+\pkg{marginaleffects}.}
 
 \item{coefs}{ignored; a forest has no coefficient vector.}
 }
@@ -70,12 +79,15 @@ documents. The other methods exist to satisfy the generic and return what
 their names suggest.
 }
 \description{
-A \code{bartisan} fit works with the \pkg{marginaleffects} package, so that
-predictions, comparisons and slopes -- and hypothesis tests on any of them --
-can be computed without extracting draws by hand. Load \pkg{marginaleffects}
-and call its functions on the fit directly; there is nothing to set up.
+Methods that let a \verb{<bartisan_fit>} object be used by the
+\pkg{marginaleffects} package, which computes predictions, comparisons and
+slopes (and hypothesis tests on any of them) from the posterior draws. There
+is nothing to set up: load \pkg{marginaleffects} and call its functions on
+the fit.
 }
-\section{How the uncertainty is computed}{
+\details{
+\subsection{How the Uncertainty Is Computed}{
+
 A forest has no coefficient vector and no variance-covariance matrix, so the
 delta method \pkg{marginaleffects} uses for a frequentist model has nothing
 to work with. It has something better here: the posterior draws. Every
@@ -91,7 +103,8 @@ summarizing the same draws, so a difference between them is the skewness of
 the posterior and not a disagreement.
 }
 
-\section{A contrast of exactly zero is usually real}{
+\subsection{A Contrast of Exactly Zero Is Usually Real}{
+
 \code{avg_comparisons()} reporting an estimate of exactly \code{0} is the most common
 surprise here, and it is neither package computing anything wrong. Two facts
 meet to produce it.
@@ -101,7 +114,7 @@ no tree in the forest splits on the variable being contrasted, the fit does not
 depend on that variable at all, so the two counterfactual predictions are
 identical to the last bit and their difference is exactly zero. That is not a
 near-zero value that rounding flattered; it is a point mass. The Dirichlet
-sparsity prior on the splitting proportions, \code{update_s} in
+sparsity prior on the splitting proportions, \code{sparsity} in
 \code{\link[=bartisan_control]{bartisan_control()}}, is what makes those draws common: it is a variable
 selection prior, and dropping a weak predictor from every tree is what it is
 for.
@@ -113,47 +126,46 @@ default settings, \code{treat} was absent from all 50 trees in 64\% of draws and
 contrast came out exactly zero in 65\%, which put the median at 0 while the
 posterior mean was 197 and the upper limit was above 2000.
 
-Four things to do about it, in the order worth trying:
+Four things are worth doing about it, in the order given.
 
-\enumerate{
-\item \strong{Look at the inclusion probability}, which is what the zero is
-telling you. \code{summary(fit)} reports it as \code{prop_used}: the posterior
-probability that each predictor group appears anywhere in the forest. A
-contrast whose median is zero is a predictor the model is not sure
-belongs.
-\item \strong{Ask for the mean instead}, with
-\code{options(marginaleffects_posterior_center = mean)}. The mean is the
-summary \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} reports, and it is the one that behaves
-sensibly against an atom.
-\item \strong{Reconsider the sparsity prior} if variable selection is not what
-you want from the fit. \code{sparsity = FALSE} in \code{\link[=bartisan_control]{bartisan_control()}} removes
-the atom almost entirely: on the example above it fell from 20\% of draws
-to none by 50 trees. A larger \code{num_trees} does \emph{not} remove it, which is
-worth knowing because it looks as though it should -- with the prior on,
-the contrast was exactly zero in 20\% of draws at 50 trees and 18\% at 200.
-Turning the prior off is a modeling choice rather than a fix, so make it
-for a reason: it is the right one when a contrast on a particular
-predictor is the estimand, and the wrong one when there are many
-predictors and most are irrelevant.
-\item \strong{Run several chains and compare them.} The variable selection state
-mixes slowly, because a predictor whose splitting proportion has gone
-small is rarely proposed and so is hard to get back in. On the example
-above, four chains disagreed by more than 100\% of the estimate at every
-tree count from 20 to 200 with the prior on; with \code{sparsity = FALSE} and
-50 trees they agreed to within 9\%. A single chain can look much more
-settled than the posterior is.
-}
+\strong{Look at the inclusion probability}, which is what the zero reports.
+\code{summary()} gives it as \code{prop_used}: the posterior probability that each
+predictor group appears anywhere in the forest. A contrast whose median is
+zero is a predictor the model is not sure belongs.
+
+\strong{Ask for the mean instead}, with
+\code{options(marginaleffects_posterior_center = mean)}. The mean is the summary
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} reports, and it is the one that behaves sensibly
+against an atom.
+
+\strong{Reconsider the sparsity prior} when variable selection is not what the fit
+is for. \code{sparsity = FALSE} in \code{\link[=bartisan_control]{bartisan_control()}} removes the atom almost
+entirely: on the example above it fell from 20\% of draws to none by 50 trees.
+A larger \code{num_trees} does \emph{not} remove it, which is worth stating because it
+looks as though it should: with the prior on, the contrast was exactly zero in
+20\% of draws at 50 trees and 18\% at 200. Turning the prior off is a modeling
+choice rather than a fix, so it wants a reason; it is the right one when a
+contrast on a particular predictor is the estimand, and the wrong one when
+there are many predictors and most are irrelevant.
+
+\strong{Run several chains and compare them.} The variable selection state mixes
+slowly, because a predictor whose splitting proportion has gone small is
+rarely proposed and so is hard to get back in. On the example above, four
+chains disagreed by more than 100\% of the estimate at every tree count from 20
+to 200 with the prior on; with \code{sparsity = FALSE} and 50 trees they agreed to
+within 9\%. A single chain can look much more settled than the posterior is.
 }
 
-\section{Slopes need a linear predictor transform}{
+\subsection{Slopes Need a Linear Predictor Transform}{
+
 A slope is a numerical derivative, and taking one requires the fitted function
 to be differentiable in the predictor \emph{as the caller supplies it}. The default
 \code{x_transform = "quantile"} maps each predictor through its empirical
 distribution function before any rule sees it, and an empirical distribution
-function is a step function -- so the fit is a step function of the original
-predictor whatever the decision rules are, and its difference quotient grows
-without bound as the step shrinks. Measured on a smooth surface where the
-average derivative is zero:\tabular{lll}{
+function is a step function; the fit is therefore a step function of the
+original predictor whatever the decision rules are, and its difference
+quotient grows without bound as the step shrinks. Measured on a smooth
+surface where the average derivative is zero:\tabular{lll}{
    step \tab \code{x_transform = "quantile"} \tab \code{x_transform = "range"} \cr
    1e-4 \tab -4.79 \tab -0.28 \cr
    1e-2 \tab -0.40 \tab -0.30 \cr
@@ -161,7 +173,7 @@ average derivative is zero:\tabular{lll}{
 }
 
 
-So \strong{use \code{x_transform = "range"} if slopes are the estimand}, which maps each
+So \strong{\code{x_transform = "range"} is what slopes want}, since it maps each
 predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a
 piecewise-constant fit under either transform, and a derivative of one is not
 a meaningful quantity however it is computed.
@@ -172,30 +184,32 @@ substantive distance apart rather than dividing by a vanishing one. Those are
 the estimands to reach for with the default transform.
 }
 
-\section{The usual survival estimand}{
+\subsection{The Usual Survival Estimand}{
+
 For a survival family, the estimand is usually a contrast in survival at a
 horizon rather than in the predictor. \code{type = "survival"} with \code{times} gives
 it:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{# The difference in one-year survival between treated and untreated.
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# The difference in one-year survival between treated and untreated
 avg_comparisons(fit, variables = "trt", type = "survival", times = 1)
 }\if{html}{\out{</div>}}
 
 One time per call. \pkg{marginaleffects} checks the dots against a whitelist
 of its own, hardcoded per model class, so it warns that it does not recognize
-\code{times} -- while passing it through, which is what the warning says. There is
-no hook for registering an argument with it, so the warning is expected and the
+\code{times} while passing it through, which is what the warning says. There is no
+hook for registering an argument with it, so the warning is expected and the
 result is correct.
 }
 
-\section{What is not covered}{
+\subsection{What Is Not Covered}{
+
 \code{type = "class"} and \code{type = "density"} are not available, because
 neither is one number per observation that an average or a contrast could be
 taken of: a class is a factor, and a density needs the outcome, which a
-counterfactual grid does not have. Call \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for those.
+counterfactual grid does not have. \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} computes those.
 
 \code{type = "link"} is refused for a family with more than one additive predictor
--- \code{location_scale()}, the zero-inflated families, \code{multinomial()} -- because
+(\code{gaussian_ls()}, the zero-inflated families, \code{multinomial()}), because
 there is no single link there to be talking about. Those families work on the
 response scale, which is one number per observation whatever the family, and
 \code{multinomial()} and \code{ordinal()} work on the probability scale, which gives one
@@ -207,19 +221,35 @@ constant outside the range of the predictor it was fitted on, so a contrast
 that steps a predictor beyond that range reports the boundary value rather
 than an extrapolated one.
 }
-
+}
 \examples{
 \dontshow{if (rlang::is_installed("marginaleffects")) withAutoprint(\{ # examplesIf}
-set.seed(1)
-n <- 200
-d <- data.frame(x1 = runif(n), x2 = runif(n))
-d$y <- 2 * sin(pi * d$x1) - d$x2 + rnorm(n)
+data("rhc")
+set.seed(123)
 
-fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
-               control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_draws = 50))
+# Whether a patient died, with every other variable a candidate predictor.
+# The sparsity prior is turned off because a contrast on one predictor is
+# the estimand rather than variable selection
+fit <- bartisan(death ~ . - days, data = rhc, sparsity = FALSE,
+                num_trees = 10, num_burn = 50, num_draws = 50)
 
-marginaleffects::avg_predictions(fit)
-marginaleffects::avg_comparisons(fit)
+# The effect of catheterization on the probability of death, as an average
+# contrast of counterfactual predictions
+marginaleffects::avg_comparisons(fit, variables = "rhc")
+
+# The same contrast within each sex, and a test that the two are equal
+marginaleffects::avg_comparisons(fit, variables = "rhc", by = "sex",
+                                 hypothesis = ~pairwise)
+
+# Centering each posterior at its mean rather than its median, which is the
+# summary `predict()` reports
+op <- options(marginaleffects_posterior_center = mean)
+marginaleffects::avg_comparisons(fit, variables = "rhc")
+options(op)
 \dontshow{\}) # examplesIf}
+}
+\seealso{
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for the prediction scales these estimands are
+computed on; \code{\link[=bartisan_control]{bartisan_control()}} for \code{sparsity} and \code{x_transform};
+\link{bartisan-interop} for the methods that let other packages assess the fit
 }

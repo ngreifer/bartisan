@@ -1,73 +1,127 @@
 #' Interfaces to other packages
 #'
 #' @description
-#' Methods that let a `bartisan` fit be used by the packages that assess model
-#' fit, rather than requiring the posterior draws to be pulled out and handled by
-#' hand. There is nothing to set up: load the other package and call its function
-#' on the fit.
+#' Methods that let a `<bartisan_fit>` object be used by the packages that assess
+#' model fit. There is nothing to set up: load the other package and call its
+#' function on the fit.
 #'
-#' * **Posterior predictions.** \pkgfun{rstantools}{posterior_predict} draws
-#'   replicate outcomes from the fitted model,
-#'   \pkgfun{rstantools}{posterior_epred} gives their mean and
-#'   \pkgfun{rstantools}{posterior_linpred} the additive predictor, following the
-#'   \pkg{rstantools} conventions that \pkg{brms} and \pkg{rstanarm} follow.
-#'   [stats::simulate()] is the same thing in the shape base R expects.
-#' * **Pointwise likelihood.** \pkgfun{rstantools}{log_lik} returns the
-#'   draws-by-observations matrix of log-likelihood contributions, which is what
-#'   \pkgfun{loo}{loo} and \pkgfun{loo}{waic} need; both have methods here.
-#' * **Graphical checks.** `pp_check()` runs any of the \pkg{bayesplot}
-#'   posterior-predictive checks on the fit.
-#' * **Summaries.** \pkgfun{performance}{model_performance} collects the fit
-#'   statistics in one table, \pkgfun{performance}{r2} gives the Bayesian
-#'   \eqn{R^2}, and \pkgfun{posterior}{as_draws} hands the scalar parameters to
-#'   \pkgfun{posterior}{summarise_draws} or to the \pkg{bayesplot} MCMC
-#'   diagnostics.
-#' * **Basic accessors.** [stats::fitted()], [stats::residuals()],
-#'   [stats::weights()] and [stats::sigma()] do what they do for a `glm`, which is
-#'   also most of what \pkg{insight} needs to make the fit legible to the
-#'   \pkg{easystats} packages.
+#' @param object,model,x a `<bartisan_fit>` object; the output of a call to
+#'   [bartisan()].
+#' @inheritParams predict.bartisan_fit
+#' @param type string; for `fitted()`, the prediction scale, passed to
+#'   [predict.bartisan_fit()]; default is `"response"`. For `pp_check()`, the
+#'   name of the \pkg{bayesplot} check to run without its `ppc_` prefix, so that
+#'   `"dens_overlay"` (the default) calls
+#'   \pkgfun{bayesplot}{ppc_dens_overlay}; \pkgfun{bayesplot}{available_ppc}
+#'   lists them.
+#' @param offset,weights an offset and prior weights for `newdata`, as in
+#'   [predict.bartisan_fit()]. Defaults are `NULL` to use those the model was fit
+#'   with. For a binomial response the weights are the numbers of trials, and so
+#'   are what a replicate outcome is a fraction of; they must be given alongside
+#'   `newdata` when the model was fit with more than one trial, since the number
+#'   of trials is not a function of the predictors and cannot be reconstructed.
+#' @param transform `logical`; for `posterior_linpred()`, whether to map the
+#'   predictor through the inverse link, which is what `posterior_epred()` does.
+#'   Default is `FALSE`.
+#' @param nsim,ndraws `numeric`; the number of posterior draws to use, chosen at
+#'   random from the retained ones. Defaults are 1 for `simulate()` and 10 for
+#'   `pp_check()`.
+#' @param seed optional seed, set with [set.seed()] before drawing and restored
+#'   afterwards, following the [stats::simulate()] convention. Default is `NULL`
+#'   to leave the stream alone.
+#' @param metrics `character`; for `model_performance()`, which fit statistics to
+#'   report. Allowable options include `"all"` (the default), `"ELPD"`,
+#'   `"LOOIC"`, `"WAIC"`, `"R2"`, `"RMSE"`, and `"SIGMA"`, and a vector of them
+#'   selects several.
+#' @param eta for `as_draws()`, which columns of the additive predictor to carry
+#'   into the draws array alongside the scalar parameters, given as either a
+#'   logical value or a numeric vector. Default is `TRUE`, which takes a
+#'   representative ten spread across the range of the fitted function; `FALSE`
+#'   takes none, and a numeric vector takes those observations. The default takes
+#'   a handful rather than all of them because there is one column per
+#'   observation, and an array with thousands of them is not something
+#'   \pkgfun{posterior}{summarise_draws} or a trace plot can be pointed at. The
+#'   predictor is the quantity whose convergence usually matters, and the one
+#'   [diagnose()] reports on, so it is included by default.
+#' @param verbose `logical`; whether to report problems that do not stop the
+#'   computation, such as a family that has no mean and so no Bayesian
+#'   \eqn{R^2}. Default is `TRUE`.
+#' @param ... further arguments, passed to whatever the method calls (the
+#'   \pkg{bayesplot} check from `pp_check()`, \pkgfun{loo}{loo} and
+#'   \pkgfun{loo}{waic} from `loo()` and `waic()`, and
+#'   [predict.bartisan_fit()] from the rest) and ignored where there is nowhere
+#'   to pass them.
+#'
+#' @returns
+#' `posterior_predict()`, `posterior_epred()`, `posterior_linpred()` and
+#' `log_lik()` return a matrix of draws by observations. `simulate()` returns a
+#' data frame of one column per replicate. `loo()` and `waic()` return the
+#' `<loo>` and `<waic>` objects those functions produce, and
+#' `model_performance()` a one-row data frame of class `<performance_model>`.
+#' `as_draws()` returns a `<draws_array>` of iterations by chains by parameters.
+#' The accessors return what their names suggest.
 #'
 #' @details
-#' # Leave-one-out is approximate, and the approximation is strained here
+#' ## What Is Available
+#'
+#' **Posterior predictions.** \pkgfun{rstantools}{posterior_predict} draws
+#' replicate outcomes from the fitted model,
+#' \pkgfun{rstantools}{posterior_epred} gives their mean and
+#' \pkgfun{rstantools}{posterior_linpred} the additive predictor, following the
+#' \pkg{rstantools} conventions that \pkg{brms} and \pkg{rstanarm} follow, and
+#' [stats::simulate()] is the same thing in the shape base R expects.
+#' **Pointwise likelihood.** \pkgfun{rstantools}{log_lik} returns the
+#' draws-by-observations matrix of log-likelihood contributions, which is what
+#' \pkgfun{loo}{loo} and \pkgfun{loo}{waic} need; both have methods here.
+#'
+#' **Graphical checks.** `pp_check()` runs any of the \pkg{bayesplot}
+#' posterior-predictive checks on the fit. **Summaries.**
+#' \pkgfun{performance}{model_performance} collects the fit statistics in one
+#' table, \pkgfun{performance}{r2} gives the Bayesian \eqn{R^2}, and
+#' \pkgfun{posterior}{as_draws} hands the scalar parameters to
+#' \pkgfun{posterior}{summarise_draws} or to the \pkg{bayesplot} MCMC
+#' diagnostics. **Basic accessors.** [stats::fitted()], [stats::residuals()],
+#' [stats::weights()] and [stats::sigma()] do what they do for a `glm`, which is
+#' also most of what \pkg{insight} needs to make the fit legible to the
+#' \pkg{easystats} packages.
+#'
+#' ## Leave-One-Out Is Approximate, and Strained Here
 #'
 #' \pkgfun{loo}{loo} estimates the leave-one-out predictive density by importance
 #' sampling from the full-data posterior, and the estimate is trustworthy only
-#' when the importance weights have a finite variance -- which is what the Pareto
+#' when the importance weights have a finite variance, which is what the Pareto
 #' \eqn{k} diagnostic reports on. A forest is a very flexible function of the
 #' predictors, so a single observation can have a lot of influence on the leaves
-#' it lands in, and high \eqn{k} values are common rather than exceptional. The
-#' warning \pkg{loo} prints in that case is not boilerplate; treat it as saying
-#' that the number is not reliable, and reach for held-out data instead. A log
-#' score on data the model has not seen is available directly:
+#' it lands in, and high \eqn{k} values are common rather than exceptional. Note
+#' that the warning \pkg{loo} prints in that case is not boilerplate; it says the
+#' number is not reliable, and held-out data are the alternative. A log score on
+#' data the model has not seen is available directly:
 #' ```r
 #' predict(fit, newdata = held_out, type = "density", log = TRUE)
 #' ```
 #'
-#' # What a posterior predictive draw is on
+#' ## What a Posterior Predictive Draw Is On
 #'
 #' The replicate outcomes are on the scale the likelihood was written on, which
-#' is the scale [bartisan()] stored the response on:
+#' is the scale [bartisan()] stored the response on. A **binomial** response is a
+#' proportion, so binary data come back as 0 and 1, and data given as two columns
+#' or with prior weights come back as a fraction of the trials. A response with
+#' **categories** comes back as an integer category index, from 1 to the number
+#' of categories, because a matrix cannot hold a factor; `fit$levels` names them,
+#' and [stats::simulate()] returns factors instead, since its result is a data
+#' frame and can. An **accelerated failure time** response comes back as a time
+#' rather than a log time, and it is an event time: the predictive distribution
+#' of the outcome does not know about the censoring that may have hidden it, so
+#' comparing replicates against censored observations is not like for like, and
+#' `pp_check()` says so. A [custom_family()] fit has **no posterior predictive
+#' distribution at all**, because a log density supplies no way to draw from it,
+#' so those methods error.
 #'
-#' * A binomial response is a **proportion**, so binary data come back as 0 and
-#'   1, and data given as two columns or with prior weights come back as a
-#'   fraction of the trials.
-#' * A response with categories comes back as an **integer category index**,
-#'   from 1 to the number of categories, because a matrix cannot hold a factor.
-#'   `fit$levels` names them. [stats::simulate()] returns factors instead, since
-#'   its result is a data frame and can.
-#' * An accelerated failure time response comes back as a **time**, not a log
-#'   time, and it is an event time: the predictive distribution of the outcome
-#'   does not know about the censoring that may have hidden it. Comparing
-#'   replicates against censored observations is therefore not like for like, and
-#'   `pp_check()` says so.
-#' * A [custom_family()] fit has no posterior predictive distribution at all,
-#'   because a log density supplies no way to draw from it. Those methods error.
-#'
-#' # What is deliberately absent
+#' ## What Is Deliberately Absent
 #'
 #' There is no `logLik()` method, and that is a choice rather than a gap. The
 #' generic exists so that [stats::AIC()] and [stats::BIC()] can be computed, and
-#' both need a count of parameters -- which a forest does not have, since the
+#' both need a count of parameters, which a forest does not have, since the
 #' number of leaves is itself drawn from the posterior. \pkgfun{loo}{loo} and
 #' \pkgfun{loo}{waic} are the corresponding quantities for a model like this
 #' one, and they are computed from the posterior rather than from a parameter
@@ -79,7 +133,7 @@
 #' here. \pkgfun{performance}{check_predictions} does work, through
 #' [stats::simulate()].
 #'
-#' # The Bayesian R-squared
+#' ## The Bayesian R-Squared
 #'
 #' \pkgfun{performance}{r2} returns the quantity of Gelman et al. (2019): per
 #' draw, the variance of the fitted means across observations divided by that
@@ -87,47 +141,6 @@
 #' posterior, which is why it is reported with an interval and why it can fall as
 #' the model is made more flexible. It needs a mean, so it is not available for
 #' `ordinal()` or `multinomial()`.
-#'
-#' @param object,model,x a fitted model from [bartisan()].
-#' @param newdata optional data frame at which to evaluate, as in
-#'   [predict.bartisan_fit()].
-#' @param type for `fitted()`, the prediction scale, passed to
-#'   [predict.bartisan_fit()]. For `pp_check()`, the name of the \pkg{bayesplot}
-#'   check to run without its `ppc_` prefix, so that `"dens_overlay"` calls
-#'   \pkgfun{bayesplot}{ppc_dens_overlay}.
-#' @param iterations optional integer vector selecting which stored draws to
-#'   use. Defaults to all of them.
-#' @param offset,weights an offset and prior weights for `newdata`, as in
-#'   [predict.bartisan_fit()]. For a binomial response the weights are the numbers of
-#'   trials, and so are what a replicate outcome is a fraction of.
-#' @param transform for `posterior_linpred()`, return the predictor mapped
-#'   through the inverse link, which is what `posterior_epred()` does.
-#' @param nsim,ndraws the number of posterior draws to use, chosen at random from
-#'   the retained ones.
-#' @param seed optional seed, set with [set.seed()] before drawing and restored
-#'   afterwards, following the [stats::simulate()] convention.
-#' @param metrics for `model_performance()`, `"all"` or a character vector
-#'   selecting from `"ELPD"`, `"LOOIC"`, `"WAIC"`, `"R2"`, `"RMSE"` and
-#'   `"SIGMA"`.
-#' @param eta for `as_draws()`, which columns of the additive predictor to carry
-#'   into the draws array alongside the scalar parameters. `TRUE`, the default,
-#'   takes a representative ten spread across the range of the fitted function --
-#'   there is one column per observation, and an array with thousands of them is
-#'   not something \pkgfun{posterior}{summarise_draws} or a trace plot can be
-#'   pointed at. `FALSE` takes none. A numeric vector takes those observations.
-#'   The predictor is the quantity whose convergence usually matters, and the one
-#'   `fit$rhat` reports on, so it is included by default.
-#' @param verbose whether to report problems that do not stop the computation.
-#' @param ... further arguments, passed on where the method has somewhere to pass
-#'   them and ignored otherwise.
-#'
-#' @returns
-#' `posterior_predict()`, `posterior_epred()`, `posterior_linpred()` and
-#' `log_lik()` return a matrix of draws by observations. `simulate()` returns a
-#' data frame of one column per replicate. `loo()` and `waic()` return the
-#' objects those functions return. `model_performance()` returns a one-row data
-#' frame. `as_draws()` returns a `draws_array` of iterations by chains by
-#' parameters. The accessors return what their names suggest.
 #'
 #' @references
 #' Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). R-squared for
@@ -137,29 +150,36 @@
 #' evaluation using leave-one-out cross-validation and WAIC. *Statistics and
 #' Computing*, 27(5), 1413--1432.
 #'
-#' @seealso [predict.bartisan_fit()], [bartisan-marginaleffects]
+#' @seealso
+#' [predict.bartisan_fit()] for the predictions these methods are built on;
+#' [diagnose()] for the convergence and mixing diagnostics;
+#' [bartisan-marginaleffects] for reading effects off a fit;
+#' `vignette("diagnostics")` for the fuller treatment
 #'
 #' @examplesIf rlang::is_installed(c("loo", "rstantools"))
-#' set.seed(1)
-#' n <- 200
-#' d <- data.frame(x1 = runif(n), x2 = runif(n))
-#' d$y <- rpois(n, exp(0.5 + d$x1))
+#' data("rhc")
+#' set.seed(123)
 #'
-#' fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(),
-#'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_draws = 50, verbose = FALSE))
+#' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
+#'                 num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
 #'
-#' # Replicate outcomes, one per draw per observation
+#' # Replicate outcomes, one per draw per observation, whose mean is what
+#' # `fitted()` reports
 #' yrep <- rstantools::posterior_predict(fit)
-#' dim(yrep)
-#'
-#' # Their mean, which is what fitted() reports
 #' range(colMeans(rstantools::posterior_epred(fit)) - fitted(fit))
 #'
 #' # Pointwise log likelihood, and the fit statistics built on it
-#' log_likelihood <- rstantools::log_lik(fit)
-#' dim(log_likelihood)
-#' loo::waic(log_likelihood)
+#' loo::waic(rstantools::log_lik(fit))
+#'
+#' # Whether replicate outcomes look like the observed ones
+#' if (rlang::is_installed("bayesplot")) {
+#'   bayesplot::pp_check(fit, type = "bars")
+#' }
+#'
+#' # The scalar parameters and a spread of the predictor, as a draws array
+#' if (rlang::is_installed("posterior")) {
+#'   posterior::summarise_draws(posterior::as_draws(fit))
+#' }
 #'
 #' @name bartisan-interop
 #' @importFrom stats fitted residuals weights sigma simulate
@@ -314,9 +334,13 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
 
   switch(family,
     gaussian = square(stats::rnorm(cells, mu, spread("sigma"))),
-    location_scale = square(stats::rnorm(cells, mu, exp(eta[[2L]]))),
+    gaussian_ls = square(stats::rnorm(cells, mu, exp(eta[[2L]]))),
     poisson = square(stats::rpois(cells, mu)),
     negbin = square(stats::rnbinom(cells, size = spread("theta"), mu = mu)),
+    Gamma_ls = {
+      shape <- exp(-eta[[2L]])
+      square(stats::rgamma(cells, shape = shape, rate = shape / mu))
+    },
     Gamma = {
       shape <- spread("shape")
       square(stats::rgamma(cells, shape = shape, rate = shape / mu))
@@ -599,7 +623,7 @@ as_draws.bartisan_fit <- function(x, eta = TRUE, ...) {
   scalars <- scalar_draws(x)
 
   # The additive predictor is the quantity whose convergence actually matters --
-  # `fit$rhat` already reports it -- so a handful of its columns belong here too,
+  # `diagnose()` already reports it -- so a handful of its columns belong here too,
   # or the diagnostics that read this object can only see the nuisance
   # parameters. A handful rather than all of them: there is one per observation,
   # and a `draws_array` with thousands of columns is not something

@@ -21,19 +21,25 @@
 #' short. Everything is computed from the stored draws, so no other package is
 #' needed.
 #'
-#' @param object a fit from [bartisan()].
-#' @param rhat_max the largest R-hat treated as acceptable. The default, `1.01`,
-#'   is the threshold of Vehtari et al. (2021); `1.1` was the older convention
-#'   and is now considered too permissive.
-#' @param ess_min the smallest effective sample size treated as acceptable, for
-#'   the bulk and the tail alike. The default, `400`, is Vehtari et al.'s
-#'   recommendation of 100 per chain at four chains, which is about what it takes
-#'   for the Monte Carlo error of an interval endpoint to be small next to the
-#'   posterior's own width.
+#' This is where the diagnostics are computed, and the only place: [bartisan()]
+#' does not carry a table of its own, because the per-observation statistics cost
+#' more than the sampling and would then be recomputed here. With a \CRANpkg{future}
+#' plan in place the pass is spread over the workers, and it reports progress
+#' through \CRANpkg{progressr} the way the sampler does.
+#'
+#' @param object a `<bartisan_fit>` object; the output of a call to [bartisan()].
+#' @param rhat_max `numeric`; the largest R-hat treated as acceptable. Default
+#'   is 1.01, the threshold of Vehtari et al. (2021); 1.1 was the older
+#'   convention and is now considered too permissive.
+#' @param ess_min `numeric`; the smallest effective sample size treated as
+#'   acceptable, for the bulk and the tail alike. Default is 400, Vehtari et
+#'   al.'s recommendation of 100 per chain at four chains, which is about what it
+#'   takes for the Monte Carlo error of an interval endpoint to be small next to
+#'   the posterior's own width.
 #'
 #' @returns
-#' An object of class `bartisan_diagnosis`, with a `print()` method that shows
-#' the table, the checks and the advice. Its components are
+#' A `<bartisan_diagnosis>` object, a list with a `print()` method that shows the
+#' table, the checks and the advice. Its components are
 #' \describe{
 #'   \item{`table`}{a data frame with one row per quantity: `rhat`, `rhat_late`
 #'     (the same statistic on the second half of the draws alone), `ess_bulk`,
@@ -48,11 +54,11 @@
 #' }
 #'
 #' @details
-#' # What is reported
+#' ## What Is Reported
 #'
-#' One row per scalar the sampler draws -- the log likelihood, the nuisance
-#' parameters of the family, the scale of each random-effect term -- plus one row
-#' for the additive predictor and one for each set of group intercepts,
+#' One row per scalar the sampler draws (the log likelihood, the nuisance
+#' parameters of the family, and the scale of each random-effect term), plus one
+#' row for the additive predictor and one for each set of group intercepts,
 #' summarized over their worst 5% of observations or levels rather than averaged,
 #' since an average over a thousand observations hides the ones that have not
 #' converged.
@@ -61,16 +67,15 @@
 #' every chain is halved and the halves are compared, so drift inside a chain
 #' counts as disagreement rather than hiding inside a chain mean. With one chain
 #' it is computed by splitting that chain into segments, which detects drift but
-#' cannot detect two chains settling in different places -- which is why one
-#' chain draws a warning of its own.
+#' cannot detect two chains settling in different places; that is why one chain
+#' draws a warning of its own.
 #'
 #' `rhat_late` is that same statistic computed on the second half of the retained
-#' draws alone, and it is what separates the two reasons chains disagree -- by
-#' running the experiment rather than by testing for it. Discarding the early
-#' retained draws is exactly what a longer warmup would have done, so if R-hat is
-#' high overall and acceptable late, warmup ended too early. If it stays high
-#' late, the chains have each settled somewhere different and a longer warmup
-#' will not help.
+#' draws alone, and it separates the two reasons chains disagree by running the
+#' experiment rather than by testing for it. Discarding the early retained draws
+#' is exactly what a longer warmup would have done, so if R-hat is high overall
+#' and acceptable late, warmup ended too early. If it stays high late, the chains
+#' have each settled somewhere different and a longer warmup will not help.
 #'
 #' A within-chain drift statistic would answer that question more directly and
 #' cannot be made to work at BART's autocorrelation. Three versions were
@@ -99,68 +104,75 @@
 #' exploring different tree structures, and no generic MCMC diagnostic can see
 #' that, because none of them looks at the forest.
 #'
-#' # The leaf scale is left out
+#' ## The Leaf Scale Is Left Out
 #'
-#' `sigma_mu` is deliberately absent, as it is from `fit$rhat`. It mixes badly
+#' `sigma_mu` is deliberately absent from the table. It mixes badly
 #' and not for a reason this package can fix: on the same data the same quantity
 #' comes out at R-hat 1.12 in \CRANpkg{dbarts} and 1.16 in `stochtree`, both of
 #' which draw it a different way, against 1.19 here. It is a hyperparameter
 #' nobody reports, and its disagreement between chains does not reach the fitted
-#' function -- on those same fits the additive predictor has R-hat 1.00 and
+#' function: on those same fits the additive predictor has R-hat 1.00 and
 #' thousands of effective draws. It is still in `fit$sigma_mu` and still reaches
 #' [as_draws()][bartisan-interop] for anyone who wants to look.
 #'
-#' # What to do about poor mixing
+#' ## What to Do About Poor Mixing
 #'
 #' The advice the print method gives follows from which statistic failed, and the
 #' order matters because the fixes are not interchangeable.
 #'
-#' * **One chain.** Nothing else can be diagnosed properly. `chains = 4` is the
-#'   first thing to set, and with \CRANpkg{future} installed the chains run in
-#'   parallel, so it usually costs little wall clock.
-#' * **R-hat elevated, acceptable on the late draws.** Warmup ended too early:
-#'   raise `num_burn`. Raising `num_draws` instead adds draws from a
-#'   distribution the sampler has not reached yet.
-#' * **R-hat elevated on the late draws too.** The chains have each settled
-#'   somewhere different. Raise `num_burn` and `num_draws` together, and if that
-#'   does not settle it, reduce `num_trees` -- a smaller forest has fewer ways to
-#'   represent the same fit, so the sampler has less room to wander between them
-#'   -- and check the family, because a likelihood that fits badly can produce a
-#'   posterior with no single place to be.
-#' * **Effective sample size low, R-hat fine.** The benign case. Raise
-#'   `num_draws`. Thinning does not help: `num_thin` discards draws that were
-#'   already paid for, so it lowers the effective sample size per unit of time
-#'   and is worth it only when storing the draws is the binding constraint.
-#' * **Tail effective sample size low, bulk fine.** The posterior mean is fine
-#'   and the interval endpoints are not. Raise `num_draws` if intervals are what
-#'   gets reported.
+#' **One chain** comes first, because nothing else can be diagnosed properly
+#' until there are several. `chains = 4` is the setting to reach for, and with
+#' \CRANpkg{future} installed the chains run in parallel, so it usually costs
+#' little wall clock.
+#'
+#' **R-hat elevated but acceptable on the late draws** says warmup ended too
+#' early, so `num_burn` is the one to raise; raising `num_draws` instead adds
+#' draws from a distribution the sampler has not reached yet. **R-hat elevated on
+#' the late draws too** says the chains have each settled somewhere different.
+#' Raise `num_burn` and `num_draws` together, and if that does not settle it,
+#' reduce `num_trees` (a smaller forest has fewer ways to represent the same fit,
+#' so the sampler has less room to wander between them) and check the family,
+#' because a likelihood that fits badly can produce a posterior with no single
+#' place to be.
+#'
+#' **An effective sample size that is low while R-hat is fine** is the benign
+#' case, and it wants only more draws. Note that thinning does not help:
+#' `num_thin` discards draws that were already paid for, so it lowers the
+#' effective sample size per unit of time and is worth it only when storing the
+#' draws is the binding constraint. **A low tail effective sample size with the
+#' bulk fine** says the posterior mean is fine and the interval endpoints are
+#' not, so raising `num_draws` is warranted when intervals are what gets
+#' reported.
 #'
 #' @references
 #' Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin,
 #' D. B. (2013). *Bayesian Data Analysis* (3rd ed.). Chapman and Hall/CRC.
 #'
-#' Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., & Bürkner, P.-C. (2021).
+#' Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., & Buerkner, P.-C. (2021).
 #' Rank-normalization, folding, and localization: an improved \eqn{\hat{R}} for
 #' assessing convergence of MCMC. *Bayesian Analysis*, 16(2), 667--718.
 #' \doi{10.1214/20-BA1221}
 #'
-#' @seealso [bartisan_control()] for the settings the advice names,
-#'   [as_draws()][bartisan-interop] for handing the draws to \CRANpkg{bayesplot}
-#'   or \CRANpkg{posterior}, and `vignette("diagnostics")` for the fuller
-#'   treatment including posterior predictive checks.
+#' @seealso
+#' [bartisan_control()] for the settings the advice names;
+#' [as_draws()][bartisan-interop] for handing the draws to \CRANpkg{bayesplot}
+#' or \CRANpkg{posterior}; `vignette("diagnostics")` for the fuller treatment,
+#' including posterior predictive checks
 #'
 #' @examples
-#' set.seed(1)
-#' n <- 200
-#' d <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
-#' d$y <- d$x1 + rnorm(n)
+#' data("rhc")
+#' set.seed(123)
 #'
-#' fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
-#'                 control = bartisan_control(chains = 2, num_trees = 10,
-#'                                            num_burn = 100, num_draws = 100,
-#'                                            verbose = FALSE))
+#' # Two chains, both deliberately short, so that there is something to report
+#' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10, chains = 2,
+#'                 num_burn = 50, num_draws = 50, verbose = FALSE)
 #'
+#' # The table, the checks, and what to do about whichever of them failed
 #' diagnose(fit)
+#'
+#' # A stricter effective sample size, which is what an interval endpoint needs
+#' # and a posterior mean does not
+#' diagnose(fit, ess_min = 1000)
 #'
 #' @export
 diagnose <- function(object, rhat_max = 1.01, ess_min = 400) {
@@ -177,7 +189,15 @@ diagnose <- function(object, rhat_max = 1.01, ess_min = 400) {
   chains <- object[["chains"]] %or% 1L
   draws <- nrow(object[["sigma_mu"]])
 
-  table <- diagnosis_table(object, chains, rhat_max)
+  # The pass is the slow part of a multi-chain fit now that `bartisan()` no
+  # longer runs one of its own, so it reports progress the way the sampler does:
+  # nothing is shown unless a handler is active.
+  columns <- diagnosis_column_count(object)
+  ticks <- min(PROGRESS_DIAG_TICKS, max(columns, 0))
+
+  step <- progress_stepper(diagnosis_reporter(ticks), columns, ticks)
+
+  table <- diagnosis_table(object, chains, rhat_max, step)
   checks <- diagnosis_checks(table, chains, draws, rhat_max, ess_min)
 
   out <- list(table = table,
@@ -203,7 +223,46 @@ as_chains <- function(x, chains) {
 # One row per quantity. The reductions over observations and over levels take the
 # worst rather than the average, because an average over a thousand observations
 # hides the one that has not converged.
-diagnosis_table <- function(object, chains, rhat_max) {
+# How many columns the pass will walk, which is what its share of a progress bar
+# is spread over.
+diagnosis_column_count <- function(object) {
+  sum(vapply(object[["eta"]], ncol, numeric(1L))) +
+    sum(vapply(object[["ranef"]] %or% list(), ncol, numeric(1L)))
+}
+
+# Every scalar the sampler draws, flattened to one named vector per quantity.
+# Lives here rather than beside the fit because the convergence pass is the only
+# thing that reads it: `bartisan()` stopped computing a diagnostics table of its
+# own, so this is the one caller.
+scalar_draws <- function(object) {
+  out <- list(loglik = object[["loglik"]])
+
+  for (h in seq_len(ncol(object[["sigma_mu"]]))) {
+    nm <- sprintf("sigma_mu.%s", colnames(object[["sigma_mu"]])[h])
+    out[[nm]] <- object[["sigma_mu"]][, h]
+  }
+
+  if (!is_null(object[["aux"]])) {
+    for (nm in colnames(object[["aux"]])) {
+      out[[sprintf("aux.%s", nm)]] <- object[["aux"]][, nm]
+    }
+  }
+
+  # The scale of each random-effect term is a scalar worth diagnosing; the
+  # intercepts themselves are summarized like the predictor, over the worst
+  # level, since there is one per level.
+  for (h in seq_along(object[["tau"]])) {
+    for (r in seq_len(ncol(object[["tau"]][[h]]))) {
+      nm <- sprintf("tau.%s.%s", names(object[["tau"]])[h],
+                    colnames(object[["tau"]][[h]])[r])
+      out[[nm]] <- object[["tau"]][[h]][, r]
+    }
+  }
+
+  out
+}
+
+diagnosis_table <- function(object, chains, rhat_max, step = NULL) {
   scalars <- scalar_draws(object)
 
   # Left out for the reason in the documentation: it mixes badly in every
@@ -222,7 +281,7 @@ diagnosis_table <- function(object, chains, rhat_max) {
     diagnosis_row(nm, as_chains(scalars[[nm]], chains), rhat_max)
   })
 
-  rows <- c(rows, diagnosis_worst_rows(object, chains, rhat_max))
+  rows <- c(rows, diagnosis_worst_rows(object, chains, rhat_max, step))
 
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
@@ -272,19 +331,69 @@ diagnosis_row <- function(quantity, x, rhat_max) {
 
 # The additive predictor and the group intercepts have one column per observation
 # or per level, so each contributes one row summarized over its worst column.
-diagnosis_worst_rows <- function(object, chains, rhat_max) {
+# The statistics for one column of draws each, which is where this whole pass
+# spends its time: one rank-normalization and one autocovariance per column, and
+# there is one column per observation.
+#
+# Split over a `future` plan when there is one and there are enough columns to
+# pay for the hand-off. The columns are independent and no random numbers are
+# drawn, so the chunks are pure functions of their inputs and the result does not
+# depend on how many workers ran them; `cut()` gives contiguous chunks in
+# ascending order, so `cbind()` puts the columns back where they were. Without
+# \CRANpkg{future.apply} it is the same `vapply()` it always was, which is the
+# same choice `run_chains()` makes for the chains themselves.
+diagnosis_columns <- function(wide, chains, step) {
+  columns <- ncol(wide)
+
+  block <- function(part) {
+    vapply(seq_len(ncol(part)), function(j) {
+      out <- diagnosis_stats(as_chains(part[, j], chains))
+      step()
+      out
+    }, numeric(4L))
+  }
+
+  # Below this the hand-off costs more than the work: at 25 MB of draws the
+  # export is about a sixth of a second, which is most of a small pass.
+  workers <- if (rlang::is_installed("future.apply")) future::nbrOfWorkers() else 1L
+
+  if (columns < 400L || !isTRUE(workers > 1L)) {
+    return(block(wide))
+  }
+
+  chunks <- split(seq_len(columns),
+                  cut(seq_len(columns), workers, labels = FALSE))
+
+  # Cut into blocks *here*, so that what crosses to a worker is that worker's own
+  # columns. Mapping over the column indices instead and slicing inside the
+  # worker reads more naturally and is much worse: the closure then refers to
+  # `wide`, which makes it a global, and a global is sent to every worker. At
+  # 8000 observations that was 102 MB each, so 819 MB of serialization at eight
+  # workers against 102 MB now, and it was what capped the speedup at about
+  # three no matter how many workers were given. The cost is holding the blocks
+  # alongside the draws for the length of the pass, which is one extra copy.
+  parts <- future.apply::future_lapply(
+    lapply(chunks, function(js) wide[, js, drop = FALSE]),
+    block,
+    future.seed = FALSE,
+    future.packages = "bartisan")
+
+  do.call(cbind, parts)
+}
+
+diagnosis_worst_rows <- function(object, chains, rhat_max, step = NULL) {
   out <- list()
 
   parts <- list(list(draws = object[["eta"]], stem = "eta", over = "observations"),
                 list(draws = object[["ranef"]], stem = "ranef", over = "levels"))
 
+  step <- step %or% function() invisible(NULL)
+
   for (part in parts) {
     for (h in seq_along(part[["draws"]])) {
       wide <- part[["draws"]][[h]]
 
-      per_column <- vapply(seq_len(ncol(wide)), function(j) {
-        diagnosis_stats(as_chains(wide[, j], chains))
-      }, numeric(4L))
+      per_column <- diagnosis_columns(wide, chains, step)
 
       # The worst 5% boundary rather than the single worst column, because the
       # worst of a thousand values is extreme even when every chain has
@@ -522,7 +631,7 @@ diagnosis_advice <- function(checks) {
     out <- c(out, paste(
       "Raise `num_burn`. R-hat is already acceptable on the second half of the",
       "retained draws on their own, which is what a longer warmup would have",
-      "given you, so it is the early draws the chains disagree about."))
+      "given, so it is the early draws the chains disagree about."))
   }
 
   if (failed("rhat") && !warmup) {

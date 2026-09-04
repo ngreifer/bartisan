@@ -13,40 +13,56 @@
 \method{print}{summary.bartisan_fit}(x, digits = 3, ...)
 }
 \arguments{
-\item{x, object}{a fitted model from \code{\link[=bartisan]{bartisan()}}.}
+\item{x, object}{a \verb{<bartisan_fit>} object; the output of a call to
+\code{\link[=bartisan]{bartisan()}}. For \code{print.summary.bartisan_fit()}, \code{x} is instead the
+\verb{<summary.bartisan_fit>} object \code{summary()} returned.}
 
-\item{digits}{number of significant digits to print.}
+\item{digits}{\code{numeric}; the number of significant digits to print.
+Default is 3.}
 
-\item{...}{ignored, present for compatibility with the generics.}
+\item{...}{not used.}
 
-\item{level}{width of the reported posterior intervals.}
+\item{level}{\code{numeric}; the width of the posterior intervals \code{summary()}
+reports. Default is .95 for 95\% intervals.}
 }
 \value{
-\code{print()} returns its argument invisibly. \code{summary()} returns a list of class
-\code{summary.bartisan_fit}, with a \code{usage} element giving the posterior summary of the
-splitting counts for each predictor group, and an \code{aux} element for the
-nuisance parameters when the family has any.
+\code{print()} returns its argument invisibly. \code{summary()} returns a
+\verb{<summary.bartisan_fit>} object, a list of the posterior summaries its own
+\code{print()} method displays: the nuisance parameters when the family has any,
+the scale of each random-effect term, and the splitting counts of each
+predictor group.
 }
 \description{
 \code{print()} reports what was fit and how long the chain is. \code{summary()} adds
-posterior summaries of the nuisance parameters and of how often each
-predictor was used in a splitting rule, which is the model's variable
-selection output.
+posterior summaries of the nuisance parameters, of the random-effect scales,
+and of how often each predictor was used in a splitting rule, which is the
+model's variable-selection output.
 }
 \examples{
-set.seed(1)
+data("rhc")
+set.seed(123)
 
-n <- 150
-d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n))
-d$y <- 2 * d$x1 + rnorm(n, sd = 0.3)
+# Whether a patient died, with catheterization among the predictors
+fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
 
-fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = gaussian(),
-               control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_draws = 50, verbose = FALSE))
+# What was fit, and how many draws it rests on
 fit
+
+# The splitting counts, which say which predictors the forest reaches for
 summary(fit)
+
+# A family with a nuisance parameter reports its posterior too, here the
+# residual standard deviation of the log survival time
+fit2 <- bartisan(log(days) ~ . - death, data = rhc, family = gaussian(),
+                 num_trees = 10, num_burn = 50, num_draws = 50,
+                 verbose = FALSE)
+
+summary(fit2, level = .8)
 
 }
 \seealso{
-\code{\link[=bartisan]{bartisan()}}
+\code{\link[=bartisan]{bartisan()}}; \code{\link[=variable_importance]{variable_importance()}} for the splitting counts as a data
+frame rather than printed; \code{\link[=diagnose]{diagnose()}} for whether the chains the summaries
+are computed from have converged
 }

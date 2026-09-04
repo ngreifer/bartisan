@@ -60,126 +60,150 @@
 \method{model_performance}{bartisan_fit}(model, metrics = "all", verbose = TRUE, ...)
 }
 \arguments{
-\item{object, model, x}{a fitted model from \code{\link[=bartisan]{bartisan()}}.}
+\item{object, model, x}{a \verb{<bartisan_fit>} object; the output of a call to
+\code{\link[=bartisan]{bartisan()}}.}
 
-\item{newdata}{optional data frame at which to evaluate, as in
-\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}.}
+\item{newdata}{optional; a data frame at which to predict. Default is \code{NULL}
+to use the data the model was fit to. Missing predictor values are allowed
+in the columns that had them when the model was fit, since only those
+columns' splitting rules carry an answer for one; a missing value anywhere
+else is an error. See section \emph{Missing Predictor Values} in the Details of
+\code{\link[=bartisan]{bartisan()}}.}
 
-\item{iterations}{optional integer vector selecting which stored draws to
-use. Defaults to all of them.}
+\item{iterations}{\code{numeric}; optional indices of the stored draws to use,
+between 1 and the number of draws the fit retains. Default is \code{NULL} to use
+all of them.}
 
 \item{offset, weights}{an offset and prior weights for \code{newdata}, as in
-\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. For a binomial response the weights are the numbers of
-trials, and so are what a replicate outcome is a fraction of.}
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. Defaults are \code{NULL} to use those the model was fit
+with. For a binomial response the weights are the numbers of trials, and so
+are what a replicate outcome is a fraction of; they must be given alongside
+\code{newdata} when the model was fit with more than one trial, since the number
+of trials is not a function of the predictors and cannot be reconstructed.}
 
-\item{...}{further arguments, passed on where the method has somewhere to pass
-them and ignored otherwise.}
+\item{...}{further arguments, passed to whatever the method calls (the
+\pkg{bayesplot} check from \code{pp_check()}, \pkgfun{loo}{loo} and
+\pkgfun{loo}{waic} from \code{loo()} and \code{waic()}, and
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} from the rest) and ignored where there is nowhere
+to pass them.}
 
-\item{transform}{for \code{posterior_linpred()}, return the predictor mapped
-through the inverse link, which is what \code{posterior_epred()} does.}
+\item{transform}{\code{logical}; for \code{posterior_linpred()}, whether to map the
+predictor through the inverse link, which is what \code{posterior_epred()} does.
+Default is \code{FALSE}.}
 
-\item{nsim, ndraws}{the number of posterior draws to use, chosen at random from
-the retained ones.}
+\item{nsim, ndraws}{\code{numeric}; the number of posterior draws to use, chosen at
+random from the retained ones. Defaults are 1 for \code{simulate()} and 10 for
+\code{pp_check()}.}
 
 \item{seed}{optional seed, set with \code{\link[=set.seed]{set.seed()}} before drawing and restored
-afterwards, following the \code{\link[stats:simulate]{stats::simulate()}} convention.}
+afterwards, following the \code{\link[stats:simulate]{stats::simulate()}} convention. Default is \code{NULL}
+to leave the stream alone.}
 
-\item{type}{for \code{fitted()}, the prediction scale, passed to
-\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. For \code{pp_check()}, the name of the \pkg{bayesplot}
-check to run without its \code{ppc_} prefix, so that \code{"dens_overlay"} calls
-\pkgfun{bayesplot}{ppc_dens_overlay}.}
+\item{type}{string; for \code{fitted()}, the prediction scale, passed to
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}; default is \code{"response"}. For \code{pp_check()}, the
+name of the \pkg{bayesplot} check to run without its \code{ppc_} prefix, so that
+\code{"dens_overlay"} (the default) calls
+\pkgfun{bayesplot}{ppc_dens_overlay}; \pkgfun{bayesplot}{available_ppc}
+lists them.}
 
 \item{eta}{for \code{as_draws()}, which columns of the additive predictor to carry
-into the draws array alongside the scalar parameters. \code{TRUE}, the default,
-takes a representative ten spread across the range of the fitted function --
-there is one column per observation, and an array with thousands of them is
-not something \pkgfun{posterior}{summarise_draws} or a trace plot can be
-pointed at. \code{FALSE} takes none. A numeric vector takes those observations.
-The predictor is the quantity whose convergence usually matters, and the one
-\code{fit$rhat} reports on, so it is included by default.}
+into the draws array alongside the scalar parameters, given as either a
+logical value or a numeric vector. Default is \code{TRUE}, which takes a
+representative ten spread across the range of the fitted function; \code{FALSE}
+takes none, and a numeric vector takes those observations. The default takes
+a handful rather than all of them because there is one column per
+observation, and an array with thousands of them is not something
+\pkgfun{posterior}{summarise_draws} or a trace plot can be pointed at. The
+predictor is the quantity whose convergence usually matters, and the one
+\code{\link[=diagnose]{diagnose()}} reports on, so it is included by default.}
 
-\item{verbose}{whether to report problems that do not stop the computation.}
+\item{verbose}{\code{logical}; whether to report problems that do not stop the
+computation, such as a family that has no mean and so no Bayesian
+\eqn{R^2}. Default is \code{TRUE}.}
 
-\item{metrics}{for \code{model_performance()}, \code{"all"} or a character vector
-selecting from \code{"ELPD"}, \code{"LOOIC"}, \code{"WAIC"}, \code{"R2"}, \code{"RMSE"} and
-\code{"SIGMA"}.}
+\item{metrics}{\code{character}; for \code{model_performance()}, which fit statistics to
+report. Allowable options include \code{"all"} (the default), \code{"ELPD"},
+\code{"LOOIC"}, \code{"WAIC"}, \code{"R2"}, \code{"RMSE"}, and \code{"SIGMA"}, and a vector of them
+selects several.}
 }
 \value{
 \code{posterior_predict()}, \code{posterior_epred()}, \code{posterior_linpred()} and
 \code{log_lik()} return a matrix of draws by observations. \code{simulate()} returns a
 data frame of one column per replicate. \code{loo()} and \code{waic()} return the
-objects those functions return. \code{model_performance()} returns a one-row data
-frame. \code{as_draws()} returns a \code{draws_array} of iterations by chains by
-parameters. The accessors return what their names suggest.
+\verb{<loo>} and \verb{<waic>} objects those functions produce, and
+\code{model_performance()} a one-row data frame of class \verb{<performance_model>}.
+\code{as_draws()} returns a \verb{<draws_array>} of iterations by chains by parameters.
+The accessors return what their names suggest.
 }
 \description{
-Methods that let a \code{bartisan} fit be used by the packages that assess model
-fit, rather than requiring the posterior draws to be pulled out and handled by
-hand. There is nothing to set up: load the other package and call its function
-on the fit.
-\itemize{
-\item \strong{Posterior predictions.} \pkgfun{rstantools}{posterior_predict} draws
+Methods that let a \verb{<bartisan_fit>} object be used by the packages that assess
+model fit. There is nothing to set up: load the other package and call its
+function on the fit.
+}
+\details{
+\subsection{What Is Available}{
+
+\strong{Posterior predictions.} \pkgfun{rstantools}{posterior_predict} draws
 replicate outcomes from the fitted model,
 \pkgfun{rstantools}{posterior_epred} gives their mean and
 \pkgfun{rstantools}{posterior_linpred} the additive predictor, following the
-\pkg{rstantools} conventions that \pkg{brms} and \pkg{rstanarm} follow.
+\pkg{rstantools} conventions that \pkg{brms} and \pkg{rstanarm} follow, and
 \code{\link[stats:simulate]{stats::simulate()}} is the same thing in the shape base R expects.
-\item \strong{Pointwise likelihood.} \pkgfun{rstantools}{log_lik} returns the
+\strong{Pointwise likelihood.} \pkgfun{rstantools}{log_lik} returns the
 draws-by-observations matrix of log-likelihood contributions, which is what
 \pkgfun{loo}{loo} and \pkgfun{loo}{waic} need; both have methods here.
-\item \strong{Graphical checks.} \code{pp_check()} runs any of the \pkg{bayesplot}
-posterior-predictive checks on the fit.
-\item \strong{Summaries.} \pkgfun{performance}{model_performance} collects the fit
-statistics in one table, \pkgfun{performance}{r2} gives the Bayesian
-\eqn{R^2}, and \pkgfun{posterior}{as_draws} hands the scalar parameters to
+
+\strong{Graphical checks.} \code{pp_check()} runs any of the \pkg{bayesplot}
+posterior-predictive checks on the fit. \strong{Summaries.}
+\pkgfun{performance}{model_performance} collects the fit statistics in one
+table, \pkgfun{performance}{r2} gives the Bayesian \eqn{R^2}, and
+\pkgfun{posterior}{as_draws} hands the scalar parameters to
 \pkgfun{posterior}{summarise_draws} or to the \pkg{bayesplot} MCMC
-diagnostics.
-\item \strong{Basic accessors.} \code{\link[stats:fitted]{stats::fitted()}}, \code{\link[stats:residuals]{stats::residuals()}},
+diagnostics. \strong{Basic accessors.} \code{\link[stats:fitted]{stats::fitted()}}, \code{\link[stats:residuals]{stats::residuals()}},
 \code{\link[stats:weights]{stats::weights()}} and \code{\link[stats:sigma]{stats::sigma()}} do what they do for a \code{glm}, which is
 also most of what \pkg{insight} needs to make the fit legible to the
 \pkg{easystats} packages.
 }
-}
-\section{Leave-one-out is approximate, and the approximation is strained here}{
+
+\subsection{Leave-One-Out Is Approximate, and Strained Here}{
+
 \pkgfun{loo}{loo} estimates the leave-one-out predictive density by importance
 sampling from the full-data posterior, and the estimate is trustworthy only
-when the importance weights have a finite variance -- which is what the Pareto
+when the importance weights have a finite variance, which is what the Pareto
 \eqn{k} diagnostic reports on. A forest is a very flexible function of the
 predictors, so a single observation can have a lot of influence on the leaves
-it lands in, and high \eqn{k} values are common rather than exceptional. The
-warning \pkg{loo} prints in that case is not boilerplate; treat it as saying
-that the number is not reliable, and reach for held-out data instead. A log
-score on data the model has not seen is available directly:
+it lands in, and high \eqn{k} values are common rather than exceptional. Note
+that the warning \pkg{loo} prints in that case is not boilerplate; it says the
+number is not reliable, and held-out data are the alternative. A log score on
+data the model has not seen is available directly:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{predict(fit, newdata = held_out, type = "density", log = TRUE)
 }\if{html}{\out{</div>}}
 }
 
-\section{What a posterior predictive draw is on}{
+\subsection{What a Posterior Predictive Draw Is On}{
+
 The replicate outcomes are on the scale the likelihood was written on, which
-is the scale \code{\link[=bartisan]{bartisan()}} stored the response on:
-\itemize{
-\item A binomial response is a \strong{proportion}, so binary data come back as 0 and
-1, and data given as two columns or with prior weights come back as a
-fraction of the trials.
-\item A response with categories comes back as an \strong{integer category index},
-from 1 to the number of categories, because a matrix cannot hold a factor.
-\code{fit$levels} names them. \code{\link[stats:simulate]{stats::simulate()}} returns factors instead, since
-its result is a data frame and can.
-\item An accelerated failure time response comes back as a \strong{time}, not a log
-time, and it is an event time: the predictive distribution of the outcome
-does not know about the censoring that may have hidden it. Comparing
-replicates against censored observations is therefore not like for like, and
-\code{pp_check()} says so.
-\item A \code{\link[=custom_family]{custom_family()}} fit has no posterior predictive distribution at all,
-because a log density supplies no way to draw from it. Those methods error.
-}
+is the scale \code{\link[=bartisan]{bartisan()}} stored the response on. A \strong{binomial} response is a
+proportion, so binary data come back as 0 and 1, and data given as two columns
+or with prior weights come back as a fraction of the trials. A response with
+\strong{categories} comes back as an integer category index, from 1 to the number
+of categories, because a matrix cannot hold a factor; \code{fit$levels} names them,
+and \code{\link[stats:simulate]{stats::simulate()}} returns factors instead, since its result is a data
+frame and can. An \strong{accelerated failure time} response comes back as a time
+rather than a log time, and it is an event time: the predictive distribution
+of the outcome does not know about the censoring that may have hidden it, so
+comparing replicates against censored observations is not like for like, and
+\code{pp_check()} says so. A \code{\link[=custom_family]{custom_family()}} fit has \strong{no posterior predictive
+distribution at all}, because a log density supplies no way to draw from it,
+so those methods error.
 }
 
-\section{What is deliberately absent}{
+\subsection{What Is Deliberately Absent}{
+
 There is no \code{logLik()} method, and that is a choice rather than a gap. The
 generic exists so that \code{\link[stats:AIC]{stats::AIC()}} and \code{\link[stats:BIC]{stats::BIC()}} can be computed, and
-both need a count of parameters -- which a forest does not have, since the
+both need a count of parameters, which a forest does not have, since the
 number of leaves is itself drawn from the posterior. \pkgfun{loo}{loo} and
 \pkgfun{loo}{waic} are the corresponding quantities for a model like this
 one, and they are computed from the posterior rather than from a parameter
@@ -192,7 +216,8 @@ here. \pkgfun{performance}{check_predictions} does work, through
 \code{\link[stats:simulate]{stats::simulate()}}.
 }
 
-\section{The Bayesian R-squared}{
+\subsection{The Bayesian R-Squared}{
+
 \pkgfun{performance}{r2} returns the quantity of Gelman et al. (2019): per
 draw, the variance of the fitted means across observations divided by that
 variance plus the variance of the residuals. Being a per-draw quantity it has a
@@ -200,29 +225,32 @@ posterior, which is why it is reported with an interval and why it can fall as
 the model is made more flexible. It needs a mean, so it is not available for
 \code{ordinal()} or \code{multinomial()}.
 }
-
+}
 \examples{
 \dontshow{if (rlang::is_installed(c("loo", "rstantools"))) withAutoprint(\{ # examplesIf}
-set.seed(1)
-n <- 200
-d <- data.frame(x1 = runif(n), x2 = runif(n))
-d$y <- rpois(n, exp(0.5 + d$x1))
+data("rhc")
+set.seed(123)
 
-fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(),
-               control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_draws = 50, verbose = FALSE))
+fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
 
-# Replicate outcomes, one per draw per observation
+# Replicate outcomes, one per draw per observation, whose mean is what
+# `fitted()` reports
 yrep <- rstantools::posterior_predict(fit)
-dim(yrep)
-
-# Their mean, which is what fitted() reports
 range(colMeans(rstantools::posterior_epred(fit)) - fitted(fit))
 
 # Pointwise log likelihood, and the fit statistics built on it
-log_likelihood <- rstantools::log_lik(fit)
-dim(log_likelihood)
-loo::waic(log_likelihood)
+loo::waic(rstantools::log_lik(fit))
+
+# Whether replicate outcomes look like the observed ones
+if (rlang::is_installed("bayesplot")) {
+  bayesplot::pp_check(fit, type = "bars")
+}
+
+# The scalar parameters and a spread of the predictor, as a draws array
+if (rlang::is_installed("posterior")) {
+  posterior::summarise_draws(posterior::as_draws(fit))
+}
 \dontshow{\}) # examplesIf}
 }
 \references{
@@ -234,5 +262,8 @@ evaluation using leave-one-out cross-validation and WAIC. \emph{Statistics and
 Computing}, 27(5), 1413--1432.
 }
 \seealso{
-\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}, \link{bartisan-marginaleffects}
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for the predictions these methods are built on;
+\code{\link[=diagnose]{diagnose()}} for the convergence and mixing diagnostics;
+\link{bartisan-marginaleffects} for reading effects off a fit;
+\code{vignette("diagnostics")} for the fuller treatment
 }

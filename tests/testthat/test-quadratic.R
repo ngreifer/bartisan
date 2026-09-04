@@ -23,7 +23,7 @@ test_that("the closed forms reproduce the general path", {
     list(label = "logit augmented, hard", family = binomial("logit"),
          gate = "hard", augment = TRUE,
          y = stats::rbinom(200, 1, stats::plogis(2 * d$x1 - 1))),
-    list(label = "location-scale, soft", family = location_scale(),
+    list(label = "location-scale, soft", family = gaussian_ls(),
          gate = "smoothstep", augment = FALSE, y = d$y))
 
   for (s in settings) {
@@ -88,7 +88,7 @@ test_that("is_quadratic is declared per predictor, not per family", {
   log_sd_true <- -1 + d$x2
   d$y <- mean_true + stats::rnorm(n, sd = exp(log_sd_true))
 
-  fit <- bartisan(y ~ ., data = d, family = location_scale(),
+  fit <- bartisan(y ~ ., data = d, family = gaussian_ls(),
                   control = bartisan_control(num_trees = 20, num_burn = 300,
                                              num_draws = 300, verbose = FALSE))
 

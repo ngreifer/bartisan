@@ -434,7 +434,7 @@ test_that("one formula gives every additive predictor the same coefficients", {
 
   # A single formula applies to every forest, which is the recycling rule every
   # per-forest argument follows, so a `vc()` term in it reaches each parameter.
-  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale(),
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
                   control = vc_control())
 
   expect_identical(fit[["num_forest"]], 4L)
@@ -678,10 +678,10 @@ test_that("a vc() term reaches only the parameter whose formula names it", {
   d <- sim_two()
 
   on_mean <- bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2),
-                      data = d, family = location_scale(),
+                      data = d, family = gaussian_ls(),
                       control = vc_control())
   on_sd <- bartisan(list(mean = y ~ x1 + x2 + z, log_sd = ~ x1 + x2 + vc(z)),
-                    data = d, family = location_scale(),
+                    data = d, family = gaussian_ls(),
                     control = vc_control())
 
   expect_named(on_mean[["eta"]], c("mean", "mean:z", "log_sd"))
@@ -694,7 +694,7 @@ test_that("a vc() term reaches only the parameter whose formula names it", {
 test_that("both parameters recover their own coefficient function", {
   d <- sim_two(seed = 41)
 
-  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale(),
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
                   control = bartisan_control(num_trees = 25, num_burn = 400,
                                              num_draws = 400, verbose = FALSE))
 
@@ -714,7 +714,7 @@ test_that("each parameter's coefficient takes its own modifiers", {
 
   fit <- bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
                        log_sd = ~ x1 + x2 + vc(z, ~ x1)),
-                  data = d, family = location_scale(), control = vc_control())
+                  data = d, family = gaussian_ls(), control = vc_control())
 
   # A forest may only split on what its own modifiers allow, and the weights are
   # how that is enforced, so the mask is what to read.
@@ -735,12 +735,12 @@ test_that("the same covariate may vary on two parameters but not twice on one", 
   expect_named(
     bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
                   log_sd = ~ x1 + x2 + vc(z, ~ x1)),
-             data = d, family = location_scale(),
+             data = d, family = gaussian_ls(),
              control = vc_control())[["eta"]],
     c("mean", "mean:z", "log_sd", "log_sd:z"))
 
   expect_error(bartisan(y ~ x1 + vc(z) + vc(z), data = d,
-                        family = location_scale(), control = vc_control()),
+                        family = gaussian_ls(), control = vc_control()),
                "a varying coefficient more than once")
 })
 
@@ -750,7 +750,7 @@ test_that("a named formula list lines its vc() terms up with the parameter", {
   # Given out of order, so the `vc()` term has to follow the reordering rather
   # than the position it was written in.
   fit <- bartisan(list(log_sd = ~ x1 + x2, mean = y ~ x1 + x2 + vc(z)),
-                  data = d, family = location_scale(), control = vc_control())
+                  data = d, family = gaussian_ls(), control = vc_control())
 
   expect_named(fit[["eta"]], c("mean", "mean:z", "log_sd"))
 })
@@ -758,12 +758,12 @@ test_that("a named formula list lines its vc() terms up with the parameter", {
 test_that("a drawn coding is judged per parameter and named per parameter", {
   d <- sim_two(seed = 45)
 
-  # `location_scale()` is quadratic in the mean and not in the log standard
+  # `gaussian_ls()` is quadratic in the mean and not in the log standard
   # deviation, so the same request is exact on one and not on the other. The
   # guard has to be asked of the predictor the coding actually feeds.
   fit <- bartisan(list(mean = y ~ x1 + x2 + vc(z, center = "estimate"),
                        log_sd = ~ x1 + x2),
-                  data = d, family = location_scale(), control = vc_control())
+                  data = d, family = gaussian_ls(), control = vc_control())
 
   expect_true(all(c("b.mean:z.0", "b.mean:z.1") %in% colnames(fit[["aux"]])))
   expect_identical(colnames(coef(fit)), "mean:z")
@@ -771,7 +771,7 @@ test_that("a drawn coding is judged per parameter and named per parameter", {
   expect_error(
     bartisan(list(mean = y ~ x1 + x2,
                   log_sd = ~ x1 + x2 + vc(z, center = "estimate")),
-             data = d, family = location_scale(), control = vc_control()),
+             data = d, family = gaussian_ls(), control = vc_control()),
     "leaf target is\\s+quadratic")
 })
 
@@ -780,7 +780,7 @@ test_that("group intercepts reach every control function and no coefficient", {
   d$grp <- factor(sample(1:10, nrow(d), TRUE))
 
   fit <- bartisan(y ~ x1 + x2 + vc(z) + (1 | grp), data = d,
-                  family = location_scale(), control = vc_control())
+                  family = gaussian_ls(), control = vc_control())
 
   # One set per forest, and a coefficient's must be exactly zero: a group-varying
   # coefficient is a random slope, which `split_random()` refuses outright.
@@ -794,7 +794,7 @@ test_that("group intercepts reach every control function and no coefficient", {
 test_that("per-forest settings are keyed by the two-part forest names", {
   d <- sim_two(seed = 47)
 
-  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale(),
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
                   num_trees = c(mean = 20, `mean:z` = 8, log_sd = 10,
                                 `log_sd:z` = 5),
                   control = vc_control())
@@ -852,7 +852,7 @@ test_that("the overlap warning says which formula it means", {
 
   expect_warning(bartisan(list(mean = y ~ x1 + x2 + z + vc(z),
                                log_sd = ~ x1 + x2),
-                          data = d, family = location_scale(),
+                          data = d, family = gaussian_ls(),
                           control = vc_control()),
                  "the mean formula")
 
@@ -866,7 +866,7 @@ test_that("the overlap warning says which formula it means", {
 test_that("each parameter's estimand path and coefficient path agree", {
   d <- sim_two(seed = 52)
 
-  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale(),
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
                   control = vc_control())
 
   # Every estimand reaches the model through `predict()` on modified `newdata`,
@@ -897,7 +897,7 @@ test_that("bcf composes with a family that has two additive predictors", {
   # refused on the log standard deviation, so the whole fit falls back to a fixed
   # coding rather than failing.
   fit <- bcf(y ~ x1 + x2, treatment = ~ z, data = d,
-             family = location_scale(), propensity = FALSE, num_trees = 12L,
+             family = gaussian_ls(), propensity = FALSE, num_trees = 12L,
              control = vc_control())
 
   expect_named(fit[["eta"]], c("mean", "mean:z", "log_sd", "log_sd:z"))

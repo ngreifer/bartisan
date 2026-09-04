@@ -3,15 +3,11 @@
 #' @description
 #' Fits a BART model in which the response distribution is arbitrary rather than
 #' restricted to the conditionally conjugate cases, using the
-#' Laplace-approximation reversible-jump sampler of Linero (2025). Decision
-#' rules may be soft, as in Linero and Yang (2018), which gives smoother fits
-#' than the step functions of standard BART.
-#'
-#' The interface deliberately mirrors [stats::glm()]: a formula, a data frame
-#' and a family. Ordinary [stats::family] objects work unchanged, including
-#' their links, and the extra families that `glm()` has no counterpart for are
-#' documented at [bartisan-families], along with `custom_family()` for a
-#' likelihood of your own.
+#' Laplace-approximation reversible-jump sampler of Linero (2025). Decision rules
+#' may be soft, as in Linero and Yang (2018), which gives smoother fits than the
+#' step functions of standard BART. The interface mirrors that of [stats::glm()]:
+#' a formula, a data frame, and a family, with the families that `glm()` has no
+#' counterpart for documented at [bartisan-families].
 #'
 #' @param formula a model formula. The right-hand side lists candidate
 #'   predictors; the model finds interactions and nonlinearity on its own, so
@@ -27,62 +23,83 @@
 #'   can be named instead of ordered:
 #'
 #'   ```r
-#'   bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = location_scale())
+#'   bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = gaussian_ls())
 #'   bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
-#'            family = location_scale())
+#'            family = gaussian_ls())
 #'   ```
 #'
 #'   One formula applies to every forest, which is the ordinary case. A predictor
 #'   left out of one forest's formula is still in the data and is never split on
 #'   by that forest.
 #'
+#'   **A formula naming no predictor at all makes that parameter a constant.**
+#'   `~ 1` leaves its forest nothing to split on, so every tree in it is a stump
+#'   and the forest is a single drawn scalar rather than a function of the
+#'   predictors. This works for every family that takes more than one formula, and
+#'   it is how a nuisance parameter is asked for without a family that has one
+#'   built in: `gaussian_ls()` with `~ 1` on its scale is `gaussian()` with its
+#'   drawn `sigma`, `Gamma_ls()` with `~ 1` is `Gamma("log")` with its drawn
+#'   shape, and `zi_poisson()` with `~ 1` on its inflation part is the ordinary
+#'   zero-inflated Poisson with one structural-zero probability. The scalar is
+#'   drawn under the leaf prior rather than under the prior the built-in family
+#'   would use, so the two agree to within that difference rather than exactly.
+#'
+#'   ```r
+#'   # the scale free to vary, then held constant
+#'   bartisan(y ~ x1 + x2, data = d, family = gaussian_ls())
+#'   bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = gaussian_ls())
+#'   ```
+#'
 #'   [vc()] terms are read out of each formula in turn, so a parameter has the
 #'   varying coefficients its own formula asks for and no others. That makes the
-#'   forests two-dimensional -- one axis the parameter, the other the coefficient
-#'   -- and the names below are what per-forest settings are keyed by:
+#'   forests two-dimensional (one axis the parameter, the other the coefficient),
+#'   and the names below are what per-forest settings are keyed by:
 #'
 #'   ```r
 #'   # forests: mean, mean:z, log_sd
 #'   bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-#'            family = location_scale())
+#'            family = gaussian_ls())
 #'
 #'   # one formula reaches every parameter, so both get a coefficient of `z`
-#'   bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+#'   bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
 #'   ```
-#' @param data a data frame containing the variables in `formula`.
-#' @param family the response distribution, as a [stats::family] object, one of
-#'   the families in [bartisan-families], or a name. The default, `NULL`, reads
-#'   one off the response and says which it chose; see Details for the rules and
-#'   for what is supported.
-#' @param weights optional prior weights. For a binomial response given as
-#'   proportions, these are the numbers of trials, as in `glm()`.
-#' @param offset optional known component of the additive predictor, on the link
-#'   scale.
-#' @param subset optional vector specifying a subset of rows to use.
-#' @param na.action how to handle missing values. The default,
-#'   [stats::na.pass], keeps rows whose *predictors* are missing and lets the
-#'   splitting rules decide where they go, which is what the trees are able to do
-#'   and `lm()` and `glm()` are not; see Details. Pass [stats::na.omit] to drop
-#'   any row with a missing value anywhere instead. Rows with a missing response,
-#'   weight or offset are dropped either way, with a warning, since there is
+#' @param data a data frame containing the variables named in `formula`.
+#' @param family the response distribution, given as a [stats::family] object,
+#'   as one of the families in [bartisan-families], or as the name of either.
+#'   Ordinary `family` objects are used unchanged, including their links, and a
+#'   link the package does not compile is composed onto the scale its family
+#'   works on. Default is `NULL`, in which case the family is read off the
+#'   response and a message reports the choice; see Details for the rules.
+#' @param weights optional; prior weights, one per observation. For a binomial
+#'   response given as proportions, these are the numbers of trials, as in
+#'   `glm()`.
+#' @param offset optional; a known component of the additive predictor, on the
+#'   link scale.
+#' @param subset optional; a vector specifying the subset of rows to use.
+#' @param na.action how missing values are handled. Default is [stats::na.pass],
+#'   which keeps rows whose *predictors* are missing and lets the splitting rules
+#'   decide where they go, which is something the trees can do and `lm()` and
+#'   `glm()` cannot; see Details. Pass [stats::na.omit] to drop any row with a
+#'   missing value anywhere instead. Note that rows with a missing response,
+#'   weight, or offset are dropped either way, with a warning, since there is
 #'   nothing to fit them to.
-#' @param control a list of sampler and prior settings from
-#'   [bartisan_control()].
-#' @param ... further arguments to [bartisan_control()]. They are
-#'   merged into `control`, overriding any value given there, so that
+#' @param control a `<bartisan_control>` object; the output of a call to
+#'   [bartisan_control()], containing the sampler and prior settings.
+#' @param ... further arguments to [bartisan_control()], which are merged into
+#'   `control` and override any value given there, so that
 #'   `bartisan(..., num_trees = 20)` and
 #'   `bartisan(..., control = bartisan_control(num_trees = 20))` are the same
-#'   call. Names that are not arguments of [bartisan_control()] are an error
+#'   call. A name that is not an argument of [bartisan_control()] is an error
 #'   rather than being silently ignored.
 #'
 #' @details
-#' # What the sampler does
+#' ## What the Sampler Does
 #'
 #' Standard BART relies on the leaf parameters being integrable in closed form,
-#' which restricts it to a Gaussian response, or to models that can be reduced
-#' to one by data augmentation. Linero's algorithm removes that restriction. At
-#' each candidate move it builds a Gaussian approximation to the conditional
-#' posterior of the affected leaf parameters, by Fisher scoring, and uses that
+#' which restricts it to a Gaussian response, or to models that can be reduced to
+#' one by data augmentation. Linero's algorithm removes that restriction. At each
+#' candidate move it builds a Gaussian approximation to the conditional posterior
+#' of the affected leaf parameters, by Fisher scoring, and uses that
 #' approximation as the proposal in a reversible-jump Metropolis step. The
 #' approximation only has to be good enough to be accepted often; the stationary
 #' distribution is the exact posterior either way.
@@ -90,13 +107,12 @@
 #' What a new family therefore has to supply is only the log density of one
 #' observation and its first two derivatives with respect to the additive
 #' predictor. Families whose response has more than one unconstrained parameter,
-#' such as `multinomial()` and `location_scale()`, carry one forest per
+#' such as `multinomial()` and `gaussian_ls()`, carry one forest per
 #' parameter. Because that is the whole interface, it can be reached from R:
-#' [custom_family()] takes the log density as an R function and differences it
-#' for the derivatives, and a link the package does not compile is composed onto
-#' the scale its family works on the same way.
+#' [custom_family()] takes the log density as an R function and differences it for
+#' the derivatives.
 #'
-#' # The family is inferred when you do not name one
+#' ## Inferring the Family
 #'
 #' `family` may be left alone, in which case it is read off the response:
 #'
@@ -109,36 +125,35 @@
 #' | two-column matrix of successes and failures | `binomial()` |
 #' | anything else | `dpm()` |
 #'
-#' A message reports the choice. Naming `family` yourself is what silences it,
-#' which is the same thing you would do to change the choice.
+#' A message reports the choice, and naming `family` is what silences it, which
+#' is also what changes it.
 #'
 #' Two of these are worth saying out loud. A **count** is not inferred as
 #' `poisson()`: a non-negative integer response is often Poisson and often not,
 #' and the Poisson variance assumption is strong enough that making it silently
 #' would be a modeling decision taken on the caller's behalf. Gaussian is the
 #' weaker guess and the one whose failure is easy to see. And a numeric response
-#' with exactly two values that are *not* zero and one -- `c(1, 2)`, say -- is
+#' with exactly two values that are *not* zero and one (e.g., `c(1, 2)`) is
 #' Gaussian rather than binomial, because which of the two counts as the success
 #' is not something to guess at.
 #'
-#' # Soft decision rules
+#' ## Soft Decision Rules
 #'
 #' By default a decision rule is a smooth gate rather than a step, so an
 #' observation reaches every leaf with some weight and the fitted function is
 #' smooth. `gate` in [bartisan_control()] chooses both whether the rules are soft
-#' and, if they are, the gate's shape; the default is the bounded
-#' `"smoothstep"`, and `"logistic"` is Linero and Yang's (2018) original. This
-#' costs more per iteration, since a leaf now
-#' touches every observation rather than the ones inside its cell, and it makes
-#' the leaf parameters of a tree dependent on one another. Combining soft rules
-#' with a non-conjugate likelihood is an extension of Linero (2025), which
-#' leaves it as an open problem; it is handled here by giving the reversible-jump
-#' move a bivariate Laplace proposal for the pair of child leaves, which reduces
-#' to Linero's independent pair exactly when the rules are hard.
+#' and, if they are, the gate's shape; the default is the bounded `"smoothstep"`,
+#' and `"logistic"` is Linero and Yang's (2018) original. Soft rules cost more
+#' per iteration, since a leaf now touches every observation rather than only the
+#' ones inside its cell, and they make the leaf parameters of a tree dependent on
+#' one another. Combining them with a non-conjugate likelihood is an extension of
+#' Linero (2025), which leaves it as an open problem; it is handled here by
+#' giving the reversible-jump move a bivariate Laplace proposal for the pair of
+#' child leaves, which reduces to Linero's independent pair exactly when the
+#' rules are hard. Set `gate = "hard"` in [bartisan_control()] for the faster
+#' hard-rule sampler.
 #'
-#' Set `gate = "hard"` in [bartisan_control()] for the faster hard-rule sampler.
-#'
-#' # Random intercepts
+#' ## Random Intercepts
 #'
 #' A `(1 | group)` term in the formula adds an intercept per level of `group`,
 #' drawn from a common mean-zero normal whose standard deviation is itself drawn
@@ -152,9 +167,9 @@
 #'
 #' The intercepts are in `fit$ranef` and their standard deviations in `fit$tau`,
 #' one matrix per additive predictor. A family with several predictors gets a
-#' separate set for each -- a zero-inflated count model has a group effect on the
-#' count part and another on the inflation part -- and they are independent of one
-#' another.
+#' separate set for each (i.e., a zero-inflated count model has a group effect on
+#' the count part and another on the inflation part), and they are independent of
+#' one another.
 #'
 #' Only random *intercepts* are supported, and a random slope is refused rather
 #' than ignored. The reason is that a random intercept is a scalar entering the
@@ -167,18 +182,18 @@
 #'
 #' **When to reach for this rather than putting the group in as a predictor.** A
 #' grouping factor can also go in the fixed part, where a tree splits on it like
-#' anything else, and with few large groups that is the better choice --
-#' measured, it beats a random intercept, because the group means are well
-#' determined without pooling and a split can interact the group with the
-#' covariates. The random intercept wins when there are many small groups, which
-#' is where partial pooling earns its keep: at 250 groups of four observations it
-#' cut held-out error by 30% against the factor route, and at five groups of a
-#' hundred it lost to it.
+#' anything else, and with few large groups that is the better choice; measured,
+#' it beats a random intercept, because the group means are well determined
+#' without pooling and a split can interact the group with the covariates. The
+#' random intercept wins when there are many small groups, which is where partial
+#' pooling earns its keep: at 250 groups of four observations it cut held-out
+#' error by 30% against the factor route, and at five groups of a hundred it lost
+#' to it.
 #'
-#' A level of `group` that was not present at fitting time is given the prior mean
-#' of zero when predicting, with a warning.
+#' A level of `group` that was not present at fitting time is given the prior
+#' mean of zero when predicting, with a warning.
 #'
-#' # Missing predictor values
+#' ## Missing Predictor Values
 #'
 #' A missing predictor is not imputed and its row is not dropped, which is the
 #' default here because a tree can do something better with a missing value than
@@ -199,18 +214,19 @@
 #' draw at all: complete data reproduces the sampler exactly as it was.
 #'
 #' A missing value takes a hard path through the tree even when the rules are
-#' soft, which is the right thing -- there is nothing about being absent to
-#' smooth over -- and it keeps the leaf weights summing to one.
+#' soft (there being nothing about absence to smooth over), which keeps the leaf
+#' weights summing to one.
 #'
-#' Two consequences to be clear about. `predict()` accepts missing values only in
-#' columns that had them at fitting time, because only those columns' rules carry
-#' an answer; elsewhere every rule would send the value the same arbitrary way,
-#' so it is an error instead. And what this estimates is the mean of the response
-#' given the predictors *and the pattern of missingness*. That is what you want
-#' for prediction. If the estimand is a regression or causal effect defined on
-#' complete data, multiple imputation is the right tool and this is not.
+#' Two consequences are worth being clear about. `predict()` accepts missing
+#' values only in columns that had them at fitting time, because only those
+#' columns' rules carry an answer; elsewhere every rule would send the value the
+#' same arbitrary way, so a missing value is an error instead. And what the model
+#' estimates is the mean of the response given the predictors *and the pattern of
+#' missingness*, which is the quantity prediction calls for. Note that if the
+#' estimand is a regression or causal effect defined on complete data, multiple
+#' imputation is the right tool and this is not.
 #'
-#' # Preprocessing
+#' ## Preprocessing
 #'
 #' Predictors are mapped to the unit interval, because the cutpoint prior is
 #' uniform on a node's live range and the soft-rule bandwidth is measured on the
@@ -225,7 +241,10 @@
 #' approximation, which the sampler then moves away from.
 #'
 #' @returns
-#' An object of class `bartisan`, a list with elements including:
+#' A `<bartisan_fit>` object, a list with the following components among others.
+#' Note that convergence diagnostics are not among them: computing R-hat and the
+#' effective sample sizes for every observation costs more than the sampling
+#' does, so it is [diagnose()]'s work and happens when it is asked for.
 #'
 #'   \item{`eta`}{a list with one matrix per additive predictor, each of
 #'     posterior draws by observation, on the link scale.}
@@ -237,16 +256,14 @@
 #'     standard deviation or the ordinal cutpoints, when the family has any.}
 #'   \item{`has_na`}{which predictor columns contained a missing value, which is
 #'     what determines where `predict()` will accept one.}
-#'   \item{`rhat`}{a data frame of convergence diagnostics, when more than one
-#'     chain was run: rank-normalized folded split R-hat and the bulk and tail
-#'     effective sample sizes (Vehtari et al. 2021) for the log likelihood, the
-#'     leaf scales, the nuisance parameters and the additive predictor. R-hat
-#'     above about 1.01 says the chains have not agreed; an effective sample size
-#'     below about 400 says the run is too short for the quantity it belongs to,
-#'     and the tail column is the one that governs interval endpoints.}
 #'   \item{`sigma_mu`, `bandwidth`}{draws of the leaf standard deviation and,
 #'     for soft rules, the per-tree gate bandwidths.}
 #'   \item{`loglik`}{the log likelihood at each draw.}
+#'   \item{`control`}{the `<bartisan_control>` object the fit used, with any
+#'     settings given in `...` merged in. Its `augment` element is a `logical`
+#'     saying whether a rewriting of the likelihood was applied to this fit,
+#'     rather than the families one was permitted for; what was asked for
+#'     remains in `attr(control, "supplied")`.}
 #'
 #'
 #' @references
@@ -281,22 +298,31 @@
 #' 29(7), 950--956. \doi{10.1016/j.patrec.2008.01.010}
 #'
 #' @seealso
-#' [predict.bartisan_fit()], [bartisan_control()], [bartisan-families], and
-#' `vignette("families", package = "bartisan")` for a family-by-family guide.
+#' [bartisan_control()] for the sampler and prior settings;
+#' [predict.bartisan_fit()] for prediction; [bartisan-families] for the
+#' likelihoods, and `vignette("families")` for a family-by-family guide;
+#' [bartisan-marginaleffects] for reading effects off a fit
 #'
 #' @examples
-#' set.seed(1)
+#' data("rhc")
+#' set.seed(123)
 #'
-#' n <- 200
-#' d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n))
-#' d$y <- rbinom(n, 1, plogis(3 * sin(pi * d$x1 * d$x2) - 1))
-#'
-#' fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = binomial(),
-#'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_draws = 50, verbose = FALSE))
+#' # Whether a patient died, with every other variable a candidate predictor
+#' # and the family read off the response. `days` is the timing of the same
+#' # event, so it is excluded rather than conditioned on
+#' fit <- bartisan(death ~ . - days, data = rhc,
+#'                 num_trees = 10, num_burn = 50, num_draws = 50,
+#'                 verbose = FALSE)
 #' fit
 #'
+#' # Fitted probabilities
 #' head(predict(fit, type = "response"))
+#'
+#' # The forest has no coefficients, so an effect is a contrast of
+#' # predictions, here of catheterization on the probability of death
+#' if (rlang::is_installed("marginaleffects")) {
+#'   marginaleffects::avg_comparisons(fit, variables = "rhc")
+#' }
 #'
 #' @export
 bartisan <- function(formula, data, family = NULL, weights = NULL,
@@ -652,10 +678,19 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
                                 length.out = response[["n_forest"]])
   }
 
+  # A forest whose formula names no predictor is intercept-only, and a branching
+  # probability of zero is how the engine holds every tree in a forest at a
+  # single leaf. The forest is then one drawn scalar, which is what `~ 1` says.
+  # This overrides whatever `gamma` the caller gave that forest, because there is
+  # nothing for it to branch on either way.
+  if (any(vc[["pinned"]])) {
+    engine_control[["gamma"]][vc[["pinned"]]] <- 0
+  }
+
   # One tree count per additive predictor. A scalar is recycled, so the common
   # case reads the same as before; a vector, or one keyed by the forest names,
   # lets a forest that needs less capacity be given less, which is most of what
-  # makes `location_scale()` affordable.
+  # makes `gaussian_ls()` affordable.
   engine_control[["num_trees"]] <- resolve_num_trees(
     per_forest_vector(control[["num_trees"]], labels, "num_trees", 50L, joint),
     response[["n_forest"]], response[["n_aux"]])
@@ -709,6 +744,13 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
     if (chains == 1L) engine(1L)
     else combine_chains(run_chains(engine, chains))
   }
+
+  # What the fit reports is whether a rewriting happened, not which families one
+  # was permitted for. `control[["augment"]]` is a request on the way in -- a
+  # flag, or the names of the families it may apply to -- and the answer on the
+  # way out is a single yes or no about this fit. The request itself is still
+  # recoverable from `attr(control, "supplied")` and from the call.
+  control[["augment"]] <- isTRUE(draws[["augmented"]])
 
   out <- list(call = cl,
               formula = formula,
@@ -800,10 +842,6 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   out[["fitted"]] <- fitted_from_eta(out, vc_combine(out, out[["eta"]], NULL),
                                      average = TRUE)
-
-  if (chains > 1L) {
-    out[["rhat"]] <- chain_diagnostics(out)
-  }
 
   # Trimmed to the reported forests. The target carries one value per forest the
   # engine builds, which includes the depth-zero forests standing in for a custom
@@ -980,119 +1018,6 @@ combine_chains <- function(fits) {
   out
 }
 
-# Convergence and precision diagnostics for the quantities a caller would look
-# at: the log likelihood, the leaf scales, the nuisance parameters, and the
-# additive predictor at every observation. The last is a vector of length n, so
-# it is summarized by its worst value rather than reported in full -- for R-hat
-# the largest, for the two effective sample sizes the smallest, since in both
-# cases the worst case is what decides whether the run is usable.
-#
-# Three numbers per quantity, following Vehtari et al. (2021): rank-normalized
-# folded split R-hat, and the bulk and tail effective sample sizes. The two
-# effective sample sizes are reported separately because they answer different
-# questions -- the bulk one governs a posterior mean, the tail one an interval
-# endpoint, and a run can easily be adequate for the first and not the second.
-# The scalar parameters of a fit, as a named list of draw vectors. These are the
-# quantities that are one number per draw whatever the data are, which is what
-# makes them the ones a convergence diagnostic or a draws object wants; the
-# predictor and the group effects are one number per observation or per level and
-# are handled separately.
-scalar_draws <- function(object) {
-  out <- list(loglik = object[["loglik"]])
-
-  for (h in seq_len(ncol(object[["sigma_mu"]]))) {
-    nm <- sprintf("sigma_mu.%s", colnames(object[["sigma_mu"]])[h])
-    out[[nm]] <- object[["sigma_mu"]][, h]
-  }
-
-  if (!is_null(object[["aux"]])) {
-    for (nm in colnames(object[["aux"]])) {
-      out[[sprintf("aux.%s", nm)]] <- object[["aux"]][, nm]
-    }
-  }
-
-  # The scale of each random-effect term is a scalar worth diagnosing; the
-  # intercepts themselves are summarized like the predictor, over the worst
-  # level, since there is one per level.
-  for (h in seq_along(object[["tau"]])) {
-    for (r in seq_len(ncol(object[["tau"]][[h]]))) {
-      nm <- sprintf("tau.%s.%s", names(object[["tau"]])[h],
-                    colnames(object[["tau"]][[h]])[r])
-      out[[nm]] <- object[["tau"]][[h]][, r]
-    }
-  }
-
-  out
-}
-
-chain_diagnostics <- function(object) {
-  chains <- object[["chains"]]
-  per <- nrow(object[["sigma_mu"]]) / chains
-  index <- matrix(seq_len(per * chains), nrow = per, ncol = chains)
-
-  shape <- function(x) matrix(x[index], nrow = per, ncol = chains)
-
-  scalars <- scalar_draws(object)
-
-  # The leaf scale is left out of the table, and only out of the table: it is
-  # still in `fit$sigma_mu` and still reaches `as_draws()`, so anyone who wants
-  # to diagnose it can.
-  #
-  # It mixes badly, and not for a reason this package can fix. On one dataset the
-  # same quantity comes out at rhat 1.12 with 22 effective draws in dbarts (chi
-  # hyperprior, slice sampler) and 1.16 with 17 in stochtree (inverse-gamma, an
-  # exact Gibbs draw), against 1.19 and 15 here, and the BART package avoids the
-  # question by never drawing it. Nothing beats an exact draw, so the sampler is
-  # not the cause in any of them. Reported beside the additive predictors at
-  # equal status it meant every fit on ordinary data showed a row above any
-  # threshold a reader would apply, for a hyperparameter nobody reports and whose
-  # disagreement between chains does not reach the fitted function -- on those
-  # same fits `eta` has rhat 1.00 and thousands of effective draws.
-  scalars <- scalars[!startsWith(names(scalars), "sigma_mu.")]
-
-  rows <- lapply(names(scalars), function(nm) {
-    x <- shape(scalars[[nm]])
-    data.frame(quantity = nm, rhat = rhat_rank(x), ess_bulk = ess_bulk(x),
-               ess_tail = ess_tail(x))
-  })
-
-  for (h in seq_along(object[["eta"]])) {
-    label <- sprintf("eta.%s", names(object[["eta"]])[h])
-    draws <- object[["eta"]][[h]]
-
-    per_obs <- vapply(seq_len(ncol(draws)), function(j) {
-      x <- shape(draws[, j])
-      c(rhat_rank(x), ess_bulk(x), ess_tail(x))
-    }, numeric(3L))
-
-    rows[[length(rows) + 1L]] <- data.frame(
-      quantity = sprintf("%s (worst over observations)", label),
-      rhat = worst(per_obs[1L, ], max),
-      ess_bulk = worst(per_obs[2L, ], min),
-      ess_tail = worst(per_obs[3L, ], min))
-  }
-
-  for (h in seq_along(object[["ranef"]])) {
-    label <- sprintf("ranef.%s", names(object[["ranef"]])[h])
-    draws <- object[["ranef"]][[h]]
-
-    per_level <- vapply(seq_len(ncol(draws)), function(j) {
-      x <- shape(draws[, j])
-      c(rhat_rank(x), ess_bulk(x), ess_tail(x))
-    }, numeric(3L))
-
-    rows[[length(rows) + 1L]] <- data.frame(
-      quantity = sprintf("%s (worst over levels)", label),
-      rhat = worst(per_level[1L, ], max),
-      ess_bulk = worst(per_level[2L, ], min),
-      ess_tail = worst(per_level[3L, ], min))
-  }
-
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
-  out
-}
-
 # Reduce over observations, returning NA rather than an infinity when every one
 # of them is NA -- which happens when the quantity does not vary.
 worst <- function(x, f) {
@@ -1188,6 +1113,36 @@ rhat_rank <- function(x) {
 # between-chain variance: a chain sitting somewhere the others are not looks
 # well mixed on its own, and dividing by the pooled variance rather than its own
 # is what penalizes it.
+# Biased autocovariance at every lag, one column per chain, by the Wiener-
+# Khinchin route: the transform of the padded series times its own conjugate is
+# the transform of its autocovariance. The padding is what makes the implied
+# convolution linear rather than circular, so the result matches
+# `acf(type = "covariance", demean = TRUE)` to the last bit rather than
+# approximately.
+#
+# This used to be one `stats::acf()` call per chain, which is the same arithmetic
+# but pays for building an `acf` object each time -- dimnames, an `outer()`, a
+# `deparse1()` of the series name -- and that bookkeeping, not the arithmetic,
+# was most of the cost of a diagnostics pass. Called once per observation per
+# additive predictor, it added up: the swap is worth about nine times on the
+# autocovariance and about four on the pass as a whole.
+autocovariance <- function(y) {
+  draws <- nrow(y)
+
+  # Zero-padded to at least twice the length, at a power of two so the transform
+  # takes its fast path.
+  nfft <- as.integer(2^ceiling(log2(2 * draws)))
+
+  centered <- y - rep(colMeans(y), each = draws)
+  padded <- rbind(centered, matrix(0, nfft - draws, ncol(y)))
+
+  transform <- stats::mvfft(padded)
+
+  acov <- Re(stats::mvfft(transform * Conj(transform), inverse = TRUE)) / nfft
+
+  acov[seq_len(draws), , drop = FALSE] / draws
+}
+
 ess_from_split <- function(y) {
   draws <- nrow(y)
   chains <- ncol(y)
@@ -1196,17 +1151,7 @@ ess_from_split <- function(y) {
     return(NA_real_)
   }
 
-  # Biased autocovariance, one column per chain, lags 0 .. draws - 1.
-  acov <- vapply(seq_len(chains), function(m) {
-    stats::acf(y[, m], lag.max = draws - 1L, type = "covariance",
-               plot = FALSE, demean = TRUE)$acf[, 1L, 1L]
-  }, numeric(draws))
-
-  if (!is.matrix(acov)) {
-    acov <- matrix(acov, ncol = 1L)
-  }
-
-  pooled <- rowMeans(acov)
+  pooled <- rowMeans(autocovariance(y))
   mean_var <- pooled[1L] * draws / (draws - 1)
   var_plus <- mean_var * (draws - 1) / draws
 
@@ -1219,29 +1164,43 @@ ess_from_split <- function(y) {
     return(NA_real_)
   }
 
-  rho <- function(t) {1 - (mean_var - pooled[t + 1L]) / var_plus}
+  # Every autocorrelation at once, so the sequence below indexes a vector rather
+  # than calling a closure per lag. `rho[k + 1L]` is the correlation at lag `k`.
+  rho <- 1 - (mean_var - pooled) / var_plus
 
   # Geyer's initial positive sequence: walk the autocorrelations in adjacent
   # pairs and stop at the first pair whose sum goes negative, which is where the
   # estimates stop being informative.
-  kept <- c(1, rho(1L))
+  #
+  # Preallocated rather than grown with `c()`. On a slowly mixing quantity the
+  # sequence runs to the last available lag rather than stopping early -- the
+  # fitted values of a forest do, at a median of 98 lags out of 98 on a
+  # four-chain fit -- so growing the vector reallocated it on every pair, and
+  # that copying was most of what a diagnostics pass cost once the
+  # autocovariance itself was cheap. The zeros a negative pair contributes are
+  # already there.
+  kept <- numeric(draws + 2L)
+  kept[1L] <- 1
+  kept[2L] <- rho[2L]
+  n_kept <- 2L
   t <- 1L
 
-  while (t < draws - 4L && sum(utils::tail(kept, 2L)) > 0) {
-    even <- rho(t + 1L)
-    odd <- rho(t + 2L)
+  while (t < draws - 4L && kept[n_kept - 1L] + kept[n_kept] > 0) {
+    even <- rho[t + 2L]
+    odd <- rho[t + 3L]
 
     if (even + odd >= 0) {
-      kept <- c(kept, even, odd)
-    }
-    else {
-      kept <- c(kept, 0, 0)
+      kept[n_kept + 1L] <- even
+      kept[n_kept + 2L] <- odd
     }
 
+    n_kept <- n_kept + 2L
     t <- t + 2L
   }
 
-  extra <- max(utils::tail(kept, 2L)[1L], 0)
+  kept <- kept[seq_len(n_kept)]
+
+  extra <- max(kept[n_kept - 1L], 0)
 
   # Force the paired sums to be non-increasing, which is what makes the
   # estimator conservative rather than merely unbiased. With too few kept lags
@@ -1371,8 +1330,12 @@ forest_labels <- function(family, opts, levels, n_report, vc = NULL) {
     return(sprintf("%s-%s", levels[-1L], levels[1L]))
   }
 
-  if (identical(family, "location_scale")) {
+  if (identical(family, "gaussian_ls")) {
     return(c("mean", "log_sd"))
+  }
+
+  if (identical(family, "Gamma_ls")) {
+    return(c("mean", "log_dispersion"))
   }
 
   if (family %in% c("zip", "zinb")) {

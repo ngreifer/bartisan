@@ -134,18 +134,19 @@ List wrap_matrices(const std::vector<T>& x) {
 //' assumes the design matrix has already been mapped to the unit interval and
 //' the response already coerced to the form the requested family expects.
 //'
-//' @param X design matrix with entries in `[0, 1]`, possibly with `NA`.
-//' @param has_na indicator per column of `X` of whether it contains a missing
-//'   value. A rule on a column with none is not given a missing-value branch, so
-//'   complete data reproduces the sampler exactly as it was.
-//' @param y response, coerced by the calling family.
-//' @param weights prior weights.
+//' @param X a design matrix with entries in `[0, 1]`, possibly with `NA`.
+//' @param has_na `logical`; one entry per column of `X` saying whether that
+//'   column contains a missing value. A rule on a column with none is not given
+//'   a missing-value branch, so complete data reproduces the sampler exactly as
+//'   it was.
+//' @param y the response, coerced by the calling family.
+//' @param weights `numeric`; the prior weights.
 //' @param offset an `H` by `N` matrix of fixed contributions to the additive
 //'   predictors.
-//' @param group_probs sparse matrix whose columns are predictor groups.
+//' @param group_probs a sparse matrix whose columns are predictor groups.
 //' @param family_name,link,family_opts the family specification.
 //' @param control a list of sampler and prior settings.
-//' @return A list of posterior draws and the encoded forests.
+//' @returns A list of posterior draws and the encoded forests.
 //' @keywords internal
 // [[Rcpp::export(.bartisan_fit)]]
 List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
@@ -176,12 +177,20 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     augment = as<std::vector<std::string>>(control["augment"]);
   }
 
+  // Whether a rewriting was actually applied, rather than merely allowed. The
+  // control's `augment` names the families it may apply to; whether one of them
+  // is the family here, and whether the data meet what the rewriting needs -- a
+  // Bernoulli response, single trials -- is settled only at this point, so it
+  // is reported back rather than inferred in R.
+  bool augmented = false;
+
   if (!augment.empty()) {
     Family* rewritten = augmented_family(family_name, link, y, weights,
                                          family_opts, augment, vc_basis);
 
     if (rewritten != nullptr) {
       family.reset(rewritten);
+      augmented = true;
     }
   }
 
@@ -603,6 +612,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     out["mixture_flat"] = mixture_flat;
     out["mixture_start"] = mixture_start;
   }
+  out["augmented"] = augmented;
   out["num_forest"] = n_report;
   out["num_trees"] = std::vector<int>(num_trees.begin(),
                                       num_trees.begin() + n_report);
@@ -622,15 +632,17 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
 
 //' Evaluate stored forests at new data
 //'
-//' @param X design matrix with entries in `[0, 1]`.
+//' @param X a design matrix with entries in `[0, 1]`.
 //' @param forest_flat,tree_start the encoded forests returned by
 //'   `.bartisan_fit()`.
 //' @param bandwidth a matrix of per-tree bandwidths.
-//' @param num_forest,num_trees,num_draws dimensions of the stored chain.
-//' @param soft whether the decision rules are soft.
-//' @param gate which gate the soft rules use; see `GateShape` in `node.h`.
-//' @param iterations the zero-based saved iterations to evaluate.
-//' @return A list of `num_forest` matrices of additive predictors.
+//' @param num_forest,num_trees,num_draws `integer`; the dimensions of the
+//'   stored chain.
+//' @param soft `logical`; whether the decision rules are soft.
+//' @param gate `integer`; which gate the soft rules use; see `GateShape` in
+//'   `node.h`.
+//' @param iterations `integer`; the zero-based saved iterations to evaluate.
+//' @returns A list of `num_forest` matrices of additive predictors.
 //' @keywords internal
 // [[Rcpp::export(.bartisan_predict)]]
 List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat,
@@ -696,12 +708,12 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
 //' and a survival probability for a censored survival time.
 //'
 //' @param y the outcome, coerced as the family expects.
-//' @param weights prior weights.
+//' @param weights `numeric`; the prior weights.
 //' @param eta_draws a list of `H` matrices of draws by observations.
 //' @param family_name,link,family_opts the family specification.
 //' @param aux a matrix of draws by nuisance parameters, with zero columns when
 //'   the family has none.
-//' @return A matrix of draws by observations.
+//' @returns A matrix of draws by observations.
 //' @keywords internal
 // [[Rcpp::export(.bartisan_logdens)]]
 arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights,
@@ -771,8 +783,9 @@ arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights,
 //'   variable.
 //' @param sigma a matrix of draws by the lower triangle of the covariance
 //'   matrix, column-major within a row, as `aux` stores it.
-//' @param replicates simulation replicates per draw and observation.
-//' @return An array of draws by observations by categories.
+//' @param replicates `integer`; the number of simulation replicates per draw
+//'   and observation.
+//' @returns An array of draws by observations by categories.
 //' @keywords internal
 // [[Rcpp::export(.bartisan_mnp_probs)]]
 arma::cube bartisan_mnp_probs(const List& eta_draws, const arma::mat& sigma,
@@ -863,13 +876,16 @@ arma::cube bartisan_mnp_probs(const List& eta_draws, const arma::mat& sigma,
 //'
 //' @param y,weights,eta_draws,family_name,link,family_opts,aux as for
 //'   `.bartisan_logdens()`.
-//' @param component which additive predictor to differentiate with respect to.
-//' @param by_difference use central differences instead of the analytic form.
-//' @param blocked evaluate a whole draw at once through the family's block
-//'   methods rather than one observation at a time. The two paths should agree;
-//'   they differ for a family whose per-observation route falls back on
-//'   differences while its block route does not.
-//' @return A list with matrices `d1` and `info`, draws by observations.
+//' @param component `integer`; which additive predictor to differentiate with
+//'   respect to.
+//' @param by_difference `logical`; whether to use central differences rather
+//'   than the analytic form.
+//' @param blocked `logical`; whether to evaluate a whole draw at once through
+//'   the family's block methods rather than one observation at a time. Default
+//'   is `FALSE`. The two paths should agree; they differ for a family whose
+//'   per-observation route falls back on differences while its block route does
+//'   not.
+//' @returns A list with matrices `d1` and `info`, draws by observations.
 //' @keywords internal
 // [[Rcpp::export(.bartisan_derivs)]]
 List bartisan_derivs(const arma::vec& y, const arma::vec& weights,

@@ -489,9 +489,9 @@ The survival section of `vignettes/families.Rmd` had grown to 151 lines -- five 
 
 Two things the comparison established that were not known before.
 
-**The log score can be made comparable across all five families.** The earlier vignette said it could not: the accelerated failure time families report the density of \eqn{\log T} and `ph()` the density of \eqn{T}, so the two differ by \eqn{\sum \log t}. But censored observations contribute \eqn{S(t)}, which carries no measure at all, so the correction is `-sum(status * log(time))` -- events only. Applied, `weibull_aft()` and `ph()` score within a few points of each other on a Weibull truth instead of hundreds apart, which is the check that the correction is right rather than merely plausible. The vignette now gives the correction as a function rather than telling the reader to avoid the comparison.
+**The log score can be made comparable across all five families.** The earlier vignette said it could not: the accelerated failure time families report the density of $\log T$ and `ph()` the density of $T$, so the two differ by $\sum \log t$. But censored observations contribute $S(t)$, which carries no measure at all, so the correction is `-sum(status * log(time))` -- events only. Applied, `weibull_aft()` and `ph()` score within a few points of each other on a Weibull truth instead of hundreds apart, which is the check that the correction is right rather than merely plausible. The vignette now gives the correction as a function rather than telling the reader to avoid the comparison.
 
-**The families disagree far more about the density than about the ordering.** Across every proportional-hazards and accelerated failure time truth, all five recover the ordering of subjects by survival nearly perfectly whether or not they have the shape right; the differences are concentrated in \eqn{S(t \mid x)} and the log score. The one exception is the crossing-hazards truth, where the ordering itself moves with time. So the choice of family matters for an absolute probability at a horizon and barely matters for a comparative question -- which is worth telling a reader before they agonize over it.
+**The families disagree far more about the density than about the ordering.** Across every proportional-hazards and accelerated failure time truth, all five recover the ordering of subjects by survival nearly perfectly whether or not they have the shape right; the differences are concentrated in $S(t \mid x)$ and the log score. The one exception is the crossing-hazards truth, where the ordering itself moves with time. So the choice of family matters for an absolute probability at a horizon and barely matters for a comparative question -- which is worth telling a reader before they agonize over it.
 
 The rest confirmed what was already recorded: `ph()` wins when the baseline turns over, `dpm_aft()` wins by a wide margin on a bimodal error and costs nothing when a single normal is right, and the discrete-time route is the only option that copes with crossing curves while being a slower and slightly worse `ph()` under proportionality.
 
@@ -560,7 +560,7 @@ Six changes on the maintainer's instruction, most of them correcting things I ha
 
 **The outcome family is `dpm()`, not `gaussian()`.** It estimates the error's shape instead of assuming it, costs almost nothing when a normal would have done, and is the default for a numeric outcome anyway, so using `gaussian()` here was a step backwards from what the package does on its own.
 
-**Added: the potential outcomes** through `avg_predictions(fit, variables = "smoke")`, which reports \eqn{E[Y(0)]} and \eqn{E[Y(1)]} at 3072 and 2773 grams. Their difference is the ATE reported in the next section, and showing both is more informative than the difference alone.
+**Added: the potential outcomes** through `avg_predictions(fit, variables = "smoke")`, which reports $E[Y(0)]$ and $E[Y(1)]$ at 3072 and 2773 grams. Their difference is the ATE reported in the next section, and showing both is more informative than the difference alone.
 
 **Added: a moderation analysis.** `by = "race"` gives three subgroup effects (-342, -306, -245) of which two intervals exclude zero and one does not, which is exactly the pattern people misread as moderation. `hypothesis = ~pairwise` gives the three differences, all with intervals covering zero comfortably. The vignette says plainly that comparing whether one interval excludes zero and another does not is not a test, and that these should be read as three noisy estimates of one effect. Note that `hypothesis = "pairwise"` as a string is rejected by the current marginaleffects; the formula form is required.
 
@@ -673,7 +673,7 @@ Once the speedup below landed, `dpm_aft()` was the second-cheapest survival fami
 
 Evidence: best or tied-best on four of six truths, never worse than third, and level with the correctly specified family on the two truths where one existed; 2.8 seconds against `weibull_aft()`'s 9.7.
 
-**The cost of the change is interpretive, not statistical.** The reported predictor changes meaning -- `weibull_aft()`'s is a log time ratio, `dpm_aft()`'s is \eqn{E[\log T \mid x]}, which is a time ratio only if the error is symmetric, which is the assumption the family exists to avoid. `type = "survival"` and `type = "response"` are unaffected, being on the same scale for every survival family.
+**The cost of the change is interpretive, not statistical.** The reported predictor changes meaning -- `weibull_aft()`'s is a log time ratio, `dpm_aft()`'s is $E[\log T \mid x]$, which is a time ratio only if the error is symmetric, which is the assumption the family exists to avoid. `type = "survival"` and `type = "response"` are unaffected, being on the same scale for every survival family.
 
 The maintainer was asked whether to flag that estimand change at fit time and chose not to, after the trade-off was put to them. The standard inferred-family message was kept -- it is uniform across every response type and names the family chosen, so removing it for `Surv` alone would have made survival the one response type that changes model silently. No *extra* estimand warning was added. The distinction is documented in `?bartisan`, both vignettes, and NEWS instead.
 
@@ -1757,7 +1757,7 @@ constant leaves alone.
 the largest functional gap against other BART packages. There is now one sampler
 covering every family that has one, and with it the standard interfaces:
 `posterior_predict()`, `posterior_epred()`, `posterior_linpred()` and `log_lik()`
-on the \pkg{rstantools} generics, `simulate()` on base R's, `loo()` and `waic()`,
+on the *rstantools* generics, `simulate()` on base R's, `loo()` and `waic()`,
 `bayesplot::pp_check()`, `posterior::as_draws()`, and
 `performance::model_performance()` / `r2()`.
 
@@ -1819,22 +1819,22 @@ dependent draws as independent and understate the standard errors.
 
 `get_predict()` was mapping three type names and rejecting the rest, so
 `type = "mean"` and `type = "stdlv"` — the two ordinal scales added just before —
-were unreachable through \pkg{marginaleffects} even though `predict()` had them.
+were unreachable through *marginaleffects* even though `predict()` had them.
 Both are one number per observation, so they need nothing but the name. `"probs"`,
 `"lp"` and `"lv"` are accepted as aliases, since those are the names the same
-quantities go by for the WeightIt classes in \pkg{marginaleffects} itself.
+quantities go by for the WeightIt classes in *marginaleffects* itself.
 `"class"` and `"density"` stay out, and are refused by name: neither is a number
 per observation that an average or a contrast could be taken of.
 
-The dots cannot simply be forwarded to `predict()`, because \pkg{marginaleffects}
+The dots cannot simply be forwarded to `predict()`, because *marginaleffects*
 puts arguments of its own there (`mfx`, and whatever the caller passed to the
 estimand function) and a stray name would match one of `predict()`'s arguments
 partially. Only `values`, `iterations`, `offset`, `weights` and `log` are taken,
-by exact name. \pkg{marginaleffects} warns that it does not recognize `values`,
+by exact name. *marginaleffects* warns that it does not recognize `values`,
 which is correct — it is this package's argument — and the value is used anyway.
 
 **A convention worth knowing, found by a test failure that was the test's
-fault.** \pkg{marginaleffects} centers a posterior at its **median**;
+fault.** *marginaleffects* centers a posterior at its **median**;
 `predict()` reports its **mean**. On the same draws for the same fit those read
 2.402 and 2.393, and the difference is the skewness of the posterior rather than a
 disagreement. Documented, and the tests now compare like with like.
@@ -2463,6 +2463,628 @@ Kept together because the pattern is the lesson.
 - "The multinomial augmentation is a modest gain bought with a severe loss of mixing, worth 1.6x." Re-measured, 9.6x and 10.1x in ESS/s with mixing at 0.66x and 1.09x. It is now a default.
 - "The zero-inflated gain would be smaller than the multinomial's, because only one of its two forests gains." 3.9x to 10.1x in ESS/s, and it pays under soft rules where neither forest gets the exponential form -- the direct target's log-sum-exp was the expensive part, not the missing shape.
 - "The Gaussian hard-rule fit regressed by 35%." It had not: two consecutive benchmark runs of the same build read 0.441 s and 0.593 s, and a best-of-five standalone measurement read 0.426 s both times. `_dev/benchmark.Rmd` defaults to two replicates, which is not enough to support a claim about a factor near two.
+
+## Log: the parallel pass was sending every worker the whole matrix
+
+`_dev/diagnose-timing.R` run on ten cores, which is the measurement the entry
+below could not take. `_dev/diagnose-timing.rds` holds it.
+
+| n | draws | 1 worker | 2 | 4 | 8 | share of the fit |
+|---|---|---|---|---|---|---|
+| 500 | 6.4 MB | 0.59 s | 0.36 s | 0.24 s | 0.22 s | 53% |
+| 2000 | 25.6 MB | 2.40 s | 1.35 s | 0.85 s | 0.81 s | 79% |
+| 8000 | 102.4 MB | 9.37 s | 5.10 s | 3.19 s | 2.80 s | 78% |
+
+**Two things it says.** Deferring the pass was right: sequentially it is 78% of a
+four-chain fit's own time at any size worth parallelizing, so it was most of what
+a `diagnose()`-calling workflow spent. And the speedup **capped at about three**
+however many workers were given: 2.72x, 2.98x, 3.35x at eight workers, with
+eight barely beating four (2.80 s against 3.19 s at n = 8000).
+
+**The cap had a findable cause.** Fitting `T(p) = O + W/p` gives R-squared of .985
+to .995 with an overhead `O` of 0.15 s, 0.46 s and 1.48 s against data of 6.4,
+25.6 and 102.4 MB, so `O` tracks the *size of the draws* rather than anything
+computational. And observed `T(8)` was consistently worse than that model
+predicts (2.80 s against 2.45 s at n = 8000), which says `O` grows with the
+worker count too: the marginal 4-to-8 step should have saved 0.97 s of work and
+saved 0.39 s, so 0.58 s went somewhere, about 0.145 s per added worker at 102 MB
+-- which is what one 102 MB serialization costs.
+
+Measured directly with `future::getGlobalsAndPackages()`: the closure referred to
+`wide`, so `wide` was a *global*, and a global goes to **every** worker.
+**102.4 MB each, 819 MB of serialization at eight workers.**
+
+**The fix is to cut the blocks in the calling session** and map over those, so the
+mapped element is the worker's own columns and `wide` is never a global. Globals
+per worker went from 102.4 MB to 0.03 MB, and the total crossing the boundary is
+now one copy of the draws whatever the worker count. It costs holding the blocks
+alongside the draws for the length of the pass, which is one extra copy in the
+main session.
+
+**It also made the pass bit-identical across worker counts**, which it was not
+before: the same synthetic case that had 587 of 3600 entries differing in the
+last bits now differs in none at 2, 3, 4 and 5 workers. Every difference before
+was in the effective sample sizes and never in either R-hat column, so it was in
+the FFT path, but the mechanism was never established and is not claimed here.
+The test keeps its tolerance rather than asserting exactness, on the grounds that
+an unexplained agreement is not something to depend on.
+
+Not re-benchmarked: the numbers above predate the fix, and no speedup figure goes
+into user-facing documentation until it is measured again on real cores.
+
+## Log: the diagnostics moved to diagnose(), and the pass got parallel
+
+Follows the profiling entry below, and settles the two questions it left open.
+
+### `fit$rhat` is gone; `diagnose()` is the only route
+
+`diagnose()` never read `fit$rhat` -- `diagnosis_table()` recomputes everything
+from the draws, including its own per-observation loop -- so a multi-chain fit
+followed by `diagnose()` paid the cost twice. It now runs in one place, when it
+is asked for. `chain_diagnostics()` was deleted; `scalar_draws()` moved to
+`R/diagnose.R`, which is its only remaining caller.
+
+Measured, four chains at n = 2000: **the fit went from 7.9 s to 3.34 s**, and
+`diagnose()` is 2.36 s when wanted.
+
+**This made the previous entry's progress fix redundant, and would have broken
+the bar if left alone.** The convergence pass had just been given 50 steps of the
+fit's progressor; with the pass gone those steps would never be spent and the bar
+would have stalled at 80% forever. `progress_reporter()` is back to sizing the
+sampling alone, which is now the whole of what a fit spends time on, and the pass
+carries its own `diagnosis_reporter()` inside `diagnose()`.
+
+Touched, because they all named a thing that no longer exists: `bartisan()`'s
+`@returns`, prose in `?diagnose`, `?bartisan_control`, `?bartisan-interop` and
+`?bartisan-families`, five tests in `test-chains.R` and one each in
+`test-interop.R` and `test-random.R`, and four vignettes. Two of those were only
+found by the test suite: the first sweep grepped `test-chains.R` alone.
+
+**`vignette("diagnostics")` was rebuilt around `diagnose()`**, since it had been
+built around printing `fit$rhat`. Its two worked examples now show
+`diagnose(fit)$table`, and both of their reading paragraphs had to be rewritten,
+because the numbers they described were no longer the numbers on screen: the old
+text said "`rhat` above 2 ... effective sample sizes under 10" where the table
+now reads 1.26 to 1.86 and 6 to 30, and "the log likelihood and the residual
+standard deviation have converged" where the log likelihood is 1.14. The
+replacement leans on `rhat_late`, which the old table did not carry and which is
+what separates a short warmup from chains that settled apart.
+
+### The pass runs over a `future` plan
+
+`diagnosis_columns()` splits the columns into one chunk per worker when there are
+at least 400 of them and a plan with more than one worker, and is the same
+`vapply()` otherwise -- the choice `run_chains()` already makes for the chains.
+No random numbers are drawn and the columns are independent, so chunking is safe;
+`cut()` gives contiguous ascending chunks and `cbind()` restores the order.
+
+**It is not bit-identical across worker counts, and the reason is worth
+recording.** On a real fit the checks and the advice come out identical and the
+table agrees to ten significant digits, with a maximum relative difference of
+2.1e-16. Chased to its source: chunking *sequentially* is bit-identical, the
+draws arrive in the worker bit-intact, `diagnosis_stats()` on an exported matrix
+is bit-identical, and every difference observed was in `ess_bulk`/`ess_tail` and
+never in either R-hat column. Those two are the statistics that use the FFT, so
+this is R's FFT differing in the last bit or two between processes, not anything
+in the chunking. Documented in the test rather than papered over.
+
+**The speedup is unmeasured and deliberately so.** `availableCores()` reports 1
+in the sandbox this was written in, so four workers contend for one core and the
+1.16x observed there means nothing. `_dev/diagnose-timing.R` sweeps sizes and
+worker counts, drops any worker count above `availableCores()` so a reported
+speedup cannot be workers fighting each other, and discards the first call under
+each plan because starting the workers is a cost of the plan rather than of the
+pass. Run it on real hardware before any speedup goes in the documentation.
+
+## Log: why the diagnostics pass cost more than the fit
+
+Profiled rather than guessed at. At n = 2000, four chains, 400 draws each:
+
+| | before | after |
+|---|---|---|
+| `chain_diagnostics()` | 4.85 s | **1.84 s** |
+| `diagnose()` | 5.31 s | **2.34 s** |
+| sampling, four chains | 4.0 s | 4.0 s |
+
+**Where the time went, and it was not the arithmetic.** The scalar rows cost
+0.006 s for two quantities; the whole 4.85 s was the per-observation loop, and
+within it ESS was 90% (2.1 ms of 2.33 ms per observation) against R-hat's 10%.
+Two causes, both R-level overhead:
+
+1. `stats::acf()` was called once per split half-chain per observation, so 32,000
+   times for a 2000-observation fit, each building an `acf` object it then threw
+   away. The profile was `colnames`, `mode`, `outer`, `deparse1`, `cbind` -- the
+   bookkeeping, not the covariance.
+2. It asked for `lag.max = draws - 1`, every lag, on the assumption that Geyer's
+   initial positive sequence stops early. On a *forest's* fitted values it does
+   not: measured, the sequence runs to **98 lags out of 98 available**, median
+   and max, because `eta` mixes slowly (its R-hat is 1.2 and its ESS about 15 on
+   the same fit). So `rho()` was a closure called ~98 times per observation and
+   `kept <- c(kept, ...)` reallocated the vector 49 times.
+
+**Two fixes, and the second is worth less than it looks.** Replacing `acf` with a
+zero-padded FFT autocovariance (`autocovariance()`, Wiener-Khinchin, one
+`mvfft()` pair for every chain and lag at once) took the pass from 4.85 s to
+2.19 s. Preallocating `kept` and indexing a precomputed `rho` vector instead of
+calling a closure took it to 1.84 s. What is left is `rank()` and `sort.int()` at
+about 35% of the remainder, from the three or four `rank_normalize()` calls each
+observation needs, which is irreducible in R without sharing them across the
+three statistics or moving the loop to C++.
+
+**On correctness, one claim had to be withdrawn.** The FFT change was first
+reported as bit-identical over 1800 statistics on real draws; that test shimmed
+`autocovariance` into a closure's environment and the shim silently did not take
+effect, so it compared the function against itself. Measured properly, the FFT
+route agrees with `acf` to 1.8e-15 on the covariance and the ESS values to
+2.7e-12 absolute on quantities of order 10 to 1500, which is floating-point noise
+against thresholds of 400 and 1.01, and is the same estimator Stan computes this
+way. The Geyer refactor *is* exact: the `kept` vector and `extra` are **bitwise
+identical** across 6000 randomized cases spanning 4 to 150 draws, 1 to 8 chains,
+and autocorrelations from -0.98 to 0.995.
+
+### The redundancy that is still there
+
+`diagnose()` does not read `fit$rhat`; `diagnosis_table()` recomputes everything
+from the draws, including its own per-observation loop. So a four-chain fit
+followed by `diagnose()` pays the per-observation cost **twice**, 1.84 s and then
+2.34 s, for one answer. `print()` and `summary()` never touch `fit$rhat`, and no
+vignette chunk outside `diagnostics.Rmd` and one chunk of `implementation.Rmd`
+does either.
+
+Deferring it to `diagnose()` would take it out of every fit. Not done here,
+because it removes a documented element of the return value and
+`vignette("diagnostics")` is built around displaying `fit$rhat` -- it prints the
+table, has a section called "The Rows of the `rhat` Table", and reads
+`too_short$rhat` -- so it is a design decision about the package's diagnostic
+surface rather than a mechanical change, and it is being put to the author.
+
+### On parallelizing it
+
+The export is cheap: 25.6 MB of `eta` draws reach four `multisession` workers in
+0.16 s, so a `future_lapply` over chunks of observations would not be dominated
+by serialization. What could not be measured here is the speedup itself, because
+`parallelly::availableCores()` reports **1** in this sandbox, so four workers
+contend for one core and the observed 1.16x says nothing about a real machine.
+Left unimplemented rather than shipped on an unmeasurable benefit.
+
+## Log: the progress bar finished before the fit did
+
+Reported as *progressr* working incorrectly with several chains under a
+multisession plan, looking like a bar for the first chain only.
+
+**The relaying was never the problem, and the report's diagnosis was wrong while
+the observation was right.** Instrumented with `handler_debug(uuid = TRUE)`: under
+`multisession` with four chains, all 200 progression conditions arrive in the
+calling session, from **one** progressor uuid and **one** owner session, against
+a `max_steps` of 200. Sizing and relaying were both already correct.
+
+**What was actually wrong is the bar's denominator.** It covered the sampling and
+nothing after it, and the thing after it is `chain_diagnostics()`, which runs
+*only when `chains > 1`*. Measured at n = 2000, four chains: sampling 4.0 s,
+`chain_diagnostics()` 4.8 s, `fitted_from_eta()` 0.00 s. So the whole
+post-sampling cost is the convergence pass, it exists only in the multi-chain
+case, and a `future` plan shortens the sampling while leaving it untouched. The
+fraction of the run the bar covered therefore fell as chains and workers were
+added:
+
+| plan | bar reached 100% at | of a run lasting | share covered |
+|---|---|---|---|
+| sequential, 1 chain | 0.7 s | 1.0 s | 73% |
+| sequential, 4 chains | 3.0 s | 8.3 s | 36% |
+| multisession, 2 workers, 4 chains | 1.7 s | 6.7 s | 25% |
+| multisession, 4 workers, 4 chains | 1.1 s | 6.0 s | **18%** |
+
+A bar that races to 100% in the first fifth of the run and then sits there is
+exactly what "a progress bar for the first chain" looks like from outside.
+
+**The fix** gives the convergence pass its own share of the bar:
+`PROGRESS_DIAG_TICKS` of 50, added to the progressor's steps when the caller says
+the pass will run, and spent by a `progress_stepper()` that turns the columns of
+the per-observation and per-level loops into at most that many reports. After it,
+all three multi-chain configurations reach 100% at 100% of the run.
+
+The two phases are charged *fixed* shares rather than shares proportional to what
+they will cost, which is not knowable in advance, so the bar no longer advances
+uniformly in time: it moves quickly through the sampling and then slowly through
+the diagnostics. That is documented, and it is the right trade against a bar that
+lies about being finished.
+
+**Still not covered**, and left alone deliberately: the one-chain case reaches
+100% at about 73% of a one-second run, the remainder being model-frame setup
+before sampling and object assembly after. That is a small fixed overhead rather
+than something that grows with the fit, so charging it to the bar would add
+machinery for no benefit.
+
+**Two testing notes worth keeping.** *progressr* reports nothing in a
+non-interactive session unless `progressr.enable` is set, which made the first
+three attempts at measuring this show zero conditions and look like a much worse
+bug than it was; always validate the instrument on a textbook `progressor()` loop
+first. And `handlers(global = TRUE)` cannot be measured with a
+`withCallingHandlers()` wrapper, because the global mechanism needs an empty
+handler stack, so that path stays untested here.
+
+**The existing tests encoded the old contract** and both failed on the fix, which
+is what they were for: `3L * PROGRESS_TICKS + 2L` became
+`3L * PROGRESS_TICKS + PROGRESS_DIAG_TICKS + 2L`. A new test asserts the
+difference a second chain makes is one chain's ticks *plus* the pass's share, and
+that `diag_ticks` is zero for one chain before any fitting happens.
+
+## Log: *BART*'s multinomial support is binary fits, verified
+
+The feature table's checkmark for *BART* on the multinomial row was misleading.
+Read from the installed source of *BART* 2.9.10 rather than from the help page,
+which says only that "P(Y=y | x) = F(f(x))" and hides the mechanism:
+
+- **`mbart2()`** is `for (h in 1:K) gbart(x.train, (y.train == h) * 1, type =
+  "pbart"/"lbart")`, so $K$ independent one-vs-rest binary fits on the full data,
+  followed by `prob = exp(yhat_h) / sum_h exp(yhat_h)`. The normalization is
+  applied to the outputs afterward; no forest is fitted to a multinomial
+  likelihood at any point. This is exactly "binomial applied separately to each
+  category".
+- **`mbart()`** is the same loop with `cond <- which(y.train >= cats[h])` and
+  `gbart(x.train[, cond], (y.train[cond] == h) * 1, ...)`, so $K - 1$ binary fits
+  on *nested subsets*, combined as a continuation-ratio product. That is an exact
+  factorization of the multinomial mass function and so a coherent model, but
+  each conditional gets its own independent forest and prior, and the
+  factorization runs over sorted categories, so its prior on a probability vector
+  is not exchangeable in them.
+
+Noted in the table as `✓ **separate binary fits**` with a paragraph giving the
+mechanism, in the convention the table already uses for qualified checkmarks.
+
+**A test that did not work, recorded so it is not repeated.** The obvious check
+for `mbart()`'s asymmetry is to relabel the categories and compare fits, but
+relabelling changes the order data reach the sampler, so the RNG stream diverges
+and Monte Carlo noise swamps the effect: *BART* moved by a max of .061 and
+*bartisan*'s symmetric `multinomial()` by .057 on the same test, which
+discriminates nothing. The asymmetry is a property of the factorization and is
+established by reading it, not by simulating it. The claim in the vignette is
+therefore about the model's definition and says nothing about the size of any
+practical consequence.
+
+## Log: what the AFT predictor means, and empty forests everywhere
+
+### The vignette was wrong about `dpm_aft()` and the time-ratio reading
+
+The claim was that `dpm_aft()`'s predictor "is only a time ratio to the extent
+that the error density is symmetric, which is exactly what `dpm_aft()` declines
+to assume." That is false, and it conflated a contrast with a level.
+
+**A contrast is a log time ratio for every AFT family, whatever the error.** With
+$\log T = \eta(x) + W$ and $W$ independent of $x$, every quantile of $T$, the
+mean of $T$, and the geometric mean of $T$ all scale by $e^{\Delta\eta}$. Checked
+on a truth with an error of skewness $-1.00$ and a log time ratio of exactly .8:
+the ratios of the 10th, 25th, 50th, 75th and 90th percentiles came out .794,
+.811, .782, .757 and .792 in logs, the mean ratio .781, the geometric-mean ratio
+.787. Symmetry has nothing to do with it.
+
+**What the error's shape does govern is what $e^\eta$ is on its own**, and there
+the odd family is `weibull_aft()`, not `dpm_aft()`. All three parametric families
+are written $r = (y - \eta)/\sigma$, so $\log T = \eta + \sigma G$, and the
+question is where each $G$ sits:
+
+| family | $G$ | $E[G]$ | $e^\eta$ is |
+|---|---|---|---|
+| `lognormal_aft()` | standard normal | 0, symmetric | the median of $T$, and its geometric mean |
+| `loglogistic_aft()` | standard logistic | 0, symmetric | the same |
+| `dpm_aft()` | centered DP mixture | 0, asymmetric | the geometric mean, $\exp E[\log T]$, not the median |
+| `weibull_aft()` | standard Gumbel-min | $-\gamma$ | the Weibull scale, the 63.2nd percentile |
+
+Verified by fitting each on its own truth at $n = 3000$: `weibull_aft()` recovers
+the generating *location* to within .005 but sits **+.286** from $E[\log T]$,
+which is $\gamma\sigma = .577 \times .5 = .289$; `lognormal_aft()` and
+`dpm_aft()` recover $E[\log T]$ to within .001. And directly:
+$e^\eta$ falls at the 63.0 percentile of $T$ against a theoretical 63.2, where
+the median is 2.27 and $e^\eta$ is 2.72.
+
+### Why the Weibull carries a hazard ratio too
+
+The premise that the structural part is shared is right, and that is exactly why
+all four have the AFT reading. The PH reading is an extra property of the
+Gumbel-min error, which is the only one making an AFT model proportional hazards
+as well: $h(t \mid x) = \sigma^{-1} t^{1/\sigma - 1} e^{-\eta/\sigma}$, whose
+ratio between two covariate values is free of $t$. Checked: the hazard ratio is
+0.201897 at $t$ of .5, 1, 2 and 5, and equals $e^{-\Delta\eta/\sigma}$ exactly.
+So one $\eta$ gives a log time ratio of $\Delta\eta$ and a log hazard ratio of
+$-\Delta\eta/\sigma = -k\,\Delta\eta$.
+
+Fixed in three places that each carried the error independently: the estimand
+table and the "Three Estimands, Not One" section of `vignette("survival")` (now
+"Two Estimands, Not Three", with a table for where the level sits), the survival
+reference table in `vignette("families")`, and `?bartisan-families`.
+
+### `~ 1` already generalized, and now says so
+
+It works for every family taking more than one formula, because the change was
+in family-agnostic code (`resolve_vc()`, `resolve_split_matrix()`, and the
+per-forest `gamma`). Confirmed on `gaussian_ls()`, `Gamma_ls()`, `zi_poisson()`,
+`zi_negbin()` and a two-predictor `custom_family()`: zero splits in the second
+forest and zero variance in its predictor in all five.
+
+The multinomial families are the one exclusion and it is the right one: their
+forests are the levels of one vector-valued parameter, which is what
+`joint_forests()` marks, so they refuse a formula list outright.
+
+Statistically checked rather than assumed: `zi_poisson()` with `~ 1` on its
+inflation part recovers a constant structural-zero probability of .313 against a
+truth of .300, with the count surface at .075 RMSE on the log mean; and
+`gaussian_ls()` with `~ 1` gives sigma .7012 against `gaussian()`'s .6987 and a
+truth of .70, mean surfaces correlating at .998. The scalar is drawn under the
+leaf prior rather than the built-in family's own prior on its nuisance parameter,
+so these agree closely rather than exactly, which the documentation now says.
+
+### Method in rows, condition in columns
+
+Applied to every table that measures methods under conditions: both comparison
+tables in `vignette("families")`, the two `pivot()` tables in
+`vignette("survival")` (one helper feeds both), the sparsity table in
+`vignette("implementation")`, and the tree-count, sparsity-strength and
+categorical-rule tables in `?bartisan_control`. Transposition was done by a
+script that reparses the markdown so cell contents, including bolding, survive
+verbatim rather than being retyped.
+
+Left alone, deliberately: the long-format tables that already have the method in
+rows (the benchmark table, the augmentation table, the relative-cost table), the
+decision tables ("if X, use Y"), and the package feature matrix in
+`vignette("implementation")`, whose 35 features would become 35 columns and whose
+reader compares packages on one feature along a row.
+
+The transposition moved unit labels out of the corner cell, so the column headers
+carry them now ("10 predictors", "10 per level", "5 trees"), and five prose
+references to rows became references to columns.
+
+## Log: gaussian_ls, Gamma_ls, and a review of custom_family
+
+### `location_scale()` became `gaussian_ls()`
+
+Renamed everywhere, including the engine's family string, which is user-visible:
+it is what `print()` reports and what `augment` takes as a name. 28 files, and
+the C++ class became `GaussianLSFamily`. Entries in this file from before the
+rename still say `location_scale()`; that is history and was left alone.
+
+### `Gamma_ls()`: a gamma whose dispersion is a forest
+
+`Gamma("log")` draws one shape for the whole sample, which asserts a constant
+coefficient of variation. `Gamma_ls()` puts a second forest on the log
+*dispersion*, so the shape is `exp(-eta1)` per observation.
+
+**The second predictor is a dispersion rather than a shape** so that both
+location-scale families read the same way, with a larger second predictor
+meaning more spread. The two differ by a sign, so nothing is lost.
+
+**The target forms are split**, which is what made this cheap enough to be worth
+having. In the mean, the log density is `-s eta0 - s y exp(-eta0)`, the same
+exponential form at rate -1 that `Gamma("log")` uses, with both coefficients
+free of `eta0` even though `s` now varies by observation. In the log dispersion
+there is nothing to exploit, because `lgamma(exp(-eta1))` has no form, so that
+forest takes the general path. Measured, the fit costs about 5.4x
+`Gamma("log")` at 50 and 20 trees, essentially all of it in the second forest.
+
+**The information for the log dispersion is the expected one**,
+`s^2 trigamma(s) - s`, not the observed one. The observed version differs from
+it by the score, so they agree at the mode, and the expected one is guaranteed
+positive because `trigamma(s) > 1/s` for every `s > 0`. The observed one can go
+negative away from the mode, which would give the Laplace proposal a negative
+variance. The mean forest keeps the observed curvature, as `Gamma("log")` does,
+since a strictly positive response cannot make it negative.
+
+**Three checks, and the second is the one that matters.** Both components' scores
+match central differences to 1.7e-9, and the mean component's information to
+2.4e-8. The log density matches
+`dgamma(y, shape = 1/phi, rate = shape/mu, log = TRUE)` to **7.1e-15**, which is
+what establishes that the parameterization is the one claimed rather than merely
+self-consistent. And a dispersion that varies with a predictor is recovered at a
+correlation of .973, worth 62.9 log points over `Gamma("log")` on the same data.
+
+### An intercept-only forest, which `~ 1` now means
+
+Checking `Gamma_ls()` against `Gamma()` needs the scale forest held constant, and
+`bartisan(list(y ~ x, ~ 1), ...)` was an error: "no predictor left to split on".
+
+The mechanism to allow it already existed. A nuisance parameter carried as a
+trailing forest is pinned by giving it a **branching probability of zero**
+(`src/model.cpp`), which makes every tree in it a stump, so the forest is one
+drawn scalar. `gamma` is already a per-forest control. So a forest whose formula
+names no predictor now sets `gamma = 0` for that forest instead of erroring, and
+`resolve_split_matrix()` gives it a uniform placeholder column that is never
+read. The error survives for the case it was actually protecting against, a
+formula whose terms `split_prior` has all zeroed, and its message now says so.
+
+**One trap in this.** `resolve_vc()` has an early return for the common case of
+no `vc()` terms, so the first version of the change had no effect at all on any
+formula without a varying coefficient, which is every formula this feature is
+for. The forest kept splitting; `fit$counts` showed 714 rules in a forest that
+was supposed to have none. Both return paths now carry `pinned`.
+
+Verified: with `~ 1` the scale forest has **0** splitting rules and its predictor
+has zero variance across observations, and against `Gamma("log")` on the same
+data the implied shapes are 4.09 and 4.13 against a truth of 4, the mean surfaces
+correlate at .993, and the log scores differ by 3 points in 1300.
+
+### `custom_family()`: the changes are sound, with two holes now closed
+
+Reviewed as asked. The change from `aux_start = 0` to `aux_start = NULL` is a
+genuine fix, not just a tidy-up: the old code decided whether nuisance
+parameters existed with `missing(aux_start)`, so
+`do.call(custom_family, list(logdens = f, aux_start = 0))` manufactured a
+parameter and then errored, where the same call written literally did not.
+Reproduced against the old version. A `NULL` default makes the two
+indistinguishable by value. Naming a parameter through `aux_start = c(shape = 1)`
+is also new and useful.
+
+Two holes in the new branch, both fixed:
+
+- **A partially named `aux_start` produced an empty parameter name.**
+  `c(a = 1, 2)` has names `c("a", "")`, no duplicates, so it passed the guard and
+  `aux_names` became `c("a", "")`. That empty name would have labeled a column of
+  `fit$aux` and a row of `summary()`. `aux_names = c("a", "")` was already an
+  error, so the same input was accepted or refused depending on which argument
+  carried it.
+- **Duplicate names were silently discarded.** `c(a = 1, a = 2)` fell back to
+  `aux1`, `aux2` with no message, where `aux_names = c("a", "a")` errors.
+
+Both came from the check living in the other branch. `aux_names` is now derived
+first and checked once, whichever argument it came from, with the message naming
+that argument.
+
+### `error_density(plot = TRUE)`
+
+Returns a `ggplot` of the posterior mean density with the pointwise interval as
+a ribbon; `plot = FALSE` still returns the data frame. *ggplot2* is a soft
+dependency, so `TRUE` checks for it and says what to do instead.
+`vignette("survival")` keeps the hand-drawn version, because there the point is
+to overlay the normal a `lognormal_aft()` fit would have assumed, which is what
+the values are for.
+
+### The multinomial probit correlations need no reparameterization
+
+Asked whether to constrain them through a bounded transform, on the evidence
+that `vignette("families")` reported an interval reaching 1.07.
+
+**The vignette was reporting interval *widths*, and said so ambiguously.** The
+sentence read "95% intervals from .38 to 1.07 wide", which scans as endpoints.
+Rewritten to name the widths explicitly.
+
+**No transform is needed, and an element-wise one would be wrong.** `Sigma` is
+drawn from an inverse Wishart and rescaled to `trace(Sigma) = C`, so every draw
+is positive definite by construction and every correlation it implies is
+strictly inside (-1, 1); measured over 400 draws, the range was [.058, .622] and
+the trace held at 2.000000. Squashing each correlation through a scaled normal or
+logistic distribution function would also be the wrong repair past three
+categories, where the correlations are entries of a matrix that has to be
+positive definite *jointly*, which a per-entry transform cannot enforce. Weak
+identification here shows up as a wide posterior, which is the honest signal.
+
+### The two-category `cloglog` footnote, and what it says
+
+`ordinal()`'s documentation says a two-category response is "exactly binary
+regression on the same scale". That is true for `logit` and `probit`, whose
+errors are symmetric, and **false for `cloglog`**, whose smallest extreme value
+error is not. The cumulative-link form puts the error in with the opposite sign
+to the binomial's, so with the single cutpoint pinned at zero the ordinal model
+reports `P(Y = 2) = exp(-exp(-eta))`, the log-log link, against the binomial's
+`1 - exp(-exp(eta))`.
+
+Checked per draw rather than asserted: the ordinal fit's probabilities match
+`exp(-exp(-eta))` to **1.1e-16** and differ from `1 - exp(-exp(eta))` by .264.
+Reversing the levels and negating the predictor turns either into the other.
+
+### The positive-outcome comparison, re-measured against the right rivals
+
+`_dev/positive-sim.R`, which is now reproducible rather than pasted from a lost
+script. The old table compared `Gamma("log")` against `gaussian()` and `dpm()`
+fitted to `log(y)`, and both of its columns were meaningless as a result: the
+RMSE compared an estimate of $\log E[Y]$ against an estimate of
+$E[\log Y]$, and the log score compared densities taken with respect to
+different measures. `gaussian("log")` is the like-for-like Gaussian, since the
+composed link puts the forest on the log mean while leaving the error additive.
+
+`dpm()` has no link argument and appears only on the raw scale. Its additive
+predictor is *defined* to be the conditional mean, which is what identifies the
+centered mixture, so a log link would be a different construction rather than a
+composition. Worth knowing before anyone reaches for `dpm("log")`: it silently
+passes `"log"` to `nu` and errors there.
+
+800 train and test, 50 trees, 500 draws after 500 warmup, four replicates,
+medians. Cells are RMSE / log score:
+
+| Errors | `Gamma("log")` | `Gamma_ls()` | `gaussian("log")` | `dpm()` | `ordinal("probit")` |
+|---|---|---|---|---|---|
+| gamma, constant dispersion | 0.395 / **-1938** | **0.378** / -1940 | 0.433 / -2096 | 0.793 / -2005 | 0.434 |
+| gamma, varying dispersion | 0.620 / -2218 | **0.461 / -2156** | 1.265 / -2466 | 1.442 / -2251 | 0.858 |
+| lognormal | 0.548 / -2074 | 0.537 / **-2073** | 0.574 / -2366 | 0.913 / -2109 | **0.397** |
+| heavy tail | 0.465 / -2097 | 0.440 / -2132 | 1.229 / -2261 | 0.628 / **-2042** | **0.432** |
+| seconds | 7.6 | 48.7 | 16.8 | **2.4** | 3.1 |
+
+**`Gamma_ls()` has the property that makes a flexible family safe to default
+to.** It cuts RMSE 26% and gains 62 log points where the dispersion varies, and
+where it does not it is two log points from `Gamma("log")`, well inside the
+replicate spread. That is `dpm()`'s relationship to `gaussian()`, one level up.
+
+**`gaussian("log")` is the useful negative result.** It targets the right
+estimand and is still behind on log score in every row by 150 to 310 points,
+because the error stays additive and of constant variance where the data are
+multiplicative and skewed. It is also *slower* than `Gamma("log")`, at 16.8
+seconds against 7.6, because a link the engine does not compile is applied from
+R once per leaf visited. Worth remembering as the cost of the composition path.
+
+**The heavy-tail log score is stable this time** and is reported, where the old
+table had to withhold it. The old truth put the score at the mercy of one test
+point; a contaminated gamma whose two components both have mean one does not,
+and the across-replicate range is now about 50 points rather than five orders of
+magnitude.
+
+### A trap worth recording: `roxygenise(load_code = "installed")`
+
+It documents whichever build is on `.libPaths()`, not the source tree. Run
+against the previously installed version it silently **dropped
+`export(Gamma_ls)` from NAMESPACE** and omitted the function from the `\usage`
+block, while leaving every prose mention of it in place, so the page looked
+right. `R_LIBS` has to point at the build under test.
+
+## Log: the documentation voice pass
+
+### Applying the `/r-doc-style` skill across the package
+
+The skill at `~/.config/agents/skills/r-doc-style/` is derived from the
+documentation of the published packages with agent-written lines excluded by `git
+blame`. Applied here to the roxygen blocks, the README and seven of the nine
+vignettes; `causal.Rmd` and `bartisan.Rmd` were held out of scope. Working notes
+and the operative rule list are in `_dev/DOCSTYLE.md`.
+
+**The diagnostic was the useful part, and it was mechanical.** Measured against
+the skill's twenty-four deltas before any edit, the package was uniformly in a
+different register than the corpus rather than unevenly so, which is what made
+the pass tractable: 0 uses of `Default is` against 6 of `Defaults to`; 0 uses of
+`Allowable options include`; 0 type markers of the form `` `logical`; ``; **0
+glosses** against the corpus's 363 `i.e.`/`e.g.`; 1 `Note that` against 54; 0
+`@note` blocks against 19; 0 `@inheritParams` against 38; **230 dashes as
+subclause delimiters** (75 in roxygen, 155 in markdown) against 7 in twelve
+thousand corpus lines; and in the vignettes **73 instances of "you" against 0 of
+"we"**, which is the exact inversion of the corpus's 157 to 35.
+
+What was already right: every one of the 124 `@param`s started lowercase,
+`@returns` was used rather than `@return` on every exported page, titles were
+sentence case without periods, bold lead-ins were already the device for parallel
+definitional material, and none of the skill's banned words appeared anywhere.
+
+**Two factual errors surfaced from reading rather than from the style rules.**
+`bartisan()`'s `@returns` named the returned class as `bartisan`, where the code
+assigns `bartisan_fit`. And `split_prior`'s `@param` read "Weights must be finite
+and not than negative", a mangled sentence that was presumably meant to say
+nonnegative, which is what the validation actually enforces.
+
+**The README was the structural decision.** At 8,881 words it was ten times the
+house length of 450 to 1050, and it was functioning as a second manual: it
+duplicated the control page, the families vignette and the effects vignette, and
+carried four sections that existed nowhere else. It is now 795 words in the house
+shape (Overview, Installation, Examples, Citing, Questions and Bug Reports), with
+one worked example on `rhc` that runs. Every duplicated section was checked
+against the roxygen and the vignettes before being cut; the four that had no
+other home were **moved rather than deleted**, into `vignette("implementation")`,
+which is the "how it works" reference document and the right place for them:
+
+- the feature comparison against *dbarts*, *BART*, *flexBART*, *SoftBart*,
+  *bartMachine* and *stochtree*;
+- the benchmark table, the two measurement errors it corrects, and the
+  phase-by-phase account of where the time goes;
+- the three correctness checks and the interval-coverage numbers;
+- the notes and limitations, including the ordinal identification chart.
+
+`_dev/README-moved.md` holds the pre-move text verbatim in case any of it wants a
+different home. `implementation.Rmd` went from 409 to 908 lines and still renders
+in 3.4 seconds.
+
+**Two things worth remembering for the next pass.** The vignette headings were
+the least mechanical part: the file had essayistic headings ("A trap: the
+densities must be on the same scale", "Three things importance is not", "Why
+slopes are unreliable here") where the corpus names the thing documented and puts
+the triggering argument in parentheses. Converting those is a judgment call per
+heading and cannot be scripted. And the `#` level-one headings inside `@details`
+and inside `implementation.Rmd` were wrong in a way that renders without
+complaint: in roxygen a bare `#` becomes a top-level help-page section rather than
+a subsection of Details, and in a vignette `#` collides with the YAML title. Both
+became `##`.
 
 ## Notes
 
@@ -3743,3 +4365,76 @@ extra time is the bandwidth move's `rebuild_support()`, which is a full O(n x
 depth) rebuild every `bandwidth_every` sweeps and has no flexBART analogue,
 because flexBART has no bandwidth. That is the better target if soft-rule speed
 becomes the goal.
+
+## Log: `bcf()` showed two progress bars
+
+Reported as "progressr makes multiple bars for VC models (noticed in `bcf()`)".
+Counting distinct progressor UUIDs under `handler_debug(uuid = TRUE)` located it
+somewhere else:
+
+| call | progressors |
+|---|---|
+| plain fit | 1 |
+| fit with `vc()` terms | 1 |
+| `bcf(propensity = TRUE)` | **2** |
+| `bcf(propensity = FALSE)` | 1 |
+
+So varying coefficients are not involved: `bcf()` fits a propensity model and
+then an outcome model, and each `bartisan()` call built a progressor of its own.
+The caller asked for one fit and watched two bars, the first of which filled
+while the call was nowhere near half done.
+
+Suppressing the propensity bar was rejected: it reintroduces the problem just
+fixed for the convergence pass, a bar that covers part of the wall clock and
+then sits at 100% while the call keeps working. The fix shares one bar instead.
+`the$claimed_progress` holds a reporter a wrapper has claimed;
+`progress_reporter()` returns it rather than building a second;
+`shared_reporter()` sizes it across the fits that will actually run, and `bcf()`
+releases the claim in its own `on.exit()`.
+
+Two details that took measuring rather than reasoning:
+
+- The shared tick count has to be the **smallest** across the fits, not each
+  fit's own. One reporter goes to both, and a fit reports at most once per
+  sweep, so promising a 10-sweep fit 50 reports leaves the bar 40 short. With
+  the minimum every chain of every fit spends exactly `ticks`, and the bar
+  fills exactly in all six cases measured, including deliberately mismatched
+  ones.
+- Sizing must not become a validation site. `progress_spec()` merges the
+  control the way `bartisan()` will, which can error on a bad argument name;
+  that error belongs to the fit, with the fit's wording, so it is caught and
+  the call goes without a bar rather than complaining early.
+
+The claim also covers the adaptive retry, which fits the outcome model a second
+time when a drawn coding does not apply -- verified with a Poisson `bcf()`,
+which takes that path: one bar, filled exactly. Verified released after a
+`bcf()` that errors, and a plain fit afterwards sizes itself normally.
+
+## Log: `control$augment` in a fit is now an answer, not a request
+
+`bartisan_control(augment = )` takes a flag or the names of the engine families
+a rewriting may apply to, and the fit stored that request verbatim. Reading
+`fit$control$augment` and finding `c("binomial", "ordinal", ...)` tells you
+nothing about the fit in hand. It is now a `logical` saying whether a rewriting
+was actually applied.
+
+It has to come from C++ rather than be worked out in R. Whether the rewriting
+applies depends on the data, not only on the family and link: `augmented_base()`
+asks each candidate's `applies()`, and probit's wants a Bernoulli response.
+Measured on the same data, three trials per observation:
+
+| family | `control$augment` |
+|---|---|
+| `binomial("probit")`, Bernoulli | `TRUE` |
+| `binomial("probit")`, 3 trials | `FALSE` |
+| `binomial("logit")`, 3 trials | `TRUE` |
+
+Polya-Gamma carries any number of trials and Albert-Chib does not, which is a
+distinction no R-side reimplementation of the rule would get right for free. So
+`.bartisan_fit()` reports `augmented` alongside the draws and `bartisan()`
+overwrites the control's element with it. `combine_chains()` needs no change: it
+starts from the first chain, and the value depends on the data and the family,
+not on the chain.
+
+The request is not lost, and the documentation says where it went:
+`attr(control, "supplied")` still holds what the caller asked for.

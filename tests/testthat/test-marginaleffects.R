@@ -113,7 +113,7 @@ test_that("a multi-predictor family works on the response scale and not the link
   d <- sim_x(n = 80, seed = 95)
   d$y <- stats::rnorm(nrow(d))
 
-  fit <- bartisan(y ~ x1 + x2, d, family = location_scale(),
+  fit <- bartisan(y ~ x1 + x2, d, family = gaussian_ls(),
                   control = quick_control())
 
   # The mean is one number per observation, so it goes through.

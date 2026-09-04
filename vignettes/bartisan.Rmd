@@ -133,8 +133,8 @@ that matters here. Forests mix slowly on their fitted values, so a figure above
 1.01 on that row is ordinary rather than alarming; `vignette("diagnostics")`
 explains what to do about it and when to worry.
 
-The table is also in `fit$rhat` for a fit with more than one chain, if what you
-want is the numbers rather than the report.
+The table is in `diagnose(fit)$table` if what you want is the numbers rather
+than the report.
 
 ### Fit
 

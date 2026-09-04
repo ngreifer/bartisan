@@ -7,33 +7,40 @@
 vc(x, modifiers = NULL, center = "auto")
 }
 \arguments{
-\item{x}{the predictor whose coefficient varies. A numeric variable gets one
-forest; a factor gets one per level, coded symmetrically as
-\code{\link[=multinomial]{multinomial()}} codes its predictors.}
+\item{x}{the predictor whose coefficient varies, named as a bare variable
+rather than as an expression. A numeric variable gets one forest; a factor
+gets one per level, coded symmetrically (i.e., with no level held out as a
+reference) as \code{\link[=multinomial]{multinomial()}} codes its predictors.}
 
 \item{modifiers}{a one-sided formula naming the predictors this coefficient's
-forest may split on. The default, \code{NULL}, is every predictor in the model
-except \code{x} itself.}
+forest may split on. Default is \code{NULL} to allow every predictor in the model
+except \code{x} itself. Note that naming something that is not a predictor is an
+error rather than a silent restriction.}
 
 \item{center}{the value of \code{x} at which the control function is read, which is
-both how the model is fitted and how it is reported. \code{"auto"}, the default,
-uses \code{"zero"} for a \code{0}/\code{1} covariate and \code{"mean"} for any other numeric
-one, for the reason in Details. \code{"mean"} centers \code{x}, so the control
-function is the surface at its average; \code{"zero"} leaves \code{x} alone, so the
-control function is the surface at \code{x = 0}; \code{"mid"} uses the midpoint of
-\code{x}'s range; a number uses that number. For a factor, \code{center} is \code{"mean"}
-or the name of a level to report against. \code{"estimate"} draws the coding
-rather than fixing it, which is the parameter expansion of Hahn, Murray and
-Carvalho (2020); see Details, and note that it needs a covariate with a few
-distinct values rather than a continuous one.}
+both how the model is fitted and how it is reported, given as either a
+string or a number. Allowable options include \code{"auto"} (the default),
+\code{"mean"}, \code{"zero"}, \code{"mid"}, and \code{"estimate"}. \code{"auto"} uses \code{"zero"} for a
+\code{0}/\code{1} covariate and \code{"mean"} for any other numeric one, for the reason in
+Details. \code{"mean"} centers \code{x}, so the control function is the surface at its
+average; \code{"zero"} leaves \code{x} alone, so the control function is the surface at
+\code{x = 0}; \code{"mid"} uses the midpoint of \code{x}'s range (i.e., the average of its
+smallest and largest values); and a number uses that number. For a factor,
+\code{center} is \code{"mean"} or the name of a level to report against. \code{"estimate"}
+draws the coding rather than fixing it, which is the parameter expansion of
+Hahn, Murray and Carvalho (2020); see Details, and note that it needs a
+covariate with between two and twenty distinct values rather than a
+continuous one.}
 }
 \value{
-Nothing. \code{vc()} is a marker read out of the formula and never evaluated.
+Nothing; \code{vc()} is never evaluated, and calling it directly is an error.
 }
 \description{
-Used only inside a \code{\link[=bartisan]{bartisan()}} formula, where it says that the coefficient of
-\code{x} is a function of other predictors rather than a constant. It is not meant
-to be called directly and does nothing if it is.
+Marks a predictor inside a \code{\link[=bartisan]{bartisan()}} formula as one whose coefficient is a
+function of the other predictors rather than a constant, so that the
+coefficient gets a forest and a prior of its own. \code{vc()} is a marker rather
+than a function: it is read out of the formula it appears in and throws an
+error if it is called on its own.
 }
 \details{
 The model is
@@ -44,8 +51,8 @@ with a forest for the control function \eqn{f_0} and one for each varying
 coefficient \eqn{f_j}. Every forest is fitted at once, so the coefficient has
 a prior of its own rather than being whatever difference a single forest with
 \code{x} among its predictors happens to produce.
-}
-\section{Which predictors a coefficient may vary with}{
+\subsection{Which Predictors a Coefficient May Vary With}{
+
 By default every predictor in the model except \code{x} itself. The \code{modifiers}
 argument narrows that, and naming something that is not a predictor is an
 error rather than a silent restriction.
@@ -74,14 +81,15 @@ separates rows that contribute from rows that contribute nothing. It is wasted
 rather than unidentified.
 }
 
-\section{Where the control function sits}{
+\subsection{Where the Control Function Sits}{
+
 Centering is a reparameterization of \eqn{f_0} alone: every coefficient and
 every estimand is identical under any choice, and what changes is what the
 control function means. \code{"auto"} picks by the covariate, because neither
 answer wins everywhere. For a \code{0}/\code{1} covariate it uses zero, so \eqn{f_0} is
-the surface among the untreated -- a quantity with its own meaning, and the
-one that recovers the coefficient best, at a correlation of 0.987 against
-0.975 for mean-centering on the simulation in \verb{_dev/}. For any other numeric
+the surface among the untreated (a quantity with its own meaning, and the one
+that recovers the coefficient best, at a correlation of 0.987 against 0.975
+for mean-centering on the simulation in \verb{_dev/}). For any other numeric
 covariate it uses the mean, because zero may be nowhere near the data: with a
 covariate around 50 the control function at zero is an extrapolation and
 recovery collapses to a correlation of 0.42.
@@ -94,7 +102,8 @@ choice: \code{center} names the level \code{\link[=coef]{coef()}} reports agains
 needed to change it.
 }
 
-\section{Drawing the coding instead of fixing it}{
+\subsection{Drawing the Coding Instead of Fixing It}{
+
 \code{center = "estimate"} is different in kind from the choices above. Rather than
 subtract a number from \code{x}, it gives each of \code{x}'s values a coefficient of its
 own and draws it: the model is
@@ -122,8 +131,8 @@ with a standard error of 0.0140. What it buys is that the answer stops
 depending on which level was written as 1. Fitting the same data with the
 treatment coded \code{0}/\code{1} and again \code{1}/\code{0} and adding the two effects, which is
 zero if the coding does not matter, gives 0.0045 under a drawn coding against
-0.0125 under a fixed zero -- and on weak data, where the prior has more to
-say, 0.0389 against 0.0830.
+0.0125 under a fixed zero; on weak data, where the prior has more to say,
+0.0389 against 0.0830.
 
 \strong{Above two values it stops being free, and the restriction is a real one.}
 Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels
@@ -141,28 +150,29 @@ the default is the general one. Reach for it when the levels plausibly differ
 in degree rather than in kind.
 }
 
-\section{Families with several additive predictors}{
-\code{location_scale()}, \code{zi_poisson()} and the rest fit one forest per
+\subsection{Families with Several Additive Predictors}{
+
+\code{gaussian_ls()}, \code{zi_poisson()} and the rest fit one forest per
 distributional parameter, and each parameter's formula carries its own \code{vc()}
-terms. The forests are then two-dimensional -- a control function and its
-coefficients, for each parameter -- and named accordingly, which is what
+terms. The forests are then two-dimensional (a control function and its
+coefficients, for each parameter) and named accordingly, which is what
 per-forest settings are keyed by:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{# forests: mean, mean:z, log_sd
 bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-         family = location_scale())
+         family = gaussian_ls())
 
-# forests: mean, mean:z, log_sd, log_sd:z -- one formula reaches every
+# forests: mean, mean:z, log_sd, log_sd:z; one formula reaches every
 # parameter, which is the rule every per-forest argument follows
-bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
 
 # each coefficient with its own modifiers
 bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
               log_sd = ~ x1 + x2 + vc(z, ~ x1)), data = d,
-         family = location_scale())
+         family = gaussian_ls())
 }\if{html}{\out{</div>}}
 
-So the same covariate may have a coefficient on more than one parameter --
+So the same covariate may have a coefficient on more than one parameter:
 \eqn{z} shifting the mean and widening the spread are different questions, and
 both are answered at once. \code{\link[=coef]{coef()}} returns one column per coefficient, named
 for its forest.
@@ -171,33 +181,51 @@ Two things follow from the parameters being different. A group intercept from
 \code{(1 | g)} reaches every control function and no coefficient, since a
 group-varying coefficient is a random slope. And \code{center = "estimate"} is
 judged per parameter: the drawn coding needs a leaf target that is quadratic
-in the predictor it feeds, which \code{location_scale()} is in the mean and is not
+in the predictor it feeds, which \code{gaussian_ls()} is in the mean and is not
 in the log standard deviation, so the same request is accepted on one and
 refused on the other.
 
-\code{multinomial()} and \code{mnp()} are the exception and refuse \code{vc()}. Their forests
+The two multinomial families are the exception and refuse \code{vc()}. Their forests
 are the levels of one parameter rather than separate parameters, identified
 only up to a function they all share, and reporting removes it; a coefficient
 forest per level would add one such direction per coefficient and the
 reporting does not carry them.
 }
-
+}
 \examples{
-# The coefficient of `z` varies with `x1` and `x2`.
-y ~ x1 + x2 + vc(z)
+data("rhc")
 
-# ... and with `x1` alone.
-y ~ x1 + x2 + vc(z, ~ x1)
+set.seed(123)
 
-# The effect of `z` varies across `z` itself, so the dose response is a
-# curve rather than a line. `z` appears only inside `vc()`: writing it in the
-# fixed part as well would leave the control function and the coefficient
-# unidentified, which is a warning rather than a refusal.
-y ~ x1 + vc(z, ~ z + x1)
+# The effect of right heart catheterization on death, free to vary with
+# every other covariate. `rhc` reaches the fixed part through `.`, so it is
+# dropped from the control function, which is what keeps the two identified
+fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
+                family = binomial(), num_trees = 10, num_burn = 50,
+                num_draws = 50)
+
+# One coefficient per patient, which is what a coefficient function comes to
+head(coef(fit))
+
+# The same effect, free to vary with severity of illness alone
+fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
+                 family = binomial(), num_trees = 10, num_burn = 50,
+                 num_draws = 50)
+
+head(coef(fit2))
 
 }
+\references{
+Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian regression tree
+models for causal inference: regularization, confounding, and heterogeneous
+effects. \emph{Bayesian Analysis}, 15(3), 965--1056. \doi{10.1214/19-BA1195}
+}
 \seealso{
-\code{\link[=bartisan]{bartisan()}} for the formula interface, \code{\link[=bcf]{bcf()}} for the causal case,
-\code{\link[=coef.bartisan_fit]{coef.bartisan_fit()}} for reading the coefficients out, and
-\link{bartisan-families} for the order the forests come in.
+\itemize{
+\item \code{\link[=bartisan]{bartisan()}} for the formula interface
+\item \code{\link[=bcf]{bcf()}} for the causal case, which is this term with the priors and the
+propensity score set up for it
+\item \code{\link[=coef.bartisan_fit]{coef.bartisan_fit()}} for reading the coefficients out
+\item \link{bartisan-families} for the order the forests come in
+}
 }

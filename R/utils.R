@@ -222,6 +222,13 @@ resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
   }
 
   out <- vapply(seq_len(ncol(masks)), function(h) {
+    # An intercept-only forest never splits, so its column is never read; a
+    # uniform one keeps the matrix rectangular, exactly as for the trailing
+    # pinned forests below.
+    if (!any(masks[, h])) {
+      return(rep.int(1 / length(groups), length(groups)))
+    }
+
     weights <- resolve_split_weights(per_forest[[h]], groups) %or%
       rep.int(1 / length(groups), length(groups))
 
@@ -230,7 +237,8 @@ resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
 
     if (sum(weights) == 0) {
       arg::err(c("The {.val {labels[h]}} forest has no predictor left to split on.",
-                 i = "Its formula and its {.arg split_prior} weights have nothing in common."))
+                 i = "Its formula names only predictors its {.arg split_prior}
+                      gives a weight of zero."))
     }
 
     weights / sum(weights)

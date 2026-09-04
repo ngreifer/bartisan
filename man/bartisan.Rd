@@ -30,63 +30,86 @@ response, and follow the order in \link{bartisan-families}, under "Several
 additive predictors", which also gives the name of each forest so the list
 can be named instead of ordered:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = location_scale())
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = gaussian_ls())
 bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
-         family = location_scale())
+         family = gaussian_ls())
 }\if{html}{\out{</div>}}
 
 One formula applies to every forest, which is the ordinary case. A predictor
 left out of one forest's formula is still in the data and is never split on
 by that forest.
 
+\strong{A formula naming no predictor at all makes that parameter a constant.}
+\code{~ 1} leaves its forest nothing to split on, so every tree in it is a stump
+and the forest is a single drawn scalar rather than a function of the
+predictors. This works for every family that takes more than one formula, and
+it is how a nuisance parameter is asked for without a family that has one
+built in: \code{gaussian_ls()} with \code{~ 1} on its scale is \code{gaussian()} with its
+drawn \code{sigma}, \code{Gamma_ls()} with \code{~ 1} is \code{Gamma("log")} with its drawn
+shape, and \code{zi_poisson()} with \code{~ 1} on its inflation part is the ordinary
+zero-inflated Poisson with one structural-zero probability. The scalar is
+drawn under the leaf prior rather than under the prior the built-in family
+would use, so the two agree to within that difference rather than exactly.
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# the scale free to vary, then held constant
+bartisan(y ~ x1 + x2, data = d, family = gaussian_ls())
+bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = gaussian_ls())
+}\if{html}{\out{</div>}}
+
 \code{\link[=vc]{vc()}} terms are read out of each formula in turn, so a parameter has the
 varying coefficients its own formula asks for and no others. That makes the
-forests two-dimensional -- one axis the parameter, the other the coefficient
--- and the names below are what per-forest settings are keyed by:
+forests two-dimensional (one axis the parameter, the other the coefficient),
+and the names below are what per-forest settings are keyed by:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{# forests: mean, mean:z, log_sd
 bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-         family = location_scale())
+         family = gaussian_ls())
 
 # one formula reaches every parameter, so both get a coefficient of `z`
-bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
 }\if{html}{\out{</div>}}}
 
-\item{data}{a data frame containing the variables in \code{formula}.}
+\item{data}{a data frame containing the variables named in \code{formula}.}
 
-\item{family}{the response distribution, as a \link[stats:family]{stats::family} object, one of
-the families in \link{bartisan-families}, or a name. The default, \code{NULL}, reads
-one off the response and says which it chose; see Details for the rules and
-for what is supported.}
+\item{family}{the response distribution, given as a \link[stats:family]{stats::family} object,
+as one of the families in \link{bartisan-families}, or as the name of either.
+Ordinary \code{family} objects are used unchanged, including their links, and a
+link the package does not compile is composed onto the scale its family
+works on. Default is \code{NULL}, in which case the family is read off the
+response and a message reports the choice; see Details for the rules.}
 
-\item{weights}{optional prior weights. For a binomial response given as
-proportions, these are the numbers of trials, as in \code{glm()}.}
+\item{weights}{optional; prior weights, one per observation. For a binomial
+response given as proportions, these are the numbers of trials, as in
+\code{glm()}.}
 
-\item{offset}{optional known component of the additive predictor, on the link
-scale.}
+\item{offset}{optional; a known component of the additive predictor, on the
+link scale.}
 
-\item{subset}{optional vector specifying a subset of rows to use.}
+\item{subset}{optional; a vector specifying the subset of rows to use.}
 
-\item{na.action}{how to handle missing values. The default,
-\link[stats:na.pass]{stats::na.pass}, keeps rows whose \emph{predictors} are missing and lets the
-splitting rules decide where they go, which is what the trees are able to do
-and \code{lm()} and \code{glm()} are not; see Details. Pass \link[stats:na.omit]{stats::na.omit} to drop
-any row with a missing value anywhere instead. Rows with a missing response,
-weight or offset are dropped either way, with a warning, since there is
+\item{na.action}{how missing values are handled. Default is \link[stats:na.pass]{stats::na.pass},
+which keeps rows whose \emph{predictors} are missing and lets the splitting rules
+decide where they go, which is something the trees can do and \code{lm()} and
+\code{glm()} cannot; see Details. Pass \link[stats:na.omit]{stats::na.omit} to drop any row with a
+missing value anywhere instead. Note that rows with a missing response,
+weight, or offset are dropped either way, with a warning, since there is
 nothing to fit them to.}
 
-\item{control}{a list of sampler and prior settings from
-\code{\link[=bartisan_control]{bartisan_control()}}.}
+\item{control}{a \verb{<bartisan_control>} object; the output of a call to
+\code{\link[=bartisan_control]{bartisan_control()}}, containing the sampler and prior settings.}
 
-\item{...}{further arguments to \code{\link[=bartisan_control]{bartisan_control()}}. They are
-merged into \code{control}, overriding any value given there, so that
+\item{...}{further arguments to \code{\link[=bartisan_control]{bartisan_control()}}, which are merged into
+\code{control} and override any value given there, so that
 \code{bartisan(..., num_trees = 20)} and
 \code{bartisan(..., control = bartisan_control(num_trees = 20))} are the same
-call. Names that are not arguments of \code{\link[=bartisan_control]{bartisan_control()}} are an error
+call. A name that is not an argument of \code{\link[=bartisan_control]{bartisan_control()}} is an error
 rather than being silently ignored.}
 }
 \value{
-An object of class \code{bartisan}, a list with elements including:
+A \verb{<bartisan_fit>} object, a list with the following components among others.
+Note that convergence diagnostics are not among them: computing R-hat and the
+effective sample sizes for every observation costs more than the sampling
+does, so it is \code{\link[=diagnose]{diagnose()}}'s work and happens when it is asked for.
 
 \item{\code{eta}}{a list with one matrix per additive predictor, each of
 posterior draws by observation, on the link scale.}
@@ -98,36 +121,32 @@ for variable selection.}
 standard deviation or the ordinal cutpoints, when the family has any.}
 \item{\code{has_na}}{which predictor columns contained a missing value, which is
 what determines where \code{predict()} will accept one.}
-\item{\code{rhat}}{a data frame of convergence diagnostics, when more than one
-chain was run: rank-normalized folded split R-hat and the bulk and tail
-effective sample sizes (Vehtari et al. 2021) for the log likelihood, the
-leaf scales, the nuisance parameters and the additive predictor. R-hat
-above about 1.01 says the chains have not agreed; an effective sample size
-below about 400 says the run is too short for the quantity it belongs to,
-and the tail column is the one that governs interval endpoints.}
 \item{\code{sigma_mu}, \code{bandwidth}}{draws of the leaf standard deviation and,
 for soft rules, the per-tree gate bandwidths.}
 \item{\code{loglik}}{the log likelihood at each draw.}
+\item{\code{control}}{the \verb{<bartisan_control>} object the fit used, with any
+settings given in \code{...} merged in. Its \code{augment} element is a \code{logical}
+saying whether a rewriting of the likelihood was applied to this fit,
+rather than the families one was permitted for; what was asked for
+remains in \code{attr(control, "supplied")}.}
 }
 \description{
 Fits a BART model in which the response distribution is arbitrary rather than
 restricted to the conditionally conjugate cases, using the
-Laplace-approximation reversible-jump sampler of Linero (2025). Decision
-rules may be soft, as in Linero and Yang (2018), which gives smoother fits
-than the step functions of standard BART.
-
-The interface deliberately mirrors \code{\link[stats:glm]{stats::glm()}}: a formula, a data frame
-and a family. Ordinary \link[stats:family]{stats::family} objects work unchanged, including
-their links, and the extra families that \code{glm()} has no counterpart for are
-documented at \link{bartisan-families}, along with \code{custom_family()} for a
-likelihood of your own.
+Laplace-approximation reversible-jump sampler of Linero (2025). Decision rules
+may be soft, as in Linero and Yang (2018), which gives smoother fits than the
+step functions of standard BART. The interface mirrors that of \code{\link[stats:glm]{stats::glm()}}:
+a formula, a data frame, and a family, with the families that \code{glm()} has no
+counterpart for documented at \link{bartisan-families}.
 }
-\section{What the sampler does}{
+\details{
+\subsection{What the Sampler Does}{
+
 Standard BART relies on the leaf parameters being integrable in closed form,
-which restricts it to a Gaussian response, or to models that can be reduced
-to one by data augmentation. Linero's algorithm removes that restriction. At
-each candidate move it builds a Gaussian approximation to the conditional
-posterior of the affected leaf parameters, by Fisher scoring, and uses that
+which restricts it to a Gaussian response, or to models that can be reduced to
+one by data augmentation. Linero's algorithm removes that restriction. At each
+candidate move it builds a Gaussian approximation to the conditional posterior
+of the affected leaf parameters, by Fisher scoring, and uses that
 approximation as the proposal in a reversible-jump Metropolis step. The
 approximation only has to be good enough to be accepted often; the stationary
 distribution is the exact posterior either way.
@@ -135,14 +154,14 @@ distribution is the exact posterior either way.
 What a new family therefore has to supply is only the log density of one
 observation and its first two derivatives with respect to the additive
 predictor. Families whose response has more than one unconstrained parameter,
-such as \code{multinomial()} and \code{location_scale()}, carry one forest per
+such as \code{multinomial()} and \code{gaussian_ls()}, carry one forest per
 parameter. Because that is the whole interface, it can be reached from R:
-\code{\link[=custom_family]{custom_family()}} takes the log density as an R function and differences it
-for the derivatives, and a link the package does not compile is composed onto
-the scale its family works on the same way.
+\code{\link[=custom_family]{custom_family()}} takes the log density as an R function and differences it for
+the derivatives.
 }
 
-\section{The family is inferred when you do not name one}{
+\subsection{Inferring the Family}{
+
 \code{family} may be left alone, in which case it is read off the response:\tabular{ll}{
    Response \tab Family \cr
    \code{\link[survival:Surv]{survival::Surv()}} object, or a two-column matrix of times and events \tab \code{dpm_aft()} \cr
@@ -154,37 +173,38 @@ the scale its family works on the same way.
 }
 
 
-A message reports the choice. Naming \code{family} yourself is what silences it,
-which is the same thing you would do to change the choice.
+A message reports the choice, and naming \code{family} is what silences it, which
+is also what changes it.
 
 Two of these are worth saying out loud. A \strong{count} is not inferred as
 \code{poisson()}: a non-negative integer response is often Poisson and often not,
 and the Poisson variance assumption is strong enough that making it silently
 would be a modeling decision taken on the caller's behalf. Gaussian is the
 weaker guess and the one whose failure is easy to see. And a numeric response
-with exactly two values that are \emph{not} zero and one -- \code{c(1, 2)}, say -- is
+with exactly two values that are \emph{not} zero and one (e.g., \code{c(1, 2)}) is
 Gaussian rather than binomial, because which of the two counts as the success
 is not something to guess at.
 }
 
-\section{Soft decision rules}{
+\subsection{Soft Decision Rules}{
+
 By default a decision rule is a smooth gate rather than a step, so an
 observation reaches every leaf with some weight and the fitted function is
 smooth. \code{gate} in \code{\link[=bartisan_control]{bartisan_control()}} chooses both whether the rules are soft
-and, if they are, the gate's shape; the default is the bounded
-\code{"smoothstep"}, and \code{"logistic"} is Linero and Yang's (2018) original. This
-costs more per iteration, since a leaf now
-touches every observation rather than the ones inside its cell, and it makes
-the leaf parameters of a tree dependent on one another. Combining soft rules
-with a non-conjugate likelihood is an extension of Linero (2025), which
-leaves it as an open problem; it is handled here by giving the reversible-jump
-move a bivariate Laplace proposal for the pair of child leaves, which reduces
-to Linero's independent pair exactly when the rules are hard.
-
-Set \code{gate = "hard"} in \code{\link[=bartisan_control]{bartisan_control()}} for the faster hard-rule sampler.
+and, if they are, the gate's shape; the default is the bounded \code{"smoothstep"},
+and \code{"logistic"} is Linero and Yang's (2018) original. Soft rules cost more
+per iteration, since a leaf now touches every observation rather than only the
+ones inside its cell, and they make the leaf parameters of a tree dependent on
+one another. Combining them with a non-conjugate likelihood is an extension of
+Linero (2025), which leaves it as an open problem; it is handled here by
+giving the reversible-jump move a bivariate Laplace proposal for the pair of
+child leaves, which reduces to Linero's independent pair exactly when the
+rules are hard. Set \code{gate = "hard"} in \code{\link[=bartisan_control]{bartisan_control()}} for the faster
+hard-rule sampler.
 }
 
-\section{Random intercepts}{
+\subsection{Random Intercepts}{
+
 A \code{(1 | group)} term in the formula adds an intercept per level of \code{group},
 drawn from a common mean-zero normal whose standard deviation is itself drawn
 under the same half-Cauchy prior the leaf scale uses. Several grouping factors
@@ -196,9 +216,9 @@ bartisan(y ~ x1 + (1 | school) + (1 | year), data = d)
 
 The intercepts are in \code{fit$ranef} and their standard deviations in \code{fit$tau},
 one matrix per additive predictor. A family with several predictors gets a
-separate set for each -- a zero-inflated count model has a group effect on the
-count part and another on the inflation part -- and they are independent of one
-another.
+separate set for each (i.e., a zero-inflated count model has a group effect on
+the count part and another on the inflation part), and they are independent of
+one another.
 
 Only random \emph{intercepts} are supported, and a random slope is refused rather
 than ignored. The reason is that a random intercept is a scalar entering the
@@ -211,19 +231,20 @@ shape.
 
 \strong{When to reach for this rather than putting the group in as a predictor.} A
 grouping factor can also go in the fixed part, where a tree splits on it like
-anything else, and with few large groups that is the better choice --
-measured, it beats a random intercept, because the group means are well
-determined without pooling and a split can interact the group with the
-covariates. The random intercept wins when there are many small groups, which
-is where partial pooling earns its keep: at 250 groups of four observations it
-cut held-out error by 30\% against the factor route, and at five groups of a
-hundred it lost to it.
+anything else, and with few large groups that is the better choice; measured,
+it beats a random intercept, because the group means are well determined
+without pooling and a split can interact the group with the covariates. The
+random intercept wins when there are many small groups, which is where partial
+pooling earns its keep: at 250 groups of four observations it cut held-out
+error by 30\% against the factor route, and at five groups of a hundred it lost
+to it.
 
-A level of \code{group} that was not present at fitting time is given the prior mean
-of zero when predicting, with a warning.
+A level of \code{group} that was not present at fitting time is given the prior
+mean of zero when predicting, with a warning.
 }
 
-\section{Missing predictor values}{
+\subsection{Missing Predictor Values}{
+
 A missing predictor is not imputed and its row is not dropped, which is the
 default here because a tree can do something better with a missing value than
 either. Instead each splitting rule carries the answer for itself. A
@@ -244,19 +265,21 @@ acceptance ratio, and a variable with no missing values is not given the extra
 draw at all: complete data reproduces the sampler exactly as it was.
 
 A missing value takes a hard path through the tree even when the rules are
-soft, which is the right thing -- there is nothing about being absent to
-smooth over -- and it keeps the leaf weights summing to one.
+soft (there being nothing about absence to smooth over), which keeps the leaf
+weights summing to one.
 
-Two consequences to be clear about. \code{predict()} accepts missing values only in
-columns that had them at fitting time, because only those columns' rules carry
-an answer; elsewhere every rule would send the value the same arbitrary way,
-so it is an error instead. And what this estimates is the mean of the response
-given the predictors \emph{and the pattern of missingness}. That is what you want
-for prediction. If the estimand is a regression or causal effect defined on
-complete data, multiple imputation is the right tool and this is not.
+Two consequences are worth being clear about. \code{predict()} accepts missing
+values only in columns that had them at fitting time, because only those
+columns' rules carry an answer; elsewhere every rule would send the value the
+same arbitrary way, so a missing value is an error instead. And what the model
+estimates is the mean of the response given the predictors \emph{and the pattern of
+missingness}, which is the quantity prediction calls for. Note that if the
+estimand is a regression or causal effect defined on complete data, multiple
+imputation is the right tool and this is not.
 }
 
-\section{Preprocessing}{
+\subsection{Preprocessing}{
+
 Predictors are mapped to the unit interval, because the cutpoint prior is
 uniform on a node's live range and the soft-rule bandwidth is measured on the
 predictor scale. Factors are expanded to an indicator per level and share a
@@ -269,20 +292,27 @@ families, where censoring makes the sample mean of the log times biased, and
 for the zero-inflated and ordered beta families, it is a moment
 approximation, which the sampler then moves away from.
 }
-
+}
 \examples{
-set.seed(1)
+data("rhc")
+set.seed(123)
 
-n <- 200
-d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n))
-d$y <- rbinom(n, 1, plogis(3 * sin(pi * d$x1 * d$x2) - 1))
-
-fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = binomial(),
-               control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_draws = 50, verbose = FALSE))
+# Whether a patient died, with every other variable a candidate predictor
+# and the family read off the response. `days` is the timing of the same
+# event, so it is excluded rather than conditioned on
+fit <- bartisan(death ~ . - days, data = rhc,
+                num_trees = 10, num_burn = 50, num_draws = 50,
+                verbose = FALSE)
 fit
 
+# Fitted probabilities
 head(predict(fit, type = "response"))
+
+# The forest has no coefficients, so an effect is a contrast of
+# predictions, here of catheterization on the probability of death
+if (rlang::is_installed("marginaleffects")) {
+  marginaleffects::avg_comparisons(fit, variables = "rhc")
+}
 
 }
 \references{
@@ -317,6 +347,8 @@ coping with missing data in decision trees. \emph{Pattern Recognition Letters},
 29(7), 950--956. \doi{10.1016/j.patrec.2008.01.010}
 }
 \seealso{
-\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}, \code{\link[=bartisan_control]{bartisan_control()}}, \link{bartisan-families}, and
-\code{vignette("families", package = "bartisan")} for a family-by-family guide.
+\code{\link[=bartisan_control]{bartisan_control()}} for the sampler and prior settings;
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for prediction; \link{bartisan-families} for the
+likelihoods, and \code{vignette("families")} for a family-by-family guide;
+\link{bartisan-marginaleffects} for reading effects off a fit
 }

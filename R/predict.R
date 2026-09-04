@@ -1,18 +1,21 @@
 #' Predictions from a generalized BART model
 #'
 #' @description
-#' Evaluates the stored posterior draws of the forests, either at the data used
-#' to fit the model or at new data. Because every draw of every tree is kept,
-#' predictions carry full posterior uncertainty rather than being a single point
-#' estimate.
+#' Computes predictions from a [bartisan()] fit, at the data the model was fit
+#' to or at new data, on any of several scales. Because every posterior draw of
+#' every tree is retained, a prediction can be returned as its posterior mean or
+#' as the draws themselves.
 #'
-#' @param object a fitted model from [bartisan()].
-#' @param newdata optional data frame at which to predict. Omit it to use the
-#'   data the model was fit to. Missing predictor values are allowed in the
-#'   columns that had them when the model was fit, since only those columns'
-#'   splitting rules carry an answer for one; a missing value anywhere else is an
-#'   error. See the Missing predictor values section of [bartisan()].
-#' @param type the scale of the prediction:
+#' @param object a `<bartisan_fit>` object; the output of a call to [bartisan()].
+#' @param newdata optional; a data frame at which to predict. Default is `NULL`
+#'   to use the data the model was fit to. Missing predictor values are allowed
+#'   in the columns that had them when the model was fit, since only those
+#'   columns' splitting rules carry an answer for one; a missing value anywhere
+#'   else is an error. See section *Missing Predictor Values* in the Details of
+#'   [bartisan()].
+#' @param type string; the scale of the prediction. Allowable options include
+#'   `"link"`, `"response"` (the default), `"prob"`, `"class"`, `"mean"`,
+#'   `"stdlv"`, `"density"`, and `"survival"`.
 #'   \describe{
 #'     \item{`"link"`}{the additive predictor, one column per predictor for
 #'       families that have more than one.}
@@ -25,12 +28,12 @@
 #'     \item{`"class"`}{the most probable category, as a factor, for the same
 #'       families.}
 #'     \item{`"mean"`}{the mean of the response with the category labels read as
-#'       numbers, for the same families. `"4"` counts as four. This is the
-#'       summary an ordinal outcome with numeric labels usually wants, and it
+#'       numbers, for the same families, so that `"4"` counts as four. This is
+#'       the summary an ordinal outcome with numeric labels usually wants, and it
 #'       needs no assumption at the modeling stage: the model is still ordinal
-#'       and only the reporting treats the categories as numbers. Use `values` to
-#'       say what the categories are worth when the labels are not numbers, or
-#'       are not the numbers you mean.}
+#'       and only the reporting treats the categories as numbers. `values` says
+#'       what the categories are worth when the labels are not numbers, or are
+#'       not the numbers intended.}
 #'     \item{`"stdlv"`}{the additive predictor divided by the standard deviation
 #'       of the latent variable it indexes, for the ordinal and binomial
 #'       families. Either response can be written as a threshold crossing of a
@@ -42,9 +45,9 @@
 #'       which are the ones with a latent distribution to name. See Details.}
 #'     \item{`"density"`}{the conditional density of the outcome given the
 #'       predictors, evaluated at the observed outcome. This requires the
-#'       outcome, so `newdata` must contain it; omit `newdata` to use the data
-#'       the model was fit to. The value is the likelihood contribution of the
-#'       observation, so it is a density for a continuous response, a
+#'       outcome, so `newdata` must contain it; leaving `newdata` empty uses the
+#'       data the model was fit to. The value is the likelihood contribution of
+#'       the observation, so it is a density for a continuous response, a
 #'       probability for a discrete one, and a survival probability for a
 #'       censored survival time. Useful for held-out log scores and for
 #'       posterior predictive checks. **The measure differs across the survival
@@ -59,42 +62,61 @@
 #'       analogue of `"prob"` for a categorical one: `"response"` reports only the
 #'       median. Returns one column per time, or a draws by rows by times array
 #'       when `draws = TRUE`. It is also what makes the usual survival estimand
-#'       reachable through \pkg{marginaleffects} -- a contrast in \eqn{t}-year
-#'       survival; see [bartisan-marginaleffects].}
+#'       (a contrast in \eqn{t}-year survival) reachable through
+#'       \pkg{marginaleffects}; see [bartisan-marginaleffects].}
 #'   }
-#' @param draws return every posterior draw rather than the posterior mean. The
-#'   result then gains a leading dimension indexing draws.
-#' @param iterations optional integer vector selecting which stored draws to
-#'   use. Defaults to all of them.
-#' @param offset an offset for `newdata`, on the link scale. Required when the
-#'   model was fit with an observation-level offset, because the offset is not a
-#'   function of the predictors and so cannot be reconstructed.
-#' @param values for `type = "mean"`, a numeric vector named for every response
-#'   level, giving what each category is worth. Defaults to the level labels read
-#'   as numbers, which fails with an error rather than a guess when they are not
-#'   numbers.
-#' @param weights prior weights for `newdata`, used only by
-#'   `type = "density"`. For a binomial response given as proportions these are
-#'   the numbers of trials. Ignored otherwise.
-#' @param log for `type = "density"`, return the log of the value instead.
-#' @param times for `type = "survival"`, the times at which to report the
-#'   survival function. Required, because the horizon is a choice rather than a
-#'   property of the fit.
-#'   Summing across observations then gives a log score. With `draws = FALSE`
-#'   the density is averaged over draws before the log is taken, so the result
-#'   is the pointwise predictive density rather than the average log density.
-#' @param ... ignored, present for compatibility with the generic.
+#' @param draws `logical`; whether to return every posterior draw rather than
+#'   the posterior mean. Default is `FALSE` to return the mean. If `TRUE`, the
+#'   result gains a leading dimension indexing the draws.
+#' @param iterations `numeric`; optional indices of the stored draws to use,
+#'   between 1 and the number of draws the fit retains. Default is `NULL` to use
+#'   all of them.
+#' @param offset `numeric`; an offset for the rows of `newdata`, on the link
+#'   scale, given either as one value per row or as a matrix with one column per
+#'   additive predictor. Used only when `newdata` is supplied, and required there
+#'   when the model was fit with an observation-level offset, since an offset is
+#'   not a function of the predictors and so cannot be reconstructed. Default is
+#'   `NULL` to add nothing.
+#' @param weights `numeric`; prior weights for the rows of `newdata`, used only
+#'   by `type = "density"` and ignored otherwise. For a binomial response given
+#'   as proportions these are the numbers of trials, as in [stats::glm()].
+#'   Default is `NULL`, which uses the weights the model was fit with when
+#'   `newdata` is omitted and a weight of 1 for every row when it is supplied.
+#' @param values `numeric`; for `type = "mean"`, what each response category is
+#'   worth, given as a vector named for every level of the response. Default is
+#'   `NULL` to read the level labels as numbers, which is an error rather than a
+#'   guess when they cannot be read that way. Ignored with a warning for every
+#'   other `type`.
+#' @param log `logical`; for `type = "density"`, whether to return the log of the
+#'   value. Default is `FALSE`. Summing the log density across observations gives
+#'   a log score. Note that with `draws = FALSE` the density is averaged over the
+#'   draws before the log is taken, so the result is the pointwise predictive
+#'   density rather than the average log density.
+#' @param times `numeric`; for `type = "survival"`, the times at which to report
+#'   the survival function, which must be finite and strictly positive. It has no
+#'   default, because the horizon is a choice rather than a property of the fit.
+#'   Ignored with a warning for every other `type`.
+#' @param ... ignored; present for compatibility with the generic.
 #'
 #' @returns
-#' With `draws = FALSE`, a vector for a single-predictor family on the `"link"`
-#' or `"response"` scale, a matrix of observations by categories for `"prob"`, a
-#' factor for `"class"`, and a matrix of observations by predictors otherwise.
-#' With `draws = TRUE`, a matrix of draws by observations, or a list of such
-#' matrices when the family has several additive predictors, or an array of
-#' draws by observations by categories for `"prob"`.
+#' With `draws = FALSE`, a vector with one element per observation for
+#' `"response"`, `"mean"` and `"density"`, and for `"link"` and `"stdlv"` when
+#' the family has a single additive predictor; a matrix of observations by
+#' additive predictors for `"link"` and `"stdlv"` when it has more than one; a
+#' matrix of observations by categories for `"prob"`, and for `"response"` with
+#' an ordinal or multinomial family; a matrix of observations by times for
+#' `"survival"`; and a factor for `"class"`, ordered when the family is
+#' `ordinal()`.
+#'
+#' With `draws = TRUE` each of these gains a leading dimension indexing the
+#' posterior draws, so that a vector becomes a matrix of draws by observations
+#' and a matrix becomes an array of draws by observations by categories or by
+#' times. On the `"link"` and `"stdlv"` scales a family with more than one
+#' additive predictor returns a list with one draws-by-observations matrix per
+#' predictor. `"class"` is a factor either way.
 #'
 #' @details
-#' # Multinomial probit probabilities are simulated
+#' ## Multinomial Probit Probabilities Are Simulated
 #'
 #' The likelihood of a `multinomial("probit")` fit has no closed form: the
 #' probability of a category is the chance that the largest of several correlated
@@ -105,7 +127,7 @@
 #' is per posterior draw and averages down over them, which makes `draws = FALSE`
 #' much more accurate than any single row of `draws = TRUE`.
 #'
-#' # The standardized latent variable
+#' ## The Standardized Latent Variable
 #'
 #' `type = "stdlv"` reports `(eta - E[e]) / sd(y*)` for the latent
 #' `y* = eta + e`, following
@@ -135,40 +157,52 @@
 #'
 #' Such a model is identified only up to a common shift of its thresholds and its
 #' predictor, so the location of this quantity is a convention rather than a fact,
-#' and the one used here is the same one the cutpoints use -- a predictor centered
+#' and the one used here is the same one the cutpoints use: a predictor centered
 #' over the fitted sample. Against \pkg{WeightIt}, which identifies by dropping the
 #' intercept column instead, the two agree on the scale and differ by a constant;
 #' measured on a linear truth, the standard deviations agree to under 1% and the
 #' difference is constant to three decimals. Differences on this scale, which is
 #' what a standardized quantity is for, are unaffected.
 #'
-#' @seealso [bartisan()]
+#' ## When the Density Is Undefined
+#'
+#' `type = "density"` returns `NaN` for an observation whose density is
+#' undefined at any of the draws, which happens when a link the package does not
+#' compile has been composed onto the family's own scale and its inverse does not
+#' cover the whole additive predictor (e.g., `Gamma("inverse")`, which gives a
+#' positive mean only where the predictor is positive). A saved draw can imply a
+#' parameter outside the family's support at a predictor the forest extrapolates
+#' to, even though [bartisan()] warns about such a link at fit time and rejects
+#' such proposals while sampling. The value stays `NaN` rather than becoming
+#' zero, which would assert that the outcome is impossible and would read as a
+#' legitimately terrible fit rather than an undefined one once logged, and a
+#' warning reports how many draw-by-observation values were undefined and how
+#' many returned values that made `NaN`. Note that the draws are averaged before
+#' the log is taken, so one undefined draw is enough to make an observation
+#' `NaN`.
+#'
+#' @seealso
+#' [bartisan()] for fitting the model; [bartisan-marginaleffects] for averages
+#' and contrasts of these predictions; [bartisan-interop] for the methods that
+#' let other packages assess the fit
 #'
 #' @examples
-#' set.seed(1)
+#' data("rhc")
+#' set.seed(123)
 #'
-#' n <- 150
-#' d <- data.frame(x1 = runif(n), x2 = runif(n))
-#' d$y <- rpois(n, exp(0.5 + d$x1))
+#' # Whether a patient died, with every other variable a candidate predictor
+#' fit <- bartisan(death ~ . - days, data = rhc,
+#'                 num_trees = 10, num_burn = 50, num_draws = 50)
 #'
-#' fit <- bartisan(y ~ x1 + x2, data = d, family = poisson(),
-#'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_draws = 50, verbose = FALSE))
+#' # Fitted probabilities of death, averaged over the draws
+#' head(predict(fit, type = "response"))
 #'
-#' head(predict(fit))
+#' # The whole posterior for the first five patients rather than its mean
+#' post <- predict(fit, newdata = rhc[1:5, ], draws = TRUE)
+#' apply(post, 2, quantile, c(.025, .5, .975))
 #'
-#' nd <- data.frame(x1 = c(0.1, 0.9), x2 = c(0.5, 0.5))
-#' predict(fit, newdata = nd)
-#'
-#' # Posterior uncertainty for the two new points
-#' apply(predict(fit, newdata = nd, draws = TRUE), 2,
-#'       quantile, c(0.025, 0.975))
-#'
-#' # Held-out log score: the conditional density needs the outcome, so it must
-#' # be present in `newdata`.
-#' held_out <- data.frame(x1 = runif(20), x2 = runif(20))
-#' held_out$y <- rpois(20, exp(0.5 + held_out$x1))
-#' sum(log(predict(fit, newdata = held_out, type = "density")))
+#' # A held-out log score, which needs the outcome, so `newdata` carries it
+#' sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
 #'
 #' @export
 predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
@@ -767,14 +801,15 @@ response_scale <- function(object, eta, aux, draws) {
                 # is the conditional mean and the response scale is the identity.
                 dpm = e,
                 gaussian = ,
-                location_scale = if (supplied) inv(e) else e,
+                gaussian_ls = if (supplied) inv(e) else e,
                 # The beta mean is the inverse link of the predictor, the same
                 # as a binomial's, and on the same three links.
                 beta = ,
                 binomial = if (supplied) inv(e) else binomial_linkinv(e, link),
                 poisson = ,
                 negbin = ,
-                Gamma = if (supplied) inv(e) else exp(e),
+                Gamma = ,
+                Gamma_ls = if (supplied) inv(e) else exp(e),
                 # Solve Lambda_0(t) exp(eta) = log 2 for t. The cumulative
                 # baseline is piecewise linear in the drawn bin hazards, so this
                 # is an exact inversion rather than a search.
@@ -1308,47 +1343,66 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' Error distribution of a Dirichlet process mixture fit
 #'
 #' @description
-#' The estimated density of the errors of a [dpm()] fit, which is the object the
-#' method exists to produce: BART commits to one normal, and this says what
-#' shape the errors actually have. It is the posterior of the density of a new
-#' error, evaluated on a grid.
+#' Estimates the density of the errors of a [dpm()] or [dpm_aft()] fit, as the
+#' posterior of the density of a new error evaluated on a grid. Where BART
+#' commits to one normal, this says what shape the errors actually have.
 #'
-#' @param object a fitted model from [bartisan()] with `family = dpm()`.
-#' @param at the grid to evaluate on. Defaults to 201 points spanning four
-#'   posterior-mean error standard deviations either side of zero.
-#' @param level width of the pointwise interval.
-#' @param iterations optional integer vector selecting which stored draws to
-#'   use. Defaults to all of them.
+#' @inheritParams predict.bartisan_fit
+#' @param object a `<bartisan_fit>` object fit with `family = dpm()` or
+#'   `family = dpm_aft()`; every other family fixes the error distribution, so
+#'   its density is a closed form rather than something to estimate.
+#' @param at `numeric`; the grid to evaluate the density on. Default is `NULL`
+#'   for 201 points spanning four posterior-mean error standard deviations
+#'   either side of zero.
+#' @param level `numeric`; the width of the pointwise interval. Default is .95
+#'   for 95% intervals.
+#' @param plot `logical`; whether to return a plot of the density rather than the
+#'   density itself. Default is `FALSE` to return the values. `TRUE` needs
+#'   \CRANpkg{ggplot2} and returns a `ggplot` object, so it can be added to in
+#'   the usual way; the values are the thing to reach for when the density is to
+#'   be drawn against something else, as `vignette("survival")` draws it against
+#'   the normal a `lognormal_aft()` fit would have assumed.
 #'
 #' @returns
-#' A data frame with one row per grid point and columns `at`, `mean`, `lower` and
-#' `upper` -- the posterior mean density and a pointwise interval, ready to plot
-#' against the normal density a Gaussian fit would have assumed.
+#' When `plot = FALSE`, a data frame with one row per grid point and columns
+#' `at`, `mean`, `lower`, and `upper`, giving the posterior mean density and a
+#' pointwise interval. When `plot = TRUE`, a `ggplot` object drawing the
+#' posterior mean density with that interval as a ribbon.
 #'
-#' @seealso [dpm()], [bartisan()]
+#' @seealso
+#' [dpm()] and [dpm_aft()] for the families with an estimated error
+#' distribution; [bartisan()]
 #'
 #' @examples
-#' set.seed(1)
-#' n <- 300
-#' d <- data.frame(x = runif(n, -1, 1))
-#' d$y <- 10 * d$x^3 + rt(n, 3)
+#' data("rhc")
+#' set.seed(123)
 #'
-#' fit <- bartisan(y ~ x, data = d, family = dpm(),
-#'                control = bartisan_control(num_trees = 20, num_burn = 100,
-#'                                          num_draws = 100, verbose = FALSE))
+#' # How long a patient survived, among those who died, so that the outcome is
+#' # a complete rather than a censored time
+#' died <- rhc[rhc$death == 1, ]
+#' died$log_days <- log(died$days)
 #'
-#' density <- error_density(fit)
-#' plot(density$at, density$mean, type = "l", xlab = "error", ylab = "density")
-#' lines(density$at, density$lower, lty = 2)
-#' lines(density$at, density$upper, lty = 2)
+#' fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
+#'                 num_trees = 10, num_burn = 50, num_draws = 50)
+#'
+#' # What shape the errors have, which is what a Gaussian fit would have
+#' # assumed to be normal
+#' head(error_density(fit, at = c(-2, 0, 2)))
+#'
+#' # The same thing drawn, with the pointwise interval as a ribbon
+#' if (rlang::is_installed("ggplot2")) {
+#'   error_density(fit, plot = TRUE)
+#' }
 #'
 #' @export
-error_density <- function(object, at = NULL, level = 0.95,
+error_density <- function(object, at = NULL, level = 0.95, plot = FALSE,
                           iterations = NULL) {
 
   if (!inherits(object, "bartisan_fit")) {
     arg::err("{.arg object} must be a fit from {.fn bartisan}")
   }
+
+  arg::arg_flag(plot)
 
   if (!object[["family"]][["family"]] %in% c("dpm", "dpm_aft")) {
     arg::err(c("{.fn error_density} needs a fit with an estimated error
@@ -1382,10 +1436,27 @@ error_density <- function(object, at = NULL, level = 0.95,
   summarized <- matrix(summarized, nrow = 4L,
                        dimnames = list(c("mean", "sd", "lower", "upper"), NULL))
 
-  data.frame(at = at,
-             mean = summarized["mean", ],
-             lower = summarized["lower", ],
-             upper = summarized["upper", ])
+  out <- data.frame(at = at,
+                    mean = summarized["mean", ],
+                    lower = summarized["lower", ],
+                    upper = summarized["upper", ])
+
+  if (!plot) {
+    return(out)
+  }
+
+  if (!rlang::is_installed("ggplot2")) {
+    arg::err(c("{.pkg ggplot2} must be installed for {.code plot = TRUE}.",
+               i = "Omit {.arg plot} to get the density as a data frame and
+                    draw it however you like."))
+  }
+
+  ggplot2::ggplot(out, ggplot2::aes(x = .data$at, y = .data$mean)) +
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
+                         fill = "grey85") +
+    ggplot2::geom_line(linewidth = 0.5) +
+    ggplot2::labs(x = "error", y = "density") +
+    ggplot2::theme_bw()
 }
 
 # The response column of `newdata`, for the families whose density is computed in
@@ -1445,8 +1516,9 @@ density_response <- function(object, newdata, weights) {
 
   y_out <- switch(family,
                   gaussian = ,
-                  location_scale = check_numeric_response(y, family),
-                  Gamma = check_numeric_response(y, family),
+                  gaussian_ls = check_numeric_response(y, family),
+                  Gamma = ,
+                  Gamma_ls = check_numeric_response(y, family),
                   poisson = ,
                   negbin = ,
                   zip = ,

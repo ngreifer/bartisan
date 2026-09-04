@@ -36,7 +36,7 @@ test_that("variable_importance() names the forest when there is more than one", 
   set.seed(7721)
   d$y <- d$x1 + stats::rnorm(nrow(d), sd = exp(-1 + d$x2))
 
-  fit <- bartisan(y ~ ., d, family = location_scale(),
+  fit <- bartisan(y ~ ., d, family = gaussian_ls(),
                   control = quick_control(num_trees = 10L))
 
   vi <- variable_importance(fit)

@@ -2,35 +2,52 @@
 #'
 #' @description
 #' `print()` reports what was fit and how long the chain is. `summary()` adds
-#' posterior summaries of the nuisance parameters and of how often each
-#' predictor was used in a splitting rule, which is the model's variable
-#' selection output.
+#' posterior summaries of the nuisance parameters, of the random-effect scales,
+#' and of how often each predictor was used in a splitting rule, which is the
+#' model's variable-selection output.
 #'
-#' @param x,object a fitted model from [bartisan()].
-#' @param level width of the reported posterior intervals.
-#' @param digits number of significant digits to print.
-#' @param ... ignored, present for compatibility with the generics.
+#' @param x,object a `<bartisan_fit>` object; the output of a call to
+#'   [bartisan()]. For `print.summary.bartisan_fit()`, `x` is instead the
+#'   `<summary.bartisan_fit>` object `summary()` returned.
+#' @param level `numeric`; the width of the posterior intervals `summary()`
+#'   reports. Default is .95 for 95% intervals.
+#' @param digits `numeric`; the number of significant digits to print.
+#'   Default is 3.
+#' @param ... not used.
 #'
 #' @returns
-#' `print()` returns its argument invisibly. `summary()` returns a list of class
-#' `summary.bartisan_fit`, with a `usage` element giving the posterior summary of the
-#' splitting counts for each predictor group, and an `aux` element for the
-#' nuisance parameters when the family has any.
+#' `print()` returns its argument invisibly. `summary()` returns a
+#' `<summary.bartisan_fit>` object, a list of the posterior summaries its own
+#' `print()` method displays: the nuisance parameters when the family has any,
+#' the scale of each random-effect term, and the splitting counts of each
+#' predictor group.
 #'
-#' @seealso [bartisan()]
+#' @seealso
+#' [bartisan()]; [variable_importance()] for the splitting counts as a data
+#' frame rather than printed; [diagnose()] for whether the chains the summaries
+#' are computed from have converged
 #'
 #' @examples
-#' set.seed(1)
+#' data("rhc")
+#' set.seed(123)
 #'
-#' n <- 150
-#' d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n))
-#' d$y <- 2 * d$x1 + rnorm(n, sd = 0.3)
+#' # Whether a patient died, with catheterization among the predictors
+#' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
+#'                 num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
 #'
-#' fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = gaussian(),
-#'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_draws = 50, verbose = FALSE))
+#' # What was fit, and how many draws it rests on
 #' fit
+#'
+#' # The splitting counts, which say which predictors the forest reaches for
 #' summary(fit)
+#'
+#' # A family with a nuisance parameter reports its posterior too, here the
+#' # residual standard deviation of the log survival time
+#' fit2 <- bartisan(log(days) ~ . - death, data = rhc, family = gaussian(),
+#'                  num_trees = 10, num_burn = 50, num_draws = 50,
+#'                  verbose = FALSE)
+#'
+#' summary(fit2, level = .8)
 #'
 #' @export
 print.bartisan_fit <- function(x, digits = 3L, ...) {
@@ -254,29 +271,41 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 #' How often each predictor is used
 #'
 #' Reports, for every predictor, how many splitting rules the forest spends on
-#' it and how often it is used at all. This is the quantity people mean by
-#' "variable importance" for a BART model, and it is the same table
-#' [summary.bartisan_fit()] prints -- this returns it as a data frame instead, ready
-#' to sort, filter or plot.
+#' it and how often it is used at all, which is what "variable importance" means
+#' for a BART model. This is the table [summary.bartisan_fit()] prints, returned
+#' as a data frame rather than displayed (i.e., ready to sort, filter, or plot).
 #'
-#' @param object a fit from [bartisan()].
-#' @param level the width of the interval reported for `splits`. Default `0.95`.
+#' @param object a `<bartisan_fit>` object; the output of a call to [bartisan()].
+#' @param level `numeric`; the width of the interval reported for `splits`.
+#'   Default is .95 for a 95% interval.
+#'
+#' @returns
+#' A data frame with one row per predictor, sorted by `prop_used` and then
+#' `splits`, both decreasing, and with the following columns:
+#' * `variable`: the predictor, under the name the formula gave it
+#' * `splits`: the mean number of splitting rules per draw that use it
+#' * `splits_lower` and `splits_upper`: the endpoints of the `level` interval on
+#'   that number
+#' * `prop_used`: the proportion of draws in which it received at least one rule
+#'
+#' A family with more than one additive predictor has a forest for each, and the
+#' data frame then gains a leading `predictor` column naming which.
 #'
 #' @details
-#' # Which column answers which question
+#' ## Which Column Answers Which Question
 #'
-#' `prop_used` -- the proportion of posterior draws in which the predictor
-#' received at least one splitting rule -- is the one to read first. It behaves
+#' `prop_used` (the proportion of posterior draws in which the predictor
+#' received at least one splitting rule) is the one to read first. It behaves
 #' like a posterior probability that the predictor belongs in the model, and it
 #' separates signal from noise sharply once `sparsity = TRUE` in
 #' [bartisan_control()], which puts a Dirichlet prior on how the rules are shared
 #' out and lets unused predictors be dropped rather than merely used rarely.
 #'
-#' `splits` -- the mean number of rules per draw -- says how much of the forest's
+#' `splits`, the mean number of rules per draw, says how much of the forest's
 #' structure a predictor accounts for. It is the more familiar number and the
 #' easier one to over-read.
 #'
-#' # Three things this is not
+#' ## Three Things This Is Not
 #'
 #' **It is not an effect size.** A predictor can be split on constantly and move
 #' the prediction very little, and the reverse happens too. If the question is
@@ -287,42 +316,39 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 #' **It is not stable under correlated predictors.** When two predictors carry
 #' the same information the trees split on whichever is convenient, and the usage
 #' distributes between them more or less arbitrarily. A predictor can matter and
-#' still show a low `prop_used` because a collinear partner absorbed it. Treat a
-#' group of correlated predictors as a group.
+#' still show a low `prop_used` because a collinear partner absorbed it, so a
+#' group of correlated predictors is best read as a group.
 #'
 #' **It is not causal.** A ranking of predictors by usage is a description of
 #' this fitted function, not of what would happen if any of them were changed.
 #'
-#' # Reading it as variable selection
+#' ## Reading It as Variable Selection
 #'
 #' With `sparsity = TRUE`, `prop_used` is usable as a selection rule: predictors
 #' the forest genuinely needs sit near 1 and the rest fall near 0, usually with a
-#' wide gap rather than a continuum. There is no threshold that is correct in
-#' general; look at the gap and check that your conclusion does not depend on
-#' where in it you cut.
-#'
-#' @returns
-#' A data frame, one row per predictor, sorted by `prop_used` and then `splits`,
-#' both decreasing. Columns are `variable`, `splits`, `splits_lower`,
-#' `splits_upper` and `prop_used`. A family with more than one additive predictor
-#' has a forest for each, and gains a leading `predictor` column naming which.
+#' wide gap rather than a continuum. No threshold is correct in general, so the
+#' gap is the thing to look at, and a conclusion worth reporting will not depend
+#' on where in it the cut is made.
 #'
 #' @seealso [summary.bartisan_fit()], which prints the same table;
 #'   [bartisan_control()] for `sparsity`; [bartisan-marginaleffects] for effects
-#'   rather than usage.
+#'   rather than usage
 #'
 #' @examples
-#' set.seed(1)
-#' n <- 300
-#' d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n), x4 = runif(n))
+#' data("rhc")
+#' set.seed(123)
 #'
-#' # Only x1 and x2 are in the truth.
-#' d$y <- 2 * d$x1 + sin(3 * d$x2) + rnorm(n, sd = 0.3)
+#' # The sparsity prior concentrates the splitting rules on the predictors that
+#' # earn them, which is what makes `prop_used` readable as a selection rule
+#' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
+#'                 num_burn = 50, num_draws = 50, sparsity = TRUE,
+#'                 verbose = FALSE)
 #'
-#' fit <- bartisan(y ~ ., data = d, family = gaussian(),
-#'                control = bartisan_control(sparsity = TRUE))
+#' imp <- variable_importance(fit)
+#' imp
 #'
-#' variable_importance(fit)
+#' # The predictors the forest reaches for in nearly every draw
+#' subset(imp, prop_used > .9)
 #'
 #' @export
 variable_importance <- function(object, level = 0.95) {
@@ -372,21 +398,23 @@ variable_importance <- function(object, level = 0.95) {
 #' Varying coefficients
 #'
 #' The coefficient functions of a model fitted with [vc()] terms, evaluated at
-#' each observation. A forest has no coefficient vector, so for any other model
-#' this returns nothing; for a varying-coefficient model the coefficients are
-#' functions and this is what they come to.
+#' each observation. A forest has no coefficient vector, so a fit with no `vc()`
+#' term has no coefficient to report and this errors rather than returning
+#' anything.
 #'
-#' @param object a fitted [bartisan()] model.
-#' @param newdata optional data to evaluate the coefficients at. The default,
-#'   `NULL`, uses the data the model was fitted to.
-#' @param draws `FALSE`, the default, returns the posterior mean of each
-#'   coefficient at each observation. `TRUE` returns every draw, as a list of
-#'   draws-by-observations matrices, one per coefficient.
-#' @param ... ignored.
+#' @param object a `<bartisan_fit>` object; the output of a call to [bartisan()],
+#'   fitted with at least one [vc()] term.
+#' @param newdata optional; a data frame at which to evaluate the coefficients.
+#'   Default is `NULL` to use the data the model was fitted to.
+#' @param draws `logical`; whether to return every posterior draw of each
+#'   coefficient rather than its posterior mean at each observation. Default is
+#'   `FALSE` to return the posterior means.
+#' @param ... not used.
 #'
 #' @returns
 #' With `draws = FALSE`, a matrix with one row per observation and one column per
-#' coefficient. With `draws = TRUE`, a named list of matrices.
+#' coefficient. With `draws = TRUE`, a named list of draws-by-observations
+#' matrices, one per coefficient.
 #'
 #' @details
 #' The control function is not among them. It is the surface at the value each
@@ -399,17 +427,25 @@ variable_importance <- function(object, level = 0.95) {
 #' than an approximation, and it is the reason a factor's reference level is a
 #' choice made here rather than at fitting time.
 #'
+#' @seealso
+#' [vc()] for declaring a varying coefficient; [variable_importance()] for which
+#' predictors a forest uses at all
+#'
 #' @examples
-#' set.seed(1)
-#' n <- 200
-#' d <- data.frame(x1 = rnorm(n), x2 = rnorm(n), z = rbinom(n, 1, 0.5))
-#' d$y <- d$x1 + d$z * (1 + d$x2) + rnorm(n)
+#' data("rhc")
+#' set.seed(123)
 #'
-#' fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
-#'                 control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                            num_draws = 50, verbose = FALSE))
+#' # The effect of catheterization is allowed to vary with the other
+#' # predictors, so its coefficient is a function rather than a number
+#' fit <- bartisan(death ~ age + aps + surv2m + vc(rhc), data = rhc,
+#'                 num_trees = 10, num_burn = 50, num_draws = 50,
+#'                 verbose = FALSE)
 #'
+#' # One coefficient per patient, on the link scale
 #' head(coef(fit))
+#'
+#' # How much it varies across patients
+#' quantile(coef(fit)[, "rhc"])
 #'
 #' @exportS3Method stats::coef
 coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {

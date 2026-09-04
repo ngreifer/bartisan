@@ -218,7 +218,7 @@ struct Family {
   // The rate in exp(rate * eta) for the two exponential forms, and zero for the
   // others. The Poisson and the gamma have rates of exactly +1 and -1, which is
   // why this started life as a sign; a family whose exponential runs at another
-  // rate -- the log standard deviation of `location_scale()`, at -2, or a
+  // rate -- the log standard deviation of `gaussian_ls()`, at -2, or a
   // Weibull whose scale is not one -- overrides it. Only the magnitude has to be
   // supplied here: the sign follows from `target_form()` and disagreeing with it
   // would make the two accounts of the same target inconsistent.

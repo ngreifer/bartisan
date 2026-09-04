@@ -14,8 +14,8 @@ test_that("blocked evaluation reproduces the per-observation path", {
     poisson = list(y = stats::rpois(120, 2), family = poisson()),
     # Two additive predictors, so the block carries more than one row per
     # observation and the layout matters.
-    location_scale = list(y = 2 * d$x1 + stats::rnorm(120, sd = 0.4),
-                          family = location_scale()))
+    gaussian_ls = list(y = 2 * d$x1 + stats::rnorm(120, sd = 0.4),
+                          family = gaussian_ls()))
 
   for (nm in names(responses)) {
     dd <- d

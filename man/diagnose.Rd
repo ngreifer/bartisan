@@ -7,21 +7,21 @@
 diagnose(object, rhat_max = 1.01, ess_min = 400)
 }
 \arguments{
-\item{object}{a fit from \code{\link[=bartisan]{bartisan()}}.}
+\item{object}{a \verb{<bartisan_fit>} object; the output of a call to \code{\link[=bartisan]{bartisan()}}.}
 
-\item{rhat_max}{the largest R-hat treated as acceptable. The default, \code{1.01},
-is the threshold of Vehtari et al. (2021); \code{1.1} was the older convention
-and is now considered too permissive.}
+\item{rhat_max}{\code{numeric}; the largest R-hat treated as acceptable. Default
+is 1.01, the threshold of Vehtari et al. (2021); 1.1 was the older
+convention and is now considered too permissive.}
 
-\item{ess_min}{the smallest effective sample size treated as acceptable, for
-the bulk and the tail alike. The default, \code{400}, is Vehtari et al.'s
-recommendation of 100 per chain at four chains, which is about what it takes
-for the Monte Carlo error of an interval endpoint to be small next to the
-posterior's own width.}
+\item{ess_min}{\code{numeric}; the smallest effective sample size treated as
+acceptable, for the bulk and the tail alike. Default is 400, Vehtari et
+al.'s recommendation of 100 per chain at four chains, which is about what it
+takes for the Monte Carlo error of an interval endpoint to be small next to
+the posterior's own width.}
 }
 \value{
-An object of class \code{bartisan_diagnosis}, with a \code{print()} method that shows
-the table, the checks and the advice. Its components are
+A \verb{<bartisan_diagnosis>} object, a list with a \code{print()} method that shows the
+table, the checks and the advice. Its components are
 \describe{
 \item{\code{table}}{a data frame with one row per quantity: \code{rhat}, \code{rhat_late}
 (the same statistic on the second half of the draws alone), \code{ess_bulk},
@@ -41,10 +41,17 @@ anything is read off a fit, and says what to do about whichever of them fall
 short. Everything is computed from the stored draws, so no other package is
 needed.
 }
-\section{What is reported}{
-One row per scalar the sampler draws -- the log likelihood, the nuisance
-parameters of the family, the scale of each random-effect term -- plus one row
-for the additive predictor and one for each set of group intercepts,
+\details{
+This is where the diagnostics are computed, and the only place: \code{\link[=bartisan]{bartisan()}}
+does not carry a table of its own, because the per-observation statistics cost
+more than the sampling and would then be recomputed here. With a \CRANpkg{future}
+plan in place the pass is spread over the workers, and it reports progress
+through \CRANpkg{progressr} the way the sampler does.
+\subsection{What Is Reported}{
+
+One row per scalar the sampler draws (the log likelihood, the nuisance
+parameters of the family, and the scale of each random-effect term), plus one
+row for the additive predictor and one for each set of group intercepts,
 summarized over their worst 5\% of observations or levels rather than averaged,
 since an average over a thousand observations hides the ones that have not
 converged.
@@ -53,16 +60,15 @@ converged.
 every chain is halved and the halves are compared, so drift inside a chain
 counts as disagreement rather than hiding inside a chain mean. With one chain
 it is computed by splitting that chain into segments, which detects drift but
-cannot detect two chains settling in different places -- which is why one
-chain draws a warning of its own.
+cannot detect two chains settling in different places; that is why one chain
+draws a warning of its own.
 
 \code{rhat_late} is that same statistic computed on the second half of the retained
-draws alone, and it is what separates the two reasons chains disagree -- by
-running the experiment rather than by testing for it. Discarding the early
-retained draws is exactly what a longer warmup would have done, so if R-hat is
-high overall and acceptable late, warmup ended too early. If it stays high
-late, the chains have each settled somewhere different and a longer warmup
-will not help.
+draws alone, and it separates the two reasons chains disagree by running the
+experiment rather than by testing for it. Discarding the early retained draws
+is exactly what a longer warmup would have done, so if R-hat is high overall
+and acceptable late, warmup ended too early. If it stays high late, the chains
+have each settled somewhere different and a longer warmup will not help.
 
 A within-chain drift statistic would answer that question more directly and
 cannot be made to work at BART's autocorrelation. Three versions were
@@ -92,69 +98,76 @@ exploring different tree structures, and no generic MCMC diagnostic can see
 that, because none of them looks at the forest.
 }
 
-\section{The leaf scale is left out}{
-\code{sigma_mu} is deliberately absent, as it is from \code{fit$rhat}. It mixes badly
+\subsection{The Leaf Scale Is Left Out}{
+
+\code{sigma_mu} is deliberately absent from the table. It mixes badly
 and not for a reason this package can fix: on the same data the same quantity
 comes out at R-hat 1.12 in \CRANpkg{dbarts} and 1.16 in \code{stochtree}, both of
 which draw it a different way, against 1.19 here. It is a hyperparameter
 nobody reports, and its disagreement between chains does not reach the fitted
-function -- on those same fits the additive predictor has R-hat 1.00 and
+function: on those same fits the additive predictor has R-hat 1.00 and
 thousands of effective draws. It is still in \code{fit$sigma_mu} and still reaches
 \link[=bartisan-interop]{as_draws()} for anyone who wants to look.
 }
 
-\section{What to do about poor mixing}{
+\subsection{What to Do About Poor Mixing}{
+
 The advice the print method gives follows from which statistic failed, and the
 order matters because the fixes are not interchangeable.
-\itemize{
-\item \strong{One chain.} Nothing else can be diagnosed properly. \code{chains = 4} is the
-first thing to set, and with \CRANpkg{future} installed the chains run in
-parallel, so it usually costs little wall clock.
-\item \strong{R-hat elevated, acceptable on the late draws.} Warmup ended too early:
-raise \code{num_burn}. Raising \code{num_draws} instead adds draws from a
-distribution the sampler has not reached yet.
-\item \strong{R-hat elevated on the late draws too.} The chains have each settled
-somewhere different. Raise \code{num_burn} and \code{num_draws} together, and if that
-does not settle it, reduce \code{num_trees} -- a smaller forest has fewer ways to
-represent the same fit, so the sampler has less room to wander between them
--- and check the family, because a likelihood that fits badly can produce a
-posterior with no single place to be.
-\item \strong{Effective sample size low, R-hat fine.} The benign case. Raise
-\code{num_draws}. Thinning does not help: \code{num_thin} discards draws that were
-already paid for, so it lowers the effective sample size per unit of time
-and is worth it only when storing the draws is the binding constraint.
-\item \strong{Tail effective sample size low, bulk fine.} The posterior mean is fine
-and the interval endpoints are not. Raise \code{num_draws} if intervals are what
-gets reported.
-}
-}
 
+\strong{One chain} comes first, because nothing else can be diagnosed properly
+until there are several. \code{chains = 4} is the setting to reach for, and with
+\CRANpkg{future} installed the chains run in parallel, so it usually costs
+little wall clock.
+
+\strong{R-hat elevated but acceptable on the late draws} says warmup ended too
+early, so \code{num_burn} is the one to raise; raising \code{num_draws} instead adds
+draws from a distribution the sampler has not reached yet. \strong{R-hat elevated on
+the late draws too} says the chains have each settled somewhere different.
+Raise \code{num_burn} and \code{num_draws} together, and if that does not settle it,
+reduce \code{num_trees} (a smaller forest has fewer ways to represent the same fit,
+so the sampler has less room to wander between them) and check the family,
+because a likelihood that fits badly can produce a posterior with no single
+place to be.
+
+\strong{An effective sample size that is low while R-hat is fine} is the benign
+case, and it wants only more draws. Note that thinning does not help:
+\code{num_thin} discards draws that were already paid for, so it lowers the
+effective sample size per unit of time and is worth it only when storing the
+draws is the binding constraint. \strong{A low tail effective sample size with the
+bulk fine} says the posterior mean is fine and the interval endpoints are
+not, so raising \code{num_draws} is warranted when intervals are what gets
+reported.
+}
+}
 \examples{
-set.seed(1)
-n <- 200
-d <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
-d$y <- d$x1 + rnorm(n)
+data("rhc")
+set.seed(123)
 
-fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
-                control = bartisan_control(chains = 2, num_trees = 10,
-                                           num_burn = 100, num_draws = 100,
-                                           verbose = FALSE))
+# Two chains, both deliberately short, so that there is something to report
+fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10, chains = 2,
+                num_burn = 50, num_draws = 50, verbose = FALSE)
 
+# The table, the checks, and what to do about whichever of them failed
 diagnose(fit)
+
+# A stricter effective sample size, which is what an interval endpoint needs
+# and a posterior mean does not
+diagnose(fit, ess_min = 1000)
 
 }
 \references{
 Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin,
 D. B. (2013). \emph{Bayesian Data Analysis} (3rd ed.). Chapman and Hall/CRC.
 
-Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., & Bürkner, P.-C. (2021).
+Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., & Buerkner, P.-C. (2021).
 Rank-normalization, folding, and localization: an improved \eqn{\hat{R}} for
 assessing convergence of MCMC. \emph{Bayesian Analysis}, 16(2), 667--718.
 \doi{10.1214/20-BA1221}
 }
 \seealso{
-\code{\link[=bartisan_control]{bartisan_control()}} for the settings the advice names,
+\code{\link[=bartisan_control]{bartisan_control()}} for the settings the advice names;
 \link[=bartisan-interop]{as_draws()} for handing the draws to \CRANpkg{bayesplot}
-or \CRANpkg{posterior}, and \code{vignette("diagnostics")} for the fuller
-treatment including posterior predictive checks.
+or \CRANpkg{posterior}; \code{vignette("diagnostics")} for the fuller treatment,
+including posterior predictive checks
 }

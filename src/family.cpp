@@ -2200,7 +2200,7 @@ struct PHFamily : Concrete<PHFamily> {
 // the predictors.
 // ---------------------------------------------------------------------------
 
-struct LocationScaleFamily : Concrete<LocationScaleFamily> {
+struct GaussianLSFamily : Concrete<GaussianLSFamily> {
 
   // Quadratic in the mean, and in the log standard deviation the *exponential*
   // form at rate -2: the log density is
@@ -2219,8 +2219,8 @@ struct LocationScaleFamily : Concrete<LocationScaleFamily> {
     return h == 0 ? 0.0 : -2.0;
   }
 
-  LocationScaleFamily(const arma::vec& y_, const arma::vec& w_)
-    : Concrete<LocationScaleFamily>(y_, w_, 2) {}
+  GaussianLSFamily(const arma::vec& y_, const arma::vec& w_)
+    : Concrete<GaussianLSFamily>(y_, w_, 2) {}
 
   double logdens_unit(int i, const double* eta) const override {
     double r = (y(i) - eta[0]) * std::exp(-eta[1]);
@@ -2246,6 +2246,100 @@ struct LocationScaleFamily : Concrete<LocationScaleFamily> {
     // a proposal, and here it stops being an approximation at all.
     double r = (y(i) - eta[0]) * std::exp(-eta[1]);
     return 2.0 * r * r;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Gamma location-scale. Two additive predictors: the log mean, exactly as
+// Gamma("log") has, and the log *dispersion*, so the second forest reads the way
+// gaussian_ls()'s does, with larger meaning more spread. The shape is then
+// s = exp(-eta1) at each observation rather than one nuisance parameter drawn
+// for the whole sample, so the coefficient of variation is free to move with the
+// predictors instead of being assumed constant.
+//
+// Writing the second predictor as a dispersion rather than as a shape is a
+// reporting choice and nothing more: the two differ by a sign, so the forest is
+// the same object either way.
+// ---------------------------------------------------------------------------
+
+struct GammaLSFamily : Concrete<GammaLSFamily> {
+
+  // In the mean, the exponential form at rate -1, exactly as Gamma("log"):
+  // holding eta1 fixed the log density is -s eta0 - s y exp(-eta0), which is
+  // a eta0 + b exp(-eta0) with both coefficients free of eta0, so that forest
+  // costs one pass over the node. In the log dispersion there is no form to
+  // exploit, because lgamma(exp(-eta1)) has none, so that forest takes the
+  // general path. This is the same split gaussian_ls() has, one predictor cheap
+  // and one not, and is why the question is asked per predictor.
+  TargetForm target_form(int h) const override {
+    return h == 0 ? TARGET_EXP_DOWN : TARGET_GENERAL;
+  }
+
+  GammaLSFamily(const arma::vec& y_, const arma::vec& w_)
+    : Concrete<GammaLSFamily>(y_, w_, 2) {}
+
+  // The whole log density, not just the part that depends on eta: with the
+  // shape carried by a forest there is no term free of eta to hoist into
+  // compute_eta_free(), and predict(type = "density") reads this.
+  double logdens_unit(int i, const double* eta) const override {
+    double s = std::exp(-eta[1]);
+
+    if (!(s > 0.0) || !std::isfinite(s)) {
+      return R_NegInf;
+    }
+
+    return s * (-eta[1] - eta[0] - y(i) * std::exp(-eta[0])) -
+      R::lgammafn(s) + (s - 1.0) * std::log(y(i));
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double s = std::exp(-eta[1]);
+
+    if (h == 0) {
+      return s * (y(i) * std::exp(-eta[0]) - 1.0);
+    }
+
+    // d/deta1 = (dL/ds)(ds/deta1) with ds/deta1 = -s, and log(s) = -eta1.
+    double g = -eta[1] + 1.0 - R::digamma(s) + std::log(y(i)) - eta[0] -
+      y(i) * std::exp(-eta[0]);
+
+    return -s * g;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double s = std::exp(-eta[1]);
+
+    if (h == 0) {
+      // The observed curvature, as Gamma("log") reports: it cannot go negative
+      // because the response is strictly positive, and the exponential form
+      // reads its coefficients off it.
+      return s * y(i) * std::exp(-eta[0]);
+    }
+
+    // The *expected* information for the log dispersion, s^2 trigamma(s) - s.
+    // The observed version differs from it by the score, so the two agree at the
+    // mode, and it is used here because it is guaranteed positive:
+    // trigamma(s) > 1/s for every s > 0. The observed one can go negative away
+    // from the mode, which would make the Laplace proposal's variance negative.
+    return s * (s * R::trigamma(s) - 1.0);
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double s = std::exp(-eta[1]);
+
+    if (h == 0) {
+      double scaled = s * y(i) * std::exp(-eta[0]);
+      *d1 = scaled - s;
+      *d2 = scaled;
+      return;
+    }
+
+    double g = -eta[1] + 1.0 - R::digamma(s) + std::log(y(i)) - eta[0] -
+      y(i) * std::exp(-eta[0]);
+
+    *d1 = -s * g;
+    *d2 = s * (s * R::trigamma(s) - 1.0);
   }
 };
 
@@ -5034,7 +5128,7 @@ struct VaryingCoefficientFamily : Family {
   // Which forest's drawn coding is not exact, or -1 if every one is. The index
   // rather than a flag, so the refusal can name the coefficient at fault: with
   // several additive predictors the family may be quadratic in one and not
-  // another, and `location_scale()` is exactly that -- a drawn coding is fine on
+  // another, and `gaussian_ls()` is exactly that -- a drawn coding is fine on
   // the mean and not on the log standard deviation.
   int coding_not_exact() const override {
     for (arma::uword j = 0; j < coding_levels.n_elem; j++) {
@@ -5464,8 +5558,12 @@ Family* make_base_family(const std::string& name, const std::string& link,
                                as<bool>(opts["update_lambda"])));
   }
 
-  if (name == "location_scale") {
-    return finish(new LocationScaleFamily(y, w));
+  if (name == "gaussian_ls") {
+    return finish(new GaussianLSFamily(y, w));
+  }
+
+  if (name == "Gamma_ls") {
+    return finish(new GammaLSFamily(y, w));
   }
 
   if (name == "dpm") {

@@ -157,7 +157,7 @@ test_that("each additive predictor gets its own set of intercepts", {
   lsd <- -0.5 + 0.5 * x[, 2] + b2[as.integer(g)]
   d$y <- stats::rnorm(n, mu, exp(lsd))
 
-  fit <- bartisan(y ~ x1 + x2 + x3 + (1 | g), d, family = location_scale(),
+  fit <- bartisan(y ~ x1 + x2 + x3 + (1 | g), d, family = gaussian_ls(),
                   num_trees = 30, num_burn = 400, num_draws = 400)
 
   expect_identical(length(fit[["ranef"]]), 2L)
@@ -258,7 +258,7 @@ test_that("chains pool the intercepts and diagnose them", {
   expect_identical(nrow(fit[["tau"]][[1L]]), 450L)
 
   # The scale and the intercepts both appear in the diagnostics table.
-  quantities <- fit[["rhat"]]$quantity
+  quantities <- diagnose(fit)[["table"]]$quantity
   expect_true(any(grepl("^tau\\.", quantities)))
   expect_true(any(grepl("^ranef\\.", quantities)))
   expect_predictor_invariant(fit, d)

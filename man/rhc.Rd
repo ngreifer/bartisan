@@ -39,15 +39,16 @@ rhc
 \description{
 Data from the SUPPORT study on whether right heart catheterization within 24
 hours of admission to an intensive care unit affects survival (Connors et al.,
-1996). Catheterization was not randomized, so the comparison is
-confounded by how sick each patient was on admission, which is what the
-physiological covariates are for.
+1996). Catheterization was not randomized, so the comparison is confounded by
+how sick each patient was on admission, which is what the physiological
+covariates are for.
 }
 \details{
 The outcome appears in two forms. \code{death} is whether the patient died during
 follow-up, and \code{days} is how long that took, so the same event supports a
 binary analysis that ignores timing and a right-censored survival analysis
-that does not. A patient who did not die is censored at their last contact.
+that does not. Note that a patient who did not die is censored at their last
+contact.
 
 These are a random 1500 of the 5735 patients in the original file. The
 covariates are the thirteen used in the worked example at
@@ -63,13 +64,17 @@ for how patients were selected for catheterization, which is a question about
 the study rather than about any model. See \code{vignette("causal")}.
 }
 \examples{
-data(rhc)
+data("rhc")
 
-# The binary outcome.
+# The treatment against the binary outcome
 table(rhc$rhc, rhc$death)
 
-# The same event as a survival outcome.
-if (requireNamespace("survival", quietly = TRUE)) {
+# The covariates the confounding runs through, all recorded on admission
+summary(rhc[c("age", "aps", "meanbp", "surv2m")])
+
+# The same event as a survival outcome, a patient who did not die being
+# censored at their last contact
+if (rlang::is_installed("survival")) {
   with(rhc, summary(survival::Surv(days, death)))
 }
 }

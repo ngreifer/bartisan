@@ -13,8 +13,8 @@ test_that("bartisan-specific families carry their own names and links", {
   expect_identical(as_bartisan_family(multinomial())[["family"]], "multinomial")
   expect_identical(as_bartisan_family(weibull_aft())[["link"]], "weibull")
   expect_identical(as_bartisan_family(lognormal_aft())[["family"]], "aft")
-  expect_identical(as_bartisan_family(location_scale())[["family"]],
-                   "location_scale")
+  expect_identical(as_bartisan_family(gaussian_ls())[["family"]],
+                   "gaussian_ls")
 })
 
 test_that("unsupported families and links are rejected with a clear message", {
@@ -210,4 +210,108 @@ test_that("a composed link whose inverse has a restricted range is reported", {
   d$bin <- stats::rbinom(nrow(d), 1, 0.4)
   expect_no_message(bartisan(bin ~ x1 + x2 + x3, d, family = binomial("cauchit"),
                             control = ctrl))
+})
+
+# ---------------------------------------------------------------------------
+# Gamma location-scale. The mean is `Gamma("log")`'s, and the second forest
+# carries the log dispersion, so the coefficient of variation is free to move
+# with the predictors instead of being one drawn shape for the sample.
+# ---------------------------------------------------------------------------
+
+test_that("Gamma_ls() names its forests and refuses a non-positive response", {
+  expect_identical(as_bartisan_family(Gamma_ls())[["family"]], "Gamma_ls")
+  expect_identical(as_bartisan_family(Gamma_ls())[["link"]], "log")
+  expect_error(Gamma_ls("identity"))
+
+  d <- sim_x(n = 60, seed = 4)
+  d$y <- c(0, stats::rgamma(59, shape = 2, rate = 1))
+
+  expect_error(bartisan(y ~ ., data = d, family = Gamma_ls(),
+                        control = quick_control()),
+               "strictly positive")
+})
+
+test_that("Gamma_ls()'s log density is the gamma density it claims to be", {
+  # The parameterization is the whole contract: the first predictor is the log
+  # mean and the second the log dispersion, so the shape is exp(-eta2). Checked
+  # against dgamma() rather than against another part of this package.
+  set.seed(9)
+  eta1 <- matrix(seq(-1, 2, length.out = 25L), nrow = 1L)
+  eta2 <- matrix(stats::rnorm(25L) * 0.5, nrow = 1L)
+  y <- stats::rgamma(25L, shape = 2, rate = 1)
+
+  shape <- exp(-as.vector(eta2))
+  reference <- stats::dgamma(y, shape = shape,
+                             rate = shape / exp(as.vector(eta1)), log = TRUE)
+
+  got <- .bartisan_logdens(y, rep(1, 25L), list(eta1, eta2), "Gamma_ls", "log",
+                           list(), matrix(0, 1L, 0L))
+
+  expect_equal(as.vector(got), reference, tolerance = 1e-10)
+})
+
+test_that("Gamma_ls() with an intercept-only scale matches Gamma()", {
+  # A forest whose formula names no predictor is a sum of stumps, so the
+  # dispersion is one drawn scalar and the model is `Gamma("log")` written
+  # another way. The two priors on that scalar differ, so this is an agreement
+  # check rather than an identity.
+  set.seed(20)
+  n <- 600
+  d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n))
+  mu <- exp(0.5 + 1.2 * sin(pi * d$x1) + 0.8 * d$x2)
+  d$y <- stats::rgamma(n, shape = 4, rate = 4 / mu)
+
+  ctrl <- bartisan_control(num_trees = 50L, num_burn = 300L, num_draws = 300L,
+                           gate = "hard")
+
+  set.seed(1)
+  plain <- bartisan(y ~ x1 + x2, data = d, family = Gamma("log"),
+                    control = ctrl)
+  set.seed(1)
+  ls_fit <- bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = Gamma_ls(),
+                     control = ctrl)
+
+  # The scale forest never splits, so its predictor is one number.
+  expect_equal(sum(ls_fit[["counts"]][["log_dispersion"]]), 0)
+  expect_equal(stats::sd(colMeans(ls_fit[["eta"]][[2L]])), 0)
+
+  # The implied shape agrees with the drawn one, and both with the truth.
+  shape_plain <- mean(plain[["aux"]][, "shape"])
+  shape_ls <- mean(exp(-ls_fit[["eta"]][[2L]]))
+
+  expect_equal(shape_ls, shape_plain, tolerance = 0.1)
+  expect_equal(shape_ls, 4, tolerance = 0.2)
+
+  # And the mean surfaces agree.
+  expect_gt(stats::cor(predict(plain, type = "response"),
+                       predict(ls_fit, type = "response")), 0.98)
+})
+
+test_that("Gamma_ls() recovers a dispersion that varies with the predictors", {
+  set.seed(7)
+  n <- 800
+  d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n))
+  mu <- exp(1 + 0.8 * d$x1)
+  disp <- exp(-1.5 + 1.8 * d$x2)
+  d$y <- stats::rgamma(n, shape = 1 / disp, rate = (1 / disp) / mu)
+
+  set.seed(3)
+  fit <- bartisan(y ~ x1 + x2, data = d, family = Gamma_ls(),
+                  control = bartisan_control(num_trees = c(50L, 20L),
+                                             num_burn = 300L, num_draws = 300L,
+                                             gate = "hard"))
+
+  expect_gt(stats::cor(colMeans(exp(fit[["eta"]][[2L]])), disp), 0.9)
+
+  # Modeling the dispersion is worth a large number of log points here, which is
+  # what the family exists for.
+  set.seed(3)
+  plain <- bartisan(y ~ x1 + x2, data = d, family = Gamma("log"),
+                    control = bartisan_control(num_trees = 50L,
+                                               num_burn = 300L,
+                                               num_draws = 300L,
+                                               gate = "hard"))
+
+  expect_gt(sum(predict(fit, type = "density", log = TRUE)),
+            sum(predict(plain, type = "density", log = TRUE)))
 })

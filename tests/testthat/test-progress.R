@@ -89,12 +89,50 @@ test_that("the count is shared across chains rather than restarting", {
 
   # One bar for the whole fit, so three chains signal three times as much
   # against a total sized for three. A per-chain progressor would fill and reset
-  # three times instead.
+  # three times instead. The convergence pass that follows the chains is charged
+  # to the same bar, which is what stops it filling before the fit is done.
   seen <- count_progress(
     bartisan(y ~ ., data = d, family = gaussian(),
              control = progress_control(chains = 3)))
 
   expect_identical(seen, 3L * PROGRESS_TICKS + 2L)
+})
+
+test_that("the bar covers the sampling and the fit does nothing else slow", {
+  skip_if_not_installed("progressr")
+
+  # A chain's worth of ticks per chain and nothing more. The convergence pass
+  # used to run inside the fit and was charged nothing, which let a four-chain
+  # fit under four workers report 100% about a fifth of the way through the run;
+  # it now runs in `diagnose()`, so there is nothing left in the fit for the bar
+  # to miss.
+  d <- sim_progress(seed = 9L)
+
+  one <- count_progress(
+    bartisan(y ~ ., data = d, family = gaussian(),
+             control = progress_control(chains = 1)))
+  two <- count_progress(
+    bartisan(y ~ ., data = d, family = gaussian(),
+             control = progress_control(chains = 2)))
+
+  expect_identical(one, PROGRESS_TICKS + 2L)
+  expect_identical(two - one, PROGRESS_TICKS)
+})
+
+test_that("the convergence pass reports progress from diagnose()", {
+  skip_if_not_installed("progressr")
+
+  d <- sim_progress(n = 300L, seed = 10L)
+
+  fit <- bartisan(y ~ ., data = d, family = gaussian(),
+                  control = progress_control(chains = 2))
+
+  # Sized in columns rather than sweeps, capped the same way the sampler is, and
+  # spread over the observations the pass actually walks.
+  seen <- count_progress(diagnose(fit))
+
+  expect_gt(seen, 1L)
+  expect_lte(seen, PROGRESS_DIAG_TICKS + 2L)
 })
 
 test_that("progress reaches the caller from parallel workers", {

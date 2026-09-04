@@ -1,94 +1,110 @@
 #' Response families for generalized BART
 #'
 #' @description
-#' `bartisan()` accepts the [stats::family] objects used by [stats::glm()], so
+#' [bartisan()] accepts the [stats::family] objects used by [stats::glm()], so
 #' `gaussian()`, `binomial("probit")`, `poisson()` and [stats::Gamma()] all work
 #' unchanged. The functions documented here supply the additional families that
 #' have no `glm()` counterpart, in the same style, so that they can be passed to
 #' the `family` argument the same way.
 #'
-#' One thing to know about the gamma family, because base R's default is the
-#' wrong choice here: `stats::Gamma()` defaults to `link = "inverse"`, and the
-#' inverse link is the worst link for this sampler. **Write `Gamma("log")`.**
-#' Base R's function is left as base R defines it, so that attaching this package
-#' cannot change what `glm()` does; naming the family as a string,
-#' `family = "Gamma"`, gets the log link, since that spelling is this package's
-#' own. `bartisan()` says so when a link's
-#' inverse does not cover the additive predictor, which is the case that catches
-#' it; see Details.
+#' One caveat carries over from base R: `stats::Gamma()` defaults to
+#' `link = "inverse"`, which is the worst link for this sampler, so write
+#' `Gamma("log")`, or name the family as the string `family = "Gamma"`, which is
+#' this package's own spelling and resolves to the log link; see Details.
 #'
-#' @param link the link function. Each family compiles the links for which the
-#'   additive predictor is the natural unconstrained scale; any other link is
-#'   applied from R, for the families where that is well defined. See Details.
-#' @param theta for `negbin()` and `zi_negbin()`, a fixed value for the
-#'   dispersion parameter. The default, `NULL`, draws it along with everything
-#'   else.
-#' @param phi for `Beta()` and `ordbeta()`, a fixed value for the beta
-#'   precision. The default, `NULL`, draws it.
+#' @param link string; the link function. Allowable options include `"logit"`
+#'   (the default), `"probit"`, and `"cloglog"` for `ordinal()` and `Beta()`, and
+#'   `"logit"` (the default) and `"probit"` for `multinomial()`. The remaining
+#'   families take one link each, which is therefore the default: `"log"` for
+#'   `negbin()`, `zi_poisson()`, `zi_negbin()`, and `Gamma_ls()`, `"logit"` for
+#'   `ordbeta()`, and `"identity"` for `gaussian_ls()`. Each family compiles the links for
+#'   which the additive predictor is the natural unconstrained scale; any other
+#'   link is applied from R, for the families where that is well defined. See
+#'   Details.
+#' @param theta `numeric`; for `negbin()` and `zi_negbin()`, a fixed value for
+#'   the dispersion parameter, which must be positive. Default is `NULL` to draw
+#'   it along with everything else.
+#' @param phi `numeric`; for `Beta()` and `ordbeta()`, a fixed value for the beta
+#'   precision, which must be positive. Default is `NULL` to draw it.
 #' @param reference for `multinomial()`, the response category to hold as the
-#'   reference. With the logit link the default, `NULL`, fits one forest per
-#'   category instead and leaves the model unidentified, which is what makes the
-#'   prior symmetric in the categories; see Details. The probit link is always
-#'   written as contrasts against a reference, so there the default is the first
-#'   level.
-#' @param replicates for `multinomial("probit")`, how many simulation draws to
-#'   use for the category probabilities, which have no closed form. Larger is
-#'   more accurate and slower.
-#' @param logdens for `custom_family()`, the log density. A function of the
-#'   response and the additive predictors, `function(y, eta)`, where `y` is a
+#'   reference, given as a single value naming one of the response's levels.
+#'   Default is `NULL`, which with the logit link fits one forest per category
+#'   instead and leaves the model unidentified, which is what makes the prior
+#'   symmetric in the categories; see Details. The probit link is always written
+#'   as contrasts against a reference, so there the default is the first level.
+#' @param replicates `numeric`; for `multinomial("probit")`, how many simulation
+#'   draws to use for the category probabilities, which have no closed form.
+#'   Default is 200. More is always better but resulting calculations will take
+#'   longer.
+#' @param logdens for `custom_family()`, the log density, given as a function of
+#'   the response and the additive predictors, `function(y, eta)`, where `y` is a
 #'   numeric vector of length `n` and `eta` an `n` by `num_predictors` matrix,
 #'   returning a numeric vector of length `n`. With nuisance parameters it takes
 #'   a third argument, `function(y, eta, aux)`, where `aux` is a numeric vector
 #'   of their current values. It is the log density of *one unit of prior
 #'   weight*, so that `weights` behave as they do elsewhere, and terms free of
 #'   `eta` may be dropped.
-#' @param num_predictors for `custom_family()`, how many additive predictors the
-#'   density has, that is, how many forests to fit.
-#' @param start for `custom_family()`, the value each additive predictor starts
-#'   at, in place of the intercept-only fit the compiled families use. One value
-#'   or one per predictor.
-#' @param derivatives for `custom_family()`, an optional
-#'   `function(y, eta, h)` returning a list with elements `score` and `info`,
-#'   the first derivative of `logdens` with respect to the `h`th predictor and
-#'   minus its second derivative, each a vector of length `n`. The default,
-#'   `NULL`, takes central differences of `logdens`. It covers the additive
-#'   predictors only: a nuisance parameter is always differenced, which costs
-#'   three calls per sweep rather than three per leaf.
-#' @param aux_names for `custom_family()`, the names of the nuisance parameters
-#'   to draw. Naming them is what declares them, because the names label the
-#'   columns of `fit$aux` and are what `summary()` and `fit$rhat` report them
-#'   under. The default, `NULL`, means none, unless `aux_start` is given, in
-#'   which case they are named positionally.
-#' @param aux_start for `custom_family()`, the value each nuisance parameter
-#'   starts at. One value or one per parameter. The sampler will walk to the
+#' @param num_predictors `numeric`; for `custom_family()`, how many additive
+#'   predictors the density has (i.e., how many forests to fit). Default is 1.
+#' @param start `numeric`; for `custom_family()`, the value each additive
+#'   predictor starts at, in place of the intercept-only fit the compiled
+#'   families use. One value or one per predictor. Default is 0.
+#' @param derivatives for `custom_family()`, optional; a `function(y, eta, h)`
+#'   returning a list with elements `score` and `info`, the first derivative of
+#'   `logdens` with respect to the `h`th predictor and minus its second
+#'   derivative, each a vector of length `n`. Default is `NULL` to take central
+#'   differences of `logdens`. It covers the additive predictors only: a nuisance
+#'   parameter is always differenced, which costs three calls per sweep rather
+#'   than three per leaf.
+#' @param aux_names optional `character`; for `custom_family()`, the names of the
+#'   nuisance parameters to draw, if any. Naming them is what declares them,
+#'   because the names label the columns of `fit$aux` and are what `summary()`
+#'   and [diagnose()] report them under. They must be distinct and non-empty.
+#'   Default is `NULL` for none, unless `aux_start` is given, in which case the
+#'   parameters are named by `names(aux_start)` when it carries names and
+#'   positionally (`"aux1"`, `"aux2"`, and so on) when it does not.
+#' @param aux_start optional `numeric`; for `custom_family()`, the value each
+#'   nuisance parameter starts at, given as one value or one per parameter.
+#'   Default is `NULL`, which is 0 for each. The sampler will walk to the
 #'   posterior from a poor start, so this need only be the right order of
-#'   magnitude.
-#' @param num_bins *Advanced.* For `ph()`, how many pieces the baseline hazard
-#'   has, with the edges at evenly spaced quantiles of the observed times. The
-#'   default, `NULL`, uses about the cube root of the sample size, which is the
-#'   order the Freedman-Diaconis rule gives for a histogram. **You should not need
-#'   to set this**: the estimates are flat in it over a sixty-fold range, and it
-#'   is here for checking that rather than for tuning. See Details.
-#' @param lambda_shape for `ph()`, the shape of the gamma prior on each bin's
-#'   baseline hazard. Its rate is drawn.
-#' @param update_lambda for `ph()`, whether to draw the baseline hazards. `FALSE`
-#'   holds them at their prior mean, which is for diagnosis rather than analysis.
-#' @param nu,q for `dpm()`, the degrees of freedom of the baseline's
-#'   inverse-chi-square prior on a component's variance and the quantile of that
-#'   prior placed at a rough estimate of the residual standard deviation. The
-#'   defaults, 10 and 0.95, are the paper's, and are tighter than BART's own 3
-#'   and 0.90 because the mixture covers small errors with extra components
-#'   rather than with one component's left tail.
-#' @param k_s for `dpm()`, how many units of the baseline's own scale the
-#'   component means are allowed to reach out to. The default, 10, places the
-#'   marginal of a component mean so that it reaches the largest residual of a
-#'   linear fit.
-#' @param alpha for `dpm()`, a fixed Dirichlet process concentration. The
-#'   default, `NULL`, draws it.
-#' @param max_clusters,psi for `dpm()`, the largest number of mixture components
-#'   thought plausible and the shape of the taper towards it, which together set
-#'   the prior on `alpha`. The defaults are a tenth of the sample size and 0.5.
-#' @param name for `custom_family()`, a label used when printing the fit.
+#'   magnitude. Supplying it is a second way to declare the parameters, so
+#'   `aux_start = c(shape = 1)` both names one and starts it at 1.
+#' @param name string; for `custom_family()`, a label used when printing the fit.
+#'   Default is `"custom"`.
+#' @param num_bins *Advanced.* `numeric`; for `ph()`, how many pieces the
+#'   baseline hazard has, with the edges at evenly spaced quantiles of the
+#'   observed times. Must be 2 or greater. Default is `NULL` to use about the
+#'   cube root of the sample size, which is the order the Freedman-Diaconis rule
+#'   gives for a histogram. **This should not need to be set**: the estimates are
+#'   flat in it over a sixty-fold range, and it is here for checking that rather
+#'   than for tuning. See Details.
+#' @param lambda_shape `numeric`; for `ph()`, the shape of the gamma prior on
+#'   each bin's baseline hazard, which must be positive. Its rate is drawn.
+#'   Default is 1.
+#' @param update_lambda `logical`; for `ph()`, whether to draw the baseline
+#'   hazards. Default is `TRUE`; `FALSE` holds them at their prior mean, which is
+#'   for diagnosis rather than analysis.
+#' @param nu,q `numeric`; for `dpm()` and `dpm_aft()`, the degrees of freedom of
+#'   the baseline's inverse-chi-square prior on a component's variance and the
+#'   quantile of that prior placed at a rough estimate of the residual standard
+#'   deviation. Defaults are 10 and .95, following George et al. (2019), and are
+#'   tighter than BART's own 3 and .90 because the mixture covers small errors
+#'   with extra components rather than with one component's left tail.
+#' @param k_s `numeric`; for `dpm()` and `dpm_aft()`, how many units of the
+#'   baseline's own scale the component means are allowed to reach out to. Must
+#'   be positive. Default is 10, which places the marginal of a component mean so
+#'   that it reaches the largest residual of a linear fit.
+#' @param alpha `numeric`; for `dpm()` and `dpm_aft()`, a fixed Dirichlet process
+#'   concentration, which must be positive. Default is `NULL` to draw it.
+#' @param max_clusters,psi `numeric`; for `dpm()` and `dpm_aft()`, the largest
+#'   number of mixture components thought plausible (2 or greater) and the shape
+#'   of the taper toward it, which together set the prior on `alpha`. Defaults
+#'   are `NULL` to use a tenth of the sample size, and .5.
+#'
+#' @returns
+#' A `<bartisan_family>` object, which is a list containing at least the elements
+#' `family` and `link` and which inherits from `family`, so that [bartisan()]
+#' recognizes it wherever it recognizes an ordinary [stats::family] object.
 #'
 #' @details
 #' Every family reduces to a scalar additive predictor, or to several of them,
@@ -115,7 +131,8 @@
 #' | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
 #' | `ph()` | none | 1 | baseline hazard per bin |
 #' | `dpm_aft()` | none | 1 | error mixture, concentration |
-#' | `location_scale()` | `identity` | 2 | none |
+#' | `gaussian_ls()` | `identity` | 2 | none |
+#' | `Gamma_ls()` | `log` | 2 | none |
 #' | `zi_poisson()` | `log` | 2 | none |
 #' | `zi_negbin()` | `log` | 2 | dispersion |
 #' | `Beta()` | `logit`, `probit`, `cloglog` | 1 | precision |
@@ -125,41 +142,45 @@
 #' A family with more than one additive predictor fits one forest per predictor.
 #' Nuisance parameters are drawn alongside the trees and reported in `fit$aux`.
 #'
-#' # Links the engine does not compile
+#' ## Links the Engine Does Not Compile
 #'
 #' The links listed above are the ones the sampler evaluates in compiled code.
 #' Any other link is accepted for `gaussian()`, `binomial()`, `poisson()`,
-#' `negbin()` and `Gamma()`, and applied from R by composing the caller's inverse
-#' link with the family's own, with the chain rule carrying the derivatives back.
-#' So `binomial("cauchit")` works, as does any link object of the kind
-#' [stats::make.link()] returns. It costs a call into R for every leaf the
-#' sampler visits, and the leaf prior scale is calibrated for the compiled link.
+#' `Beta()` and [stats::Gamma()], and applied from R by composing the caller's
+#' inverse link with the family's own, with the chain rule carrying the
+#' derivatives back. So `binomial("cauchit")` works, as does any link object of
+#' the kind [stats::make.link()] returns. It costs a call into R for every leaf
+#' the sampler visits, and the leaf prior scale is calibrated for the compiled
+#' link. Note that `negbin()` is the exception among the single-predictor
+#' families: it takes `"log"` alone, so a link given to it is an error rather
+#' than a composition.
 #'
-#' A link whose inverse has a restricted range -- `Gamma("inverse")`,
-#' `Gamma("identity")`, `poisson("identity")` -- will give non-finite densities
+#' A link whose inverse has a restricted range (`Gamma("inverse")`,
+#' `Gamma("identity")`, `poisson("identity")`) will give non-finite densities
 #' for some predictors. Those proposals are rejected rather than breaking the
 #' chain, but they are wasted work and the fit is worse for it, so `bartisan()`
 #' says so when it starts. Prefer links whose inverse is defined on the whole
 #' line.
 #'
 #' The families with more than one additive predictor, or whose link enters
-#' somewhere other than a single mean -- `ordinal()`, `multinomial()`, the
-#' accelerated failure time families, `location_scale()`, the zero-inflated
-#' families and `ordbeta()` -- take only their listed links. `custom_family()` is
+#' somewhere other than a single mean (`ordinal()`, `multinomial()`, the
+#' accelerated failure time families, `gaussian_ls()`, the zero-inflated
+#' families and `ordbeta()`), take only their listed links. `custom_family()` is
 #' the way to reach anything else.
 #'
-#' # If no family is given
+#' ## If No Family Is Given
 #'
 #' `family` may be omitted, in which case it is read off the response: a `Surv`
 #' object gets `dpm_aft()`, an ordered factor `ordinal()`, a two-valued
 #' response `binomial()`, any other factor `multinomial()`, and any numeric
 #' response `dpm()`. `dpm()` cannot take prior weights, so a weighted fit with no
-#' family named is an error rather than a silent substitution. The choice is reported with a message, which setting `family`
-#' silences. A count is *not* given `poisson()` and a numeric response taking two
-#' values other than 0 and 1 is *not* given `binomial()`, since either would be a
-#' modeling decision rather than a reading of the response's type.
+#' family named is an error rather than a silent substitution. The choice is
+#' reported with a message, which setting `family` silences. Note that a count is
+#' *not* given `poisson()` and a numeric response taking two values other than 0
+#' and 1 is *not* given `binomial()`, since either would be a modeling decision
+#' rather than a reading of the response's type.
 #'
-#' # What to know before reading the output
+#' ## What to Know Before Reading the Output
 #'
 #' `ordinal()` accepts a numeric response as well as an ordered factor, taking
 #' its sorted unique values as the categories, and that is **a method rather than
@@ -174,7 +195,7 @@
 #'
 #' `ordinal()` uses the cumulative-link parameterization of \pkgfun{MASS}{polr},
 #' in which \eqn{P(Y \le k) = F(c_k - \eta)}, so larger values of the additive
-#' predictor shift mass towards higher categories. Only the differences
+#' predictor shift mass toward higher categories. Only the differences
 #' \eqn{c_k - \eta_i} are identified, so one location has to be pinned: with three
 #' or more categories the draws are reported in the chart where **the additive
 #' predictor has mean zero over the fitted sample and every cutpoint is free**,
@@ -219,17 +240,17 @@
 #' does not pay for its flexibility: on normal errors, where `gaussian()` is
 #' exactly right, it came out slightly ahead on both held-out error and log score
 #' at the same time to one decimal place, and on heavy-tailed, skewed and bimodal
-#' errors it was ahead by a great deal -- on bimodal errors at a thousand
+#' errors it was ahead by a great deal (on bimodal errors at a thousand
 #' observations, 0.050 against 0.154 in held-out RMSE, a factor of three, at the
-#' same time to a tenth of a second. So it is the family a numeric response gets
+#' same time to a tenth of a second). So it is the family a numeric response gets
 #' when none is named. The reasons to prefer `gaussian()` are not statistical:
 #' it takes **prior weights**, which `dpm()` refuses, and it reports one
 #' interpretable `sigma` where `dpm()` has a mixture. It is also faster, by 1.4
 #' times at a thousand observations. The vignette has the comparison.
 #'
 #' Two things to know about `dpm()` itself. **It does not buy
-#' heteroskedasticity** -- the error distribution is flexible but it is the same
-#' distribution at every \eqn{x}, and `location_scale()` is the family for a
+#' heteroskedasticity**: the error distribution is flexible but it is the same
+#' distribution at every \eqn{x}, and `gaussian_ls()` is the family for a
 #' spread that depends on the predictors. And **the additive predictor is the
 #' conditional mean**, as it is for `gaussian()`: nothing in the model forces the
 #' mixture to be centered, so the sampler works in a chart where only the sum of
@@ -247,19 +268,39 @@
 #' knows it is rare. **The link is where the care is needed.** Only `log` is
 #' compiled, and the base R default of `inverse` is the worst case for this
 #' sampler: its inverse maps a negative predictor to a negative mean, whose log
-#' is not a number, so the proposal is rejected -- dozens of times per fit.
+#' is not a number, so the proposal is rejected, dozens of times per fit.
 #' Measured on 600 observations and 50 trees, `stats::Gamma()` took 7.2 seconds
 #' against 3.8 for `Gamma("log")` and fitted the mean slightly worse. So write
 #' the link, or name the family as the string `"Gamma"`, which resolves to the
-#' log link. Any composed link whose inverse has a restricted range is reported
-#' when the fit starts.
+#' log link; base R's own function is left as base R defines it, so that
+#' attaching \pkg{bartisan} cannot change what `glm()` does. Any composed link
+#' whose inverse has a restricted range is reported when the fit starts.
 #'
 #' The accelerated failure time families expect a right-censored response,
 #' supplied either as a \pkgfun{survival}{Surv} object or as a two-column matrix
 #' of times and event indicators. They model \eqn{\log T = \eta + \sigma\epsilon}
 #' with \eqn{\epsilon} standard Gumbel, logistic or normal respectively, giving
-#' Weibull, log-logistic and log-normal survival times, so the predictor is a log
-#' time ratio in each.
+#' Weibull, log-logistic and log-normal survival times.
+#'
+#' **A contrast in the predictor is a log time ratio in all of them, and in
+#' `dpm_aft()` too.** That follows from the structure rather than from the error:
+#' with \eqn{\epsilon} independent of \eqn{x}, every quantile of \eqn{T}, the
+#' mean of \eqn{T}, and the geometric mean of \eqn{T} all scale by
+#' \eqn{e^{\Delta\eta}}, whatever shape the error has, so the reading does not
+#' rest on the error being symmetric. What does differ between the families is
+#' what \eqn{e^{\eta}} is on its own, because each pins its error's location
+#' differently: it is the median of \eqn{T} for `loglogistic_aft()` and
+#' `lognormal_aft()`, whose errors are symmetric about zero; the geometric mean of
+#' \eqn{T} for `dpm_aft()`, whose error is centered at mean zero but is not
+#' symmetric; and the Weibull scale, which is the 63.2nd percentile of \eqn{T},
+#' for `weibull_aft()`, whose error has location rather than mean zero. Contrasts
+#' are unaffected by any of that.
+#'
+#' `weibull_aft()` is also the one family whose predictor carries a log *hazard*
+#' ratio, of \eqn{-\Delta\eta/\sigma}, alongside its log time ratio. That is a
+#' property of the Gumbel error rather than of the structural part it shares with
+#' the other three: it is the only error making an accelerated failure time model
+#' a proportional hazards model as well.
 #'
 #' `ph()` is the proportional hazards alternative, with a piecewise-constant
 #' baseline: \eqn{\lambda(t \mid x) = \lambda_0(t)\exp(r(x))}, so its predictor
@@ -280,14 +321,14 @@
 #'
 #' **`num_bins` is not a modeling decision, and its default should be left
 #' alone.** It is exposed for checking that, not for tuning. Measured over three
-#' replicates at 700 observations, sweeping it from 4 to 250 -- a sixty-fold
-#' range, against a baseline hazard that turns over and against a Weibull one --
+#' replicates at 700 observations, sweeping it from 4 to 250 (a sixty-fold
+#' range, against a baseline hazard that turns over and against a Weibull one)
 #' moved the error in the survival function between 0.035 and 0.048 and the error
 #' in the log hazard ratio between 0.135 and 0.185, with no trend in either and
 #' every difference inside the replicate-to-replicate spread. What the bin count
 #' does change is the effective number of parameters, which grows with it: from 17
 #' at four bins to 206 at 250. That is what makes the default matter for `loo()`
-#' and `waic()` rather than for the estimates -- one parameter per event time
+#' and `waic()` rather than for the estimates: one parameter per event time
 #' would leave each observation's density inflated by a parameter only it informs,
 #' and leave-one-out unable to do its job.
 #'
@@ -303,11 +344,13 @@
 #' estimated rather than assumed: \eqn{\log T = m(x) + W} with \eqn{W} a
 #' Dirichlet process mixture of normals constrained to mean zero, and censored
 #' log-times imputed. It is `dpm()`'s error model with censoring, so its predictor
-#' is the conditional mean of \eqn{\log T}, `error_density()` reports the fitted
-#' error density, and prior weights are refused for the same reason `dpm()`
-#' refuses them. Following Henderson, Louis, Rosner and Varadhan (2020).
+#' is the conditional mean of \eqn{\log T} and a contrast in it is a log time
+#' ratio exactly as for the three parametric families above, `error_density()`
+#' reports the fitted error density, and prior weights are refused for the same
+#' reason `dpm()` refuses them. Following Henderson, Louis, Rosner and Varadhan
+#' (2020).
 #'
-#' Reach for it when the shape of the error is in doubt and you would rather not
+#' Reach for it when the shape of the error is in doubt and there is no reason to
 #' assert one. Measured against a two-component error it was worth 210 held-out
 #' log points and a third of the error in \eqn{S(t \mid x)} over the best
 #' fixed-error family; against a log-normal error, where `lognormal_aft()` is
@@ -315,9 +358,22 @@
 #' gains where the assumption would have been wrong and costs nothing where it
 #' would have been right, which is the property `dpm()` has against `gaussian()`.
 #'
-#' `location_scale()` regresses the mean and the log standard deviation of a
+#' `gaussian_ls()` regresses the mean and the log standard deviation of a
 #' normal response on separate forests, so the variance is an unrestricted
 #' function of the predictors.
+#'
+#' `Gamma_ls()` does the same for a gamma response: the first forest is the log
+#' mean, exactly as `Gamma("log")`'s is, and the second is the log dispersion, so
+#' the shape is `exp(-log_dispersion)` at each observation rather than one value
+#' drawn for the whole sample. What it relaxes is the assumption that the
+#' coefficient of variation is constant, which is what a gamma with a single
+#' shape asserts, and giving its second forest an intercept-only formula puts
+#' that assumption back; see "Several additive predictors" above.
+#'
+#' Note that the mean forest is quadratic in neither family, but it takes the
+#' same cheap exponential form `Gamma("log")`'s does, while the dispersion forest
+#' takes the general path, so the cost sits in the second forest and it is worth
+#' giving that one fewer trees.
 #'
 #' `zi_poisson()` and `zi_negbin()` are zero-inflated counts. Both parts get their
 #' own forest: the first predictor is the log mean of the count component and the
@@ -342,7 +398,7 @@
 #' `ordbeta()` fitted to a response with no boundary observations leaves its
 #' cutpoints with nothing to identify them.
 #'
-#' # Several additive predictors
+#' ## Several Additive Predictors
 #'
 #' Most families model one parameter with one forest. Some model several, and
 #' then every argument that could mean something different for each of them may
@@ -355,25 +411,41 @@
 #'
 #' | Family | Forests, in order |
 #' | --- | --- |
-#' | `location_scale()` | `mean`, `log_sd` |
+#' | `gaussian_ls()` | `mean`, `log_sd` |
+#' | `Gamma_ls()` | `mean`, `log_dispersion` |
 #' | `zi_poisson()`, `zi_negbin()` | `count`, `zero` |
 #' | `custom_family(num_predictors = k)` | `eta1` ... `etak` |
-#' | `multinomial()` | one per level, or per non-reference level |
-#' | `mnp()` | one per non-reference level, named for its contrast |
+#' | `multinomial("logit")` | one per level, or per non-reference level |
+#' | `multinomial("probit")` | one per non-reference level, named for its contrast |
 #' | everything else | `eta` |
 #'
 #' `mean` is the mean and `log_sd` is the logarithm of the standard deviation,
-#' which is the scale the forest works on. `count` is the linear predictor of the
+#' which is the scale the forest works on. `Gamma_ls()`'s `mean` is the log mean,
+#' as `Gamma("log")`'s single forest is, and its `log_dispersion` is the
+#' logarithm of the dispersion, so that in both location-scale families a larger
+#' second predictor means more spread. `count` is the linear predictor of the
 #' count component and `zero` that of the inflation component. A custom family's
 #' nuisance parameters are not on this list: they are carried as trailing forests
 #' pinned to a single leaf, and nothing about them is set per forest.
+#'
+#' **A forest whose formula names no predictor is a constant.** `~ 1` leaves that
+#' forest nothing to split on, so every tree in it is a stump and the parameter is
+#' one drawn scalar. Every family here that takes more than one formula accepts
+#' that, which is what makes the distinction between a nuisance parameter and an
+#' empty forest a thin one: `gaussian_ls()` with `~ 1` on its scale is
+#' `gaussian()`, `Gamma_ls()` with `~ 1` is `Gamma("log")`, and `zi_poisson()`
+#' with `~ 1` on its inflation part is the zero-inflated Poisson with a single
+#' structural-zero probability. Note that the scalar is drawn under the leaf prior
+#' rather than under the prior the corresponding built-in family puts on its
+#' nuisance parameter, so the two agree closely rather than exactly. The
+#' multinomial families are the exception, for the reason given below.
 #'
 #' So, for a location-scale model with a smaller scale forest and a restricted
 #' set of predictors for it:
 #'
 #' ```r
 #' bartisan(list(y ~ x1 + x2 + x3, log_sd = ~ x1), data = d,
-#'          family = location_scale(), num_trees = c(mean = 50, log_sd = 10))
+#'          family = gaussian_ls(), num_trees = c(mean = 50, log_sd = 10))
 #' ```
 #'
 #' **The multinomial families are the exception.** Their forests are the levels of
@@ -383,7 +455,7 @@
 #' from another. Every argument applies to all of their forests at once, and more
 #' than one value is an error rather than a silent recycling.
 #'
-#' # Supplying a likelihood
+#' ## Supplying a Likelihood
 #'
 #' `custom_family()` takes the log density itself, as an R function, and fits the
 #' model that goes with it. Nothing else about the sampler changes: the
@@ -420,10 +492,10 @@
 #' ```
 #'
 #' They are reported in `fit$aux` under those names, and covered by `summary()`
-#' and `fit$rhat` like any other family's. There is no prior argument and no
+#' and [diagnose()] like any other family's. There is no prior argument and no
 #' bounds argument, because a nuisance parameter here is carried as an additive
-#' predictor whose forest is pinned at depth zero -- one tree that can never
-#' split, so the forest is a single scalar -- and it is drawn by the same
+#' predictor whose forest is pinned at depth zero (one tree that can never
+#' split, so the forest is a single scalar), and it is drawn by the same
 #' Laplace-plus-Metropolis step as any leaf, under that step's Gaussian leaf
 #' prior. So a parameter with a restricted range is handled the way it would be
 #' for a real predictor, by writing the transform into `logdens`: the `exp()`
@@ -433,11 +505,6 @@
 #' has to be coded first; and since the package cannot know what the mean of the
 #' density is, `predict(type = "response")` returns the additive predictors
 #' rather than a fitted mean.
-#'
-#' @returns
-#' A list of class `bartisan_family`, containing at least the elements `family`
-#' and `link`. Objects of this class are recognized by `bartisan()` alongside
-#' ordinary [stats::family] objects.
 #'
 #' @references
 #' Burgette, L. F., & Nordheim, E. V. (2012). The trace restriction: an
@@ -451,6 +518,11 @@
 #' Experimentation, and Flexible Modeling: Part B* (Advances in Econometrics,
 #' vol. 40B, pp. 89--110). Emerald Publishing.
 #' \doi{10.1108/S0731-90532019000040B006}
+#'
+#' Henderson, N. C., Louis, T. A., Rosner, G. L., & Varadhan, R. (2020).
+#' Individualized treatment effects with censored data via fully nonparametric
+#' Bayesian accelerated failure time models. *Biostatistics*, 21(1), 50--68.
+#' \doi{10.1093/biostatistics/kxy028}
 #'
 #' Kubinec, R. (2023). Ordered beta regression: a parsimonious, well-fitting
 #' model for continuous data with lower and upper bounds. *Political Analysis*,
@@ -467,41 +539,35 @@
 #' \doi{10.1080/10618600.2024.2388605}
 #'
 #' @seealso
-#' [bartisan()], [error_density()], and
-#' `vignette("families", package = "bartisan")` for the long form.
+#' [bartisan()] for fitting a model with one of these families;
+#' [error_density()] for the error distribution a `dpm()` or `dpm_aft()` fit
+#' estimates; `vignette("families", package = "bartisan")` for the long form
 #'
-#' @examplesIf FALSE
-#' bartisan(y ~ ., data = d, family = negbin())
-#' bartisan(y ~ ., data = d, family = ordinal("probit"))
-#' bartisan(survival::Surv(time, status) ~ ., data = d, family = weibull_aft())
+#' @examples
+#' data("rhc")
+#' set.seed(123)
 #'
-#' # The same response under proportional hazards, with a free baseline.
-#' bartisan(survival::Surv(time, status) ~ ., data = d, family = ph())
-
+#' # A right-censored response, given as the time and the event indicator,
+#' # with the error distribution estimated rather than assumed
+#' fit <- bartisan(cbind(days, death) ~ ., data = rhc, family = dpm_aft(),
+#'                 num_trees = 10, num_burn = 50, num_draws = 50)
 #'
-#' # An accelerated failure time model with the error distribution estimated.
-#' bartisan(survival::Surv(time, status) ~ ., data = d, family = dpm_aft())
-#' bartisan(count ~ ., data = d, family = zi_negbin())
-#' bartisan(proportion ~ ., data = d, family = Beta())
+#' # The shape the errors came out
+#' head(error_density(fit))
 #'
-#' # The same response, when it can also sit exactly at 0 or 1.
-#' bartisan(proportion ~ ., data = d, family = ordbeta())
+#' # The same response under proportional hazards, whose predictor is a log
+#' # hazard ratio and whose baseline is free to take any shape
+#' bartisan(cbind(days, death) ~ ., data = rhc, family = ph(),
+#'          num_trees = 10, num_burn = 50, num_draws = 50)
 #'
-#' # The latent covariance is reported in `aux`, as its lower triangle.
-#' fit <- bartisan(y ~ ., data = d, family = multinomial("probit"))
-#' colMeans(fit$aux)
+#' # An unordered response, with one forest per category and a prior that is
+#' # symmetric in them
+#' bartisan(race ~ . - days - death, data = rhc, family = multinomial(),
+#'          num_trees = 10, num_burn = 50, num_draws = 50)
 #'
-#' # A numeric response whose error distribution is estimated rather than
-#' # assumed. `error_density()` reports what shape it came out.
-#' fit <- bartisan(y ~ ., data = d, family = dpm())
-#' error_density(fit)
-#'
-#' # A link the engine does not compile, applied from R.
-#' bartisan(y ~ ., data = d, family = binomial("cauchit"))
-#'
-#' # A likelihood supplied from R.
-#' bartisan(y ~ ., data = d,
-#'         family = custom_family(function(y, eta) y * eta[, 1] - exp(eta[, 1])))
+#' # A link the engine does not compile, applied from R
+#' bartisan(death ~ . - days, data = rhc, family = binomial("cauchit"),
+#'          num_trees = 10, num_burn = 50, num_draws = 50)
 #'
 #' @name bartisan-families
 NULL
@@ -656,10 +722,18 @@ ph <- function(num_bins = NULL, lambda_shape = 1, update_lambda = TRUE) {
 
 #' @rdname bartisan-families
 #' @export
-location_scale <- function(link = "identity") {
+gaussian_ls <- function(link = "identity") {
   link <- arg::match_arg(link, "identity")
 
-  new_bartisan_family("location_scale", link)
+  new_bartisan_family("gaussian_ls", link)
+}
+
+#' @rdname bartisan-families
+#' @export
+Gamma_ls <- function(link = "log") {
+  link <- arg::match_arg(link, "log")
+
+  new_bartisan_family("Gamma_ls", link)
 }
 
 #' @rdname bartisan-families
@@ -724,7 +798,7 @@ ordbeta <- function(link = "logit", phi = NULL) {
 #' @rdname bartisan-families
 #' @export
 custom_family <- function(logdens, num_predictors = 1L, start = 0,
-                          derivatives = NULL, aux_names = NULL, aux_start = 0,
+                          derivatives = NULL, aux_names = NULL, aux_start = NULL,
                           name = "custom") {
   if (!is.function(logdens)) {
     arg::err("{.arg logdens} must be a function of the response and the
@@ -734,17 +808,11 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
   arg::arg_whole_number(num_predictors)
   arg::arg_gte(num_predictors, 1)
   arg::arg_numeric(start)
-  arg::arg_numeric(aux_start)
   arg::arg_string(name)
 
   arg::when_not_null(
     derivatives,
     arg::arg_function
-  )
-
-  arg::when_not_null(
-    aux_names,
-    arg::arg_character
   )
 
   num_predictors <- as.integer(num_predictors)
@@ -755,26 +823,58 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
   }
 
   # The nuisance parameters are declared by naming them, because their names are
-  # what labels the columns of `fit$aux` and what `summary()` and `fit$rhat`
-  # report them under. Giving only starting values names them positionally.
-  if (is_null(aux_names)) {
-    aux_names <- {
-      if (missing(aux_start)) character()
-      else paste0("aux", seq_along(aux_start))
+  # what labels the columns of `fit$aux` and what `summary()` and `diagnose()`
+  # report them under. Giving only starting values names them, from
+  # `names(aux_start)` where it carries them and positionally where it does not.
+  # Either route has to produce usable column names, so the same check applies
+  # to both.
+  arg::when_not_null(
+    aux_names,
+    arg::arg_character
+  )
+
+  arg::when_not_null(
+    aux_start,
+    arg::arg_numeric
+  )
+
+  if (!is_null(aux_names)) {
+    if (anyDuplicated(aux_names) > 0L || !all(nzchar(aux_names))) {
+      arg::err("{.arg aux_names} must be distinct and non-empty")
     }
+  }
+  else if (!is_null(aux_start)) {
+    aux_names <- names(aux_start)
+
+    if (is_null(aux_names)) {
+      aux_names <- paste0("aux", seq_along(aux_start))
+    }
+    else if (anyDuplicated(aux_names) > 0L || !all(nzchar(aux_names))) {
+      arg::err("the names of {.arg aux_start} must be distinct and non-empty")
+    }
+  }
+
+  if (!is_null(aux_names)) {
+    if (is_null(aux_start)) {
+      aux_start <- rep.int(0, length(aux_names))
+    }
+    else if (length(aux_start) == 1L) {
+      aux_start <- rep.int(aux_start, length(aux_names))
+    }
+    else if (length(aux_start) != length(aux_names)) {
+      arg::err("{.arg aux_start} must have one value, or one per nuisance
+              parameter ({length(aux_names)})")
+    }
+
+    aux_start <- unname(aux_start)
   }
 
   num_aux <- length(aux_names)
 
-  if (anyDuplicated(aux_names) > 0L || !all(nzchar(aux_names))) {
-    arg::err("{.arg aux_names} must be distinct and non-empty")
-  }
-
-  if (num_aux > 0L && length(aux_start) != 1L &&
-      length(aux_start) != num_aux) {
-    arg::err("{.arg aux_start} must have one value, or one per nuisance
-              parameter ({num_aux})")
-  }
+  # Empty but typed, rather than `NULL`, so that a family with no nuisance
+  # parameters and one with some are the same shape of object.
+  aux_names <- aux_names %or% character()
+  aux_start <- aux_start %or% numeric()
 
   if (num_aux > 0L && length(formals(logdens)) < 3L) {
     arg::err("{.arg logdens} must take a third argument for the nuisance
@@ -789,14 +889,14 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
                       derivatives = derivatives,
                       num_aux = num_aux,
                       aux_names = aux_names,
-                      aux_start = rep(aux_start, length.out = max(num_aux, 1L)),
+                      aux_start = aux_start,
                       name = name)
 }
 
 bartisan_family_names <- c("gaussian", "binomial", "poisson", "negbin", "Gamma",
                            "ordinal", "multinomial", "dpm",
                            "weibull_aft", "loglogistic_aft", "lognormal_aft",
-                           "location_scale", "zi_poisson", "zi_negbin",
+                           "gaussian_ls", "Gamma_ls", "zi_poisson", "zi_negbin",
                            "Beta", "ordbeta", "ph", "dpm_aft")
 
 new_bartisan_family <- function(family, link, ...) {
@@ -824,7 +924,8 @@ valid_links <- list(custom = "identity",
                     mnp = "probit",
                     aft = c("weibull", "loglogistic", "lognormal"),
                     ph = "log",
-                    location_scale = "identity",
+                    gaussian_ls = "identity",
+                    Gamma_ls = "log",
                     zip = "log",
                     zinb = "log",
                     beta = "logit",
@@ -875,7 +976,7 @@ default_family <- function(y, weights = NULL) {
       arg::err("a numeric response defaults to {.fn dpm}, which does not take
                 prior weights",
                i = "name a family: {.code family = gaussian()} keeps the weights,
-                    and so do {.fn ordinal} and {.fn location_scale}")
+                    and so do {.fn ordinal} and {.fn gaussian_ls}")
     }
 
     if (identical(chosen, "dpm_aft")) {

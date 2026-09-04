@@ -334,7 +334,7 @@ test_that("a tree count per forest is honored, and the leaf scale follows it", {
   d <- sim_x(n = 200, seed = 61)
   d$y <- 2 * d$x1 + stats::rnorm(nrow(d), 0, exp(-1 + d$x2))
 
-  fit <- bartisan(y ~ ., d, family = location_scale(),
+  fit <- bartisan(y ~ ., d, family = gaussian_ls(),
                   control = quick_control(num_trees = c(20L, 5L)))
 
   expect_identical(fit[["num_trees"]], c(20L, 5L))
@@ -352,10 +352,10 @@ test_that("a tree count per forest is honored, and the leaf scale follows it", {
 
   # A scalar is recycled, and recycling is the same call as saying it twice.
   set.seed(3)
-  a <- bartisan(y ~ ., d, family = location_scale(),
+  a <- bartisan(y ~ ., d, family = gaussian_ls(),
                 control = quick_control(num_trees = 8L))
   set.seed(3)
-  b <- bartisan(y ~ ., d, family = location_scale(),
+  b <- bartisan(y ~ ., d, family = gaussian_ls(),
                 control = quick_control(num_trees = c(8L, 8L)))
 
   expect_equal(a[["eta"]], b[["eta"]])

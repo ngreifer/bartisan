@@ -7,26 +7,28 @@
 \method{coef}{bartisan_fit}(object, newdata = NULL, draws = FALSE, ...)
 }
 \arguments{
-\item{object}{a fitted \code{\link[=bartisan]{bartisan()}} model.}
+\item{object}{a \verb{<bartisan_fit>} object; the output of a call to \code{\link[=bartisan]{bartisan()}},
+fitted with at least one \code{\link[=vc]{vc()}} term.}
 
-\item{newdata}{optional data to evaluate the coefficients at. The default,
-\code{NULL}, uses the data the model was fitted to.}
+\item{newdata}{optional; a data frame at which to evaluate the coefficients.
+Default is \code{NULL} to use the data the model was fitted to.}
 
-\item{draws}{\code{FALSE}, the default, returns the posterior mean of each
-coefficient at each observation. \code{TRUE} returns every draw, as a list of
-draws-by-observations matrices, one per coefficient.}
+\item{draws}{\code{logical}; whether to return every posterior draw of each
+coefficient rather than its posterior mean at each observation. Default is
+\code{FALSE} to return the posterior means.}
 
-\item{...}{ignored.}
+\item{...}{not used.}
 }
 \value{
 With \code{draws = FALSE}, a matrix with one row per observation and one column per
-coefficient. With \code{draws = TRUE}, a named list of matrices.
+coefficient. With \code{draws = TRUE}, a named list of draws-by-observations
+matrices, one per coefficient.
 }
 \description{
 The coefficient functions of a model fitted with \code{\link[=vc]{vc()}} terms, evaluated at
-each observation. A forest has no coefficient vector, so for any other model
-this returns nothing; for a varying-coefficient model the coefficients are
-functions and this is what they come to.
+each observation. A forest has no coefficient vector, so a fit with no \code{vc()}
+term has no coefficient to report and this errors rather than returning
+anything.
 }
 \details{
 The control function is not among them. It is the surface at the value each
@@ -40,15 +42,23 @@ than an approximation, and it is the reason a factor's reference level is a
 choice made here rather than at fitting time.
 }
 \examples{
-set.seed(1)
-n <- 200
-d <- data.frame(x1 = rnorm(n), x2 = rnorm(n), z = rbinom(n, 1, 0.5))
-d$y <- d$x1 + d$z * (1 + d$x2) + rnorm(n)
+data("rhc")
+set.seed(123)
 
-fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
-                control = bartisan_control(num_trees = 10, num_burn = 50,
-                                           num_draws = 50, verbose = FALSE))
+# The effect of catheterization is allowed to vary with the other
+# predictors, so its coefficient is a function rather than a number
+fit <- bartisan(death ~ age + aps + surv2m + vc(rhc), data = rhc,
+                num_trees = 10, num_burn = 50, num_draws = 50,
+                verbose = FALSE)
 
+# One coefficient per patient, on the link scale
 head(coef(fit))
 
+# How much it varies across patients
+quantile(coef(fit)[, "rhc"])
+
+}
+\seealso{
+\code{\link[=vc]{vc()}} for declaring a varying coefficient; \code{\link[=variable_importance]{variable_importance()}} for which
+predictors a forest uses at all
 }

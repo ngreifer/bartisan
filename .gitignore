@@ -58,6 +58,8 @@ _dev/*
 !_dev/vcbart-benchmark.R
 !_dev/sparsity-null.R
 !_dev/parity-benchmark.R
+!_dev/positive-sim.R
+!_dev/diagnose-timing.R
 
 # Side effect of rendering README.Rmd to github_document.
 README.html

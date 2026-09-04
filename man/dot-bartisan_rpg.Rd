@@ -7,9 +7,9 @@
 .bartisan_rpg(n, b, c)
 }
 \arguments{
-\item{n}{number of draws.}
+\item{n}{\code{integer}; the number of draws.}
 
-\item{b, c}{parameters of the distribution.}
+\item{b, c}{\code{numeric}; the parameters of the distribution.}
 }
 \value{
 A numeric vector of draws.

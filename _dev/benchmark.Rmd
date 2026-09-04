@@ -518,7 +518,7 @@ Two sweeps that inform the defaults rather than comparing packages. The first is
 the tree count under each kind of rule, on the same Gaussian task as above: soft
 rules reach their best held-out error at far fewer trees than hard ones, and past
 that point they get worse. The second is the per-forest vector, on
-`location_scale()`, where the scale forest is where nearly all the time goes.
+`gaussian_ls()`, where the scale forest is where nearly all the time goes.
 
 ```{r tree-count}
 tree_sweep <- do.call(rbind, lapply(c("smoothstep", "hard"), function(g) {
@@ -543,7 +543,7 @@ dtr_ls$y <- dtr$y + rnorm(nrow(dtr), 0, exp(-1 + dtr$x2))
 
 per_forest <- do.call(rbind, lapply(list(c(trees, trees), c(trees, 10L),
                                          c(trees, 5L)), function(nt) {
-  r <- timer(bartisan(y ~ ., data = dtr_ls, family = location_scale(),
+  r <- timer(bartisan(y ~ ., data = dtr_ls, family = gaussian_ls(),
                      control = bartisan_control(num_trees = nt,
                                                 num_burn = draws,
                                                num_draws = draws,

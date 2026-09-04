@@ -1,15 +1,11 @@
 #' Right heart catheterization in critically ill patients
 #'
+#' @description
 #' Data from the SUPPORT study on whether right heart catheterization within 24
 #' hours of admission to an intensive care unit affects survival (Connors et al.,
-#' 1996). Catheterization was not randomized, so the comparison is
-#' confounded by how sick each patient was on admission, which is what the
-#' physiological covariates are for.
-#'
-#' The outcome appears in two forms. `death` is whether the patient died during
-#' follow-up, and `days` is how long that took, so the same event supports a
-#' binary analysis that ignores timing and a right-censored survival analysis
-#' that does not. A patient who did not die is censored at their last contact.
+#' 1996). Catheterization was not randomized, so the comparison is confounded by
+#' how sick each patient was on admission, which is what the physiological
+#' covariates are for.
 #'
 #' @format A data frame with 1500 rows and 16 columns.
 #' \describe{
@@ -36,6 +32,12 @@
 #' }
 #'
 #' @details
+#' The outcome appears in two forms. `death` is whether the patient died during
+#' follow-up, and `days` is how long that took, so the same event supports a
+#' binary analysis that ignores timing and a right-censored survival analysis
+#' that does not. Note that a patient who did not die is censored at their last
+#' contact.
+#'
 #' These are a random 1500 of the 5735 patients in the original file. The
 #' covariates are the thirteen used in the worked example at
 #' <https://iqss.github.io/dss-ps/example.html>, all recorded before
@@ -58,13 +60,17 @@
 #' patients. *JAMA*, 276(11), 889--897. \doi{10.1001/jama.1996.03540110043030}
 #'
 #' @examples
-#' data(rhc)
+#' data("rhc")
 #'
-#' # The binary outcome.
+#' # The treatment against the binary outcome
 #' table(rhc$rhc, rhc$death)
 #'
-#' # The same event as a survival outcome.
-#' if (requireNamespace("survival", quietly = TRUE)) {
+#' # The covariates the confounding runs through, all recorded on admission
+#' summary(rhc[c("age", "aps", "meanbp", "surv2m")])
+#'
+#' # The same event as a survival outcome, a patient who did not die being
+#' # censored at their last contact
+#' if (rlang::is_installed("survival")) {
 #'   with(rhc, summary(survival::Surv(days, death)))
 #' }
 "rhc"

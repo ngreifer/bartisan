@@ -21,14 +21,17 @@
 \item{y, weights, eta_draws, family_name, link, family_opts, aux}{as for
 \code{.bartisan_logdens()}.}
 
-\item{component}{which additive predictor to differentiate with respect to.}
+\item{component}{\code{integer}; which additive predictor to differentiate with
+respect to.}
 
-\item{by_difference}{use central differences instead of the analytic form.}
+\item{by_difference}{\code{logical}; whether to use central differences rather
+than the analytic form.}
 
-\item{blocked}{evaluate a whole draw at once through the family's block
-methods rather than one observation at a time. The two paths should agree;
-they differ for a family whose per-observation route falls back on
-differences while its block route does not.}
+\item{blocked}{\code{logical}; whether to evaluate a whole draw at once through
+the family's block methods rather than one observation at a time. Default
+is \code{FALSE}. The two paths should agree; they differ for a family whose
+per-observation route falls back on differences while its block route does
+not.}
 }
 \value{
 A list with matrices \code{d1} and \code{info}, draws by observations.

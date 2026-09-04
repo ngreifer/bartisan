@@ -82,7 +82,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
              arg::err("{.fn dpm} does not take prior weights, because a weight
                   would have to be a multiplicity in the Dirichlet process,
                   which is not what a fractional weight means",
-                      i = "{.fn gaussian}, {.fn ordinal} and {.fn location_scale} all
+                      i = "{.fn gaussian}, {.fn ordinal} and {.fn gaussian_ls} all
                       take them")
            }
 
@@ -124,7 +124,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            }
          },
 
-         location_scale = {
+         gaussian_ls = {
            y <- check_numeric_response(y, name)
            out$y <- y
            out$weights <- weights
@@ -135,6 +135,32 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            # magnitude before seeing any data.
            out$eta_scale <- c(stats::sd(y), 0.5)
            intercept <- c(stats::weighted.mean(y, weights), log(stats::sd(y)))
+         },
+
+         # The gamma with its dispersion carried by a forest rather than by one
+         # drawn shape. The second predictor is a log dispersion, so that larger
+         # means more spread, as `gaussian_ls()`'s log standard deviation does.
+         Gamma_ls = {
+           y <- check_numeric_response(y, name)
+
+           if (any(y <= 0)) {
+             arg::err("the {.val Gamma_ls} family requires a strictly positive
+                       response")
+           }
+
+           out$y <- y
+           out$weights <- weights
+           out$n_forest <- 2L
+           # The dispersion forest takes the tighter prior scale for the reason
+           # `gaussian_ls()`'s does: a prior as wide as the mean's would let the
+           # dispersion move by more than an order of magnitude before seeing any
+           # data.
+           out$eta_scale <- c(1, 0.5)
+           mu <- stats::weighted.mean(y, weights)
+           # The method-of-moments shape, as the `Gamma` arm starts its drawn
+           # shape at, then written as the dispersion this forest carries.
+           shape_start <- max(mu^2 / stats::var(y), 0.1)
+           intercept <- c(log(mu), -log(shape_start))
          },
 
          binomial = {

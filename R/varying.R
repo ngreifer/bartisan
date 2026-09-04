@@ -14,30 +14,38 @@
 
 #' Give a predictor a varying coefficient
 #'
-#' Used only inside a [bartisan()] formula, where it says that the coefficient of
-#' `x` is a function of other predictors rather than a constant. It is not meant
-#' to be called directly and does nothing if it is.
+#' @description
+#' Marks a predictor inside a [bartisan()] formula as one whose coefficient is a
+#' function of the other predictors rather than a constant, so that the
+#' coefficient gets a forest and a prior of its own. `vc()` is a marker rather
+#' than a function: it is read out of the formula it appears in and throws an
+#' error if it is called on its own.
 #'
-#' @param x the predictor whose coefficient varies. A numeric variable gets one
-#'   forest; a factor gets one per level, coded symmetrically as
-#'   [multinomial()] codes its predictors.
+#' @param x the predictor whose coefficient varies, named as a bare variable
+#'   rather than as an expression. A numeric variable gets one forest; a factor
+#'   gets one per level, coded symmetrically (i.e., with no level held out as a
+#'   reference) as [multinomial()] codes its predictors.
 #' @param modifiers a one-sided formula naming the predictors this coefficient's
-#'   forest may split on. The default, `NULL`, is every predictor in the model
-#'   except `x` itself.
+#'   forest may split on. Default is `NULL` to allow every predictor in the model
+#'   except `x` itself. Note that naming something that is not a predictor is an
+#'   error rather than a silent restriction.
 #' @param center the value of `x` at which the control function is read, which is
-#'   both how the model is fitted and how it is reported. `"auto"`, the default,
-#'   uses `"zero"` for a `0`/`1` covariate and `"mean"` for any other numeric
-#'   one, for the reason in Details. `"mean"` centers `x`, so the control
-#'   function is the surface at its average; `"zero"` leaves `x` alone, so the
-#'   control function is the surface at `x = 0`; `"mid"` uses the midpoint of
-#'   `x`'s range; a number uses that number. For a factor, `center` is `"mean"`
-#'   or the name of a level to report against. `"estimate"` draws the coding
-#'   rather than fixing it, which is the parameter expansion of Hahn, Murray and
-#'   Carvalho (2020); see Details, and note that it needs a covariate with a few
-#'   distinct values rather than a continuous one.
+#'   both how the model is fitted and how it is reported, given as either a
+#'   string or a number. Allowable options include `"auto"` (the default),
+#'   `"mean"`, `"zero"`, `"mid"`, and `"estimate"`. `"auto"` uses `"zero"` for a
+#'   `0`/`1` covariate and `"mean"` for any other numeric one, for the reason in
+#'   Details. `"mean"` centers `x`, so the control function is the surface at its
+#'   average; `"zero"` leaves `x` alone, so the control function is the surface at
+#'   `x = 0`; `"mid"` uses the midpoint of `x`'s range (i.e., the average of its
+#'   smallest and largest values); and a number uses that number. For a factor,
+#'   `center` is `"mean"` or the name of a level to report against. `"estimate"`
+#'   draws the coding rather than fixing it, which is the parameter expansion of
+#'   Hahn, Murray and Carvalho (2020); see Details, and note that it needs a
+#'   covariate with between two and twenty distinct values rather than a
+#'   continuous one.
 #'
 #' @returns
-#' Nothing. `vc()` is a marker read out of the formula and never evaluated.
+#' Nothing; `vc()` is never evaluated, and calling it directly is an error.
 #'
 #' @details
 #' The model is
@@ -49,7 +57,7 @@
 #' a prior of its own rather than being whatever difference a single forest with
 #' `x` among its predictors happens to produce.
 #'
-#' # Which predictors a coefficient may vary with
+#' ## Which Predictors a Coefficient May Vary With
 #'
 #' By default every predictor in the model except `x` itself. The `modifiers`
 #' argument narrows that, and naming something that is not a predictor is an
@@ -78,15 +86,15 @@
 #' separates rows that contribute from rows that contribute nothing. It is wasted
 #' rather than unidentified.
 #'
-#' # Where the control function sits
+#' ## Where the Control Function Sits
 #'
 #' Centering is a reparameterization of \eqn{f_0} alone: every coefficient and
 #' every estimand is identical under any choice, and what changes is what the
 #' control function means. `"auto"` picks by the covariate, because neither
 #' answer wins everywhere. For a `0`/`1` covariate it uses zero, so \eqn{f_0} is
-#' the surface among the untreated -- a quantity with its own meaning, and the
-#' one that recovers the coefficient best, at a correlation of 0.987 against
-#' 0.975 for mean-centering on the simulation in `_dev/`. For any other numeric
+#' the surface among the untreated (a quantity with its own meaning, and the one
+#' that recovers the coefficient best, at a correlation of 0.987 against 0.975
+#' for mean-centering on the simulation in `_dev/`). For any other numeric
 #' covariate it uses the mean, because zero may be nowhere near the data: with a
 #' covariate around 50 the control function at zero is an extrapolation and
 #' recovery collapses to a correlation of 0.42.
@@ -98,7 +106,7 @@
 #' choice: `center` names the level [coef()] reports against, and no refit is
 #' needed to change it.
 #'
-#' # Drawing the coding instead of fixing it
+#' ## Drawing the Coding Instead of Fixing It
 #'
 #' `center = "estimate"` is different in kind from the choices above. Rather than
 #' subtract a number from `x`, it gives each of `x`'s values a coefficient of its
@@ -127,8 +135,8 @@
 #' depending on which level was written as 1. Fitting the same data with the
 #' treatment coded `0`/`1` and again `1`/`0` and adding the two effects, which is
 #' zero if the coding does not matter, gives 0.0045 under a drawn coding against
-#' 0.0125 under a fixed zero -- and on weak data, where the prior has more to
-#' say, 0.0389 against 0.0830.
+#' 0.0125 under a fixed zero; on weak data, where the prior has more to say,
+#' 0.0389 against 0.0830.
 #'
 #' **Above two values it stops being free, and the restriction is a real one.**
 #' Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels
@@ -145,30 +153,30 @@
 #' the default is the general one. Reach for it when the levels plausibly differ
 #' in degree rather than in kind.
 #'
-#' # Families with several additive predictors
+#' ## Families with Several Additive Predictors
 #'
-#' `location_scale()`, `zi_poisson()` and the rest fit one forest per
+#' `gaussian_ls()`, `zi_poisson()` and the rest fit one forest per
 #' distributional parameter, and each parameter's formula carries its own `vc()`
-#' terms. The forests are then two-dimensional -- a control function and its
-#' coefficients, for each parameter -- and named accordingly, which is what
+#' terms. The forests are then two-dimensional (a control function and its
+#' coefficients, for each parameter) and named accordingly, which is what
 #' per-forest settings are keyed by:
 #'
 #' ```r
 #' # forests: mean, mean:z, log_sd
 #' bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-#'          family = location_scale())
+#'          family = gaussian_ls())
 #'
-#' # forests: mean, mean:z, log_sd, log_sd:z -- one formula reaches every
+#' # forests: mean, mean:z, log_sd, log_sd:z; one formula reaches every
 #' # parameter, which is the rule every per-forest argument follows
-#' bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+#' bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
 #'
 #' # each coefficient with its own modifiers
 #' bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
 #'               log_sd = ~ x1 + x2 + vc(z, ~ x1)), data = d,
-#'          family = location_scale())
+#'          family = gaussian_ls())
 #' ```
 #'
-#' So the same covariate may have a coefficient on more than one parameter --
+#' So the same covariate may have a coefficient on more than one parameter:
 #' \eqn{z} shifting the mean and widening the spread are different questions, and
 #' both are answered at once. [coef()] returns one column per coefficient, named
 #' for its forest.
@@ -177,32 +185,49 @@
 #' `(1 | g)` reaches every control function and no coefficient, since a
 #' group-varying coefficient is a random slope. And `center = "estimate"` is
 #' judged per parameter: the drawn coding needs a leaf target that is quadratic
-#' in the predictor it feeds, which `location_scale()` is in the mean and is not
+#' in the predictor it feeds, which `gaussian_ls()` is in the mean and is not
 #' in the log standard deviation, so the same request is accepted on one and
 #' refused on the other.
 #'
-#' `multinomial()` and `mnp()` are the exception and refuse `vc()`. Their forests
+#' The two multinomial families are the exception and refuse `vc()`. Their forests
 #' are the levels of one parameter rather than separate parameters, identified
 #' only up to a function they all share, and reporting removes it; a coefficient
 #' forest per level would add one such direction per coefficient and the
 #' reporting does not carry them.
 #'
-#' @seealso [bartisan()] for the formula interface, [bcf()] for the causal case,
-#'   [coef.bartisan_fit()] for reading the coefficients out, and
-#'   [bartisan-families] for the order the forests come in.
+#' @seealso
+#' * [bartisan()] for the formula interface
+#' * [bcf()] for the causal case, which is this term with the priors and the
+#'   propensity score set up for it
+#' * [coef.bartisan_fit()] for reading the coefficients out
+#' * [bartisan-families] for the order the forests come in
+#'
+#' @references
+#' Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian regression tree
+#' models for causal inference: regularization, confounding, and heterogeneous
+#' effects. *Bayesian Analysis*, 15(3), 965--1056. \doi{10.1214/19-BA1195}
 #'
 #' @examples
-#' # The coefficient of `z` varies with `x1` and `x2`.
-#' y ~ x1 + x2 + vc(z)
+#' data("rhc")
 #'
-#' # ... and with `x1` alone.
-#' y ~ x1 + x2 + vc(z, ~ x1)
+#' set.seed(123)
 #'
-#' # The effect of `z` varies across `z` itself, so the dose response is a
-#' # curve rather than a line. `z` appears only inside `vc()`: writing it in the
-#' # fixed part as well would leave the control function and the coefficient
-#' # unidentified, which is a warning rather than a refusal.
-#' y ~ x1 + vc(z, ~ z + x1)
+#' # The effect of right heart catheterization on death, free to vary with
+#' # every other covariate. `rhc` reaches the fixed part through `.`, so it is
+#' # dropped from the control function, which is what keeps the two identified
+#' fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
+#'                 family = binomial(), num_trees = 10, num_burn = 50,
+#'                 num_draws = 50)
+#'
+#' # One coefficient per patient, which is what a coefficient function comes to
+#' head(coef(fit))
+#'
+#' # The same effect, free to vary with severity of illness alone
+#' fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
+#'                  family = binomial(), num_trees = 10, num_burn = 50,
+#'                  num_draws = 50)
+#'
+#' head(coef(fit2))
 #'
 #' @export
 vc <- function(x, modifiers = NULL, center = "auto") {
@@ -581,7 +606,7 @@ vc_basis_estimated <- function(x, spec, levels) {
 
 # A factor gets one forest per level, symmetrically, the way `multinomial()`
 # codes its predictors -- not K-1 contrasts against a reference level, which
-# would shrink every level towards whichever one sorted first and give that one a
+# would shrink every level toward whichever one sorted first and give that one a
 # different prior from the rest.
 #
 # The coding is over-parameterized by exactly one function. Mean-centered, the
@@ -704,7 +729,7 @@ vc_forest_labels <- function(parameter, specs, parts, drop_parameter) {
 # centering to rebuild the basis for new data.
 #
 # The forest space is two-dimensional. One axis is the family's additive
-# predictor -- the mean and the log standard deviation of `location_scale()`, the
+# predictor -- the mean and the log standard deviation of `gaussian_ls()`, the
 # count and the zero part of `zi_poisson()` -- and the other is the coefficient.
 # A parameter whose formula has no `vc()` term keeps its single forest; one with
 # J of them gets 1 + J, its control function first. So the forests run parameter
@@ -734,7 +759,8 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
                 n_slope = integer(n_param),
                 param = c(seq_len(n_param), aux),
                 column = integer(n_param + n_aux),
-                masks = masks, groups = groups))
+                masks = masks, pinned = !apply(masks, 2L, any),
+                groups = groups))
   }
 
   missing_from_frame <- setdiff(
@@ -810,11 +836,13 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
                  matrix(TRUE, nrow = length(groups), ncol = n_aux))
   rownames(masks) <- groups
 
-  empty <- !apply(masks, 2L, any)
-
-  if (any(empty)) {
-    arg::err("{sum(empty)} of the model's forests {?has/have} no predictor left to split on")
-  }
+  # A forest whose formula names no predictor (`~ 1`) is intercept-only: every
+  # tree in it is a stump, so the forest is one drawn scalar. That is a
+  # statement that the parameter is constant, which is a model a caller can
+  # mean, so it is carried through rather than refused. The engine already has
+  # the mechanism, since a branching probability of zero is how a nuisance
+  # parameter's forest is pinned; `bartisan()` sets it from this.
+  pinned <- !apply(masks, 2L, any)
 
   # The forests parameter by parameter, each one's control function first. An
   # aux forest -- a custom family's pinned nuisance parameter -- is not an
@@ -834,7 +862,7 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
        parts = unlist(lapply(per, `[[`, "parts"), recursive = FALSE),
        slopes = sum(n_slope), n_slope = n_slope,
        param = c(param, aux), column = c(column, integer(n_aux)),
-       masks = masks, groups = groups)
+       masks = masks, pinned = pinned, groups = groups)
 }
 
 # The basis for new data, under the centering the fit was built with.

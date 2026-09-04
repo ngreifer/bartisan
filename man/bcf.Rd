@@ -18,70 +18,87 @@ bcf(
 \arguments{
 \item{formula}{a model formula. The right-hand side lists the covariates; the
 treatment is named in \code{treatment} rather than here, and is removed from the
-covariates if it appears among them.}
+covariates if it appears among them, so \code{y ~ .} is usually the right
+specification.}
 
-\item{treatment}{a one-sided formula naming the treatment, as in \code{~ z}.}
+\item{treatment}{a one-sided formula naming the treatment, as in \code{~ z}. The
+treatment may be binary, categorical, or continuous, and which it is decides
+what the propensity score is and how it is modeled; see Details.}
 
-\item{data}{a data frame.}
+\item{data}{a data frame containing the variables named in \code{formula}.}
 
-\item{family}{the outcome distribution, as in \code{\link[=bartisan]{bartisan()}}.}
+\item{family}{the response distribution, given as a \link[stats:family]{stats::family} object,
+as one of the families in \link{bartisan-families}, or as the name of either.
+Ordinary \code{family} objects are used unchanged, including their links, and a
+link the package does not compile is composed onto the scale its family
+works on. Default is \code{NULL}, in which case the family is read off the
+response and a message reports the choice; see Details for the rules.}
 
 \item{moderators}{a one-sided formula naming the covariates the treatment
-effect may vary with. The default, \code{NULL}, is all of them.}
+effect may vary with. Default is \code{NULL} to let the effect vary with every
+covariate.}
 
-\item{propensity}{what to do about the probability of treatment. \code{TRUE}, the
-default, fits a model for it and adds the fitted values to the \strong{control
-function only}; \code{FALSE} fits nothing; a numeric vector or matrix is used as
-given; a one-sided formula fits it with that model rather than the outcome's
-covariates.}
+\item{propensity}{what to do about the probability of treatment, given as
+either a logical value, a numeric vector or matrix, or a one-sided formula.
+Default is \code{TRUE} to fit a model for it and add the fitted values to the
+\strong{control function only}. \code{FALSE} fits nothing; a numeric vector or matrix
+is used as given; and a one-sided formula fits it with the predictors that
+formula names rather than with the outcome's covariates. Note that a
+continuous treatment has no propensity score that is a probability, so
+\code{TRUE} is refused for one; see Details.}
 
 \item{propensity_args}{a list of \code{\link[=bartisan_control]{bartisan_control()}} settings for the
 propensity model, which is a prediction problem and so keeps the sparsity
-prior the outcome model turns off.}
+prior the outcome model turns off. Default is \code{list()} to leave every
+setting at its own default.}
 
 \item{...}{passed to \code{\link[=bartisan]{bartisan()}}, including \code{\link[=bartisan_control]{bartisan_control()}} settings.}
 }
 \value{
-A \code{bartisan_fit}, with the treatment's coefficient forest named for the
-treatment. \code{\link[=coef]{coef()}} gives the conditional effect for each observation and
-\code{marginaleffects::avg_comparisons()} the average.
+A \verb{<bartisan_fit>} object, as \code{\link[=bartisan]{bartisan()}} returns, with the treatment's
+coefficient forest named for the treatment. \code{\link[=coef]{coef()}} gives the conditional
+effect for each observation and \pkgfun{marginaleffects}{avg_comparisons} the
+average; see \link{bartisan-marginaleffects}.
 }
 \description{
-A varying-coefficient model set up for estimating a treatment effect: a
+Fits a varying-coefficient model set up for estimating a treatment effect: a
 control function for the outcome under no treatment and a separate forest for
 the effect, with the prior on the effect regularized more heavily than the
 prior on the control function. This is Hahn, Murray and Carvalho (2020) for a
 binary treatment and Woody, Carvalho, Hahn and Murray (2020) for a continuous
 one.
 }
-\section{What the wrapper decides}{
-Four things, all of which can be written out in \code{\link[=bartisan]{bartisan()}} directly:
-\itemize{
-\item The treatment gets a \code{vc()} term, so the effect is a forest of its own with
-its own prior rather than whatever difference a single forest with the
-treatment among its predictors happens to produce.
-\item The propensity score goes in the control function and \strong{not} in the effect
-forest. That is Hahn et al.'s recommendation and the flag \code{bcf}, \code{stochtree}
-and this package all provide; the point is to let the control function
-absorb the selection without letting the effect vary with it.
-\item The effect forest gets fewer trees than the control function, since patterns
-of effect heterogeneity are usually simpler than prognostic surfaces.
-\item A \strong{binary} treatment has its coding drawn rather than fixed, which is
+\details{
+\subsection{What the Wrapper Decides}{
+
+Five things, all of which can be written out in \code{\link[=bartisan]{bartisan()}} directly.
+
+\strong{The treatment gets a \code{vc()} term}, so the effect is a forest of its own
+with its own prior rather than whatever difference a single forest with the
+treatment among its predictors happens to produce. \strong{The propensity score goes
+in the control function and not in the effect forest}, which is Hahn et al.'s
+recommendation and the flag \pkg{bcf}, \pkg{stochtree} and this package all
+provide; the point is to let the control function absorb the selection without
+letting the effect vary with it. \strong{The effect forest gets fewer trees than the
+control function}, since patterns of effect heterogeneity are usually simpler
+than prognostic surfaces.
+
+\strong{A binary treatment has its coding drawn rather than fixed}, which is
 \code{center = "estimate"} in \code{\link[=vc]{vc()}} and the parameter expansion of Hahn et al.'s
-section 5.3. At two levels it restricts nothing and costs nothing in
-recovery, and it removes the dependence on which level was written as 1. A
-treatment with more levels keeps the symmetric per-level coding, because
-there the drawn coding gives every contrast one shared shape; \code{?vc} has the
-numbers on both.
-\item \code{sparsity = FALSE} on the outcome model. A variable-selection prior on the
-variable whose contrast is the estimand puts a point mass at exactly zero in
-the posterior of the effect; see the measurements in \code{\link[=bartisan_control]{bartisan_control()}}.
-The propensity model keeps the default, because predicting who was treated
-is a prediction problem.
-}
+section 5.3. At two levels it restricts nothing and costs nothing in recovery,
+and it removes the dependence on which level was written as 1. A treatment
+with more levels keeps the symmetric per-level coding, because there the drawn
+coding gives every contrast one shared shape; \code{?vc} has the numbers on both.
+
+\strong{The outcome model is fitted with \code{sparsity = FALSE}.} A variable-selection
+prior on the variable whose contrast is the estimand puts a point mass at
+exactly zero in the posterior of the effect; see the measurements in
+\code{\link[=bartisan_control]{bartisan_control()}}. The propensity model keeps the default, because
+predicting who was treated is a prediction problem.
 }
 
-\section{The treatment's type}{
+\subsection{The Treatment's Type}{
+
 The treatment decides the model for the propensity score and what that score
 even is.\tabular{lll}{
    treatment \tab propensity score \tab model \cr
@@ -103,17 +120,20 @@ Imbens, 2004), which needs a density model rather than a regression, so
 given.
 }
 
-\section{The assumption a continuous treatment carries}{
+\subsection{The Assumption a Continuous Treatment Carries}{
+
 With a continuous treatment this fits \code{f0(x) + z * f1(x)}: a dose response
 that is \strong{linear in the dose}, with a slope that varies. For a binary
 treatment that is no assumption at all. For a continuous one it is a real one,
 and it is the assumption Woody et al. (2020) make and diagnose. If the dose
 response itself might be curved, either put the treatment in as an ordinary
-predictor or give \code{f1} the treatment among its moderators, which makes the
-effect vary across the dose; see \code{\link[=vc]{vc()}}.
+predictor or give \code{f1} the treatment among its moderators (i.e., write the
+term as \code{vc(z, ~ z + ...)} in \code{\link[=bartisan]{bartisan()}} directly), which makes the effect
+vary across the dose; see \code{\link[=vc]{vc()}}.
 }
 
-\section{Predicting for new data}{
+\subsection{Predicting for New Data}{
+
 The propensity score is a predictor of the control function, and it is one the
 caller never named, so \code{newdata} taken from their own frame does not carry it.
 \code{predict()} rebuilds it from the model this kept, which is what makes that
@@ -123,30 +143,47 @@ One consequence is worth knowing. A predictor goes through the quantile
 transform, which is a step function, so a score that rebuilds to within 1e-11
 can still land on the other side of a step: predictions for the \emph{training}
 data come back to within a few percent of the response's spread rather than
-exactly. Passing the stored score in \code{newdata} -- it is in
-\code{fit$bcf$propensity} -- removes the reconstruction and reproduces the fit to
+exactly. Passing the stored score in \code{newdata} (it is in
+\code{fit$bcf$propensity}) removes the reconstruction and reproduces the fit to
 machine precision. Supplying \code{propensity} as a number rather than fitting it
 has the same effect, and then \code{newdata} must carry the column.
 }
-
+}
 \examples{
-set.seed(1)
-n <- 300
-d <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
-d$z <- rbinom(n, 1, plogis(d$x1))
-d$y <- d$x1 + d$z * (1 + d$x2) + rnorm(n)
+data("rhc")
 
-fit <- bcf(y ~ x1 + x2, treatment = ~ z, data = d, family = gaussian(),
-           num_trees = c(10, 5), num_burn = 50, num_draws = 50,
-           verbose = FALSE)
+set.seed(123)
 
+# The effect of right heart catheterization on death, free to vary with
+# every covariate, with the propensity score entering the control function
+# alone
+fit <- bcf(death ~ . - days, treatment = ~ rhc, data = rhc,
+           family = binomial(), num_trees = c(10, 5), num_burn = 50,
+           num_draws = 50,
+           propensity_args = list(num_trees = 10, num_burn = 50,
+                                  num_draws = 50))
+
+# One conditional effect per patient, which is what the effect forest comes
+# to at each observation
 head(coef(fit))
+
+# The average effect over the sample
+if (rlang::is_installed("marginaleffects")) {
+  marginaleffects::avg_comparisons(fit, variables = "rhc")
+}
 
 }
 \references{
 Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian regression tree
 models for causal inference: regularization, confounding, and heterogeneous
 effects. \emph{Bayesian Analysis}, 15(3), 965--1056. \doi{10.1214/19-BA1195}
+
+Imai, K., & van Dyk, D. A. (2004). Causal inference with general treatment
+regimes: generalizing the propensity score. \emph{Journal of the American
+Statistical Association}, 99(467), 854--866.
+
+Imbens, G. W. (2000). The role of the propensity score in estimating
+dose-response functions. \emph{Biometrika}, 87(3), 706--710.
 
 Woody, S., Carvalho, C. M., Hahn, P. R., & Murray, J. S. (2020). Estimating
 heterogeneous effects of continuous exposures using Bayesian tree ensembles.

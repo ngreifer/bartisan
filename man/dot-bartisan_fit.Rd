@@ -23,20 +23,21 @@
 )
 }
 \arguments{
-\item{X}{design matrix with entries in \verb{[0, 1]}, possibly with \code{NA}.}
+\item{X}{a design matrix with entries in \verb{[0, 1]}, possibly with \code{NA}.}
 
-\item{has_na}{indicator per column of \code{X} of whether it contains a missing
-value. A rule on a column with none is not given a missing-value branch, so
-complete data reproduces the sampler exactly as it was.}
+\item{has_na}{\code{logical}; one entry per column of \code{X} saying whether that
+column contains a missing value. A rule on a column with none is not given
+a missing-value branch, so complete data reproduces the sampler exactly as
+it was.}
 
-\item{y}{response, coerced by the calling family.}
+\item{y}{the response, coerced by the calling family.}
 
-\item{weights}{prior weights.}
+\item{weights}{\code{numeric}; the prior weights.}
 
 \item{offset}{an \code{H} by \code{N} matrix of fixed contributions to the additive
 predictors.}
 
-\item{group_probs}{sparse matrix whose columns are predictor groups.}
+\item{group_probs}{a sparse matrix whose columns are predictor groups.}
 
 \item{family_name, link, family_opts}{the family specification.}
 

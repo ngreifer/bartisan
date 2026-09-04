@@ -134,9 +134,21 @@ test_that("multi-predictor families are correct in each component", {
 
   second <- matrix(stats::rnorm(n_grid) * 0.4, nrow = 1L)
 
-  expect_score_matches_difference("location_scale", "identity",
+  expect_score_matches_difference("gaussian_ls", "identity",
                                   stats::rnorm(n_grid), list(grid, second),
                                   component = 0L, check_info = TRUE)
+  # The gamma location-scale reports the observed curvature in the mean, as
+  # `Gamma("log")` does, and the *expected* information in the log dispersion,
+  # where the observed one can go negative away from the mode. So the score is
+  # checked in both components and the information only in the first.
+  expect_score_matches_difference("Gamma_ls", "log",
+                                  stats::rgamma(n_grid, shape = 2, rate = 1),
+                                  list(grid, second),
+                                  component = 0L, check_info = TRUE)
+  expect_score_matches_difference("Gamma_ls", "log",
+                                  stats::rgamma(n_grid, shape = 2, rate = 1),
+                                  list(grid, second),
+                                  component = 1L)
   # Both parameterizations. Reference coding carries num_cat - 1 predictors and
   # the symmetric coding one per category, so the same two-column eta describes
   # a three-category response under the first and a two-category one under the

@@ -7,18 +7,19 @@
 #' assumes the design matrix has already been mapped to the unit interval and
 #' the response already coerced to the form the requested family expects.
 #'
-#' @param X design matrix with entries in `[0, 1]`, possibly with `NA`.
-#' @param has_na indicator per column of `X` of whether it contains a missing
-#'   value. A rule on a column with none is not given a missing-value branch, so
-#'   complete data reproduces the sampler exactly as it was.
-#' @param y response, coerced by the calling family.
-#' @param weights prior weights.
+#' @param X a design matrix with entries in `[0, 1]`, possibly with `NA`.
+#' @param has_na `logical`; one entry per column of `X` saying whether that
+#'   column contains a missing value. A rule on a column with none is not given
+#'   a missing-value branch, so complete data reproduces the sampler exactly as
+#'   it was.
+#' @param y the response, coerced by the calling family.
+#' @param weights `numeric`; the prior weights.
 #' @param offset an `H` by `N` matrix of fixed contributions to the additive
 #'   predictors.
-#' @param group_probs sparse matrix whose columns are predictor groups.
+#' @param group_probs a sparse matrix whose columns are predictor groups.
 #' @param family_name,link,family_opts the family specification.
 #' @param control a list of sampler and prior settings.
-#' @return A list of posterior draws and the encoded forests.
+#' @returns A list of posterior draws and the encoded forests.
 #' @keywords internal
 .bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis) {
     .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis)
@@ -26,15 +27,17 @@
 
 #' Evaluate stored forests at new data
 #'
-#' @param X design matrix with entries in `[0, 1]`.
+#' @param X a design matrix with entries in `[0, 1]`.
 #' @param forest_flat,tree_start the encoded forests returned by
 #'   `.bartisan_fit()`.
 #' @param bandwidth a matrix of per-tree bandwidths.
-#' @param num_forest,num_trees,num_draws dimensions of the stored chain.
-#' @param soft whether the decision rules are soft.
-#' @param gate which gate the soft rules use; see `GateShape` in `node.h`.
-#' @param iterations the zero-based saved iterations to evaluate.
-#' @return A list of `num_forest` matrices of additive predictors.
+#' @param num_forest,num_trees,num_draws `integer`; the dimensions of the
+#'   stored chain.
+#' @param soft `logical`; whether the decision rules are soft.
+#' @param gate `integer`; which gate the soft rules use; see `GateShape` in
+#'   `node.h`.
+#' @param iterations `integer`; the zero-based saved iterations to evaluate.
+#' @returns A list of `num_forest` matrices of additive predictors.
 #' @keywords internal
 .bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes) {
     .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes)
@@ -49,12 +52,12 @@
 #' and a survival probability for a censored survival time.
 #'
 #' @param y the outcome, coerced as the family expects.
-#' @param weights prior weights.
+#' @param weights `numeric`; the prior weights.
 #' @param eta_draws a list of `H` matrices of draws by observations.
 #' @param family_name,link,family_opts the family specification.
 #' @param aux a matrix of draws by nuisance parameters, with zero columns when
 #'   the family has none.
-#' @return A matrix of draws by observations.
+#' @returns A matrix of draws by observations.
 #' @keywords internal
 .bartisan_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux) {
     .Call(`_bartisan_bartisan_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux)
@@ -72,8 +75,9 @@
 #'   variable.
 #' @param sigma a matrix of draws by the lower triangle of the covariance
 #'   matrix, column-major within a row, as `aux` stores it.
-#' @param replicates simulation replicates per draw and observation.
-#' @return An array of draws by observations by categories.
+#' @param replicates `integer`; the number of simulation replicates per draw
+#'   and observation.
+#' @returns An array of draws by observations by categories.
 #' @keywords internal
 .bartisan_mnp_probs <- function(eta_draws, sigma, replicates) {
     .Call(`_bartisan_bartisan_mnp_probs`, eta_draws, sigma, replicates)
@@ -86,22 +90,25 @@
 #'
 #' @param y,weights,eta_draws,family_name,link,family_opts,aux as for
 #'   `.bartisan_logdens()`.
-#' @param component which additive predictor to differentiate with respect to.
-#' @param by_difference use central differences instead of the analytic form.
-#' @param blocked evaluate a whole draw at once through the family's block
-#'   methods rather than one observation at a time. The two paths should agree;
-#'   they differ for a family whose per-observation route falls back on
-#'   differences while its block route does not.
-#' @return A list with matrices `d1` and `info`, draws by observations.
+#' @param component `integer`; which additive predictor to differentiate with
+#'   respect to.
+#' @param by_difference `logical`; whether to use central differences rather
+#'   than the analytic form.
+#' @param blocked `logical`; whether to evaluate a whole draw at once through
+#'   the family's block methods rather than one observation at a time. Default
+#'   is `FALSE`. The two paths should agree; they differ for a family whose
+#'   per-observation route falls back on differences while its block route does
+#'   not.
+#' @returns A list with matrices `d1` and `info`, draws by observations.
 #' @keywords internal
 .bartisan_derivs <- function(y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked = FALSE) {
     .Call(`_bartisan_bartisan_derivs`, y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked)
 }
 
 #' Polya-Gamma draws, for checking the sampler
-#' @param n number of draws.
-#' @param b,c parameters of the distribution.
-#' @return A numeric vector of draws.
+#' @param n `integer`; the number of draws.
+#' @param b,c `numeric`; the parameters of the distribution.
+#' @returns A numeric vector of draws.
 #' @keywords internal
 .bartisan_rpg <- function(n, b, c) {
     .Call(`_bartisan_bartisan_rpg`, n, b, c)
@@ -116,10 +123,10 @@
 #' Compilers define `__OPTIMIZE__` when they are optimizing, so this is exact
 #' rather than a guess. It exists because an unoptimized build of this package
 #' is between five and twenty times slower, and nothing else about it looks
-#' wrong -- which makes it very easy to spend a long time drawing conclusions
+#' wrong, which makes it very easy to spend a long time drawing conclusions
 #' from the wrong numbers.
 #'
-#' @return `TRUE` if the library was optimized.
+#' @returns `TRUE` if the library was optimized.
 #' @keywords internal
 .bartisan_optimized <- function() {
     .Call(`_bartisan_bartisan_optimized`)

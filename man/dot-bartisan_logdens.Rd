@@ -9,7 +9,7 @@
 \arguments{
 \item{y}{the outcome, coerced as the family expects.}
 
-\item{weights}{prior weights.}
+\item{weights}{\code{numeric}; the prior weights.}
 
 \item{eta_draws}{a list of \code{H} matrices of draws by observations.}
 

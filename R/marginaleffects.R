@@ -1,13 +1,50 @@
 #' Counterfactual estimands with marginaleffects
 #'
 #' @description
-#' A `bartisan` fit works with the \pkg{marginaleffects} package, so that
-#' predictions, comparisons and slopes -- and hypothesis tests on any of them --
-#' can be computed without extracting draws by hand. Load \pkg{marginaleffects}
-#' and call its functions on the fit directly; there is nothing to set up.
+#' Methods that let a `<bartisan_fit>` object be used by the
+#' \pkg{marginaleffects} package, which computes predictions, comparisons and
+#' slopes (and hypothesis tests on any of them) from the posterior draws. There
+#' is nothing to set up: load \pkg{marginaleffects} and call its functions on
+#' the fit.
+#'
+#' @param model,x,object,formula a `<bartisan_fit>` object; the output of a call
+#'   to [bartisan()]. The last is named `formula` only because
+#'   [stats::model.frame()] names its first argument that way.
+#' @param newdata optional; a data frame at which to evaluate the fit. Default
+#'   is `NULL` to use the data the model was fitted to, which is retained in the
+#'   fit for this purpose.
+#' @param type string; the scale to work on. Allowable options include
+#'   `"response"` (the default), `"link"`, `"prob"`, `"mean"`, `"stdlv"`, and
+#'   `"survival"`. `"response"` is the fitted mean, `"link"` the additive
+#'   predictor, `"prob"` the per-category probabilities of a categorical family,
+#'   `"mean"` the mean of a categorical response with its labels read as
+#'   numbers, `"stdlv"` the standardized latent variable of an ordinal fit, and
+#'   `"survival"` the survival function at the times given in `times`; all but
+#'   the first two are described under [predict.bartisan_fit()]. An `ordinal()`
+#'   or `multinomial()` response has no single mean, so `"response"` gives
+#'   `"prob"` for those families, while a binomial fit reports the probability
+#'   of its second level, as [stats::glm()] does, and `"prob"` is what asks for
+#'   both of its columns. `"probs"`, `"lp"`, `"lv"` and `"surv"` are accepted as
+#'   aliases for `"prob"`, `"link"`, `"link"` and `"survival"`, since those are
+#'   the names the same quantities go by for other ordinal fits in
+#'   \pkg{marginaleffects}.
+#' @param coefs ignored; a forest has no coefficient vector.
+#' @param ... further arguments. `values`, `iterations`, `offset`, `weights`,
+#'   `log` and `times` are passed on to [predict.bartisan_fit()]; anything else
+#'   is ignored, since \pkg{marginaleffects} puts arguments of its own here too.
+#'   Note that \pkg{marginaleffects} warns that it does not recognize `values`,
+#'   which is expected (it is this package's argument, not one of its own), and
+#'   the value is used regardless.
+#'
+#' @returns
+#' `get_predict()` returns a data frame with columns `rowid`, `group` and
+#' `estimate`, carrying the draws in a `"posterior_draws"` attribute of
+#' observations by draws, which is the interface \pkg{marginaleffects}
+#' documents. The other methods exist to satisfy the generic and return what
+#' their names suggest.
 #'
 #' @details
-#' # How the uncertainty is computed
+#' ## How the Uncertainty Is Computed
 #'
 #' A forest has no coefficient vector and no variance-covariance matrix, so the
 #' delta method \pkg{marginaleffects} uses for a frequentist model has nothing
@@ -23,7 +60,7 @@
 #' summarizing the same draws, so a difference between them is the skewness of
 #' the posterior and not a disagreement.
 #'
-#' # A contrast of exactly zero is usually real
+#' ## A Contrast of Exactly Zero Is Usually Real
 #'
 #' `avg_comparisons()` reporting an estimate of exactly `0` is the most common
 #' surprise here, and it is neither package computing anything wrong. Two facts
@@ -34,7 +71,7 @@
 #' depend on that variable at all, so the two counterfactual predictions are
 #' identical to the last bit and their difference is exactly zero. That is not a
 #' near-zero value that rounding flattered; it is a point mass. The Dirichlet
-#' sparsity prior on the splitting proportions, `update_s` in
+#' sparsity prior on the splitting proportions, `sparsity` in
 #' [bartisan_control()], is what makes those draws common: it is a variable
 #' selection prior, and dropping a weak predictor from every tree is what it is
 #' for.
@@ -46,47 +83,45 @@
 #' contrast came out exactly zero in 65%, which put the median at 0 while the
 #' posterior mean was 197 and the upper limit was above 2000.
 #'
-#' Four things to do about it, in the order worth trying:
+#' Four things are worth doing about it, in the order given.
 #'
-#' \enumerate{
-#'   \item **Look at the inclusion probability**, which is what the zero is
-#'     telling you. `summary(fit)` reports it as `prop_used`: the posterior
-#'     probability that each predictor group appears anywhere in the forest. A
-#'     contrast whose median is zero is a predictor the model is not sure
-#'     belongs.
-#'   \item **Ask for the mean instead**, with
-#'     `options(marginaleffects_posterior_center = mean)`. The mean is the
-#'     summary [predict.bartisan_fit()] reports, and it is the one that behaves
-#'     sensibly against an atom.
-#'   \item **Reconsider the sparsity prior** if variable selection is not what
-#'     you want from the fit. `sparsity = FALSE` in [bartisan_control()] removes
-#'     the atom almost entirely: on the example above it fell from 20% of draws
-#'     to none by 50 trees. A larger `num_trees` does *not* remove it, which is
-#'     worth knowing because it looks as though it should -- with the prior on,
-#'     the contrast was exactly zero in 20% of draws at 50 trees and 18% at 200.
-#'     Turning the prior off is a modeling choice rather than a fix, so make it
-#'     for a reason: it is the right one when a contrast on a particular
-#'     predictor is the estimand, and the wrong one when there are many
-#'     predictors and most are irrelevant.
-#'   \item **Run several chains and compare them.** The variable selection state
-#'     mixes slowly, because a predictor whose splitting proportion has gone
-#'     small is rarely proposed and so is hard to get back in. On the example
-#'     above, four chains disagreed by more than 100% of the estimate at every
-#'     tree count from 20 to 200 with the prior on; with `sparsity = FALSE` and
-#'     50 trees they agreed to within 9%. A single chain can look much more
-#'     settled than the posterior is.
-#' }
+#' **Look at the inclusion probability**, which is what the zero reports.
+#' `summary()` gives it as `prop_used`: the posterior probability that each
+#' predictor group appears anywhere in the forest. A contrast whose median is
+#' zero is a predictor the model is not sure belongs.
 #'
-#' # Slopes need a linear predictor transform
+#' **Ask for the mean instead**, with
+#' `options(marginaleffects_posterior_center = mean)`. The mean is the summary
+#' [predict.bartisan_fit()] reports, and it is the one that behaves sensibly
+#' against an atom.
+#'
+#' **Reconsider the sparsity prior** when variable selection is not what the fit
+#' is for. `sparsity = FALSE` in [bartisan_control()] removes the atom almost
+#' entirely: on the example above it fell from 20% of draws to none by 50 trees.
+#' A larger `num_trees` does *not* remove it, which is worth stating because it
+#' looks as though it should: with the prior on, the contrast was exactly zero in
+#' 20% of draws at 50 trees and 18% at 200. Turning the prior off is a modeling
+#' choice rather than a fix, so it wants a reason; it is the right one when a
+#' contrast on a particular predictor is the estimand, and the wrong one when
+#' there are many predictors and most are irrelevant.
+#'
+#' **Run several chains and compare them.** The variable selection state mixes
+#' slowly, because a predictor whose splitting proportion has gone small is
+#' rarely proposed and so is hard to get back in. On the example above, four
+#' chains disagreed by more than 100% of the estimate at every tree count from 20
+#' to 200 with the prior on; with `sparsity = FALSE` and 50 trees they agreed to
+#' within 9%. A single chain can look much more settled than the posterior is.
+#'
+#' ## Slopes Need a Linear Predictor Transform
 #'
 #' A slope is a numerical derivative, and taking one requires the fitted function
 #' to be differentiable in the predictor *as the caller supplies it*. The default
 #' `x_transform = "quantile"` maps each predictor through its empirical
 #' distribution function before any rule sees it, and an empirical distribution
-#' function is a step function -- so the fit is a step function of the original
-#' predictor whatever the decision rules are, and its difference quotient grows
-#' without bound as the step shrinks. Measured on a smooth surface where the
-#' average derivative is zero:
+#' function is a step function; the fit is therefore a step function of the
+#' original predictor whatever the decision rules are, and its difference
+#' quotient grows without bound as the step shrinks. Measured on a smooth
+#' surface where the average derivative is zero:
 #'
 #' | step | `x_transform = "quantile"` | `x_transform = "range"` |
 #' |---|---|---|
@@ -94,7 +129,7 @@
 #' | 1e-2 | -0.40 | -0.30 |
 #' | 5e-2 | -0.29 | -0.25 |
 #'
-#' So **use `x_transform = "range"` if slopes are the estimand**, which maps each
+#' So **`x_transform = "range"` is what slopes want**, since it maps each
 #' predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a
 #' piecewise-constant fit under either transform, and a derivative of one is not
 #' a meaningful quantity however it is computed.
@@ -104,32 +139,32 @@
 #' substantive distance apart rather than dividing by a vanishing one. Those are
 #' the estimands to reach for with the default transform.
 #'
-#' # The usual survival estimand
+#' ## The Usual Survival Estimand
 #'
 #' For a survival family, the estimand is usually a contrast in survival at a
 #' horizon rather than in the predictor. `type = "survival"` with `times` gives
 #' it:
 #'
 #' ```r
-#' # The difference in one-year survival between treated and untreated.
+#' # The difference in one-year survival between treated and untreated
 #' avg_comparisons(fit, variables = "trt", type = "survival", times = 1)
 #' ```
 #'
 #' One time per call. \pkg{marginaleffects} checks the dots against a whitelist
 #' of its own, hardcoded per model class, so it warns that it does not recognize
-#' `times` -- while passing it through, which is what the warning says. There is
-#' no hook for registering an argument with it, so the warning is expected and the
+#' `times` while passing it through, which is what the warning says. There is no
+#' hook for registering an argument with it, so the warning is expected and the
 #' result is correct.
 #'
-#' # What is not covered
+#' ## What Is Not Covered
 #'
 #' `type = "class"` and `type = "density"` are not available, because
 #' neither is one number per observation that an average or a contrast could be
 #' taken of: a class is a factor, and a density needs the outcome, which a
-#' counterfactual grid does not have. Call [predict.bartisan_fit()] for those.
+#' counterfactual grid does not have. [predict.bartisan_fit()] computes those.
 #'
 #' `type = "link"` is refused for a family with more than one additive predictor
-#' -- `location_scale()`, the zero-inflated families, `multinomial()` -- because
+#' (`gaussian_ls()`, the zero-inflated families, `multinomial()`), because
 #' there is no single link there to be talking about. Those families work on the
 #' response scale, which is one number per observation whatever the family, and
 #' `multinomial()` and `ordinal()` work on the probability scale, which gives one
@@ -141,45 +176,34 @@
 #' that steps a predictor beyond that range reports the boundary value rather
 #' than an extrapolated one.
 #'
-#' @param model,x,object,formula a fitted `bartisan` object. The last is named
-#'   that only because [stats::model.frame()] names its first argument that way.
-#' @param newdata data at which to evaluate the fit. Defaults to the data the
-#'   model was fitted to, which is retained in the fit for this purpose.
-#' @param type the scale to work on. `"response"` is the fitted mean, `"link"`
-#'   the additive predictor, `"prob"` the per-category probabilities of a
-#'   categorical family, `"mean"` the mean of a categorical response with its
-#'   labels read as numbers, and `"stdlv"` the standardized latent variable of an
-#'   ordinal fit; the last three are described under [predict.bartisan_fit()]. A
-#'   categorical family has no mean, so `"response"` gives `"prob"` there.
-#'   `"probs"`, `"lp"` and `"lv"` are accepted as aliases for `"prob"`, `"link"`
-#'   and `"link"`, since those are the names the same quantities go by for other
-#'   ordinal fits in \pkg{marginaleffects}.
-#' @param coefs ignored; a forest has no coefficient vector.
-#' @param ... further arguments. `values`, `iterations`, `offset`, `weights` and
-#'   `log` are passed on to [predict.bartisan_fit()]; anything else is ignored, since
-#'   \pkg{marginaleffects} puts arguments of its own here too. \pkg{marginaleffects}
-#'   warns that it does not recognize `values`, which is expected -- it is this
-#'   package's argument, not one of its own -- and the value is used regardless.
-#'
-#' @returns
-#' `get_predict()` returns a data frame with columns `rowid`, `group` and
-#' `estimate`, carrying the draws in a `"posterior_draws"` attribute of
-#' observations by draws, which is the interface \pkg{marginaleffects}
-#' documents. The other methods exist to satisfy the generic and return what
-#' their names suggest.
+#' @seealso
+#' [predict.bartisan_fit()] for the prediction scales these estimands are
+#' computed on; [bartisan_control()] for `sparsity` and `x_transform`;
+#' [bartisan-interop] for the methods that let other packages assess the fit
 #'
 #' @examplesIf rlang::is_installed("marginaleffects")
-#' set.seed(1)
-#' n <- 200
-#' d <- data.frame(x1 = runif(n), x2 = runif(n))
-#' d$y <- 2 * sin(pi * d$x1) - d$x2 + rnorm(n)
+#' data("rhc")
+#' set.seed(123)
 #'
-#' fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
-#'                control = bartisan_control(num_trees = 10, num_burn = 50,
-#'                                          num_draws = 50))
+#' # Whether a patient died, with every other variable a candidate predictor.
+#' # The sparsity prior is turned off because a contrast on one predictor is
+#' # the estimand rather than variable selection
+#' fit <- bartisan(death ~ . - days, data = rhc, sparsity = FALSE,
+#'                 num_trees = 10, num_burn = 50, num_draws = 50)
 #'
-#' marginaleffects::avg_predictions(fit)
-#' marginaleffects::avg_comparisons(fit)
+#' # The effect of catheterization on the probability of death, as an average
+#' # contrast of counterfactual predictions
+#' marginaleffects::avg_comparisons(fit, variables = "rhc")
+#'
+#' # The same contrast within each sex, and a test that the two are equal
+#' marginaleffects::avg_comparisons(fit, variables = "rhc", by = "sex",
+#'                                  hypothesis = ~pairwise)
+#'
+#' # Centering each posterior at its mean rather than its median, which is the
+#' # summary `predict()` reports
+#' op <- options(marginaleffects_posterior_center = mean)
+#' marginaleffects::avg_comparisons(fit, variables = "rhc")
+#' options(op)
 #'
 #' @name bartisan-marginaleffects
 #' @importFrom stats family formula terms model.frame nobs

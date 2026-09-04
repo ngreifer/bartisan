@@ -13,7 +13,8 @@ variable.}
 \item{sigma}{a matrix of draws by the lower triangle of the covariance
 matrix, column-major within a row, as \code{aux} stores it.}
 
-\item{replicates}{simulation replicates per draw and observation.}
+\item{replicates}{\code{integer}; the number of simulation replicates per draw
+and observation.}
 }
 \value{
 An array of draws by observations by categories.

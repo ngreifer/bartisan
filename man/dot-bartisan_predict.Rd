@@ -19,20 +19,22 @@
 )
 }
 \arguments{
-\item{X}{design matrix with entries in \verb{[0, 1]}.}
+\item{X}{a design matrix with entries in \verb{[0, 1]}.}
 
 \item{forest_flat, tree_start}{the encoded forests returned by
 \code{.bartisan_fit()}.}
 
 \item{bandwidth}{a matrix of per-tree bandwidths.}
 
-\item{num_forest, num_trees, num_draws}{dimensions of the stored chain.}
+\item{num_forest, num_trees, num_draws}{\code{integer}; the dimensions of the
+stored chain.}
 
-\item{soft}{whether the decision rules are soft.}
+\item{soft}{\code{logical}; whether the decision rules are soft.}
 
-\item{gate}{which gate the soft rules use; see \code{GateShape} in \code{node.h}.}
+\item{gate}{\code{integer}; which gate the soft rules use; see \code{GateShape} in
+\code{node.h}.}
 
-\item{iterations}{the zero-based saved iterations to evaluate.}
+\item{iterations}{\code{integer}; the zero-based saved iterations to evaluate.}
 }
 \value{
 A list of \code{num_forest} matrices of additive predictors.

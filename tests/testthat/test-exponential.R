@@ -73,7 +73,7 @@ test_that("the exponential shortcut reproduces the general path", {
          # A two-column matrix rather than a Surv object, so that the check does
          # not rest on a suggested package.
          y = cbind(pmin(weibull, 12), as.numeric(weibull <= 12))),
-    list(label = "location-scale, rate -2", family = location_scale(),
+    list(label = "location-scale, rate -2", family = gaussian_ls(),
          y = linear + stats::rnorm(250, sd = exp(-1 + d$x2)), tol = 1e-4),
     # Proportional hazards: the piecewise-exponential likelihood is
     # delta * eta - Lambda_0(y) exp(eta), which is the form at rate +1.
@@ -139,7 +139,7 @@ test_that("the statically dispatched accumulators match the virtual ones", {
          list()),
     list("gaussian hard", gaussian(), linear + stats::rnorm(200, sd = 0.4),
          list(gate = "hard")),
-    list("location-scale", location_scale(),
+    list("location-scale", gaussian_ls(),
          linear + stats::rnorm(200, sd = 0.4), list()),
     list("poisson hard", poisson(), stats::rpois(200, exp(linear)),
          list(gate = "hard")),

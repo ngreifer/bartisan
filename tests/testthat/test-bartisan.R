@@ -16,7 +16,7 @@ test_that("every family fits and returns coherent dimensions", {
                   family = negbin(), h = 1L),
     Gamma = list(y = stats::rgamma(n, 2, rate = 2 / exp(eta)),
                  family = stats::Gamma("log"), h = 1L),
-    location_scale = list(y = eta + stats::rnorm(n), family = location_scale(),
+    gaussian_ls = list(y = eta + stats::rnorm(n), family = gaussian_ls(),
                           h = 2L)
   )
 

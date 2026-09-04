@@ -40,193 +40,209 @@ bartisan_control(
 )
 }
 \arguments{
-\item{num_trees}{number of trees, either one number for every forest or one
-per additive predictor. The default, \code{NULL}, is 50 for both kinds of rule.
-The two do not want the same count -- a soft rule makes each tree more
-expressive, so soft rules reach their best held-out error at about 20 trees
-and get worse past that, while hard rules keep improving to 200 -- but a
-smaller forest mixes worse, which is why 50 is the compromise for both. A
-family with more than one additive predictor takes a vector, which is worth
-using: \code{location_scale()} spends about 90\% of its time on the scale forest,
-and a variance surface needs less capacity than a mean surface, so
-\code{num_trees = c(50, 10)} runs about 2.5 times faster at the same accuracy.
-All of this is measured in Details.}
+\item{num_trees}{\code{numeric}; the number of trees, given either as one number
+for every forest or as one number per additive predictor. Default is \code{NULL},
+which is 50 for both kinds of rule. The two do not want the same count (a
+soft rule makes each tree more expressive, so soft rules reach their best
+held-out error at about 20 trees and get worse past that, while hard rules
+keep improving to 200), but a smaller forest mixes worse, which is why 50 is
+the compromise for both. A family with more than one additive predictor
+takes a vector, which is worth using: \code{gaussian_ls()} spends about 90\% of
+its time on the scale forest, and a variance surface needs less capacity
+than a mean surface, so \code{num_trees = c(50, 10)} runs about 2.5 times faster
+at the same accuracy. All of this is measured in Details.}
 
-\item{gate}{the shape of a decision rule, which is also how hard and soft
-rules are chosen between. \code{"hard"} (or \code{"step"}) gives the step functions of
-standard BART. The other three give soft rules, as in the SoftBart model, in
-which every observation reaches every leaf with some weight and the fitted
-function is smooth: \code{"smoothstep"}, the default, is the Beta(2, 2)
-cumulative distribution function, once differentiable and supported on a
-bounded interval; \code{"smootherstep"} is Beta(3, 3), twice differentiable and
-bounded; \code{"logistic"} is the logistic function of Linero and Yang (2018) and
-is infinitely differentiable. Soft rules cost three to five times as much
-per iteration and cut held-out error by 35 to 40\%, so they are the accuracy
-argument rather than a tax. The two bounded gates are about 1.4 times faster
-than the logistic and equally accurate, and are within noise of each other;
-see Details.}
+\item{gate}{string; the shape of a decision rule, which is also how hard and
+soft rules are chosen between. Allowable options include \code{"smoothstep"} (the
+default), \code{"smootherstep"}, \code{"logistic"}, and \code{"hard"} (or equivalently
+\code{"step"}). \code{"hard"} gives the step functions of standard BART. The other
+three give soft rules, as in the SoftBart model, in which every observation
+reaches every leaf with some weight and the fitted function is smooth:
+\code{"smoothstep"} is the Beta(2, 2) cumulative distribution function, once
+differentiable and supported on a bounded interval; \code{"smootherstep"} is
+Beta(3, 3), twice differentiable and bounded; and \code{"logistic"} is the
+logistic function of Linero and Yang (2018), which is infinitely
+differentiable. Soft rules cost three to five times as much per iteration
+and cut held-out error by 35 to 40\%, so they are the accuracy argument
+rather than a tax. The two bounded gates are about 1.4 times faster than the
+logistic and equally accurate, and are within noise of each other; see
+Details.}
 
-\item{sparsity}{the prior on which predictors get split on. \code{TRUE}, the
-default, is the Dirichlet sparsity prior of Linero (2018) -- DART -- which
-concentrates splits on the predictors that earn them and can drop the rest
-from the forest entirely. \code{FALSE} gives every predictor the same splitting
-probability, which is classic BART. \code{"none"}, \code{"weak"}, \code{"moderate"} and
-\code{"strong"} name four strengths, with \code{"none"} equal to \code{FALSE}, \code{"moderate"}
-equal to \code{TRUE}, and the other two moving the prior on the concentration.
-This argument sets \code{update_s}, \code{update_alpha}, \code{alpha_shape_1} and
-\code{alpha_shape_2} together; supplying any of those directly overrides it. Read
-the trade-off in Details before turning it off or up.}
+\item{sparsity}{the prior on which predictors are split on, given as either a
+logical value or a string. \code{TRUE} (the default) is the Dirichlet sparsity
+prior of Linero (2018) (i.e., DART), which concentrates splits on the
+predictors that earn them and can drop the rest from the forest entirely,
+and \code{FALSE} gives every predictor the same splitting probability, which is
+classic BART. The strings \code{"none"}, \code{"weak"}, \code{"moderate"}, and \code{"strong"}
+name four strengths, with \code{"none"} equal to \code{FALSE}, \code{"moderate"} equal to
+\code{TRUE}, and the other two moving the prior on the concentration. Note that
+this argument sets \code{update_s}, \code{update_alpha}, \code{alpha_shape_1}, and
+\code{alpha_shape_2} together, and that supplying any of those directly overrides
+it. Read the trade-off in Details before turning it off or up.}
 
-\item{split_prior}{relative prior weight on each predictor, for when you
-expect some to matter more than others. A named numeric vector, keyed by the
-names the predictors have in the formula; every predictor not named gets a
-weight of 1. The prior probability of splitting on a predictor is its weight
-divided by the total, so on a three-predictor model
-\code{split_prior = c(x1 = 3, x3 = 0.5)} gives \code{x1} a probability of \code{3 / 4.5},
-\code{x2} \code{1 / 4.5} and \code{x3} \code{0.5 / 4.5}. Weights must be finite and not
-than negative, and naming a predictor the model does not have is an error
-rather than silently ignored. A weight of zero is allowed and means the
-predictor is never split on: it stays in the model frame and out of every
-tree. The default, \code{NULL}, weights every predictor equally.
-Setting this overrides \code{sparsity}; see Details.}
+\item{split_prior}{\code{numeric}; the relative prior weight on each predictor, for
+use when some are expected to matter more than others. This is a named
+vector, keyed by the names the predictors have in the formula, and every
+predictor not named gets a weight of 1. The prior probability of splitting
+on a predictor is its weight divided by the total, so in a three-predictor
+model \code{split_prior = c(x1 = 3, x3 = 0.5)} gives \code{x1} a probability of
+\code{3 / 4.5}, \code{x2} one of \code{1 / 4.5}, and \code{x3} one of \code{0.5 / 4.5}. Weights must
+be finite and nonnegative, and naming a predictor the model does not have is
+an error rather than being silently ignored. A weight of zero is allowed and
+means the predictor is never split on: it stays in the model frame and out
+of every tree. Default is \code{NULL} to weight every predictor equally. Note
+that setting this overrides \code{sparsity}; see Details.}
 
-\item{categorical}{how a splitting rule divides the levels of a factor.
-\code{"subset"}, the default, draws a subset of the levels still available at the
-node and sends those left, which is the rule of Deshpande (2024).
-\code{"onehot"} is what most BART implementations do: it splits on one indicator
-column, which peels a single level off the rest. The choice matters because
-\code{"onehot"} reaches only \code{2^K - K} of the \code{B_K} partitions of \code{K} levels --
-27 of 52 at \code{K = 5}, and 1,014 of 115,975 at \code{K = 10} -- and the partitions
-it can form all have at most one cell with more than one level in it, so the
-bulk of the levels is never divided. See Details.}
+\item{categorical}{string; how a splitting rule divides the levels of a
+factor. Allowable options include \code{"subset"} (the default), which draws a
+subset of the levels still available at the node and sends those left, as in
+Deshpande (2024), and \code{"onehot"}, which is what most BART implementations
+do: it splits on one indicator column, peeling a single level off the rest.
+The choice matters because \code{"onehot"} reaches only \code{2^K - K} of the \code{B_K}
+partitions of \code{K} levels (27 of 52 at \code{K = 5}, and 1,014 of 115,975 at
+\code{K = 10}), and the partitions it can form all have at most one cell with
+more than one level in it, so the bulk of the levels is never divided. See
+Details.}
 
-\item{k}{controls the leaf prior. The prior standard deviation of a forest is
-\code{3 / k} times the natural scale of its additive predictor, so larger \code{k}
-shrinks the fit harder towards the intercept-only model.}
+\item{k}{\code{numeric}; controls the leaf prior. The prior standard deviation of a
+forest is \code{3 / k} times the natural scale of its additive predictor, so
+larger values shrink the fit harder toward the intercept-only model. Default
+is 2.}
 
-\item{bandwidth}{prior mean of the gate bandwidth of a soft rule, on the
-scale of the transformed predictors, which lie in \verb{[0, 1]}. Smaller values
-approach hard rules. Ignored for \code{gate = "hard"}.}
+\item{bandwidth}{\code{numeric}; the prior mean of the gate bandwidth of a soft
+rule, on the scale of the transformed predictors, which lie in \verb{[0, 1]}.
+Smaller values approach hard rules. Default is .1. Ignored when
+\code{gate = "hard"}.}
 
-\item{chains}{how many independent chains to run. The draws are pooled and
-\link[=bartisan]{split-R-hat} is reported in the \code{rhat} element. With the
-\pkg{future.apply} package installed the chains run in parallel under
-whatever backend the caller has planned with \pkgfun{future}{plan} --
-\code{multisession}, \code{multicore}, a cluster, or \pkg{mirai}'s
-\code{mirai_multisession}; without it they run one after another, which is slower
-and otherwise identical. One \code{set.seed()} before the call reproduces the
-whole run either way, because each chain is given its own L'Ecuyer stream.}
+\item{chains}{\code{numeric}; how many independent chains to run. Default is 1. The
+draws are pooled and \link[=bartisan]{split-R-hat} is reported in the \code{rhat}
+element. With the \pkg{future.apply} package installed the chains run in
+parallel under whatever backend the caller has planned with
+\pkgfun{future}{plan} (\code{multisession}, \code{multicore}, a cluster, or
+\pkg{mirai}'s \code{mirai_multisession}); without it they run one after another,
+which is slower and otherwise identical. One \code{set.seed()} before the call
+reproduces the whole run either way, because each chain is given its own
+L'Ecuyer stream.}
 
-\item{num_burn}{number of warmup iterations to discard. Warmup is where the
-trees grow into the data and the hyperparameters find their scale, so raising
-it buys convergence rather than precision: increase it when \code{rhat} says the
-chains have not agreed.}
+\item{num_burn}{\code{numeric}; the number of warmup iterations to discard. Default
+is 500. Warmup is where the trees grow into the data and the hyperparameters
+find their scale, so raising it buys convergence rather than precision:
+increase it when \code{rhat} says the chains have not agreed.}
 
-\item{num_draws}{number of draws to keep. These are what every estimate and
-interval is computed from, so raising it narrows Monte Carlo error and does
-nothing about convergence: increase it when \code{ess_bulk} or \code{ess_tail} is small
-relative to what the reported quantity needs.}
+\item{num_draws}{\code{numeric}; the number of draws to keep. Default is 500. These
+are what every estimate and interval is computed from, so raising it narrows
+Monte Carlo error and does nothing about convergence: increase it when
+\code{ess_bulk} or \code{ess_tail} is small relative to what the reported quantity
+needs.}
 
-\item{num_thin}{keep one draw in every \code{num_thin} after warmup. Thinning
-discards draws to make the kept ones less correlated, which costs
-information and is worth it only to hold down the memory a long chain would
-otherwise take: for a given amount of computing, more draws beat fewer
-less-correlated ones.}
+\item{num_thin}{\code{numeric}; keep one draw in every \code{num_thin} after warmup.
+Default is 1 to keep every draw. Thinning discards draws to make the kept
+ones less correlated, which costs information and is worth it only to hold
+down the memory a long chain would otherwise take: for a given amount of
+computing, more draws beat fewer less-correlated ones.}
 
-\item{augment}{\emph{Advanced.} Rewrite the likelihood as the margin of a Gaussian
-one, or of a Poisson one, which makes the target a shape the sampler can
-exploit and the Laplace approximation exact or nearly so. \strong{The same
-posterior either way}, so this is a sampling setting rather than a modeling
-one. The default, \code{TRUE}, does it wherever it has been measured to pay: the
-binomial, ordinal, multinomial, zero-inflated and survival families always,
-and the negative binomial when the rules are hard. \code{FALSE} never does it,
-and a character vector of engine family names -- \code{"binomial"}, \code{"ordinal"},
-\code{"multinomial"}, \code{"negbin"}, \code{"zip"}, \code{"zinb"}, \code{"aft"} -- asks for exactly
-those.
-Every rewriting trades speed for mixing, so the measured effect on effective
-sample size per second is what matters and it differs by family; see Details.}
+\item{augment}{\emph{Advanced.} Whether to rewrite the likelihood as the margin of
+a Gaussian one, or of a Poisson one, which makes the target a shape the
+sampler can exploit and the Laplace approximation exact or nearly so. \strong{The
+posterior is the same either way}, so this is a sampling setting rather
+than a modeling one. Default is \code{TRUE}, which does it wherever it has been
+measured to pay: the binomial, ordinal, multinomial, zero-inflated, and
+survival families always, and the negative binomial when the rules are hard.
+\code{FALSE} never does it, and a character vector of engine family names
+(\code{"binomial"}, \code{"ordinal"}, \code{"multinomial"}, \code{"negbin"}, \code{"zip"}, \code{"zinb"},
+or \code{"aft"}) asks for exactly those. Every rewriting trades speed for mixing,
+so the measured effect on effective sample size per second is what matters,
+and it differs by family; see Details. In a fitted model, \code{control$augment}
+is instead a \code{logical} recording whether a rewriting was applied, since
+whether the data admit one (a Bernoulli response, single trials) is settled
+only when the model is fitted.}
 
-\item{x_transform}{how numeric predictors are mapped to \verb{[0, 1]}.
-\code{"quantile"} uses each predictor's empirical distribution function, which
-makes the cutpoint prior invariant to monotone reparameterization;
-\code{"range"} rescales linearly, preserving the original spacing.}
+\item{x_transform}{string; how numeric predictors are mapped to \verb{[0, 1]}.
+Allowable options include \code{"quantile"} (the default), which uses each
+predictor's empirical distribution function and so makes the cutpoint prior
+invariant to monotone reparameterization, and \code{"range"}, which rescales
+linearly and preserves the original spacing.}
 
-\item{gamma, beta}{\emph{Advanced.} The branching probability at depth \code{d} is
-\code{gamma * (1 + d)^(-beta)}.}
+\item{gamma, beta}{\emph{Advanced.} \code{numeric}; the branching probability at depth
+\code{d} is \code{gamma * (1 + d)^(-beta)}. Defaults are .95 and 2.}
 
-\item{sigma_mu}{\emph{Advanced.} Prior median of the leaf standard deviation, one
-value per additive predictor. The default, \code{NULL}, derives it from \code{k} and
-that forest's own tree count.}
+\item{sigma_mu}{\emph{Advanced.} \code{numeric}; the prior median of the leaf standard
+deviation, one value per additive predictor. Default is \code{NULL} to derive it
+from \code{k} and that forest's own tree count.}
 
-\item{update_sigma_mu}{\emph{Advanced.} Draw the leaf standard deviation under a
-half-Cauchy prior rather than fixing it.}
+\item{update_sigma_mu}{\emph{Advanced.} \code{logical}; whether to draw the leaf
+standard deviation under a half-Cauchy prior rather than fixing it. Default
+is \code{TRUE}.}
 
-\item{sigma_mu_ramp}{\emph{Advanced.} Fraction of warmup over which the leaf
-standard deviation is raised from near zero to its target. Linero (2025)
-describes this as essential: started at its full value, the sampler can
-settle early into a poor configuration and fail to move. Set to \code{0} to
-disable.}
+\item{sigma_mu_ramp}{\emph{Advanced.} \code{numeric}; the fraction of warmup over which
+the leaf standard deviation is raised from near zero to its target. Default
+is .25; set to 0 to disable. Linero (2025) describes this as essential:
+started at its full value, the sampler can settle early into a poor
+configuration and fail to move.}
 
-\item{update_tau}{\emph{Advanced.} Draw the standard deviation of each
-random-effect term under the same half-Cauchy prior the leaf scale uses,
-rather than fixing it at that prior's median. Only relevant when the formula
-has a \code{(1 | group)} term.}
+\item{update_tau}{\emph{Advanced.} \code{logical}; whether to draw the standard
+deviation of each random-effect term under the same half-Cauchy prior the
+leaf scale uses, rather than fixing it at that prior's median. Default is
+\code{TRUE}. Only relevant when the formula has a \code{(1 | group)} term.}
 
-\item{update_bandwidth}{\emph{Advanced.} Draw the bandwidth of each tree rather
-than holding it at \code{bandwidth}.}
+\item{update_bandwidth}{\emph{Advanced.} \code{logical}; whether to draw the bandwidth
+of each tree rather than holding it at \code{bandwidth}. Default is \code{TRUE}.}
 
-\item{bandwidth_every}{\emph{Advanced.} How many sweeps between bandwidth draws
-for a given tree. The bandwidth is one scalar per tree, drawn by an adaptive
-random walk, and every attempt costs a full rebuild of the tree's
-memberships -- the single largest item in a soft-rule fit. Drawing it less
-often than the trees themselves trades mixing in that one parameter for
-time; see Details.}
+\item{bandwidth_every}{\emph{Advanced.} \code{numeric}; how many sweeps between
+bandwidth draws for a given tree. Default is 1. The bandwidth is one scalar
+per tree, drawn by an adaptive random walk, and every attempt costs a full
+rebuild of the tree's memberships, which is the single largest item in a
+soft-rule fit. Drawing it less often than the trees themselves trades mixing
+in that one parameter for time; see Details.}
 
-\item{alpha}{\emph{Advanced.} Concentration of the Dirichlet prior on the
-splitting proportions. Smaller values concentrate splits on fewer
-predictors. The default, \code{NULL}, uses 1, which is the starting value for a
-parameter that is then drawn.}
+\item{alpha}{\emph{Advanced.} \code{numeric}; the concentration of the Dirichlet prior
+on the splitting proportions, where smaller values concentrate splits on
+fewer predictors. Default is \code{NULL}, which uses 1 as the starting value for
+a parameter that is then drawn.}
 
-\item{alpha_scale, alpha_shape_1, alpha_shape_2}{\emph{Advanced.} The prior on
-\code{alpha}, in which \code{alpha / (alpha + alpha_scale)} is
-Beta(\code{alpha_shape_1}, \code{alpha_shape_2}). The default \code{alpha_scale} of \code{NULL}
-uses the number of predictor groups; the two shapes default to whatever
+\item{alpha_scale, alpha_shape_1, alpha_shape_2}{\emph{Advanced.} \code{numeric}; the
+prior on \code{alpha}, in which \code{alpha / (alpha + alpha_scale)} is
+Beta(\code{alpha_shape_1}, \code{alpha_shape_2}). Default for \code{alpha_scale} is \code{NULL}
+to use the number of predictor groups; the two shapes default to whatever
 \code{sparsity} implies.}
 
-\item{update_s, update_alpha}{\emph{Advanced.} Draw the splitting proportions and
-their concentration. The defaults, \code{NULL}, follow \code{sparsity}. Turning both
-off recovers a uniform prior over predictors, which is what
-\code{sparsity = FALSE} does.}
+\item{update_s, update_alpha}{\emph{Advanced.} \code{logical}; whether to draw the
+splitting proportions and their concentration. Defaults are \code{NULL} to follow
+\code{sparsity}. Turning both off recovers a uniform prior over predictors, which
+is what \code{sparsity = FALSE} does.}
 
-\item{verbose}{\emph{Advanced.} Print progress to the console while sampling. For
-a progress bar instead, see the Progress section below, which needs no
-argument here.}
+\item{verbose}{\emph{Advanced.} \code{logical}; whether to print progress to the console
+while sampling. Default is \code{FALSE}. For a progress bar instead, see the
+Progress section below, which needs no argument here.}
 
-\item{num_print}{\emph{Advanced.} How many iterations between the reports
-\code{verbose} prints.}
+\item{num_print}{\emph{Advanced.} \code{numeric}; how many iterations between the
+reports \code{verbose} prints. Default is 100.}
 
-\item{block_eval}{\emph{Validation.} Evaluate the likelihood one leaf at a time
-rather than one observation at a time. A family built by \code{\link[=custom_family]{custom_family()}}
-does this regardless, since it must call back into R; setting it for a
-compiled family produces the same draws from the same seed at somewhat
+\item{block_eval}{\emph{Validation.} \code{logical}; whether to evaluate the likelihood
+one leaf at a time rather than one observation at a time. Default is
+\code{FALSE}. A family built by \code{\link[=custom_family]{custom_family()}} does this regardless, since it
+must call back into R; setting it for a compiled family produces the same
+draws from the same seed at somewhat greater cost.}
+
+\item{exact_quadratic}{\emph{Validation.} \code{logical}; whether to use the closed
+forms that a target quadratic in the additive predictor allows, in which one
+pass over a node determines the log target everywhere, so that the Laplace
+approximation is the conditional posterior rather than an approximation to
+it. Default is \code{TRUE}. This is what a conjugate sampler does, and it is what
+makes a Gaussian response, or any of the rewritings in \code{augment}, cheap.
+Setting it to \code{FALSE} falls back on the general path; the two agree, at
 greater cost.}
 
-\item{exact_quadratic}{\emph{Validation.} Use the closed forms that a target
-quadratic in the additive predictor allows: one pass over a node determines
-the log target everywhere, so the Laplace approximation is the conditional
-posterior rather than an approximation to it. This is what a conjugate
-sampler does, and it is what makes a Gaussian response, or any of the
-rewritings in \code{augment}, cheap. Setting it \code{FALSE} falls back on the general
-path; the two agree, at greater cost.}
-
-\item{generic_accumulate}{\emph{Validation.} Accumulate a leaf's sums through the
-family's virtual interface rather than through its own statically dispatched
-loop. The two compute the same thing; the second lets the compiler inline
-the family's arithmetic, which is most of the remaining per-observation
-cost.}
+\item{generic_accumulate}{\emph{Validation.} \code{logical}; whether to accumulate a
+leaf's sums through the family's virtual interface rather than through its
+own statically dispatched loop. Default is \code{FALSE}. The two compute the same
+thing; the second lets the compiler inline the family's arithmetic, which is
+most of the remaining per-observation cost.}
 }
 \value{
-A list of class \code{bartisan_control}.
+A \verb{<bartisan_control>} object, a list containing the supplied settings and the
+defaults for those not supplied, for passing to the \code{control} argument of
+\code{\link[=bartisan]{bartisan()}}.
 }
 \description{
 Collects the tuning constants of the sampler and the hyperparameters of the
@@ -236,45 +252,43 @@ adjustment.
 
 The arguments fall into three groups, and the first group is the one worth
 reading: \code{num_trees}, \code{gate}, \code{sparsity}, \code{k}, \code{bandwidth}, the three chain
-lengths and \code{x_transform} are \strong{modeling decisions}, in that changing one
+lengths, and \code{x_transform} are \strong{modeling decisions}, in that changing one
 changes what is being fitted or how long it is fitted for. Everything from
 \code{augment} to \code{num_print} is an \strong{advanced setting}: a hyperparameter of a
 prior the first group summarizes, or a switch whose default is almost always
-right. The last three -- \code{block_eval}, \code{exact_quadratic} and
-\code{generic_accumulate} -- exist \strong{for internal validation} and are documented
-so that the checks that use them can be read; they compute the same posterior
+right. The last three (\code{block_eval}, \code{exact_quadratic}, and
+\code{generic_accumulate}) exist \strong{for internal validation} and are documented so
+that the checks that use them can be read; they compute the same posterior
 more slowly.
 }
-\section{How many trees, and how many per forest}{
+\details{
+\subsection{How Many Trees, and How Many per Forest}{
+
 The tree count is the setting most worth thinking about after the family, and
 the default of 50 is a compromise rather than an optimum. Measured on the
 Friedman function with 1000 training and 1000 test observations, four chains
 of 500 draws after 500 warmup iterations, as held-out root mean squared error
-against the true regression function:\tabular{lll}{
-   Trees \tab Soft rules \tab Hard rules \cr
-   5 \tab 0.286 \tab 1.149 \cr
-   10 \tab 0.281 \tab 0.682 \cr
-   20 \tab \strong{0.270} \tab 0.558 \cr
-   50 \tab 0.284 \tab \strong{0.521} \cr
-   100 \tab 0.289 \tab 0.531 \cr
-   200 \tab 0.319 \tab 0.510 \cr
+against the true regression function:\tabular{lllllll}{
+   Rules \tab 5 trees \tab 10 \tab 20 \tab 50 \tab 100 \tab 200 \cr
+   Soft rules \tab 0.286 \tab 0.281 \tab \strong{0.270} \tab 0.284 \tab 0.289 \tab 0.319 \cr
+   Hard rules \tab 1.149 \tab 0.682 \tab 0.558 \tab \strong{0.521} \tab 0.531 \tab 0.510 \cr
 }
 
 
 Two things to read off it. \strong{Soft rules need far fewer trees than hard ones},
-which is what makes 200 -- the default in most BART packages -- actively worse
-here than 20. And \strong{the two kinds of rule want different counts}, since hard
-rules are still improving at 200 where soft rules peaked at 20.
+which is what makes 200 (the default in most BART packages) actively worse here
+than 20. And \strong{the two kinds of rule want different counts}, since hard rules
+are still improving at 200 where soft rules peaked at 20.
 
 The default is 50 for both anyway, for a reason the table cannot show: a
 smaller forest mixes worse. On \code{MatchIt::lalonde}, four chains at 20 soft
 trees disagreed by 35\% on an average contrast where 50 trees disagreed by 9\%,
 and the Friedman gain at 20 trees was 5\%. So 50 buys reliable inference at a
 small cost in point accuracy. Drop to 20 if prediction is the only goal and
-the fit is soft; raise towards 200 with hard rules if it is not.
+the fit is soft; raise toward 200 with hard rules if it is not.
 
 \strong{A vector is worth using when the family has more than one forest.} They are
-not equally expensive and they do not need equal capacity. \code{location_scale()}
+not equally expensive and they do not need equal capacity. \code{gaussian_ls()}
 spends about 90\% of its time on the scale forest, because that forest's target
 is not quadratic, and a variance surface carries much less information than a
 mean surface. Measured on 1000 observations with a smooth mean and a
@@ -292,14 +306,15 @@ A Gaussian fit on the same data takes 1.4 seconds, so \code{c(50, 50)} costs 10
 times a Gaussian fit and \code{c(50, 5)} costs 3.5 times, at the same accuracy to
 three decimal places. That is not the default, because how many trees a
 variance surface needs depends on how complicated it is, and silently
-under-parameterizing it would show up as intervals that are wrong -- which is
-the thing \code{location_scale()} exists to get right. It is worth setting by hand.
+under-parameterizing it would show up as intervals that are wrong, which is the
+thing \code{gaussian_ls()} exists to get right. It is worth setting by hand.
 
 The leaf prior scale divides by the square root of each forest's own tree
 count, so shrinking one forest does not change the prior on the sum it forms.
 }
 
-\section{The sparsity prior, and what it costs}{
+\subsection{The Sparsity Prior, and What It Costs}{
+
 \code{sparsity = TRUE} is the Dirichlet prior of Linero (2018) on the splitting
 proportions. It is a genuine variable-selection prior: it can and does drop a
 predictor from every tree in the forest at once, and that is the point of it in
@@ -327,10 +342,12 @@ directions, and the strength barely matters in either: what matters is whether
 the prior is on at all.
 
 For prediction, any sparsity beats none. Scored against the true regression
-function on held-out data, Friedman with five relevant predictors:\tabular{lllll}{
-   predictors \tab \code{"none"} \tab \code{"weak"} \tab \code{"moderate"} \tab \code{"strong"} \cr
-   10 \tab 0.446 \tab 0.385 \tab 0.400 \tab 0.374 \cr
-   50 \tab 0.465 \tab 0.346 \tab 0.372 \tab 0.362 \cr
+function on held-out data, Friedman with five relevant predictors:\tabular{lll}{
+   Sparsity \tab 10 predictors \tab 50 predictors \cr
+   \code{"none"} \tab 0.446 \tab 0.465 \cr
+   \code{"weak"} \tab 0.385 \tab 0.346 \cr
+   \code{"moderate"} \tab 0.400 \tab 0.372 \cr
+   \code{"strong"} \tab 0.374 \tab 0.362 \cr
 }
 
 
@@ -357,28 +374,30 @@ never has reason to drop a predictor that is earning its splits, so this is a
 weak-signal failure rather than a general one.
 
 So the setting is close to a switch, and which way to throw it follows from
-the estimand rather than from the data:
-\itemize{
-\item \strong{Prediction, or variable selection}: keep the default. \code{"weak"} is already
-worth most of what \code{"strong"} is worth, so reach past \code{TRUE} only when the
-predictors are many and you expect nearly all of them to be irrelevant.
-\item \strong{A contrast, a partial effect, or a treatment effect}: \code{sparsity = FALSE},
-or \code{split_prior}, which fixes the weights and so cannot drop anything. Use
-\code{split_prior} in preference when the other predictors are numerous enough
-that weighting them all alike is wasteful.
-}
+the estimand rather than from the data.
+
+\strong{For prediction, or for variable selection}, keep the default. \code{"weak"} is
+already worth most of what \code{"strong"} is worth, so reaching past \code{TRUE} is
+warranted only when the predictors are many and nearly all of them are
+expected to be irrelevant.
+
+\strong{For a contrast, a partial effect, or a treatment effect}, set
+\code{sparsity = FALSE}, or use \code{split_prior}, which fixes the weights and so
+cannot drop anything. \code{split_prior} is preferable when the other predictors
+are numerous enough that weighting them all alike is wasteful.
 
 Run several chains either way, because one chain can look far more settled
 than the posterior is.
 }
 
-\section{Arguments that vary by forest}{
+\subsection{Arguments That Vary by Forest}{
+
 A family with several additive predictors has one forest per predictor, each
 with its own prior. Every argument that could mean something different for one
-of them may be given once, to apply to all, or one per forest -- positionally,
-or keyed by the forest names listed in \link{bartisan-families}. A forest that a
-named argument does not mention keeps that argument's default rather than
-borrowing the value chosen for another forest.
+of them may be given once, to apply to all, or once per forest, either
+positionally or keyed by the forest names listed in \link{bartisan-families}. Note
+that a forest a named argument does not mention keeps that argument's default
+rather than borrowing the value chosen for another forest.
 
 That covers \code{num_trees}, \code{k}, \code{sigma_mu}, \code{sparsity}, \code{split_prior},
 \code{bandwidth}, \code{gamma}, \code{beta}, the four \code{alpha} arguments, and the three
@@ -396,7 +415,8 @@ The multinomial families are the exception, for the reason given in
 single value.
 }
 
-\section{Splitting a factor}{
+\subsection{Splitting a Factor}{
+
 A rule on one indicator column of a factor can only separate one level from
 the rest. Applied repeatedly down a path that produces a partition with some
 number of singleton levels and one cell holding everything else, and those are
@@ -413,11 +433,12 @@ even.
 
 \strong{What it is worth depends on the decision rules.} Twenty levels in four
 groups of five sharing a mean, twelve replicates, paired within replicate,
-RMSE against the true mean function:\tabular{lllll}{
-   per level \tab subset, hard \tab onehot, hard \tab subset, soft \tab onehot, soft \cr
-   10 \tab 0.3705 \tab 0.3998 \tab 0.3435 \tab 0.3445 \cr
-   25 \tab 0.2617 \tab 0.2725 \tab 0.2265 \tab 0.2201 \cr
-   100 \tab 0.1421 \tab 0.1488 \tab 0.1098 \tab 0.1059 \cr
+RMSE against the true mean function:\tabular{llll}{
+   Rule \tab 10 per level \tab 25 per level \tab 100 per level \cr
+   subset, hard \tab 0.3705 \tab 0.2617 \tab 0.1421 \cr
+   onehot, hard \tab 0.3998 \tab 0.2725 \tab 0.1488 \cr
+   subset, soft \tab 0.3435 \tab 0.2265 \tab 0.1098 \cr
+   onehot, soft \tab 0.3445 \tab 0.2201 \tab 0.1059 \cr
 }
 
 
@@ -444,20 +465,21 @@ did for between 1\% and 7\% of its draws on a factor depending on \code{K}.
 A two-level factor is unaffected either way, since \code{2^2 - 2} is \code{B_2}.
 }
 
-\section{Telling the prior what you already know}{
+\subsection{Telling the Prior What Is Already Known}{
+
 \code{sparsity} and \code{split_prior} answer different questions and cannot both be in
-force, so giving \code{split_prior} turns \code{sparsity} off. \code{sparsity} is for when you
-do not know which predictors matter and want the prior to work it out from the
-data; the splitting proportions are drawn, and a predictor can be dropped from
-the forest entirely. \code{split_prior} is for when you do know something and want
-it honored; the proportions are held at the weights you gave and nothing draws
-over them.
+force, so giving \code{split_prior} turns \code{sparsity} off. \code{sparsity} is for the case
+in which which predictors matter is unknown and the prior is to work it out
+from the data; the splitting proportions are drawn, and a predictor can be
+dropped from the forest entirely. \code{split_prior} is for the case in which
+something is known and is to be honored; the proportions are held at the
+supplied weights and nothing draws over them.
 
 A weight is a statement about relative attention, not about effect size. It
 changes how often the sampler proposes a split on a predictor, which is a
 prior, so the data can still overrule it: a predictor given a large weight
-whose splits do not improve the fit will collect rules that go nowhere, and
-one given a small weight that genuinely matters will still be found, more
+whose splits do not improve the fit will collect rules that go nowhere, and one
+given a small weight that genuinely matters will still be found, more
 slowly. On pure noise, where nothing in the data prefers any predictor, the
 realized share of splitting rules matches the weights closely, which is the
 cleanest way to see what the argument does and the only case where the weights
@@ -479,7 +501,8 @@ factor is named once and its levels share the weight, the way they already
 share one entry of the sparsity prior.
 }
 
-\section{Gaussian rewritings}{
+\subsection{Gaussian Rewritings}{
+
 The expensive part of this sampler is not the non-conjugacy of the likelihood
 but that the leaf-level target is not quadratic in the additive predictor.
 Where a data augmentation makes it quadratic, Fisher scoring reaches the mode
@@ -517,7 +540,7 @@ last column:\tabular{lllll}{
 The ranges are two problems of different size and shape, which is a fair
 picture of how much this varies: what an augmentation costs in mixing depends
 on the data, not only on the family. The negative binomial is the marginal
-case -- a clear gain on one problem and a slight one on the other -- and worth
+case (a clear gain on one problem and a slight one on the other) and is worth
 turning off if its diagnostics look poor.
 
 The two survival rows are the other end of the range from the negative
@@ -536,8 +559,8 @@ The binomial family uses Polya-Gamma augmentation for a logit link and Albert
 and Chib's latent normal for a probit one. The negative binomial uses neither:
 it is written as a Poisson whose rate is drawn from a gamma, which costs one
 gamma draw per observation and leaves the target in the exponential form the
-sampler can collapse to a single pass -- but only under hard rules, which is
-why the gain is there and not under soft ones.
+sampler can collapse to a single pass, but only under hard rules, which is why
+the gain is there and not under soft ones.
 
 \code{ordinal("probit")} is the largest gain of any of them, because the target it
 replaces is the most expensive: two cumulative-normal evaluations per
@@ -558,7 +581,7 @@ reached through the Kolmogorov-Smirnov density, which needs a sampler of its
 own. It does not have to be: Polson, Scott and Windle's (2013) Theorem 1 at
 \code{a = 1}, \code{b = 2} says the standard logistic density is
 \verb{(1/4) E[exp(-w x^2 / 2)]} with \code{w} Polya-Gamma(2, 0), so the conditional of
-the precision given a residual \code{r} is exactly Polya-Gamma(2, |r|) -- an
+the precision given a residual \code{r} is exactly Polya-Gamma(2, |r|), an
 integer-parameter draw, which the exact Devroye sampler already used for the
 logistic family covers. Nothing approximate enters. It costs one extra draw
 per observation per sweep relative to the probit, which is why its gain is
@@ -570,22 +593,23 @@ is the discrete proportional hazards model, so its survivor function
 \code{exp(-exp(c_k - eta))} says exactly that a waiting time with exponential rate
 \code{exp(-eta)} has passed \code{exp(c_k)}. Conditional on that time the log density is
 \code{-eta - T * exp(-eta)}, which is the \emph{exponential} form rather than the
-quadratic one -- the same shape as the gamma family. That is worth 5.1x under
+quadratic one (i.e., the same shape as the gamma family). That is worth 5.1x under
 hard rules, where the exponential form applies; under soft rules, where it
 does not, what is left is one \code{exp()} per observation instead of a difference
 of two extreme-value distribution functions, which is a smaller gain and costs
 more mixing.
 }
 
-\section{Rare events mix slowly, and it is the data rather than the augmentation}{
+\subsection{Rare Events Mix Slowly}{
+
 With very few events the whole fit mixes slowly, augmented or not. Measured at
 2000 observations, 50 trees and 1000 draws, the effective sample size of the
 level of the predictor falls from about 860 at half positives to 75 at 1.4\%
 and to 8 at 0.2\%. That is worth knowing about but it is not a fault of the
 rewritings: the \emph{shape} of the fit mixes at the same rate as its level, moving
 the anchor by three units on the probit scale does not change the figure, and
-\pkg{dbarts} -- an independent implementation of the same latent normal, with
-the same anchoring -- reproduces it to three digits. It is the information in a
+\pkg{dbarts} (an independent implementation of the same latent normal, with the
+same anchoring) reproduces it to three digits. It is the information in a
 handful of events. Lengthen the chain, and read the \code{rhat} element of the fit
 rather than assuming the default draw count is enough.
 
@@ -600,8 +624,8 @@ per sweep, since \code{C_j} moves during a sweep.
 The \strong{zero-inflated} families need two latent variables, because what blocks
 them is a mixture rather than a link. The zero contributes
 \verb{log[pi + (1 - pi) P_0]}, a log-sum-exp of the two components, so neither
-predictor has a shape. Introducing the indicator the mixture is a mixture over
--- whether the observation is a structural zero -- separates them: conditional
+predictor has a shape. Introducing the indicator the mixture is taken over
+(i.e., whether the observation is a structural zero) separates them: conditional
 on it the count forest sees a plain Poisson or negative binomial, and the
 inflation forest sees a Bernoulli logistic likelihood, which Polya-Gamma
 handles. The indicator is drawn from its exact conditional, which is zero
@@ -611,7 +635,8 @@ indicator is drawn with the rate integrated out and the rate redrawn
 afterwards, which is a valid partially collapsed Gibbs step in that order.
 }
 
-\section{Progress}{
+\subsection{Progress}{
+
 \code{verbose = TRUE} prints a line to the console every \code{num_print} iterations,
 which is the whole of what this package decides about progress. A progress
 bar is \CRANpkg{progressr}'s business, and the sampler reports to it
@@ -632,18 +657,24 @@ than four in sequence, and progress from chains running in parallel under
 run for this purpose, because they cost the same per iteration and a bar that
 restarts halfway is a worse report than one that does not.
 
-Reporting is capped at 50 steps per chain rather than one per iteration. The
-callback itself is nothing next to a sweep, but a handler that redraws a bar
-is not, and it would otherwise be possible for the reporting to cost more than
-the sampling. Progress does not touch the draws: the same seed gives the same
-fit whether or not anything was listening.
+The bar covers the sampling, which is what a fit spends its time on.
+Convergence diagnostics are not part of it because they are not part of a fit:
+computing R-hat and the two effective sample sizes for every observation cost
+about as much as all four chains' sampling at 2000 observations, so they run
+in \code{\link[=diagnose]{diagnose()}} instead, which reports its own progress the same way.
+
+Reporting is capped at 50 steps per chain rather than one per iteration. The callback itself is nothing next to a sweep,
+but a handler that redraws a bar is not, and it would otherwise be possible
+for the reporting to cost more than the sampling. Progress does not touch the
+draws: the same seed gives the same fit whether or not anything was listening.
 }
 
-\section{Soft rules and the cost of a gate}{
+\subsection{Soft Rules and the Cost of a Gate}{
+
 A soft rule is what makes the fit smooth, and it is charged for in two places.
 Every observation reaches more than one leaf, so a pass over a node covers
-more than the sample -- measured at 2.5 times, at the default bandwidth, for
-the logistic gate. And the bandwidth is itself a parameter with a Metropolis
+more than the sample (measured at 2.5 times, at the default bandwidth, for the
+logistic gate). And the bandwidth is itself a parameter with a Metropolis
 step per tree per sweep, each of which rebuilds every membership weight in the
 tree, twice when it is rejected. On a Gaussian response with a thousand
 observations that one move is about half the total time.
@@ -652,16 +683,16 @@ A bounded gate addresses the first: past its half-width from the cutpoint the
 gate is exactly zero or one, so the observation takes one side outright, the
 other subtree is never visited, and the gate is a polynomial rather than an
 \code{exp()}. Measured at 1.4x with no loss of accuracy, on three test functions
-and six replicates. The second is cheaper than it was -- a rejected proposal is
-rolled back from a snapshot rather than by evaluating every gate again, and a
-tree with no splits has no gate at all, so its bandwidth is drawn straight from
-its prior, which is exactly its full conditional -- but it is still about half
-of a soft-rule fit.
+and six replicates. The second is cheaper than it was, since a rejected
+proposal is rolled back from a snapshot rather than by evaluating every gate
+again, and a tree with no splits has no gate at all, so its bandwidth is drawn
+straight from its prior, which is exactly its full conditional; it is still
+about half of a soft-rule fit.
 
 The half-width is \verb{pi * sqrt((2a + 1) / 3)} times \code{bandwidth} for the
-Beta(a, a) gate -- 4.06 for \code{"smoothstep"}, 4.80 for \code{"smootherstep"} -- which
-equates the gates' standard deviations, so \code{bandwidth} means the same amount
-of smoothing whichever is chosen.
+Beta(a, a) gate (4.06 for \code{"smoothstep"} and 4.80 for \code{"smootherstep"}), which
+equates the gates' standard deviations, so \code{bandwidth} means the same amount of
+smoothing whichever is chosen.
 
 \emph{Which} bounded gate makes almost no difference, and not for the reason it
 looks like it should. At a bandwidth wide enough that a bounded gate truncates
@@ -673,19 +704,38 @@ twice-differentiable fit.
 
 \code{bandwidth_every} addresses the second, and is a real trade rather than a free
 one. Fixing the bandwidth entirely (\code{update_bandwidth = FALSE}) is 2.4x faster
-again and \emph{more} accurate on smooth functions -- but much worse on functions
-with jumps, where what the update is for is letting the rules sharpen towards
-hard ones. On a three-step function, measured RMSE was 0.42 fixed against 0.19
-drawn. So the default draws it every sweep, and a larger \code{bandwidth_every}
-buys time at the cost of how fast that adaptation happens.
+again and \emph{more} accurate on smooth functions, but much worse on functions with
+jumps, where what the update is for is letting the rules sharpen toward hard
+ones. On a three-step function, measured RMSE was .42 fixed against .19 drawn.
+So the default draws it every sweep, and a larger \code{bandwidth_every} buys time
+at the cost of how fast that adaptation happens.
 
-There is nothing to rewrite for the Poisson and gamma families -- their
-targets are already in the exponential form -- and no known rewriting for the
-accelerated failure time, ordered beta or location-scale families.
+There is nothing to rewrite for the Poisson and gamma families, whose targets
+are already in the exponential form, and no known rewriting for the accelerated
+failure time, ordered beta, or location-scale families.
 }
-
+}
 \examples{
-bartisan_control(num_trees = 20, gate = "hard")
+data("rhc")
+
+# Settings can be built up once and reused across fits
+ctrl <- bartisan_control(num_trees = 20, gate = "hard", num_burn = 50,
+                         num_draws = 50)
+
+fit <- bartisan(death ~ . - days, data = rhc, control = ctrl)
+
+# The same call, with the settings passed through `...` instead
+fit2 <- bartisan(death ~ . - days, data = rhc, num_trees = 20,
+                 gate = "hard", num_burn = 50, num_draws = 50)
+
+# A setting given once applies to every forest, and a vector gives each
+# forest its own value. A variance surface needs less capacity than a
+# mean surface
+bartisan_control(num_trees = c(mean = 50, log_sd = 10))
+
+# Weighting the splitting prior toward the treatment, which the sparsity
+# prior would otherwise be free to drop
+bartisan_control(split_prior = c(rhc = 10))
 
 }
 \references{
@@ -714,5 +764,6 @@ and methods. \emph{Journal of the American Statistical Association}, 103(482),
 790--796.
 }
 \seealso{
-\code{\link[=bartisan]{bartisan()}}
+\code{\link[=bartisan]{bartisan()}}, which takes the result as its \code{control} argument;
+\link{bartisan-families} for the forest names the per-forest arguments are keyed by
 }
