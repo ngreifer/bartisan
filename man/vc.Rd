@@ -88,11 +88,10 @@ every estimand is identical under any choice, and what changes is what the
 control function means. \code{"auto"} picks by the covariate, because neither
 answer wins everywhere. For a \code{0}/\code{1} covariate it uses zero, so \eqn{f_0} is
 the surface among the untreated (a quantity with its own meaning, and the one
-that recovers the coefficient best, at a correlation of 0.987 against 0.975
-for mean-centering on the simulation in \verb{_dev/}). For any other numeric
-covariate it uses the mean, because zero may be nowhere near the data: with a
-covariate around 50 the control function at zero is an extrapolation and
-recovery collapses to a correlation of 0.42.
+that recovers the coefficient best). For any other numeric covariate it uses
+the mean, because zero may be nowhere near the data: with a covariate around
+50 the control function at zero is an extrapolation and recovery collapses to
+a correlation of 0.42.
 
 A factor is always fitted mean-centered and gets one forest per level, coded
 symmetrically the way \code{\link[=multinomial]{multinomial()}} codes its predictors rather than as
@@ -124,15 +123,12 @@ raw \eqn{\tilde f}.
 It needs between two and twenty distinct values, and a continuous covariate is
 refused rather than quietly binned.
 
-\strong{At two values it is free, and it is what \code{\link[=bcf]{bcf()}} uses.} Recovery is a tie:
-on the simulation in \verb{_dev/coding-comparison.R} the effect's root mean squared
-error is 0.2014 against 0.1991 for a fixed zero, a paired difference of 0.0023
-with a standard error of 0.0140. What it buys is that the answer stops
-depending on which level was written as 1. Fitting the same data with the
-treatment coded \code{0}/\code{1} and again \code{1}/\code{0} and adding the two effects, which is
-zero if the coding does not matter, gives 0.0045 under a drawn coding against
-0.0125 under a fixed zero; on weak data, where the prior has more to say,
-0.0389 against 0.0830.
+\strong{At two values it is free, and it is what \code{\link[=bcf]{bcf()}} uses.} What it buys is
+that the answer stops depending on which level was written as 1. Fitting the
+same data with the treatment coded \code{0}/\code{1} and again \code{1}/\code{0} and adding the
+two effects, which is zero if the coding does not matter, gives 0.0045 under
+a drawn coding against 0.0125 under a fixed zero; on weak data, where the
+prior has more to say, 0.0389 against 0.0830.
 
 \strong{Above two values it stops being free, and the restriction is a real one.}
 Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels

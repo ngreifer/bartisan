@@ -282,19 +282,22 @@ set.seed(2026)
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
                  pafi + paco2 + crea + surv2m + card,
                treatment = ~ rhc, data = rhc,
-               family = binomial(), chains = 4)
+               family = binomial("probit"), chains = 4)
 
 fit_bcf
 ```
 
 Using `bcf()` rather than writing the varying coefficient BART model by
-hand sets five settings to improve effect estimation: the effect gets a
+hand sets four settings to improve effect estimation: the effect gets a
 forest of its own, the estimated propensity score goes into the control
 function and not into the effect forest, the effect forest gets fewer
 trees because effect heterogeneity is usually simpler than a prognostic
-surface, `sparsity = FALSE` for the reason in the section above, and a
-binary treatment's coding is drawn rather than fixed, so the answer does
-not depend on which arm was written as 1.
+surface, and a binary treatment's coding is drawn rather than fixed, so
+the answer does not depend on which arm was written as 1. Note that
+`sparsity = FALSE` is not among them: the reason for it in the section
+above is that the prior can drop the predictor whose contrast we want,
+and here the treatment is the coefficient rather than a predictor the
+forest splits on, so nothing can drop it.
 
 The output is just like a regular BART model, so we can use
 `avg_comparisons()` to extract the average treatment effect estimate.

@@ -4757,3 +4757,29 @@ replicates, and the ATE column here comes from recentring the effect forest's
 draws rather than from a proper contrast, so treat the coverage column as
 indicative only. What it does settle is that the reason the documentation gave
 for the default was the wrong reason, which the documentation now says.
+
+## Log: bcf() now uses the package's sparsity default
+
+`bcf()` used to force `sparsity = FALSE` on the outcome model. That is the right
+setting for a contrast on a predictor **a forest splits on**, where the
+variable-selection prior can drop the predictor whose contrast is the estimand
+and leave a point mass at exactly zero. It is not the situation `bcf()` is in:
+the treatment is the coefficient, carried by a forest of its own, so no
+splitting proportion can drop it.
+
+The override is gone, so `bcf()` inherits `sparsity = TRUE` like everything
+else. The measurements in the entry above are what justify it: over three
+moderation strengths the point mass is exactly zero at every setting, the
+average effect is within 0.02 of the truth everywhere, and the conditional
+effect is recovered better with the prior on (root mean squared error 0.303
+against 0.417 under strong moderation, 0.174 against 0.223 under weak). Either
+forest can still be set on its own, and `sparsity = FALSE` still does what it
+always did when a caller asks for it.
+
+`?bcf` said the wrong thing and now says this. `vignette("causal")` listed
+`sparsity = FALSE` among the five settings `bcf()` chooses for the caller; it is
+four now, and the vignette says why it is not among them. The vignette's own
+`bartisan()` fits keep `sparsity = FALSE` and are unaffected, because those are
+exactly the single-forest case the setting is for: the treatment is one
+predictor among many there. All of its reported numbers come from evaluated
+chunks rather than prose, so nothing there goes stale.

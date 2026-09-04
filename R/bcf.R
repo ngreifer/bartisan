@@ -34,9 +34,8 @@
 #'   continuous treatment has no propensity score that is a probability, so
 #'   `TRUE` is refused for one; see Details.
 #' @param propensity_args a list of [bartisan_control()] settings for the
-#'   propensity model, which is a prediction problem and so keeps the sparsity
-#'   prior the outcome model turns off. Default is `list()` to leave every
-#'   setting at its own default.
+#'   propensity model. Default is `list()` to leave every setting at its own
+#'   default.
 #' @param ... passed to [bartisan()], including [bartisan_control()] settings.
 #'
 #' @returns
@@ -67,23 +66,27 @@
 #' with more levels keeps the symmetric per-level coding, because there the drawn
 #' coding gives every contrast one shared shape; `?vc` has the numbers on both.
 #'
-#' **The outcome model is fitted with `sparsity = FALSE`.** A variable-selection
-#' prior can drop a predictor from a forest entirely, and where the estimand is a
-#' contrast on a predictor being split on, that puts a point mass at exactly zero
-#' in the posterior of the effect; see the measurements in [bartisan_control()].
+#' **The sparsity prior is left at its default**, which is on. Turning it off is
+#' what a contrast on a predictor calls for, because a variable-selection prior
+#' can drop that predictor from the forest entirely and put a point mass at
+#' exactly zero in the posterior of the effect; see the measurements in
+#' [bartisan_control()]. That is a reason to reach for `sparsity = FALSE` when
+#' the treatment is one predictor among many in a single forest, which is how a
+#' contrast is written without [vc()].
 #'
-#' That particular failure cannot reach the effect here, because the treatment is
-#' not split on: it is the coefficient, carried by a forest of its own. What the
-#' prior would select among on that forest is the moderators, and dropping all of
-#' them leaves an effect that does not vary rather than one that is zero. So the
-#' default is the cautious choice rather than a forced one, and the two forests
-#' may be set separately: `sparsity = c(FALSE, TRUE)` leaves the control function
-#' every predictor, the propensity score included, and asks the effect forest to
-#' work out which covariates moderate. That is worth considering when the
-#' moderators are many and few of them are expected to matter.
+#' It is not the situation here. The treatment is not split on at all: it is the
+#' coefficient, carried by a forest of its own, so no splitting proportion can
+#' drop it and there is no mass to pile at zero. What the prior selects among on
+#' that forest is the moderators, and dropping all of them leaves an effect that
+#' does not vary rather than one that is zero, which is the ordinary shrinkage a
+#' heterogeneity model wants. Measured on a truth with one moderator among
+#' twenty covariates, the point mass is absent at every setting, the average
+#' effect is recovered either way, and the conditional effect is recovered better
+#' with the prior on than off.
 #'
-#' The propensity model keeps the default, because predicting who was treated is
-#' a prediction problem.
+#' Either forest can still be set on its own, `sparsity = c(FALSE, TRUE)` leaving
+#' the control function every predictor and asking only the effect forest to
+#' select.
 #'
 #' ## The Treatment's Type
 #'
@@ -271,10 +274,6 @@ bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
   dots <- list(...)
   supplied_trees <- !is_null(dots[["num_trees"]])
 
-  if (is_null(dots[["sparsity"]])) {
-    dots[["sparsity"]] <- FALSE
-  }
-
   # Both the formula and the default tree count follow the coding: a drawn coding
   # is one effect forest whatever the number of levels, where the symmetric one
   # is a forest per level.
@@ -416,8 +415,6 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
   model <- stats::reformulate(terms, response = as.symbol(name))
   fit_family <- if (identical(kind, "binary")) stats::binomial() else multinomial()
 
-  # The propensity model keeps the sparsity prior: predicting who was treated is
-  # a prediction problem, and nothing here is a contrast.
   fit <- do.call(bartisan,
                  c(list(formula = model, data = data, family = fit_family),
                    args))
