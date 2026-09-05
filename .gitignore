@@ -64,3 +64,6 @@ _dev/*
 # Side effect of rendering README.Rmd to github_document.
 README.html
 docs
+!_dev/SIMULATION.md
+!_dev/propensity-settings.R
+!_dev/acic2016.R
