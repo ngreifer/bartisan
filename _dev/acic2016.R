@@ -93,16 +93,17 @@ fit_one <- function(spec, d, covs) {
 }
 
 # The effect forest carries the conditional effect directly, so the estimand is
-# read off it rather than recomputed by differencing predictions. `coef()` gives
-# the posterior mean and `eta[[2]]` the draws, which differ from it by a
-# constant that the shift below removes.
+# read off it rather than recomputed by differencing predictions. It has to come
+# through `coef(draws = TRUE)` and not from the forest's own values: a
+# varying-coefficient model splits the level between the control function and
+# the coefficient, and where that split falls moves from draw to draw, which
+# inflates an interval built on the raw forest without touching the mean.
 score <- function(fit, d) {
-  tau_hat <- as.vector(stats::coef(fit)[, 1L])
-  draws <- fit[["eta"]][[2L]]
-  draws <- draws - mean(draws) + mean(tau_hat)
+  slopes <- stats::coef(fit, draws = TRUE)[[1L]]
+  tau_hat <- colMeans(slopes)
 
   treated <- d[["z"]] == 1L
-  satt_draws <- rowMeans(draws[, treated, drop = FALSE])
+  satt_draws <- rowMeans(slopes[, treated, drop = FALSE])
   truth <- mean((d[["y.1"]] - d[["y.0"]])[treated])
   ci <- stats::quantile(satt_draws, c(0.025, 0.975), names = FALSE)
 

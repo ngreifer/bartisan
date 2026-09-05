@@ -48,6 +48,48 @@ If the settings under test all sit between two anchors that are themselves close
 together, the choice does not matter and no number of replicates will make it
 matter. This is the cheapest way to find that out, and it costs two more cells.
 
+### The anchors are a test to run before believing anything else
+
+Compare the anchor gap against the spread among the configurations under test.
+The propensity bench came out like this:
+
+| design | anchor gap | spread among the six |
+|---|---|---|
+| rhc, linear, aligned | 0.0129 | 0.0381 |
+| lalonde, linear, aligned | 0.0247 | 0.0366 |
+| rhc, nonlinear, aligned | 0.0171 | 0.0309 |
+| rhc, nonlinear, targeted | 0.0039 | 0.0199 |
+
+The settings vary by more than the entire range the nuisance could be worth,
+which is the signature of noise. Read the other way, it says the experiment
+cannot answer the question however many replicates are added, and that is worth
+knowing in an hour rather than a day.
+
+## Check the interval before believing coverage
+
+Coverage is only a metric if the interval is the right one. The first run of the
+propensity bench reported 0.998 coverage over 1200 fits, which looked like a
+harmless nuisance and was a bug: the estimand was averaged from the effect
+forest's own values, and a varying-coefficient model splits the level between
+the control function and the coefficient in a way that moves from draw to draw.
+That movement goes straight into the interval and not into the mean, so bias and
+error were right while coverage was meaningless.
+
+`coef(draws = TRUE)` applies the recentering that fixes it. Measured over 20
+replicates on one design:
+
+| | posterior SD | coverage |
+|---|---|---|
+| forest values, one shift | 0.468 | 1.00 |
+| `coef(draws = TRUE)` | 0.058 | 0.85 |
+| sampling SD of the estimate | 0.080 | |
+
+So the cheap check is to compare the posterior spread against the spread of the
+point estimate across replicates, which the bench measures anyway. They should
+be about equal. A ratio of six says the interval is wrong; the 0.73 that came
+out after the fix says the intervals are somewhat narrow, which is a fact about
+the model rather than the harness and is worth its own measurement.
+
 ## Pair everything
 
 Every configuration sees the **same simulated dataset and the same random

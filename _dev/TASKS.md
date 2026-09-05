@@ -4960,3 +4960,53 @@ all 800 fits at a mean interval width of 1.68. Whatever the effect-forest
 posterior for a sample average is doing, it is far too wide to separate anything
 at this number of draws, and a design that leans on coverage needs to check that
 first.
+
+### The targeted variant did not separate them either
+
+| design | oracle minus none | paired SE | t | anchor gap | spread among six |
+|---|---|---|---|---|---|
+| rhc, nonlinear, targeted | +0.0006 | 0.0077 | 0.07 | 0.0039 | 0.0199 |
+| lalonde, nonlinear, targeted | +0.0097 | 0.0094 | 1.03 | 0.0156 | 0.0159 |
+
+Treatment driven by covariates the outcome barely depends on, among twenty
+noise columns, still leaves the true propensity score worth nothing. Every
+setting is within two standard errors of the default on both designs;
+`undersmooth` is the only one whose sign is consistent across them and it
+reaches t = -2.01 on one and -1.53 on the other, which is not a finding.
+
+**So the answer is that no propensity setting matters, in six designs across two
+datasets, because the propensity score itself does not.** With a forest over
+every covariate in the control function, selection is absorbed without it. What
+would make it matter is the regime the score exists for, which is strong
+selection, poor overlap, and a prognostic surface the outcome model cannot
+represent. Two attempts to build that by hand failed. The 2016 competition
+carries `overlap.trt` and `alignment` as designed factors and its response
+surfaces are step and exponential rather than smooth, so that is the instrument
+for this question and `_dev/acic2016.R` is ready for it.
+
+**No default was changed.** The `update_sigma_mu = FALSE` recommendation from the
+mixing entry above still stands on its own terms, which are mixing and speed
+rather than bias; this bench says it costs nothing in bias either, which is the
+most it can say.
+
+### A bug this turned up in the harness, worth keeping in mind
+
+Coverage came out 0.998 over the first 1200 fits. The estimand was being
+averaged from the effect forest's own draws with a single shift applied, and a
+varying-coefficient model splits the level between the control function and the
+coefficient in a way that moves from draw to draw. That movement inflates the
+interval without touching the mean, so bias and error were right and coverage
+was void. `coef(draws = TRUE)` applies the recentering that `vc_recenter()`
+does. Over 20 replicates: posterior standard deviation 0.468 before and 0.058
+after, against a sampling standard deviation of 0.080 for the estimate itself,
+and coverage 1.00 before and 0.85 after.
+
+Both benches are fixed. The coverage and width columns of
+`_dev/propensity-settings.rds` predate the fix and are void; bias, error and the
+conditional-effect error are unaffected.
+
+**0.85 against a nominal 0.95 is itself worth measuring properly.** Twenty
+replicates put a standard error of 0.08 on it, so it is suggestive rather than
+established, but a `bcf()` interval that is three quarters as wide as the
+sampling spread of its own point estimate is the kind of thing the competition
+bench reports as a matter of course.

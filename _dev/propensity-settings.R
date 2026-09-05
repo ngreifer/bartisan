@@ -170,12 +170,18 @@ fit_one <- function(spec, d, covs) {
 # recomputed by prediction. The interval is over the posterior of that average.
 
 score <- function(fit, d) {
-  tau_hat <- as.vector(stats::coef(fit)[, 1L])
-  draws <- fit[["eta"]][[2L]]
-  draws <- draws - mean(draws) + mean(tau_hat)
+  # `coef(draws = TRUE)` is the identified coefficient per draw. The forest's
+  # own values are not: a varying-coefficient model splits the level between the
+  # control function and the coefficient, and where that split falls moves from
+  # draw to draw. Averaging the raw forest carries that movement into the
+  # interval and made coverage 0.998 at a width five times the sampling spread
+  # of the estimate. `vc_recenter()`, which `coef()` applies and the raw forest
+  # does not, is the difference.
+  slopes <- stats::coef(fit, draws = TRUE)[[1L]]
+  tau_hat <- colMeans(slopes)
 
   treated <- d[["z"]] == 1L
-  att_draws <- rowMeans(draws[, treated, drop = FALSE])
+  att_draws <- rowMeans(slopes[, treated, drop = FALSE])
   truth <- mean(d[["tau"]][treated])
   ci <- stats::quantile(att_draws, c(0.025, 0.975), names = FALSE)
 
