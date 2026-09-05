@@ -4904,3 +4904,59 @@ that goes on to be a covariate in the outcome model that is a good trade, and
 badly mixed is the worse failure. Not made a default for `bcf()`'s propensity
 model on the strength of one dataset; it is written up under
 `?bartisan_control`'s `update_sigma_mu` so that it is findable.
+
+## Log: what settings a propensity model wants, and a simulation that could not say
+
+`_dev/propensity-settings.R`, 25 replicates on four designs, eight
+configurations of the propensity model scored on the **effect** rather than on
+the propensity model. The earlier answer to this question scored the propensity
+model's own held-out AUC, which is the wrong quantity: the score is a covariate
+in the control function, nothing is reported about it, and a setting can predict
+treatment slightly worse while leaving less confounding in the effect.
+
+**The comparison came out empty, and the anchors are what said so.** The design
+carries two anchors, an `oracle` handed the true propensity score and a `none`
+fitted without one at all. Paired on absolute bias:
+
+| design | oracle minus none | paired SE | t |
+|---|---|---|---|
+| rhc, linear | +0.0022 | 0.0130 | 0.17 |
+| lalonde, linear | -0.0255 | 0.0140 | -1.82 |
+| rhc, nonlinear | +0.0126 | 0.0073 | 1.74 |
+| lalonde, nonlinear | +0.0189 | 0.0113 | 1.66 |
+
+**Knowing the true propensity score is worth nothing here**, and on two designs
+the sign says a fit without one did better. So no setting of the model that
+estimates it could matter, and none did: every one of the six is within 1.5
+standard errors of the default on every design. The diagnostic that catches this
+without reading any of that is the anchor gap against the spread among the
+settings under test:
+
+| design | anchor gap | spread among the six |
+|---|---|---|
+| rhc, linear | 0.0129 | 0.0381 |
+| lalonde, linear | 0.0247 | 0.0366 |
+| rhc, nonlinear | 0.0171 | 0.0309 |
+| lalonde, nonlinear | 0.0241 | 0.0105 |
+
+Three of the four have the settings varying by more than the whole range the
+score could possibly be worth, which is the signature of noise rather than
+signal.
+
+**Why the score had nothing to do.** Both surfaces were built on the same strong
+covariates, so the control function, which is a forest over all of them, absorbs
+selection by itself. A propensity score earns its place under
+regularization-induced confounding: the selection has to sit in a direction the
+outcome model shrinks away. That takes misalignment between the two surfaces,
+which this design did not have and which the 2016 competition carries as an
+explicit factor (`alignment`, at 0, 0.25 and 0.75), alongside `overlap.trt`.
+
+A `targeted` confounding variant was added for this: the covariates that drive
+treatment are ones the outcome barely depends on, among twenty pure-noise
+columns for the sparsity prior to shrink. Running.
+
+**Also worth recording: coverage was useless as a metric here**, 0.996 across
+all 800 fits at a mean interval width of 1.68. Whatever the effect-forest
+posterior for a sample average is doing, it is far too wide to separate anything
+at this number of draws, and a design that leans on coverage needs to check that
+first.

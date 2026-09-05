@@ -14,10 +14,13 @@
 
 library(bartisan)
 
-reps <- {
-  a <- commandArgs(trailingOnly = TRUE)
-  if (length(a) > 0L) as.integer(a[1L]) else 25L
-}
+# `Rscript _dev/propensity-settings.R <reps> [design]`. Naming a design runs
+# only that row of the grid below and writes its own file, so the four can go to
+# the queue at once. Their `seconds` columns are then not comparable across
+# jobs, which is why nothing is concluded from them; see `_dev/SIMULATION.md`.
+args <- commandArgs(trailingOnly = TRUE)
+reps <- if (length(args) > 0L) as.integer(args[1L]) else 25L
+only <- if (length(args) > 1L) as.integer(args[2L]) else NA_integer_
 
 # ---- the data ---------------------------------------------------------------
 #
@@ -52,8 +55,14 @@ design <- function(x) {
 # strength, so that "linear" and "nonlinear" differ in shape and not in how much
 # there is to find.
 simulate <- function(x, selection, surface, hetero, prevalence = 0.4,
-                     seed = NULL) {
+                     confounding = "aligned", noise = 0L, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
+
+  if (noise > 0L) {
+    extra <- matrix(stats::rnorm(nrow(x) * noise), nrow(x), noise)
+    colnames(extra) <- sprintf("n%d", seq_len(noise))
+    x <- cbind(x, as.data.frame(extra))
+  }
 
   m <- design(x)
   p <- ncol(m)
@@ -64,10 +73,24 @@ simulate <- function(x, selection, surface, hetero, prevalence = 0.4,
   w_t <- stats::rnorm(length(strong))
   w_y <- stats::rnorm(length(strong))
 
+  # Under `targeted`, the covariates that drive treatment are ones the outcome
+  # barely depends on. That is the case a propensity score exists for: the
+  # outcome model shrinks a weak predictor away, the selection it carried goes
+  # with it, and the bias that leaves is what the score in the control function
+  # restores. With both surfaces on the same strong covariates, which is
+  # `aligned`, the outcome model absorbs selection by itself and the score has
+  # nothing to add.
+  drivers <- {
+    if (identical(confounding, "aligned")) strong
+    else utils::tail(seq_len(p), min(3L, p))
+  }
+
+  w_t <- if (identical(confounding, "aligned")) w_t else stats::rnorm(length(drivers))
+
   et <- {
-    if (identical(selection, "linear")) lin(strong, w_t)
-    else lin(strong, w_t) + 1.5 * m[, strong[1L]] * m[, strong[2L]] -
-           1.5 * abs(m[, strong[3L]])
+    if (identical(selection, "linear")) lin(drivers, w_t)
+    else lin(drivers, w_t) + 1.5 * m[, drivers[1L]] * m[, drivers[2L]] -
+           1.5 * abs(m[, drivers[min(3L, length(drivers))]])
   }
   et <- 1.2 * as.vector(scale(et))
 
@@ -84,6 +107,13 @@ simulate <- function(x, selection, surface, hetero, prevalence = 0.4,
            1.5 * m[, strong[2L]]^2
   }
   mu <- 2 * as.vector(scale(mu))
+
+  # The drivers keep a weak hand in the outcome, so they are genuine confounders
+  # rather than instruments; an instrument would bias the effect rather than
+  # help it, and the propensity score would have nothing to restore.
+  if (!identical(confounding, "aligned")) {
+    mu <- mu + 0.35 * as.vector(scale(lin(drivers, rep.int(1, length(drivers)))))
+  }
 
   tau <- 1 + hetero * as.vector(scale(m[, strong[2L]] + 0.5 * m[, strong[4L]]))
   y <- mu + z * tau + stats::rnorm(nrow(m))
@@ -158,24 +188,29 @@ score <- function(fit, d) {
 
 # ---- the run ----------------------------------------------------------------
 
-designs <- expand.grid(
-  data = c("rhc", "lalonde"),
-  selection = c("linear", "nonlinear"),
-  surface = c("nonlinear"),
-  hetero = c(0.5),
-  stringsAsFactors = FALSE
+designs <- rbind(
+  expand.grid(data = c("rhc", "lalonde"), selection = c("linear", "nonlinear"),
+              surface = "nonlinear", hetero = 0.5, confounding = "aligned",
+              noise = 0L, stringsAsFactors = FALSE),
+  expand.grid(data = c("rhc", "lalonde"), selection = "nonlinear",
+              surface = "nonlinear", hetero = 0.5, confounding = "targeted",
+              noise = 20L, stringsAsFactors = FALSE)
 )
 
 out <- list()
 
-for (di in seq_len(nrow(designs))) {
+rows <- if (is.na(only)) seq_len(nrow(designs)) else only
+
+for (di in rows) {
   dg <- designs[di, ]
   x <- covariates(dg[["data"]])
   covs <- names(x)
 
   for (r in seq_len(reps)) {
     d <- simulate(x, dg[["selection"]], dg[["surface"]], dg[["hetero"]],
+                  confounding = dg[["confounding"]], noise = dg[["noise"]],
                   seed = 10000 * di + r)
+    covs <- setdiff(names(d), c("z", "y", "e", "tau"))
 
     for (nm in names(settings)) {
       # The same data and the same stream for every setting, so the comparison
@@ -186,27 +221,33 @@ for (di in seq_len(nrow(designs))) {
       out[[length(out) + 1L]] <- data.frame(
         as.list(score(fit, d)), setting = nm, rep = r, seconds = elapsed,
         data = dg[["data"]], selection = dg[["selection"]],
-        surface = dg[["surface"]], hetero = dg[["hetero"]]
+        surface = dg[["surface"]], hetero = dg[["hetero"]],
+        confounding = dg[["confounding"]]
       )
     }
 
-    cat(sprintf("  %s / %s: rep %d of %d\n", dg[["data"]], dg[["selection"]],
-                r, reps))
+    cat(sprintf("  %s / %s / %s: rep %d of %d\n", dg[["data"]],
+                dg[["selection"]], dg[["confounding"]], r, reps))
     utils::flush.console()
   }
 }
 
 results <- do.call(rbind, out)
-saveRDS(results, "_dev/propensity-settings.rds")
+
+saveRDS(results, if (is.na(only)) "_dev/propensity-settings.rds"
+                else sprintf("_dev/propensity-settings-%d.rds", only))
 
 # ---- the report -------------------------------------------------------------
 
 report <- function(results) {
-  for (dn in unique(results[["data"]])) for (sn in unique(results[["selection"]])) {
-    r <- results[results[["data"]] == dn & results[["selection"]] == sn, ]
+  results[["design"]] <- paste(results[["data"]], results[["selection"]],
+                               results[["confounding"]])
+
+  for (dn in unique(results[["design"]])) {
+    r <- results[results[["design"]] == dn, ]
     if (nrow(r) == 0L) next
 
-    cat(sprintf("\n=== %s, %s selection (%d replicates) ===\n", dn, sn,
+    cat(sprintf("\n=== %s (%d replicates) ===\n", dn,
                 length(unique(r[["rep"]]))))
     cat(sprintf("%-12s %8s %8s %8s %8s %9s %8s\n", "setting", "bias", "RMSE",
                 "cover", "width", "cateRMSE", "seconds"))
