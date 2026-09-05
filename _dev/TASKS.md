@@ -5065,3 +5065,62 @@ an augmented family. The propensity-settings bench is Gaussian throughout and
 the ACIC bench has Gaussian outcomes with a plain, non-`vc()` propensity model,
 so neither is affected. `vignette("causal")` fits a probit and is not affected
 in its estimates, though its `bcf()` log likelihood was being misreported.
+
+## Log: the ACIC bench, and what it says about the propensity score
+
+Six settings chosen to vary the two factors a propensity score should be
+load-bearing for, four simulations each, five configurations: 120 fits on the
+4802 x 58 competition covariates, scored on the sample average effect on the
+treated.
+
+| configuration | bias | RMSE | coverage | width | PEHE |
+|---|---|---|---|---|---|
+| `none` | +0.0096 | **0.0568** | 0.88 | 0.157 | 1.035 |
+| `oracle` | +0.0098 | 0.0583 | 0.83 | 0.168 | 1.093 |
+| `default` | +0.0135 | 0.0797 | 0.88 | 0.204 | 1.185 |
+| `fixed_scale` | +0.0137 | 0.1067 | 0.88 | 0.176 | 1.350 |
+| `both` | +0.0012 | 0.1082 | 0.79 | 0.177 | 1.363 |
+
+Paired against the default on absolute bias, over the 24 datasets:
+
+| configuration | difference | paired SE | t |
+|---|---|---|---|
+| `none` | **-0.0133** | 0.0055 | **-2.42** |
+| `oracle` | **-0.0154** | 0.0058 | **-2.68** |
+| `fixed_scale` | +0.0109 | 0.0122 | 0.90 |
+| `both` | +0.0119 | 0.0134 | 0.88 |
+
+**Two things, and the second is the surprise.** The settings of the propensity
+model still do not matter: `fixed_scale` and `both` are within one standard
+error of the default, which is now four benches saying the same thing. But
+`none` and `oracle` are both **better than the default**, by about two and a
+half standard errors, and they are indistinguishable from each other. Knowing
+the true propensity score is worth nothing; *estimating* one costs something.
+
+That is a statement about how the score enters rather than about how it is
+fitted, and it is sharpest where the score is supposed to earn its place. Root
+mean squared error by cell:
+
+| configuration | one-term, align 0.75 | full, align 0.75 | one-term, align 0 |
+|---|---|---|---|
+| `none` | 0.0279 | **0.0485** | **0.0810** |
+| `oracle` | **0.0263** | 0.0654 | 0.0724 |
+| `default` | 0.0381 | 0.0719 | 0.1116 |
+
+Poor overlap with no alignment, which is the hardest cell and the one the score
+exists for, is where the estimated score hurts most: 0.1116 against 0.0810
+without it.
+
+Not enough to change `bcf()`'s default on. Twenty-four datasets, two chains,
+400 draws, and the competition's own runs are 100 simulations per setting. What
+it does say is that the open question is not which settings estimate the score
+but whether putting an estimated score in the control function is helping at
+all, which is a different question from the one four benches have now failed to
+answer.
+
+**Coverage is short of nominal everywhere**, 0.79 to 0.88 against 0.95, on 24
+datasets per configuration so a standard error of about 0.07. Suggestive rather
+than settled, and consistent with the 0.85 measured separately on the
+semi-synthetic bench. This is the third measurement pointing the same way and
+the instrument for settling it is simulation-based calibration, not more of
+these.

@@ -4730,13 +4730,35 @@ struct LinkedFamily : Family {
     return inner->logdens_extra_total();
   }
 
-  // The nuisance parameters belong to the wrapped family and are drawn on its
-  // scale, so the predictors are transformed before they are handed over.
-  void update_aux(const arma::mat& eta) override {
+  // The wrapped family's own predictor. Everything below that hands it the whole
+  // matrix goes through this, because the nuisance parameters, the augmentation
+  // and the reported likelihood all belong to the wrapped family and live on
+  // its scale.
+  arma::mat inner_eta(const arma::mat& eta) const {
     arma::vec th = call_r(theta, eta.memptr(), static_cast<int>(eta.n_elem),
                           "link");
-    inner->update_aux(arma::mat(th.memptr(), 1, eta.n_cols));
+    return arma::mat(th.memptr(), 1, eta.n_cols);
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    inner->update_aux(inner_eta(eta));
     refresh_eta_free();
+  }
+
+  // Neither of these is reachable today: a family reaches this wrapper only
+  // through a link the engine does not carry natively, and `augmented_base()`
+  // matches on the native link names, so the wrapped family is never an
+  // augmented one and never has an augmentation to refresh. They are here
+  // because the same two hooks were missing from the varying-coefficient
+  // wrapper, where they were reachable and wrong for a year, and a decorator
+  // that forwards some of a base class's hooks and not others is a bug waiting
+  // for the composition that reaches it.
+  void before_forest(int h, const arma::mat& eta) override {
+    inner->before_forest(h, inner_eta(eta));
+  }
+
+  double reported_loglik(const arma::mat& eta) const override {
+    return inner->reported_loglik(inner_eta(eta));
   }
 
   std::vector<std::string> aux_names() const override {
