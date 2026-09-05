@@ -64,6 +64,11 @@ if (!requireNamespace("aciccomp2016", quietly = TRUE)) {
 
 PS <- list(num_burn = 200L, num_draws = 400L, chains = 2L)
 
+# `both` is what the mixing work recommends and `fixed_scale` half of it; the
+# question here is whether either costs anything in bias where a propensity
+# score is actually load-bearing, which is what poor overlap and low alignment
+# are for.
+
 configurations <- list(
   none        = list(propensity = FALSE),
   oracle      = list(propensity = "true"),
@@ -72,7 +77,7 @@ configurations <- list(
   both        = list(ps = list(update_sigma_mu = FALSE, sparsity = FALSE))
 )
 
-OUT <- bartisan_control(num_burn = 200L, num_draws = 500L, chains = 2L)
+OUT <- bartisan_control(num_burn = 200L, num_draws = 400L, chains = 2L)
 
 fit_one <- function(spec, d, covs) {
   form <- stats::reformulate(covs, response = "y")
@@ -129,6 +134,12 @@ spec <- {
 
     settings <- {
       if (identical(n_set, "all")) seq_len(nrow(grid))
+      else if (grepl(",", n_set) || grepl("^[0-9]+$", n_set) &&
+                 as.integer(n_set) > nrow(grid)) {
+        # Named rows, for aiming at the factors a question turns on rather than
+        # sampling the grid blind.
+        as.integer(strsplit(n_set, ",", fixed = TRUE)[[1L]])
+      }
       else {
         # A spread across the grid rather than the first few, so the six factors
         # are all represented even at a small budget.
@@ -163,13 +174,21 @@ for (p in spec$settings) {
         seconds = elapsed, grid[p, , drop = FALSE], row.names = NULL)
     }
 
-    cat(sprintf("  setting %d, sim %d done\n", p, s))
+    cat(sprintf("  setting %d (%s, overlap %s, align %.2f), sim %d done\n", p,
+                as.character(grid$model.rsp[p]), as.character(grid$overlap.trt[p]),
+                grid$alignment[p], s))
     utils::flush.console()
   }
 }
 
 results <- do.call(rbind, out)
-saveRDS(results, "_dev/acic2016-results.rds")
+
+tag <- {
+  if (identical(mode, "smoke")) "smoke"
+  else paste(range(spec$settings), collapse = "-")
+}
+
+saveRDS(results, sprintf("_dev/acic2016-results-%s.rds", tag))
 
 # ---- the report -------------------------------------------------------------
 #

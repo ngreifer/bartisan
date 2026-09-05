@@ -5010,3 +5010,58 @@ replicates put a standard error of 0.08 on it, so it is suggestive rather than
 established, but a `bcf()` interval that is three quarters as wide as the
 sampling spread of its own point estimate is the kind of thing the competition
 bench reports as a matter of course.
+
+## Fixed: a vc() model never refreshed its family's augmentation
+
+Reported as `bcf()` giving an average effect closer to zero than plain BART on
+`rhc`, which is backwards: the literature has BART attenuating a treatment
+effect and `bcf()` existing to stop it.
+
+**It was a bug, and not regularization.** `Family::before_forest()` is a no-op by
+default and `VaryingCoefficientFamily` did not override it, so for every `vc()`
+and `bcf()` model the inner family was never told a sweep had begun. An
+augmented family redraws its augmentation there, and never did. For a logit
+binomial that means the Polya-Gamma weights stayed at the 1 the constructor set,
+for the whole run: a fixed pseudo-likelihood, far too precise, which pins the
+predictor near the working response and compresses everything that varies.
+
+**Measured against a known truth.** A log-odds effect of exactly 1, no
+confounding, n = 2000, four replicates, so anything but recovery is the fit's
+own doing:
+
+| fit | coefficient | recovered |
+|---|---|---|
+| `vc()`, logit, augmented | 0.171 | **17%** |
+| `vc()`, logit, `augment = FALSE` | 0.900 | 90% |
+| `vc()`, probit, augmented | 0.548 | 91% |
+| plain, logit, augmented | 0.878 | 88% |
+
+**Why probit escaped.** A probit's latent draw is in `update_aux()`, which the
+wrapper does forward. The families that refresh in `before_forest()` are the
+logit binomial, the negative binomial, the two zero-inflated ones, the
+multinomial and the multinomial probit, and all of them were affected under
+`vc()`. That is why `vignette("causal")`, which fits a probit, looks sensible
+and a logit `bcf()` returns a null effect.
+
+**The tell was the log likelihood.** The broken fits reported a *positive* one,
++37.5 where every other fit on the same data reports about -830. Nothing
+Bernoulli is positive. That is the same missing forward seen from the other
+side: `reported_loglik()` was not forwarded either, so the base class reported
+the augmented density rather than the likelihood the augmentation is a device
+for.
+
+**The fix** gives the wrapper `before_forest()` and `reported_loglik()`
+overrides that combine the predictor and hand it to the inner family, which is
+exactly what its `update_aux()` already did. On `rhc`, `bcf()` on a logit
+binomial goes from an average effect of +0.0060 with an interval 0.043 wide to
++0.0641 with an interval 0.096 wide, against plain BART's +0.0588 and 0.112. The
+contradiction the report started from is gone.
+
+Regression test in `test-varying.R`: recovery within sight of the truth, and a
+log likelihood that is negative.
+
+**What this invalidates.** Any measurement in this file taken on a `vc()` fit of
+an augmented family. The propensity-settings bench is Gaussian throughout and
+the ACIC bench has Gaussian outcomes with a plain, non-`vc()` propensity model,
+so neither is affected. `vignette("causal")` fits a probit and is not affected
+in its estimates, though its `bcf()` log likelihood was being misreported.

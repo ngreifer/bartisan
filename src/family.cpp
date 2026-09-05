@@ -5294,17 +5294,48 @@ struct VaryingCoefficientFamily : Family {
   // scale, so the predictors are combined before they are handed over. The
   // coding coefficients are drawn here too, since this is the once-a-sweep hook
   // and they are a nuisance parameter of exactly the same kind.
-  void update_aux(const arma::mat& eta) override {
-    draw_coding(eta);
-
+  // The inner family's own predictor, one column per observation, which is what
+  // every hook that takes the whole matrix has to be handed. The wrapper's `eta`
+  // has one row per forest -- a control function and one coefficient per term --
+  // and the inner family expects the combination.
+  arma::mat inner_eta(const arma::mat& eta) const {
     arma::mat mu(inner->H, eta.n_cols);
 
     for (arma::uword i = 0; i < eta.n_cols; i++) {
       combine_all(static_cast<int>(i), eta.colptr(i), mu.colptr(i));
     }
 
-    inner->update_aux(mu);
+    return mu;
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    draw_coding(eta);
+    inner->update_aux(inner_eta(eta));
     refresh_eta_free();
+  }
+
+  // Forwarded for the same reason `update_aux()` is, and it was not. An
+  // augmented family refreshes its augmentation in one of these two hooks: the
+  // probit's latent draw is in `update_aux()` and so came through, while the
+  // Polya-Gamma weights, the negative binomial's, the zero-inflated ones and the
+  // multinomial's are in `before_forest()` and did not. Without this the base
+  // class's empty version ran instead, the inner family was never told a sweep
+  // had begun, and its augmentation stayed at whatever the constructor set: for
+  // a logit binomial that is a Polya-Gamma weight of exactly 1 for every
+  // observation, for the whole run, which is a fixed and far too precise
+  // pseudo-likelihood and shrinks the coefficient it is supposed to be
+  // estimating by an order of magnitude.
+  void before_forest(int h, const arma::mat& eta) override {
+    inner->before_forest(param(h), inner_eta(eta));
+  }
+
+  // Likewise. Reporting is all this affects, but an augmented family's target is
+  // the augmented density and the number worth printing is the likelihood it is
+  // a device for, which only the inner family can compute. Left to the base
+  // class it reported the augmented density, which for a logit binomial is not
+  // even negative.
+  double reported_loglik(const arma::mat& eta) const override {
+    return inner->reported_loglik(inner_eta(eta));
   }
 
   // One conjugate normal draw per level.

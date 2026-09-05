@@ -904,3 +904,32 @@ test_that("bcf composes with a family that has two additive predictors", {
   expect_identical(colnames(coef(fit)), c("mean:z", "log_sd:z"))
   expect_false(any(startsWith(colnames(fit[["aux"]]) %or% character(), "b.")))
 })
+
+test_that("an augmented family under vc() has its augmentation refreshed", {
+  skip_on_cran()
+
+  # `before_forest()` is where a Polya-Gamma family redraws its weights, and the
+  # varying-coefficient wrapper did not forward it, so the weights stayed at the
+  # 1 the constructor set and the pseudo-likelihood never adapted. The
+  # coefficient it was supposed to be estimating came back an order of magnitude
+  # short: on this design, 0.17 against a truth of 1.
+  set.seed(404)
+  n <- 1200L
+  d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n))
+  f <- 1.5 * d$x1 - 1.5 * d$x2
+  d$z <- stats::rbinom(n, 1L, 0.5)
+  d$y <- stats::rbinom(n, 1L, stats::plogis(f - mean(f) + 1 * d$z))
+
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = binomial(),
+                  control = bartisan_control(num_trees = c(30L, 15L),
+                                             num_burn = 200L, num_draws = 300L))
+
+  # Recovery is not the point and the tolerance is wide; being within sight of
+  # the truth rather than a tenth of it is.
+  expect_gt(mean(coef(fit)[, 1L]), 0.5)
+
+  # A Bernoulli log likelihood is negative. The augmented density is what the
+  # sampler targets, and reporting it instead gave a positive number, which is
+  # the same missing forward seen from the other side.
+  expect_lt(mean(fit[["loglik"]]), 0)
+})
