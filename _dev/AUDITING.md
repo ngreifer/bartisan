@@ -117,23 +117,38 @@ random-effect standard deviation of 0.6:
 Nothing here is broken. The 88% on the weighted cells is the same shrinkage the
 unstructured fits show and is not specific to any wrapper.
 
-**The rest of the matrix.**
+**The rest of the matrix**, after a second sweep of 28 cells over seven
+families crossed with plain, `vc()`, random effects, and `vc()` with random
+effects. Every one passes the two invariants.
 
-| | plain | `vc()` | random effects | multi-forest |
+| | plain | `vc()` | random effects | `vc()` + ranef |
 |---|---|---|---|---|
 | gaussian | yes | yes | yes | yes |
-| binomial | **yes** | **yes** | **yes** | n/a |
-| ordinal | yes | invariants only | ? | ? |
-| negbin | yes | invariants only | ? | ? |
-| zip, zinb | yes | ? | ? | ? |
+| binomial, both links | **yes** | **yes** | **yes** | **yes** |
+| ordinal, logit and cloglog | **yes** | **yes** | **yes** | **yes** |
+| negbin | **yes** | **yes** | **yes** | **yes** |
+| poisson | **yes** | **yes** | **yes** | **yes** |
+| zi_poisson | **yes** | **yes** | **yes** | **yes** |
+| zi_negbin | **yes** | **yes** | **yes** | **yes** |
+| `gaussian_ls` | **yes** | **yes** | **yes** | **yes** |
 | multinomial | yes | refused, by design | ? | n/a |
 | the survival families | yes | ? | ? | ? |
-| `gaussian_ls`, `Gamma_ls` | yes | yes | ? | yes |
+| `Gamma`, `Gamma_ls`, `Beta`, `ordbeta`, `dpm` | yes | ? | ? | ? |
 
-"Invariants only" means the augmentation agreement and the log likelihood sign
-are checked in `test-invariants.R` but no known truth is recovered through that
-cell. The question marks are where a hook can still be dropped with nothing to
-say so.
+Only the binomial row carries known-truth recovery as well; the rest are the two
+invariants, which is what caught the original bug and is much the cheaper half.
+
+One cell flagged on the first pass and did not survive scrutiny: `zi_negbin`
+under `vc()` with random effects disagreed between the augmented and
+unaugmented fits at 250 draws on one chain, and agreed at 800 draws on two. Four
+additive predictors and a short chain is where Monte Carlo error looks like a
+bug, and the remedy is to re-run the cell rather than to widen the tolerance
+until it passes.
+
+The remaining question marks are where a hook can still be dropped with nothing
+to say so. `poisson` and `gaussian_ls` are worth noting as the control: neither
+is on the augmentation list, and their two fits agree *exactly* rather than
+approximately, which is what a no-op should look like.
 
 ### 4. The decorator audit, which is mechanical
 
@@ -169,10 +184,23 @@ takes its own instrument: draw a parameter from the prior, simulate data from
 it, fit, and record where the truth falls in the posterior. Over many draws the
 ranks are uniform if and only if the sampler targets the right posterior.
 
-This is the only technique here that validates the *shape* of the posterior
-rather than its center, it is expensive, and it is the right tool for the
-under-coverage separately measured on the effect intervals. Worth doing on small
-problems for a handful of families rather than not at all.
+**Done, in `_dev/sbc.R`, and it passes**: 300 replicates, chi-square 4.2 on 9
+degrees of freedom for uniformity of the ranks, p = 0.90, and the 95% interval
+covering at 0.957. The sub-nominal coverage measured on the benches is therefore
+the prior doing its job against a truth it does not favor, not a sampler that is
+wrong, which is the difference between a credible interval and a confidence
+interval.
+
+The obstacle worth knowing about is that this model's prior is **empirical**,
+which is standard for BART and makes SBC not quite well-posed: the leaf scale
+comes from the response's spread, the residual scale from a regression of the
+response on the predictors, and the predictor is centered at an empirical value.
+`sigma_mu` can be fixed through `bartisan_control()`, a `binomial()` avoids the
+residual scale entirely, and calibrating a *contrast* rather than a level makes
+the empirical centering cancel. What is left, the tree prior, is data-free and
+replicates exactly. A family with a nuisance parameter, a soft gate and a drawn
+sparsity prior are each a further piece of prior to replicate and are not
+covered yet.
 
 ### 7. Differential testing against another implementation
 

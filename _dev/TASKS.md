@@ -5124,3 +5124,55 @@ than settled, and consistent with the 0.85 measured separately on the
 semi-synthetic bench. This is the third measurement pointing the same way and
 the instrument for settling it is simulation-based calibration, not more of
 these.
+
+## Log: simulation-based calibration, and what the interval question turned out to be
+
+The effect intervals had come in short of nominal three times: 0.85 on the
+semi-synthetic bench, 0.79 to 0.88 across the ACIC configurations. The right
+instrument for that is simulation-based calibration, and the right framing is
+that these are **credible** intervals, which were never promised frequentist
+coverage.
+
+**SBC passes, cleanly.** 300 replicates, a parameter drawn from the model's own
+prior, data simulated from it, and the rank of the truth among 100 thinned
+posterior draws:
+
+| bin | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| count | 28 | 34 | 31 | 36 | 29 | 27 | 29 | 23 | 33 | 30 |
+
+Thirty expected in each. Chi-square 4.2 on 9 degrees of freedom, **p = 0.90**.
+Half the ranks fall in the middle half, which is what uniform means, and the
+mean rank is 49.6 of 100 against 50. **The 95% interval covers at 0.957, with a
+standard error of 0.012.**
+
+So the sampler draws from the posterior it defines, and its intervals are right
+for the model. Nothing needs improving.
+
+**The two results are not in conflict, they are the definition of the
+distinction.** When the truth comes from the prior, coverage is nominal, which
+is what SBC just showed. When the truth is a fixed function the prior does not
+favor, which is every one of the benches, the prior shrinks the estimate toward
+zero -- measured at 88% to 92% recovery across the binomial cells -- and an
+interval that is correctly narrow for a Bayesian misses more often than one time
+in twenty. That is a credible interval behaving exactly as advertised and not a
+confidence interval underperforming.
+
+**What SBC here could and could not cover**, because the model's prior is
+empirical the way every BART implementation's is:
+
+- The leaf scale is fixed through `sigma_mu` in `bartisan_control()`, so that
+  part of the prior is exact.
+- The residual scale for a Gaussian is `residual_scale(y, x)` and nothing fixes
+  it, so this used a `binomial()`, which has no such parameter.
+- The predictor is centered at `qlogis(mean(y))`, which no prior produced. The
+  calibrated quantity is therefore a **contrast** between two observations,
+  where the centering is common and cancels. Calibrating the level instead would
+  have been measuring the centering, which absorbs it entirely.
+- The tree prior is data-free and is replicated exactly: branch with probability
+  `gamma * (1 + depth)^-beta`, a variable drawn uniformly, and a cutpoint
+  uniform on what the nearest same-variable ancestor left, from [0, 1] down.
+
+`_dev/sbc.R` holds it. What it does not yet cover is a soft gate, a drawn
+sparsity prior, or a family with a nuisance parameter, and each of those is a
+separate replication of a separate piece of prior.
