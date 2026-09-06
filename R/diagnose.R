@@ -57,11 +57,20 @@
 #' ## What Is Reported
 #'
 #' One row per scalar the sampler draws (the log likelihood, the nuisance
-#' parameters of the family, and the scale of each random-effect term), plus one
-#' row for the additive predictor and one for each set of group intercepts,
-#' summarized over their worst 5% of observations or levels rather than averaged,
-#' since an average over a thousand observations hides the ones that have not
-#' converged.
+#' parameters of the family, and the scale of each random-effect term), plus two
+#' rows for the additive predictor and two for each set of group intercepts: one
+#' summarizing the worst 5% of observations or levels, and one for their average.
+#'
+#' Both are reported because they routinely disagree, and neither on its own is
+#' the fit. An average over a thousand observations hides the ones that have not
+#' converged, which is what the worst 5% is there to show; but a forest settles
+#' the level of the fitted function within a sweep or two and takes much longer
+#' to settle which observation gets which share of it, so the worst 5% overstates
+#' the trouble for anything averaged. The average can carry close to one
+#' effective draw for every draw kept while individual observations carry a
+#' handful. Which row binds depends on what is being reported: an average or a
+#' contrast of averages is governed by the average row, and a prediction for one
+#' observation by the other.
 #'
 #' `rhat` is split-R-hat (Gelman and Rubin, as revised in Gelman et al. 2013):
 #' every chain is halved and the halves are compared, so drift inside a chain
@@ -104,6 +113,27 @@
 #' exploring different tree structures, and no generic MCMC diagnostic can see
 #' that, because none of them looks at the forest.
 #'
+#' ## R-hat Needs Effective Draws
+#'
+#' R-hat is a ratio of two variance estimates taken from the same draws, so with
+#' few effective draws it sits above 1 whether or not anything is wrong, and how
+#' far above depends on how many chains are being compared. Against a stationary
+#' autoregressive series, where every chain has the same distribution by
+#' construction and there is nothing at all to find, R-hat averages
+#' \eqn{1 + m/S} for \eqn{m} chains carrying \eqn{S} effective draws between
+#' them: 1.026, 1.050, 1.103 and 1.205 at 80 effective draws over two, four,
+#' eight and sixteen chains, against 1.025, 1.050, 1.100 and 1.200 from the
+#' formula.
+#'
+#' `rhat_max` is therefore not a threshold a quantity can be held to at any
+#' effective sample size. Four chains need 400 effective draws before 1.01 is
+#' even the average of R-hat's null, which is where the pairing of the two
+#' defaults comes from and why Vehtari et al. (2021) give them together, and
+#' sixteen chains need 1600 for the same 1.01. When a quantity fails R-hat while
+#' carrying fewer than that, the checks report that the number cannot be read yet
+#' rather than a disagreement it is not entitled to claim, and the advice sends
+#' the reader to the effective sample size instead.
+#'
 #' ## The Leaf Scale Is Left Out
 #'
 #' `sigma_mu` is deliberately absent from the table. It mixes badly
@@ -129,6 +159,17 @@
 #' so the sampler has less room to wander between them) and check the family,
 #' because a likelihood that fits badly can produce a posterior with no single
 #' place to be.
+#'
+#' **More chains and longer chains are not interchangeable.** Effective sample
+#' size depends on the total number of draws and not on how they are divided
+#' between chains, so twice as many chains and twice as long a chain buy the same
+#' amount of it; with a parallel backend the chains are the cheaper of the two up
+#' to the number of workers, though each chain pays its own warmup. R-hat is not
+#' symmetric in the same way, because it compares chains against each other:
+#' lengthening a chain drives it toward 1, while adding chains at a fixed total
+#' leaves each chain with less to say and drives it up. A fit failing on R-hat
+#' therefore wants longer chains rather than more of them, and a fit failing only
+#' on effective sample size can have either.
 #'
 #' **An effective sample size that is low while R-hat is fine** is the benign
 #' case, and it wants only more draws. Note that thinning does not help:
@@ -335,79 +376,91 @@ diagnosis_row <- function(quantity, x, rhat_max) {
 
 # The additive predictor and the group intercepts have one column per observation
 # or per level, so each contributes one row summarized over its worst column.
-# The statistics for one column of draws each, which is where this whole pass
-# spends its time: one rank-normalization and one autocovariance per column, and
-# there is one column per observation.
+# The statistics for a block of columns, which is where this whole pass spends
+# its time: one rank-normalization and one autocovariance per column, and there
+# is one column per observation.
 #
-# Split over a `future` plan when there is one and there are enough columns to
+# Top level rather than a closure written inside `diagnosis_columns()`, for a
+# reason that is invisible until it is measured. A closure carries the frame it
+# was written in, and that frame holds `wide`, so handing the closure to a worker
+# hands over the whole draw matrix with it however few columns that worker was
+# asked for. Written here it carries the namespace and nothing else, and a worker
+# receives its own columns and no more.
+diagnosis_block <- function(part, chains, step) {
+  vapply(seq_len(ncol(part)), function(j) {
+    out <- diagnosis_stats(as_chains(part[, j], chains))
+    step()
+    out
+  }, numeric(4L))
+}
+
+# Split over a *future* plan when there is one and there are enough columns to
 # pay for the hand-off. The columns are independent and no random numbers are
 # drawn, so the chunks are pure functions of their inputs and the result does not
 # depend on how many workers ran them; `cut()` gives contiguous chunks in
 # ascending order, so `cbind()` puts the columns back where they were. Without
-# \CRANpkg{future.apply} it is the same `vapply()` it always was, which is the
-# same choice `run_chains()` makes for the chains themselves.
+# *future* it is the same `vapply()` it always was, which is the same choice
+# `run_chains()` makes for the chains themselves.
+#
+# What limits the speedup is how many fast cores there are, and nothing in here.
+# Given the same 1000 columns, a worker takes 1.17s alone and 1.97s when eight
+# run at once; per-worker time is nearly flat to four workers and climbs after.
+# That knee is the machine: the M4 this was measured on has four performance
+# cores and six efficiency ones, and a compute-bound loop over 8 KB of data,
+# where memory bandwidth cannot come into it, gives the same curve. So expect
+# about 3.5x here and better where there are more than four equal cores.
 diagnosis_columns <- function(wide, chains, budget) {
   columns <- ncol(wide)
-
-  block <- function(part, step) {
-    vapply(seq_len(ncol(part)), function(j) {
-      out <- diagnosis_stats(as_chains(part[, j], chains))
-      step()
-      out
-    }, numeric(4L))
-  }
 
   # The hand-off is cheap enough that splitting pays well below the sizes that
   # motivated it: measured on four workers, 200 columns went 3.0x and even 50
   # went 2.1x. The floor is not there because the split stops paying, then, but
   # because below it the whole pass is a few hundredths of a second and the
   # first parallel call in a session still has to start the workers.
-  workers <- if (rlang::is_installed("future.apply")) future::nbrOfWorkers() else 1L
+  workers <- if (rlang::is_installed("future")) future::nbrOfWorkers() else 1L
+
+  # A plan that does not fix a worker count cannot say how many pieces to cut
+  # into, and infinitely many is not a question `cut()` can answer.
+  if (!isTRUE(is.finite(workers))) {
+    workers <- 1L
+  }
 
   if (columns < 100L || !isTRUE(workers > 1L)) {
-    return(block(wide, budget(columns)))
+    return(diagnosis_block(wide, chains, budget(columns)))
   }
 
   chunks <- split(seq_len(columns),
                   cut(seq_len(columns), workers, labels = FALSE))
 
-  # One block per worker, each worker slicing its own columns out of `wide`.
-  # That makes `wide` a global, which `future` exports to every worker, and by
-  # size that looks alarming: 102 MB at 8000 observations, so 819 MB across
-  # eight workers. Measured, it costs nothing. Cutting the blocks in this
-  # session first, so that only a worker's own columns cross, was within noise
-  # of this at every worker count tried (+0.9% at eight, +5.7% at four) and
-  # holds a second copy of the draws for the length of the pass. Both forms are
-  # bit-identical to the sequential result.
-  #
-  # What limits the speedup is how many fast cores there are, and nothing in
-  # here. Given the same 1000 columns, a worker takes 1.17s alone and 1.97s when
-  # eight run at once; per-worker time is nearly flat to four workers and climbs
-  # after. That knee is the machine: the M4 this was measured on has four
-  # performance cores and six efficiency ones, and a compute-bound loop over
-  # 8 KB of data, where memory bandwidth cannot come into it, gives the same
-  # curve (1.16x at four workers, 1.43x at six, 1.65x at eight). So expect about
-  # 3.5x here and better where there are more than four equal cores.
   # One stepper per chunk, drawn here before anything is dispatched, so that the
   # shares add up to the whole bar however many chunks there are. A single
   # stepper is copied to each worker, and the copies each count from zero, which
   # left the bar short of full by two ticks at four workers and more above that.
   steppers <- lapply(chunks, function(js) budget(length(js)))
 
-  if (rlang::is_installed("future.apply")) {
-    parts <- future.apply::future_lapply(
-      seq_along(chunks),
-      function(k) block(wide[, chunks[[k]], drop = FALSE], steppers[[k]]),
-      future.seed = FALSE,
-      future.packages = "bartisan")
-  }
-  else {
-    parts <- lapply(seq_along(chunks),
-                    function(k) block(wide[, chunks[[k]], drop = FALSE],
-                                      steppers[[k]]))
+  futures <- vector("list", length(chunks))
+
+  for (k in seq_along(chunks)) {
+    # Cut here rather than on the worker. A worker that slices `wide` itself has
+    # to be sent `wide` to slice, and that send is what the bar waits on.
+    part <- wide[, chunks[[k]], drop = FALSE]
+    step <- steppers[[k]]
+
+    futures[[k]] <- future::future(diagnosis_block(part, chains, step),
+                                   seed = FALSE, packages = "bartisan")
+
+    # Sending the chunks out takes a share of the pass, and while this session
+    # is sending it is the one thing that cannot report: a worker's progress
+    # reaches a bar only when this session looks for it. So look, once per
+    # chunk, at the workers already running. Without this the first chunk's
+    # reports wait on the last chunk being sent, which is what left the bar at
+    # zero for the first third of the pass and then moved it in one jump.
+    for (f in futures[seq_len(k - 1L)]) {
+      future::resolved(f)
+    }
   }
 
-  do.call(cbind, parts)
+  do.call(cbind, lapply(futures, future::value))
 }
 
 diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
@@ -423,6 +476,18 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
       wide <- part[["draws"]][[h]]
 
       per_column <- diagnosis_columns(wide, chains, budget)
+
+      # The average first, because the two rows are meant to be read against
+      # each other. A forest can disagree with itself about every observation
+      # and still agree about their average, and it usually does: the level of
+      # the fitted function is settled in a sweep or two, while which
+      # observation gets which share of it is the slow part. Which of those is
+      # happening decides both what to do about it and whether it matters for
+      # what is being reported.
+      out[[length(out) + 1L]] <- diagnosis_row(
+        sprintf("%s.%s (average over %s)", part[["stem"]],
+                names(part[["draws"]])[h], part[["over"]]),
+        as_chains(rowMeans(wide), chains), rhat_max)
 
       # The worst 5% boundary rather than the single worst column, because the
       # worst of a thousand values is extreme even when every chain has
@@ -545,7 +610,8 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     }
 
     i <- which(v == max(v, na.rm = TRUE) & is.finite(v))[1L]
-    list(share = v[i], quantity = table[["quantity"]][i])
+    list(share = v[i], quantity = table[["quantity"]][i],
+         ess = table[["ess_bulk"]][i])
   }
 
   bad_rhat <- worst_share("rhat_bad")
@@ -562,6 +628,33 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     rows <- add(rows, "rhat", "ok", sprintf("below %.2f throughout", rhat_max))
   }
 
+  # R-hat is a ratio of two variance estimates taken from the same draws, so with
+  # few effective draws it sits above 1 whether or not anything is wrong, and how
+  # far above depends on how many chains there are. Calibrated against a
+  # stationary autoregressive series, where every chain has the same distribution
+  # by construction and there is nothing whatever to find, R-hat averages
+  # `1 + chains / ess`: at 80 effective draws it is 1.026 over two chains, 1.050
+  # over four, 1.103 over eight and 1.205 over sixteen, against 1.025, 1.050,
+  # 1.100 and 1.200 from the formula, and it tracks the same way along the other
+  # axis, giving 1.162 at 25 effective draws and 1.010 at 400 over four chains.
+  #
+  # So the threshold a fit has to clear before `rhat_max` means anything is the
+  # effective sample size at which R-hat's null reaches it, and that is what is
+  # compared here rather than `ess_min`. At the two defaults the two agree, since
+  # four chains need 400; at sixteen chains the same 1.01 needs 1600, which is
+  # why moving draws into more chains makes R-hat look worse while leaving the
+  # information in the draws alone.
+  null_rhat <- function(ess) 1 + chains / ess
+
+  unreadable <- !is_null(bad_rhat) && bad_rhat[["share"]] > FAIL_SHARE &&
+    isTRUE(null_rhat(bad_rhat[["ess"]]) > rhat_max)
+
+  if (unreadable) {
+    rows <- add(rows, "rhat readable", "warn",
+                sprintf("that R-hat rests on %.0f effective draws, where %d chains average %.3f even when they agree",
+                        bad_rhat[["ess"]], chains, null_rhat(bad_rhat[["ess"]])))
+  }
+
   bad_late <- worst_share("late_bad")
 
   if (is_null(bad_late) || is_null(bad_rhat)) {
@@ -573,6 +666,14 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   else if (bad_late[["share"]] <= FAIL_SHARE) {
     rows <- add(rows, "warmup", "warn",
                 sprintf("too short: R-hat is fine on the second half of the draws alone, which is what more `num_burn` would have given"))
+  }
+  else if (unreadable) {
+    # The stronger reading is withheld here for the same reason the check above
+    # exists: R-hat staying high is not evidence of disagreement at this many
+    # effective draws. What it does rule out is warmup, which is all this line
+    # claims.
+    rows <- add(rows, "warmup", "note",
+                "not the fix: R-hat stays high on the second half of the draws alone as well, so a longer warmup is not what is missing")
   }
   else {
     rows <- add(rows, "warmup", "note",
@@ -616,6 +717,23 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     }
   }
 
+  # Not a fault, so a note: it says which coordinate the trouble is in. The
+  # rows summarized over observations come in pairs, and the pair disagreeing is
+  # the whole point of reporting both.
+  averaged <- table[grepl("(average over", table[["quantity"]], fixed = TRUE), ,
+                    drop = FALSE]
+  worst <- table[grepl("(worst 5% of", table[["quantity"]], fixed = TRUE), ,
+                 drop = FALSE]
+
+  if (nrow(averaged) > 0L && nrow(worst) > 0L &&
+        any(worst[["rhat_bad"]] > FAIL_SHARE, na.rm = TRUE) &&
+        all(averaged[["rhat_bad"]] == 0, na.rm = TRUE)) {
+    rows <- add(rows, "where it is", "note",
+                sprintf("the chains disagree about individual observations and agree about their average (R-hat %.2f, %.0f effective draws)",
+                        max(averaged[["rhat"]], na.rm = TRUE),
+                        min(averaged[["ess_bulk"]], na.rm = TRUE)))
+  }
+
   lo_frac <- worst_at("ess_frac", min)
 
   if (!is_null(lo_frac) && lo_frac[["value"]] < 0.05) {
@@ -647,6 +765,10 @@ diagnosis_advice <- function(checks, control = NULL) {
     any(checks[["check"]] == name & checks[["status"]] == "warn")
   }
 
+  noted <- function(name) {
+    any(checks[["check"]] == name & checks[["status"]] == "note")
+  }
+
   # What the fit used, so that "raise `num_draws`" names a number the reader can
   # act on rather than sending them back to the call to find out what it was.
   # A clause rather than a sentence, so it reads as an aside where it lands. It
@@ -657,7 +779,11 @@ diagnosis_advice <- function(checks, control = NULL) {
     nms <- c(...)
     got <- control[nms]
 
-    if (!all(vapply(got, function(v) length(v) == 1L, logical(1L)))) {
+    # The length check covers a missing `control` as well as a setting that is
+    # not one number: subsetting `NULL` gives back nothing rather than a list of
+    # nothings, and the clause would otherwise come out as "which was ."
+    if (length(got) != length(nms) ||
+          !all(vapply(got, function(v) length(v) == 1L, logical(1L)))) {
       return("")
     }
 
@@ -689,12 +815,26 @@ diagnosis_advice <- function(checks, control = NULL) {
   }
 
   if (failed("rhat") && !warmup) {
-    out <- c(out, paste(
-      paste0("Raise `num_burn` and `num_draws` together",
-             had("num_burn", "num_draws"), "."),
-      "R-hat stays high even on the",
-      "second half of the draws alone, so the chains have each settled",
-      "somewhere different rather than merely started badly."))
+    if (failed("rhat readable")) {
+      out <- c(out, paste(
+        paste0("Raise `num_draws`", had("num_draws"), "."),
+        "R-hat is above the threshold for a quantity that carries too few",
+        "effective draws for the threshold to mean anything: with this many",
+        "chains it would sit about where it does even if the chains agreed",
+        "exactly, as the check above reports. Effective sample size is what",
+        "makes it readable, and that grows with the total number of draws;",
+        "using fewer chains lowers the bar as well, since R-hat's null rises",
+        "with the number of chains being compared."))
+    }
+    else {
+      out <- c(out, paste(
+        paste0("Raise `num_burn` and `num_draws` together",
+               had("num_burn", "num_draws"), "."),
+        "R-hat stays high even on the",
+        "second half of the draws alone, so the chains have each settled",
+        "somewhere different rather than merely started badly."))
+    }
+
     out <- c(out, paste(
       paste0("If that does not settle it, reduce `num_trees`",
              had("num_trees"), "."),
@@ -704,6 +844,16 @@ diagnosis_advice <- function(checks, control = NULL) {
     out <- c(out, paste(
       "Then check the family. A likelihood that fits the data badly can give a",
       "posterior with no single place to be; `pp_check()` is the diagnostic."))
+  }
+
+  if (noted("where it is")) {
+    out <- c(out, paste(
+      "Note that the chains disagree about the fitted values of individual",
+      "observations and not about their average, which is the usual shape of",
+      "this in a forest. An estimand averaged over observations therefore",
+      "carries far more effective draws than the table's worst row does, and",
+      "R-hat for that estimand is worth computing rather than inferring;",
+      "`as_draws()` hands the draws to *posterior* for it."))
   }
 
   if ((failed("bulk ESS") || failed("tail ESS")) && !failed("rhat")) {

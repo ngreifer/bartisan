@@ -70,3 +70,8 @@ docs
 !_dev/AUDITING.md
 !_dev/sbc.R
 !_dev/MIXING.md
+!_dev/ess-rhat-calibration.R
+!_dev/chains-vs-draws.R
+!_dev/where-mixing-lives.R
+!_dev/mixing-anatomy.R
+!_dev/lalonde-reproduce.R

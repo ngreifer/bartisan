@@ -36,6 +36,29 @@ progress_ticks <- function(control) {
 # thousands of times would cost more than the statistics.
 PROGRESS_DIAG_TICKS <- 50L
 
+# A reporter that can reach the progressor and nothing else.
+#
+# Every one of these closures is sent to a worker, and a closure carries the
+# frame it was written in. Written inline, that frame is the one holding `envir`
+# -- the caller's own frame, and through it the fit, the data, and whatever else
+# the caller had in hand. Written here it holds `p`. On a fit with 20000 draws
+# over 614 observations that is the difference between 361 MB and 20 KB crossing
+# to each worker, and the cost is not only the sending: until the last worker has
+# been sent its copy, the session cannot relay anybody's progress, so the bar sat
+# at zero for the first third of the pass and then moved in one jump.
+reporter_for <- function(p) {
+  # Forced here, and that is the whole point of the function. An argument that
+  # is never forced stays a promise, and a promise holds the frame it was
+  # written in, so an unforced `p` would keep `diagnosis_reporter()`'s frame
+  # alive -- and with it that function's `envir`, the caller's frame, the fit.
+  # The closure below would then be small to read and 336 MB to send.
+  force(p)
+
+  function() {
+    p()
+  }
+}
+
 # The reporter a wrapper has claimed for the whole of what a caller asked for.
 #
 # `bcf()` fits a propensity model and then an outcome model, so two `bartisan()`
@@ -69,7 +92,7 @@ shared_reporter <- function(specs, envir = parent.frame()) {
 
   p <- progressr::progressor(steps = chains * ticks, envir = envir)
 
-  list(report = function() p(), ticks = as.integer(ticks))
+  list(report = reporter_for(p), ticks = as.integer(ticks))
 }
 
 # What `progress_reporter()` would size a fit at, without building it: how many
@@ -122,12 +145,9 @@ progress_reporter <- function(chains, control, envir = parent.frame()) {
   p <- progressr::progressor(steps = chains * ticks, envir = envir)
 
   # A function of no arguments, because one more slice of the run being done is
-  # all the sampler has to say.
-  report <- function() {
-    p()
-  }
-
-  list(report = report, ticks = ticks)
+  # all the sampler has to say. Built by `reporter_for()` rather than written
+  # here, so that it carries the progressor and not this frame; see there.
+  list(report = reporter_for(p), ticks = ticks)
 }
 
 # The convergence pass's reporter. Separate from the one above because the pass
@@ -144,9 +164,7 @@ diagnosis_reporter <- function(steps, envir = parent.frame()) {
 
   p <- progressr::progressor(steps = steps, envir = envir)
 
-  function() {
-    p()
-  }
+  reporter_for(p)
 }
 
 # Turn `total` units of work into at most `steps` reports, for a phase that runs

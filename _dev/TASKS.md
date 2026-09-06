@@ -5233,3 +5233,246 @@ data-generating process carrying the deep isolated signal Kim and Ročková
 construct, which a forest drawn from the branching prior produces only by
 accident. A prior draw is the right generator for SBC and the wrong one for
 finding the worst case, and those are different experiments.
+
+## The `diagnose()` progress bar, and the 336 MB closure behind it
+
+The bar under a `multisession` plan started at zero, sat there for the first
+third of the pass, jumped to 98 and finished. The arithmetic in
+`progress_budget()` was not the problem; it had been fixed already and the ticks
+add up exactly. The problem was *when* the ticks could be delivered.
+
+**What was measured.** A `withCallingHandlers()` on `progression` timestamps each
+report as it reaches the calling session. On a lalonde fit with four chains and
+5000 draws, the ticks fired on the workers at 0.50s, 0.68s, 0.82s and on through
+the pass, and the first twelve of them arrived at the master together at 1.31s
+of a 2.8s pass. Replacing `future_lapply()` with an explicit loop showed why: the
+four futures were created at 0.08s, 0.23s, 0.54s and 0.93s, and the first arrival
+was 0.93s. **While the session is sending futures out it is the one thing that
+cannot report**, because a worker's progress reaches a bar only when the session
+looks for it, and it is busy.
+
+**Two things were being sent that did not need to be.** Serializing the draw
+matrix costs 0.065s, so the volume was not obviously the issue and an earlier
+measurement had concluded that slicing the chunks "was within noise". That
+measurement was wrong, and so was the first re-measurement here, in the same way:
+writing `parts[[k]]` inside a future exports the whole of `parts`, so both arms
+shipped the same bytes. Binding the slice to a local first separates them, and
+then whole-matrix export costs 0.78s of dead bar against 0.34s.
+
+The larger one was invisible to any reading of the code. `diagnosis_reporter()`
+takes `envir = parent.frame()` so that the progressor finalizes with the caller,
+and that argument stays in the frame the reporter closure was written in. The
+closure was four lines long and **serialized to 336 MB**, because `envir` is
+`diagnose()`'s frame and `diagnose()`'s frame holds the fit. Both ways of leaking
+a frame were present at once: writing the closure where the frame is, and leaving
+an argument unforced, since an unforced promise holds the environment it came
+from. `reporter_for()` fixes both with `force(p)` and a frame containing nothing
+else, and all three reporters now go through it, so a multi-chain fit stops
+sending `bartisan()`'s frame to every chain worker as well.
+
+| | first tick | worst gap | pass |
+|---|---|---|---|
+| before | 0.78s | 0.71s | 2.28s |
+| after | 0.21s | 0.25s | 1.94s |
+
+Results are identical to the sequential pass. `diagnosis_block()` moved to top
+level for the same reason as the rest: a closure written inside
+`diagnosis_columns()` carries `wide` with it however few columns the worker got.
+The dispatch loop polls the futures already running after each one is created, so
+their reports relay while the rest are still being sent.
+
+`tests/testthat/test-invariants.R` gained a regression test that serializes the
+reporter and the stepper and asserts they are under 100 KB with 16 MB sitting in
+the frame beside them. `make_unit_map()` in `R/utils.R` had the same shape and
+is dealt with in the entry below, where it turned out to be much the larger of
+the two.
+
+## R-hat's null is `1 + chains / ess`, and what that does to the thresholds
+
+`diagnose()` was giving confident and wrong advice on fits that fail its
+per-observation row: "the chains have each settled somewhere different" when the
+true situation was that there were not enough effective draws for R-hat to say
+anything at all.
+
+**The calibration.** `_dev/ess-rhat-calibration.R` runs the package's own
+`diagnosis_stats()` against a stationary AR(1) with rho = 0.99, where every chain
+has the same distribution by construction and there is nothing to find, 400
+replicates a cell. R-hat's null mean is `1 + m/S` for `m` chains carrying `S`
+effective draws between them, and the fit is exact:
+
+| chains | draws | true ESS | mean R-hat | `1 + m/S` | P(R-hat > 1.01) |
+|---|---|---|---|---|---|
+| 2 | 8000 | 80 | 1.026 | 1.025 | 86% |
+| 4 | 4000 | 80 | 1.050 | 1.050 | 100% |
+| 8 | 2000 | 80 | 1.103 | 1.100 | 100% |
+| 16 | 1000 | 80 | 1.205 | 1.200 | 100% |
+
+and along the other axis, four chains lengthened:
+
+| true ESS | mean R-hat | 90th pct | P(R-hat > 1.01) |
+|---|---|---|---|
+| 25 | 1.162 | 1.279 | 100% |
+| 100 | 1.041 | 1.068 | 100% |
+| 200 | 1.020 | 1.035 | 87% |
+| **400** | **1.010** | 1.017 | **44%** |
+| 800 | 1.005 | 1.008 | 2% |
+| 1600 | 1.002 | 1.004 | 0% |
+
+At 400 effective draws over four chains the null mean *is* 1.010, which is where
+the pairing of the two defaults comes from: `rhat_max = 1.01` and `ess_min = 400`
+are one threshold stated twice, not two independent tests. Sixteen chains need
+1600 for the same 1.01. The estimator also loses a little at short chain lengths,
+recovering 80 effective draws as 83 over two chains and 63 over sixteen.
+
+**What changed.** A `rhat readable` check fires when the row that drove the R-hat
+failure carries too few effective draws for `rhat_max` to be reachable, compared
+against `chains / (rhat_max - 1)` rather than against `ess_min`, so it tightens
+correctly as chains are added. Its detail names the null value, so 1.030 over six
+chains at 147 effective draws can be read against the 1.027 it would average
+anyway. The advice then sends the reader to `num_draws` instead of to a
+disagreement, and the warmup note drops its causal claim in the same case.
+
+**A known limitation, not fixed.** `FAIL_SHARE = 0.2` keys the per-observation
+R-hat check to the share of columns above `rhat_max`, and its comment justifies
+0.2 as a noise floor on the reasoning that about 5% of columns exceed a 95%
+critical value under the null. 1.01 is not a 95% critical value; at 400 effective
+draws it is close to the median, and 44% of stationary columns exceed it. So the
+share test is not calibrated at the boundary and will fire on a fit sitting
+exactly at the recommended effective sample size. The readability check covers the
+regime where this misleads; making the share test itself calibrated needs a
+threshold that moves with the effective sample size, and was not attempted.
+
+## What `diagnose()`'s worst row is actually measuring
+
+The additive predictor now gets two rows, the worst 5% of observations and their
+average, because they routinely disagree by two or three orders of magnitude and
+the gap is the diagnostic.
+
+`_dev/where-mixing-lives.R`, four chains of 2000 draws so 8000 kept:
+
+| | n | avg R-hat | avg ESS | median unit ESS | worst 5% ESS | % over 1.01 |
+|---|---|---|---|---|---|---|
+| friedman, gaussian | 800 | 1.000 | 7754 | 60 | 21 | 99% |
+| lalonde, gaussian | 614 | 1.000 | 8104 | 166 | 33 | 82% |
+| lalonde, dpm | 614 | 1.001 | 7805 | 9 | 6 | 100% |
+| lalonde, dpm, `sparsity = FALSE` | 614 | 1.000 | 8154 | 31 | 8 | 100% |
+| rhc, binomial | 1500 | 1.001 | 3905 | 554 | 224 | 48% |
+
+The average over observations carries close to one effective draw for every draw
+kept, and individual observations carry tens. This is a property of forests
+rather than of a hard dataset: the clean simulated Friedman fit, correctly
+specified and with a Gaussian likelihood, has 99% of its observations above 1.01
+and a worst-5% effective sample size of 21. Read against the null above, its
+worst-5% R-hat of 1.135 is *below* the 1.190 that four chains at 21 effective
+draws average anyway, so there is no disagreement there to find at all. Only the
+`dpm()` row exceeds its null (1.789 against 1.667), and the family is worth
+naming separately: on the same data and the same draws it costs a factor of 18 in
+per-observation effective sample size against `gaussian()`, on an outcome that is
+23% zeros with a long right tail.
+
+## Chains and draws are not interchangeable, and lalonde is the worked example
+
+`_dev/chains-vs-draws.R`, lalonde with `dpm()`, three seeds a cell.
+
+Sixteen thousand kept draws, moved between chains:
+
+| chains | draws | worst-5% R-hat | worst-5% ESS | average ESS |
+|---|---|---|---|---|
+| 2 | 8000 | 1.403 | 6 | 15882 |
+| 4 | 4000 | 1.455 | 10 | 15982 |
+| 8 | 2000 | 1.676 | 13 | 15942 |
+| 16 | 1000 | 1.815 | 23 | 15986 |
+
+The average's effective sample size does not notice the arrangement, which is
+what it should do: effective sample size depends on the total. R-hat rises
+monotonically, which is also what it should do, and is the null moving rather
+than the fit changing.
+
+Four chains, lengthened, gives an average effective sample size of 3981, 8015,
+15719, 31525 and 63143 against totals of 4000, 8000, 16000, 32000 and 64000.
+
+**The worked example.** `_dev/lalonde-reproduce.R` runs the two configurations
+that were actually tried on `vignette("causal")`'s `fit_earn`, three seeds each:
+
+| configuration | kept | worst-5% R-hat | worst-5% ESS | verdict |
+|---|---|---|---|---|
+| 6 chains, 20000 burn, 10000 draws | 60000 | 1.030, 1.010, 1.018 | 147, 473, 282 | warns, 3 of 3 |
+| 4 chains, 30000 burn, 30000 draws | 120000 | 1.004, 1.006, 1.009 | 869, 479, 669 | passes, 3 of 3 |
+
+Both changes pushed the same way and both were needed. Doubling the kept draws
+roughly doubled the per-observation effective sample size, and dropping from six
+chains to four lowered the bar R-hat had to clear from 600 to 400. The average
+row reports R-hat 1.000 and an effective sample size equal to the number of draws
+kept in all six fits.
+
+**The controlled version**, which separates the two changes: twelve chains of
+10000 draws after the same 30000 warmup, so the same 120000 kept draws as the
+configuration that passes, arranged differently.
+
+| configuration | kept | seconds | worst-5% ESS | worst-5% R-hat | R-hat's null | verdict |
+|---|---|---|---|---|---|---|
+| 4 chains x 30000 | 120000 | 134 | 869, 479, 669 | 1.004, 1.006, 1.009 | 1.006 | passes, 3 of 3 |
+| 12 chains x 10000 | 120000 | 256 | 674, 490, 693 | 1.016, 1.027, 1.018 | 1.019 | warns, 3 of 3 |
+
+The effective sample sizes are the same to within their own noise, means of 672
+and 619, which is what "effective sample size depends on the total" means when it
+is measured rather than asserted. Every one of the twelve-chain R-hats is at its
+own null to three decimal places, so there is no disagreement there at all, and
+the `rhat readable` check fires on all three. Before that check existed the
+advice on these fits was to raise `num_burn` and `num_draws` together because
+"the chains have each settled somewhere different", which was untrue.
+
+The twelve-chain fits also took twice as long, since twelve chains over four
+workers is three waves and each chain pays its own 30000-sweep warmup. More
+chains is the cheaper axis only up to the worker count.
+
+
+## The unit maps were carrying the design matrix, twice
+
+Found by auditing for the shape of the progress-reporter bug rather than by
+noticing anything wrong: every function in `R/` that returns a closure was listed
+and checked for whether it forces what it captures. `make_unit_map()` was the
+only one that did not, and it is called once per predictor column with its result
+stored in the fit.
+
+Both hazards were live at once, and the estimate made from reading the code was
+an order of magnitude short. The closures were written in `make_unit_map()`'s
+frame, so they held `x` and `ux` whether they used them or not; that is the part
+reading finds, and it is the smaller part. The larger part is that **the
+two-value branch never mentions `type`**, so that argument was never forced, and
+an unforced promise holds the frame the call was made from. That frame is
+`unit_transform()`'s, which has the design matrix in it under `x` and a second
+copy under `out`. So the map for a binary predictor, whose entire content is two
+numbers, retained the whole design matrix twice. Adding nothing but `force(type)`
+took one from 213 KB to 4.7 KB in isolation.
+
+Every branch now goes through a constructor that forces what it captures and is
+written where nothing else is in scope: `constant_map`, `midpoint_map`,
+`range_map`, `ecdf_map`. Measured on a 400-row fit with two continuous
+predictors, a binary one, a three-level factor and a four-level ordered factor,
+so ten columns after contrasts:
+
+| | before | after |
+|---|---|---|
+| one binary or indicator map | 148.1 KB | 0.5 KB |
+| one quantile map of a continuous column | 16.8 KB | 8.6 KB |
+| one range map of a continuous column | 10.0 KB | 0.6 KB |
+| all ten maps, quantile | 1218.4 KB | 20.8 KB |
+| all ten maps, range | 1127.0 KB | 4.9 KB |
+
+The per-map figures overstate what a fit pays, since one `saveRDS()` of the
+whole list writes the shared frame once. On the RHC data, 1500 rows and 15
+columns after contrasts, the list as the fit stores it goes from 788 KB to 84 KB
+under the quantile transform and from 721 KB to 5.6 KB under the range one,
+against a design matrix of 186 KB. The 84 KB that remains is fifteen `ecdf`
+objects holding the values they were built from, which is what a quantile map is.
+
+`predict()` is bit-identical before and after, with and without `newdata`,
+under both transforms, on a fit with numeric, binary, factor and ordered-factor
+predictors, as are the stored `eta` draws and the maps evaluated over a grid
+running past both ends of the training range. The full suite passes.
+
+`tests/testthat/test-invariants.R` gained the regression test, next to the
+reporter one because it is the same invariant: the binary and constant maps must
+not scale with the column at all, and the range map must not either. It was
+checked against the old implementation, where all four assertions fail.

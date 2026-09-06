@@ -50,11 +50,20 @@ through \CRANpkg{progressr} the way the sampler does.
 \subsection{What Is Reported}{
 
 One row per scalar the sampler draws (the log likelihood, the nuisance
-parameters of the family, and the scale of each random-effect term), plus one
-row for the additive predictor and one for each set of group intercepts,
-summarized over their worst 5\% of observations or levels rather than averaged,
-since an average over a thousand observations hides the ones that have not
-converged.
+parameters of the family, and the scale of each random-effect term), plus two
+rows for the additive predictor and two for each set of group intercepts: one
+summarizing the worst 5\% of observations or levels, and one for their average.
+
+Both are reported because they routinely disagree, and neither on its own is
+the fit. An average over a thousand observations hides the ones that have not
+converged, which is what the worst 5\% is there to show; but a forest settles
+the level of the fitted function within a sweep or two and takes much longer
+to settle which observation gets which share of it, so the worst 5\% overstates
+the trouble for anything averaged. The average can carry close to one
+effective draw for every draw kept while individual observations carry a
+handful. Which row binds depends on what is being reported: an average or a
+contrast of averages is governed by the average row, and a prediction for one
+observation by the other.
 
 \code{rhat} is split-R-hat (Gelman and Rubin, as revised in Gelman et al. 2013):
 every chain is halved and the halves are compared, so drift inside a chain
@@ -98,6 +107,28 @@ exploring different tree structures, and no generic MCMC diagnostic can see
 that, because none of them looks at the forest.
 }
 
+\subsection{R-hat Needs Effective Draws}{
+
+R-hat is a ratio of two variance estimates taken from the same draws, so with
+few effective draws it sits above 1 whether or not anything is wrong, and how
+far above depends on how many chains are being compared. Against a stationary
+autoregressive series, where every chain has the same distribution by
+construction and there is nothing at all to find, R-hat averages
+\eqn{1 + m/S} for \eqn{m} chains carrying \eqn{S} effective draws between
+them: 1.026, 1.050, 1.103 and 1.205 at 80 effective draws over two, four,
+eight and sixteen chains, against 1.025, 1.050, 1.100 and 1.200 from the
+formula.
+
+\code{rhat_max} is therefore not a threshold a quantity can be held to at any
+effective sample size. Four chains need 400 effective draws before 1.01 is
+even the average of R-hat's null, which is where the pairing of the two
+defaults comes from and why Vehtari et al. (2021) give them together, and
+sixteen chains need 1600 for the same 1.01. When a quantity fails R-hat while
+carrying fewer than that, the checks report that the number cannot be read yet
+rather than a disagreement it is not entitled to claim, and the advice sends
+the reader to the effective sample size instead.
+}
+
 \subsection{The Leaf Scale Is Left Out}{
 
 \code{sigma_mu} is deliberately absent from the table. It mixes badly
@@ -124,6 +155,17 @@ reduce \code{num_trees} (a smaller forest has fewer ways to represent the same f
 so the sampler has less room to wander between them) and check the family,
 because a likelihood that fits badly can produce a posterior with no single
 place to be.
+
+\strong{More chains and longer chains are not interchangeable.} Effective sample
+size depends on the total number of draws and not on how they are divided
+between chains, so twice as many chains and twice as long a chain buy the same
+amount of it; with a parallel backend the chains are the cheaper of the two up
+to the number of workers, though each chain pays its own warmup. R-hat is not
+symmetric in the same way, because it compares chains against each other:
+lengthening a chain drives it toward 1, while adding chains at a fixed total
+leaves each chain with less to say and drives it up. A fit failing on R-hat
+therefore wants longer chains rather than more of them, and a fit failing only
+on effective sample size can have either.
 
 \strong{An effective sample size that is low while R-hat is fine} is the benign
 case, and it wants only more draws. Note that thinning does not help:

@@ -20,6 +20,20 @@ cli_cat <- function(..., .envir = parent.frame()) {
 # quantile version makes the prior invariant to any monotone reparameterization
 # of the predictor, while the range version keeps the original spacing. Both
 # return a closure so that `predict()` can apply the identical map to new data.
+#
+# Every branch hands its work to one of the four constructors below rather than
+# writing its closure here, for the reason `reporter_for()` in `R/progress.R`
+# gives at length: a closure carries the frame it was written in, and one written
+# here would carry `x` and `ux` whether it used them or not. The maps are stored
+# in the fit, one per predictor column, so what they hold is paid for as long as
+# the fit exists.
+#
+# The bigger leak was `type`, and it is why this wants to be strict rather than
+# tidy. The two-value branch never looks at `type`, so its promise was never
+# forced, and an unforced promise holds the frame it came from: here that is
+# `unit_transform()`'s frame, which has the whole design matrix in it twice. A
+# binary predictor's map, whose entire content is two numbers, serialized to
+# 148 KB on a 400-row fit, and every indicator column of every factor had one.
 make_unit_map <- function(x, type = "quantile") {
   ux <- unique(x[!is.na(x)])
 
@@ -27,24 +41,54 @@ make_unit_map <- function(x, type = "quantile") {
   # splitting rules can decide what to do with it rather than being handed a
   # number that looks observed.
   if (length(ux) < 2L) {
-    return(function(z) ifelse(is.na(z), NA_real_, 0.5))
+    return(constant_map)
   }
 
   if (length(ux) == 2L) {
-    lo <- min(ux)
-    hi <- max(ux)
-    return(function(z) as.numeric(z > (lo + hi) / 2))
+    return(midpoint_map(min(ux), max(ux)))
   }
 
+  # Over every value rather than over the distinct ones, which is the same range
+  # and is how it was written.
   if (identical(type, "range")) {
-    lo <- min(x, na.rm = TRUE)
-    hi <- max(x, na.rm = TRUE)
-    return(function(z) pmin(pmax((z - lo) / (hi - lo), 0), 1))
+    return(range_map(min(x, na.rm = TRUE), max(x, na.rm = TRUE)))
   }
 
-  f <- stats::ecdf(x)
+  ecdf_map(stats::ecdf(x))
+}
 
-  function(z) f(z)
+# The four maps. The constant one needs nothing and so is the map itself; the
+# other three are constructors, and `force()` on what they capture is not a
+# detail of them but the whole reason they exist, since an argument left as a
+# promise reaches back to the frame the call was made from.
+constant_map <- function(z) {
+  ifelse(is.na(z), NA_real_, 0.5)
+}
+
+midpoint_map <- function(lo, hi) {
+  force(lo)
+  force(hi)
+
+  function(z) {
+    as.numeric(z > (lo + hi) / 2)
+  }
+}
+
+range_map <- function(lo, hi) {
+  force(lo)
+  force(hi)
+
+  function(z) {
+    pmin(pmax((z - lo) / (hi - lo), 0), 1)
+  }
+}
+
+ecdf_map <- function(f) {
+  force(f)
+
+  function(z) {
+    f(z)
+  }
 }
 
 # Which predictor groups are a set of mutually exclusive indicators, and each

@@ -198,3 +198,79 @@ test_that("a binomial fit keeps its invariants under every structural wrapper", 
                  label = paste(cell[[1L]], "predictor under augmentation"))
   }
 })
+
+# A closure is sent to every worker, and a closure carries the frame it was
+# written in. Nothing about reading one says how large it is, which is what makes
+# this worth asserting rather than reviewing: the reporter `diagnose()` hands to
+# its workers was four lines long and 336 MB to send, because it kept a promise
+# alive that reached back to the frame holding the fit. Both ways of leaking a
+# frame are covered here -- writing the closure where the frame is, and leaving
+# an argument unforced -- because either one alone brings the fit along.
+test_that("a progress reporter carries the progressor and nothing else", {
+  skip_if_not_installed("progressr")
+
+  # Shaped like `diagnose()`: the frame that asks for a reporter is also the
+  # frame holding the draws, so `envir` points straight at them.
+  asks_for_one <- function() {
+    ballast <- numeric(2e6)
+    list(report = diagnosis_reporter(10L),
+         stepper = progress_budget(diagnosis_reporter(10L), 100L, 10L)(50L),
+         ballast_size = length(serialize(ballast, NULL)))
+  }
+
+  got <- progressr::with_progress(asks_for_one(),
+                                  handlers = progressr::handler_void())
+
+  expect_gt(got[["ballast_size"]], 1e7)
+  expect_lt(length(serialize(got[["report"]], NULL)), 1e5)
+  expect_lt(length(serialize(got[["stepper"]], NULL)), 1e5)
+})
+
+# The same invariant one layer down, and the reason the two are next to each
+# other: a unit map is a closure stored in the fit, one per predictor column, so
+# whatever it retains is paid for as long as the fit exists. Both hazards were
+# live here at once. The closures were written in `make_unit_map()`'s frame, so
+# they held `x` and `ux` whether they used them or not; and the two-value branch
+# never looked at `type`, so that argument stayed an unforced promise and kept
+# the frame of the *caller* alive, which is `unit_transform()`'s and has the
+# design matrix in it twice. A binary predictor's map, whose whole content is two
+# numbers, serialized to 148 KB on a 400-row fit.
+test_that("a unit map carries only the numbers it uses", {
+  # Shaped like `unit_transform()`: the frame asking for the maps is also the one
+  # holding the design matrix, and it holds a second copy while mapping it.
+  asks_for_maps <- function(x, type) {
+    out <- x
+    maps <- lapply(seq_len(ncol(x)), function(j) make_unit_map(x[, j], type))
+
+    for (j in seq_len(ncol(x))) {
+      out[, j] <- maps[[j]](x[, j])
+    }
+
+    maps
+  }
+
+  set.seed(4L)
+  n <- 2000L
+  x <- cbind(continuous = stats::rnorm(n),
+             binary = stats::rbinom(n, 1L, 0.4),
+             constant = rep(1, n))
+  whole <- length(serialize(x, NULL))
+
+  # Without this the thresholds below could be met by there being nothing to
+  # leak in the first place.
+  expect_gt(whole, 4e4)
+
+  for (type in c("quantile", "range")) {
+    sizes <- vapply(asks_for_maps(x, type),
+                    function(f) length(serialize(f, NULL)), numeric(1L))
+
+    # Two numbers, or none, however long the column is.
+    expect_lt(sizes[[2L]], 2e3)
+    expect_lt(sizes[[3L]], 2e3)
+  }
+
+  # A quantile map holds an `ecdf` and so has to hold the values it was built
+  # from, but its own column only; a range map is two numbers like the rest.
+  expect_lt(length(serialize(asks_for_maps(x, "quantile")[[1L]], NULL)), whole)
+  expect_lt(length(serialize(asks_for_maps(x, "range")[[1L]], NULL)), 2e3)
+})
