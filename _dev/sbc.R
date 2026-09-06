@@ -37,18 +37,23 @@
 
 library(bartisan)
 
-reps <- {
-  a <- commandArgs(trailingOnly = TRUE)
-  if (length(a) > 0L) as.integer(a[1L]) else 200L
-}
+# `Rscript _dev/sbc.R <reps> <n> <gate>`. Naming an n and a gate runs that cell
+# and writes its own file, so the grid can go to the queue at once.
+args <- commandArgs(trailingOnly = TRUE)
+reps <- if (length(args) > 0L) as.integer(args[1L]) else 200L
+N <- if (length(args) > 1L) as.integer(args[2L]) else 400L
+GATE <- if (length(args) > 2L) args[3L] else "hard"
 
-N <- 400L
 P <- 2L
 TREES <- 20L
 SIGMA_MU <- 0.35
 GAMMA <- 0.95
 BETA <- 2
+BANDWIDTH <- 0.1   # the mean of the exponential prior on a tree's bandwidth
 L <- 100L      # thinned draws per fit, so a rank is one of 0..L
+
+SOFT <- !identical(GATE, "hard")
+HALF_WIDTH <- 4.055935661788187   # smoothstep, from `node.h`
 
 # ---- the prior ---------------------------------------------------------------
 
@@ -78,22 +83,39 @@ draw_tree <- function(depth = 0L, limits = NULL) {
        right = draw_tree(depth + 1L, right))
 }
 
-# A hard rule sends `u <= val` left, which is `left_prob()` with `soft = FALSE`.
-eval_tree <- function(node, u) {
-  if (isTRUE(node$leaf)) {
-    return(rep.int(node$mu, nrow(u)))
+# `left_prob()` from `node.h`. A hard rule sends `u <= val` left; a smoothstep
+# gate sends a fraction of it, and every observation reaches every leaf with a
+# weight, which is why the soft branch below carries weights rather than a
+# partition.
+left_prob <- function(x, val, bandwidth) {
+  if (!SOFT) {
+    return(as.numeric(x <= val))
   }
 
-  go_left <- u[, node$var] <= node$val
-  out <- numeric(nrow(u))
-  if (any(go_left)) out[go_left] <- eval_tree(node$left, u[go_left, , drop = FALSE])
-  if (any(!go_left)) out[!go_left] <- eval_tree(node$right, u[!go_left, , drop = FALSE])
-  out
+  t <- 0.5 + 0.5 * (val - x) / (bandwidth * HALF_WIDTH)
+  t <- pmin(pmax(t, 0), 1)
+  t * t * (3 - 2 * t)
+}
+
+# The tree's contribution, as a weighted sum over its leaves. `w` is how much of
+# each observation has reached this node.
+eval_tree <- function(node, u, bandwidth, w = rep.int(1, nrow(u))) {
+  if (isTRUE(node$leaf)) {
+    return(node$mu * w)
+  }
+
+  p <- left_prob(u[, node$var], node$val, bandwidth)
+
+  eval_tree(node$left, u, bandwidth, w * p) +
+    eval_tree(node$right, u, bandwidth, w * (1 - p))
 }
 
 draw_forest <- function(u) {
-  Reduce(`+`, lapply(seq_len(TREES), function(i) eval_tree(draw_tree(), u)),
-         numeric(nrow(u)))
+  # One bandwidth per tree, from the exponential prior the bandwidth move uses.
+  Reduce(`+`, lapply(seq_len(TREES), function(i) {
+    b <- if (SOFT) stats::rexp(1L, rate = 1 / BANDWIDTH) else 0
+    eval_tree(draw_tree(), u, b)
+  }), numeric(nrow(u)))
 }
 
 # ---- the run -----------------------------------------------------------------
@@ -111,10 +133,10 @@ A <- which.min(u[, 1L])
 B <- which.max(u[, 1L])
 
 control <- bartisan_control(num_trees = TREES, num_burn = 400L,
-                            num_draws = 1000L, chains = 1L, gate = "hard",
+                            num_draws = 1000L, chains = 1L, gate = GATE,
                             sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
                             sparsity = FALSE, x_transform = "range",
-                            augment = FALSE)
+                            bandwidth = BANDWIDTH, augment = FALSE)
 
 ranks <- integer(0)
 truths <- widths <- covered <- numeric(0)
@@ -150,8 +172,8 @@ for (r in seq_len(reps)) {
 }
 
 out <- data.frame(rank = ranks, truth = truths, width = widths,
-                  covered = covered)
-saveRDS(out, "_dev/sbc.rds")
+                  covered = covered, n = N, gate = GATE)
+saveRDS(out, sprintf("_dev/sbc-%s-%d.rds", GATE, N))
 
 # ---- the report --------------------------------------------------------------
 
@@ -161,7 +183,8 @@ counts <- table(cut(out$rank, breaks = seq(0, L + 1, length.out = bins + 1L),
 expected <- nrow(out) / bins
 chisq <- sum((as.numeric(counts) - expected)^2) / expected
 
-cat(sprintf("\n%d replicates, %d thinned draws each\n\n", nrow(out), L))
+cat(sprintf("\nn = %d, %s rules: %d replicates, %d thinned draws each\n\n",
+            N, GATE, nrow(out), L))
 cat("rank histogram, 10 bins (uniform is what a correct sampler gives):\n")
 cat(sprintf("  %s\n", paste(sprintf("%4d", as.numeric(counts)), collapse = "")))
 cat(sprintf("  expected %.1f per bin\n", expected))

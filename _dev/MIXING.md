@@ -161,6 +161,23 @@ Nothing here gets adopted on a mixing statistic alone. The bar is:
 - **The estimand**, on `_dev/propensity-settings.R` and `_dev/acic2016.R`. A
   sampler change that moves an average treatment effect is a finding in itself.
 
+## Stage 1 result: the disease is not here
+
+Run 2026-09-05, six cells, and recorded in full in `_dev/TASKS.md`. Rank
+uniformity holds at every sample size under both gates, the smallest p over six
+cells being 0.37; the pooled trend in mean rank against log n is null under both
+(t = 1.30 hard, t = 1.13 soft); and there is no U-shaped histogram anywhere,
+which is the signature the theory predicts. At n = 4000 under hard rules, the
+case the papers analyze, the fit is the cleanest of the six.
+
+So **stages 2 and 3 below are not started**. They stay written down because the
+argument for them is sound and the measurement is bounded: it reaches n = 4000,
+and it generates from the prior, which is right for calibration and wrong for
+finding a worst case. The soft-gate hypothesis in the section above is also
+dead: hard rules are equally clean, so smoothness is not what is saving this
+sampler. The remaining candidate is the Laplace reversible jump drawing leaves
+at the proposal instead of integrating them out.
+
 ## The one thing to do first
 
 Stage 1, item 1. Everything else is conditional on it, it needs no new code, and

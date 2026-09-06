@@ -5176,3 +5176,60 @@ empirical the way every BART implementation's is:
 `_dev/sbc.R` holds it. What it does not yet cover is a soft gate, a drawn
 sparsity prior, or a family with a nuisance parameter, and each of those is a
 separate replication of a separate piece of prior.
+
+## Log: stage 1 of the mixing plan -- the predicted n-trend is not here
+
+`_dev/sbc.R` across three sample sizes and both gates, 200 replicates a cell and
+600 at the one that needed them. The question is Tan et al.'s: does the sampler's
+approximation of the posterior degrade as the sample grows?
+
+| gate | n | reps | chi-square | p | middle | mean rank | coverage |
+|---|---|---|---|---|---|---|---|
+| hard | 250 | 200 | 7.9 | 0.54 | 52% | 47.7 | 0.960 |
+| hard | 1000 | 200 | 9.8 | 0.37 | 46% | 49.1 | 0.925 |
+| hard | 4000 | 200 | 2.5 | 0.98 | 48% | 51.5 | 0.960 |
+| soft | 250 | 600 | 9.4 | 0.40 | 47% | 50.0 | 0.938 |
+| soft | 1000 | 200 | 4.2 | 0.90 | 48% | 50.4 | 0.935 |
+| soft | 4000 | 200 | 7.5 | 0.59 | 53% | 52.9 | 0.935 |
+
+**No cell departs from uniform**, the smallest p over six being 0.37, and
+coverage runs 0.925 to 0.960 throughout. The pooled trend in mean rank against
+log n is null under both gates: +1.36 per log-n under hard rules (t = 1.30) and
++0.95 under soft (t = 1.13).
+
+**The shape is what settles it, not the p-values.** A chain that cannot reach
+the high-posterior region leaves the truth in the tails and the middle empty, so
+the signature is a U. There is none at any size:
+
+| gate | n | middle | lower tenth | upper tenth |
+|---|---|---|---|---|
+| hard | 4000 | 48% | 10% | 12% |
+| soft | 4000 | 53% | 9% | 14% |
+
+against 50%, 10% and 10% for uniform. At n = 4000 under hard rules, which is
+the case the papers actually analyze, the fit is the cleanest of the six.
+
+The intervals meanwhile concentrate the way they should: under hard rules the
+width falls 3.60, 2.76, 2.05 across the three sizes while the spread of the truth
+stays flat near 2.0.
+
+**One marginal signal, chased and dismissed.** At 200 replicates the soft trend
+was +2.51 per log-n with t = 2.40, driven by the n = 250 cell sitting two
+standard errors below 50. Six hundred replicates there moved its mean rank from
+45.9 to 50.0 and the slope to t = 1.13. It was the small-n end, not the large-n
+end where the theory predicts trouble, and it was noise.
+
+**What this does to the plan.** Stages 2 and 3 are speculative for this package
+and nothing is built. The soft-gate hypothesis in `_dev/MIXING.md` is *also* not
+supported: hard rules are equally clean, so smoothness is not the explanation.
+What is left is the real difference from the sampler all three papers analyze,
+that a birth here draws its two leaves from a Laplace fit rather than
+integrating them out, which changes the acceptance geometry and is the thing
+worth understanding if this is ever revisited.
+
+**What would change the verdict**, and neither is cheap: sizes past 4000, since
+the bound is asymptotic and n = 4000 may simply be small; and a
+data-generating process carrying the deep isolated signal Kim and Ročková
+construct, which a forest drawn from the branching prior produces only by
+accident. A prior draw is the right generator for SBC and the wrong one for
+finding the worst case, and those are different experiments.
