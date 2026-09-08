@@ -26,7 +26,8 @@ posterior mean.
 
 - replicates:
 
-  simulation replicates per draw and observation.
+  `integer`; the number of simulation replicates per draw and
+  observation.
 
 ## Value
 

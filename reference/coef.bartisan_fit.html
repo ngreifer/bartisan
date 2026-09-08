@@ -6,12 +6,12 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Varying coefficients — coef.bartisan_fit"><meta name="description" content="The coefficient functions of a model fitted with vc() terms, evaluated at
-each observation. A forest has no coefficient vector, so for any other model
-this returns nothing; for a varying-coefficient model the coefficients are
-functions and this is what they come to."><meta property="og:description" content="The coefficient functions of a model fitted with vc() terms, evaluated at
-each observation. A forest has no coefficient vector, so for any other model
-this returns nothing; for a varying-coefficient model the coefficients are
-functions and this is what they come to."></head><body>
+each observation. A forest has no coefficient vector, so a fit with no vc()
+term has no coefficient to report and this errors rather than returning
+anything."><meta property="og:description" content="The coefficient functions of a model fitted with vc() terms, evaluated at
+each observation. A forest has no coefficient vector, so a fit with no vc()
+term has no coefficient to report and this errors rather than returning
+anything."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -31,7 +31,7 @@ functions and this is what they come to."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -64,9 +64,9 @@ functions and this is what they come to."></head><body>
 
     <div class="ref-description section level2">
     <p>The coefficient functions of a model fitted with <code><a href="vc.html">vc()</a></code> terms, evaluated at
-each observation. A forest has no coefficient vector, so for any other model
-this returns nothing; for a varying-coefficient model the coefficients are
-functions and this is what they come to.</p>
+each observation. A forest has no coefficient vector, so a fit with no <code><a href="vc.html">vc()</a></code>
+term has no coefficient to report and this errors rather than returning
+anything.</p>
     </div>
 
     <div class="section level2">
@@ -80,28 +80,30 @@ functions and this is what they come to.</p>
 
 
 <dl><dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
-<dd><p>a fitted <code><a href="bartisan.html">bartisan()</a></code> model.</p></dd>
+<dd><p>a <code>&lt;bartisan_fit&gt;</code> object; the output of a call to <code><a href="bartisan.html">bartisan()</a></code>,
+fitted with at least one <code><a href="vc.html">vc()</a></code> term.</p></dd>
 
 
 <dt id="arg-newdata">newdata<a class="anchor" aria-label="anchor" href="#arg-newdata"></a></dt>
-<dd><p>optional data to evaluate the coefficients at. The default,
-<code>NULL</code>, uses the data the model was fitted to.</p></dd>
+<dd><p>optional; a data frame at which to evaluate the coefficients.
+Default is <code>NULL</code> to use the data the model was fitted to.</p></dd>
 
 
 <dt id="arg-draws">draws<a class="anchor" aria-label="anchor" href="#arg-draws"></a></dt>
-<dd><p><code>FALSE</code>, the default, returns the posterior mean of each
-coefficient at each observation. <code>TRUE</code> returns every draw, as a list of
-draws-by-observations matrices, one per coefficient.</p></dd>
+<dd><p><code>logical</code>; whether to return every posterior draw of each
+coefficient rather than its posterior mean at each observation. Default is
+<code>FALSE</code> to return the posterior means.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>ignored.</p></dd>
+<dd><p>not used.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>With <code>draws = FALSE</code>, a matrix with one row per observation and one column per
-coefficient. With <code>draws = TRUE</code>, a named list of matrices.</p>
+coefficient. With <code>draws = TRUE</code>, a named list of draws-by-observations
+matrices, one per coefficient.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -114,26 +116,39 @@ coding carries one spare function-valued dimension, so this is exact rather
 than an approximation, and it is the reason a factor's reference level is a
 choice made here rather than at fitting time.</p>
     </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="vc.html">vc()</a></code> for declaring a varying coefficient; <code><a href="variable_importance.html">variable_importance()</a></code> for which
+predictors a forest uses at all</p></div>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">200</span></span></span>
-<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, z <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">$</span><span class="va">x1</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">z</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1</span> <span class="op">+</span> <span class="va">d</span><span class="op">$</span><span class="va">x2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                control <span class="op">=</span> <span class="fu"><a href="bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
-<span class="r-in"><span>                                           num_draws <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># The effect of catheterization is allowed to vary with the other</span></span></span>
+<span class="r-in"><span><span class="co"># predictors, so its coefficient is a function rather than a number</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="fu"><a href="vc.html">vc</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
+<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># One coefficient per patient, on the link scale</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>               z</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  1.7620856</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]  2.4075532</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]  2.3611641</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]  0.4148748</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] -0.2074336</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]  2.5594020</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            rhc</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.4263262</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.2144616</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.2268549</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.2412446</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.2357062</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.1668163</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># How much it varies across patients</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">[</span>, <span class="st">"rhc"</span><span class="op">]</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        0%       25%       50%       75%      100% </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.1211476 0.2293972 0.3558278 0.4252599 0.5598030 </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

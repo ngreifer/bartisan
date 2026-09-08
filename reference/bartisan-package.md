@@ -2,37 +2,39 @@
 
 Fits Bayesian additive regression trees (BART) models for likelihoods
 outside the conditionally conjugate Gaussian case, using the
-Laplace-approximation reversible-jump sampler of Linero (2025).
-Supported response families include Gaussian, binomial, Poisson,
-negative binomial, gamma, ordinal (cumulative link), multinomial,
-accelerated failure time models for right-censored survival data, and
-location-scale Gaussian regression. Decision rules may be hard, as in
-standard BART, or soft, as in the SoftBart model of Linero and Yang
-(2018), which yields smoother fits. The interface follows that of
-'glm()', so that a model is specified with a formula, a data frame, and
-a family.
+Laplace-approximation reversible-jump sampler of Linero (2025)
+[doi:10.1080/01621459.2024.2337156](https://doi.org/10.1080/01621459.2024.2337156)
+. Supported response families include Gaussian, binomial, Poisson,
+negative binomial, gamma, beta, ordered beta, ordinal (cumulative link),
+multinomial, zero-inflated counts, a Tweedie compound Poisson for a
+non-negative response with a point mass at zero, accelerated failure
+time and proportional hazards models for right-censored survival data,
+location-scale regression, and a Dirichlet process mixture for the error
+distribution. Decision rules may be hard, as in standard BART, or soft,
+as in the SoftBart model of Linero and Yang (2018)
+[doi:10.1111/rssb.12293](https://doi.org/10.1111/rssb.12293) , which
+yields smoother fits. The interface follows that of 'glm()', so that a
+model is specified with a formula, a data frame, and a family.
 
 ## Details
 
-Fits Bayesian additive regression trees the way
+Fits Bayesian additive regression trees (BART) the way
 [`stats::glm()`](https://rdrr.io/r/stats/glm.html) fits a generalized
 linear model: a formula, a data frame, and a family. The forest replaces
-the linear predictor, so nothing has to be said about which terms enter,
-which are curved, or which interact. Everything else about the workflow
-stays where it was.
+the linear predictor, so nothing has to be said about which terms enter
+the model, which are curved, or which interact.
 
     fit <- bartisan(y ~ ., data = d)
 
-## What to reach for
+### What to Reach For
 
-Most of what you will want to do with a fitted model lives in a package
-that already does that job well, and *bartisan* registers the methods
-those packages need rather than reimplementing them. This table is the
-map.
+Most of what a fitted model is used for is handled by a package that
+already does that job well, and bartisan registers the methods those
+packages need rather than reimplementing them. This table is the map.
 
 |  |  |
 |----|----|
-| You want to | Use |
+| Task | Use |
 | fit a model | [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md) |
 | choose a likelihood | [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md) |
 | change the sampler's settings | [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md) |
@@ -50,54 +52,53 @@ map.
 | to check it fits | [pp_check()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md), [residuals()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
 | to compare two models | [loo()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
 | survival data | [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md) |
-| a likelihood of your own | [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
+| a likelihood of one's own | [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 
-## If you are new to this
+### Before the First Fit
 
-Three things are worth knowing before the first fit, and none of them
-requires knowing anything about Bayesian statistics.
+Three things are worth knowing first, and none of them requires knowing
+anything about Bayesian statistics.
 
 **There are no coefficients.** A forest has no slope to read off, so the
-question "what is the effect of `x`" is answered by asking the fitted
-model what it predicts under one value of `x` and under another, and
-taking the difference.
-`marginaleffects::avg_comparisons(fit, variables = "x")` does exactly
-that, and reports an interval with it. This is a better habit than
-reading coefficients even when coefficients exist, and here it is the
-only habit available.
+effect of a predictor is found by asking the fitted model what it
+predicts under one value of that predictor and under another, and taking
+the difference. `marginaleffects::avg_comparisons(fit, variables = "x")`
+does exactly that, and reports an interval with it. This is a better
+habit than reading coefficients even where coefficients exist (i.e., in
+a linear model), and here it is the only habit available.
 
-**The intervals mean what you would hope.** A 95% interval from any of
-the above is the range the model considers most plausible, given the
+**The intervals mean what they appear to mean.** A 95% interval from any
+of the above is the range the model considers most plausible given the
 data and the model. It already includes the uncertainty from not knowing
 the shape of the relationship, which is the part a linear model leaves
 out by assuming it away.
 
 **The defaults are meant to be used.** The settings in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-are there for people who need them; the priors and the number of trees
-are chosen to work across a wide range of problems, and tuning them is
-rarely where the gains are. Choosing the right
+are there for the analyses that need them; the priors and the number of
+trees are chosen to work across a wide range of problems, and tuning
+them is rarely where the gains are. Choosing the right
 [family](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 matters much more.
 
-## What the fit does not do for you
+### What the Fit Does Not Do
 
-It is flexible about the shape of the relationship, not about anything
-else. It will not tell you that a predictor is a cause, that the sample
-represents the population, or that the outcome was measured well. A
-forest fitted to confounded data returns a confounded answer with a
-tight interval around it.
+The model is flexible about the shape of the relationship and about
+nothing else. It will not establish that a predictor is a cause, that
+the sample represents the population, or that the outcome was measured
+well. Note that a forest fitted to confounded data returns a confounded
+answer with a tight interval around it.
 
 ## See also
 
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-to fit,
+to fit a model;
 [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-to choose a likelihood,
+to choose a likelihood;
 [bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 and
 [bartisan-interop](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
-for the packages that read a fit, and
+for the packages that read a fit;
 [`vignette("bartisan")`](https://ngreifer.github.io/bartisan/articles/bartisan.md)
 for how the sampler works.
 

@@ -99,7 +99,7 @@ fit
 #> Family: "binomial" with the "logit" link
 #> Observations: 1500
 #> Structure: 1 forest of 50 trees, soft decision rules
-#> Draws: 2000 kept across 4 chains after 500 warmup
+#> Draws: 3200 kept across 4 chains after 200 warmup
 ```
 
 That is the whole call. `family = binomial()` says the outcome is
@@ -136,10 +136,11 @@ about whichever of them fall short.
 diagnose(fit)
 #> Convergence and mixing
 #> 
-#>                            quantity  rhat rhat_late ess_bulk ess_tail
-#>                              loglik 1.178     1.319       16       76
-#>                          splits.eta 1.058     1.055       62      258
-#>  eta.eta (worst 5% of observations) 1.086     1.145       34      137
+#>                             quantity  rhat rhat_late ess_bulk ess_tail
+#>                               loglik 1.125     1.036       23      234
+#>                           splits.eta 1.014     1.039      264      731
+#>  eta.eta (average over observations) 1.004     0.999     1610     2278
+#>   eta.eta (worst 5% of observations) 1.045     1.073       80      305
 #> 
 #> What to do
 ```
@@ -161,8 +162,8 @@ alarming;
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 explains what to do about it and when to worry.
 
-The table is also in `fit$rhat` for a fit with more than one chain, if
-what you want is the numbers rather than the report.
+The table is in `diagnose(fit)$table` if what you want is the numbers
+rather than the report.
 
 ### Fit
 
@@ -185,21 +186,23 @@ covers what to do instead.
 ``` r
 
 variable_importance(fit)
-#>    variable splits splits_lower splits_upper prop_used
-#> 1    surv2m 21.455            5           49    1.0000
-#> 2       age 12.748            3           29    1.0000
-#> 3     paco2  8.373            0           25    0.9705
-#> 4       rhc  3.987            0           16    0.9155
-#> 5      pafi  4.992            0           17    0.8985
-#> 6       aps  5.897            0           19    0.8595
-#> 7      card  2.828            0           12    0.7015
-#> 8       edu  2.030            0            9    0.6000
-#> 9      crea  3.126            0           19    0.5905
-#> 10     hema  2.802            0           19    0.5440
-#> 11   meanbp  1.530            0            8    0.5340
-#> 12     race  1.846            0           11    0.5040
-#> 13      sex  2.053            0           16    0.4910
-#> 14     resp  2.349            0           15    0.4900
+#> Variable importance
+#> 
+#>  variable prop_used prop_splits splits
+#>    surv2m     1.000       0.265   20.2
+#>       age     1.000       0.196   15.0
+#>     paco2     0.971       0.113    8.6
+#>      pafi     0.928       0.070    5.4
+#>       rhc     0.905       0.076    5.7
+#>       aps     0.871       0.069    5.3
+#>       edu     0.657       0.042    3.2
+#>      crea     0.577       0.030    2.3
+#>      card     0.524       0.024    1.8
+#>      hema     0.505       0.026    2.0
+#>    meanbp     0.490       0.020    1.5
+#>      race     0.462       0.021    1.5
+#>      resp     0.453       0.027    2.0
+#>       sex     0.410       0.020    1.5
 ```
 
 `splits` is the average number of splitting rules the forest spends on
@@ -237,7 +240,7 @@ library(marginaleffects)
 avg_comparisons(fit, variables = "rhc")
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>    0.0578     0  0.107
+#>    0.0596     0  0.111
 #> 
 #> Term: rhc
 #> Type: response
@@ -269,8 +272,8 @@ showing:
 avg_predictions(fit, variables = "rhc")
 #> 
 #>  rhc Estimate 2.5 % 97.5 %
-#>    0    0.633 0.604  0.663
-#>    1    0.690 0.644  0.729
+#>    0    0.632 0.601  0.666
+#>    1    0.691 0.646  0.729
 #> 
 #> Type: response
 ```
@@ -316,7 +319,7 @@ new_patient <- rhc[1, ]
 new_patient$rhc <- 1
 
 predict(fit, newdata = new_patient)
-#> [1] 0.8301
+#> [1] 0.8346
 ```
 
 For a prediction with an interval, use
@@ -327,7 +330,7 @@ For a prediction with an interval, use
 predictions(fit, newdata = new_patient)
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>     0.835 0.729  0.901
+#>     0.839 0.739  0.908
 #> 
 #> Type: response
 ```
@@ -353,15 +356,15 @@ library(loo)
 
 loo(fit)
 #> 
-#> Computed from 2000 by 1500 log-likelihood matrix.
+#> Computed from 3200 by 1500 log-likelihood matrix.
 #> 
 #>          Estimate   SE
-#> elpd_loo   -849.4 17.4
-#> p_loo        33.5  1.0
-#> looic      1698.8 34.8
+#> elpd_loo   -848.6 17.4
+#> p_loo        33.1  1.0
+#> looic      1697.3 34.8
 #> ------
-#> MCSE of elpd_loo is 0.6.
-#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.3]).
+#> MCSE of elpd_loo is 0.5.
+#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.2]).
 #> 
 #> All Pareto k estimates are good (k < 0.7).
 #> See help('pareto-k-diagnostic') for details.
@@ -386,7 +389,7 @@ demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
 loo_compare(list(full = loo(fit), demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -67.4    11.2    1.00
+#>  demographics     -68.2    11.2    1.00
 ```
 
 The full model predicts better by around six times the standard error of

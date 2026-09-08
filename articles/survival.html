@@ -40,7 +40,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+<li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -81,7 +81,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-02</h4>
+            <h4 data-toc-skip class="date">2026-09-08</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/survival.Rmd" class="external-link"><code>vignettes/survival.Rmd</code></a></small>
       <div class="d-none name"><code>survival.Rmd</code></div>
@@ -89,6 +89,10 @@ Greifer</h4>
 
     
     
+<style>
+pre {overflow-x: auto;}
+pre code {word-wrap: normal; white-space: pre;}
+</style>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/therneau/survival" class="external-link">survival</a></span><span class="op">)</span></span>
@@ -99,6 +103,9 @@ Greifer</h4>
 <span><span class="co"># defaults are 50 trees and 500 draws after 500 warmup iterations, which is</span></span>
 <span><span class="co"># what the simulations reported below use.</span></span>
 <span><span class="va">ctrl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">150</span>, num_draws <span class="op">=</span> <span class="fl">150</span><span class="op">)</span></span></code></pre></div>
+<div class="section level2">
+<h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
+</h2>
 <p>This vignette is about right-censored time-to-event data. It covers
 the five families that take a censored response, what each one is
 estimating, which shapes of hazard each can and cannot represent, how
@@ -108,10 +115,19 @@ route to take when the proportional hazards assumption fails.
 long one.</p>
 <p>The recurring theme is that these models disagree about <em>what the
 predictor means</em>, and that the disagreement mostly stops mattering
-once you ask for the quantity you actually wanted — survival at a
-horizon — rather than reading coefficients.</p>
+once we ask for the quantity we actually wanted (i.e., survival at a
+horizon) rather than reading coefficients.</p>
+<p>In this guide, we will start from the response and the five families
+that accept it, and then set out the three estimands their predictors
+report and the one quantity that is comparable across all of them. Next
+we’ll measure the five against six data-generating truths, sweep the
+amount of censoring, and take up the one case that defeats the whole set
+(a covariate effect that moves with time). Finally we’ll cover three
+traps in reading these fits, the relative cost of each family, and a
+table for choosing.</p>
+</div>
 <div class="section level2">
-<h2 id="the-response">The response<a class="anchor" aria-label="anchor" href="#the-response"></a>
+<h2 id="the-response-surv">The Response (<code>Surv()</code>)<a class="anchor" aria-label="anchor" href="#the-response-surv"></a>
 </h2>
 <p>Every family here takes a <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or
 equivalently a two-column numeric matrix of non-negative times and 0/1
@@ -144,19 +160,19 @@ given the covariates, as it is in every model in this vignette and in
 not about the family, so no choice below relaxes it.</p>
 </div>
 <div class="section level2">
-<h2 id="the-five-families">The five families<a class="anchor" aria-label="anchor" href="#the-five-families"></a>
+<h2 id="the-five-families">The Five Families<a class="anchor" aria-label="anchor" href="#the-five-families"></a>
 </h2>
 <table class="table">
 <colgroup>
-<col width="16%">
-<col width="50%">
+<col width="13%">
+<col width="42%">
+<col width="28%">
 <col width="15%">
-<col width="18%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">Family</th>
 <th align="left">Model</th>
-<th align="left">The forest gives</th>
+<th align="left">A contrast in the forest gives</th>
 <th align="left">Drawn nuisance</th>
 </tr></thead>
 <tbody>
@@ -166,7 +182,7 @@ not about the family, so no choice below relaxes it.</p>
 <span class="math inline">\(\log T = \eta +
 \sigma\epsilon\)</span>, <span class="math inline">\(\epsilon\)</span>
 standard Gumbel</td>
-<td align="left">a log time ratio</td>
+<td align="left">a log time ratio (and a log hazard ratio)</td>
 <td align="left"><span class="math inline">\(\sigma\)</span></td>
 </tr>
 <tr class="even">
@@ -195,16 +211,16 @@ grid</td>
 <td align="left">
 <span class="math inline">\(\log T = m(x) + W\)</span>,
 <span class="math inline">\(W\)</span> a mixture of normals</td>
-<td align="left"><span class="math inline">\(E[\log T \mid
-x]\)</span></td>
+<td align="left">a log time ratio</td>
 <td align="left">the error density</td>
 </tr>
 </tbody>
 </table>
 <p>All five put a BART forest on a single additive predictor and leave
-something else free. What differs is which part is parametric.</p>
+something else free; what differs is which part is parametric.</p>
 <div class="section level3">
-<h3 id="the-three-accelerated-failure-time-families">The three accelerated failure time families<a class="anchor" aria-label="anchor" href="#the-three-accelerated-failure-time-families"></a>
+<h3 id="accelerated-failure-time-weibull_aft-loglogistic_aft-lognormal_aft">Accelerated Failure Time (<code>weibull_aft()</code>,
+<code>loglogistic_aft()</code>, <code>lognormal_aft()</code>)<a class="anchor" aria-label="anchor" href="#accelerated-failure-time-weibull_aft-loglogistic_aft-lognormal_aft"></a>
 </h3>
 <p>These model the log event time directly,</p>
 <p><span class="math display">\[\log T = \eta(x) +
@@ -225,31 +241,24 @@ time axis without changing the shape of the survival curve.</p>
 <span><span class="co">#&gt;   weibull lognormal </span></span>
 <span><span class="co">#&gt;     0.654     0.711</span></span></code></pre></div>
 <p>They differ only in the error’s shape, and therefore in the shape of
-the hazard:</p>
-<ul>
-<li>
-<strong><code><a href="../reference/bartisan-families.html">weibull_aft()</a></code></strong> has a
-<strong>monotone</strong> hazard — increasing, decreasing or flat, but
-never turning around. It is the only family in the package that is
-simultaneously an accelerated failure time and a proportional hazards
+the hazard. <strong><code><a href="../reference/bartisan-families.html">weibull_aft()</a></code></strong> has a
+<strong>monotone</strong> hazard, which may be increasing, decreasing or
+flat but never turning around; it is the only family in the package that
+is simultaneously an accelerated failure time and a proportional hazards
 model, so it is the one parametric choice that supports a hazard-ratio
-reading. It is about seven times slower than the other two — see <a href="#speed">Speed</a>.</li>
-<li>
+reading, and it is about seven times slower than the other two (see <a href="#speed">Speed</a>).
 <strong><code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code></strong> allows a hazard that
 rises and then falls, and has the heaviest tails of the three, so a
-handful of very long survivors move it least.</li>
-<li>
-<strong><code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code></strong> also allows a
-non-monotone hazard, with thinner tails than the log-logistic.</li>
-</ul>
+handful of very long survivors move it least.
+<strong><code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code></strong> also allows a non-monotone
+hazard, with thinner tails than the log-logistic.</p>
 <p>In practice the log-logistic and log-normal are hard to tell apart
 from data and the Weibull is distinguishable from both, so the
 informative comparison is Weibull against either of the other two, by
 <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>.</p>
 </div>
 <div class="section level3">
-<h3 id="ph-a-free-baseline-hazard">
-<code>ph()</code>: a free baseline hazard<a class="anchor" aria-label="anchor" href="#ph-a-free-baseline-hazard"></a>
+<h3 id="a-free-baseline-hazard-ph">A Free Baseline Hazard (<code>ph()</code>)<a class="anchor" aria-label="anchor" href="#a-free-baseline-hazard-ph"></a>
 </h3>
 <p><code><a href="../reference/bartisan-families.html">ph()</a></code> gives up on a parametric time distribution and
 models the hazard instead <span class="citation">(<a href="#ref-basak2024">Basak et al. 2024</a>)</span>:</p>
@@ -270,8 +279,8 @@ none of the three parametric families can do.</p>
 <span><span class="co">#&gt;   0.013   0.043   0.079   0.070   0.082   0.078</span></span></code></pre></div>
 <p>The bin hazards come back as <code>lambda1</code>,
 <code>lambda2</code>, … alongside <code>lambda_rate</code>, the drawn
-rate of their own Gamma prior — the hazards are shrunk towards each
-other through it, which is what keeps a fine grid from overfitting.</p>
+rate of their own Gamma prior; the hazards are shrunk toward each other
+through it, which is what keeps a fine grid from overfitting.</p>
 <p>One point of interpretation matters here. The predictor and the
 baseline are identified only <em>jointly</em>: multiplying <span class="math inline">\(\lambda_0\)</span> by a constant and subtracting
 its log from <span class="math inline">\(r(x)\)</span> leaves the
@@ -282,9 +291,7 @@ a level</strong>. Differences between two values of <span class="math inline">\(
 not.</p>
 </div>
 <div class="section level3">
-<h3 id="dpm_aft-the-error-distribution-estimated-rather-than-assumed">
-<code>dpm_aft()</code>: the error distribution estimated rather than
-assumed<a class="anchor" aria-label="anchor" href="#dpm_aft-the-error-distribution-estimated-rather-than-assumed"></a>
+<h3 id="an-estimated-error-distribution-dpm_aft">An Estimated Error Distribution (<code>dpm_aft()</code>)<a class="anchor" aria-label="anchor" href="#an-estimated-error-distribution-dpm_aft"></a>
 </h3>
 <p><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> is an accelerated failure time model with the
 shape of the error left free <span class="citation">(<a href="#ref-henderson2020">Henderson et al. 2020</a>)</span>, and is the
@@ -321,64 +328,101 @@ provide:</p>
 <span>       subtitle <span class="op">=</span> <span class="st">"fitted error density (solid) against the normal of the same spread (dashed)"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="survival_files/figure-html/errdens-1.png" class="r-plt" alt="" width="770" style="display: block; margin: auto;"></p>
 <p>Because the mixture can collapse to a single component, it costs
-almost nothing when a single normal was the right answer — the property
-that makes it a reasonable default rather than a specialist tool. Nor
-does it cost much time: conditional on which component each observation
-sits in, the model is Gaussian, so it takes the same fast path
-<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> does and the mixture update on top is
+almost nothing when a single normal was the right answer, which is the
+property that makes it a reasonable default rather than a specialist
+tool. Nor does it cost much time: conditional on which component each
+observation sits in, the model is Gaussian, so it takes the same fast
+path <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> does and the mixture update on top is
 cheap. It runs at about twice <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>’s cost and a
 third of <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>’s.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="what-the-predictor-means-three-estimands-not-one">What the predictor means: three estimands, not one<a class="anchor" aria-label="anchor" href="#what-the-predictor-means-three-estimands-not-one"></a>
+<h2 id="two-estimands-not-three">Two Estimands, Not Three<a class="anchor" aria-label="anchor" href="#two-estimands-not-three"></a>
 </h2>
-<p>The five families report three genuinely different quantities, and
-they are not rescalings of each other.</p>
+<p>The five families report two genuinely different comparative
+quantities, and the difference matters because they move in opposite
+directions.</p>
+<p><strong>A contrast in the predictor is a log time ratio for all four
+accelerated failure time families</strong>, <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>
+included. That follows from the structure rather than from the error:
+with <span class="math inline">\(\log T = \eta(x) + W\)</span> and <span class="math inline">\(W\)</span> independent of <span class="math inline">\(x\)</span>, every quantile of <span class="math inline">\(T\)</span>, the mean of <span class="math inline">\(T\)</span>, and the geometric mean of <span class="math inline">\(T\)</span> all scale by <span class="math inline">\(e^{\Delta\eta}\)</span>, whatever shape <span class="math inline">\(W\)</span> has. So a one-unit increase in the
+predictor multiplies survival time by <span class="math inline">\(e\)</span> at every quantile of the curve, and
+that reading does not depend on the error being symmetric.</p>
+<p><strong>A contrast in <code><a href="../reference/bartisan-families.html">ph()</a></code>’s predictor is a log hazard
+ratio</strong>, which is a different quantity. A covariate that raises
+the hazard shortens survival, so the two move in opposite directions,
+and their magnitudes are related only through the shape of the
+baseline.</p>
+<p><code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> is the one family that supports both
+readings at once, and that is a property of its <em>error</em> rather
+than of its structural part, which it shares with the other three. The
+smallest extreme value error is the only one that makes an accelerated
+failure time model a proportional hazards model as well, so a Weibull
+fit with shape <span class="math inline">\(k = 1/\sigma\)</span> carries
+a log hazard ratio of <span class="math inline">\(-k\,\Delta\eta\)</span> alongside its log time
+ratio of <span class="math inline">\(\Delta\eta\)</span>. Away from the
+Weibull there is no such correspondence at all.</p>
+<div class="section level3">
+<h3 id="where-the-level-sits">Where the Level Sits<a class="anchor" aria-label="anchor" href="#where-the-level-sits"></a>
+</h3>
+<p>The contrast is a log time ratio in all four, but <span class="math inline">\(e^{\eta}\)</span> on its own is a different
+functional of <span class="math inline">\(T\)</span> in each, because
+the families pin their error’s location differently. This matters only
+when the level is read directly rather than compared.</p>
 <table class="table">
 <colgroup>
-<col width="23%">
-<col width="76%">
+<col width="33%">
+<col width="33%">
+<col width="33%">
 </colgroup>
 <thead><tr class="header">
-<th align="left">Family</th>
-<th align="left">A one-unit increase in the predictor means</th>
+<th>Family</th>
+<th>The error’s location</th>
+<th>
+<span class="math inline">\(e^{\eta}\)</span> is</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="left">the three <code>*_aft()</code>
-</td>
-<td align="left">survival time multiplied by <span class="math inline">\(e\)</span>, at every quantile of the curve</td>
+<td><code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code></td>
+<td>mean zero, symmetric</td>
+<td>the median of <span class="math inline">\(T\)</span>, which is also
+its geometric mean</td>
 </tr>
 <tr class="even">
-<td align="left"><code><a href="../reference/bartisan-families.html">ph()</a></code></td>
-<td align="left">the hazard multiplied by <span class="math inline">\(e\)</span>, at every time</td>
+<td><code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code></td>
+<td>mean zero, symmetric</td>
+<td>the median of <span class="math inline">\(T\)</span>, which is also
+its geometric mean</td>
 </tr>
 <tr class="odd">
-<td align="left"><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code></td>
-<td align="left">the mean of <span class="math inline">\(\log T\)</span>
-raised by one</td>
+<td><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code></td>
+<td>mean zero, asymmetric in general</td>
+<td>the geometric mean of <span class="math inline">\(T\)</span>, that
+is <span class="math inline">\(\exp E[\log T \mid x]\)</span>, which is
+not the median</td>
+</tr>
+<tr class="even">
+<td><code><a href="../reference/bartisan-families.html">weibull_aft()</a></code></td>
+<td>location zero, so mean <span class="math inline">\(-\gamma\sigma\)</span>
+</td>
+<td>the Weibull scale, which is the 63.2nd percentile of <span class="math inline">\(T\)</span> whatever the shape</td>
 </tr>
 </tbody>
 </table>
-<p>A time ratio and a hazard ratio move in opposite directions — a
-covariate that raises the hazard shortens survival — and their
-magnitudes are related only through the shape of the baseline. Under a
-Weibull with shape <span class="math inline">\(k\)</span> the two
-coincide up to a factor: a log hazard ratio of <span class="math inline">\(\beta\)</span> is a log time ratio of <span class="math inline">\(-\beta/k\)</span>. Away from the Weibull there is
-no such correspondence at all.</p>
-<p><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>’s predictor is a third thing. It is the mean
-of <span class="math inline">\(\log T\)</span>, not the median and not a
-quantile, so it is only a time ratio to the extent that the error
-density is symmetric — which is exactly what <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>
-declines to assume.</p>
+<p>So <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> is the family whose level needs the
+most care, not <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>. Its predictor is neither the mean
+nor the median of <span class="math inline">\(\log T\)</span>, and
+putting its level beside a log-normal fit’s means carrying the <span class="math inline">\(\gamma\sigma\)</span> offset, where <span class="math inline">\(\gamma \approx 0.577\)</span>. Contrasts are
+unaffected in every case, which is the usual reason to prefer them.</p>
+</div>
 <div class="section level3">
-<h3 id="the-estimand-you-usually-want">The estimand you usually want<a class="anchor" aria-label="anchor" href="#the-estimand-you-usually-want"></a>
+<h3 id="survival-at-a-horizon-type-survival">Survival at a Horizon (<code>type = "survival"</code>)<a class="anchor" aria-label="anchor" href="#survival-at-a-horizon-type-survival"></a>
 </h3>
-<p>None of the three is normally the question. The question is usually
-about survival at a horizon: the difference in one-year survival between
-treated and untreated, say. That is a contrast in <span class="math inline">\(S(t \mid x)\)</span> at a fixed <span class="math inline">\(t\)</span>, and it is on the same scale — a
-probability — no matter which family produced it.</p>
+<p>None of the three is normally the question, which is usually about
+survival at a horizon (e.g., the difference in one-year survival between
+treated and untreated). That is a contrast in <span class="math inline">\(S(t \mid x)\)</span> at a fixed <span class="math inline">\(t\)</span>, and it is on the same scale (a
+probability) no matter which family produced it.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_ph</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          1     2     5</span></span>
@@ -398,15 +442,15 @@ probability — no matter which family produced it.</p>
 <span><span class="co">#&gt; Term: trt</span></span>
 <span><span class="co">#&gt; Type: survival</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
-<p>One time per call. <strong>marginaleffects</strong> warns that it
-does not recognize <code>times</code>, because it checks the dots
-against a whitelist hardcoded per model class and offers no hook for
-registering an argument; it passes the argument through regardless and
-the result is correct. The warning is suppressed here.</p>
+<p>One time per call. <em>marginaleffects</em> warns that it does not
+recognize <code>times</code>, because it checks the dots against a
+whitelist hardcoded per model class and offers no hook for registering
+an argument; it passes the argument through regardless and the result is
+correct. The warning is suppressed here.</p>
 <p>This works identically for all five families. It is the reason
 <code>type = "survival"</code> exists rather than leaving the curve to
-be assembled by hand from the draws, and it is the recommended way to
-report a survival model from this package: it sidesteps the estimand
+be assembled by hand from the draws, and it is the way we recommend
+reporting a survival model from this package: it sidesteps the estimand
 mismatch above, it comes with a posterior interval, and it is comparable
 across families in a way that the predictors are not.</p>
 <p><code>type = "response"</code> is the median survival time for all
@@ -415,25 +459,26 @@ communicate than a curve.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="which-hazard-shapes-each-family-can-represent">Which hazard shapes each family can represent<a class="anchor" aria-label="anchor" href="#which-hazard-shapes-each-family-can-represent"></a>
+<h2 id="hazard-shapes-each-family-can-represent">Hazard Shapes Each Family Can Represent<a class="anchor" aria-label="anchor" href="#hazard-shapes-each-family-can-represent"></a>
 </h2>
 <p>Most of the differences in what follows come down to one picture. The
 parametric families constrain the hazard’s shape; <code><a href="../reference/bartisan-families.html">ph()</a></code> does
 not.</p>
 <p><img src="survival_files/figure-html/hazshapes-1.png" class="r-plt" alt="" width="770" style="display: block; margin: auto;"></p>
 <p><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> is not in the figure because its hazard shape
-is whatever the fitted error mixture implies, which can be multi-modal —
-a hazard with more than one peak, which none of the other four can
+is whatever the fitted error mixture implies, which can be multi-modal
+(i.e., have more than one peak), something none of the other four can
 produce.</p>
 </div>
 <div class="section level2">
-<h2 id="a-comparison-across-six-truths">A comparison across six truths<a class="anchor" aria-label="anchor" href="#a-comparison-across-six-truths"></a>
+<h2 id="a-comparison-across-six-truths">A Comparison Across Six Truths<a class="anchor" aria-label="anchor" href="#a-comparison-across-six-truths"></a>
 </h2>
 <p>The script is <code>_dev/survival-sim.R</code> in the package
 sources.</p>
-<p>Every truth uses the same nonlinear function of five covariates, so
-the families differ only in how well they cope with the <em>shape</em>
-of the time distribution built around it. The six truths are:</p>
+<p>Every truth we built uses the same nonlinear function of five
+covariates, so the families differ only in how well they cope with the
+<em>shape</em> of the time distribution built around it. The six truths
+are:</p>
 <table class="table">
 <colgroup>
 <col width="15%">
@@ -483,84 +528,85 @@ exactly</td>
 </tr>
 </tbody>
 </table>
-<p>The primary metric is the RMSE of the fitted survival function <span class="math inline">\(S(t \mid x)\)</span> against the true one, on
-held-out subjects and over twenty times spanning the 5th to 95th
-percentile of the event-time distribution. It is used because it is on
-the same scale for every family, which the predictors are not.</p>
+<p>We take as the primary metric the RMSE of the fitted survival
+function <span class="math inline">\(S(t \mid x)\)</span> against the
+true one, on held-out subjects and over twenty times spanning the 5th to
+95th percentile of the event-time distribution, because it is on the
+same scale for every family, which the predictors are not.</p>
 <p><img src="survival_files/figure-html/rmsefig-1.png" class="r-plt" alt="" width="770" style="display: block; margin: auto;"></p>
 <table class="table">
 <caption>RMSE of S(t | x) on held-out data. Lower is better.</caption>
 <colgroup>
-<col width="19%">
-<col width="13%">
 <col width="17%">
-<col width="15%">
 <col width="9%">
-<col width="5%">
-<col width="20%">
+<col width="15%">
+<col width="15%">
+<col width="12%">
+<col width="16%">
+<col width="14%">
 </colgroup>
 <thead><tr class="header">
-<th align="left">Truth</th>
-<th align="right">weibull_aft()</th>
-<th align="right">loglogistic_aft()</th>
-<th align="right">lognormal_aft()</th>
-<th align="right">dpm_aft()</th>
-<th align="right">ph()</th>
-<th align="right">discrete-time probit</th>
+<th align="left">Family</th>
+<th align="right">Weibull PH</th>
+<th align="right">hazard turns over</th>
+<th align="right">log-normal errors</th>
+<th align="right">bimodal errors</th>
+<th align="right">heavy-tailed errors</th>
+<th align="right">crossing hazards</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="left">Weibull PH</td>
+<td align="left">weibull_aft()</td>
 <td align="right">0.045</td>
-<td align="right">0.060</td>
-<td align="right">0.068</td>
-<td align="right">0.046</td>
-<td align="right">0.046</td>
-<td align="right">0.076</td>
-</tr>
-<tr class="even">
-<td align="left">hazard turns over</td>
 <td align="right">0.062</td>
-<td align="right">0.055</td>
-<td align="right">0.062</td>
-<td align="right">0.057</td>
-<td align="right">0.045</td>
-<td align="right">0.073</td>
-</tr>
-<tr class="odd">
-<td align="left">log-normal errors</td>
 <td align="right">0.072</td>
-<td align="right">0.052</td>
-<td align="right">0.050</td>
-<td align="right">0.049</td>
-<td align="right">0.069</td>
-<td align="right">0.071</td>
+<td align="right">0.111</td>
+<td align="right">0.078</td>
+<td align="right">0.095</td>
 </tr>
 <tr class="even">
-<td align="left">bimodal errors</td>
-<td align="right">0.111</td>
+<td align="left">loglogistic_aft()</td>
+<td align="right">0.060</td>
+<td align="right">0.055</td>
+<td align="right">0.052</td>
 <td align="right">0.113</td>
-<td align="right">0.109</td>
-<td align="right">0.034</td>
-<td align="right">0.101</td>
-<td align="right">0.109</td>
+<td align="right">0.052</td>
+<td align="right">0.080</td>
 </tr>
 <tr class="odd">
-<td align="left">heavy-tailed errors</td>
-<td align="right">0.078</td>
-<td align="right">0.052</td>
+<td align="left">lognormal_aft()</td>
+<td align="right">0.068</td>
+<td align="right">0.062</td>
+<td align="right">0.050</td>
+<td align="right">0.109</td>
 <td align="right">0.066</td>
-<td align="right">0.051</td>
-<td align="right">0.073</td>
-<td align="right">0.083</td>
+<td align="right">0.080</td>
 </tr>
 <tr class="even">
-<td align="left">crossing hazards</td>
-<td align="right">0.095</td>
-<td align="right">0.080</td>
-<td align="right">0.080</td>
+<td align="left">dpm_aft()</td>
+<td align="right">0.046</td>
+<td align="right">0.057</td>
+<td align="right">0.049</td>
+<td align="right">0.034</td>
+<td align="right">0.051</td>
 <td align="right">0.081</td>
+</tr>
+<tr class="odd">
+<td align="left">ph()</td>
+<td align="right">0.046</td>
+<td align="right">0.045</td>
+<td align="right">0.069</td>
+<td align="right">0.101</td>
+<td align="right">0.073</td>
 <td align="right">0.092</td>
+</tr>
+<tr class="even">
+<td align="left">discrete-time probit</td>
+<td align="right">0.076</td>
+<td align="right">0.073</td>
+<td align="right">0.071</td>
+<td align="right">0.109</td>
+<td align="right">0.083</td>
 <td align="right">0.085</td>
 </tr>
 </tbody>
@@ -569,48 +615,47 @@ the same scale for every family, which the predictors are not.</p>
 <p><strong>Being exactly right is worth surprisingly little.</strong> On
 the Weibull truth, which <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> and
 <code><a href="../reference/bartisan-families.html">ph()</a></code> both describe exactly, <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>
-leads at 0.045 — and <code><a href="../reference/bartisan-families.html">ph()</a></code> and <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>,
-neither of which is given the shape, are level with it at 0.046. Being
+leads at .045, and <code><a href="../reference/bartisan-families.html">ph()</a></code> and <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>, neither
+of which is given the shape, are level with it at .046. Being
 <em>wrong</em> costs far more than being right gains:
-<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> pays 0.068 on the same data. So the
-question worth asking of a family is not how much it wins when its
-assumption holds, but how much it loses when it does not.</p>
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> pays .068 on the same data. So the question
+worth asking of a family is not how much it wins when its assumption
+holds, but how much it loses when it does not.</p>
 <p><strong><code><a href="../reference/bartisan-families.html">ph()</a></code> wins where the baseline turns over, and
-only there.</strong> At 0.045 against 0.055 for the best parametric
+only there.</strong> At .045 against .055 for the best parametric
 alternative, it is clearly ahead on the case the three parametric
 families structurally cannot fit. But this is the one truth in the table
 where it leads. On the two accelerated failure time truths it is among
-the worst — 0.069 on log-normal errors against 0.049 — because
-proportional hazards is an assumption too, and it is the wrong one
-there.</p>
+the worst (.069 on log-normal errors against .049) because proportional
+hazards is an assumption too, and it is the wrong one there.</p>
 <p><strong>When the error is badly shaped, <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> wins
 by a wide margin.</strong> On the two-component error it is three times
 more accurate than anything else and 300 log points ahead, because no
 other family in the set can represent a bimodal time distribution at any
 value of its parameters. The heavy-tailed case is milder, and there
-<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> matches it — which is what the
+<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> matches it, which is what the
 log-logistic’s heavy tails are for.</p>
 <p><strong><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> costs nothing when it is not needed,
 and it is the most consistent family in the table.</strong> On
-log-normal errors it sits at 0.0491 against the correctly specified
-<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>’s 0.0498; on the Weibull truth, 0.0457
-against <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>’s 0.0449. It is best or tied-best on
+log-normal errors it sits at .0491 against the correctly specified
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>’s .0498; on the Weibull truth, .0457
+against <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>’s .0449. It is best or tied-best on
 four of the six truths and never worse than third on any. That asymmetry
-— large gains when the assumption is wrong, no measurable loss when it
-is right — is what makes it a sensible default for anyone without a view
+(large gains when the assumption is wrong, no measurable loss when it is
+right) is what makes it a sensible default for anyone without a view
 about the error’s shape.</p>
-<p><strong>When hazards cross, the RMSE column understates the
-damage.</strong> Every family lands between 0.080 and 0.096, which looks
+<p><strong>When hazards cross, the survival RMSE understates the
+damage.</strong> Every family lands between .080 and .096, which looks
 like a mild penalty. It is not: the <a href="#ordering">ranking
 column</a> shows that the models have absorbed a reversing covariate
 effect into almost no covariate effect at all. See <a href="#nonprop">the discrete-time route</a> below.</p>
 <div class="section level3">
-<h3 id="the-same-picture-as-fitted-curves">The same picture as fitted curves<a class="anchor" aria-label="anchor" href="#the-same-picture-as-fitted-curves"></a>
+<h3 id="fitted-survival-curves">Fitted Survival Curves<a class="anchor" aria-label="anchor" href="#fitted-survival-curves"></a>
 </h3>
 <p>The aggregate numbers hide <em>how</em> the misspecified fits are
-wrong. Here are the fitted survival curves for three held-out subjects
-under the two truths where the families disagree most, against the truth
-in black.</p>
+wrong. Below are the fitted survival curves for three held-out subjects
+under the two truths where the families disagree most, with the truth in
+the first column.</p>
 <p><img src="survival_files/figure-html/curvefig-1.png" class="r-plt" alt="" width="770" style="display: block; margin: auto;"></p>
 <p>In the top row every fit recovers the separation between the three
 subjects; they differ in the level. <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> sends the
@@ -619,7 +664,7 @@ monotone hazard cannot flatten out the way this baseline does;
 <code><a href="../reference/bartisan-families.html">ph()</a></code> and <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> track it, and the
 discrete-time fit is visibly steppy at this grid resolution.</p>
 <p>The bottom row is the one to look at. The true curves separate widely
-and then <strong>reverse</strong> — the subject with the best prognosis
+and then <strong>reverse</strong>: the subject with the best prognosis
 at the middle of the grid has the worst survival by the end of it, and
 the three curves cross. No fit reproduces that, which is the structural
 limitation stated as a picture. But the symptom is not a distorted
@@ -634,36 +679,36 @@ negative late, averages it to approximately nothing.</p>
 sample: the discrete-time route scores much better than
 <code><a href="../reference/bartisan-families.html">ph()</a></code> on the ranking measured over all 700, and that
 advantage is not what this figure is showing. And the survival RMSE for
-this row was an unremarkable 0.08 to 0.10 — the failure is severe and
+this row was an unremarkable .08 to .10, so the failure is severe and
 the headline metric does not say so.</p>
 </div>
 <div class="section level3">
-<h3 id="ordering">Recovering the ordering of risk<a class="anchor" aria-label="anchor" href="#ordering"></a>
+<h3 id="ordering">Recovering the Ordering of Risk<a class="anchor" aria-label="anchor" href="#ordering"></a>
 </h3>
 <p>A weaker question than the curve itself is whether the model gets the
 <em>ordering</em> of subjects right at each time. Misspecification costs
 much less here.</p>
 <p><img src="survival_files/figure-html/rankfig-1.png" class="r-plt" alt="" width="770" style="display: block; margin: auto;"></p>
 <p>On all five truths where the covariate effect is constant in time,
-every family recovers the ordering at a correlation between 0.92 and
-0.99, whether or not it has the shape right. The spread across families
-is a few hundredths where the spread in the survival curve was a factor
-of three.</p>
+every family recovers the ordering at a correlation between .92 and .99,
+whether or not it has the shape right. The spread across families is a
+few hundredths where the spread in the survival curve was a factor of
+three.</p>
 <p>The crossing truth is the exception, and there the column collapses:
-the discrete-time model reaches 0.47, the accelerated failure time
-families 0.24 to 0.29, and <code><a href="../reference/bartisan-families.html">ph()</a></code> and
-<code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> essentially zero — 0.04 and <span class="math inline">\(-0.03\)</span>, which is to say no information
+the discrete-time model reaches .47, the accelerated failure time
+families .24 to .29, and <code><a href="../reference/bartisan-families.html">ph()</a></code> and
+<code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> essentially zero (.04 and <span class="math inline">\(-.03\)</span>), which is to say no information
 about who is at risk at a given time. This is the same erasure the
 curves showed, measured.</p>
-<p>The practical reading: <strong>if all you need is who is at higher
-risk, and the covariate effect does not move with time, the choice of
-family barely matters.</strong> It matters when you need the curve, an
-absolute probability, or the shape of the hazard — and it matters
-enormously when the effect does move with time, which is the one case
-where the ordering is not recoverable at all.</p>
+<p>The practical reading: <strong>if the only question is who is at
+higher risk, and the covariate effect does not move with time, the
+choice of family barely matters.</strong> It matters when the curve, an
+absolute probability, or the shape of the hazard is needed, and it
+matters enormously when the effect does move with time, which is the one
+case where the ordering is not recoverable at all.</p>
 </div>
 <div class="section level3">
-<h3 id="the-error-density-recovered">The error density, recovered<a class="anchor" aria-label="anchor" href="#the-error-density-recovered"></a>
+<h3 id="the-recovered-error-density-error_density">The Recovered Error Density (<code>error_density()</code>)<a class="anchor" aria-label="anchor" href="#the-recovered-error-density-error_density"></a>
 </h3>
 <p>On the bimodal truth <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>’s advantage is not a
 tuning gain; it is that it can see the shape the other families are
@@ -674,78 +719,77 @@ something close to a single normal when they are not. That is the whole
 argument for the family.</p>
 </div>
 <div class="section level3">
-<h3 id="held-out-log-scores">Held-out log scores<a class="anchor" aria-label="anchor" href="#held-out-log-scores"></a>
+<h3 id="held-out-log-scores">Held-Out Log Scores<a class="anchor" aria-label="anchor" href="#held-out-log-scores"></a>
 </h3>
 <p>The log score is the other natural metric, and it can be made
-comparable across all five families — but only after a correction, which
+comparable across all five families, but only after a correction, which
 is the subject of <a href="#measure">a trap below</a>. With the
 correction applied:</p>
 <table class="table">
 <caption>Held-out log predictive score on the density of T, summed over
 the 700 held-out observations. Higher is better.</caption>
 <colgroup>
-<col width="23%">
-<col width="16%">
-<col width="21%">
-<col width="19%">
-<col width="11%">
-<col width="7%">
+<col width="15%">
+<col width="9%">
+<col width="15%">
+<col width="15%">
+<col width="12%">
+<col width="17%">
+<col width="14%">
 </colgroup>
 <thead><tr class="header">
-<th align="left">Truth</th>
-<th align="right">weibull_aft()</th>
-<th align="right">loglogistic_aft()</th>
-<th align="right">lognormal_aft()</th>
-<th align="right">dpm_aft()</th>
-<th align="right">ph()</th>
+<th align="left">Family</th>
+<th align="right">Weibull PH</th>
+<th align="right">hazard turns over</th>
+<th align="right">log-normal errors</th>
+<th align="right">bimodal errors</th>
+<th align="right">heavy-tailed errors</th>
+<th align="right">crossing hazards</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="left">Weibull PH</td>
+<td align="left">weibull_aft()</td>
 <td align="right">-191</td>
-<td align="right">-212</td>
-<td align="right">-226</td>
-<td align="right">-193</td>
-<td align="right">-200</td>
-</tr>
-<tr class="even">
-<td align="left">hazard turns over</td>
 <td align="right">-301</td>
-<td align="right">-289</td>
-<td align="right">-305</td>
-<td align="right">-289</td>
-<td align="right">-292</td>
-</tr>
-<tr class="odd">
-<td align="left">log-normal errors</td>
 <td align="right">-856</td>
-<td align="right">-822</td>
-<td align="right">-815</td>
-<td align="right">-815</td>
-<td align="right">-864</td>
+<td align="right">-1062</td>
+<td align="right">-912</td>
+<td align="right">-474</td>
 </tr>
 <tr class="even">
-<td align="left">bimodal errors</td>
-<td align="right">-1062</td>
+<td align="left">loglogistic_aft()</td>
+<td align="right">-212</td>
+<td align="right">-289</td>
+<td align="right">-822</td>
 <td align="right">-1058</td>
-<td align="right">-1027</td>
-<td align="right">-711</td>
-<td align="right">-1017</td>
+<td align="right">-866</td>
+<td align="right">-468</td>
 </tr>
 <tr class="odd">
-<td align="left">heavy-tailed errors</td>
-<td align="right">-912</td>
-<td align="right">-866</td>
+<td align="left">lognormal_aft()</td>
+<td align="right">-226</td>
+<td align="right">-305</td>
+<td align="right">-815</td>
+<td align="right">-1027</td>
 <td align="right">-915</td>
-<td align="right">-859</td>
-<td align="right">-899</td>
+<td align="right">-476</td>
 </tr>
 <tr class="even">
-<td align="left">crossing hazards</td>
-<td align="right">-474</td>
+<td align="left">dpm_aft()</td>
+<td align="right">-193</td>
+<td align="right">-289</td>
+<td align="right">-815</td>
+<td align="right">-711</td>
+<td align="right">-859</td>
 <td align="right">-468</td>
-<td align="right">-476</td>
-<td align="right">-468</td>
+</tr>
+<tr class="odd">
+<td align="left">ph()</td>
+<td align="right">-200</td>
+<td align="right">-292</td>
+<td align="right">-864</td>
+<td align="right">-1017</td>
+<td align="right">-899</td>
 <td align="right">-474</td>
 </tr>
 </tbody>
@@ -753,12 +797,12 @@ the 700 held-out observations. Higher is better.</caption>
 <p>The two metrics agree on which family to prefer on five of the six
 truths. The exception is the turning-over baseline, where
 <code><a href="../reference/bartisan-families.html">ph()</a></code> leads on the survival curve but sits third on the log
-score — behind <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> and
-<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, and by three log points, which is inside
-the noise. The reason is that the log score is evaluated at each
-subject’s own observed time, which is by construction where the data are
-dense, while the survival RMSE is averaged over a grid that reaches into
-the tail. Families differ less in the middle than at the edges.</p>
+score, behind <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> and <code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>
+and by three log points, which is inside the noise. The reason is that
+the log score is evaluated at each subject’s own observed time, which is
+by construction where the data are dense, while the survival RMSE is
+averaged over a grid that reaches into the tail. Families differ less in
+the middle than at the edges.</p>
 <p>Where the shape of the density is genuinely wrong the log score is
 the harsher of the two: on the bimodal truth <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> is
 ahead by more than 300 log points, a much larger gap than the threefold
@@ -781,24 +825,24 @@ censoring to 70%, and no parametric family overtakes it at any point on
 this truth. So the recommendation is stable in the amount of censoring,
 which is the question that mattered.</p>
 <p>The degradation is gentle up to about half the observations censored
-— <code><a href="../reference/bartisan-families.html">ph()</a></code> goes from 0.044 to 0.055 — which is the usual
+(<code><a href="../reference/bartisan-families.html">ph()</a></code> goes from .044 to .055), which is the usual
 reassurance about likelihood-based survival analysis: a censored
-observation is not a missing one, it contributes <span class="math inline">\(S(t)\)</span> and that is real information. Beyond
+observation is not a missing one, since it contributes <span class="math inline">\(S(t)\)</span> and that is real information. Beyond
 half, the curves steepen.</p>
 <p><strong>One line does not behave</strong>, and it is worth
 understanding rather than passing over. <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> is
 the <em>worst</em> family in the panel with no censoring at all, at
-0.097, and it gets <strong>better</strong> as censoring increases,
-reaching 0.072 at 70%. Everything else degrades monotonically. The
-likely reason is that this truth has a heavy, polynomial tail, which a
-Gumbel error in log time cannot represent; with no censoring the fit is
-dragged by observed times far out in that tail, and censoring truncates
-exactly the observations it cannot accommodate. Censoring is protecting
-a misspecified model from the part of the distribution it gets wrong.
-That is a caution about reading a fit’s apparent quality off a heavily
+.097, and it gets <strong>better</strong> as censoring increases,
+reaching .072 at 70%. Everything else degrades monotonically. The likely
+reason is that this truth has a heavy, polynomial tail, which a Gumbel
+error in log time cannot represent; with no censoring the fit is dragged
+by observed times far out in that tail, and censoring truncates exactly
+the observations it cannot accommodate. Censoring is protecting a
+misspecified model from the part of the distribution it gets wrong. That
+is a caution about reading a fit’s apparent quality off a heavily
 censored sample, not a reason to want censoring.</p>
-<p>One expectation the sweep did not bear out: <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>
-might have been expected to suffer most under heavy censoring, since it
+<p>One expectation the sweep did not bear out: we might have expected
+<code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> to suffer most under heavy censoring, since it
 estimates a whole density from log-times that are increasingly imputed
 rather than observed. It does not. Over the sweep its error grows by a
 factor of 1.4, against 1.5 for both <code><a href="../reference/bartisan-families.html">ph()</a></code> and
@@ -806,11 +850,11 @@ factor of 1.4, against 1.5 for both <code><a href="../reference/bartisan-familie
 the extra machinery suggests.</p>
 </div>
 <div class="section level2">
-<h2 id="nonprop">When hazards are not proportional<a class="anchor" aria-label="anchor" href="#nonprop"></a>
+<h2 id="nonprop">The Discrete-Time Route for Non-Proportional Hazards<a class="anchor" aria-label="anchor" href="#nonprop"></a>
 </h2>
 <p>Every family above assumes that covariates act the same way at every
-time — the accelerated failure time families by stretching the time
-axis, <code><a href="../reference/bartisan-families.html">ph()</a></code> by scaling the hazard. When that fails, and in
+time (the accelerated failure time families by stretching the time axis,
+<code><a href="../reference/bartisan-families.html">ph()</a></code> by scaling the hazard). When that fails, and in
 particular when survival curves cross, none of them can fit the data,
 and the failure is structural rather than a matter of flexibility.</p>
 <p>The model to reach for is a <strong>discrete-time hazard</strong>,
@@ -928,20 +972,20 @@ two truths that separate it from <code><a href="../reference/bartisan-families.h
 </tr>
 </tbody>
 </table>
-<p>The trade is sharper than one might hope, in both directions.</p>
+<p>The trade is sharper than we might hope, in both directions.</p>
 <p><strong>Under proportional hazards it is the worst model in the whole
-comparison</strong>, not a close second — 0.073 against
-<code><a href="../reference/bartisan-families.html">ph()</a></code>’s 0.045 on the turning-over baseline, and 0.076
-against 0.046 on the Weibull. It nests proportional hazards, so this is
-not bias; it is the cost of making the forest learn the baseline through
-splits on time while it is also learning the covariate effect, where
+comparison</strong>, not a close second: .073 against
+<code><a href="../reference/bartisan-families.html">ph()</a></code>’s .045 on the turning-over baseline, and .076 against
+.046 on the Weibull. It nests proportional hazards, so this is not bias;
+it is the cost of making the forest learn the baseline through splits on
+time while it is also learning the covariate effect, where
 <code><a href="../reference/bartisan-families.html">ph()</a></code> draws the baseline in closed form and spends the whole
 forest on <span class="math inline">\(x\)</span>. Freedom is not free,
 and here it is expensive.</p>
 <p><strong>Under crossing hazards it does not win on the survival curve
-either</strong> — 0.085, behind the accelerated failure time families at
-0.080. What it wins is the thing that matters: the ranking, at 0.47
-against 0.29 and below for everything else. It is the only model in the
+either</strong>, at .085 against the accelerated failure time families’
+.080. What it wins is the thing that matters: the ranking, at .47
+against .29 and below for everything else. It is the only model in the
 set that recovers <em>any</em> of the reordering, and recovering some of
 a reversing effect while getting the level slightly worse is the better
 failure of the two.</p>
@@ -950,29 +994,31 @@ study with a fine grid gets slow. The grid is a real choice, unlike
 <code><a href="../reference/bartisan-families.html">ph()</a></code>’s bins, because it sets the resolution of the hazard
 in <span class="math inline">\(t\)</span> <em>and</em> the resolution at
 which non-proportionality can be detected at all. And there is no
-<code>sigma</code>, no baseline and no error density to report — the
+<code>sigma</code>, no baseline and no error density to report; the
 model is a hazard surface, summarized through
 <code>type = "response"</code> and the curve, and
 <code>type = "survival"</code> does not apply to it because as far as
 the package is concerned it is a binomial fit.</p>
-<p><strong>When to use it.</strong> When you have a substantive reason
-to expect the covariate effect to move with time — a treatment whose
-benefit accrues or wears off, a risk factor that matters only early. Not
-as a hedge: under proportional hazards it is the most expensive option
-in the comparison, so reaching for it “just in case” costs about as much
-as being wrong about the error distribution. If the question is whether
-hazards are proportional, fitting it alongside <code><a href="../reference/bartisan-families.html">ph()</a></code> and
-comparing the fitted curves is a reasonable diagnostic; adopting it by
-default is not.</p>
+<p><strong>When to use it.</strong> When there is a substantive reason
+to expect the covariate effect to move with time (e.g., a treatment
+whose benefit accrues or wears off, a risk factor that matters only
+early). Not as a hedge: under proportional hazards it is the most
+expensive option in the comparison, so reaching for it “just in case”
+costs about as much as being wrong about the error distribution. If the
+question is whether hazards are proportional, fitting it alongside
+<code><a href="../reference/bartisan-families.html">ph()</a></code> and comparing the fitted curves is a reasonable
+diagnostic; adopting it by default is not.</p>
 </div>
 <div class="section level2">
-<h2 id="three-traps">Three traps<a class="anchor" aria-label="anchor" href="#three-traps"></a>
+<h2 id="three-traps">Three Traps<a class="anchor" aria-label="anchor" href="#three-traps"></a>
 </h2>
 <div class="section level3">
-<h3 id="measure">The log score does not use the same measure for every family<a class="anchor" aria-label="anchor" href="#measure"></a>
+<h3 id="measure">The Measure Behind the Log Score
+(<code>type = "density"</code>)<a class="anchor" aria-label="anchor" href="#measure"></a>
 </h3>
 <p><code>predict(type = "density")</code> returns, for each observation,
-its contribution to the likelihood — a density for an event and <span class="math inline">\(S(t)\)</span> for a censored observation.
+its contribution to the likelihood (i.e., a density for an event and
+<span class="math inline">\(S(t)\)</span> for a censored observation).
 <strong>The density is not on the same scale for every family.</strong>
 The accelerated failure time families, <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> included,
 report the density of <span class="math inline">\(\log T\)</span>;
@@ -996,32 +1042,31 @@ simulations above the uncorrected gap between <code><a href="../reference/bartis
 accelerated failure time families exceeded a thousand log points and
 reversed which family looked better. <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and
 <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> inherit the same issue, since they are built on the
-same pointwise densities — they are valid for comparing two accelerated
+same pointwise densities; they are valid for comparing two accelerated
 failure time families, or two <code><a href="../reference/bartisan-families.html">ph()</a></code> fits, and invalid across
 the two groups.</p>
-<p>If you would rather not think about it, compare on <span class="math inline">\(S(t \mid x)\)</span> from
+<p>The way to avoid thinking about it at all is to compare on <span class="math inline">\(S(t \mid x)\)</span> from
 <code>predict(type = "survival")</code>, which is a probability for
 every family and needs no correction.</p>
 </div>
 <div class="section level3">
 <h3 id="phs-predictor-is-a-contrast-not-a-level">
-<code>ph()</code>’s predictor is a contrast, not a level<a class="anchor" aria-label="anchor" href="#phs-predictor-is-a-contrast-not-a-level"></a>
+<code>ph()</code>’s Predictor Is a Contrast, Not a Level<a class="anchor" aria-label="anchor" href="#phs-predictor-is-a-contrast-not-a-level"></a>
 </h3>
 <p>Because the baseline absorbs the level, a single fitted value of
 <code><a href="../reference/bartisan-families.html">ph()</a></code>’s predictor has no interpretation on its own; only
 differences do. <code>predict(type = "link")</code> is centered
-accordingly. If you want a level, ask for a quantity that has one:
-<code>type = "survival"</code>, or <code>type = "response"</code> for
-the median time.</p>
+accordingly. When a level is what is wanted, ask for a quantity that has
+one: <code>type = "survival"</code>, or <code>type = "response"</code>
+for the median time.</p>
 </div>
 <div class="section level3">
-<h3 id="num_bins-is-not-a-tuning-parameter">
-<code>num_bins</code> is not a tuning parameter<a class="anchor" aria-label="anchor" href="#num_bins-is-not-a-tuning-parameter"></a>
+<h3 id="the-bin-grid-num_bins">The Bin Grid (<code>num_bins</code>)<a class="anchor" aria-label="anchor" href="#the-bin-grid-num_bins"></a>
 </h3>
 <p><code><a href="../reference/bartisan-families.html">ph()</a></code> exposes <code>num_bins</code>, and it is fair to
-ask whether you are being made to make a choice. Sweeping it over a
-sixty-fold range on the same two proportional-hazards truths, at 700
-observations where the default is 9:</p>
+ask whether that amounts to a choice the analyst is made to make. We
+swept it over a sixty-fold range on the same two proportional-hazards
+truths, at 700 observations where the default is 9:</p>
 <table class="table">
 <caption>Each cell is the turning-over baseline first, the Weibull
 baseline second.</caption>
@@ -1084,28 +1129,28 @@ baseline second.</caption>
 </tr>
 </tbody>
 </table>
-<p><strong>From 4 bins to 100 the estimates are flat</strong> — a
-twenty-five-fold range, no trend in either error column, and every
-difference inside the replicate-to-replicate spread, which is about
-0.009 and 0.005 respectively. The default sits near the bottom of that
-plateau, and moving anywhere inside it changes nothing you would
-notice.</p>
+<p><strong>From 4 bins to 100 the estimates are flat</strong> over a
+twenty-five-fold range, with no trend in either error column and every
+difference inside the replicate-to-replicate spread, which is about .009
+and .005 respectively. The default sits near the bottom of that plateau,
+and moving anywhere inside it changes nothing anyone would notice.</p>
 <p>At 250 bins something does happen, consistently in both truths and
 both error columns: the error rises by about 20% and the Pareto-<span class="math inline">\(k\)</span> diagnostics start to be troubled. This
-is over-parameterization becoming visible — 250 bins on 700 observations
-gives about 200 effective parameters, and the shrinkage through
-<code>lambda_rate</code> is no longer enough to absorb it. Push further,
-to one piece per event time, and each observation’s density is inflated
-by a parameter only that observation informs: measured that way the
-effective parameter count exceeded the sample size and more than half
-the Pareto-<span class="math inline">\(k\)</span> values went above 0.7,
-at which point <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> stop being
+is over-parameterization becoming visible, since 250 bins on 700
+observations gives about 200 effective parameters and the shrinkage
+through <code>lambda_rate</code> is no longer enough to absorb it. Push
+further, to one piece per event time, and each observation’s density is
+inflated by a parameter only that observation informs: measured that way
+the effective parameter count exceeded the sample size and more than
+half the Pareto-<span class="math inline">\(k\)</span> values went above
+.7, at which point <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> stop being
 usable at all.</p>
 <p>So the shape of the thing is a wide flat plateau with a cliff a long
-way past the default, not a peak you have to find. <code>num_bins</code>
-is exposed for confirming that on your own data rather than for tuning:
-fit at the default and again at two or three times it, and if the
-answers agree — they will — stop thinking about it.</p>
+way past the default, not a peak that has to be found.
+<code>num_bins</code> is exposed for confirming that on one’s own data
+rather than for tuning: fit at the default and again at two or three
+times it, and if the answers agree (they will) stop thinking about
+it.</p>
 <p>This is also the answer to a question that comes up: why not fit
 Cox’s <em>partial</em> likelihood, which needs no grid at all? Because
 it couples observations through risk sets, so it does not decompose into
@@ -1126,22 +1171,23 @@ version was built and measured against this one <span class="citation">(<a href=
 flexibility at all.</p>
 <p><code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> and <code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> are
 the fastest, at about 1.2 seconds, because both reach the sampler’s
-quadratic fast path through data augmentation — the augmented target is
-exactly quadratic in the predictor, so the leaf draw is a closed form
-rather than a Laplace approximation. <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> comes next
-at about 2.8 seconds, because conditional on which mixture component
-each observation currently sits in it is <em>also</em> exactly Gaussian,
-and so takes the same fast path; the Dirichlet process update on top of
-that is cheap. <code><a href="../reference/bartisan-families.html">ph()</a></code> and the discrete-time route sit at
-about six seconds. The slowest family is <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>, at
-about 8.4 seconds, because its likelihood takes the exponential path
-rather than the quadratic one. None of these is slow enough at this
-sample size to drive the choice. Fit the one that matches the question;
-speed is a reason to prefer <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> only when you
-are fitting many models rather than one.</p>
+quadratic fast path through data augmentation, under which the augmented
+target is exactly quadratic in the predictor, so the leaf draw is a
+closed form rather than a Laplace approximation. <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>
+comes next at about 2.8 seconds, because conditional on which mixture
+component each observation currently sits in it is <em>also</em> exactly
+Gaussian, and so takes the same fast path; the Dirichlet process update
+on top of that is cheap. <code><a href="../reference/bartisan-families.html">ph()</a></code> and the discrete-time route
+sit at about six seconds. The slowest family is
+<code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>, at about 8.4 seconds, because its likelihood
+takes the exponential path rather than the quadratic one. None of these
+is slow enough at this sample size to drive the choice. Fit the one that
+matches the question; speed is a reason to prefer
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> only when many models are being fit rather
+than one.</p>
 </div>
 <div class="section level2">
-<h2 id="choosing">Choosing<a class="anchor" aria-label="anchor" href="#choosing"></a>
+<h2 id="choosing-a-family">Choosing a Family<a class="anchor" aria-label="anchor" href="#choosing-a-family"></a>
 </h2>
 <table class="table">
 <colgroup>
@@ -1154,11 +1200,11 @@ are fitting many models rather than one.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="left">you have no view about the shape of anything</td>
+<td align="left">there is no view about the shape of anything</td>
 <td align="left"><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code></td>
 </tr>
 <tr class="even">
-<td align="left">you want the same, but the fit has to be quick</td>
+<td align="left">the same, but the fit has to be quick</td>
 <td align="left">
 <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> or
 <code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>
@@ -1169,11 +1215,11 @@ are fitting many models rather than one.</p>
 <td align="left"><code><a href="../reference/bartisan-families.html">ph()</a></code></td>
 </tr>
 <tr class="even">
-<td align="left">you want a hazard ratio from a parametric fit</td>
+<td align="left">a hazard ratio is wanted from a parametric fit</td>
 <td align="left"><code><a href="../reference/bartisan-families.html">weibull_aft()</a></code></td>
 </tr>
 <tr class="odd">
-<td align="left">you only need to know who is at higher risk</td>
+<td align="left">only the ordering of risk is needed</td>
 <td align="left">any of them, if the effect is constant in time</td>
 </tr>
 <tr class="even">
@@ -1181,7 +1227,7 @@ are fitting many models rather than one.</p>
 <td align="left">the discrete-time route, not a family</td>
 </tr>
 <tr class="odd">
-<td align="left">you want to report a treatment effect</td>
+<td align="left">a treatment effect is to be reported</td>
 <td align="left">any of them, through
 <code>type = "survival"</code>
 </td>
@@ -1194,22 +1240,22 @@ principle: it was best or tied-best on four of the six truths and never
 worse than third, and on the two truths where a parametric family was
 exactly right it matched that family to the third decimal. It is also,
 contrary to what its flexibility suggests, one of the cheaper families
-to fit — about twice <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> and a third of
+to fit, at about twice <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> and a third of
 <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>. The second row is for fitting many models
 rather than one.</p>
 <p>Two closing points that the numbers above support and that are easy
 to lose sight of.</p>
 <p>The families disagree far more about the <em>density</em> than about
-the <em>ordering</em>. If your question is comparative — who is at
-higher risk, which arm does better — you have a lot of freedom in the
-choice and should spend your effort elsewhere. If your question is an
+the <em>ordering</em>. If the question is comparative (e.g., who is at
+higher risk, which arm does better), we have a great deal of freedom in
+the choice and should spend our effort elsewhere. If the question is an
 absolute probability at a horizon, the choice matters and the comparison
 above is worth taking seriously.</p>
 <p>And the failure that costs most is non-proportionality, not the shape
 of the error. Getting the error wrong cost a factor of three at worst,
 and <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> insures against it for nothing. A covariate
 effect that reverses over time cost every family in the table the entire
-covariate signal — an effect estimated at approximately zero, with a
+covariate signal: an effect estimated at approximately zero, with a
 survival RMSE that looked unremarkable while it happened.
 <code><a href="../reference/bartisan-families.html">ph()</a></code> and <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> each relax one thing while
 holding proportionality or acceleration fixed; the discrete-time route

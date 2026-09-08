@@ -7,23 +7,17 @@
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Fit a generalized Bayesian additive regression trees (BART) model — bartisan"><meta name="description" content="Fits a BART model in which the response distribution is arbitrary rather than
 restricted to the conditionally conjugate cases, using the
-Laplace-approximation reversible-jump sampler of Linero (2025). Decision
-rules may be soft, as in Linero and Yang (2018), which gives smoother fits
-than the step functions of standard BART.
-The interface deliberately mirrors stats::glm(): a formula, a data frame
-and a family. Ordinary stats::family objects work unchanged, including
-their links, and the extra families that glm() has no counterpart for are
-documented at bartisan-families, along with custom_family() for a
-likelihood of your own."><meta property="og:description" content="Fits a BART model in which the response distribution is arbitrary rather than
+Laplace-approximation reversible-jump sampler of Linero (2025). Decision rules
+may be soft, as in Linero and Yang (2018), which gives smoother fits than the
+step functions of standard BART. The interface mirrors that of stats::glm():
+a formula, a data frame, and a family, with the families that glm() has no
+counterpart for documented at bartisan-families."><meta property="og:description" content="Fits a BART model in which the response distribution is arbitrary rather than
 restricted to the conditionally conjugate cases, using the
-Laplace-approximation reversible-jump sampler of Linero (2025). Decision
-rules may be soft, as in Linero and Yang (2018), which gives smoother fits
-than the step functions of standard BART.
-The interface deliberately mirrors stats::glm(): a formula, a data frame
-and a family. Ordinary stats::family objects work unchanged, including
-their links, and the extra families that glm() has no counterpart for are
-documented at bartisan-families, along with custom_family() for a
-likelihood of your own."></head><body>
+Laplace-approximation reversible-jump sampler of Linero (2025). Decision rules
+may be soft, as in Linero and Yang (2018), which gives smoother fits than the
+step functions of standard BART. The interface mirrors that of stats::glm():
+a formula, a data frame, and a family, with the families that glm() has no
+counterpart for documented at bartisan-families."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -43,7 +37,7 @@ likelihood of your own."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -77,14 +71,11 @@ likelihood of your own."></head><body>
     <div class="ref-description section level2">
     <p>Fits a BART model in which the response distribution is arbitrary rather than
 restricted to the conditionally conjugate cases, using the
-Laplace-approximation reversible-jump sampler of Linero (2025). Decision
-rules may be soft, as in Linero and Yang (2018), which gives smoother fits
-than the step functions of standard BART.</p>
-<p>The interface deliberately mirrors <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code>: a formula, a data frame
-and a family. Ordinary <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a> objects work unchanged, including
-their links, and the extra families that <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> has no counterpart for are
-documented at <a href="bartisan-families.html">bartisan-families</a>, along with <code><a href="bartisan-families.html">custom_family()</a></code> for a
-likelihood of your own.</p>
+Laplace-approximation reversible-jump sampler of Linero (2025). Decision rules
+may be soft, as in Linero and Yang (2018), which gives smoother fits than the
+step functions of standard BART. The interface mirrors that of <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code>:
+a formula, a data frame, and a family, with the families that <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> has no
+counterpart for documented at <a href="bartisan-families.html">bartisan-families</a>.</p>
     </div>
 
     <div class="section level2">
@@ -119,76 +110,102 @@ the model for the main parameter and carries the response; the rest need no
 response, and follow the order in <a href="bartisan-families.html">bartisan-families</a>, under "Several
 additive predictors", which also gives the name of each forest so the list
 can be named instead of ordered:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">location_scale</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x2</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">location_scale</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>One formula applies to every forest, which is the ordinary case. A predictor
 left out of one forest's formula is still in the data and is never split on
 by that forest.</p>
+<p><strong>A formula naming no predictor at all makes that parameter a constant.</strong>
+<code>~ 1</code> leaves its forest nothing to split on, so every tree in it is a stump
+and the forest is a single drawn scalar rather than a function of the
+predictors. This works for every family that takes more than one formula, and
+it is how a nuisance parameter is asked for without a family that has one
+built in: <code><a href="bartisan-families.html">gaussian_ls()</a></code> with <code>~ 1</code> on its scale is <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> with its
+drawn <code>sigma</code>, <code><a href="bartisan-families.html">Gamma_ls()</a></code> with <code>~ 1</code> is <code>Gamma("log")</code> with its drawn
+shape, and <code><a href="bartisan-families.html">zi_poisson()</a></code> with <code>~ 1</code> on its inflation part is the ordinary
+zero-inflated Poisson with one structural-zero probability. The scalar is
+drawn under the leaf prior rather than under the prior the built-in family
+would use, so the two agree to within that difference rather than exactly.</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="co"># the scale free to vary, then held constant</span></span>
+<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="fl">1</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p><code><a href="vc.html">vc()</a></code> terms are read out of each formula in turn, so a parameter has the
 varying coefficients its own formula asks for and no others. That makes the
-forests two-dimensional – one axis the parameter, the other the coefficient
-– and the names below are what per-forest settings are keyed by:</p>
+forests two-dimensional (one axis the parameter, the other the coefficient),
+and the names below are what per-forest settings are keyed by:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="co"># forests: mean, mean:z, log_sd</span></span>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">location_scale</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># one formula reaches every parameter, so both get a coefficient of `z`</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">location_scale</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div></dd>
+<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>a data frame containing the variables in <code>formula</code>.</p></dd>
+<dd><p>a data frame containing the variables named in <code>formula</code>.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>the response distribution, as a <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a> object, one of
-the families in <a href="bartisan-families.html">bartisan-families</a>, or a name. The default, <code>NULL</code>, reads
-one off the response and says which it chose; see Details for the rules and
-for what is supported.</p></dd>
+<dd><p>the response distribution, given as a <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a> object,
+as one of the families in <a href="bartisan-families.html">bartisan-families</a>, or as the name of either. A
+<code>family</code> object is accepted when the distribution it names is one this
+package implements, since the likelihood is the package's rather than the
+object's: a <code>family</code> object carries a link and a variance function and not a
+density, so one naming anything else (e.g., <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::inverse.gaussian</a>, or a
+Tweedie from another package) is an error rather than something a likelihood
+can be built from, and <code><a href="bartisan-families.html">custom_family()</a></code> is the route for those. Links are
+used as supplied, and a link the package does not compile is composed onto
+the scale its family works on. Default is <code>NULL</code>, in which case the family
+is read off the response and a message reports the choice; see Details for
+the rules.</p></dd>
 
 
 <dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
-<dd><p>optional prior weights. For a binomial response given as
-proportions, these are the numbers of trials, as in <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>.</p></dd>
+<dd><p>optional; prior weights, one per observation. For a binomial
+response given as proportions, these are the numbers of trials, as in
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>.</p></dd>
 
 
 <dt id="arg-offset">offset<a class="anchor" aria-label="anchor" href="#arg-offset"></a></dt>
-<dd><p>optional known component of the additive predictor, on the link
-scale.</p></dd>
+<dd><p>optional; a known component of the additive predictor, on the
+link scale.</p></dd>
 
 
 <dt id="arg-subset">subset<a class="anchor" aria-label="anchor" href="#arg-subset"></a></dt>
-<dd><p>optional vector specifying a subset of rows to use.</p></dd>
+<dd><p>optional; a vector specifying the subset of rows to use.</p></dd>
 
 
 <dt id="arg-na-action">na.action<a class="anchor" aria-label="anchor" href="#arg-na-action"></a></dt>
-<dd><p>how to handle missing values. The default,
-<a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.pass</a>, keeps rows whose <em>predictors</em> are missing and lets the
-splitting rules decide where they go, which is what the trees are able to do
-and <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> and <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> are not; see Details. Pass <a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.omit</a> to drop
-any row with a missing value anywhere instead. Rows with a missing response,
-weight or offset are dropped either way, with a warning, since there is
+<dd><p>how missing values are handled. Default is <a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.pass</a>,
+which keeps rows whose <em>predictors</em> are missing and lets the splitting rules
+decide where they go, which is something the trees can do and <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> and
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> cannot; see Details. Pass <a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.omit</a> to drop any row with a
+missing value anywhere instead. Note that rows with a missing response,
+weight, or offset are dropped either way, with a warning, since there is
 nothing to fit them to.</p></dd>
 
 
 <dt id="arg-control">control<a class="anchor" aria-label="anchor" href="#arg-control"></a></dt>
-<dd><p>a list of sampler and prior settings from
-<code><a href="bartisan_control.html">bartisan_control()</a></code>.</p></dd>
+<dd><p>a <code>&lt;bartisan_control&gt;</code> object; the output of a call to
+<code><a href="bartisan_control.html">bartisan_control()</a></code>, containing the sampler and prior settings.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>further arguments to <code><a href="bartisan_control.html">bartisan_control()</a></code>. They are
-merged into <code>control</code>, overriding any value given there, so that
+<dd><p>further arguments to <code><a href="bartisan_control.html">bartisan_control()</a></code>, which are merged into
+<code>control</code> and override any value given there, so that
 <code>bartisan(..., num_trees = 20)</code> and
 <code>bartisan(..., control = bartisan_control(num_trees = 20))</code> are the same
-call. Names that are not arguments of <code><a href="bartisan_control.html">bartisan_control()</a></code> are an error
+call. A name that is not an argument of <code><a href="bartisan_control.html">bartisan_control()</a></code> is an error
 rather than being silently ignored.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class <code>bartisan</code>, a list with elements including:</p>
+    <p>A <code>&lt;bartisan_fit&gt;</code> object, a list with the following components among others.
+Note that convergence diagnostics are not among them: computing R-hat and the
+effective sample sizes for every observation costs more than the sampling
+does, so it is <code><a href="diagnose.html">diagnose()</a></code>'s work and happens when it is asked for.</p>
 <dl><dt><code>eta</code></dt>
 <dd><p>a list with one matrix per additive predictor, each of
 posterior draws by observation, on the link scale.</p></dd>
@@ -209,15 +226,6 @@ standard deviation or the ordinal cutpoints, when the family has any.</p></dd>
 <dd><p>which predictor columns contained a missing value, which is
 what determines where <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> will accept one.</p></dd>
 
-<dt><code>rhat</code></dt>
-<dd><p>a data frame of convergence diagnostics, when more than one
-chain was run: rank-normalized folded split R-hat and the bulk and tail
-effective sample sizes (Vehtari et al. 2021) for the log likelihood, the
-leaf scales, the nuisance parameters and the additive predictor. R-hat
-above about 1.01 says the chains have not agreed; an effective sample size
-below about 400 says the run is too short for the quantity it belongs to,
-and the tail column is the one that governs interval endpoints.</p></dd>
-
 <dt><code>sigma_mu</code>, <code>bandwidth</code></dt>
 <dd><p>draws of the leaf standard deviation and,
 for soft rules, the per-tree gate bandwidths.</p></dd>
@@ -225,58 +233,78 @@ for soft rules, the per-tree gate bandwidths.</p></dd>
 <dt><code>loglik</code></dt>
 <dd><p>the log likelihood at each draw.</p></dd>
 
+<dt><code>control</code></dt>
+<dd><p>the <code>&lt;bartisan_control&gt;</code> object the fit used, with any
+settings given in <code>...</code> merged in. Its <code>augment</code> element is a <code>logical</code>
+saying whether a rewriting of the likelihood was applied to this fit,
+rather than the families one was permitted for; what was asked for
+remains in <code>attr(control, "supplied")</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
-    <h2 id="what-the-sampler-does">What the sampler does<a class="anchor" aria-label="anchor" href="#what-the-sampler-does"></a></h2>
-    <p>Standard BART relies on the leaf parameters being integrable in closed form,
-which restricts it to a Gaussian response, or to models that can be reduced
-to one by data augmentation. Linero's algorithm removes that restriction. At
-each candidate move it builds a Gaussian approximation to the conditional
-posterior of the affected leaf parameters, by Fisher scoring, and uses that
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+
+<div class="section">
+<h3 id="what-the-sampler-does">What the Sampler Does<a class="anchor" aria-label="anchor" href="#what-the-sampler-does"></a></h3>
+
+
+<p>Standard BART relies on the leaf parameters being integrable in closed form,
+which restricts it to a Gaussian response, or to models that can be reduced to
+one by data augmentation. Linero's algorithm removes that restriction. At each
+candidate move it builds a Gaussian approximation to the conditional posterior
+of the affected leaf parameters, by Fisher scoring, and uses that
 approximation as the proposal in a reversible-jump Metropolis step. The
 approximation only has to be good enough to be accepted often; the stationary
 distribution is the exact posterior either way.</p>
 <p>What a new family therefore has to supply is only the log density of one
 observation and its first two derivatives with respect to the additive
 predictor. Families whose response has more than one unconstrained parameter,
-such as <code><a href="bartisan-families.html">multinomial()</a></code> and <code><a href="bartisan-families.html">location_scale()</a></code>, carry one forest per
+such as <code><a href="bartisan-families.html">multinomial()</a></code> and <code><a href="bartisan-families.html">gaussian_ls()</a></code>, carry one forest per
 parameter. Because that is the whole interface, it can be reached from R:
-<code><a href="bartisan-families.html">custom_family()</a></code> takes the log density as an R function and differences it
-for the derivatives, and a link the package does not compile is composed onto
-the scale its family works on the same way.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="the-family-is-inferred-when-you-do-not-name-one">The family is inferred when you do not name one<a class="anchor" aria-label="anchor" href="#the-family-is-inferred-when-you-do-not-name-one"></a></h2>
-    <p><code>family</code> may be left alone, in which case it is read off the response:</p><table class="table table"><tr><td>Response</td><td>Family</td></tr><tr><td><code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or a two-column matrix of times and events</td><td><code><a href="bartisan-families.html">dpm_aft()</a></code></td></tr><tr><td>ordered factor</td><td><code><a href="bartisan-families.html">ordinal()</a></code></td></tr><tr><td>logical, or two levels, or numeric zeros and ones</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>factor or character with more than two levels</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>two-column matrix of successes and failures</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>anything else</td><td><code><a href="bartisan-families.html">dpm()</a></code></td></tr></table><p>A message reports the choice. Naming <code>family</code> yourself is what silences it,
-which is the same thing you would do to change the choice.</p>
+<code><a href="bartisan-families.html">custom_family()</a></code> takes the log density as an R function and differences it for
+the derivatives.</p>
+</div>
+
+<div class="section">
+<h3 id="inferring-the-family">Inferring the Family<a class="anchor" aria-label="anchor" href="#inferring-the-family"></a></h3>
+
+
+<p><code>family</code> may be left alone, in which case it is read off the response:</p><table class="table table"><tr><td>Response</td><td>Family</td></tr><tr><td><code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or a two-column matrix of times and events</td><td><code><a href="bartisan-families.html">dpm_aft()</a></code></td></tr><tr><td>ordered factor</td><td><code><a href="bartisan-families.html">ordinal()</a></code></td></tr><tr><td>logical, or two levels, or numeric zeros and ones</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>factor or character with more than two levels</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>two-column matrix of successes and failures</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>anything else</td><td><code><a href="bartisan-families.html">dpm()</a></code></td></tr></table><p>A message reports the choice, and naming <code>family</code> is what silences it, which
+is also what changes it.</p>
 <p>Two of these are worth saying out loud. A <strong>count</strong> is not inferred as
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>: a non-negative integer response is often Poisson and often not,
 and the Poisson variance assumption is strong enough that making it silently
 would be a modeling decision taken on the caller's behalf. Gaussian is the
 weaker guess and the one whose failure is easy to see. And a numeric response
-with exactly two values that are <em>not</em> zero and one – <code>c(1, 2)</code>, say – is
+with exactly two values that are <em>not</em> zero and one (e.g., <code>c(1, 2)</code>) is
 Gaussian rather than binomial, because which of the two counts as the success
 is not something to guess at.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="soft-decision-rules">Soft decision rules<a class="anchor" aria-label="anchor" href="#soft-decision-rules"></a></h2>
-    <p>By default a decision rule is a smooth gate rather than a step, so an
+</div>
+
+<div class="section">
+<h3 id="soft-decision-rules">Soft Decision Rules<a class="anchor" aria-label="anchor" href="#soft-decision-rules"></a></h3>
+
+
+<p>By default a decision rule is a smooth gate rather than a step, so an
 observation reaches every leaf with some weight and the fitted function is
 smooth. <code>gate</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code> chooses both whether the rules are soft
-and, if they are, the gate's shape; the default is the bounded
-<code>"smoothstep"</code>, and <code>"logistic"</code> is Linero and Yang's (2018) original. This
-costs more per iteration, since a leaf now
-touches every observation rather than the ones inside its cell, and it makes
-the leaf parameters of a tree dependent on one another. Combining soft rules
-with a non-conjugate likelihood is an extension of Linero (2025), which
-leaves it as an open problem; it is handled here by giving the reversible-jump
-move a bivariate Laplace proposal for the pair of child leaves, which reduces
-to Linero's independent pair exactly when the rules are hard.</p>
-<p>Set <code>gate = "hard"</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code> for the faster hard-rule sampler.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="random-intercepts">Random intercepts<a class="anchor" aria-label="anchor" href="#random-intercepts"></a></h2>
-    <p>A <code>(1 | group)</code> term in the formula adds an intercept per level of <code>group</code>,
+and, if they are, the gate's shape; the default is the bounded <code>"smoothstep"</code>,
+and <code>"logistic"</code> is Linero and Yang's (2018) original. Soft rules cost more
+per iteration, since a leaf now touches every observation rather than only the
+ones inside its cell, and they make the leaf parameters of a tree dependent on
+one another. Combining them with a non-conjugate likelihood is an extension of
+Linero (2025), which leaves it as an open problem; it is handled here by
+giving the reversible-jump move a bivariate Laplace proposal for the pair of
+child leaves, which reduces to Linero's independent pair exactly when the
+rules are hard. Set <code>gate = "hard"</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code> for the faster
+hard-rule sampler.</p>
+</div>
+
+<div class="section">
+<h3 id="random-intercepts">Random Intercepts<a class="anchor" aria-label="anchor" href="#random-intercepts"></a></h3>
+
+
+<p>A <code>(1 | group)</code> term in the formula adds an intercept per level of <code>group</code>,
 drawn from a common mean-zero normal whose standard deviation is itself drawn
 under the same half-Cauchy prior the leaf scale uses. Several grouping factors
 are allowed, and <code>(1 | a/b)</code> expands to nesting as it does in <span class="pkg">lme4</span>:</p>
@@ -284,9 +312,9 @@ are allowed, and <code>(1 | a/b)</code> expands to nesting as it does in <span c
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">school</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">year</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>The intercepts are in <code>fit$ranef</code> and their standard deviations in <code>fit$tau</code>,
 one matrix per additive predictor. A family with several predictors gets a
-separate set for each – a zero-inflated count model has a group effect on the
-count part and another on the inflation part – and they are independent of one
-another.</p>
+separate set for each (i.e., a zero-inflated count model has a group effect on
+the count part and another on the inflation part), and they are independent of
+one another.</p>
 <p>Only random <em>intercepts</em> are supported, and a random slope is refused rather
 than ignored. The reason is that a random intercept is a scalar entering the
 predictor with weight one for the observations in its level, which is what a
@@ -297,19 +325,22 @@ split on the group and on the variable together and get an interaction of any
 shape.</p>
 <p><strong>When to reach for this rather than putting the group in as a predictor.</strong> A
 grouping factor can also go in the fixed part, where a tree splits on it like
-anything else, and with few large groups that is the better choice –
-measured, it beats a random intercept, because the group means are well
-determined without pooling and a split can interact the group with the
-covariates. The random intercept wins when there are many small groups, which
-is where partial pooling earns its keep: at 250 groups of four observations it
-cut held-out error by 30% against the factor route, and at five groups of a
-hundred it lost to it.</p>
-<p>A level of <code>group</code> that was not present at fitting time is given the prior mean
-of zero when predicting, with a warning.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="missing-predictor-values">Missing predictor values<a class="anchor" aria-label="anchor" href="#missing-predictor-values"></a></h2>
-    <p>A missing predictor is not imputed and its row is not dropped, which is the
+anything else, and with few large groups that is the better choice; measured,
+it beats a random intercept, because the group means are well determined
+without pooling and a split can interact the group with the covariates. The
+random intercept wins when there are many small groups, which is where partial
+pooling earns its keep: at 250 groups of four observations it cut held-out
+error by 30% against the factor route, and at five groups of a hundred it lost
+to it.</p>
+<p>A level of <code>group</code> that was not present at fitting time is given the prior
+mean of zero when predicting, with a warning.</p>
+</div>
+
+<div class="section">
+<h3 id="missing-predictor-values">Missing Predictor Values<a class="anchor" aria-label="anchor" href="#missing-predictor-values"></a></h3>
+
+
+<p>A missing predictor is not imputed and its row is not dropped, which is the
 default here because a tree can do something better with a missing value than
 either. Instead each splitting rule carries the answer for itself. A
 rule on a variable that has missing values is drawn as one of three, with
@@ -324,19 +355,23 @@ from its prior along with the variable and the cutpoint, it cancels from every
 acceptance ratio, and a variable with no missing values is not given the extra
 draw at all: complete data reproduces the sampler exactly as it was.</p>
 <p>A missing value takes a hard path through the tree even when the rules are
-soft, which is the right thing – there is nothing about being absent to
-smooth over – and it keeps the leaf weights summing to one.</p>
-<p>Two consequences to be clear about. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing values only in
-columns that had them at fitting time, because only those columns' rules carry
-an answer; elsewhere every rule would send the value the same arbitrary way,
-so it is an error instead. And what this estimates is the mean of the response
-given the predictors <em>and the pattern of missingness</em>. That is what you want
-for prediction. If the estimand is a regression or causal effect defined on
-complete data, multiple imputation is the right tool and this is not.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="preprocessing">Preprocessing<a class="anchor" aria-label="anchor" href="#preprocessing"></a></h2>
-    <p>Predictors are mapped to the unit interval, because the cutpoint prior is
+soft (there being nothing about absence to smooth over), which keeps the leaf
+weights summing to one.</p>
+<p>Two consequences are worth being clear about. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing
+values only in columns that had them at fitting time, because only those
+columns' rules carry an answer; elsewhere every rule would send the value the
+same arbitrary way, so a missing value is an error instead. And what the model
+estimates is the mean of the response given the predictors <em>and the pattern of
+missingness</em>, which is the quantity prediction calls for. Note that if the
+estimand is a regression or causal effect defined on complete data, multiple
+imputation is the right tool and this is not.</p>
+</div>
+
+<div class="section">
+<h3 id="preprocessing">Preprocessing<a class="anchor" aria-label="anchor" href="#preprocessing"></a></h3>
+
+
+<p>Predictors are mapped to the unit interval, because the cutpoint prior is
 uniform on a node's live range and the soft-rule bandwidth is measured on the
 predictor scale. Factors are expanded to an indicator per level and share a
 single weight in the sparsity prior, so that a factor is selected or not as a
@@ -347,6 +382,8 @@ exact null-model estimate for most families; for the accelerated failure time
 families, where censoring makes the sample mean of the log times biased, and
 for the zero-inflated and ordered beta families, it is a moment
 approximation, which the sampler then moves away from.</p>
+</div>
+
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -376,36 +413,54 @@ coping with missing data in decision trees. <em>Pattern Recognition Letters</em>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>, <code><a href="bartisan_control.html">bartisan_control()</a></code>, <a href="bartisan-families.html">bartisan-families</a>, and
-<code><a href="../articles/families.html">vignette("families", package = "bartisan")</a></code> for a family-by-family guide.</p></div>
+    <div class="dont-index"><p><code><a href="bartisan_control.html">bartisan_control()</a></code> for the sampler and prior settings;
+<code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> for prediction; <a href="bartisan-families.html">bartisan-families</a> for the
+likelihoods, and <code><a href="../articles/families.html">vignette("families")</a></code> for a family-by-family guide;
+<a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a> for reading effects off a fit</p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">200</span></span></span>
-<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x3 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fl">3</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="va">pi</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x1</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x2</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">bartisan</span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>               control <span class="op">=</span> <span class="fu"><a href="bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
-<span class="r-in"><span>                                         num_draws <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Whether a patient died, with every other variable a candidate predictor</span></span></span>
+<span class="r-in"><span><span class="co"># and the family read off the response. `days` is the timing of the same</span></span></span>
+<span class="r-in"><span><span class="co"># event, so it is excluded rather than conditioned on</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">bartisan</span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
+<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span>
 <span class="r-in"><span><span class="va">fit</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = y ~ x1 + x2 + x3, data = d, family = binomial(), </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     control = bartisan_control(num_trees = 10, num_burn = 50, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         num_draws = 50, verbose = FALSE))</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     num_burn = 50, num_draws = 50, verbose = FALSE)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 200</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50 kept after 50 warmup</span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Fitted probabilities</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.3255948 0.4875942 0.8162769 0.6190264 0.1925652 0.7843789</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.7860891 0.8385106 0.2271306 0.4409820 0.3670865 0.4670693</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The forest has no coefficients, so an effect is a contrast of</span></span></span>
+<span class="r-in"><span><span class="co"># predictions, here of catheterization on the probability of death</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"marginaleffects"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate 2.5 % 97.5 %</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0.0358     0 0.0892</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Term: rhc</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Comparison: 1 - 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

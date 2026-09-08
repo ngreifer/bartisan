@@ -6,14 +6,12 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="How often each predictor is used — variable_importance"><meta name="description" content='Reports, for every predictor, how many splitting rules the forest spends on
-it and how often it is used at all. This is the quantity people mean by
-"variable importance" for a BART model, and it is the same table
-summary.bartisan_fit() prints – this returns it as a data frame instead, ready
-to sort, filter or plot.'><meta property="og:description" content='Reports, for every predictor, how many splitting rules the forest spends on
-it and how often it is used at all. This is the quantity people mean by
-"variable importance" for a BART model, and it is the same table
-summary.bartisan_fit() prints – this returns it as a data frame instead, ready
-to sort, filter or plot.'></head><body>
+it and how often it is used at all, which is what "variable importance" means
+for a BART model. This is the table summary.bartisan_fit() prints, returned
+as a data frame rather than displayed (i.e., ready to sort, filter, or plot).'><meta property="og:description" content='Reports, for every predictor, how many splitting rules the forest spends on
+it and how often it is used at all, which is what "variable importance" means
+for a BART model. This is the table summary.bartisan_fit() prints, returned
+as a data frame rather than displayed (i.e., ready to sort, filter, or plot).'></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -33,7 +31,7 @@ to sort, filter or plot.'></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -66,15 +64,17 @@ to sort, filter or plot.'></head><body>
 
     <div class="ref-description section level2">
     <p>Reports, for every predictor, how many splitting rules the forest spends on
-it and how often it is used at all. This is the quantity people mean by
-"variable importance" for a BART model, and it is the same table
-<code><a href="print.bartisan_fit.html">summary.bartisan_fit()</a></code> prints – this returns it as a data frame instead, ready
-to sort, filter or plot.</p>
+it and how often it is used at all, which is what "variable importance" means
+for a BART model. This is the table <code><a href="print.bartisan_fit.html">summary.bartisan_fit()</a></code> prints, returned
+as a data frame rather than displayed (i.e., ready to sort, filter, or plot).</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">object</span>, level <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">object</span>, level <span class="op">=</span> <span class="fl">0.95</span>, draws <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bartisan_importance'</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -82,35 +82,96 @@ to sort, filter or plot.</p>
 
 
 <dl><dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
-<dd><p>a fit from <code><a href="bartisan.html">bartisan()</a></code>.</p></dd>
+<dd><p>a <code>&lt;bartisan_fit&gt;</code> object; the output of a call to <code><a href="bartisan.html">bartisan()</a></code>.</p></dd>
 
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
-<dd><p>the width of the interval reported for <code>splits</code>. Default <code>0.95</code>.</p></dd>
+<dd><p><code>numeric</code>; the width of the interval reported for <code>splits</code>.
+Default is .95 for a 95% interval.</p></dd>
+
+
+<dt id="arg-draws">draws<a class="anchor" aria-label="anchor" href="#arg-draws"></a></dt>
+<dd><p><code>logical</code>; whether to return the splitting counts of every
+posterior draw rather than a summary of them, which is what to use for a
+comparison the summary does not offer (e.g., the posterior probability that
+one predictor takes more rules than another). Default is <code>FALSE</code> to return
+the summary. Cannot be combined with <code>plot</code>.</p></dd>
+
+
+<dt id="arg-plot">plot<a class="anchor" aria-label="anchor" href="#arg-plot"></a></dt>
+<dd><p><code>logical</code>; whether to return a plot of the table instead of the
+table, as a <a href="https://CRAN.R-project.org/package=ggplot2" class="external-link"><span class="pkg">ggplot2</span></a> object showing <code>splits</code> and its interval for
+each predictor. Default is <code>FALSE</code>. Equivalent to calling <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the
+result, which is usually the more convenient of the two since the table can
+be subset first (e.g., <code>plot(head(imp, 10))</code> for a wide model).
+<span class="pkg">ggplot2</span> must be installed for either.</p></dd>
+
+
+<dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
+<dd><p>a <code>&lt;bartisan_importance&gt;</code> object; the output of a call to
+<code>variable_importance()</code>.</p></dd>
+
+
+<dt id="arg-y">y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
+<dd><p>not used.</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>not used.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame, one row per predictor, sorted by <code>prop_used</code> and then <code>splits</code>,
-both decreasing. Columns are <code>variable</code>, <code>splits</code>, <code>splits_lower</code>,
-<code>splits_upper</code> and <code>prop_used</code>. A family with more than one additive predictor
-has a forest for each, and gains a leading <code>predictor</code> column naming which.</p>
+    <p>A <code>&lt;bartisan_importance&gt;</code> object, which is a data frame with one row per
+predictor and its own <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods, sorted by <code>prop_used</code>
+and then
+<code>splits</code>, both decreasing, and with the following columns:</p><ul><li><p><code>variable</code>: the predictor, under the name the formula gave it</p></li>
+<li><p><code>prop_used</code>: the proportion of draws in which it received at least one rule</p></li>
+<li><p><code>prop_splits</code>: its share of all the splitting rules in the forest, averaged
+over draws</p></li>
+<li><p><code>splits</code>: the mean number of splitting rules per draw that use it</p></li>
+<li><p><code>splits_lower</code> and <code>splits_upper</code>: the endpoints of the <code>level</code> interval on
+that number, which the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method leaves out of the displayed table</p></li>
+</ul><p>A family with more than one additive predictor has a forest for each, and the
+data frame then gains a leading <code>predictor</code> column naming which.</p>
+<p>With <code>draws = TRUE</code>, the draws-by-predictors matrix of counts instead, or a
+named list of them when there is more than one forest. With <code>plot = TRUE</code>, a
+<span class="pkg">ggplot2</span> object.</p>
     </div>
     <div class="section level2">
-    <h2 id="which-column-answers-which-question">Which column answers which question<a class="anchor" aria-label="anchor" href="#which-column-answers-which-question"></a></h2>
-    <p><code>prop_used</code> – the proportion of posterior draws in which the predictor
-received at least one splitting rule – is the one to read first. It behaves
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+
+<div class="section">
+<h3 id="which-column-answers-which-question">Which Column Answers Which Question<a class="anchor" aria-label="anchor" href="#which-column-answers-which-question"></a></h3>
+
+
+<p><code>prop_used</code> (the proportion of posterior draws in which the predictor
+received at least one splitting rule) is the one to read first. It behaves
 like a posterior probability that the predictor belongs in the model, and it
 separates signal from noise sharply once <code>sparsity = TRUE</code> in
 <code><a href="bartisan_control.html">bartisan_control()</a></code>, which puts a Dirichlet prior on how the rules are shared
-out and lets unused predictors be dropped rather than merely used rarely.</p>
-<p><code>splits</code> – the mean number of rules per draw – says how much of the forest's
+out and lets unused predictors be dropped rather than merely used rarely. With
+<code>sparsity = FALSE</code> every predictor keeps a share of the rules and <code>prop_used</code>
+sits near 1 throughout, so the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method says so rather than leaving
+the column to be misread.</p>
+<p><code>prop_splits</code> is the one to reach for when two fits are being compared.
+<code>splits</code> counts rules, so it scales with <code>num_trees</code> and a fit of 40 trees
+will report four times the count of a fit of 10 without being four times as
+informative; the share is computed within each draw before averaging, so the
+shares add to one whatever the forest size. Note that the share is a property
+of the forest and not only of the predictor, so it can still shift when the
+forest size changes how the rules are allocated; the ranking is the stable
+part.</p>
+<p><code>splits</code>, the mean number of rules per draw, says how much of the forest's
 structure a predictor accounts for. It is the more familiar number and the
 easier one to over-read.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="three-things-this-is-not">Three things this is not<a class="anchor" aria-label="anchor" href="#three-things-this-is-not"></a></h2>
-    <p><strong>It is not an effect size.</strong> A predictor can be split on constantly and move
+</div>
+
+<div class="section">
+<h3 id="three-things-this-is-not">Three Things This Is Not<a class="anchor" aria-label="anchor" href="#three-things-this-is-not"></a></h3>
+
+
+<p><strong>It is not an effect size.</strong> A predictor can be split on constantly and move
 the prediction very little, and the reverse happens too. If the question is
 how much a predictor moves the outcome, that is a job for
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code>
@@ -119,44 +180,114 @@ table. See <a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>.
 <p><strong>It is not stable under correlated predictors.</strong> When two predictors carry
 the same information the trees split on whichever is convenient, and the usage
 distributes between them more or less arbitrarily. A predictor can matter and
-still show a low <code>prop_used</code> because a collinear partner absorbed it. Treat a
-group of correlated predictors as a group.</p>
+still show a low <code>prop_used</code> because a collinear partner absorbed it, so a
+group of correlated predictors is best read as a group.</p>
 <p><strong>It is not causal.</strong> A ranking of predictors by usage is a description of
 this fitted function, not of what would happen if any of them were changed.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="reading-it-as-variable-selection">Reading it as variable selection<a class="anchor" aria-label="anchor" href="#reading-it-as-variable-selection"></a></h2>
-    <p>With <code>sparsity = TRUE</code>, <code>prop_used</code> is usable as a selection rule: predictors
+</div>
+
+<div class="section">
+<h3 id="reading-it-as-variable-selection">Reading It as Variable Selection<a class="anchor" aria-label="anchor" href="#reading-it-as-variable-selection"></a></h3>
+
+
+<p>With <code>sparsity = TRUE</code>, <code>prop_used</code> is usable as a selection rule: predictors
 the forest genuinely needs sit near 1 and the rest fall near 0, usually with a
-wide gap rather than a continuum. There is no threshold that is correct in
-general; look at the gap and check that your conclusion does not depend on
-where in it you cut.</p>
+wide gap rather than a continuum. No threshold is correct in general, so the
+gap is the thing to look at, and a conclusion worth reporting will not depend
+on where in it the cut is made.</p>
+</div>
+
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="print.bartisan_fit.html">summary.bartisan_fit()</a></code>, which prints the same table;
 <code><a href="bartisan_control.html">bartisan_control()</a></code> for <code>sparsity</code>; <a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a> for effects
-rather than usage.</p></div>
+rather than usage</p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">300</span></span></span>
-<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x3 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x4 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Only x1 and x2 are in the truth.</span></span></span>
-<span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x1</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="fl">3</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span>, sd <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># The sparsity prior concentrates the splitting rules on the predictors that</span></span></span>
+<span class="r-in"><span><span class="co"># earn them, which is what makes `prop_used` readable as a selection rule</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>, sparsity <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
+<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>               control <span class="op">=</span> <span class="fu"><a href="bartisan_control.html">bartisan_control</a></span><span class="op">(</span>sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">imp</span> <span class="op">&lt;-</span> <span class="fu">variable_importance</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">imp</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Variable importance</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  variable prop_used prop_splits splits</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     paco2      1.00       0.207    3.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    surv2m      1.00       0.170    2.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       age      1.00       0.104    1.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       aps      0.96       0.135    2.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      card      0.76       0.054    0.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       rhc      0.64       0.083    1.3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      pafi      0.58       0.093    1.4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      resp      0.44       0.035    0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      crea      0.42       0.039    0.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      race      0.20       0.052    0.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       edu      0.18       0.012    0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    meanbp      0.12       0.010    0.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      hema      0.06       0.004    0.1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       sex      0.02       0.002    0.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   variable splits splits_lower splits_upper prop_used</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1       x2 39.416           19       68.000     1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2       x1 26.568            8       45.525     1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3       x3  7.948            0       25.000     0.926</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4       x4  2.038            0        8.000     0.576</span>
+<span class="r-in"><span><span class="co"># The predictors the forest reaches for in nearly every draw</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">imp</span>, <span class="va">prop_used</span> <span class="op">&gt;</span> <span class="fl">.9</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Variable importance</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  variable prop_used prop_splits splits</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     paco2      1.00       0.207    3.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    surv2m      1.00       0.170    2.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       age      1.00       0.104    1.5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       aps      0.96       0.135    2.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># `prop_splits` is the column that survives a change of forest size, since</span></span></span>
+<span class="r-in"><span><span class="co"># the shares add to one however many rules there are to share</span></span></span>
+<span class="r-in"><span><span class="va">big</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">40</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>, sparsity <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
+<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"variable"</span>, <span class="st">"prop_splits"</span><span class="op">)</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span>      <span class="fu">variable_importance</span><span class="op">(</span><span class="va">big</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"variable"</span>, <span class="st">"prop_splits"</span><span class="op">)</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span>      by <span class="op">=</span> <span class="st">"variable"</span>, suffixes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"_10"</span>, <span class="st">"_40"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    variable prop_splits_10 prop_splits_40</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1       age    0.103936407     0.10915611</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2       aps    0.135239912     0.07412900</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3      card    0.053880291     0.04540793</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4      crea    0.038787046     0.03804600</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5       edu    0.011627631     0.04547107</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6      hema    0.004250000     0.05491165</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7    meanbp    0.010388655     0.05604351</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8     paco2    0.206618692     0.07269543</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9      pafi    0.093291556     0.09744325</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10     race    0.052406593     0.07787674</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11     resp    0.035172308     0.03435895</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12      rhc    0.082606194     0.06000012</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13      sex    0.001538462     0.07148764</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14   surv2m    0.170256252     0.16297259</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The counts themselves, for a comparison the summary does not make</span></span></span>
+<span class="r-in"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu">variable_importance</span><span class="op">(</span><span class="va">fit</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">counts</span><span class="op">[</span>, <span class="st">"aps"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="va">counts</span><span class="op">[</span>, <span class="st">"meanbp"</span><span class="op">]</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.86</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The ranking, drawn. Subsetting first is what keeps a wide model readable.</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"ggplot2"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">imp</span>, <span class="fl">8</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-plt img"><img src="variable_importance-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

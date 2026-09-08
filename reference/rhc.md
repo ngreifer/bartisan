@@ -93,8 +93,8 @@ Assembled from <https://hbiostat.org/data/repo/rhc.csv> by
 The outcome appears in two forms. `death` is whether the patient died
 during follow-up, and `days` is how long that took, so the same event
 supports a binary analysis that ignores timing and a right-censored
-survival analysis that does not. A patient who did not die is censored
-at their last contact.
+survival analysis that does not. Note that a patient who did not die is
+censored at their last contact.
 
 These are a random 1500 of the 5735 patients in the original file. The
 covariates are the thirteen used in the worked example at
@@ -121,17 +121,28 @@ critically ill patients. *JAMA*, 276(11), 889–897.
 ## Examples
 
 ``` r
-data(rhc)
+data("rhc")
 
-# The binary outcome.
+# The treatment against the binary outcome
 table(rhc$rhc, rhc$death)
 #>    
 #>       0   1
 #>   0 356 579
 #>   1 163 402
 
-# The same event as a survival outcome.
-if (requireNamespace("survival", quietly = TRUE)) {
+# The covariates the confounding runs through, all recorded on admission
+summary(rhc[c("age", "aps", "meanbp", "surv2m")])
+#>       age              aps             meanbp           surv2m     
+#>  Min.   : 18.19   Min.   :  4.00   Min.   :  0.00   Min.   :0.000  
+#>  1st Qu.: 50.22   1st Qu.: 41.00   1st Qu.: 50.00   1st Qu.:0.463  
+#>  Median : 63.96   Median : 54.00   Median : 63.00   Median :0.623  
+#>  Mean   : 61.42   Mean   : 55.41   Mean   : 78.36   Mean   :0.587  
+#>  3rd Qu.: 73.86   3rd Qu.: 68.00   3rd Qu.:113.00   3rd Qu.:0.747  
+#>  Max.   :100.25   Max.   :147.00   Max.   :222.00   Max.   :0.940  
+
+# The same event as a survival outcome, a patient who did not die being
+# censored at their last contact
+if (rlang::is_installed("survival")) {
   with(rhc, summary(survival::Surv(days, death)))
 }
 #>       time            status     

@@ -25,7 +25,7 @@
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -82,7 +82,7 @@
 
 
 <dl><dt id="arg-x">X<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>design matrix with entries in <code>[0, 1]</code>.</p></dd>
+<dd><p>a design matrix with entries in <code>[0, 1]</code>.</p></dd>
 
 
 <dt id="arg-forest-flat-tree-start">forest_flat, tree_start<a class="anchor" aria-label="anchor" href="#arg-forest-flat-tree-start"></a></dt>
@@ -95,19 +95,21 @@
 
 
 <dt id="arg-num-forest-num-trees-num-draws">num_forest, num_trees, num_draws<a class="anchor" aria-label="anchor" href="#arg-num-forest-num-trees-num-draws"></a></dt>
-<dd><p>dimensions of the stored chain.</p></dd>
+<dd><p><code>integer</code>; the dimensions of the
+stored chain.</p></dd>
 
 
 <dt id="arg-soft">soft<a class="anchor" aria-label="anchor" href="#arg-soft"></a></dt>
-<dd><p>whether the decision rules are soft.</p></dd>
+<dd><p><code>logical</code>; whether the decision rules are soft.</p></dd>
 
 
 <dt id="arg-gate">gate<a class="anchor" aria-label="anchor" href="#arg-gate"></a></dt>
-<dd><p>which gate the soft rules use; see <code>GateShape</code> in <code>node.h</code>.</p></dd>
+<dd><p><code>integer</code>; which gate the soft rules use; see <code>GateShape</code> in
+<code>node.h</code>.</p></dd>
 
 
 <dt id="arg-iterations">iterations<a class="anchor" aria-label="anchor" href="#arg-iterations"></a></dt>
-<dd><p>the zero-based saved iterations to evaluate.</p></dd>
+<dd><p><code>integer</code>; the zero-based saved iterations to evaluate.</p></dd>
 
 </dl></div>
     <div class="section level2">

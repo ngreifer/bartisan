@@ -40,7 +40,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+<li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -81,7 +81,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-02</h4>
+            <h4 data-toc-skip class="date">2026-09-08</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/diagnostics.Rmd" class="external-link"><code>vignettes/diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>diagnostics.Rmd</code></div>
@@ -89,19 +89,34 @@ Greifer</h4>
 
     
     
+<style>
+pre {overflow-x: auto;}
+pre code {word-wrap: normal; white-space: pre;}
+</style>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
 <p>Two questions get asked together and are worth separating. Has the
 sampler converged, meaning has it explored the posterior properly? And
 does the model fit, meaning does it describe the data?</p>
-<p>The first is about the algorithm and the second is about the model. A
+<p>The first is about the algorithm and the second is about the model; a
 fit can converge beautifully on a badly chosen family, and a well chosen
 family can be fitted by a chain that has not run long enough.</p>
+<p>In this guide, we will take the two questions in that order. First
+we’ll fit a model with four chains, hand it to <code><a href="../reference/diagnose.html">diagnose()</a></code>,
+and then unpack what that summary reports and why, including the one row
+(the additive predictor <code>eta</code>) whose conventional threshold
+does not apply to a forest and the one quantity that is deliberately
+left out of the table. Next we’ll ask whether the model describes the
+data, using posterior predictive checks, a calibration plot for the
+binary case in which those checks are weak, residuals, and a Bayesian
+<span class="math inline">\(R^2\)</span>. A short checklist at the end
+collects what we recommend running before reporting anything from a
+fit.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span></span>
 <span>  <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span></span>
@@ -114,7 +129,7 @@ family can be fitted by a chain that has not run long enough.</p>
 <h2 id="convergence">Convergence<a class="anchor" aria-label="anchor" href="#convergence"></a>
 </h2>
 <div class="section level3">
-<h3 id="one-call-for-all-of-it">One call for all of it<a class="anchor" aria-label="anchor" href="#one-call-for-all-of-it"></a>
+<h3 id="every-statistic-in-one-call-diagnose">Every Statistic in One Call (<code>diagnose()</code>)<a class="anchor" aria-label="anchor" href="#every-statistic-in-one-call-diagnose"></a>
 </h3>
 <p><code><a href="../reference/diagnose.html">diagnose()</a></code> computes every convergence and mixing
 statistic in this section, says which of them fall short, and says what
@@ -124,66 +139,105 @@ it needs no other package.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="font-weight: bold;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;                            quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                              loglik 1.18      1.32       16       76</span></span>
-<span><span class="co">#&gt;                          splits.eta 1.06      1.05       62      258</span></span>
-<span><span class="co">#&gt;  eta.eta (worst 5% of observations) 1.09      1.15       34      137</span></span>
+<span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;                               loglik 1.12     1.036       23      234</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.01     1.039      264      731</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00     0.999     1610     2278</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.04     1.073       80      305</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="font-weight: bold;">What to do</span></span></span></code></pre></div>
 <p>The rest of this section is what it is reporting and why, which is
-worth reading once. Skip to <code><a href="../articles/bartisan.html">vignette("bartisan")</a></code> if the
-summary is enough.</p>
+worth reading once; when the summary itself is enough,
+<code><a href="../articles/bartisan.html">vignette("bartisan")</a></code> is the shorter tour of the whole
+workflow.</p>
 </div>
 <div class="section level3">
-<h3 id="run-more-than-one-chain">Run more than one chain<a class="anchor" aria-label="anchor" href="#run-more-than-one-chain"></a>
+<h3 id="running-more-than-one-chain-chains">Running More Than One Chain (<code>chains</code>)<a class="anchor" aria-label="anchor" href="#running-more-than-one-chain-chains"></a>
 </h3>
 <p><code>chains = 4</code> above is doing the work. The default is one
-chain, which produces estimates but no way to check them:
-<code>fit$rhat</code> is <code>NULL</code> for a single chain, because
-the statistic compares chains to each other. Running four costs four
-times as much, which for most fits is a few seconds.</p>
+chain, which produces estimates but no way to check most of what
+matters, because R-hat compares chains to each other; with one chain it
+is computed by splitting that chain, which catches drift but cannot
+catch two chains settling in different places. Running four costs four
+times as much sampling, which for most fits is a few seconds, and less
+than that under a <code>future</code> plan.</p>
+<p>More chains is not, however, a way to satisfy <code>rhat</code>, and
+it is worth knowing which way it cuts before reaching for it. Effective
+sample size depends on the total number of draws and not on how they are
+divided, so twice as many chains and twice as long a chain buy the same
+amount of it. <code>rhat</code> is not symmetric that way: because it
+compares chains against each other, its value under a sampler with
+nothing wrong is about <code>1 + chains / ess</code>, so at 400
+effective draws four chains sit at 1.010 and sixteen chains at 1.040.
+Adding chains raises the bar it has to clear. When a fit fails on
+<code>rhat</code>, longer chains are the fix; when it fails only on
+effective sample size, either will do.</p>
+<p><code><a href="../reference/diagnose.html">diagnose()</a></code> is where the diagnostics are computed, and
+the only place: a fit does not carry a table of its own, because the
+per-observation statistics cost more than the sampling and would only be
+recomputed here.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">rhat</span></span>
-<span><span class="co">#&gt;                            quantity rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt; 1                            loglik 1.18     16.2     76.4</span></span>
-<span><span class="co">#&gt; 2 eta.eta (worst over observations) 1.17     16.6     48.7</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="font-weight: bold;">Convergence and mixing</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;                               loglik 1.12     1.036       23      234</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.01     1.039      264      731</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00     0.999     1610     2278</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.04     1.073       80      305</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="font-weight: bold;">What to do</span></span></span></code></pre></div>
+<p>The table is in <code>diagnose(fit)$table</code> when it is wanted as
+a data frame, and the checks and the advice are in <code>$checks</code>
+and <code>$advice</code>.</p>
 <p><code>rhat</code> compares the variance between chains to the
-variance within them <span class="citation">(<a href="#ref-vehtari2021">Vehtari et al. 2021</a>)</span>. If the chains
+variance within them <span class="citation">(<a href="#ref-vehtari2021">Vehtari et al. 2021</a>)</span>; if the chains
 have found the same posterior the two agree and the ratio is near 1.
 <code>ess_bulk</code> and <code>ess_tail</code> are effective sample
-sizes: how many independent draws the correlated ones are worth, in the
-middle of the distribution and in the tails.</p>
+sizes, meaning how many independent draws the correlated ones are worth,
+in the middle of the distribution (i.e., the bulk) and in the tails
+respectively.</p>
 <p>The conventional thresholds are <code>rhat</code> below 1.01 and
-effective sample sizes above about 400 for a quantity you intend to
+effective sample sizes above about 400 for a quantity we intend to
 report precisely. Those come from the general MCMC literature and are a
 reasonable default here, with one exception described below.
-<code><a href="../reference/diagnose.html">diagnose()</a></code> applies them, and takes both as arguments if you
-want to move them.</p>
-<p><code><a href="../reference/diagnose.html">diagnose()</a></code> adds two things this table does not have. It
-repeats <code>rhat</code> on the second half of the retained draws
-alone, which is what tells a warmup that ended too early from chains
-that have each settled somewhere different: throwing away the early
-draws is exactly what more <code>num_burn</code> would have done, so if
-that fixes <code>rhat</code>, warmup was the problem. And it reports the
-total number of splitting rules in the forest at each draw, which is the
-one quantity here that is about the trees rather than about the fitted
-values, and which no general-purpose MCMC diagnostic would think to look
-at.</p>
+<code><a href="../reference/diagnose.html">diagnose()</a></code> applies them, and takes both as arguments so
+they can be moved.</p>
+<p>Two of the columns are worth naming separately.
+<code>rhat_late</code> is the same statistic computed on the second half
+of the retained draws alone, which is what tells a warmup that ended too
+early (i.e., too small a <code>num_burn</code>) from chains that have
+each settled somewhere different: throwing away the early draws is
+exactly what more <code>num_burn</code> would have done, so if that
+fixes <code>rhat</code>, warmup was the problem. And the
+<code>splits.*</code> row is the total number of splitting rules in the
+forest at each draw, the one quantity here that is about the trees
+rather than about the fitted values, and which no general-purpose MCMC
+diagnostic would think to look at.</p>
 </div>
 <div class="section level3">
-<h3 id="what-the-rows-are">What the rows are<a class="anchor" aria-label="anchor" href="#what-the-rows-are"></a>
+<h3 id="the-rows-of-the-table">The Rows of the Table<a class="anchor" aria-label="anchor" href="#the-rows-of-the-table"></a>
 </h3>
 <p><code>loglik</code> is the log likelihood of the whole dataset at
 each draw. It is a useful scalar summary of the fit and mixes
 reasonably.</p>
-<p><code>aux.*</code> are the nuisance parameters of the family, and are
+<p><code>aux.*</code> are the nuisance parameters of the family (i.e.,
+the parameters that are not part of the additive predictor), and are
 usually the best behaved rows in the table. A binomial likelihood has
 none, so they do not appear here; a Gaussian fit would show
 <code>aux.sigma</code>, and a survival fit its scale or baseline
 hazard.</p>
-<p><code>eta.*</code> is the additive predictor, summarized over the
-observation that mixes worst. This is the fitted function, so it is the
-row that matters when predictions or effects are the output.</p>
+<p><code>eta.*</code> is the additive predictor, and it gets two rows.
+One summarizes the worst 5% of observations rather than the single
+worst, because the worst of a thousand values is extreme even when every
+chain has converged; the other is the average over observations. Reading
+them against each other is the point of having both, because they
+routinely differ by orders of magnitude: a forest settles the level of
+the fitted function within a sweep or two and takes far longer to settle
+which observation gets which share of it. Which row binds depends on
+what we mean to report. An average or a contrast of averages, which is
+what <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> gives, is governed by the average
+row; a prediction for one observation is governed by the other.</p>
 <p>One quantity is deliberately not in the table. The leaf prior scale,
 in <code>fit$sigma_mu</code>, mixes badly in every BART implementation:
 on one dataset its counterparts in <em>dbarts</em> and in
@@ -200,17 +254,17 @@ are in <code>fit$sigma_mu</code> and reach <code><a href="https://mc-stan.org/po
 it can still be diagnosed by anyone who wants to.</p>
 </div>
 <div class="section level3">
-<h3 id="the-one-exception">The one exception<a class="anchor" aria-label="anchor" href="#the-one-exception"></a>
+<h3 id="the-exception-for-eta">The Exception for <code>eta</code><a class="anchor" aria-label="anchor" href="#the-exception-for-eta"></a>
 </h3>
-<p>The <code>eta</code> row is a maximum over every observation, so it
-is conservative by construction, and forests mix slowly on their fitted
-values. Two chains can visit quite different collections of trees that
-imply nearly identical predictions, which inflates a between-chain
-statistic without meaning the two chains disagree about anything you
-would report.</p>
-<p>On harder problems this shows up clearly. The following fits the
-Friedman function, first with a chain far too short and then at the
-defaults.</p>
+<p>The <code>eta</code> row is a high percentile over every observation,
+so it is conservative by construction, and forests mix slowly on their
+fitted values. Two chains can visit quite different collections of trees
+that imply nearly identical predictions, which inflates a between-chain
+statistic without meaning the two chains disagree about anything we
+would report, so whether two chains found the same trees is not a
+question worth asking of a forest.</p>
+<p>On harder problems this shows up clearly. Below we fit the Friedman
+function, first with a chain far too short and then at the defaults.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="va">fr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">400</span> <span class="op">*</span> <span class="fl">10</span><span class="op">)</span>, <span class="fl">400</span>, <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
@@ -221,29 +275,51 @@ defaults.</p>
 <span><span class="va">too_short</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, <span class="va">fr</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>                      control <span class="op">=</span> <span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">20</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span>
 <span>                                                 num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">too_short</span><span class="op">$</span><span class="va">rhat</span></span>
-<span><span class="co">#&gt;                            quantity rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt; 1                            loglik 1.72     6.85     12.3</span></span>
-<span><span class="co">#&gt; 2                         aux.sigma 1.26    12.33     29.6</span></span>
-<span><span class="co">#&gt; 3 eta.eta (worst over observations) 2.33     5.62     12.1</span></span></code></pre></div>
-<p>Everything is bad: <code>rhat</code> above 2 for the log likelihood,
-the residual standard deviation and the fitted values, with effective
-sample sizes under 10. This chain has not converged and nothing from it
-should be used.</p>
+<span></span>
+<span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">too_short</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
+<span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
+<span><span class="co">#&gt; 1                              loglik 1.72      1.79     6.85     12.3   0.0342</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 1.26      1.10    12.33     29.6   0.0617</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 1.57      1.96     7.73     17.8   0.0387</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.02      1.02   203.44    191.7   1.0172</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.86      1.97     6.46     14.6   0.0323</span></span>
+<span><span class="co">#&gt;   rhat_bad late_bad</span></span>
+<span><span class="co">#&gt; 1    1.000        1</span></span>
+<span><span class="co">#&gt; 2    1.000        1</span></span>
+<span><span class="co">#&gt; 3    1.000        1</span></span>
+<span><span class="co">#&gt; 4    1.000        1</span></span>
+<span><span class="co">#&gt; 5    0.998        1</span></span></code></pre></div>
+<p>Everything is bad. Every <code>rhat</code> is far above the 1.01
+threshold, and the effective sample sizes are all under 30 out of the
+200 draws kept. <code>rhat_late</code> is no better than
+<code>rhat</code> on any row, which is the informative part: discarding
+the early draws does not fix it, so this is not a warmup that ended too
+soon but chains that have each settled somewhere different. Nothing from
+this fit should be used.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">long_enough</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, <span class="va">fr</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">long_enough</span><span class="op">$</span><span class="va">rhat</span></span>
-<span><span class="co">#&gt;                            quantity rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt; 1                            loglik 1.14     20.7     87.1</span></span>
-<span><span class="co">#&gt; 2                         aux.sigma 1.03    145.2    822.5</span></span>
-<span><span class="co">#&gt; 3 eta.eta (worst over observations) 1.30     10.3     16.7</span></span></code></pre></div>
-<p>Now the log likelihood and the residual standard deviation have
-converged, and <code>eta</code> has improved but is still above 1.01.
-That residual is the phenomenon described above, and adding draws does
-not reliably remove it.</p>
-<p>When the <code>eta</code> row is elevated, look at the distribution
-behind it rather than the maximum:</p>
+<span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">long_enough</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
+<span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
+<span><span class="co">#&gt; 1                              loglik 1.12      1.14     26.9    127.8  0.00839</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 1.03      1.04    130.5    550.1  0.04077</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 1.08      1.11     37.3    164.5  0.01166</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.00   3322.6   3158.2  1.03830</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.14      1.23     20.5     70.5  0.00641</span></span>
+<span><span class="co">#&gt;   rhat_bad late_bad</span></span>
+<span><span class="co">#&gt; 1    1.000    1.000</span></span>
+<span><span class="co">#&gt; 2    1.000    1.000</span></span>
+<span><span class="co">#&gt; 3    1.000    1.000</span></span>
+<span><span class="co">#&gt; 4    0.000    0.000</span></span>
+<span><span class="co">#&gt; 5    0.993    0.995</span></span></code></pre></div>
+<p>Everything has improved by a large factor, and the residual standard
+deviation is nearly at the threshold. But the log likelihood and
+<code>eta</code> are both still above 1.01, and <code>eta</code>’s
+effective sample size is still in the tens. That residual is the
+phenomenon described above rather than a chain that merely needs to be
+longer, and adding draws does not reliably remove it.</p>
+<p>When the <code>eta</code> row is elevated, the distribution behind it
+is more informative than the maximum:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">per_observation_rhat</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">draws</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">eta</span><span class="op">$</span><span class="va">eta</span></span>
@@ -256,12 +332,12 @@ behind it rather than the maximum:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu">per_observation_rhat</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.9</span>, <span class="fl">0.99</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  50%  90%  99% 100% </span></span>
-<span><span class="co">#&gt; 1.03 1.07 1.12 1.17</span></span></code></pre></div>
+<span><span class="co">#&gt; 1.02 1.04 1.06 1.07</span></span></code></pre></div>
 <p>The median is a little above 1 and so is most of the distribution, so
 the maximum in the table is not one badly behaved observation: the
 fitted function as a whole mixes slowly here. That is the phenomenon
 described above rather than a broken chain, and the two are told apart
-by what happens to the quantities you report. If the log likelihood has
+by what happens to the quantities we report. If the log likelihood has
 converged, along with any nuisance parameters the family has, and an
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> estimate is stable across chains and
 across a longer run, the fit is usable.</p>
@@ -270,7 +346,7 @@ estimate moved when the chain was lengthened, that would be a chain that
 has not converged, and the answer is more draws or a simpler model.</p>
 </div>
 <div class="section level3">
-<h3 id="looking-at-the-chains">Looking at the chains<a class="anchor" aria-label="anchor" href="#looking-at-the-chains"></a>
+<h3 id="looking-at-the-chains-as_draws">Looking at the Chains (<code>as_draws()</code>)<a class="anchor" aria-label="anchor" href="#looking-at-the-chains-as_draws"></a>
 </h3>
 <p><code><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws()</a></code> hands the fit to <em>posterior</em> and
 <em>bayesplot</em>. It carries the scalar parameters and a
@@ -282,53 +358,63 @@ representative set of <code>eta</code> columns.</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 12 × 10</span></span></span>
 <span><span class="co">#&gt;    variable         mean   median     sd    mad       q5      q95  rhat ess_bulk</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> loglik       -<span style="color: #BB0000;">8.32</span><span style="color: #949494;">e</span>+2 -<span style="color: #BB0000;">8.32</span><span style="color: #949494;">e</span>+2 6.14   6.20   -<span style="color: #BB0000;">8.43</span><span style="color: #949494;">e</span>+2 -<span style="color: #BB0000;">8.23</span><span style="color: #949494;">e</span>+2  1.18     16.3</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> sigma_mu.eta  2.47<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.39<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.055<span style="text-decoration: underline;">1</span> 0.057<span style="text-decoration: underline;">7</span>  1.69<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  3.48<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  1.31     10.4</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> eta[380]     -<span style="color: #BB0000;">1.50</span><span style="color: #949494;">e</span>+0 -<span style="color: #BB0000;">1.49</span><span style="color: #949494;">e</span>+0 0.340  0.343  -<span style="color: #BB0000;">2.08</span><span style="color: #949494;">e</span>+0 -<span style="color: #BB0000;">9.73</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  1.10     29.7</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> eta[324]     -<span style="color: #BB0000;">4.31</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> -<span style="color: #BB0000;">4.26</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.281  0.278  -<span style="color: #BB0000;">9.06</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.21<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span>  1.03    129. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> eta[917]     -<span style="color: #BB0000;">1.20</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">5.33</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 0.442  0.436  -<span style="color: #BB0000;">7.28</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  7.25<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  1.09     32.1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> eta[48]       2.88<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.81<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.346  0.340  -<span style="color: #BB0000;">2.68</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  8.95<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  1.02    210. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> eta[1034]     5.81<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  5.89<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.311  0.307   5.93<span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span>  1.06<span style="color: #949494;">e</span>+0  1.01    229. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> eta[639]      8.85<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  8.83<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.344  0.331   3.34<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  1.44<span style="color: #949494;">e</span>+0  1.04     70.5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> eta[1372]     1.28<span style="color: #949494;">e</span>+0  1.25<span style="color: #949494;">e</span>+0 0.409  0.420   6.30<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  1.98<span style="color: #949494;">e</span>+0  1.07     44.7</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> eta[1222]     1.66<span style="color: #949494;">e</span>+0  1.64<span style="color: #949494;">e</span>+0 0.376  0.364   1.06<span style="color: #949494;">e</span>+0  2.29<span style="color: #949494;">e</span>+0  1.01    347. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> eta[362]      2.01<span style="color: #949494;">e</span>+0  2.01<span style="color: #949494;">e</span>+0 0.416  0.407   1.34<span style="color: #949494;">e</span>+0  2.68<span style="color: #949494;">e</span>+0  1.02    312. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> eta[1135]     3.13<span style="color: #949494;">e</span>+0  3.09<span style="color: #949494;">e</span>+0 0.514  0.500   2.35<span style="color: #949494;">e</span>+0  4.05<span style="color: #949494;">e</span>+0  1.12     25.3</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> loglik       -<span style="color: #BB0000;">8.32</span><span style="color: #949494;">e</span>+2 -<span style="color: #BB0000;">8.32</span><span style="color: #949494;">e</span>+2 6.26   6.11   -<span style="color: #BB0000;">841.</span>    -<span style="color: #BB0000;">821.</span>     1.13    23.5 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> sigma_mu.eta  2.50<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.36<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.065<span style="text-decoration: underline;">0</span> 0.057<span style="text-decoration: underline;">7</span>    0.165    0.372  1.33     9.85</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> eta[119]     -<span style="color: #BB0000;">1.52</span><span style="color: #949494;">e</span>+0 -<span style="color: #BB0000;">1.50</span><span style="color: #949494;">e</span>+0 0.363  0.348    -<span style="color: #BB0000;">2.13</span>    -<span style="color: #BB0000;">0.945</span>  1.04   102.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> eta[466]     -<span style="color: #BB0000;">4.19</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> -<span style="color: #BB0000;">4.06</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.336  0.322    -<span style="color: #BB0000;">0.976</span>    0.127  1.02   294.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> eta[541]     -<span style="color: #BB0000;">2.67</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-5</span>  5.60<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 0.289  0.282    -<span style="color: #BB0000;">0.482</span>    0.462  1.01   374.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> eta[673]      2.97<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.92<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.311  0.301    -<span style="color: #BB0000;">0.219</span>    0.818  1.01   281.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> eta[763]      5.78<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  5.64<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.296  0.289     0.123    1.08   1.01   294.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> eta[1261]     8.69<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  8.63<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.336  0.338     0.319    1.42   1.02   337.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> eta[1228]     1.28<span style="color: #949494;">e</span>+0  1.28<span style="color: #949494;">e</span>+0 0.341  0.333     0.717    1.83   1.01   269.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> eta[137]      1.66<span style="color: #949494;">e</span>+0  1.65<span style="color: #949494;">e</span>+0 0.388  0.391     1.04     2.31   1.02   157.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> eta[1374]     2.01<span style="color: #949494;">e</span>+0  2.01<span style="color: #949494;">e</span>+0 0.485  0.473     1.24     2.80   1.01   288.  </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> eta[1135]     3.16<span style="color: #949494;">e</span>+0  3.12<span style="color: #949494;">e</span>+0 0.512  0.491     2.39     4.08   1.06    48.8 </span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span></code></pre></div>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/bayesplot/" class="external-link">bayesplot</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/posterior/reference/draws.html" class="external-link">as_draws</a></span><span class="op">(</span><span class="va">fit</span>, eta <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, pars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"loglik"</span>, <span class="st">"eta[1]"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><img src="diagnostics_files/figure-html/trace-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
-<p>What you want to see is four chains overlapping, wandering around the
+<p>What we want to see is four chains overlapping, wandering around the
 same level, with no drift and no long excursions. <code>eta = 1</code>
 selects the first observation; <code>eta = TRUE</code> gives a spread of
 ten and <code>eta = FALSE</code> gives none.</p>
 </div>
 <div class="section level3">
-<h3 id="what-to-do-when-it-has-not-converged">What to do when it has not converged<a class="anchor" aria-label="anchor" href="#what-to-do-when-it-has-not-converged"></a>
+<h3 id="remedies-for-a-chain-that-has-not-converged">Remedies for a Chain That Has Not Converged<a class="anchor" aria-label="anchor" href="#remedies-for-a-chain-that-has-not-converged"></a>
 </h3>
-<p>In order of what usually helps:</p>
-<ol style="list-style-type: decimal">
-<li>Increase <code>num_burn</code> and <code>num_draws</code>. This is
-the first thing to try and it fixes most cases.</li>
-<li>Reduce <code>num_trees</code>. A smaller forest has fewer ways to
-represent the same function and mixes faster.</li>
-<li>Check the family. A likelihood that fits the data badly can produce
-a posterior that is hard to explore.</li>
-</ol>
+<p>Three things are worth trying, in the order in which they usually
+help.</p>
+<p><strong>More draws.</strong> Increasing <code>num_burn</code> and
+<code>num_draws</code> is the first thing to try, and it fixes most
+cases.</p>
+<p><strong>A smaller forest.</strong> Reducing <code>num_trees</code>
+leaves fewer ways to represent the same function, so the sampler mixes
+faster.</p>
+<p><strong>A different family.</strong> A likelihood that fits the data
+badly can produce a posterior that is hard to explore, so the family is
+worth checking when more draws and a smaller forest have not helped;
+<code><a href="../articles/families.html">vignette("families")</a></code> covers the alternatives.</p>
+<p>One thing to rule out first. <code>rhat</code> above 1.01 on a
+quantity carrying only a handful of effective draws is not yet evidence
+that the chains disagree, since that is roughly where <code>rhat</code>
+sits when nothing is wrong, and <code><a href="../reference/diagnose.html">diagnose()</a></code> says so rather
+than reporting a disagreement it cannot support. In that case the
+effective sample size is what to fix, and more draws is the whole of the
+remedy.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="fit">Fit<a class="anchor" aria-label="anchor" href="#fit"></a>
 </h2>
-<p>Convergence says the sampler did its job. It says nothing about
-whether the model is right.</p>
+<p>Convergence says the sampler did its job; it says nothing at all
+about whether the model is right.</p>
 <div class="section level3">
-<h3 id="posterior-predictive-checks">Posterior predictive checks<a class="anchor" aria-label="anchor" href="#posterior-predictive-checks"></a>
+<h3 id="posterior-predictive-checks-pp_check">Posterior Predictive Checks (<code>pp_check()</code>)<a class="anchor" aria-label="anchor" href="#posterior-predictive-checks-pp_check"></a>
 </h3>
-<p>Simulate outcomes from the fitted model and compare their
-distribution to the observed one.</p>
+<p>A posterior predictive check simulates outcomes from the fitted model
+and compares their distribution to the observed one.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/pp_check.html" class="external-link">pp_check</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="diagnostics_files/figure-html/ppc-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
@@ -341,16 +427,16 @@ alternatives.</p>
 <p>For a <strong>binary</strong> outcome it is a weak check, which is
 worth knowing before reading too much into it. There are only two values
 the replicates can take, so they will match the observed proportion
-unless the model has gone badly wrong. Passing this tells you almost
-nothing.</p>
+unless the model has gone badly wrong; passing this check tells us
+almost nothing.</p>
 </div>
 <div class="section level3">
 <h3 id="calibration">Calibration<a class="anchor" aria-label="anchor" href="#calibration"></a>
 </h3>
 <p>The useful question for a binary outcome is whether the predicted
-probabilities mean what they say. Group the patients by their fitted
-probability and compare the average prediction in each group with the
-proportion who actually died.</p>
+probabilities mean what they say. Below we group the patients by their
+fitted probability and compare the average prediction in each group with
+the proportion who actually died.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
@@ -374,28 +460,27 @@ patients the model gave a 30% chance of dying, about 30% died. These sit
 close to it across the whole range.</p>
 <p>Points systematically above the line at the left and below it at the
 right would mean the predictions are too extreme, which is the usual
-failure of an overfitted model. The opposite pattern means they are too
+failure of an overfitted model; the opposite pattern means they are too
 timid, which is what heavy shrinkage produces.</p>
 <p>This is an in-sample check and so is optimistic. For an honest
-version, fit on part of the data and calibrate on the rest.</p>
+version, we would fit on part of the data and calibrate on the rest.</p>
 </div>
 <div class="section level3">
 <h3 id="residuals">Residuals<a class="anchor" aria-label="anchor" href="#residuals"></a>
 </h3>
-<p>For a continuous outcome, plot residuals against fitted values and
-read it the way you would for a linear model, with one difference. A
+<p>For a continuous outcome, residuals plotted against fitted values
+read the way they would for a linear model, with one difference. A
 forest shrinks its predictions toward the overall mean, so a mild
 negative trend is expected even when the model is correct: the highest
 fitted values are pulled down and the lowest pulled up. A strong slope
 is not expected, and a fan shape means the spread of the outcome depends
-on the predictors, which <code><a href="../reference/bartisan-families.html">location_scale()</a></code> models
-directly.</p>
+on the predictors, which <code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code> models directly.</p>
 <p>For a binary outcome the residuals take two values for any given
-fitted probability and the plot is not informative. Use the calibration
-check instead.</p>
+fitted probability and the plot is not informative; the calibration
+check above is what to use instead.</p>
 </div>
 <div class="section level3">
-<h3 id="how-much-is-the-model-explaining">How much is the model explaining<a class="anchor" aria-label="anchor" href="#how-much-is-the-model-explaining"></a>
+<h3 id="how-much-the-model-explains-r2">How Much the Model Explains (<code>r2()</code>)<a class="anchor" aria-label="anchor" href="#how-much-the-model-explains-r2"></a>
 </h3>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">performance</span><span class="fu">::</span><span class="fu"><a href="https://easystats.github.io/performance/reference/r2.html" class="external-link">r2</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
@@ -406,32 +491,31 @@ check instead.</p>
 <span class="citation">Gelman et al. (<a href="#ref-gelman2019">2019</a>)</span>, computed from the posterior
 rather than from a single fit, so it comes with an interval and cannot
 exceed 1. For a binary outcome it is bounded well below 1 by the
-outcome’s own randomness, so read it as a relative measure rather than
-against any absolute standard.</p>
+outcome’s own randomness, so it is best read as a relative measure
+rather than against any absolute standard.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="a-checklist">A checklist<a class="anchor" aria-label="anchor" href="#a-checklist"></a>
+<h2 id="a-checklist">A Checklist<a class="anchor" aria-label="anchor" href="#a-checklist"></a>
 </h2>
-<p>Before reporting anything from a fit:</p>
-<ol style="list-style-type: decimal">
-<li>Fit with <code>chains = 4</code>.</li>
-<li>Run <code>diagnose(fit)</code> and read what it says to change. It
-covers steps 2 and 3 of the older advice: the thresholds, which rows are
-exempt, and whether a short warmup or genuinely disagreeing chains is
-the problem.</li>
-<li>Run <code><a href="https://mc-stan.org/bayesplot/reference/pp_check.html" class="external-link">pp_check()</a></code> and look for systematic
-differences.</li>
-<li>If the outcome is bounded, check that the replicates respect the
-bound.</li>
-</ol>
+<p>Before reporting anything from a fit, we run it with
+<code>chains = 4</code> and pass it to <code><a href="../reference/diagnose.html">diagnose()</a></code>, reading
+what that says to change: it applies the thresholds, names the rows that
+are exempt from them, and separates a warmup that ended too early from
+chains that have each genuinely settled somewhere different. We then run
+<code><a href="https://mc-stan.org/bayesplot/reference/pp_check.html" class="external-link">pp_check()</a></code> and look for systematic differences, checking in
+particular that the replicates respect any bound the outcome has (e.g.,
+a count that cannot go below zero), and for a binary outcome we read a
+calibration plot instead, since the predictive check has little to say
+there.</p>
 </div>
 <div class="section level2">
-<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+<h2 id="where-to-go-next">Where to Go Next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
 </h2>
 <p><code><a href="../articles/comparison.html">vignette("comparison")</a></code> covers choosing between models
-once each of them fits. <code><a href="../articles/families.html">vignette("families")</a></code> covers what to
-do when the posterior predictive check says the family is wrong.</p>
+once each of them fits, and <code><a href="../articles/families.html">vignette("families")</a></code> covers
+what to do when the posterior predictive check says the family is
+wrong.</p>
 </div>
 <div class="section level2 unnumbered">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

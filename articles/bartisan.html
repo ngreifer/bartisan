@@ -40,7 +40,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+<li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -81,7 +81,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-02</h4>
+            <h4 data-toc-skip class="date">2026-09-08</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -178,7 +178,7 @@ surviving two months. All were recorded before catheterization.</p>
 <span><span class="co">#&gt; Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span></span>
 <span><span class="co">#&gt; Observations: 1500</span></span>
 <span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
-<span><span class="co">#&gt; Draws: 2000 kept across 4 chains after 500 warmup</span></span></code></pre></div>
+<span><span class="co">#&gt; Draws: 3200 kept across 4 chains after 200 warmup</span></span></code></pre></div>
 <p>That is the whole call. <code>family = binomial()</code> says the
 outcome is binary, exactly as in <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>. The family may be
 omitted, in which case it is read off the outcome and reported; naming
@@ -207,10 +207,11 @@ and says what to change about whichever of them fall short.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="font-weight: bold;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;                            quantity  rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                              loglik 1.178     1.319       16       76</span></span>
-<span><span class="co">#&gt;                          splits.eta 1.058     1.055       62      258</span></span>
-<span><span class="co">#&gt;  eta.eta (worst 5% of observations) 1.086     1.145       34      137</span></span>
+<span><span class="co">#&gt;                             quantity  rhat rhat_late ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;                               loglik 1.125     1.036       23      234</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.014     1.039      264      731</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.004     0.999     1610     2278</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.045     1.073       80      305</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="font-weight: bold;">What to do</span></span></span></code></pre></div>
 <p><code>rhat</code> compares variation between chains to variation
@@ -227,8 +228,8 @@ worth, in the middle of the distribution and in the tails.</p>
 slowly on their fitted values, so a figure above 1.01 on that row is
 ordinary rather than alarming; <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code>
 explains what to do about it and when to worry.</p>
-<p>The table is also in <code>fit$rhat</code> for a fit with more than
-one chain, if what you want is the numbers rather than the report.</p>
+<p>The table is in <code>diagnose(fit)$table</code> if what you want is
+the numbers rather than the report.</p>
 </div>
 <div class="section level3">
 <h3 id="fit">Fit<a class="anchor" aria-label="anchor" href="#fit"></a>
@@ -248,21 +249,23 @@ replicates match unless something has gone badly wrong.
 </h2>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    variable splits splits_lower splits_upper prop_used</span></span>
-<span><span class="co">#&gt; 1    surv2m 21.455            5           49    1.0000</span></span>
-<span><span class="co">#&gt; 2       age 12.748            3           29    1.0000</span></span>
-<span><span class="co">#&gt; 3     paco2  8.373            0           25    0.9705</span></span>
-<span><span class="co">#&gt; 4       rhc  3.987            0           16    0.9155</span></span>
-<span><span class="co">#&gt; 5      pafi  4.992            0           17    0.8985</span></span>
-<span><span class="co">#&gt; 6       aps  5.897            0           19    0.8595</span></span>
-<span><span class="co">#&gt; 7      card  2.828            0           12    0.7015</span></span>
-<span><span class="co">#&gt; 8       edu  2.030            0            9    0.6000</span></span>
-<span><span class="co">#&gt; 9      crea  3.126            0           19    0.5905</span></span>
-<span><span class="co">#&gt; 10     hema  2.802            0           19    0.5440</span></span>
-<span><span class="co">#&gt; 11   meanbp  1.530            0            8    0.5340</span></span>
-<span><span class="co">#&gt; 12     race  1.846            0           11    0.5040</span></span>
-<span><span class="co">#&gt; 13      sex  2.053            0           16    0.4910</span></span>
-<span><span class="co">#&gt; 14     resp  2.349            0           15    0.4900</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="font-weight: bold;">Variable importance</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
+<span><span class="co">#&gt;    surv2m     1.000       0.265   20.2</span></span>
+<span><span class="co">#&gt;       age     1.000       0.196   15.0</span></span>
+<span><span class="co">#&gt;     paco2     0.971       0.113    8.6</span></span>
+<span><span class="co">#&gt;      pafi     0.928       0.070    5.4</span></span>
+<span><span class="co">#&gt;       rhc     0.905       0.076    5.7</span></span>
+<span><span class="co">#&gt;       aps     0.871       0.069    5.3</span></span>
+<span><span class="co">#&gt;       edu     0.657       0.042    3.2</span></span>
+<span><span class="co">#&gt;      crea     0.577       0.030    2.3</span></span>
+<span><span class="co">#&gt;      card     0.524       0.024    1.8</span></span>
+<span><span class="co">#&gt;      hema     0.505       0.026    2.0</span></span>
+<span><span class="co">#&gt;    meanbp     0.490       0.020    1.5</span></span>
+<span><span class="co">#&gt;      race     0.462       0.021    1.5</span></span>
+<span><span class="co">#&gt;      resp     0.453       0.027    2.0</span></span>
+<span><span class="co">#&gt;       sex     0.410       0.020    1.5</span></span></code></pre></div>
 <p><code>splits</code> is the average number of splitting rules the
 forest spends on each predictor per draw, and <code>prop_used</code> is
 the proportion of draws in which the predictor received any rule at
@@ -294,7 +297,7 @@ asking again when none does, and taking the difference.
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0.0578     0  0.107</span></span>
+<span><span class="co">#&gt;    0.0596     0  0.111</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
@@ -319,8 +322,8 @@ showing:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  rhc Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0    0.633 0.604  0.663</span></span>
-<span><span class="co">#&gt;    1    0.690 0.644  0.729</span></span>
+<span><span class="co">#&gt;    0    0.632 0.601  0.666</span></span>
+<span><span class="co">#&gt;    1    0.691 0.646  0.729</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>About 63% of patients would be expected to die without
@@ -357,7 +360,7 @@ interactions.</p>
 <span><span class="va">new_patient</span><span class="op">$</span><span class="va">rhc</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.8301</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.8346</span></span></code></pre></div>
 <p>For a prediction with an interval, use
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::predictions()</a></code><a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content='&lt;p&gt;Note that by default, &lt;em&gt;marginaleffects&lt;/em&gt; uses the
 posterior median as the point estimate, whereas &lt;code&gt;&lt;a href="https://rdrr.io/r/stats/predict.html" class="external-link"&gt;predict()&lt;/a&gt;&lt;/code&gt;
@@ -368,7 +371,7 @@ to running &lt;code&gt;&lt;a href="https://rdrr.io/pkg/marginaleffects/man/predi
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.835 0.729  0.901</span></span>
+<span><span class="co">#&gt;     0.839 0.739  0.908</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>This describes the probability that a patient with these
@@ -391,15 +394,15 @@ predicts data it has not seen.</p>
 <span></span>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Computed from 2000 by 1500 log-likelihood matrix.</span></span>
+<span><span class="co">#&gt; Computed from 3200 by 1500 log-likelihood matrix.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;          Estimate   SE</span></span>
-<span><span class="co">#&gt; elpd_loo   -849.4 17.4</span></span>
-<span><span class="co">#&gt; p_loo        33.5  1.0</span></span>
-<span><span class="co">#&gt; looic      1698.8 34.8</span></span>
+<span><span class="co">#&gt; elpd_loo   -848.6 17.4</span></span>
+<span><span class="co">#&gt; p_loo        33.1  1.0</span></span>
+<span><span class="co">#&gt; looic      1697.3 34.8</span></span>
 <span><span class="co">#&gt; ------</span></span>
-<span><span class="co">#&gt; MCSE of elpd_loo is 0.6.</span></span>
-<span><span class="co">#&gt; MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.3]).</span></span>
+<span><span class="co">#&gt; MCSE of elpd_loo is 0.5.</span></span>
+<span><span class="co">#&gt; MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.2]).</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.7).</span></span>
 <span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
@@ -419,7 +422,7 @@ demographics alone:</p>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>, demographics <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">demographics</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
-<span><span class="co">#&gt;  demographics     -67.4    11.2    1.00</span></span></code></pre></div>
+<span><span class="co">#&gt;  demographics     -68.2    11.2    1.00</span></span></code></pre></div>
 <p>The full model predicts better by around six times the standard error
 of the difference, which is what you would expect: how sick a patient is
 on arrival is the main thing that predicts whether they die.</p>

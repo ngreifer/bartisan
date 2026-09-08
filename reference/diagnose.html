@@ -31,7 +31,7 @@ needed."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -79,27 +79,27 @@ needed.</p>
 
 
 <dl><dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
-<dd><p>a fit from <code><a href="bartisan.html">bartisan()</a></code>.</p></dd>
+<dd><p>a <code>&lt;bartisan_fit&gt;</code> object; the output of a call to <code><a href="bartisan.html">bartisan()</a></code>.</p></dd>
 
 
 <dt id="arg-rhat-max">rhat_max<a class="anchor" aria-label="anchor" href="#arg-rhat-max"></a></dt>
-<dd><p>the largest R-hat treated as acceptable. The default, <code>1.01</code>,
-is the threshold of Vehtari et al. (2021); <code>1.1</code> was the older convention
-and is now considered too permissive.</p></dd>
+<dd><p><code>numeric</code>; the largest R-hat treated as acceptable. Default
+is 1.01, the threshold of Vehtari et al. (2021); 1.1 was the older
+convention and is now considered too permissive.</p></dd>
 
 
 <dt id="arg-ess-min">ess_min<a class="anchor" aria-label="anchor" href="#arg-ess-min"></a></dt>
-<dd><p>the smallest effective sample size treated as acceptable, for
-the bulk and the tail alike. The default, <code>400</code>, is Vehtari et al.'s
-recommendation of 100 per chain at four chains, which is about what it takes
-for the Monte Carlo error of an interval endpoint to be small next to the
-posterior's own width.</p></dd>
+<dd><p><code>numeric</code>; the smallest effective sample size treated as
+acceptable, for the bulk and the tail alike. Default is 400, Vehtari et
+al.'s recommendation of 100 per chain at four chains, which is about what it
+takes for the Monte Carlo error of an interval endpoint to be small next to
+the posterior's own width.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class <code>bartisan_diagnosis</code>, with a <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method that shows
-the table, the checks and the advice. Its components are</p><dl><dt><code>table</code></dt>
+    <p>A <code>&lt;bartisan_diagnosis&gt;</code> object, a list with a <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method that shows the
+table, the checks and the advice. Its components are</p><dl><dt><code>table</code></dt>
 <dd><p>a data frame with one row per quantity: <code>rhat</code>, <code>rhat_late</code>
 (the same statistic on the second half of the draws alone), <code>ess_bulk</code>,
 <code>ess_tail</code>, and <code>ess_frac</code>, the bulk effective sample size as a fraction
@@ -120,26 +120,41 @@ total.</p></dd>
 
 </dl></div>
     <div class="section level2">
-    <h2 id="what-is-reported">What is reported<a class="anchor" aria-label="anchor" href="#what-is-reported"></a></h2>
-    <p>One row per scalar the sampler draws – the log likelihood, the nuisance
-parameters of the family, the scale of each random-effect term – plus one row
-for the additive predictor and one for each set of group intercepts,
-summarized over their worst 5% of observations or levels rather than averaged,
-since an average over a thousand observations hides the ones that have not
-converged.</p>
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>This is where the diagnostics are computed, and the only place: <code><a href="bartisan.html">bartisan()</a></code>
+does not carry a table of its own, because the per-observation statistics cost
+more than the sampling and would then be recomputed here. With a <a href="https://CRAN.R-project.org/package=future" class="external-link"><span class="pkg">future</span></a>
+plan in place the pass is spread over the workers, and it reports progress
+through <a href="https://CRAN.R-project.org/package=progressr" class="external-link"><span class="pkg">progressr</span></a> the way the sampler does.</p><div class="section">
+<h3 id="what-is-reported">What Is Reported<a class="anchor" aria-label="anchor" href="#what-is-reported"></a></h3>
+
+
+<p>One row per scalar the sampler draws (the log likelihood, the nuisance
+parameters of the family, and the scale of each random-effect term), plus two
+rows for the additive predictor and two for each set of group intercepts: one
+summarizing the worst 5% of observations or levels, and one for their average.</p>
+<p>Both are reported because they routinely disagree, and neither on its own is
+the fit. An average over a thousand observations hides the ones that have not
+converged, which is what the worst 5% is there to show; but a forest settles
+the level of the fitted function within a sweep or two and takes much longer
+to settle which observation gets which share of it, so the worst 5% overstates
+the trouble for anything averaged. The average can carry close to one
+effective draw for every draw kept while individual observations carry a
+handful. Which row binds depends on what is being reported: an average or a
+contrast of averages is governed by the average row, and a prediction for one
+observation by the other.</p>
 <p><code>rhat</code> is split-R-hat (Gelman and Rubin, as revised in Gelman et al. 2013):
 every chain is halved and the halves are compared, so drift inside a chain
 counts as disagreement rather than hiding inside a chain mean. With one chain
 it is computed by splitting that chain into segments, which detects drift but
-cannot detect two chains settling in different places – which is why one
-chain draws a warning of its own.</p>
+cannot detect two chains settling in different places; that is why one chain
+draws a warning of its own.</p>
 <p><code>rhat_late</code> is that same statistic computed on the second half of the retained
-draws alone, and it is what separates the two reasons chains disagree – by
-running the experiment rather than by testing for it. Discarding the early
-retained draws is exactly what a longer warmup would have done, so if R-hat is
-high overall and acceptable late, warmup ended too early. If it stays high
-late, the chains have each settled somewhere different and a longer warmup
-will not help.</p>
+draws alone, and it separates the two reasons chains disagree by running the
+experiment rather than by testing for it. Discarding the early retained draws
+is exactly what a longer warmup would have done, so if R-hat is high overall
+and acceptable late, warmup ended too early. If it stays high late, the chains
+have each settled somewhere different and a longer warmup will not help.</p>
 <p>A within-chain drift statistic would answer that question more directly and
 cannot be made to work at BART's autocorrelation. Three versions were
 calibrated against stationary autoregressive series, where by construction
@@ -163,99 +178,200 @@ endpoint.</p>
 in it at each draw. Chains that disagree about how large the forest is are
 exploring different tree structures, and no generic MCMC diagnostic can see
 that, because none of them looks at the forest.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="the-leaf-scale-is-left-out">The leaf scale is left out<a class="anchor" aria-label="anchor" href="#the-leaf-scale-is-left-out"></a></h2>
-    <p><code>sigma_mu</code> is deliberately absent, as it is from <code>fit$rhat</code>. It mixes badly
-and not for a reason this package can fix: on the same data the same quantity
-comes out at R-hat 1.12 in <a href="https://CRAN.R-project.org/package=dbarts" class="external-link"><span class="pkg">dbarts</span></a> and 1.16 in <code>stochtree</code>, both of
-which draw it a different way, against 1.19 here. It is a hyperparameter
-nobody reports, and its disagreement between chains does not reach the fitted
-function – on those same fits the additive predictor has R-hat 1.00 and
-thousands of effective draws. It is still in <code>fit$sigma_mu</code> and still reaches
+</div>
+
+<div class="section">
+<h3 id="r-hat-needs-effective-draws">R-hat Needs Effective Draws<a class="anchor" aria-label="anchor" href="#r-hat-needs-effective-draws"></a></h3>
+
+
+<p>R-hat is a ratio of two variance estimates taken from the same draws, so with
+few effective draws it sits above 1 whether or not anything is wrong, and how
+far above depends on how many chains are being compared. Against a stationary
+autoregressive series, where every chain has the same distribution by
+construction and there is nothing at all to find, R-hat averages
+\(1 + m/S\) for \(m\) chains carrying \(S\) effective draws between
+them: 1.026, 1.050, 1.103 and 1.205 at 80 effective draws over two, four,
+eight and sixteen chains, against 1.025, 1.050, 1.100 and 1.200 from the
+formula.</p>
+<p><code>rhat_max</code> is therefore not a threshold a quantity can be held to at any
+effective sample size. Four chains need 400 effective draws before 1.01 is
+even the average of R-hat's null, which is where the pairing of the two
+defaults comes from and why Vehtari et al. (2021) give them together, and
+sixteen chains need 1600 for the same 1.01. When a quantity fails R-hat while
+carrying fewer than that, the checks report that the number cannot be read yet
+rather than a disagreement it is not entitled to claim, and the advice sends
+the reader to the effective sample size instead.</p>
+</div>
+
+<div class="section">
+<h3 id="the-leaf-scale-is-left-out">The Leaf Scale Is Left Out<a class="anchor" aria-label="anchor" href="#the-leaf-scale-is-left-out"></a></h3>
+
+
+<p><code>sigma_mu</code> is deliberately absent from the table. It mixes badly
+and not for a reason this package can fix. It is still in <code>fit$sigma_mu</code> and still reaches
 <a href="bartisan-interop.html">as_draws()</a> for anyone who wants to look.</p>
+</div>
+
+<div class="section">
+<h3 id="what-to-do-about-poor-mixing">What to Do About Poor Mixing<a class="anchor" aria-label="anchor" href="#what-to-do-about-poor-mixing"></a></h3>
+
+
+<p>The advice the print method gives follows from which statistic failed, and the
+order matters because the fixes are not interchangeable.</p>
+<p><strong>One chain</strong> comes first, because nothing else can be diagnosed properly
+until there are several. <code>chains = 4</code> is the setting to reach for, and with
+<a href="https://CRAN.R-project.org/package=future" class="external-link"><span class="pkg">future</span></a> installed and a parallel backend used, the chains run in parallel, so it usually costs
+little wall clock.</p>
+<p><strong>R-hat elevated but acceptable on the late draws</strong> says warmup ended too
+early, so <code>num_burn</code> is the one to raise; raising <code>num_draws</code> instead adds
+draws from a distribution the sampler has not reached yet. <strong>R-hat elevated on
+the late draws too</strong> says the chains have each settled somewhere different.
+Raise <code>num_burn</code> and <code>num_draws</code> together, and if that does not settle it,
+reduce <code>num_trees</code> (a smaller forest has fewer ways to represent the same fit,
+so the sampler has less room to wander between them) and check the family,
+because a likelihood that fits badly can produce a posterior with no single
+place to be.</p>
+<p><strong>More chains and longer chains are not interchangeable.</strong> Effective sample
+size depends on the total number of draws and not on how they are divided
+between chains, so twice as many chains and twice as long a chain buy the same
+amount of it; with a parallel backend the chains are the cheaper of the two up
+to the number of workers, though each chain pays its own warmup. R-hat is not
+symmetric in the same way, because it compares chains against each other:
+lengthening a chain drives it toward 1, while adding chains at a fixed total
+leaves each chain with less to say and drives it up. A fit failing on R-hat
+therefore wants longer chains rather than more of them, and a fit failing only
+on effective sample size can have either.</p>
+<p><strong>An effective sample size that is low while R-hat is fine</strong> is the benign
+case, and it wants only more draws. Note that thinning does not help:
+<code>num_thin</code> discards draws that were already paid for, so it lowers the
+effective sample size per unit of time and is worth it only when storing the
+draws is the binding constraint. <strong>A low tail effective sample size with the
+bulk fine</strong> says the posterior mean is fine and the interval endpoints are
+not, so raising <code>num_draws</code> is warranted when intervals are what gets
+reported.</p>
+</div>
+
     </div>
-    <div class="section level2">
-    <h2 id="what-to-do-about-poor-mixing">What to do about poor mixing<a class="anchor" aria-label="anchor" href="#what-to-do-about-poor-mixing"></a></h2>
-    <p>The advice the print method gives follows from which statistic failed, and the
-order matters because the fixes are not interchangeable.</p><ul><li><p><strong>One chain.</strong> Nothing else can be diagnosed properly. <code>chains = 4</code> is the
-first thing to set, and with <a href="https://CRAN.R-project.org/package=future" class="external-link"><span class="pkg">future</span></a> installed the chains run in
-parallel, so it usually costs little wall clock.</p></li>
-<li><p><strong>R-hat elevated, acceptable on the late draws.</strong> Warmup ended too early:
-raise <code>num_burn</code>. Raising <code>num_draws</code> instead adds draws from a
-distribution the sampler has not reached yet.</p></li>
-<li><p><strong>R-hat elevated on the late draws too.</strong> The chains have each settled
-somewhere different. Raise <code>num_burn</code> and <code>num_draws</code> together, and if that
-does not settle it, reduce <code>num_trees</code> – a smaller forest has fewer ways to
-represent the same fit, so the sampler has less room to wander between them
-– and check the family, because a likelihood that fits badly can produce a
-posterior with no single place to be.</p></li>
-<li><p><strong>Effective sample size low, R-hat fine.</strong> The benign case. Raise
-<code>num_draws</code>. Thinning does not help: <code>num_thin</code> discards draws that were
-already paid for, so it lowers the effective sample size per unit of time
-and is worth it only when storing the draws is the binding constraint.</p></li>
-<li><p><strong>Tail effective sample size low, bulk fine.</strong> The posterior mean is fine
-and the interval endpoints are not. Raise <code>num_draws</code> if intervals are what
-gets reported.</p></li>
-</ul></div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., &amp; Rubin,
 D. B. (2013). <em>Bayesian Data Analysis</em> (3rd ed.). Chapman and Hall/CRC.</p>
-<p>Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., &amp; Bürkner, P.-C. (2021).
+<p>Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., &amp; Buerkner, P.-C. (2021).
 Rank-normalization, folding, and localization: an improved \(\hat{R}\) for
 assessing convergence of MCMC. <em>Bayesian Analysis</em>, 16(2), 667–718.
 <a href="https://doi.org/10.1214/20-BA1221" class="external-link">doi:10.1214/20-BA1221</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="bartisan_control.html">bartisan_control()</a></code> for the settings the advice names,
+    <div class="dont-index"><p><code><a href="bartisan_control.html">bartisan_control()</a></code> for the settings the advice names;
 <a href="bartisan-interop.html">as_draws()</a> for handing the draws to <a href="https://CRAN.R-project.org/package=bayesplot" class="external-link"><span class="pkg">bayesplot</span></a>
-or <a href="https://CRAN.R-project.org/package=posterior" class="external-link"><span class="pkg">posterior</span></a>, and <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> for the fuller
-treatment including posterior predictive checks.</p></div>
+or <a href="https://CRAN.R-project.org/package=posterior" class="external-link"><span class="pkg">posterior</span></a>; <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> for the fuller treatment,
+including posterior predictive checks</p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">200</span></span></span>
-<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">$</span><span class="va">x1</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                control <span class="op">=</span> <span class="fu"><a href="bartisan_control.html">bartisan_control</a></span><span class="op">(</span>chains <span class="op">=</span> <span class="fl">2</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
-<span class="r-in"><span>                                           num_burn <span class="op">=</span> <span class="fl">100</span>, num_draws <span class="op">=</span> <span class="fl">100</span>,</span></span>
-<span class="r-in"><span>                                           verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Two chains, both deliberately short, so that there is something to report</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>, chains <span class="op">=</span> <span class="fl">2</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The table, the checks, and what to do about whichever of them failed</span></span></span>
 <span class="r-in"><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                            quantity  rhat rhat_late ess_bulk ess_tail</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                              loglik 1.047     1.046       49       65</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                           aux.sigma 1.040     1.051      148      154</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                          splits.eta 1.117     1.091       25       48</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (worst 5% of observations) 1.203     1.198        8       20</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.281     1.791        6       45</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.008     1.153       31       48</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.004     1.161       77       64</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.488     1.728        4       16</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 200 draws kept in total</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> above 1.01 for loglik</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> not the whole story: R-hat stays high on the second half of the draws alone,</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span>   so the chains disagree rather than merely start badly</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> the chains disagree about how many splitting rules the forest has (R-hat</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span>   1.12)</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 8 for eta.eta (worst 5% of observations), below 400</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 20 for eta.eta (worst 5% of observations), below 400</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> eta.eta (worst 5% of observations) carries 3.8 effective draws per hundred</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> that R-hat rests on 6 effective draws, where 2 chains average 1.346 even when</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   they agree</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> not the fix: R-hat stays high on the second half of the draws alone as well,</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   so a longer warmup is not what is missing</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> the chains agree about the size of the forest</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 4 for eta.eta (worst 5% of observations), below 400</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 16 for eta.eta (worst 5% of observations), below 400</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> the chains disagree about individual observations and agree about their</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 77 effective draws)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> eta.eta (worst 5% of observations) carries 4.3 effective draws per hundred</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span>   kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Raise `num_burn` and `num_draws` together. R-hat stays high even on the second</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> half of the draws alone, so the chains have each settled somewhere different</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> rather than merely started badly.</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> If that does not settle it, reduce `num_trees`. A smaller forest has fewer ways</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> to represent the same fit, so the sampler has less room to move between them.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a quantity</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> that carries too few effective draws for the threshold to mean anything: with</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> this many chains it would sit about where it does even if the chains agreed</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> exactly, as the check above reports. Effective sample size is what makes it</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> readable, and that grows with the total number of draws; using fewer chains</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> lowers the bar as well, since R-hat's null rises with the number of chains</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> being compared.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> forest has fewer ways to represent the same fit, so the sampler has less room</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> to move between them.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Then check the family. A likelihood that fits the data badly can give a</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> posterior with no single place to be; `pp_check()` is the diagnostic.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> posterior with no single place to be; `bayesplot::pp_check()` is the</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> diagnostic.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Note that the chains disagree about the fitted values of individual</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> observations and not about their average, which is the usual shape of this in a</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> forest. An estimand averaged over observations therefore carries far more</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> effective draws than the table's worst row does, and R-hat for that estimand is</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> worth computing rather than inferring; `posterior::as_draws()` hands the draws</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> over for it.</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># A stricter effective sample size, which is what an interval endpoint needs</span></span></span>
+<span class="r-in"><span><span class="co"># and a posterior mean does not</span></span></span>
+<span class="r-in"><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">fit</span>, ess_min <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Convergence and mixing</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.281     1.791        6       45</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.008     1.153       31       48</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.004     1.161       77       64</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.488     1.728        4       16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> above 1.01 for loglik</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> that R-hat rests on 6 effective draws, where 2 chains average 1.346 even when</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   they agree</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> not the fix: R-hat stays high on the second half of the draws alone as well,</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   so a longer warmup is not what is missing</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> the chains agree about the size of the forest</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 4 for eta.eta (worst 5% of observations), below 1000</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 16 for eta.eta (worst 5% of observations), below 1000</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> the chains disagree about individual observations and agree about their</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 77 effective draws)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> eta.eta (worst 5% of observations) carries 4.3 effective draws per hundred</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   kept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">What to do</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a quantity</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> that carries too few effective draws for the threshold to mean anything: with</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> this many chains it would sit about where it does even if the chains agreed</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> exactly, as the check above reports. Effective sample size is what makes it</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> readable, and that grows with the total number of draws; using fewer chains</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> lowers the bar as well, since R-hat's null rises with the number of chains</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> being compared.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> forest has fewer ways to represent the same fit, so the sampler has less room</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> to move between them.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Then check the family. A likelihood that fits the data badly can give a</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> posterior with no single place to be; `bayesplot::pp_check()` is the</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> diagnostic.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Note that the chains disagree about the fitted values of individual</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> observations and not about their average, which is the usual shape of this in a</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> forest. An estimand averaged over observations therefore carries far more</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> effective draws than the table's worst row does, and R-hat for that estimand is</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> worth computing rather than inferring; `posterior::as_draws()` hands the draws</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> over for it.</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

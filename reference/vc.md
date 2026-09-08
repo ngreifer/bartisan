@@ -1,10 +1,12 @@
 # Give a predictor a varying coefficient
 
-Used only inside a
+Marks a predictor inside a
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-formula, where it says that the coefficient of `x` is a function of
-other predictors rather than a constant. It is not meant to be called
-directly and does nothing if it is.
+formula as one whose coefficient is a function of the other predictors
+rather than a constant, so that the coefficient gets a forest and a
+prior of its own. `vc()` is a marker rather than a function: it is read
+out of the formula it appears in and throws an error if it is called on
+its own.
 
 ## Usage
 
@@ -16,35 +18,41 @@ vc(x, modifiers = NULL, center = "auto")
 
 - x:
 
-  the predictor whose coefficient varies. A numeric variable gets one
-  forest; a factor gets one per level, coded symmetrically as
+  the predictor whose coefficient varies, named as a bare variable
+  rather than as an expression. A numeric variable gets one forest; a
+  factor gets one per level, coded symmetrically (i.e., with no level
+  held out as a reference) as
   [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   codes its predictors.
 
 - modifiers:
 
   a one-sided formula naming the predictors this coefficient's forest
-  may split on. The default, `NULL`, is every predictor in the model
-  except `x` itself.
+  may split on. Default is `NULL` to allow every predictor in the model
+  except `x` itself. Note that naming something that is not a predictor
+  is an error rather than a silent restriction.
 
 - center:
 
   the value of `x` at which the control function is read, which is both
-  how the model is fitted and how it is reported. `"auto"`, the default,
-  uses `"zero"` for a `0`/`1` covariate and `"mean"` for any other
-  numeric one, for the reason in Details. `"mean"` centers `x`, so the
-  control function is the surface at its average; `"zero"` leaves `x`
-  alone, so the control function is the surface at `x = 0`; `"mid"` uses
-  the midpoint of `x`'s range; a number uses that number. For a factor,
-  `center` is `"mean"` or the name of a level to report against.
-  `"estimate"` draws the coding rather than fixing it, which is the
-  parameter expansion of Hahn, Murray and Carvalho (2020); see Details,
-  and note that it needs a covariate with a few distinct values rather
-  than a continuous one.
+  how the model is fitted and how it is reported, given as either a
+  string or a number. Allowable options include `"auto"` (the default),
+  `"mean"`, `"zero"`, `"mid"`, and `"estimate"`. `"auto"` uses `"zero"`
+  for a `0`/`1` covariate and `"mean"` for any other numeric one, for
+  the reason in Details. `"mean"` centers `x`, so the control function
+  is the surface at its average; `"zero"` leaves `x` alone, so the
+  control function is the surface at `x = 0`; `"mid"` uses the midpoint
+  of `x`'s range (i.e., the average of its smallest and largest values);
+  and a number uses that number. For a factor, `center` is `"mean"` or
+  the name of a level to report against. `"estimate"` draws the coding
+  rather than fixing it, which is the parameter expansion of Hahn,
+  Murray and Carvalho (2020); see Details, and note that it needs a
+  covariate with between two and twenty distinct values rather than a
+  continuous one.
 
 ## Value
 
-Nothing. `vc()` is a marker read out of the formula and never evaluated.
+Nothing; `vc()` is never evaluated, and calling it directly is an error.
 
 ## Details
 
@@ -57,7 +65,7 @@ coefficient \\f_j\\. Every forest is fitted at once, so the coefficient
 has a prior of its own rather than being whatever difference a single
 forest with `x` among its predictors happens to produce.
 
-## Which predictors a coefficient may vary with
+### Which Predictors a Coefficient May Vary With
 
 By default every predictor in the model except `x` itself. The
 `modifiers` argument narrows that, and naming something that is not a
@@ -87,19 +95,17 @@ level holds, and the variable is constant on exactly those rows, so such
 a split separates rows that contribute from rows that contribute
 nothing. It is wasted rather than unidentified.
 
-## Where the control function sits
+### Where the Control Function Sits
 
 Centering is a reparameterization of \\f_0\\ alone: every coefficient
 and every estimand is identical under any choice, and what changes is
 what the control function means. `"auto"` picks by the covariate,
 because neither answer wins everywhere. For a `0`/`1` covariate it uses
-zero, so \\f_0\\ is the surface among the untreated – a quantity with
-its own meaning, and the one that recovers the coefficient best, at a
-correlation of 0.987 against 0.975 for mean-centering on the simulation
-in `_dev/`. For any other numeric covariate it uses the mean, because
-zero may be nowhere near the data: with a covariate around 50 the
-control function at zero is an extrapolation and recovery collapses to a
-correlation of 0.42.
+zero, so \\f_0\\ is the surface among the untreated (a quantity with its
+own meaning, and the one that recovers the coefficient best). For any
+other numeric covariate it uses the mean, because zero may be nowhere
+near the data: with a covariate around 50 the control function at zero
+is an extrapolation and recovery collapses to a correlation of 0.42.
 
 A factor is always fitted mean-centered and gets one forest per level,
 coded symmetrically the way
@@ -110,7 +116,7 @@ dimension, which is what makes the reference a reporting choice:
 `center` names the level [`coef()`](https://rdrr.io/r/stats/coef.html)
 reports against, and no refit is needed to change it.
 
-## Drawing the coding instead of fixing it
+### Drawing the Coding Instead of Fixing It
 
 `center = "estimate"` is different in kind from the choices above.
 Rather than subtract a number from `x`, it gives each of `x`'s values a
@@ -135,14 +141,11 @@ covariate is refused rather than quietly binned.
 
 **At two values it is free, and it is what
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) uses.**
-Recovery is a tie: on the simulation in `_dev/coding-comparison.R` the
-effect's root mean squared error is 0.2014 against 0.1991 for a fixed
-zero, a paired difference of 0.0023 with a standard error of 0.0140.
 What it buys is that the answer stops depending on which level was
 written as 1. Fitting the same data with the treatment coded `0`/`1` and
 again `1`/`0` and adding the two effects, which is zero if the coding
 does not matter, gives 0.0045 under a drawn coding against 0.0125 under
-a fixed zero – and on weak data, where the prior has more to say, 0.0389
+a fixed zero; on weak data, where the prior has more to say, 0.0389
 against 0.0830.
 
 **Above two values it stops being free, and the restriction is a real
@@ -162,32 +165,32 @@ So the two are what they look like: `"estimate"` is the parsimonious
 model and the default is the general one. Reach for it when the levels
 plausibly differ in degree rather than in kind.
 
-## Families with several additive predictors
+### Families with Several Additive Predictors
 
-[`location_scale()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+[`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and the rest fit one forest per distributional parameter, and each
 parameter's formula carries its own `vc()` terms. The forests are then
-two-dimensional – a control function and its coefficients, for each
-parameter – and named accordingly, which is what per-forest settings are
+two-dimensional (a control function and its coefficients, for each
+parameter) and named accordingly, which is what per-forest settings are
 keyed by:
 
     # forests: mean, mean:z, log_sd
     bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-             family = location_scale())
+             family = gaussian_ls())
 
-    # forests: mean, mean:z, log_sd, log_sd:z -- one formula reaches every
+    # forests: mean, mean:z, log_sd, log_sd:z; one formula reaches every
     # parameter, which is the rule every per-forest argument follows
-    bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+    bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
 
     # each coefficient with its own modifiers
     bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
                   log_sd = ~ x1 + x2 + vc(z, ~ x1)), data = d,
-             family = location_scale())
+             family = gaussian_ls())
 
-So the same covariate may have a coefficient on more than one parameter
-– \\z\\ shifting the mean and widening the spread are different
-questions, and both are answered at once.
+So the same covariate may have a coefficient on more than one parameter:
+\\z\\ shifting the mean and widening the spread are different questions,
+and both are answered at once.
 [`coef()`](https://rdrr.io/r/stats/coef.html) returns one column per
 coefficient, named for its forest.
 
@@ -196,46 +199,73 @@ from `(1 | g)` reaches every control function and no coefficient, since
 a group-varying coefficient is a random slope. And `center = "estimate"`
 is judged per parameter: the drawn coding needs a leaf target that is
 quadratic in the predictor it feeds, which
-[`location_scale()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is in the mean and is not in the log standard deviation, so the same
 request is accepted on one and refused on the other.
 
-[`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and `mnp()` are the exception and refuse `vc()`. Their forests are the
-levels of one parameter rather than separate parameters, identified only
-up to a function they all share, and reporting removes it; a coefficient
-forest per level would add one such direction per coefficient and the
-reporting does not carry them.
+The two multinomial families are the exception and refuse `vc()`. Their
+forests are the levels of one parameter rather than separate parameters,
+identified only up to a function they all share, and reporting removes
+it; a coefficient forest per level would add one such direction per
+coefficient and the reporting does not carry them.
+
+## References
+
+Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian
+regression tree models for causal inference: regularization,
+confounding, and heterogeneous effects. *Bayesian Analysis*, 15(3),
+965–1056. [doi:10.1214/19-BA1195](https://doi.org/10.1214/19-BA1195)
 
 ## See also
 
-[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-for the formula interface,
-[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) for the
-causal case,
-[`coef.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/coef.bartisan_fit.md)
-for reading the coefficients out, and
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-for the order the forests come in.
+- [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
+  for the formula interface
+
+- [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) for
+  the causal case, which is this term with the priors and the propensity
+  score set up for it
+
+- [`coef.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/coef.bartisan_fit.md)
+  for reading the coefficients out
+
+- [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  for the order the forests come in
 
 ## Examples
 
 ``` r
-# The coefficient of `z` varies with `x1` and `x2`.
-y ~ x1 + x2 + vc(z)
-#> y ~ x1 + x2 + vc(z)
-#> <environment: 0x55b23cbd5728>
+data("rhc")
 
-# ... and with `x1` alone.
-y ~ x1 + x2 + vc(z, ~ x1)
-#> y ~ x1 + x2 + vc(z, ~x1)
-#> <environment: 0x55b23cbd5728>
+set.seed(123)
 
-# The effect of `z` varies across `z` itself, so the dose response is a
-# curve rather than a line. `z` appears only inside `vc()`: writing it in the
-# fixed part as well would leave the control function and the coefficient
-# unidentified, which is a warning rather than a refusal.
-y ~ x1 + vc(z, ~ z + x1)
-#> y ~ x1 + vc(z, ~z + x1)
-#> <environment: 0x55b23cbd5728>
+# The effect of right heart catheterization on death, free to vary with
+# every other covariate. `rhc` reaches the fixed part through `.`, so it is
+# dropped from the control function, which is what keeps the two identified
+fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
+                family = binomial(), num_trees = 10, num_burn = 50,
+                num_draws = 50)
+
+# One coefficient per patient, which is what a coefficient function comes to
+head(coef(fit))
+#>            rhc
+#> [1,] 0.3737500
+#> [2,] 0.3055717
+#> [3,] 0.2825872
+#> [4,] 0.3777876
+#> [5,] 0.3233088
+#> [6,] 0.2106816
+
+# The same effect, free to vary with severity of illness alone
+fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
+                 family = binomial(), num_trees = 10, num_burn = 50,
+                 num_draws = 50)
+
+head(coef(fit2))
+#>             rhc
+#> [1,] 0.43552834
+#> [2,] 0.41613303
+#> [3,] 0.04479542
+#> [4,] 0.49654015
+#> [5,] 0.49513169
+#> [6,] 0.37428010
 ```

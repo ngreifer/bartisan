@@ -5,13 +5,15 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Counterfactual estimands with marginaleffects — bartisan-marginaleffects"><meta name="description" content="A bartisan fit works with the marginaleffects package, so that
-predictions, comparisons and slopes – and hypothesis tests on any of them –
-can be computed without extracting draws by hand. Load marginaleffects
-and call its functions on the fit directly; there is nothing to set up."><meta property="og:description" content="A bartisan fit works with the marginaleffects package, so that
-predictions, comparisons and slopes – and hypothesis tests on any of them –
-can be computed without extracting draws by hand. Load marginaleffects
-and call its functions on the fit directly; there is nothing to set up."></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Counterfactual estimands with marginaleffects — bartisan-marginaleffects"><meta name="description" content="Methods that let a &amp;lt;bartisan_fit&amp;gt; object be used by the
+marginaleffects package, which computes predictions, comparisons and
+slopes (and hypothesis tests on any of them) from the posterior draws. There
+is nothing to set up: load marginaleffects and call its functions on
+the fit."><meta property="og:description" content="Methods that let a &amp;lt;bartisan_fit&amp;gt; object be used by the
+marginaleffects package, which computes predictions, comparisons and
+slopes (and hypothesis tests on any of them) from the posterior draws. There
+is nothing to set up: load marginaleffects and call its functions on
+the fit."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -31,7 +33,7 @@ and call its functions on the fit directly; there is nothing to set up."></head>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -63,10 +65,11 @@ and call its functions on the fit directly; there is nothing to set up."></head>
     </div>
 
     <div class="ref-description section level2">
-    <p>A <code>bartisan</code> fit works with the <span class="pkg">marginaleffects</span> package, so that
-predictions, comparisons and slopes – and hypothesis tests on any of them –
-can be computed without extracting draws by hand. Load <span class="pkg">marginaleffects</span>
-and call its functions on the fit directly; there is nothing to set up.</p>
+    <p>Methods that let a <code>&lt;bartisan_fit&gt;</code> object be used by the
+<span class="pkg">marginaleffects</span> package, which computes predictions, comparisons and
+slopes (and hypothesis tests on any of them) from the posterior draws. There
+is nothing to set up: load <span class="pkg">marginaleffects</span> and call its functions on
+the fit.</p>
     </div>
 
     <div class="section level2">
@@ -87,19 +90,19 @@ and call its functions on the fit directly; there is nothing to set up.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">family</a></span><span class="op">(</span><span class="va">object</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/get_predict.html" class="external-link">get_predict</a></span><span class="op">(</span><span class="va">model</span>, newdata <span class="op">=</span> <span class="cn">NULL</span>, type <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">get_predict</span><span class="op">(</span><span class="va">model</span>, newdata <span class="op">=</span> <span class="cn">NULL</span>, type <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/get_group_names.html" class="external-link">get_group_names</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">get_group_names</span><span class="op">(</span><span class="va">model</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/get_coef.html" class="external-link">get_coef</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">get_coef</span><span class="op">(</span><span class="va">model</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/set_coef.html" class="external-link">set_coef</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">coefs</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">set_coef</span><span class="op">(</span><span class="va">model</span>, <span class="va">coefs</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/get_vcov.html" class="external-link">get_vcov</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">get_vcov</span><span class="op">(</span><span class="va">model</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
 <span><span class="fu">get_data</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
@@ -110,33 +113,42 @@ and call its functions on the fit directly; there is nothing to set up.</p>
 
 
 <dl><dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>further arguments. <code>values</code>, <code>iterations</code>, <code>offset</code>, <code>weights</code> and
-<code>log</code> are passed on to <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>; anything else is ignored, since
-<span class="pkg">marginaleffects</span> puts arguments of its own here too. <span class="pkg">marginaleffects</span>
-warns that it does not recognize <code>values</code>, which is expected – it is this
-package's argument, not one of its own – and the value is used regardless.</p></dd>
+<dd><p>further arguments. <code>values</code>, <code>iterations</code>, <code>offset</code>, <code>weights</code>,
+<code>log</code> and <code>times</code> are passed on to <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>; anything else
+is ignored, since <span class="pkg">marginaleffects</span> puts arguments of its own here too.
+Note that <span class="pkg">marginaleffects</span> warns that it does not recognize <code>values</code>,
+which is expected (it is this package's argument, not one of its own), and
+the value is used regardless.</p></dd>
 
 
 <dt id="arg-model-x-object-formula">model, x, object, formula<a class="anchor" aria-label="anchor" href="#arg-model-x-object-formula"></a></dt>
-<dd><p>a fitted <code>bartisan</code> object. The last is named
-that only because <code><a href="https://rdrr.io/r/stats/model.frame.html" class="external-link">stats::model.frame()</a></code> names its first argument that way.</p></dd>
+<dd><p>a <code>&lt;bartisan_fit&gt;</code> object; the output of a call
+to <code><a href="bartisan.html">bartisan()</a></code>. The last is named <code>formula</code> only because
+<code><a href="https://rdrr.io/r/stats/model.frame.html" class="external-link">stats::model.frame()</a></code> names its first argument that way.</p></dd>
 
 
 <dt id="arg-newdata">newdata<a class="anchor" aria-label="anchor" href="#arg-newdata"></a></dt>
-<dd><p>data at which to evaluate the fit. Defaults to the data the
-model was fitted to, which is retained in the fit for this purpose.</p></dd>
+<dd><p>optional; a data frame at which to evaluate the fit. Default
+is <code>NULL</code> to use the data the model was fitted to, which is retained in the
+fit for this purpose.</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
-<dd><p>the scale to work on. <code>"response"</code> is the fitted mean, <code>"link"</code>
-the additive predictor, <code>"prob"</code> the per-category probabilities of a
-categorical family, <code>"mean"</code> the mean of a categorical response with its
-labels read as numbers, and <code>"stdlv"</code> the standardized latent variable of an
-ordinal fit; the last three are described under <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>. A
-categorical family has no mean, so <code>"response"</code> gives <code>"prob"</code> there.
-<code>"probs"</code>, <code>"lp"</code> and <code>"lv"</code> are accepted as aliases for <code>"prob"</code>, <code>"link"</code>
-and <code>"link"</code>, since those are the names the same quantities go by for other
-ordinal fits in <span class="pkg">marginaleffects</span>.</p></dd>
+<dd><p>string; the scale to work on. Allowable options include
+<code>"response"</code> (the default), <code>"link"</code>, <code>"prob"</code>, <code>"mean"</code>, <code>"stdlv"</code>, and
+<code>"survival"</code>. <code>"response"</code> is the fitted mean, <code>"link"</code> the additive
+predictor, <code>"prob"</code> the per-category probabilities of a categorical family,
+<code>"mean"</code> the mean of a categorical response with its labels read as
+numbers, <code>"stdlv"</code> the standardized latent variable of an ordinal fit, and
+<code>"survival"</code> the survival function at the times given in <code>times</code>; all but
+the first two are described under <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>. An <code><a href="bartisan-families.html">ordinal()</a></code>
+or <code><a href="bartisan-families.html">multinomial()</a></code> response has no single mean, so <code>"response"</code> gives
+<code>"prob"</code> for those families, while a binomial fit reports the probability
+of its second level, as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> does, and <code>"prob"</code> is what asks for
+both of its columns. <code>"probs"</code>, <code>"lp"</code>, <code>"lv"</code> and <code>"surv"</code> are accepted as
+aliases for <code>"prob"</code>, <code>"link"</code>, <code>"link"</code> and <code>"survival"</code>, since those are
+the names the same quantities go by for other ordinal fits in
+<span class="pkg">marginaleffects</span>.</p></dd>
 
 
 <dt id="arg-coefs">coefs<a class="anchor" aria-label="anchor" href="#arg-coefs"></a></dt>
@@ -145,15 +157,20 @@ ordinal fits in <span class="pkg">marginaleffects</span>.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code><a href="https://rdrr.io/pkg/marginaleffects/man/get_predict.html" class="external-link">get_predict()</a></code> returns a data frame with columns <code>rowid</code>, <code>group</code> and
+    <p><code>get_predict()</code> returns a data frame with columns <code>rowid</code>, <code>group</code> and
 <code>estimate</code>, carrying the draws in a <code>"posterior_draws"</code> attribute of
 observations by draws, which is the interface <span class="pkg">marginaleffects</span>
 documents. The other methods exist to satisfy the generic and return what
 their names suggest.</p>
     </div>
     <div class="section level2">
-    <h2 id="how-the-uncertainty-is-computed">How the uncertainty is computed<a class="anchor" aria-label="anchor" href="#how-the-uncertainty-is-computed"></a></h2>
-    <p>A forest has no coefficient vector and no variance-covariance matrix, so the
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+
+<div class="section">
+<h3 id="how-the-uncertainty-is-computed">How the Uncertainty Is Computed<a class="anchor" aria-label="anchor" href="#how-the-uncertainty-is-computed"></a></h3>
+
+
+<p>A forest has no coefficient vector and no variance-covariance matrix, so the
 delta method <span class="pkg">marginaleffects</span> uses for a frequentist model has nothing
 to work with. It has something better here: the posterior draws. Every
 estimand is computed by pushing all of the draws through the same
@@ -165,10 +182,13 @@ approximation at all. This is the same path <span class="pkg">marginaleffects</s
 its <strong>median</strong>, where <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports its <strong>mean</strong>. The two are
 summarizing the same draws, so a difference between them is the skewness of
 the posterior and not a disagreement.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="a-contrast-of-exactly-zero-is-usually-real">A contrast of exactly zero is usually real<a class="anchor" aria-label="anchor" href="#a-contrast-of-exactly-zero-is-usually-real"></a></h2>
-    <p><code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> reporting an estimate of exactly <code>0</code> is the most common
+</div>
+
+<div class="section">
+<h3 id="a-contrast-of-exactly-zero-is-usually-real">A Contrast of Exactly Zero Is Usually Real<a class="anchor" aria-label="anchor" href="#a-contrast-of-exactly-zero-is-usually-real"></a></h3>
+
+
+<p><code>avg_comparisons()</code> reporting an estimate of exactly <code>0</code> is the most common
 surprise here, and it is neither package computing anything wrong. Two facts
 meet to produce it.</p>
 <p>The posterior of a contrast has an <strong>atom at exactly zero</strong>. In any draw where
@@ -176,7 +196,7 @@ no tree in the forest splits on the variable being contrasted, the fit does not
 depend on that variable at all, so the two counterfactual predictions are
 identical to the last bit and their difference is exactly zero. That is not a
 near-zero value that rounding flattered; it is a point mass. The Dirichlet
-sparsity prior on the splitting proportions, <code>update_s</code> in
+sparsity prior on the splitting proportions, <code>sparsity</code> in
 <code><a href="bartisan_control.html">bartisan_control()</a></code>, is what makes those draws common: it is a variable
 selection prior, and dropping a weak predictor from every tree is what it is
 for.</p>
@@ -186,44 +206,44 @@ however large the rest of the posterior is. On <code>MatchIt::lalonde</code> wit
 default settings, <code>treat</code> was absent from all 50 trees in 64% of draws and the
 contrast came out exactly zero in 65%, which put the median at 0 while the
 posterior mean was 197 and the upper limit was above 2000.</p>
-<p>Four things to do about it, in the order worth trying:</p>
-<ol><li><p><strong>Look at the inclusion probability</strong>, which is what the zero is
-telling you. <code>summary(fit)</code> reports it as <code>prop_used</code>: the posterior
-probability that each predictor group appears anywhere in the forest. A
-contrast whose median is zero is a predictor the model is not sure
-belongs.</p></li>
-<li><p><strong>Ask for the mean instead</strong>, with
-<code>options(marginaleffects_posterior_center = mean)</code>. The mean is the
-summary <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports, and it is the one that behaves
-sensibly against an atom.</p></li>
-<li><p><strong>Reconsider the sparsity prior</strong> if variable selection is not what
-you want from the fit. <code>sparsity = FALSE</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code> removes
-the atom almost entirely: on the example above it fell from 20% of draws
-to none by 50 trees. A larger <code>num_trees</code> does <em>not</em> remove it, which is
-worth knowing because it looks as though it should – with the prior on,
-the contrast was exactly zero in 20% of draws at 50 trees and 18% at 200.
-Turning the prior off is a modeling choice rather than a fix, so make it
-for a reason: it is the right one when a contrast on a particular
-predictor is the estimand, and the wrong one when there are many
-predictors and most are irrelevant.</p></li>
-<li><p><strong>Run several chains and compare them.</strong> The variable selection state
-mixes slowly, because a predictor whose splitting proportion has gone
-small is rarely proposed and so is hard to get back in. On the example
-above, four chains disagreed by more than 100% of the estimate at every
-tree count from 20 to 200 with the prior on; with <code>sparsity = FALSE</code> and
-50 trees they agreed to within 9%. A single chain can look much more
-settled than the posterior is.</p></li>
-</ol></div>
-    <div class="section level2">
-    <h2 id="slopes-need-a-linear-predictor-transform">Slopes need a linear predictor transform<a class="anchor" aria-label="anchor" href="#slopes-need-a-linear-predictor-transform"></a></h2>
-    <p>A slope is a numerical derivative, and taking one requires the fitted function
+<p>Four things are worth doing about it, in the order given.</p>
+<p><strong>Look at the inclusion probability</strong>, which is what the zero reports.
+<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> gives it as <code>prop_used</code>: the posterior probability that each
+predictor group appears anywhere in the forest. A contrast whose median is
+zero is a predictor the model is not sure belongs.</p>
+<p><strong>Ask for the mean instead</strong>, with
+<code>options(marginaleffects_posterior_center = mean)</code>. The mean is the summary
+<code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports, and it is the one that behaves sensibly
+against an atom.</p>
+<p><strong>Reconsider the sparsity prior</strong> when variable selection is not what the fit
+is for. <code>sparsity = FALSE</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code> removes the atom almost
+entirely: on the example above it fell from 20% of draws to none by 50 trees.
+A larger <code>num_trees</code> does <em>not</em> remove it, which is worth stating because it
+looks as though it should: with the prior on, the contrast was exactly zero in
+20% of draws at 50 trees and 18% at 200. Turning the prior off is a modeling
+choice rather than a fix, so it wants a reason; it is the right one when a
+contrast on a particular predictor is the estimand, and the wrong one when
+there are many predictors and most are irrelevant.</p>
+<p><strong>Run several chains and compare them.</strong> The variable selection state mixes
+slowly, because a predictor whose splitting proportion has gone small is
+rarely proposed and so is hard to get back in. On the example above, four
+chains disagreed by more than 100% of the estimate at every tree count from 20
+to 200 with the prior on; with <code>sparsity = FALSE</code> and 50 trees they agreed to
+within 9%. A single chain can look much more settled than the posterior is.</p>
+</div>
+
+<div class="section">
+<h3 id="slopes-need-a-linear-predictor-transform">Slopes Need a Linear Predictor Transform<a class="anchor" aria-label="anchor" href="#slopes-need-a-linear-predictor-transform"></a></h3>
+
+
+<p>A slope is a numerical derivative, and taking one requires the fitted function
 to be differentiable in the predictor <em>as the caller supplies it</em>. The default
 <code>x_transform = "quantile"</code> maps each predictor through its empirical
 distribution function before any rule sees it, and an empirical distribution
-function is a step function – so the fit is a step function of the original
-predictor whatever the decision rules are, and its difference quotient grows
-without bound as the step shrinks. Measured on a smooth surface where the
-average derivative is zero:</p><table class="table table"><tr><td>step</td><td><code>x_transform = "quantile"</code></td><td><code>x_transform = "range"</code></td></tr><tr><td>1e-4</td><td>-4.79</td><td>-0.28</td></tr><tr><td>1e-2</td><td>-0.40</td><td>-0.30</td></tr><tr><td>5e-2</td><td>-0.29</td><td>-0.25</td></tr></table><p>So <strong>use <code>x_transform = "range"</code> if slopes are the estimand</strong>, which maps each
+function is a step function; the fit is therefore a step function of the
+original predictor whatever the decision rules are, and its difference
+quotient grows without bound as the step shrinks. Measured on a smooth
+surface where the average derivative is zero:</p><table class="table table"><tr><td>step</td><td><code>x_transform = "quantile"</code></td><td><code>x_transform = "range"</code></td></tr><tr><td>1e-4</td><td>-4.79</td><td>-0.28</td></tr><tr><td>1e-2</td><td>-0.40</td><td>-0.30</td></tr><tr><td>5e-2</td><td>-0.29</td><td>-0.25</td></tr></table><p>So <strong><code>x_transform = "range"</code> is what slopes want</strong>, since it maps each
 predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a
 piecewise-constant fit under either transform, and a derivative of one is not
 a meaningful quantity however it is computed.</p>
@@ -233,66 +253,101 @@ a meaningful quantity however it is computed.</p>
 , which evaluate the fit at two points a
 substantive distance apart rather than dividing by a vanishing one. Those are
 the estimands to reach for with the default transform.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="the-usual-survival-estimand">The usual survival estimand<a class="anchor" aria-label="anchor" href="#the-usual-survival-estimand"></a></h2>
-    <p>For a survival family, the estimand is usually a contrast in survival at a
+</div>
+
+<div class="section">
+<h3 id="the-usual-survival-estimand">The Usual Survival Estimand<a class="anchor" aria-label="anchor" href="#the-usual-survival-estimand"></a></h3>
+
+
+<p>For a survival family, the estimand is usually a contrast in survival at a
 horizon rather than in the predictor. <code>type = "survival"</code> with <code>times</code> gives
 it:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="co"># The difference in one-year survival between treated and untreated.</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"trt"</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre><p></p></div>
+<p></p><div class="sourceCode r"><pre><code><span><span class="co"># The difference in one-year survival between treated and untreated</span></span>
+<span><span class="fu">avg_comparisons</span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"trt"</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>One time per call. <span class="pkg">marginaleffects</span> checks the dots against a whitelist
 of its own, hardcoded per model class, so it warns that it does not recognize
-<code>times</code> – while passing it through, which is what the warning says. There is
-no hook for registering an argument with it, so the warning is expected and the
+<code>times</code> while passing it through, which is what the warning says. There is no
+hook for registering an argument with it, so the warning is expected and the
 result is correct.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="what-is-not-covered">What is not covered<a class="anchor" aria-label="anchor" href="#what-is-not-covered"></a></h2>
-    <p><code>type = "class"</code> and <code>type = "density"</code> are not available, because
+</div>
+
+<div class="section">
+<h3 id="what-is-not-covered">What Is Not Covered<a class="anchor" aria-label="anchor" href="#what-is-not-covered"></a></h3>
+
+
+<p><code>type = "class"</code> and <code>type = "density"</code> are not available, because
 neither is one number per observation that an average or a contrast could be
 taken of: a class is a factor, and a density needs the outcome, which a
-counterfactual grid does not have. Call <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> for those.</p>
+counterfactual grid does not have. <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> computes those.</p>
 <p><code>type = "link"</code> is refused for a family with more than one additive predictor
-– <code><a href="bartisan-families.html">location_scale()</a></code>, the zero-inflated families, <code><a href="bartisan-families.html">multinomial()</a></code> – because
+(<code><a href="bartisan-families.html">gaussian_ls()</a></code>, the zero-inflated families, <code><a href="bartisan-families.html">multinomial()</a></code>), because
 there is no single link there to be talking about. Those families work on the
 response scale, which is one number per observation whatever the family, and
 <code><a href="bartisan-families.html">multinomial()</a></code> and <code><a href="bartisan-families.html">ordinal()</a></code> work on the probability scale, which gives one
 group per category. To reach a <em>particular</em> predictor of a multi-predictor
 family, call <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> directly.</p>
-<p>Extrapolation is worth keeping in mind for <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">comparisons()</a></code>: a forest is
+<p>Extrapolation is worth keeping in mind for <code>comparisons()</code>: a forest is
 constant outside the range of the predictor it was fitted on, so a contrast
 that steps a predictor beyond that range reports the boundary value rather
 than an extrapolated one.</p>
+</div>
+
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> for the prediction scales these estimands are
+computed on; <code><a href="bartisan_control.html">bartisan_control()</a></code> for <code>sparsity</code> and <code>x_transform</code>;
+<a href="bartisan-interop.html">bartisan-interop</a> for the methods that let other packages assess the fit</p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">200</span></span></span>
-<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fl">2</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="va">pi</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x1</span><span class="op">)</span> <span class="op">-</span> <span class="va">d</span><span class="op">$</span><span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>               control <span class="op">=</span> <span class="fu"><a href="bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
-<span class="r-in"><span>                                         num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Whether a patient died, with every other variable a candidate predictor.</span></span></span>
+<span class="r-in"><span><span class="co"># The sparsity prior is turned off because a contrast on one predictor is</span></span></span>
+<span class="r-in"><span><span class="co"># the estimand rather than variable selection</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, sparsity <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
+<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># The effect of catheterization on the probability of death, as an average</span></span></span>
+<span class="r-in"><span><span class="co"># contrast of counterfactual predictions</span></span></span>
+<span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate 2.5 % 97.5 %</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     0.939   0.8   1.07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate  2.5 % 97.5 %</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0.0749 0.0211  0.112</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Term: rhc</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Comparison: 1 - 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The same contrast within each sex, and a test that the two are equal</span></span></span>
+<span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"sex"</span>,</span></span>
+<span class="r-in"><span>                                 hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         Hypothesis Estimate    2.5 %  97.5 %</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  (male) - (female) 0.000296 -0.00827 0.00302</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Centering each posterior at its mean rather than its median, which is the</span></span></span>
+<span class="r-in"><span><span class="co"># summary `predict()` reports</span></span></span>
+<span class="r-in"><span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>marginaleffects_posterior_center <span class="op">=</span> <span class="va">mean</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Term Estimate  2.5 % 97.5 %</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    x1   -0.979 -1.576 -0.505</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    x2   -0.528 -0.976 -0.187</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate  2.5 % 97.5 %</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     0.072 0.0211  0.112</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Term: rhc</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Comparison: +1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Comparison: 1 - 0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

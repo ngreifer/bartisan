@@ -32,21 +32,22 @@ coerced to the form the requested family expects.
 
 - X:
 
-  design matrix with entries in `[0, 1]`, possibly with `NA`.
+  a design matrix with entries in `[0, 1]`, possibly with `NA`.
 
 - has_na:
 
-  indicator per column of `X` of whether it contains a missing value. A
-  rule on a column with none is not given a missing-value branch, so
-  complete data reproduces the sampler exactly as it was.
+  `logical`; one entry per column of `X` saying whether that column
+  contains a missing value. A rule on a column with none is not given a
+  missing-value branch, so complete data reproduces the sampler exactly
+  as it was.
 
 - y:
 
-  response, coerced by the calling family.
+  the response, coerced by the calling family.
 
 - weights:
 
-  prior weights.
+  `numeric`; the prior weights.
 
 - offset:
 
@@ -55,7 +56,7 @@ coerced to the form the requested family expects.
 
 - group_probs:
 
-  sparse matrix whose columns are predictor groups.
+  a sparse matrix whose columns are predictor groups.
 
 - family_name, link, family_opts:
 

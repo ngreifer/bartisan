@@ -11,11 +11,13 @@
   [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-  [`location_scale()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  [`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`zi_negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   : Response families for generalized BART
 
@@ -69,6 +71,7 @@
   : Check whether a fit converged and mixed
 
 - [`error_density()`](https://ngreifer.github.io/bartisan/reference/error_density.md)
+  [`plot(`*`<bartisan_error_density>`*`)`](https://ngreifer.github.io/bartisan/reference/error_density.md)
   : Error distribution of a Dirichlet process mixture fit
 
 - [`predict(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md)
@@ -83,6 +86,7 @@
   heart catheterization in critically ill patients
 
 - [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
+  [`plot(`*`<bartisan_importance>`*`)`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
   : How often each predictor is used
 
 - [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) : Give a

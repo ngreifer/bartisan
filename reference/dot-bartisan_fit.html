@@ -29,7 +29,7 @@ the response already coerced to the form the requested family expects."></head><
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -92,21 +92,22 @@ the response already coerced to the form the requested family expects.</p>
 
 
 <dl><dt id="arg-x">X<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>design matrix with entries in <code>[0, 1]</code>, possibly with <code>NA</code>.</p></dd>
+<dd><p>a design matrix with entries in <code>[0, 1]</code>, possibly with <code>NA</code>.</p></dd>
 
 
 <dt id="arg-has-na">has_na<a class="anchor" aria-label="anchor" href="#arg-has-na"></a></dt>
-<dd><p>indicator per column of <code>X</code> of whether it contains a missing
-value. A rule on a column with none is not given a missing-value branch, so
-complete data reproduces the sampler exactly as it was.</p></dd>
+<dd><p><code>logical</code>; one entry per column of <code>X</code> saying whether that
+column contains a missing value. A rule on a column with none is not given
+a missing-value branch, so complete data reproduces the sampler exactly as
+it was.</p></dd>
 
 
 <dt id="arg-y">y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
-<dd><p>response, coerced by the calling family.</p></dd>
+<dd><p>the response, coerced by the calling family.</p></dd>
 
 
 <dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
-<dd><p>prior weights.</p></dd>
+<dd><p><code>numeric</code>; the prior weights.</p></dd>
 
 
 <dt id="arg-offset">offset<a class="anchor" aria-label="anchor" href="#arg-offset"></a></dt>
@@ -115,7 +116,7 @@ predictors.</p></dd>
 
 
 <dt id="arg-group-probs">group_probs<a class="anchor" aria-label="anchor" href="#arg-group-probs"></a></dt>
-<dd><p>sparse matrix whose columns are predictor groups.</p></dd>
+<dd><p>a sparse matrix whose columns are predictor groups.</p></dd>
 
 
 <dt id="arg-family-name-link-family-opts">family_name, link, family_opts<a class="anchor" aria-label="anchor" href="#arg-family-name-link-family-opts"></a></dt>

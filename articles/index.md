@@ -4,7 +4,7 @@
 
 - [Getting started with
   bartisan](https://ngreifer.github.io/bartisan/articles/bartisan.md):
-- [Causal inference with
+- [Causal Inference with
   BART](https://ngreifer.github.io/bartisan/articles/causal.md):
 - [Choosing between
   models](https://ngreifer.github.io/bartisan/articles/comparison.md):

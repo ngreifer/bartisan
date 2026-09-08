@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Causal inference with BART • bartisan</title>
+<title>Causal Inference with BART • bartisan</title>
 <!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
   window.MathJax = {
     chtml: {
@@ -16,7 +16,7 @@
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Causal inference with BART">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Causal Inference with BART">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -40,7 +40,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+<li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -77,11 +77,11 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Causal inference with BART</h1>
+      <h1>Causal Inference with BART</h1>
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-02</h4>
+            <h4 data-toc-skip class="date">2026-09-08</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/causal.Rmd" class="external-link"><code>vignettes/causal.Rmd</code></a></small>
       <div class="d-none name"><code>causal.Rmd</code></div>
@@ -103,7 +103,7 @@ implemented in <em>bartisan</em> to estimate treatment effects. This
 includes both standard BART as well as Bayesian causal forests (BCF),
 which is an improvement on traditional BART that works by fitting
 separate BART models for the outcome under control and for the treatment
-effect itself.</p>
+effect itself as a varying coefficient model.</p>
 <p>However, it’s important to remember that BART is not a “causal
 inference method”; it is just a method of estimating certain quantities,
 which often are interpretable as associations. The assumptions that turn
@@ -117,10 +117,12 @@ heart catheterization helps or harms critically ill patients <span class="citati
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ngreifer.github.io/cobalt/" class="external-link">cobalt</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://marginaleffects.com/" class="external-link">marginaleffects</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="confounding-is-the-whole-problem">Confounding is the whole problem<a class="anchor" aria-label="anchor" href="#confounding-is-the-whole-problem"></a>
+<h2 id="confounding">Confounding<a class="anchor" aria-label="anchor" href="#confounding"></a>
 </h2>
 <p>Catheterization was not randomized. Doctors chose it, and they chose
 it more often for patients who were already doing badly. Those patients
@@ -168,27 +170,30 @@ who receive RHC are more likely to die, and we do see that:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/with.html" class="external-link">with</a></span><span class="op">(</span><span class="va">rhc</span>, <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">death</span>, <span class="va">rhc</span>, <span class="va">mean</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      0      1 </span></span>
 <span><span class="co">#&gt; 0.6193 0.7115</span></span></code></pre></div>
-<p>However, that doesn’t mean RHC causes death; to distangle the effects
-of RHC from the confounding effects of pateitns characteristics, we need
-to adjust for them.</p>
+<p>However, that doesn’t mean RHC causes death; to disentangle the
+effects of RHC from the confounding effects of pateints’
+characteristics, we need to adjust for these characteristics.</p>
 </div>
 <div class="section level2">
-<h2 id="what-has-to-be-true">What has to be true<a class="anchor" aria-label="anchor" href="#what-has-to-be-true"></a>
+<h2 id="assumptions-for-causal-inference">Assumptions for Causal Inference<a class="anchor" aria-label="anchor" href="#assumptions-for-causal-inference"></a>
 </h2>
 <p>Several assumptions are required to interpret an adjusted effect
-estimate as causal, none of which the fit can check.</p>
-<p><strong>No unmeasured confounding.</strong> Every common cause of
+estimate as causal, none of which the fit can check:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>No unmeasured confounding.</strong> Every common cause of
 catheterization and death is in the model. Here that is the crux: the
 covariates include a physiological profile and the study’s own
 prognostic score, which is a serious attempt, but a doctor’s judgment at
-the bedside may not be fully captured by these fourteen variables.</p>
-<p><strong>Positivity.</strong> Every kind of patient could have
+the bedside may not be fully captured by these fourteen
+variables.</p></li>
+<li><p><strong>Positivity.</strong> Every kind of patient could have
 received the procedure or not. This one is partly checkable and is
-checked below.</p>
-<p><strong>Consistency.</strong> “Catheterization” names a single well
-defined intervention.</p>
-<p><strong>No interference.</strong> One patient’s treatment does not
-affect another’s outcome.</p>
+checked below.</p></li>
+<li><p><strong>Consistency.</strong> “Catheterization” names a single
+well defined intervention.</p></li>
+<li><p><strong>No interference.</strong> One patient’s treatment does
+not affect another’s outcome.</p></li>
+</ol>
 <p>The first is the one that usually fails and the one to be explicit
 about. State it as an assumption in what you write, rather than letting
 the interval imply it has been handled.</p>
@@ -201,9 +206,7 @@ inspect the fitted probabilities in both groups. BART is a good choice
 for this model too, for the same reason it is a good choice for the
 outcome: the functional form is not known.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ps_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">ps_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span></span>
 <span>  <span class="va">rhc</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span></span>
 <span>    <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span></span>
@@ -227,26 +230,25 @@ and the interval will not tell you that is what happened.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="the-estimator-g-computation">The estimator: g-computation<a class="anchor" aria-label="anchor" href="#the-estimator-g-computation"></a>
+<h2 id="the-estimator-g-computation">The Estimator: G-computation<a class="anchor" aria-label="anchor" href="#the-estimator-g-computation"></a>
 </h2>
 <p>To estimate the average treatment effect <span class="math inline">\(\tau_{\text{ATE}} = E[Y(1)] - E[Y(0)]\)</span>,
-which is a function of the unoabsevred potential outcoem <span class="math inline">\(Y(1)\)</span> and <span class="math inline">\(Y(0)\)</span>, we can use the assumptions above to
+which is a function of the unobserved potential outcomes <span class="math inline">\(Y(1)\)</span> and <span class="math inline">\(Y(0)\)</span>, we can use the assumptions above to
 express it as a function of observed quantities:</p>
-<p><span class="math display">\[
-E[Y(1)] - E[Y(0)] = E \left[ E[Y | X, A = 1] \right] - E \left[ E[Y | X,
-A = 0] \right]
-\]</span> To estimate <span class="math inline">\(E \left[ E[Y | X, A =
-a] \right] = \theta_a\)</span>, we use g-computation:</p>
-<p><span class="math display">\[
-\hat{\theta}_a = \frac{1}{n}\sum_{i=1}^n {\mu(a, x_i)}
-\]</span></p>
+<p><span class="math display">\[E[Y(1)] - E[Y(0)] = E \left[ E[Y | X, A
+= 1] \right] - E \left[ E[Y | X, A = 0] \right]\]</span> To estimate
+<span class="math inline">\(E \left[ E[Y | X, A = a] \right] =
+\theta_a\)</span>, we use g-computation <span class="citation">(<a href="#ref-snowdenImplementationGComputationSimulated2011">Snowden et
+al. 2011</a>)</span>:</p>
+<p><span class="math display">\[\hat{\theta}_a = \frac{1}{n}\sum_{i=1}^n
+{\mu(a, x_i)}\]</span></p>
 <p>where <span class="math inline">\(\mu(a, x_i)\)</span> is the
 predicted value from a regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(A\)</span> and <span class="math inline">\(X\)</span> for a unit with covariate profile <span class="math inline">\(X=x_i\)</span> and treatment <span class="math inline">\(A\)</span> set to <span class="math inline">\(a\)</span>. This estimator is sometimes also known
 as the “regression estimator” or the “plug-in estimator”.</p>
 <p>Here, we use traditional BART and BCF to model <span class="math inline">\(\mu(A, X)\)</span>. The rest of the analysis comes
 from the definitions above.</p>
 <div class="section level3">
-<h3 id="one-setting-to-change-first">One setting to change first<a class="anchor" aria-label="anchor" href="#one-setting-to-change-first"></a>
+<h3 id="controlling-sparsity">Controlling Sparsity<a class="anchor" aria-label="anchor" href="#controlling-sparsity"></a>
 </h3>
 <p>Before we fit the outcome model, we need to change one setting to
 make traditional BART suitable for estimating the ATE. The default
@@ -267,35 +269,47 @@ wasteful.</p>
 <div class="section level2">
 <h2 id="the-outcome-model">The outcome model<a class="anchor" aria-label="anchor" href="#the-outcome-model"></a>
 </h2>
-<p>We can fit the outcome model as follows:</p>
+<p>We can fit the outcome model as a simply binary BART regression of
+the outcome on the treatment and covariates:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span></span>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span></span>
 <span>                  <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span>
-<span>                data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span>, sparsity <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<span>                data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>                chains <span class="op">=</span> <span class="fl">4</span>, sparsity <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p>We include both the treatment and covariate in the formula’s
 right-hand side, set <code>family = binomial()</code> to model the
 binary outcome with logistic regression, and
-<code>sparsity = FALSE</code> to remove the sparsity-inducing prior.
-Normally, we would examine convergence diagnostics for this model to
-make sure it was fit correctly; see <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code>
-for more information on how to do that.</p>
+<code>sparsity = FALSE</code> to remove the sparsity-inducing prior. We
+could also have included the propensity score as a covariate, which is
+recommended by <span class="citation">Carnegie (<a href="#ref-carnegie2019">2019</a>)</span> to slightly improve
+performance (in this case it doesn’t affect the result). Normally, we
+would examine convergence diagnostics for this model to make sure it was
+fit correctly; see <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> for more
+information on how to do that.</p>
 </div>
 <div class="section level2">
 <h2 id="potential-outcomes">Potential outcomes<a class="anchor" aria-label="anchor" href="#potential-outcomes"></a>
 </h2>
-<p>The quantities underlying every effect below are the two average
+<p>The quantities underlying the effect estimate are the two average
 potential outcomes: the proportion who would die if every patient were
 catheterized, and if none were.
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::avg_predictions()</a></code> reports them
 directly.</p>
+<p>Before running any <em>marginaleffects</em> functions, we request
+that the estimates are summarized by the mean of the posterior
+distribution rather than the median, which is the default. This step is
+optional and doesn’t affect the credible intervals, but we do it here to
+facilitate interpretation.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Change the posterior center estimate to mean</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>marginaleffects_posterior_center <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Compute the estimated potential outcomes</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  rhc Estimate 2.5 % 97.5 %</span></span>
 <span><span class="co">#&gt;    0    0.631 0.602  0.660</span></span>
-<span><span class="co">#&gt;    1    0.694 0.654  0.729</span></span>
+<span><span class="co">#&gt;    1    0.694 0.656  0.729</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>The two rows are the estimates of <span class="math inline">\(E[Y(0)]\)</span> and <span class="math inline">\(E[Y(1)]\)</span>, each averaged over the observed
@@ -318,17 +332,17 @@ to report the risk ratio and its credible interval.&lt;/p&gt;'><sup>1</sup></a>:
 <span><span class="va">ate</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate  2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0.0629 0.0109  0.109</span></span>
+<span><span class="co">#&gt;    0.0626 0.0158   0.11</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
 <p>Under the assumptions above this is the average treatment effect:
 catheterization raises the probability of death by about 6 percentage
-points, with an interval running from roughly 1 to 11.</p>
+points, with an interval running from roughly 2 to 11.</p>
 </div>
 <div class="section level2">
-<h2 id="using-bayesian-causal-forests">Using Bayesian causal forests<a class="anchor" aria-label="anchor" href="#using-bayesian-causal-forests"></a>
+<h2 id="using-bayesian-causal-forests">Using Bayesian Causal Forests<a class="anchor" aria-label="anchor" href="#using-bayesian-causal-forests"></a>
 </h2>
 <p>Traditional BART shrinks the fitted function toward a constant; that
 shrinkage applies to everything the forest fits, including the part of
@@ -344,12 +358,12 @@ effect, which is the Bayesian causal forest (BCF) model, a special case
 of the varying coefficients BART model. <code><a href="../reference/bcf.html">bcf()</a></code> fits it.</p>
 <p>One specifies the control function in the model formula and
 identifies the treatment in the <code>treatment</code> argument.
-<code><a href="../reference/bcf.html">bcf()</a></code> then fits a varying coefficient BART model, the
-BCF.</p>
+<code><a href="../reference/bcf.html">bcf()</a></code> then fits a varying coefficient BART model, the BCF.
+By default, <code><a href="../reference/bcf.html">bcf()</a></code> estimate a propensity score using a
+logistic BART model and includes that as a covariate in the control
+function, as recommended by <span class="citation">Hahn et al. (<a href="#ref-hahn2020">2020</a>)</span>.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit_bcf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bcf.html">bcf</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span></span>
+<code class="sourceCode R"><span><span class="va">fit_bcf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bcf.html">bcf</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span></span>
 <span>                 <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span>
 <span>               treatment <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
 <span>               family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
@@ -365,52 +379,62 @@ BCF.</p>
 <span><span class="co">#&gt; Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span></span>
 <span><span class="co">#&gt; Observations: 1500</span></span>
 <span><span class="co">#&gt; Structure: 2 forests of 50 and 25 trees, soft decision rules</span></span>
-<span><span class="co">#&gt; Draws: 2000 kept across 4 chains after 500 warmup</span></span>
+<span><span class="co">#&gt; Draws: 3200 kept across 4 chains after 200 warmup</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Posterior means: b.rhc.0 = -0.229, b.rhc.1 = -0.173</span></span></code></pre></div>
+<span><span class="co">#&gt; Posterior means: b.rhc.0 = 0.00328, b.rhc.1 = -0.142</span></span></code></pre></div>
 <p>Using <code><a href="../reference/bcf.html">bcf()</a></code> rather than writing the varying coefficient
-BART model by hand sets five settings to improve effect estimation: the
+BART model by hand sets four settings to improve effect estimation: the
 effect gets a forest of its own, the estimated propensity score goes
 into the control function and not into the effect forest, the effect
 forest gets fewer trees because effect heterogeneity is usually simpler
-than a prognostic surface, <code>sparsity = FALSE</code> for the reason
-in the section above, and a binary treatment’s coding is drawn rather
-than fixed, so the answer does not depend on which arm was written as
-1.</p>
+than a prognostic surface, and a binary treatment’s coding is drawn
+rather than fixed, so the answer does not depend on which arm was
+written as 1. Note that <code>sparsity = FALSE</code> is not among them:
+the reason for it in the section above is that the prior can drop the
+predictor whose contrast we want, and here the treatment is the
+coefficient rather than a predictor the forest splits on, so nothing can
+drop it.</p>
 <p>The output is just like a regular BART model, so we can use
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> to extract the average treatment effect
 estimate.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit_bcf</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   0.00995 -0.0105 0.0397</span></span>
+<span><span class="co">#&gt;  Estimate    2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;    0.0488 -0.00118  0.105</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
 <p>Because the effect is a parameter of the model rather than a
 difference of predictions, it can be read off directly, one value per
-patient:</p>
+patient, by extracting the predictions from the treatment effect forest.
+We’ll exponentiate these to be on the odds ratio scale:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_bcf</span><span class="op">)</span><span class="op">[</span>, <span class="st">"rhc"</span><span class="op">]</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span>probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    0%   25%   50%   75%  100% </span></span>
-<span><span class="co">#&gt; 0.017 0.038 0.046 0.055 0.072</span></span></code></pre></div>
-<p>That column is the conditional effect for each patient, <strong>on
-the link scale</strong> – here a difference in log odds, because the
-outcome is binary. It is not the same number as the contrast above,
-which is on the probability scale, and for a binary outcome the
-probability scale is the one to report. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> is for
-looking at how the effect varies from patient to patient, not for
-reporting its size.</p>
-<p>For a family whose link is the identity, the two coincide exactly:
-the coefficient <em>is</em> the contrast, and averaging it gives the
-average treatment effect with nothing lost in between.</p>
-<p>None of this changes what has to be true for the number to be causal.
-It changes how the prior treats the effect, not whether the covariates
-account for selection.</p>
+<span><span class="co">#&gt; 1.105 1.253 1.300 1.344 1.447</span></span></code></pre></div>
+<p>This can also be computed using <em>marginaleffects</em> as
+follows:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">comp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">comparisons</a></span><span class="op">(</span><span class="va">fit_bcf</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>,</span>
+<span>                    comparison <span class="op">=</span> <span class="st">"lnor"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">comp</span><span class="op">$</span><span class="va">estimate</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span>probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    0%   25%   50%   75%  100% </span></span>
+<span><span class="co">#&gt; 1.105 1.253 1.300 1.344 1.447</span></span></code></pre></div>
+<p>Note that these effects are conditional effects, here reported as
+odds ratios, whereas we had previously reported the ATE as a risk
+difference. Remember that the marginal odds ratio (which we did not
+compute here) is <strong>not</strong> the average of the conditional
+odds ratios. However, for a family whose link is the identity, which
+we’ll examine below, the ATE <em>is</em> the average of the CATEs.</p>
 </div>
 <div class="section level2">
 <h2 id="a-second-example-a-continuous-outcome-and-the-att">A second example: a continuous outcome, and the ATT<a class="anchor" aria-label="anchor" href="#a-second-example-a-continuous-outcome-and-the-att"></a>
@@ -422,109 +446,97 @@ the ATT is what to report, and the outcome is often continuous rather
 than binary.</p>
 <p><code>lalonde</code>, from <em>cobalt</em>, is the standard example:
 a job training program, with earnings in 1978 as the outcome.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"lalonde"</span>, package <span class="op">=</span> <span class="st">"cobalt"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/with.html" class="external-link">with</a></span><span class="op">(</span><span class="va">lalonde</span>, <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">re78</span>, <span class="va">treat</span>, <span class="va">mean</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    0    1 </span></span>
 <span><span class="co">#&gt; 6984 6349</span></span></code></pre></div>
-<p>Participants earned less than non-participants. Taken at face value
-the program looks harmful, and it is not: participants were selected for
-being out of work, so they would have earned less anyway. This is
-confounding in the opposite direction to the catheterization example,
-and it is why the raw comparison is worth showing before the adjusted
-one.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit_earn</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span></span>
-<span>  <span class="va">re78</span> <span class="op">~</span> <span class="va">treat</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">educ</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span> <span class="va">nodegree</span> <span class="op">+</span> <span class="va">re74</span> <span class="op">+</span> <span class="va">re75</span>,</span>
-<span>  data <span class="op">=</span> <span class="va">lalonde</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">dpm</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span>, sparsity <span class="op">=</span> <span class="cn">FALSE</span></span>
+<p>Participants earned less than non-participants. Taken at face value,
+the program looks harmful, but that doesn’t mean it actually is:
+participants were selected for being out of work, so they would have
+earned less anyway. This is confounding in the opposite direction to the
+catheterization example, and it is why the raw comparison is worth
+showing before the adjusted one.</p>
+<p>Below, we fit the BCF model, this time setting
+<code>family = dpm()</code>, which is the default for a numeric outcome
+and makes sense here. Earnings are heavily skewed with a spike at zero,
+which a single normal describes badly; the Dirichlet process mixture
+estimates the shape instead of assuming it, and costs almost nothing
+when a normal would have done. Alternatively,
+<code>family = tweedie()</code> can also work well for this type of
+outcome. See <code><a href="../articles/families.html">vignette("families")</a></code>.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Fit the BCF model</span></span>
+<span><span class="va">fit_earn_bcf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bcf.html">bcf</a></span><span class="op">(</span></span>
+<span>  <span class="va">re78</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">educ</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span> <span class="va">nodegree</span> <span class="op">+</span> <span class="va">re74</span> <span class="op">+</span> <span class="va">re75</span>,</span>
+<span>  treatment <span class="op">=</span> <span class="op">~</span><span class="va">treat</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">lalonde</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">dpm</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  chains <span class="op">=</span> <span class="fl">4</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit_earn</span>, variables <span class="op">=</span> <span class="st">"treat"</span>,</span>
+<span><span class="co"># Compute the ATT</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit_earn_bcf</span>, variables <span class="op">=</span> <span class="st">"treat"</span>,</span>
 <span>                newdata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">treat</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;       327  -242   1037</span></span>
+<span><span class="co">#&gt;       110  -299    657</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: treat</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
-<p><code>newdata = subset(treat == 1)</code> is what makes this the ATT:
-the individual contrasts are averaged over the participants alone rather
-than over everyone. The adjusted estimate is positive where the raw
-difference was negative, though its interval is wide enough that the
-size is not settled.</p>
-<p><code>family = dpm()</code> is the default for a numeric outcome and
-the right choice here. Earnings are heavily skewed with a spike at zero,
-which a single normal describes badly; the Dirichlet process mixture
-estimates the shape instead of assuming it, and costs almost nothing
-when a normal would have done. See
-<code><a href="../articles/families.html">vignette("families")</a></code>.</p>
 <p>The two potential outcomes are worth reporting alongside the
 difference, since a few hundred dollars means something different
 against a baseline of six thousand than it would against six
 hundred:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit_earn</span>, variables <span class="op">=</span> <span class="st">"treat"</span>,</span>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit_earn_bcf</span>, variables <span class="op">=</span> <span class="st">"treat"</span>,</span>
 <span>                newdata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">treat</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  treat Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;      0     6309  5658   6824</span></span>
-<span><span class="co">#&gt;      1     6637  6186   7075</span></span>
+<span><span class="co">#&gt;      0     5592  2979   7701</span></span>
+<span><span class="co">#&gt;      1     5703  3079   7864</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
-<p>Everything said above about identification applies here unchanged.
-The observational Lalonde sample is famous precisely because its
-covariates are <em>not</em> enough to recover the experimental
-benchmark, which is a caution rather than a counterexample: it is what
-the assumption failing looks like.</p>
-</div>
-<div class="section level2">
-<h2 id="moderation">Moderation<a class="anchor" aria-label="anchor" href="#moderation"></a>
-</h2>
-<p>A forest is free to fit a different effect for every covariate
-pattern, so asking whether the effect differs across groups needs no
-interaction term and no refit. <code>by</code> splits the average.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  card Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no    0.0644 0.00944  0.114</span></span>
-<span><span class="co">#&gt;   yes   0.0596 0.00299  0.108</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Term: rhc</span></span>
-<span><span class="co">#&gt; Type: response</span></span>
-<span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
-<p>The estimates differ a little between patients with and without
-cardiovascular disease. It is tempting to read a difference like that as
-moderation, and more tempting still when the two intervals do not
-overlap equally or when one covers zero and the other does not. Neither
-reading is a test. Comparing two intervals says nothing about whether
-the quantities they cover differ, because the comparison that matters
-has an uncertainty of its own that neither interval reports.</p>
-<p>The question is whether they differ from each other, which needs the
-difference itself:</p>
+<p>Now, we can also look at the distribution of the conditional effect
+estimates, the average of which (among the treated) is equal to the ATT
+(unlike in the binary example above).</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span>,</span>
-<span>                hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    Hypothesis Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  (yes) - (no) -0.00309 -0.0512 0.0211</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Type: response</span></span></code></pre></div>
-<p>The difference is small with an interval covering zero. There is no
-evidence of moderation by cardiovascular disease here, and the subgroup
-estimates should be read as two noisy estimates of one common
-effect.</p>
-<p>Detecting moderation needs much more data than estimating a main
-effect, and a flexible model does not change that. What it changes is
-that you are not required to guess the form of the interaction in
-advance.</p>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_earn_bcf</span><span class="op">)</span><span class="op">[</span>, <span class="st">"treat"</span><span class="op">]</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">lalonde</span><span class="op">$</span><span class="va">treat</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span>probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;     0%    25%    50%    75%   100% </span></span>
+<span><span class="co">#&gt; -56.68  83.84 100.18 130.94 243.74</span></span></code></pre></div>
+<p>We can plot these conditional effects in a kind of forest plot, which
+makes it easier to see the degree of effect heterogeneity and whether
+any of the conditional effects are distinguishable from zero:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Compute the CATEs and their CI</span></span>
+<span><span class="va">comp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">comparisons</a></span><span class="op">(</span><span class="va">fit_earn_bcf</span>, variables <span class="op">=</span> <span class="st">"treat"</span>,</span>
+<span>                    newdata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">treat</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">estimate</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Plot the CATEs</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">comp</span>,</span>
+<span>       <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">comp</span><span class="op">)</span>, y <span class="op">=</span> <span class="va">estimate</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="fl">0</span>, color <span class="op">=</span> <span class="st">"blue"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_linerange.html" class="external-link">geom_errorbar</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">conf.low</span>, ymax <span class="op">=</span> <span class="va">conf.high</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_linedraw</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>axis.text.x <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        axis.ticks.x <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        panel.grid.major.x <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>        panel.grid.minor.x <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>y <span class="op">=</span> <span class="st">"CATE"</span>, x <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+<p><img src="causal_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p>We can see that in addition to there being a positive ATT, most CATEs
+are estimated as positive by the BCF. None of the CATE credible
+intervals exclude zero.</p>
 </div>
 <div class="section level2">
-<h2 id="what-the-interval-means">What the interval means<a class="anchor" aria-label="anchor" href="#what-the-interval-means"></a>
+<h2 id="what-the-credible-interval-means">What the credible interval means<a class="anchor" aria-label="anchor" href="#what-the-credible-interval-means"></a>
 </h2>
 <p>The posterior interval is a credible interval for the estimand under
 the model and under the identification assumptions. It covers
@@ -535,9 +547,7 @@ assumptions hold.</p>
 estimate and leaves the interval where it was. This is why a sensitivity
 analysis, asking how strong a confounder would have to be to explain the
 result away, is a more informative addition than any refinement of the
-model. The <code>sensemakr</code> and <code>EValue</code> packages do
-this and work from the estimate and its standard error, which
-<code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> provides.</p>
+model.</p>
 </div>
 <div class="section level2">
 <h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
@@ -551,6 +561,12 @@ should happen before any of this is interpreted.</p>
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-carnegie2019" class="csl-entry">
+Carnegie, Nicole Bohme. 2019. <span>“Comment: Contributions of Model
+Features to <span>BART</span> Causal Inference Performance Using
+<span>ACIC</span> 2016 Competition Data.”</span> <em>Statistical
+Science</em> 34 (1): 90–93. <a href="https://doi.org/10.1214/18-STS682" class="external-link">https://doi.org/10.1214/18-STS682</a>.
+</div>
 <div id="ref-connors1996" class="csl-entry">
 Connors, Alfred F., Theodore Speroff, Neal V. Dawson, et al. 1996.
 <span>“The Effectiveness of Right Heart Catheterization in the Initial
@@ -573,6 +589,12 @@ Discussion).”</span> <em>Bayesian Analysis</em> 15 (3): 965–1056. <a href="h
 Hill, Jennifer L. 2011. <span>“Bayesian Nonparametric Modeling for
 Causal Inference.”</span> <em>Journal of Computational and Graphical
 Statistics</em> 20 (1): 217–40. <a href="https://doi.org/10.1198/jcgs.2010.08162" class="external-link">https://doi.org/10.1198/jcgs.2010.08162</a>.
+</div>
+<div id="ref-snowdenImplementationGComputationSimulated2011" class="csl-entry">
+Snowden, Jonathan M., Sherri Rose, and Kathleen M. Mortimer. 2011.
+<span>“Implementation of g-Computation on a Simulated Data Set:
+Demonstration of a Causal Inference Technique.”</span> <em>American
+Journal of Epidemiology</em> 173 (7): 731–38. <a href="https://doi.org/10.1093/aje/kwq472" class="external-link">https://doi.org/10.1093/aje/kwq472</a>.
 </div>
 </div>
 </div>

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-A forest has no coefficients. There is no table of slopes to read, and
+A forest has no coefficients: there is no table of slopes to read, and
 no standard error to put beside one. This is the part of the workflow
 that changes most when moving from
 [`glm()`](https://rdrr.io/r/stats/glm.html) to BART, and it is the part
@@ -20,12 +20,23 @@ This vignette covers the questions worth asking and how to phrase them.
 is the shorter tour, and this expands its section on interpreting the
 fit.
 
+In this guide, we will start from the three kinds of question the
+package answers and then work through them in turn. First we’ll take
+average effects and the choice of step for a numeric predictor, along
+with the one prior setting (`sparsity`) that can quietly attenuate a
+contrast. Next we’ll split those effects by subgroup and test a
+moderation with the difference of the two, then plot the shape of a
+fitted relationship and choose the scale on which an effect is reported.
+Finally we’ll write the effect as a parameter rather than a contrast
+with [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md), and
+close with what none of these estimates can be taken to mean.
+
 ``` r
 
 library(bartisan)
 library(marginaleffects)
 
-data(rhc)
+data("rhc")
 
 model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
   hema + pafi + paco2 + crea + surv2m + card
@@ -35,7 +46,7 @@ set.seed(2026)
 fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
 ```
 
-## Three questions
+## Three Questions
 
 Everything below is one of three things.
 
@@ -47,14 +58,14 @@ gives one per row,
 averages them.
 
 A **comparison** is the difference between two predictions that differ
-in one variable. This is the closest thing to a regression coefficient
-and it is what you usually want.
+in one variable. This is the closest thing to a regression coefficient,
+and it is usually what we want.
 
 A **slope** is the derivative of the prediction with respect to a
 numeric variable. It is the least useful of the three here, for a reason
 given below.
 
-## Average effects
+## Average Effects (`avg_comparisons()`)
 
 [`avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
 with no `variables` argument gives every predictor at once, which for
@@ -65,40 +76,43 @@ this model is a long table. A few at a time is easier to read:
 avg_comparisons(fit, variables = c("rhc", "age", "card"))
 #> 
 #>  Term Contrast Estimate    2.5 %  97.5 %
-#>  age  +1        0.00316  0.00149 0.00472
-#>  card yes - no  0.02453 -0.00494 0.08379
-#>  rhc  1 - 0     0.05776  0.00000 0.10727
+#>  age  +1        0.00317  0.00150 0.00491
+#>  card yes - no  0.00000 -0.00246 0.07933
+#>  rhc  1 - 0     0.05962  0.00000 0.11124
 #> 
 #> Type: response
 ```
 
-Read this as a coefficient table. Each estimate is an average difference
-in predicted probability, holding everything else at each patient’s own
-values: for a factor, between the levels named in the `Contrast` column,
-and for a numeric predictor, for an increase of one unit. `rhc` is coded
-0 and 1, so its one-unit contrast is the treatment effect.
+This reads as a coefficient table. Each estimate is an average
+difference in predicted probability, holding everything else at each
+patient’s own values: for a factor, between the levels named in the
+`Contrast` column, and for a numeric predictor, for an increase of one
+unit. `rhc` is coded `0` and `1`, so its one-unit contrast is the
+treatment effect.
 
-### The splitting prior, if a contrast is the point
+### The Splitting Prior and a Contrast (`sparsity`)
 
 An estimate here can come back as exactly zero, and an interval bound
-with it. That is not a rounding artifact. The default splitting prior is
-a variable-selection prior, so in a draw where it uses the predictor in
-no tree the prediction does not depend on it and the contrast is exactly
+with it; that is not a rounding artifact. The default splitting prior is
+a variable-selection prior (i.e., one that can leave a predictor out of
+the forest altogether), so in a draw where it uses the predictor in no
+tree the prediction does not depend on it and the contrast is exactly
 zero; the posterior of the contrast is a mixture with a point mass
 there, holding whatever share of draws dropped the predictor.
 
-It matters more than it sounds. On a simulated effect of 0.2 against
+It matters more than it sounds: on a simulated effect of .2 against
 residual noise of 1, the prior halved the estimate and its 95% interval
-covered the truth 60% of the time. A strong effect is untouched, because
-the prior never has reason to drop a predictor that is earning its
-splits, so this is a weak-signal problem rather than a general one.
+covered the truth only 60% of the time. A strong effect is untouched,
+because the prior never has reason to drop a predictor that is earning
+its splits, so this is a weak-signal problem rather than a general one.
 
-If a contrast is what you are reporting, fit with `sparsity = FALSE`, or
-with `split_prior`, which fixes the weights and so cannot drop anything.
+If a contrast is what we are reporting, we fit with `sparsity = FALSE`,
+or with `split_prior`, which fixes the weights (i.e., the probability
+that each predictor is chosen for a split) and so cannot drop anything.
 [`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 has the measurements for both.
 
-### Choosing the step for a numeric predictor
+### The Step for a Numeric Predictor (`variables`)
 
 One unit is the default and is often the wrong scale. One point of an
 illness score is a small change; ten points is a difference someone
@@ -109,18 +123,19 @@ would notice.
 avg_comparisons(fit, variables = list(aps = 10))
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>     0.013     0 0.0295
+#>    0.0124     0 0.0291
 #> 
 #> Term: aps
 #> Type: response
 #> Comparison: +10
 ```
 
-Always say which step you used when reporting a numeric effect. Unlike a
-linear model, the answer here is not ten times the one-unit effect,
-because the relationship is not assumed to be a straight line.
+A numeric effect should always be reported together with the step it was
+computed at. Unlike a linear model, the answer here is not ten times the
+one-unit effect, because the relationship is not assumed to be a
+straight line.
 
-## Effects for subgroups
+## Effects for Subgroups (`by`)
 
 `by` splits the average by a grouping variable.
 
@@ -129,8 +144,8 @@ because the relationship is not assumed to be a straight line.
 avg_comparisons(fit, variables = "rhc", by = "card")
 #> 
 #>  card Estimate 2.5 % 97.5 %
-#>   no    0.0582     0  0.109
-#>   yes   0.0571     0  0.108
+#>   no    0.0601     0  0.113
+#>   yes   0.0585     0  0.112
 #> 
 #> Term: rhc
 #> Type: response
@@ -140,9 +155,9 @@ avg_comparisons(fit, variables = "rhc", by = "card")
 The two subgroup estimates are close, and both intervals reach zero.
 
 A common mistake is to stop here and conclude that the effect differs
-between groups. That comparison is not a test. The question is whether
+between groups; that comparison is not a test. The question is whether
 the two effects differ from each other, which needs the difference of
-the two, with its own interval.
+the two (i.e., a difference of differences) with an interval of its own.
 
 ``` r
 
@@ -150,15 +165,17 @@ avg_comparisons(fit, variables = "rhc", by = "card",
                 hypothesis = ~pairwise)
 #> 
 #>    Hypothesis  Estimate   2.5 % 97.5 %
-#>  (yes) - (no) -0.000542 -0.0197 0.0135
+#>  (yes) - (no) -0.000333 -0.0224 0.0118
 #> 
 #> Type: response
 ```
 
-The difference is small with an interval covering zero. There is no
+The difference is small with an interval covering zero, so there is no
 evidence here that the effect of catheterization depends on
 cardiovascular disease. This is how to test an interaction in a model
-that never had an interaction term to test.
+that never had an interaction term to test, and the interval on that
+difference is the only thing that separates a real interaction from two
+subgroup estimates that merely look different.
 
 [`avg_predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html)
 does the same thing for predictions rather than differences, which is
@@ -169,17 +186,18 @@ useful for describing groups:
 avg_predictions(fit, by = "card")
 #> 
 #>  card Estimate 2.5 % 97.5 %
-#>   no     0.635 0.607  0.660
-#>   yes    0.690 0.656  0.731
+#>   no     0.637 0.608  0.662
+#>   yes    0.686 0.654  0.727
 #> 
 #> Type: response
 ```
 
-## The shape of a relationship
+## The Shape of a Relationship (`plot_predictions()`)
 
-Averages hide shape. To see the fitted function, plot predictions
-against one predictor with everything else held fixed. Asking for the
-numbers rather than the plot gives more control over how it is drawn:
+Averages hide shape. The fitted function is seen by plotting predictions
+against one predictor with everything else held fixed; below we ask for
+the numbers rather than the plot, which gives more control over how it
+is drawn:
 
 ``` r
 
@@ -197,12 +215,14 @@ ggplot(curve, aes(aps, estimate)) +
 ![](effects_files/figure-html/pdp-1.png)
 
 The probability of death rises with the illness score, and the rise is
-not a straight line on any scale the model was told about. Nothing was
+not a straight line on any scale the model was told about; nothing was
 specified to find the shape.
 
 The band is a credible interval and is wide at the top, where few
-patients were that sick. Treat the ends with more caution than the
-middle.
+patients were that sick, so the ends of a curve deserve more caution
+than the middle: with little data out there the forest shrinks its
+predictions toward the overall mean, which flattens the curve at both
+edges of the predictor’s range.
 
 Adding a second variable shows how the shape differs across groups.
 
@@ -221,11 +241,11 @@ ggplot(curve2, aes(aps, estimate, colour = factor(rhc))) +
 
 ![](effects_files/figure-html/pdp2-1.png)
 
-The two curves run close together. If they diverged, that would be a
+The two curves run close together; if they diverged, that would be a
 moderation worth reporting, and the difference of differences above is
 how to put a number on it.
 
-## Scales
+## Scales (`type`)
 
 `type` chooses the scale on which predictions are made and therefore the
 scale on which effects are reported.
@@ -235,7 +255,7 @@ scale on which effects are reported.
 avg_comparisons(fit, variables = "rhc", type = "link")
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>     0.308     0  0.583
+#>     0.319     0    0.6
 #> 
 #> Term: rhc
 #> Type: link
@@ -244,22 +264,22 @@ avg_comparisons(fit, variables = "rhc", type = "link")
 
 On the link scale this is a difference in log-odds, which is what a
 logistic regression coefficient is. It is the less useful of the two
-here. A difference in probability is interpretable without reference to
-the model, and it is the number a reader can act on; a difference in
+here: a difference in probability is interpretable without reference to
+the model and is the number a reader can act on, whereas a difference in
 log-odds needs a baseline before it means anything.
 
 For survival families, `type = "survival"` with a `times` argument gives
 a difference in survival probability at a horizon. See
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md).
 
-## Why slopes are unreliable here
+## Unreliable Slopes (`avg_slopes()`)
 
 [`avg_slopes()`](https://rdrr.io/pkg/marginaleffects/man/slopes.html)
-reports a derivative. It is available and it will return a number, but
+reports a derivative; it is available and it will return a number, but
 that number should not be trusted for a fit made with the default
 settings.
 
-The reason is the predictor transform. By default numeric predictors are
+The reason is the predictor transform: by default numeric predictors are
 mapped through their empirical distribution function before the trees
 see them, which makes the fitted function a step function of the
 original predictor. Between two observed values the prediction does not
@@ -267,15 +287,15 @@ change at all, so the difference quotient is either exactly zero or a
 whole step divided by a very small number, depending on where the step
 lands.
 
-Use
+Instead we use
 [`comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-with a step you can interpret, as with `aps = 10` above. If a genuine
-derivative is needed, refit with `x_transform = "range"` in
+with a step we can interpret, as with `aps = 10` above. If a genuine
+derivative is needed, we refit with `x_transform = "range"` in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
-which is linear and does have one. This is documented at
+which is linear and so does have one. This is documented at
 `?bartisan-marginaleffects`.
 
-## When the coefficient is the thing you want
+## Varying Coefficients (`vc()`)
 
 Everything above reads an effect out of a fitted surface by asking the
 model what it predicts under two versions of the data. There is another
@@ -301,13 +321,13 @@ fit_vc <- bartisan(death ~ age + sex + race + edu + aps + meanbp + resp +
                    sparsity = FALSE)
 
 head(coef(fit_vc))
-#>          rhc
-#> [1,] 0.04875
-#> [2,] 0.02698
-#> [3,] 0.01752
-#> [4,] 0.03200
-#> [5,] 0.02834
-#> [6,] 0.02557
+#>         rhc
+#> [1,] 0.4305
+#> [2,] 0.2133
+#> [3,] 0.2268
+#> [4,] 0.3200
+#> [5,] 0.2755
+#> [6,] 0.2717
 ```
 
 [`coef()`](https://rdrr.io/r/stats/coef.html) returns one value per
@@ -328,12 +348,12 @@ up for the causal case.
 
 Two things worth knowing before reaching for it.
 
-The effect is **linear in the covariate** unless you say otherwise. For
-a binary treatment that is no assumption at all, since there are only
-two values. For a continuous predictor it says the effect is
-proportional to it, which is a real restriction. Letting the
-coefficient’s forest split on the covariate itself removes it, and then
-the effect varies across the covariate’s own range:
+The effect is **linear in the covariate** unless we say otherwise. For a
+binary treatment that is no assumption at all, since there are only two
+values. For a continuous predictor it says the effect is proportional to
+it, which is a real restriction. Letting the coefficient’s forest split
+on the covariate itself removes it, and then the effect varies across
+the covariate’s own range:
 
 ``` r
 
@@ -359,22 +379,16 @@ a covariate can have a coefficient on more than one of them:
 
 # The effect of `z` on the mean, and separately on the spread.
 bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2 + vc(z)),
-         data = d, family = location_scale())
+         data = d, family = gaussian_ls())
 ```
 
 [`coef()`](https://rdrr.io/r/stats/coef.html) then returns one column
 per coefficient, named `mean:z` and `log_sd:z` for the forests they come
 from, which is also how per-forest settings like `num_trees` are keyed.
 [`?vc`](https://ngreifer.github.io/bartisan/reference/vc.md) covers the
-rest, including the one family that refuses this. With it in both, the
-two are not separately identified: any function of it can move between
-them. Writing the covariate only inside
-[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) is what
-keeps them apart, and
-[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-warns if the formula does otherwise.
+rest, including the one family that refuses this.
 
-## What these are not
+## What These Estimates Are Not
 
 Everything here is a description of the fitted model.
 [`avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
@@ -385,13 +399,13 @@ catheterization, so for this fit that is a strong assumption.
 [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
 covers what is needed.
 
-The intervals are posterior credible intervals under the model. They
+The intervals are posterior credible intervals under the model: they
 cover the uncertainty in the fitted function, and they do not cover the
 possibility that the model is missing a confounder, that the outcome is
 measured with bias, or that the sample is not the population of
 interest.
 
-## Where to go next
+## Where to Go Next
 
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md)
 covers which predictors the forest uses, which is a different question

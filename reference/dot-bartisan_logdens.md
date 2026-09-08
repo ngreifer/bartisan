@@ -21,7 +21,7 @@ time.
 
 - weights:
 
-  prior weights.
+  `numeric`; the prior weights.
 
 - eta_draws:
 

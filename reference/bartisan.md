@@ -4,19 +4,12 @@ Fits a BART model in which the response distribution is arbitrary rather
 than restricted to the conditionally conjugate cases, using the
 Laplace-approximation reversible-jump sampler of Linero (2025). Decision
 rules may be soft, as in Linero and Yang (2018), which gives smoother
-fits than the step functions of standard BART.
-
-The interface deliberately mirrors
-[`stats::glm()`](https://rdrr.io/r/stats/glm.html): a formula, a data
-frame and a family. Ordinary
-[stats::family](https://rdrr.io/r/stats/family.html) objects work
-unchanged, including their links, and the extra families that
-[`glm()`](https://rdrr.io/r/stats/glm.html) has no counterpart for are
+fits than the step functions of standard BART. The interface mirrors
+that of [`stats::glm()`](https://rdrr.io/r/stats/glm.html): a formula, a
+data frame, and a family, with the families that
+[`glm()`](https://rdrr.io/r/stats/glm.html) has no counterpart for
 documented at
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-along with
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-for a likelihood of your own.
+[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 
 ## Usage
 
@@ -53,87 +46,127 @@ bartisan(
   under "Several additive predictors", which also gives the name of each
   forest so the list can be named instead of ordered:
 
-      bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = location_scale())
+      bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = gaussian_ls())
       bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
-               family = location_scale())
+               family = gaussian_ls())
 
   One formula applies to every forest, which is the ordinary case. A
   predictor left out of one forest's formula is still in the data and is
   never split on by that forest.
 
+  **A formula naming no predictor at all makes that parameter a
+  constant.** `~ 1` leaves its forest nothing to split on, so every tree
+  in it is a stump and the forest is a single drawn scalar rather than a
+  function of the predictors. This works for every family that takes
+  more than one formula, and it is how a nuisance parameter is asked for
+  without a family that has one built in:
+  [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  with `~ 1` on its scale is
+  [`gaussian()`](https://rdrr.io/r/stats/family.html) with its drawn
+  `sigma`,
+  [`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  with `~ 1` is `Gamma("log")` with its drawn shape, and
+  [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  with `~ 1` on its inflation part is the ordinary zero-inflated Poisson
+  with one structural-zero probability. The scalar is drawn under the
+  leaf prior rather than under the prior the built-in family would use,
+  so the two agree to within that difference rather than exactly.
+
+      # the scale free to vary, then held constant
+      bartisan(y ~ x1 + x2, data = d, family = gaussian_ls())
+      bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = gaussian_ls())
+
   [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) terms
   are read out of each formula in turn, so a parameter has the varying
   coefficients its own formula asks for and no others. That makes the
-  forests two-dimensional – one axis the parameter, the other the
-  coefficient – and the names below are what per-forest settings are
+  forests two-dimensional (one axis the parameter, the other the
+  coefficient), and the names below are what per-forest settings are
   keyed by:
 
       # forests: mean, mean:z, log_sd
       bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-               family = location_scale())
+               family = gaussian_ls())
 
       # one formula reaches every parameter, so both get a coefficient of `z`
-      bartisan(y ~ x1 + x2 + vc(z), data = d, family = location_scale())
+      bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
 
 - data:
 
-  a data frame containing the variables in `formula`.
+  a data frame containing the variables named in `formula`.
 
 - family:
 
-  the response distribution, as a
-  [stats::family](https://rdrr.io/r/stats/family.html) object, one of
+  the response distribution, given as a
+  [stats::family](https://rdrr.io/r/stats/family.html) object, as one of
   the families in
   [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-  or a name. The default, `NULL`, reads one off the response and says
-  which it chose; see Details for the rules and for what is supported.
+  or as the name of either. A `family` object is accepted when the
+  distribution it names is one this package implements, since the
+  likelihood is the package's rather than the object's: a `family`
+  object carries a link and a variance function and not a density, so
+  one naming anything else (e.g.,
+  [stats::inverse.gaussian](https://rdrr.io/r/stats/family.html), or a
+  Tweedie from another package) is an error rather than something a
+  likelihood can be built from, and
+  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  is the route for those. Links are used as supplied, and a link the
+  package does not compile is composed onto the scale its family works
+  on. Default is `NULL`, in which case the family is read off the
+  response and a message reports the choice; see Details for the rules.
 
 - weights:
 
-  optional prior weights. For a binomial response given as proportions,
-  these are the numbers of trials, as in
+  optional; prior weights, one per observation. For a binomial response
+  given as proportions, these are the numbers of trials, as in
   [`glm()`](https://rdrr.io/r/stats/glm.html).
 
 - offset:
 
-  optional known component of the additive predictor, on the link scale.
+  optional; a known component of the additive predictor, on the link
+  scale.
 
 - subset:
 
-  optional vector specifying a subset of rows to use.
+  optional; a vector specifying the subset of rows to use.
 
 - na.action:
 
-  how to handle missing values. The default,
-  [stats::na.pass](https://rdrr.io/r/stats/na.fail.html), keeps rows
-  whose *predictors* are missing and lets the splitting rules decide
-  where they go, which is what the trees are able to do and
+  how missing values are handled. Default is
+  [stats::na.pass](https://rdrr.io/r/stats/na.fail.html), which keeps
+  rows whose *predictors* are missing and lets the splitting rules
+  decide where they go, which is something the trees can do and
   [`lm()`](https://rdrr.io/r/stats/lm.html) and
-  [`glm()`](https://rdrr.io/r/stats/glm.html) are not; see Details. Pass
+  [`glm()`](https://rdrr.io/r/stats/glm.html) cannot; see Details. Pass
   [stats::na.omit](https://rdrr.io/r/stats/na.fail.html) to drop any row
-  with a missing value anywhere instead. Rows with a missing response,
-  weight or offset are dropped either way, with a warning, since there
-  is nothing to fit them to.
+  with a missing value anywhere instead. Note that rows with a missing
+  response, weight, or offset are dropped either way, with a warning,
+  since there is nothing to fit them to.
 
 - control:
 
-  a list of sampler and prior settings from
-  [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md).
+  a `<bartisan_control>` object; the output of a call to
+  [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
+  containing the sampler and prior settings.
 
 - ...:
 
   further arguments to
-  [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md).
-  They are merged into `control`, overriding any value given there, so
+  [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
+  which are merged into `control` and override any value given there, so
   that `bartisan(..., num_trees = 20)` and
   `bartisan(..., control = bartisan_control(num_trees = 20))` are the
-  same call. Names that are not arguments of
+  same call. A name that is not an argument of
   [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-  are an error rather than being silently ignored.
+  is an error rather than being silently ignored.
 
 ## Value
 
-An object of class `bartisan`, a list with elements including:
+A `<bartisan_fit>` object, a list with the following components among
+others. Note that convergence diagnostics are not among them: computing
+R-hat and the effective sample sizes for every observation costs more
+than the sampling does, so it is
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)'s
+work and happens when it is asked for.
 
 - `eta`:
 
@@ -161,17 +194,6 @@ An object of class `bartisan`, a list with elements including:
   determines where [`predict()`](https://rdrr.io/r/stats/predict.html)
   will accept one.
 
-- `rhat`:
-
-  a data frame of convergence diagnostics, when more than one chain was
-  run: rank-normalized folded split R-hat and the bulk and tail
-  effective sample sizes (Vehtari et al. 2021) for the log likelihood,
-  the leaf scales, the nuisance parameters and the additive predictor.
-  R-hat above about 1.01 says the chains have not agreed; an effective
-  sample size below about 400 says the run is too short for the quantity
-  it belongs to, and the tail column is the one that governs interval
-  endpoints.
-
 - `sigma_mu`, `bandwidth`:
 
   draws of the leaf standard deviation and, for soft rules, the per-tree
@@ -181,7 +203,17 @@ An object of class `bartisan`, a list with elements including:
 
   the log likelihood at each draw.
 
-## What the sampler does
+- `control`:
+
+  the `<bartisan_control>` object the fit used, with any settings given
+  in `...` merged in. Its `augment` element is a `logical` saying
+  whether a rewriting of the likelihood was applied to this fit, rather
+  than the families one was permitted for; what was asked for remains in
+  `attr(control, "supplied")`.
+
+## Details
+
+### What the Sampler Does
 
 Standard BART relies on the leaf parameters being integrable in closed
 form, which restricts it to a Gaussian response, or to models that can
@@ -199,15 +231,14 @@ predictor. Families whose response has more than one unconstrained
 parameter, such as
 [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
-[`location_scale()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+[`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 carry one forest per parameter. Because that is the whole interface, it
 can be reached from R:
 [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 takes the log density as an R function and differences it for the
-derivatives, and a link the package does not compile is composed onto
-the scale its family works on the same way.
+derivatives.
 
-## The family is inferred when you do not name one
+### Inferring the Family
 
 `family` may be left alone, in which case it is read off the response:
 
@@ -221,8 +252,8 @@ the scale its family works on the same way.
 | two-column matrix of successes and failures | [`binomial()`](https://rdrr.io/r/stats/family.html) |
 | anything else | [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 
-A message reports the choice. Naming `family` yourself is what silences
-it, which is the same thing you would do to change the choice.
+A message reports the choice, and naming `family` is what silences it,
+which is also what changes it.
 
 Two of these are worth saying out loud. A **count** is not inferred as
 [`poisson()`](https://rdrr.io/r/stats/family.html): a non-negative
@@ -230,11 +261,11 @@ integer response is often Poisson and often not, and the Poisson
 variance assumption is strong enough that making it silently would be a
 modeling decision taken on the caller's behalf. Gaussian is the weaker
 guess and the one whose failure is easy to see. And a numeric response
-with exactly two values that are *not* zero and one – `c(1, 2)`, say –
-is Gaussian rather than binomial, because which of the two counts as the
+with exactly two values that are *not* zero and one (e.g., `c(1, 2)`) is
+Gaussian rather than binomial, because which of the two counts as the
 success is not something to guess at.
 
-## Soft decision rules
+### Soft Decision Rules
 
 By default a decision rule is a smooth gate rather than a step, so an
 observation reaches every leaf with some weight and the fitted function
@@ -242,20 +273,18 @@ is smooth. `gate` in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 chooses both whether the rules are soft and, if they are, the gate's
 shape; the default is the bounded `"smoothstep"`, and `"logistic"` is
-Linero and Yang's (2018) original. This costs more per iteration, since
-a leaf now touches every observation rather than the ones inside its
-cell, and it makes the leaf parameters of a tree dependent on one
-another. Combining soft rules with a non-conjugate likelihood is an
+Linero and Yang's (2018) original. Soft rules cost more per iteration,
+since a leaf now touches every observation rather than only the ones
+inside its cell, and they make the leaf parameters of a tree dependent
+on one another. Combining them with a non-conjugate likelihood is an
 extension of Linero (2025), which leaves it as an open problem; it is
 handled here by giving the reversible-jump move a bivariate Laplace
 proposal for the pair of child leaves, which reduces to Linero's
-independent pair exactly when the rules are hard.
-
-Set `gate = "hard"` in
+independent pair exactly when the rules are hard. Set `gate = "hard"` in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 for the faster hard-rule sampler.
 
-## Random intercepts
+### Random Intercepts
 
 A `(1 | group)` term in the formula adds an intercept per level of
 `group`, drawn from a common mean-zero normal whose standard deviation
@@ -268,9 +297,9 @@ as it does in lme4:
 
 The intercepts are in `fit$ranef` and their standard deviations in
 `fit$tau`, one matrix per additive predictor. A family with several
-predictors gets a separate set for each – a zero-inflated count model
-has a group effect on the count part and another on the inflation part –
-and they are independent of one another.
+predictors gets a separate set for each (i.e., a zero-inflated count
+model has a group effect on the count part and another on the inflation
+part), and they are independent of one another.
 
 Only random *intercepts* are supported, and a random slope is refused
 rather than ignored. The reason is that a random intercept is a scalar
@@ -284,7 +313,7 @@ on the variable together and get an interaction of any shape.
 **When to reach for this rather than putting the group in as a
 predictor.** A grouping factor can also go in the fixed part, where a
 tree splits on it like anything else, and with few large groups that is
-the better choice – measured, it beats a random intercept, because the
+the better choice; measured, it beats a random intercept, because the
 group means are well determined without pooling and a split can interact
 the group with the covariates. The random intercept wins when there are
 many small groups, which is where partial pooling earns its keep: at 250
@@ -294,7 +323,7 @@ factor route, and at five groups of a hundred it lost to it.
 A level of `group` that was not present at fitting time is given the
 prior mean of zero when predicting, with a warning.
 
-## Missing predictor values
+### Missing Predictor Values
 
 A missing predictor is not imputed and its row is not dropped, which is
 the default here because a tree can do something better with a missing
@@ -318,20 +347,21 @@ missing values is not given the extra draw at all: complete data
 reproduces the sampler exactly as it was.
 
 A missing value takes a hard path through the tree even when the rules
-are soft, which is the right thing – there is nothing about being absent
-to smooth over – and it keeps the leaf weights summing to one.
+are soft (there being nothing about absence to smooth over), which keeps
+the leaf weights summing to one.
 
-Two consequences to be clear about.
+Two consequences are worth being clear about.
 [`predict()`](https://rdrr.io/r/stats/predict.html) accepts missing
 values only in columns that had them at fitting time, because only those
 columns' rules carry an answer; elsewhere every rule would send the
-value the same arbitrary way, so it is an error instead. And what this
-estimates is the mean of the response given the predictors *and the
-pattern of missingness*. That is what you want for prediction. If the
-estimand is a regression or causal effect defined on complete data,
-multiple imputation is the right tool and this is not.
+value the same arbitrary way, so a missing value is an error instead.
+And what the model estimates is the mean of the response given the
+predictors *and the pattern of missingness*, which is the quantity
+prediction calls for. Note that if the estimand is a regression or
+causal effect defined on complete data, multiple imputation is the right
+tool and this is not.
 
-## Preprocessing
+### Preprocessing
 
 Predictors are mapped to the unit interval, because the cutpoint prior
 is uniform on a node's live range and the soft-rule bandwidth is
@@ -386,38 +416,58 @@ Letters*, 29(7), 950–956.
 
 ## See also
 
-[`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md),
-[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-and
-[`vignette("families", package = "bartisan")`](https://ngreifer.github.io/bartisan/articles/families.md)
-for a family-by-family guide.
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+for the sampler and prior settings;
+[`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md)
+for prediction;
+[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+for the likelihoods, and
+[`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
+for a family-by-family guide;
+[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
+for reading effects off a fit
 
 ## Examples
 
 ``` r
-set.seed(1)
+data("rhc")
+set.seed(123)
 
-n <- 200
-d <- data.frame(x1 = runif(n), x2 = runif(n), x3 = runif(n))
-d$y <- rbinom(n, 1, plogis(3 * sin(pi * d$x1 * d$x2) - 1))
-
-fit <- bartisan(y ~ x1 + x2 + x3, data = d, family = binomial(),
-               control = bartisan_control(num_trees = 10, num_burn = 50,
-                                         num_draws = 50, verbose = FALSE))
+# Whether a patient died, with every other variable a candidate predictor
+# and the family read off the response. `days` is the timing of the same
+# event, so it is excluded rather than conditioned on
+fit <- bartisan(death ~ . - days, data = rhc,
+                num_trees = 10, num_burn = 50, num_draws = 50,
+                verbose = FALSE)
+#> ℹ Using `family = binomial()`.
+#> ℹ Set `family` to choose another, which also silences this message.
 fit
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = y ~ x1 + x2 + x3, data = d, family = binomial(), 
-#>     control = bartisan_control(num_trees = 10, num_burn = 50, 
-#>         num_draws = 50, verbose = FALSE))
+#> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, 
+#>     num_burn = 50, num_draws = 50, verbose = FALSE)
 #> 
 #> Family: "binomial" with the "logit" link
-#> Observations: 200
+#> Observations: 1500
 #> Structure: 1 forest of 10 trees, soft decision rules
 #> Draws: 50 kept after 50 warmup
 
+# Fitted probabilities
 head(predict(fit, type = "response"))
-#> [1] 0.3255948 0.4875942 0.8162769 0.6190264 0.1925652 0.7843789
+#> [1] 0.7860891 0.8385106 0.2271306 0.4409820 0.3670865 0.4670693
+
+# The forest has no coefficients, so an effect is a contrast of
+# predictions, here of catheterization on the probability of death
+if (rlang::is_installed("marginaleffects")) {
+  marginaleffects::avg_comparisons(fit, variables = "rhc")
+}
+#> 
+#>  Estimate 2.5 % 97.5 %
+#>    0.0358     0 0.0892
+#> 
+#> Term: rhc
+#> Type: response
+#> Comparison: 1 - 0
+#> 
 ```

@@ -24,7 +24,7 @@ Evaluate stored forests at new data
 
 - X:
 
-  design matrix with entries in `[0, 1]`.
+  a design matrix with entries in `[0, 1]`.
 
 - forest_flat, tree_start:
 
@@ -37,19 +37,19 @@ Evaluate stored forests at new data
 
 - num_forest, num_trees, num_draws:
 
-  dimensions of the stored chain.
+  `integer`; the dimensions of the stored chain.
 
 - soft:
 
-  whether the decision rules are soft.
+  `logical`; whether the decision rules are soft.
 
 - gate:
 
-  which gate the soft rules use; see `GateShape` in `node.h`.
+  `integer`; which gate the soft rules use; see `GateShape` in `node.h`.
 
 - iterations:
 
-  the zero-based saved iterations to evaluate.
+  `integer`; the zero-based saved iterations to evaluate.
 
 ## Value
 

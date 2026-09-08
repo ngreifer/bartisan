@@ -5,11 +5,15 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Give a predictor a varying coefficient — vc"><meta name="description" content="Used only inside a bartisan() formula, where it says that the coefficient of
-x is a function of other predictors rather than a constant. It is not meant
-to be called directly and does nothing if it is."><meta property="og:description" content="Used only inside a bartisan() formula, where it says that the coefficient of
-x is a function of other predictors rather than a constant. It is not meant
-to be called directly and does nothing if it is."></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Give a predictor a varying coefficient — vc"><meta name="description" content="Marks a predictor inside a bartisan() formula as one whose coefficient is a
+function of the other predictors rather than a constant, so that the
+coefficient gets a forest and a prior of its own. vc() is a marker rather
+than a function: it is read out of the formula it appears in and throws an
+error if it is called on its own."><meta property="og:description" content="Marks a predictor inside a bartisan() formula as one whose coefficient is a
+function of the other predictors rather than a constant, so that the
+coefficient gets a forest and a prior of its own. vc() is a marker rather
+than a function: it is read out of the formula it appears in and throws an
+error if it is called on its own."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -29,7 +33,7 @@ to be called directly and does nothing if it is."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal inference with BART</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
@@ -61,9 +65,11 @@ to be called directly and does nothing if it is."></head><body>
     </div>
 
     <div class="ref-description section level2">
-    <p>Used only inside a <code><a href="bartisan.html">bartisan()</a></code> formula, where it says that the coefficient of
-<code>x</code> is a function of other predictors rather than a constant. It is not meant
-to be called directly and does nothing if it is.</p>
+    <p>Marks a predictor inside a <code><a href="bartisan.html">bartisan()</a></code> formula as one whose coefficient is a
+function of the other predictors rather than a constant, so that the
+coefficient gets a forest and a prior of its own. <code>vc()</code> is a marker rather
+than a function: it is read out of the formula it appears in and throws an
+error if it is called on its own.</p>
     </div>
 
     <div class="section level2">
@@ -76,34 +82,39 @@ to be called directly and does nothing if it is.</p>
 
 
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>the predictor whose coefficient varies. A numeric variable gets one
-forest; a factor gets one per level, coded symmetrically as
-<code><a href="bartisan-families.html">multinomial()</a></code> codes its predictors.</p></dd>
+<dd><p>the predictor whose coefficient varies, named as a bare variable
+rather than as an expression. A numeric variable gets one forest; a factor
+gets one per level, coded symmetrically (i.e., with no level held out as a
+reference) as <code><a href="bartisan-families.html">multinomial()</a></code> codes its predictors.</p></dd>
 
 
 <dt id="arg-modifiers">modifiers<a class="anchor" aria-label="anchor" href="#arg-modifiers"></a></dt>
 <dd><p>a one-sided formula naming the predictors this coefficient's
-forest may split on. The default, <code>NULL</code>, is every predictor in the model
-except <code>x</code> itself.</p></dd>
+forest may split on. Default is <code>NULL</code> to allow every predictor in the model
+except <code>x</code> itself. Note that naming something that is not a predictor is an
+error rather than a silent restriction.</p></dd>
 
 
 <dt id="arg-center">center<a class="anchor" aria-label="anchor" href="#arg-center"></a></dt>
 <dd><p>the value of <code>x</code> at which the control function is read, which is
-both how the model is fitted and how it is reported. <code>"auto"</code>, the default,
-uses <code>"zero"</code> for a <code>0</code>/<code>1</code> covariate and <code>"mean"</code> for any other numeric
-one, for the reason in Details. <code>"mean"</code> centers <code>x</code>, so the control
-function is the surface at its average; <code>"zero"</code> leaves <code>x</code> alone, so the
-control function is the surface at <code>x = 0</code>; <code>"mid"</code> uses the midpoint of
-<code>x</code>'s range; a number uses that number. For a factor, <code>center</code> is <code>"mean"</code>
-or the name of a level to report against. <code>"estimate"</code> draws the coding
-rather than fixing it, which is the parameter expansion of Hahn, Murray and
-Carvalho (2020); see Details, and note that it needs a covariate with a few
-distinct values rather than a continuous one.</p></dd>
+both how the model is fitted and how it is reported, given as either a
+string or a number. Allowable options include <code>"auto"</code> (the default),
+<code>"mean"</code>, <code>"zero"</code>, <code>"mid"</code>, and <code>"estimate"</code>. <code>"auto"</code> uses <code>"zero"</code> for a
+<code>0</code>/<code>1</code> covariate and <code>"mean"</code> for any other numeric one, for the reason in
+Details. <code>"mean"</code> centers <code>x</code>, so the control function is the surface at its
+average; <code>"zero"</code> leaves <code>x</code> alone, so the control function is the surface at
+<code>x = 0</code>; <code>"mid"</code> uses the midpoint of <code>x</code>'s range (i.e., the average of its
+smallest and largest values); and a number uses that number. For a factor,
+<code>center</code> is <code>"mean"</code> or the name of a level to report against. <code>"estimate"</code>
+draws the coding rather than fixing it, which is the parameter expansion of
+Hahn, Murray and Carvalho (2020); see Details, and note that it needs a
+covariate with between two and twenty distinct values rather than a
+continuous one.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Nothing. <code>vc()</code> is a marker read out of the formula and never evaluated.</p>
+    <p>Nothing; <code>vc()</code> is never evaluated, and calling it directly is an error.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -112,11 +123,11 @@ distinct values rather than a continuous one.</p></dd>
 <p>with a forest for the control function \(f_0\) and one for each varying
 coefficient \(f_j\). Every forest is fitted at once, so the coefficient has
 a prior of its own rather than being whatever difference a single forest with
-<code>x</code> among its predictors happens to produce.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="which-predictors-a-coefficient-may-vary-with">Which predictors a coefficient may vary with<a class="anchor" aria-label="anchor" href="#which-predictors-a-coefficient-may-vary-with"></a></h2>
-    <p>By default every predictor in the model except <code>x</code> itself. The <code>modifiers</code>
+<code>x</code> among its predictors happens to produce.</p><div class="section">
+<h3 id="which-predictors-a-coefficient-may-vary-with">Which Predictors a Coefficient May Vary With<a class="anchor" aria-label="anchor" href="#which-predictors-a-coefficient-may-vary-with"></a></h3>
+
+
+<p>By default every predictor in the model except <code>x</code> itself. The <code>modifiers</code>
 argument narrows that, and naming something that is not a predictor is an
 error rather than a silent restriction.</p>
 <p><strong>A varying covariate may not modify the control function.</strong> With <code>z</code> among
@@ -139,29 +150,34 @@ quietly. A level's indicator is nonzero only on the rows where that level
 holds, and the variable is constant on exactly those rows, so such a split
 separates rows that contribute from rows that contribute nothing. It is wasted
 rather than unidentified.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="where-the-control-function-sits">Where the control function sits<a class="anchor" aria-label="anchor" href="#where-the-control-function-sits"></a></h2>
-    <p>Centering is a reparameterization of \(f_0\) alone: every coefficient and
+</div>
+
+<div class="section">
+<h3 id="where-the-control-function-sits">Where the Control Function Sits<a class="anchor" aria-label="anchor" href="#where-the-control-function-sits"></a></h3>
+
+
+<p>Centering is a reparameterization of \(f_0\) alone: every coefficient and
 every estimand is identical under any choice, and what changes is what the
 control function means. <code>"auto"</code> picks by the covariate, because neither
 answer wins everywhere. For a <code>0</code>/<code>1</code> covariate it uses zero, so \(f_0\) is
-the surface among the untreated – a quantity with its own meaning, and the
-one that recovers the coefficient best, at a correlation of 0.987 against
-0.975 for mean-centering on the simulation in <code>_dev/</code>. For any other numeric
-covariate it uses the mean, because zero may be nowhere near the data: with a
-covariate around 50 the control function at zero is an extrapolation and
-recovery collapses to a correlation of 0.42.</p>
+the surface among the untreated (a quantity with its own meaning, and the one
+that recovers the coefficient best). For any other numeric covariate it uses
+the mean, because zero may be nowhere near the data: with a covariate around
+50 the control function at zero is an extrapolation and recovery collapses to
+a correlation of 0.42.</p>
 <p>A factor is always fitted mean-centered and gets one forest per level, coded
 symmetrically the way <code><a href="bartisan-families.html">multinomial()</a></code> codes its predictors rather than as
 contrasts against a level that happened to sort first. That coding carries one
 spare function-valued dimension, which is what makes the reference a reporting
 choice: <code>center</code> names the level <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> reports against, and no refit is
 needed to change it.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="drawing-the-coding-instead-of-fixing-it">Drawing the coding instead of fixing it<a class="anchor" aria-label="anchor" href="#drawing-the-coding-instead-of-fixing-it"></a></h2>
-    <p><code>center = "estimate"</code> is different in kind from the choices above. Rather than
+</div>
+
+<div class="section">
+<h3 id="drawing-the-coding-instead-of-fixing-it">Drawing the Coding Instead of Fixing It<a class="anchor" aria-label="anchor" href="#drawing-the-coding-instead-of-fixing-it"></a></h3>
+
+
+<p><code>center = "estimate"</code> is different in kind from the choices above. Rather than
 subtract a number from <code>x</code>, it gives each of <code>x</code>'s values a coefficient of its
 own and draws it: the model is</p>
 <p>$$g(\mu_i) = f_0(Z_i) + b_{x_i}\, \tilde f(Z_i), \qquad
@@ -177,15 +193,12 @@ the effect moves with it. <code><a href="https://rdrr.io/r/stats/coef.html" clas
 raw \(\tilde f\).</p>
 <p>It needs between two and twenty distinct values, and a continuous covariate is
 refused rather than quietly binned.</p>
-<p><strong>At two values it is free, and it is what <code><a href="bcf.html">bcf()</a></code> uses.</strong> Recovery is a tie:
-on the simulation in <code>_dev/coding-comparison.R</code> the effect's root mean squared
-error is 0.2014 against 0.1991 for a fixed zero, a paired difference of 0.0023
-with a standard error of 0.0140. What it buys is that the answer stops
-depending on which level was written as 1. Fitting the same data with the
-treatment coded <code>0</code>/<code>1</code> and again <code>1</code>/<code>0</code> and adding the two effects, which is
-zero if the coding does not matter, gives 0.0045 under a drawn coding against
-0.0125 under a fixed zero – and on weak data, where the prior has more to
-say, 0.0389 against 0.0830.</p>
+<p><strong>At two values it is free, and it is what <code><a href="bcf.html">bcf()</a></code> uses.</strong> What it buys is
+that the answer stops depending on which level was written as 1. Fitting the
+same data with the treatment coded <code>0</code>/<code>1</code> and again <code>1</code>/<code>0</code> and adding the
+two effects, which is zero if the coding does not matter, gives 0.0045 under
+a drawn coding against 0.0125 under a fixed zero; on weak data, where the
+prior has more to say, 0.0389 against 0.0830.</p>
 <p><strong>Above two values it stops being free, and the restriction is a real one.</strong>
 Every contrast is then the same \(\tilde f\) times a scalar, so the levels
 share one shape of heterogeneity where the symmetric coding gives each its
@@ -193,27 +206,30 @@ own. That is worth a great deal when it holds and expensive when it does not.
 Measured on a three-level covariate over 12 replicates:</p><table class="table table"><tr><td>truth</td><td>symmetric, a forest per level</td><td><code>"estimate"</code>, one shared forest</td></tr><tr><td>every level the same shape</td><td>0.266</td><td><strong>0.191</strong></td></tr><tr><td>each level its own shape</td><td><strong>0.242</strong></td><td>0.696</td></tr></table><p>So the two are what they look like: <code>"estimate"</code> is the parsimonious model and
 the default is the general one. Reach for it when the levels plausibly differ
 in degree rather than in kind.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="families-with-several-additive-predictors">Families with several additive predictors<a class="anchor" aria-label="anchor" href="#families-with-several-additive-predictors"></a></h2>
-    <p><code><a href="bartisan-families.html">location_scale()</a></code>, <code><a href="bartisan-families.html">zi_poisson()</a></code> and the rest fit one forest per
+</div>
+
+<div class="section">
+<h3 id="families-with-several-additive-predictors">Families with Several Additive Predictors<a class="anchor" aria-label="anchor" href="#families-with-several-additive-predictors"></a></h3>
+
+
+<p><code><a href="bartisan-families.html">gaussian_ls()</a></code>, <code><a href="bartisan-families.html">zi_poisson()</a></code> and the rest fit one forest per
 distributional parameter, and each parameter's formula carries its own <code>vc()</code>
-terms. The forests are then two-dimensional – a control function and its
-coefficients, for each parameter – and named accordingly, which is what
+terms. The forests are then two-dimensional (a control function and its
+coefficients, for each parameter) and named accordingly, which is what
 per-forest settings are keyed by:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="co"># forests: mean, mean:z, log_sd</span></span>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">location_scale</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># forests: mean, mean:z, log_sd, log_sd:z -- one formula reaches every</span></span>
+<span><span class="co"># forests: mean, mean:z, log_sd, log_sd:z; one formula reaches every</span></span>
 <span><span class="co"># parameter, which is the rule every per-forest argument follows</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">location_scale</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># each coefficient with its own modifiers</span></span>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span>, <span class="op">~</span> <span class="va">x2</span><span class="op">)</span>,</span>
 <span>              log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span>, <span class="op">~</span> <span class="va">x1</span><span class="op">)</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">location_scale</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
-<p>So the same covariate may have a coefficient on more than one parameter –
+<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>So the same covariate may have a coefficient on more than one parameter:
 \(z\) shifting the mean and widening the spread are different questions, and
 both are answered at once. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> returns one column per coefficient, named
 for its forest.</p>
@@ -221,41 +237,70 @@ for its forest.</p>
 <code>(1 | g)</code> reaches every control function and no coefficient, since a
 group-varying coefficient is a random slope. And <code>center = "estimate"</code> is
 judged per parameter: the drawn coding needs a leaf target that is quadratic
-in the predictor it feeds, which <code><a href="bartisan-families.html">location_scale()</a></code> is in the mean and is not
+in the predictor it feeds, which <code><a href="bartisan-families.html">gaussian_ls()</a></code> is in the mean and is not
 in the log standard deviation, so the same request is accepted on one and
 refused on the other.</p>
-<p><code><a href="bartisan-families.html">multinomial()</a></code> and <code>mnp()</code> are the exception and refuse <code>vc()</code>. Their forests
+<p>The two multinomial families are the exception and refuse <code>vc()</code>. Their forests
 are the levels of one parameter rather than separate parameters, identified
 only up to a function they all share, and reporting removes it; a coefficient
 forest per level would add one such direction per coefficient and the
 reporting does not carry them.</p>
+</div>
+
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Hahn, P. R., Murray, J. S., &amp; Carvalho, C. M. (2020). Bayesian regression tree
+models for causal inference: regularization, confounding, and heterogeneous
+effects. <em>Bayesian Analysis</em>, 15(3), 965–1056. <a href="https://doi.org/10.1214/19-BA1195" class="external-link">doi:10.1214/19-BA1195</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="bartisan.html">bartisan()</a></code> for the formula interface, <code><a href="bcf.html">bcf()</a></code> for the causal case,
-<code><a href="coef.bartisan_fit.html">coef.bartisan_fit()</a></code> for reading the coefficients out, and
-<a href="bartisan-families.html">bartisan-families</a> for the order the forests come in.</p></div>
+    <div class="dont-index">
+<ul><li><p><code><a href="bartisan.html">bartisan()</a></code> for the formula interface</p></li>
+<li><p><code><a href="bcf.html">bcf()</a></code> for the causal case, which is this term with the priors and the
+propensity score set up for it</p></li>
+<li><p><code><a href="coef.bartisan_fit.html">coef.bartisan_fit()</a></code> for reading the coefficients out</p></li>
+<li><p><a href="bartisan-families.html">bartisan-families</a> for the order the forests come in</p></li>
+</ul></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># The coefficient of `z` varies with `x1` and `x2`.</span></span></span>
-<span class="r-in"><span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu">vc</span><span class="op">(</span><span class="va">z</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> y ~ x1 + x2 + vc(z)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55b23cbd5728&gt;</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># ... and with `x1` alone.</span></span></span>
-<span class="r-in"><span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu">vc</span><span class="op">(</span><span class="va">z</span>, <span class="op">~</span> <span class="va">x1</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> y ~ x1 + x2 + vc(z, ~x1)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55b23cbd5728&gt;</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The effect of `z` varies across `z` itself, so the dose response is a</span></span></span>
-<span class="r-in"><span><span class="co"># curve rather than a line. `z` appears only inside `vc()`: writing it in the</span></span></span>
-<span class="r-in"><span><span class="co"># fixed part as well would leave the control function and the coefficient</span></span></span>
-<span class="r-in"><span><span class="co"># unidentified, which is a warning rather than a refusal.</span></span></span>
-<span class="r-in"><span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="fu">vc</span><span class="op">(</span><span class="va">z</span>, <span class="op">~</span> <span class="va">z</span> <span class="op">+</span> <span class="va">x1</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> y ~ x1 + vc(z, ~z + x1)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55b23cbd5728&gt;</span>
+<span class="r-in"><span><span class="co"># The effect of right heart catheterization on death, free to vary with</span></span></span>
+<span class="r-in"><span><span class="co"># every other covariate. `rhc` reaches the fixed part through `.`, so it is</span></span></span>
+<span class="r-in"><span><span class="co"># dropped from the control function, which is what keeps the two identified</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span> <span class="op">+</span> <span class="fu">vc</span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
+<span class="r-in"><span>                family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># One coefficient per patient, which is what a coefficient function comes to</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            rhc</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.3737500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.3055717</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.2825872</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.3777876</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.3233088</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.2106816</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The same effect, free to vary with severity of illness alone</span></span></span>
+<span class="r-in"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span> <span class="op">+</span> <span class="fu">vc</span><span class="op">(</span><span class="va">rhc</span>, <span class="op">~</span> <span class="va">aps</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
+<span class="r-in"><span>                 family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                 num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit2</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             rhc</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.43552834</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.41613303</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.04479542</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.49654015</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.49513169</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.37428010</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

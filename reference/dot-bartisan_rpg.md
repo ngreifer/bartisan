@@ -12,11 +12,11 @@ Polya-Gamma draws, for checking the sampler
 
 - n:
 
-  number of draws.
+  `integer`; the number of draws.
 
 - b, c:
 
-  parameters of the distribution.
+  `numeric`; the parameters of the distribution.
 
 ## Value
 
