@@ -6,7 +6,7 @@ This file is organized by subject, not by session. Each entry states the problem
 
 ## Status
 
-1637 tests passing, 0 failures, 0 warnings, 0 skips (the nine `diagnose()` tests were run on their own; the full suite and `R CMD check` were not re-run after them). `R CMD check` reports `Status: OK` with no warnings and no notes when run outside the agent sandbox; inside it, `OMP: Warning #179` and an `nm` cache-file NOTE appear, and both are artifacts of the sandbox rather than the package. the suite run inside the check passes 1055 of them, skipping 51 for Suggests packages that environment does not have.
+388 tests and 1933 expectations passing, 0 failures, 0 warnings and 0 skips when the `skip_on_cran()` fits are run locally with `NOT_CRAN=true`. `R CMD check` on the built tarball, with examples, tests and all nine vignette rebuilds, reports `Status: OK` with no notes and no warnings; inside it the suite skips 67 and passes 1560, which is the configuration a CRAN machine runs. `--as-cran` has not been made to complete on this machine, for a reason that looks environmental rather than packaged; see the pre-submission report at the end of this file.
 
 **What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, nine vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`. No `NEWS.md`: nothing has been released, so there is no previous version for a user to have seen.
 
@@ -65,27 +65,45 @@ Four things this says.
 
 ## To Do
 
-Ordered by expected value. `_dev/SHIP.md` holds the release assessment -- which of
-these actually block a workflow the package claims to support, which are covered
-by other packages, and the six-vignette workflow series that exposed the
-difference.
+Split by whether it stands between the package and a submission. `_dev/SHIP.md`
+holds the release assessment, and the pre-submission report at the end of this
+file is the current read on what is left.
 
-- [ ] **Rename the package.** `bartisan` collides case-insensitively with the archived CRAN package `genBart`, which is a hard block on submission. Candidates checked against both the current index and all 27,654 archived names are in the Notes below.
+Three items came off this list rather than being carried forward, and the
+reasoning for each is in the Log rather than here: the grow-from-root warm start
+and the soft random tree features, both struck because the burn-in transient
+they would shorten is 34 to 70 sweeps against a default warmup of 200; and the
+joint update for correlated nuisance parameters, which `tweedie()` made testable
+and which turned out not to be needed. Two more came off as already done.
+`predict(type = "density")` no longer returns `NaN` silently, since it warns and
+names the draws responsible, which is what `_dev/SHIP.md` records and this list
+had not caught up with. And the rename: what collided with the archived CRAN
+package `genBart` was the *old* name `genbart`, the rename to `bartisan` landed
+in `cdc3278`, and the item survived the rename it describes. It was carried into
+a pre-submission report as a blocker before anyone checked the two names against
+each other, which is the sort of thing to check rather than read.
+
+### Before submission
+
+- [ ] **Give the package a release version.** `--as-cran` notes that `0.0.0.9000` "contains large components", which is its way of saying a development version should not be submitted. `0.1.0` is the obvious choice.
+
+- [ ] `vignette("bartisan")` does not cover the bounded gates or either ordinal augmentation; `vignette("families")` covers the augmentations but not the gates. The first runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
+
+### After submission
+
+Ordered by expected value. None of these is load-bearing for a workflow the
+package claims to support, which is what puts them here.
+
+- [ ] A **formal variable-selection test** rather than a threshold on `prop_used`, which `dbarts`, `SoftBart` and `bartMachine` all have and this does not. `variable_importance(draws = TRUE)` now returns the per-draw counts, so a caller can compute the posterior probability that one predictor takes more rules than another and does not have to read a difference off the table; what is missing is a calibrated null to test against, which is what the permutation approach in those packages supplies. The partial-dependence half of this item is closed: *marginaleffects*' `plot_predictions()` draws it, and `variable_importance(plot = TRUE)` covers the usage ranking.
 - [ ] **Correlated random effects across additive predictors**, which is the one part of the random-effects feature that is not there. The obstacle is the absence of mixed second derivatives in the `Family` interface, and the alternative needs a prior mean threaded through 27 places; see the assessment.
 - [ ] A Bayesian-bootstrap dispersion draw for `Gamma()` and `negbin()`, from Pearson residuals rather than the assumed likelihood. Cheapest available improvement to interval calibration; see the quasi-likelihood entry.
 - [ ] A joint tridiagonal update for the ordinal cutpoints, which is what makes inference on the thresholds usable when there are many of them. The obstacle is the ordering constraint, not the algebra.
-- [ ] A `quasi()` family parameterized by link, variance function and dispersion update rule. Needs a documented weakening of the exactness claim.
-- [ ] **Partial dependence plots** and a **formal variable-selection test** rather than raw split counts, both of which `dbarts`, `SoftBart` and `bartMachine` have and this does not. Partial dependence is now largely reachable through `marginaleffects::plot_predictions()`, so this is less of a gap than it was.
-- [x] ~~Possibly a grow-from-root warm start for hard-rule fits, to shorten burn-in.~~ Struck: the transient is 34 to 70 sweeps against a default warmup of 500, so there is almost nothing to shorten. See the warm-start assessment.
 - [ ] Consider the `draw_prior` move from SoftBart, which proposes a whole fresh tree and helps escape local modes. It needs an `L`-dimensional Laplace proposal for the new leaves, so it is real work, not a port.
-- [ ] `vignette("bartisan")` does not cover the bounded gates or either ordinal augmentation; `vignette("families")` covers the augmentations but not the gates. The first runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
-- [ ] Missing data, further work: nothing forces the three missing-value rules to be equally likely, and a variable with a handful of missing values probably does not want a third of its rules spent on splitting by missingness. A prior weight on the third rule is a one-line change and an open question.
 - [ ] `custom_family()` has no posterior predictive distribution, since a log density supplies no way to draw from it. An optional `rng` argument alongside the density would give it one, and would make `simulate()`, `pp_check()` and `r2()` work for a user-written likelihood. Small work; the design question is whether to also ask for a mean.
-- [ ] Joint update for correlated nuisance parameters. Linero reports that `sigma` and the shape of the generalized gamma mix badly when updated separately. Only relevant if a two-nuisance family is added; the current families have at most one.
+- [ ] Missing data, further work: nothing forces the three missing-value rules to be equally likely, and a variable with a handful of missing values probably does not want a third of its rules spent on splitting by missingness. A prior weight on the third rule is a one-line change and an open question.
+- [ ] A `quasi()` family parameterized by link, variance function and dispersion update rule. Needs a documented weakening of the exactness claim.
 - [ ] A lighter-tailed prior on the leaf scale, or an upper bound, would remove the separation pathology at the cost of changing the default prior. Not done unilaterally; the warning is the interim measure.
-- [ ] **`predict(type = "density")` returns NaN silently** when a composed link's inverse sends the predictor outside the family's support. Measured on `stats::Gamma("inverse")` with heavy-tailed data: five of eight replicates had draws where the predictor went non-positive, and each produced NaN densities for two to five test points out of 800. A negative fitted mean is not a gamma mean, so NaN is arguably the right *value*, but it should not be silent -- `bartisan()` already warns about the link at fit time and `predict()` says nothing. Left alone deliberately: it changes the output contract of `predict()`, which is the user's call. See the gamma comparison entry.
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
-- [x] ~~**Soft random tree features** as a warm start for the sampler.~~ Struck for the same reason; see the warm-start assessment, which also has what the prototype is worth as a standalone estimator (0.876 in 0.25 s against the sampler's 0.975 in 14 s).
 
 ## Speeding up the survival models
 
@@ -3165,7 +3183,7 @@ became `##`.
 
 ### Candidate names
 
-`bartisan` collides case-insensitively with the archived CRAN package `genBart`, which blocks submission. All of the following were checked against the current CRAN index and against all 27,654 archived package names, and are free. Also note `flexBART`, `SoftBart`, `dbarts`, `bartMachine`, `bartCause` and `stochtree` exist, and that `gbart` is the main *function* in the `BART` package, so it should be avoided even though the name is free.
+**Settled: the package is `bartisan`, and the rename landed in `cdc3278`.** What collided was the *old* name `genbart`, case-insensitively against the archived CRAN package `genBart`; `bartisan` collides with nothing. The table below is the shortlist that was drawn up at the time and is kept as a record of what was considered.ed package names, and are free. Also note `flexBART`, `SoftBart`, `dbarts`, `bartMachine`, `bartCause` and `stochtree` exist, and that `gbart` is the main *function* in the `BART` package, so it should be avoided even though the name is free.
 
 | Candidate | Reading |
 |---|---|
@@ -5476,3 +5494,608 @@ running past both ends of the training range. The full suite passes.
 reporter one because it is the same invariant: the binary and constant maps must
 not scale with the column at all, and the range map must not either. It was
 checked against the old implementation, where all four assertions fail.
+
+## Eight error messages were losing their second half
+
+`family = glmmTMB::tweedie()` reported that the supported families are
+`"custom"`, `"zip"`, `"mnp"`, `"aft"`, `"beta"` and the rest, which are the
+engine's own family strings and several of them are not names a caller can
+write: `"zip"` and `"zinb"` are reached through `zi_poisson()` and
+`zi_negbin()`, `"beta"` through `Beta()`, `"mnp"` through
+`multinomial("probit")`, `"aft"` through the three `*_aft()` functions, and
+`"custom"` through `custom_family()`. The list came from `names(valid_links)`;
+it is now `bartisan_family_names`, which is what the string branch of the same
+function already validated against, so the two paths agree.
+
+Looking for a place to put the hint about `custom_family()` turned up the
+larger problem. `arg::err(m, .call, .envir, ...)` builds its message from `m`
+alone and passes `...` to `rlang::abort()`, where a named argument becomes a
+condition *field* rather than a message bullet. So `arg::err("main", i = "hint")`
+compiles, runs, stores the hint on the condition, and prints only the first
+half. Eight calls were written that way and every one of them was losing its
+second half:
+
+| | what was invisible |
+|---|---|
+| `R/families.R` `custom_family()` | that `logdens` is called as `logdens(y, eta, aux)` |
+| `R/families.R` `default_family()`, twice | which families keep prior weights |
+| `R/families.R` `as_bartisan_family()` | the new `custom_family()` hint |
+| `R/predict.R` | `times = c(1, 5)`, the example of what to pass |
+| `R/response.R`, three times | the alternative family for weights, and `ordbeta()` for a beta response at 0 or 1 |
+
+The vector form, `arg::err(c("main", i = "hint"))`, is what `arg::msg()` is
+already called with everywhere and it renders correctly. All eight are converted.
+Worth watching for: nothing warns, the argument is accepted, and the message
+looks complete unless it is read against the source.
+
+The `family` argument's documentation said that ordinary `family` objects "are
+used unchanged, including their links", which is what made an unsupported one
+look like it should work. It now says that the object is accepted when the
+distribution it names is one the package implements, since the likelihood is the
+package's and a `family` object carries a link and a variance function rather
+than a density, and points at `custom_family()`.
+
+### Could a custom family be built from a `family` object automatically?
+
+For an exponential dispersion family, yes in principle: the per-observation log
+density is `-dev.resids(y, mu, wt) / (2 * phi)` plus a term that does not involve
+`mu`, and the sampler needs the density only up to a term free of `eta`. Checked
+against `poisson()`, `gaussian()` and `binomial()`, where the offset from
+`dpois()`, `dnorm()` and `dbinom()` is constant as `mu` moves. `dev.resids()` is
+per-observation, which `aic()` is not, so it is the usable half of the object.
+
+Two things stop it being worth building on its own.
+
+The dispersion cannot be estimated. The dropped term is `c(y, phi)` and it
+carries all of the dependence on `phi`, so `-dev / (2 * phi)` alone rises
+monotonically toward zero as `phi` grows: on four Gaussian observations it goes
+from -3.150 at `phi = 0.5` to -0.016 at `phi = 100`, while the true log
+likelihood peaks at -5.251 near `phi = 1`. An adapter would have to take a fixed
+known dispersion, and it would have to refuse `loo()`, `waic()` and `pp_check()`,
+which need the pointwise density rather than a shifted one.
+
+And it would not cover the case that prompted the question.
+`glmmTMB::tweedie()$dev.resids` is a stub that returns `NA` with a warning,
+`aic()` returns `NA`, and the object's whole content is a link, a name and
+`variance = phi * mu^power`; the density is in glmmTMB's TMB C++. What the
+adapter would reach is `inverse.gaussian()`, `quasipoisson()` and hand-written
+exponential dispersion families, at fixed dispersion and without the model
+comparison tools. Not started.
+
+## `tweedie()`, and why the intractable density did not matter
+
+A family for a non-negative response with a point mass at zero and a continuous
+positive part: earnings, spending, rainfall, claims. The compound Poisson-gamma
+with `1 < p < 2`, one forest, `mu = exp(eta)` and `Var(y) = phi mu^p`, so the
+share of zeros follows from the mean rather than having a predictor of its own.
+
+**The objection that turned out not to hold.** The density has no closed form at
+a positive response and normalizing it takes an infinite series, which is the
+usual reason a Tweedie is not implemented. Writing it in exponential-dispersion
+form separates the two halves:
+
+```
+log f(y; mu, phi, p) = (1/phi)[y mu^(1-p)/(1-p) - mu^(2-p)/(2-p)] + log W(y, phi, p)
+```
+
+and `log W` contains no `mu`. Verified against the compound Poisson-gamma sum
+before any of it was written: `log f` minus the bracket agrees to six decimals at
+`mu` of 0.8, 2.0 and 5.0. So the bracket is the whole of `logdens_unit()` and the
+series is `compute_eta_free()`, the hook `src/family.h` already had for terms that
+"cancel from every acceptance ratio", refreshed when a nuisance parameter moves.
+The series is evaluated once per sweep, not once per leaf.
+
+Three more things fall out of the same algebra. `P(y = 0)` is closed form,
+`exp(-mu^(2-p)/(phi(2-p)))`, and is exactly what the bracket reduces to at
+`y = 0`, so the zero and positive cases need no branch. The score is
+`mu^(1-p)(y - mu)/phi`. The observed second derivative is
+`((2-p)mu^(2-p) + (p-1) y mu^(1-p))/phi`, whose two terms are both positive for a
+power in `(1, 2)` and a non-negative response, so the true curvature is usable as
+it stands and there is no need to fall back on the expected information.
+
+**Cost.** Against a Gaussian fit at n = 500 with 50 soft trees, `tweedie()` costs
+5.5 times as much and `Gamma("log")` costs 5.2, so the series does not show up in
+the total. Its length depends on the response and the dispersion but never on the
+mean, so it does not grow as the forest moves: at the dispersion the RHC-scale
+earnings data imply it runs to twenty terms, peaking at `j` between 1 and 5, and
+at a dispersion eighteen times smaller the worst observation needs 143. The
+summand's width scales as the square root of its peak index, so the cheap regime
+is wide. `-lgamma(j+1) - lgamma(j alpha)` depends on the power alone and is
+tabulated, which is what keeps the inner loop to two multiplies and a lookup.
+
+**`power` is validated on the open interval (1, 2)**, and the whole of it is
+usable. The family degenerates at both ends, to a Poisson multiple at 1 and to a
+gamma with no mass at zero at 2, but the interior holds up: the series' shape
+parameter `(2 - p) / (p - 1)` runs from 999 at `p = 1.001` to 0.001 at
+`p = 1.999`, and across that range every density is finite, the zero stays the
+closed form, and a fit runs. The bound was widened from `[1.01, 1.99]` after the
+family was written, so the concern was that the term selection would overflow at
+the edges; measured, it does not, and there is a test over the range now.
+
+That widening also broke a test, in a way worth not repeating.
+`expect_error(tweedie(power = 1), "1.01")` asserted `arg`'s *wording* of the
+bound rather than the contract, so rewording the bound turned a passing suite
+into an `R CMD check` ERROR with nothing wrong in the package. The test now
+matches on the argument name, which `arg` always includes, and asserts that
+`1.001` and `1.999` are accepted and that `1`, `2`, `0.5` and `3` are not. The
+general rule: an `expect_error()` regexp should pin down which argument was
+rejected, not how the rejection reads.
+
+**Power fixed by default**, at 1.5, which is the one place this family treats a
+nuisance parameter differently from the rest. The power and the dispersion are
+identified jointly through the share of zeros, the power weakly so at these
+sample sizes, and a badly determined power drags the dispersion with it.
+`power = NULL` draws it, on a logit scale over `(1, 2)` with the Jacobian that
+keeps the prior uniform there, and costs about a third again because the slice
+sampler cannot use the table.
+
+**What it was checked against.** `tests/testthat/test-tweedie.R` sums the
+compound Poisson-gamma representation directly, sharing no code with the engine,
+and the two agree to 1e-8 across powers of 1.2, 1.433, 1.5 and 1.8, dispersions
+of 0.4 to 180, and responses from 0 to 60000. The score and information are
+checked against their closed forms and against the engine's own numerical
+differencing. A fit recovers a known mean function and dispersion, `simulate()`
+puts back a point mass of the right size, and the whole suite passes with
+`NOT_CRAN=true`, which is 0 failures and 0 skips.
+
+On lalonde `re78` with four chains and 2000 draws it draws `phi = 105`, fits a
+mean zero share of 0.219 against the observed 0.233, and its posterior predictive
+reproduces the zeros (0.221), the mean (6748 against 6793) and the spread (8277
+against 7471). `diagnose()` warns where it warns for every family on that
+response: the worst 5% of observations carry 46 effective draws while their
+average carries 4537.
+
+**References are wanted and were not written.** The compound Poisson-gamma is
+Jorgensen's exponential dispersion models and the series is Dunn and Smyth, but
+neither paper is in the Zotero library, and `PAPERS.md` says to leave a citation
+out rather than reconstruct one. The `@references` block on `?bartisan-families`
+and `references.bib` for `vignette("families")` both want an entry.
+
+## A stronger `variable_importance()`, and what the audit around it found
+
+The table was a bare data frame with four numbers per predictor and no way to
+ask anything the summary did not already answer. Four changes, in the order they
+matter to a reader.
+
+**`prop_splits`**, each predictor's share of the forest's splitting rules,
+computed within a draw before averaging so the shares add to one. This is the
+column to compare across fits: `splits` counts rules and so scales with
+`num_trees`, and a fit of 40 trees reports several times the count of a fit of 10
+without being several times as informative. Measured, it is not invariant either.
+The leading predictor's share moved from .51 at 10 trees to .64 at 40 on the same
+data, because the forest size also changes how the rules get allocated. So the
+claim in the documentation is the weaker true one: it removes the dependence on
+`num_trees`, and the ranking is the part that carries over.
+
+**`draws = TRUE`**, which returns the per-draw counts instead of a summary of
+them, the way `coef()` and `predict()` already do. This is what makes a
+comparison the table cannot express available at all: the posterior probability
+that the forest spends more rules on one predictor than another is a proportion
+of draws, and two predictors adjacent in the ranking are usually not
+distinguishable.
+
+**`plot = TRUE`**, following the `plot` argument on `error_density()`, and a
+`plot()` method beside it; see the entry below.
+
+**A `<bartisan_importance>` class with a `print()` method**, which drops the two
+interval columns from the displayed table and keeps them in the object, and which
+says when the fit had `sparsity = FALSE`. That last one is the point of the class:
+`prop_used` is only readable as a selection rule under the sparsity prior, and
+without it every predictor keeps a share of the rules and the column sits near 1
+throughout. A reader looking at the table had no way to see which fit they had.
+
+### What the audit turned up
+
+The static scan found nothing: no `1:n`, no `sapply()`, no missing
+`drop = FALSE`, no float equality, no deprecated *ggplot2* calls in the code as
+it stood. Profiling the user-facing calls on a 1500-row fit with 500 draws found
+nothing either. Everything is a hundredth of a second except
+`predict(newdata = )`, which is 1.37s for 3000 rows and 97% of that is inside
+`.Call`, so there is no R-level overhead to remove.
+
+Four real things came out of writing the tests rather than out of reading:
+
+`geom_errorbarh()` is deprecated in *ggplot2* 4.0.0, which the new plot used and
+the test surfaced as a warning. Replaced with `geom_errorbar(orientation = "y")`.
+
+`expect_predictor_invariant()` in the test helper claims an invariant that does
+not hold for two shapes of fit, and said nothing about either. A `vc()` fit
+combines its forests into one predictor on the way out while `eta` keeps them
+apart, so the two differ by 3.3 rather than by rounding; a fit with an offset
+needs the offset passed to `predict()`. Nothing in the suite had exercised it on
+those, so the trap was live for the next person adding a family, which is exactly
+how it was found. The helper now says so.
+
+`variable_importance()` and `summary()` compute the same usage numbers from the
+same counts in two places. Left as it is, and noted: they agree today, the
+summary's matrix is a deliberately different presentation, and a test asserts the
+`prop_used` column matches between them, which is what would catch a drift.
+
+The joint update for correlated nuisance parameters, on the To Do list against
+the day a two-nuisance family arrived, is now testable because `tweedie()` is
+one. Drawing the dispersion and the power in separate slice steps at n = 2000
+over four chains of 2000 draws gives R-hat 1.000 and 4735 effective draws for the
+dispersion and 1.001 and 4823 for the power, against a posterior correlation
+between them of -0.51. Fixing the power raises the dispersion's effective sample
+size to 7854, so the separate updates cost about 40% of it and nothing else.
+That is not the pathology Linero reports for `sigma` and the generalized gamma's
+shape, so the item comes off the list.
+
+## Pre-submission report
+
+Where the package stands as of this pass. Everything below was run rather than
+recalled.
+
+### What passes
+
+`R CMD check` on the built tarball, with examples, tests and all nine vignette
+rebuilds, reports **Status: OK** with no notes and no warnings. Inside the check,
+which is the configuration a CRAN machine runs, the suite is
+**0 failures, 0 warnings, 67 skipped, 1560 passing**; the skips are
+`skip_on_cran()` on the slow recovery fits, and running them locally with
+`NOT_CRAN=true` gives **388 tests, 1933 passing expectations, 0 failures and 0
+skips**.
+
+### Blocking
+
+**The version.** `--as-cran` notes that `0.0.0.9000` "contains large components",
+which is how it says a development version should not be submitted. `0.1.0`.
+
+### Verification still owed
+
+**`--as-cran` did not complete here, and the reason is probably not the package.**
+It hangs at `checking use of S3 registration`, with the subprocess alive at 0% CPU
+holding a unix socket and a `com.apple.netsrc` handle, which is a network wait.
+The same tarball without `--as-cran` is Status: OK and passes that step, and
+`tools:::.check_S3_methods_needing_delayed_registration("bartisan")` returns in
+seconds when called directly, so the step's own work is not what blocks. This
+needs one run on a machine with unrestricted network before submission, because
+the step is where CRAN would find a conditionally registered method that should
+not be. The one note `--as-cran` did produce before hanging is the version string
+above.
+
+**A second platform.** win-builder and macbuilder have never been run, and
+neither has R-devel. The package compiles C++17 and links RcppArmadillo, which is
+where a platform difference would show up.
+
+**The spell check.** `--as-cran` runs one and did not get that far.
+
+### Worth doing, not blocking
+
+**Two references for `tweedie()`.** The compound Poisson-gamma is Jorgensen's and
+the series is Dunn and Smyth's, and neither paper is in the Zotero library, so
+per `PAPERS.md` the prose was written without a citation rather than with a
+reconstructed one. `?bartisan-families` and `vignette("families")`'s
+`references.bib` both want an entry.
+
+**`vignette("bartisan")` gaps.** It does not cover the bounded gates or either
+ordinal augmentation.
+
+**`custom_family()` has no posterior predictive draws**, so `simulate()`,
+`pp_check()` and `r2()` are unavailable for a user-written likelihood.
+`_dev/SHIP.md` lists this as blocking and this file does not; the case for the
+lighter reading is that `custom_family()` is the escape hatch rather than a
+supported path, and every compiled family has a sampler. Worth an explicit
+decision either way before submission rather than an implicit one.
+
+**The DART inclusion probability is still not stored.** `_dev/SHIP.md` asked for
+it on the importance accessor. `prop_splits` is the empirical share of the rules
+and answers the same question from the draws, but the posterior of the Dirichlet
+`s` itself would be the better column and needs the sampler to record it, which
+is a C++ change and a new fit component.
+
+### What is not on the list
+
+The two struck warm-start items, the joint nuisance update, and the silent `NaN`
+from `predict(type = "density")`, all for reasons given above the To Do list.
+
+## `plot()` methods for the two functions that had a `plot` argument
+
+`variable_importance()` and `error_density()` were the only two, and both now
+have a method as well: `plot.bartisan_importance()` and
+`plot.bartisan_error_density()`. `error_density()` needed a class to dispatch on
+and returns `<bartisan_error_density>`, which is the same data frame it always
+returned with a class on top, so the use `vignette("survival")` makes of the
+values is unaffected.
+
+The argument was kept rather than replaced, and **it calls the method** rather
+than sitting beside it. That is the whole design decision here: two entry points
+to one drawing cannot drift, and a test asserts they produce the same `data` and
+the same `labels` rather than trusting that they will. The ggplot objects
+themselves carry environments and do not compare equal, which is why the test
+compares the pieces.
+
+What the method buys over the argument is that the table can be subset first,
+which is what makes a wide model readable: `plot(head(imp, 10))` and
+`plot(subset(imp, prop_used > .9))` both work, because `[` on a data frame
+subclass keeps the class. The vignette says so and the tests cover both.
+
+The message about *ggplot2* being needed moved to `require_ggplot2()` in
+`R/utils.R`. Four places would otherwise have said it in four wordings: two
+arguments and two methods.
+
+
+## Shared forests: what was read, what was built, and what was measured
+
+Linero, Sinha and Lipsitz (2020), *Semiparametric mixed-scale models using
+shared Bayesian forests*, Biometrics 76(1) 131-144. Read from the paper and its
+supplement rather than from the authors' code, which is MIT licensed and so
+cannot be drawn on here.
+
+### The model in the paper
+
+M model components `h_1(x), ..., h_M(x)`, each a sum of T trees, sharing **the
+tree structures** and nothing else: the basis functions `psi_t^l(x)`, which say
+which leaf an observation falls in, are identical across components, and each
+component has its own leaf values in those leaves. So the partitions are the
+same and the values are not. Their marginal likelihood factors over the leaves
+into a product of one integrated likelihood per component, which is what makes
+the Metropolis-Hastings acceptance computable: the supplement writes it as
+`L_theta(t, l) * L_u(t, l)` for their hurdle models.
+
+Two things in the paper decide what is worth building. First, the leaf prior may
+be multivariate and correlated across components, but need not be: they say
+plainly that "the rule-sharing interpretation of our approach still applies even
+if Sigma_ij = 0" and that "substantial gains are possible even with
+Sigma_ij = 0". So the gain does not come from a correlated leaf prior. Second,
+they attribute the gain to variable selection: the informative component "can do
+a much better job of selecting the relevant predictors" and the uninformative one
+inherits that.
+
+It is worth being clear how this differs from what the package already has.
+`bcf()` shares an entire *function* between components, which the paper notes is
+a stronger assumption than sharing topology. Sharing topology is stronger than
+sharing only a prior over which predictors get used, which is what was built.
+
+### Is there a prize? (`_dev/shared-forests-sim.R`)
+
+Their Section 4 design, rebuilt from the description: a binary Z and a
+continuous Y driven by the same Friedman function, conditionally independent
+given x, Y informative and Z weak, n = 250, scored by the cross-entropy between
+the true and fitted `Pr(Z = 1 | x)` on a held-out thousand. Three arms, of which
+the third is the point: `separate` is a probit fit to Z alone with all P
+predictors, which is what the package does today and what the paper compares
+against, and `oracle` is the same fit given only the five predictors that matter,
+which is the ceiling a perfect transfer of variable selection would reach.
+
+| P | oracle | separate | ratio |
+|---|---|---|---|
+| 5 | 0.0442 | 0.0445 | 1.00x |
+| 20 | 0.0488 | 0.0656 | 1.34x |
+| 50 | 0.0463 | 0.0755 | 1.63x |
+| 100 | 0.0429 | 0.0794 | 1.85x |
+| 250 | 0.0447 | 0.1046 | 2.34x |
+
+Twenty replicates. This reproduces the shape of their Figure 2 from scratch: the
+oracle is flat in P while the separate fit degrades steadily, so the prize is
+entirely a variable-selection prize and it grows with the number of irrelevant
+predictors. At P = 5 there is nothing to win, which is the other half of the
+result and the reason the feature is off by default.
+
+### What was built: `share_sparsity`
+
+Not the paper's model. `bartisan_control(share_sparsity = TRUE)` pools the
+splitting counts of a family's forests and draws **one** Dirichlet from the
+total, so every forest reaches for predictors in the same proportions. The
+forests keep their own trees, their own cut points and their own leaf scales.
+This is the variable-selection content of shared forests without the shared
+topology, which the measurement above says is where the gain lives.
+
+The engine change is small, which is the argument for trying it before the large
+one. `update_forest()` gained a flag to skip its own `s` draw; `update_shared_s()`
+in `mcmc.cpp` pools the counts after every forest has moved and hands one draw to
+the rest through `Hypers::copy_s_from()`. Three things it has to get right, all
+of them tested:
+
+Only the forests that asked for a drawn Dirichlet take part, since `sparsity` is
+a per-forest setting and a forest given the uniform prior must keep it.
+
+The forests that share must be able to split on the same predictors, because a
+pooled Dirichlet over different supports is not one distribution. A `vc()` term
+holds its coefficient forest to the modifiers, so that case is real and is an
+error rather than a silent pooling. It is also narrower than it looks: a forest
+allowed only one group does not draw its proportions at all, so a single-modifier
+`vc()` term is a no-op rather than an error.
+
+One forest is nothing to share, so it is ignored rather than an error, since a
+caller may set this globally and change family.
+
+### The effect, visible in the splitting counts
+
+A homoskedastic response fitted with `gaussian_ls()` at P = 25: the scale forest
+has no signal of its own, so what it concentrates on is either noise or whatever
+the mean forest found. Its top three by `prop_splits` go from `x7 x13 x23` under
+the default to `x4 x1 x2` when the prior is shared, against a truth of `x1`, `x2`
+and `x4`. That chunk is in `vignette("families")`.
+
+### Does it help? (`_dev/share-sparsity-sim.R`)
+
+`gaussian_ls()`, n = 400, 20 replicates, each component scored by root mean
+squared error against the truth on a held-out thousand. The mean and the log
+standard deviation are driven either by the same five predictors, where the
+assumption behind sharing holds, or by disjoint sets of five, where it does not.
+Ratios are default error over shared error, so above 1 means sharing helped.
+
+| agree | P | `log_sd` | `mean` |
+|---|---|---|---|
+| yes | 5 | 1.02x | 0.99x |
+| yes | 25 | 1.13x | 1.03x |
+| yes | 100 | **1.23x** | **1.12x** |
+| no | 25 | 0.97x | 0.96x |
+| no | 100 | 0.98x | 0.96x |
+
+And `zi_poisson()`, the same design, with the count log mean and the logit of
+the zero-inflation probability standing in for the two components:
+
+| agree | P | `zero` | `count` |
+|---|---|---|---|
+| yes | 5 | 1.04x | 0.97x |
+| yes | 25 | 1.30x | 1.03x |
+| yes | 100 | **1.40x** | 1.02x |
+| no | 25 | 0.95x | 0.91x |
+| no | 100 | 1.00x | 0.92x |
+
+The shape is the one the oracle experiment predicted. Nothing at P = 5, because
+there is no selection problem to transfer. A quarter off the log standard deviation's error at
+P = 100 and two fifths off the zero-inflation probability's, which is the
+component with the least signal of its own in each family and so the one with the
+most to inherit. The stronger component gains a little too, up to a tenth for
+`gaussian_ls()`, which was not expected: a scale forest that has stopped
+splitting on noise leaves less for the mean forest to explain.
+
+The cost when the assumption is false is 2% to 8%, several times smaller than the
+gain when it holds. That asymmetry is the argument for offering the setting at
+all; it is not an argument for making it the default, because a caller who has
+not thought about whether the components share predictors has not made the
+statement the setting makes.
+
+### The paper's own model, built: `share_forests`
+
+The plan above was carried out, and the note in it about the acceptance ratio was
+wrong in a way worth recording, because the same mistake is the natural one to
+make and it is invisible in some families.
+
+`bartisan_control(share_forests = TRUE)` gives every forest of a multi-forest
+family the same trees. The forests are still one `Tree` object per component, so
+`Node`, the flat forest storage, `encode_tree()`, `predict()`'s replay,
+`variable_importance()` and the reported per-forest bandwidths all see exactly
+what they saw before; what changes is that the t-th tree of every component
+holds the same partition, and a move is accepted against the sum of what it does
+to all of them. Three new tree moves in `mcmc.cpp` (`shared_birth`,
+`shared_death`, `shared_change`), a shared bandwidth move, and
+`update_shared_forests()` to drive them. `Node::mirror_birth()` and
+`Node::mirror_rule()` take a rule and the division of the support from another
+tree of the same shape rather than drawing and computing them again;
+`twin_of()` finds the corresponding node by walking the path from the root, so
+nothing depends on the order any traversal happens to use.
+
+Which forests take part: every reported one. A varying coefficient's forest as
+much as a second parameter's, since both are forests over the same predictors
+and what was asked for is one partition rather than one per kind of forest. A
+family's pinned nuisance forests are left out, because a forest held at a single
+leaf has no topology to share and its branching probability is zero, which would
+make a shared birth impossible for the whole group.
+
+#### The likelihood does not separate across components, and the first version assumed it did
+
+The plan said the ratio was the sum over components of
+`log_f_after - log_f_before + log_g_reverse - log_g_forward`. It is not, and the
+first implementation did exactly that and was wrong.
+
+`Context::log_f()` gives the log density of a node's observations as a function
+of *one* component, with the others read from `eta`. Summing those differences
+over components, each measured against the values the others held before the
+move, is the joint difference only if the log density is additively separable in
+the components. A `gaussian_ls()` density is
+`-log(sigma) - (y - mu)^2 / (2 sigma^2)`, in which the mean and the log standard
+deviation appear together, so it is not.
+
+The fix is to visit the components one at a time and write each into the
+predictor before weighing the next, so that component k's difference is measured
+against the values components 0..k-1 have just taken. The differences then
+telescope to the joint difference exactly. The price is that the predictor is
+written during the move, so a rejection restores it from a saved copy of the
+node's own entries rather than by never having written it.
+
+That makes the visiting order part of the proposal, which is the second thing
+the plan missed. Each component's leaf values are proposed from a Laplace fit
+conditioning on the other components as they stand at that moment, so which fit
+the reverse move would use depends on the order it visits them in. Ascending for
+a birth conditions component k on `{< k split, > k merged}`; descending for a
+death conditions it on the same set, which is what makes the pair reversible
+with the fits each already computes. A change move is its own reverse, so a
+fixed order would need a fit it never computes: it draws the direction, and the
+reverse draws the opposite with the same probability, so the two cancel.
+
+**How it was checked.** A temporary build recomputed `total_loglik()` before and
+after every shared move and compared it with the accumulated delta, with the
+leaf-prior terms that `log_f()` also carries subtracted off. Over 400 moves in
+each of seven configurations (all three gates, bandwidth on and off,
+`gaussian_ls()`, `zi_poisson()`, a `vc()` fit, and the Dirichlet sparsity prior
+on) the largest gap was 8.6e-13. Reinstating the simultaneous commit in
+`shared_birth` alone took `gaussian_ls()`'s largest gap to **4.2 log-likelihood
+units**, so the check has teeth.
+
+It also would not have caught the bug on `zi_poisson()`, where the gap stayed at
+6e-14 with the bug in place: that family's two components are close enough to
+separable that the wrong ratio is nearly the right one. A family-by-family
+smoke test would have passed. This is the argument for checking the identity
+rather than the fit.
+
+The instrumentation is not in the tree. What is: `expect_predictor_invariant()`
+over all four gates and both families in `test-share-forests.R`, and the
+structural invariants below, which are exact rather than statistical.
+
+#### Decided: not shipping it, and not offering a way to reach it
+
+**2026-09-08.** The model stays in the tree; the argument does not.
+`bartisan_control()` no longer has a `share_forests` parameter, there is no
+`@param` for it, and `?bartisan_control` and the vignettes say nothing about it.
+The engine still implements it in full, and the control list still carries the
+field -- it is now read from `the$share_forests`, the package's internal flag
+environment, so the only way to engage it is a reference to that environment and
+an assignment into it. `tests/testthat/test-share-forests.R` goes through
+`with_shared_forests()` in the test helper, and the `_dev/shared-topology-*.R`
+scripts through a local `share_forests()` of their own.
+
+The reasoning is in the comment beside the field in `R/control.R` and comes down
+to the measurements above: the assumption pays 1.2x to 1.4x on the median
+quantity when it is true, costs up to 1.8x when it is false, and saves 1.00x to
+1.12x of the run time either way. An asymmetric bet on an assumption a caller
+has probably not examined is not a setting.
+
+Two notes for anyone reviving it. The C++ guards still name `` `share_forests` ``
+in their error messages, which is the right name to see if the flag is ever
+flipped, and a wrong one for a caller to be shown -- so if it is ever offered
+again under a different name, those strings move with it. And the flag is read
+when `bartisan_control()` builds its list, not when the fit runs, so it has to
+be set *before* the control object is constructed; the timing script got that
+backwards once and measured two unshared arms without noticing.
+
+#### A scoring bug worth remembering: `set.seed()` keeps the RNG *kind*
+
+The first accuracy run produced a table in which sharing changed nothing
+anywhere, with a bias-squared of 2.36 on a mean whose truth had a standard
+deviation of 1.08. A fit that misses by more than the target's own spread is not
+a fit, so the number was checked rather than reported, and the check was
+`cor(fitted, truth)`, which came back **-0.028** with the marginal distribution
+of the fitted values matching the truth's almost exactly (sd 1.09 against 1.08,
+mean 3.20 against 3.15, range 0.47-5.67 against 0.20-5.60).
+
+Right marginals and no correlation means a permutation, which means the fits
+were being scored against a *different draw of the test design*. The cause:
+
+    f <- function(seed) { set.seed(seed); runif(3) }
+    f(10000)                      # 0.4419 0.4739 0.3327   Mersenne-Twister
+    RNGkind("L'Ecuyer-CMRG"); f(10000)   # 0.3939 0.7027 0.1354
+
+`set.seed(seed)` with no `kind` argument keeps whatever kind is current.
+`future.seed = TRUE` puts every worker on L'Ecuyer-CMRG so the streams are
+independent, while the main process stays on Mersenne-Twister. The script built
+the test set inside the worker and then rebuilt "the same" test set in the main
+process to score against, and the two seeds gave two different datasets.
+
+The fix is not to pass `kind =` but to stop regenerating: the test sets are
+built once in the main process and handed to the workers, so there is only ever
+one draw of them. Training sets are still generated per replicate in the worker,
+which is harmless -- their identity does not matter as long as both arms of a
+replicate see the same one, and both do.
+
+`_dev/shared-topology-results.R` now reports the fit-to-truth correlation
+alongside the decomposition and stops outright below 0.3. The correlation is not
+interesting as a result; it is there because it is the one number that catches
+this, and no amount of reading a mean squared error does.
+
+The lesson generalizes past this script: **anything regenerated from a seed on
+both sides of a `future` boundary is suspect.** Timings and split counts from
+that run were unaffected, since neither is scored against a truth.
+
+#### What makes it testable
+
+If the t-th tree of every forest is the same tree then every forest takes the
+same rules, so the per-draw split counts and the per-tree bandwidths must agree
+to the last bit, and must not agree when the forests are separate. That is
+`expect_identical(fit$counts[[1]], fit$counts[[2]])` and the same on the
+bandwidth block, and it is what `test-share-forests.R` mostly consists of. Two
+forests can agree on totals by accident; they cannot agree on a whole matrix of
+counts by predictor by draw.

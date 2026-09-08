@@ -76,6 +76,13 @@ struct Hypers {
   void update_alpha_param();
   void update_s_param(const arma::uvec& counts);
 
+  // Take the proportions and the concentration from another forest's draw,
+  // which is how `share_sparsity` gives every forest the same ones: the counts
+  // are pooled, one forest draws, and the rest copy. Only meaningful when the
+  // two carry the same allowed set, which `same_allowed()` is for.
+  void copy_s_from(const Hypers& other);
+  bool same_allowed(const Hypers& other) const;
+
   int num_groups() const { return num_groups_; }
   int num_vars() const { return static_cast<int>(group_probs_.n_rows); }
   const arma::vec& log_s() const { return log_s_; }

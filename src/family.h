@@ -547,6 +547,15 @@ struct Family {
   // the two-call version produced.
   virtual double loglik_delta(const arma::mat& eta, int h,
                               const double* new_h) const {
+    return loglik_delta_rows(eta, &h, 1, &new_h);
+  }
+
+  // The same when several components are replaced at once, which is what a
+  // bandwidth held in common by a group of forests needs: one topology moves in
+  // every component together, so the change it makes cannot be weighed one
+  // component at a time.
+  virtual double loglik_delta_rows(const arma::mat& eta, const int* hs, int nh,
+                                   const double* const* new_hs) const {
     const int CHUNK = 256;
     delta_idx.resize(CHUNK);
     delta_block.resize(static_cast<std::size_t>(CHUNK) * H);
@@ -569,8 +578,13 @@ struct Family {
       std::memcpy(delta_block.data(), from,
                   sizeof(double) * static_cast<std::size_t>(n) * H);
 
-      for (int k = 0; k < n; k++) {
-        delta_block[static_cast<std::size_t>(k) * H + h] = new_h[start + k];
+      for (int j = 0; j < nh; j++) {
+        const double* row = new_hs[j];
+        int h = hs[j];
+
+        for (int k = 0; k < n; k++) {
+          delta_block[static_cast<std::size_t>(k) * H + h] = row[start + k];
+        }
       }
 
       logdens_block(delta_idx.data(), n, delta_block.data(), delta_new.data());

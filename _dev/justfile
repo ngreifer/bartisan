@@ -1,0 +1,30 @@
+# Command surface for the shared-forest investigation.
+#
+# Submitted through pueue rather than run here, per the long-running-jobs rule:
+#   pueue add -- just --justfile _dev/justfile accuracy
+#
+# Every recipe reports progress through the `/live-progress` widget; check on
+# one with `progress-status` rather than by remembering what you launched.
+
+root := justfile_directory() / ".."
+
+# The accuracy simulation: 240 jobs on 8 workers, ~45 min.
+accuracy:
+    cd {{root}} && SHARED_WORKERS=8 Rscript _dev/shared-topology-sim.R
+
+# The timing grid. Wants a quiet machine; do not run it alongside anything.
+timing:
+    cd {{root}} && Rscript _dev/shared-topology-timing.R
+
+# Effective sample size per second. Also wants a quiet machine.
+mixing:
+    cd {{root}} && Rscript _dev/shared-topology-mixing.R
+
+# Read the raw simulation output into the tables.
+results:
+    cd {{root}} && Rscript _dev/shared-topology-results.R
+
+# Reinstall and run the whole test suite, ticking once per test file.
+test:
+    cd {{root}} && R CMD INSTALL --no-docs --no-multiarch . > /dev/null
+    cd {{root}} && Rscript -e 'A <- path.expand("~/.claude/skills/live-progress/assets"); source(file.path(A, "progress.R")); source(file.path(A, "testthat-progress.R")); prog_test(".")'

@@ -21,3 +21,6 @@
 ^CLAUDE\.md$
 ^Rplots\.pdf$
 ^figure$
+^\.progress-runs$
+^\.run-.*\.sh$
+^justfile$

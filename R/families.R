@@ -25,7 +25,15 @@
 #'   the dispersion parameter, which must be positive. Default is `NULL` to draw
 #'   it along with everything else.
 #' @param phi `numeric`; for `Beta()` and `ordbeta()`, a fixed value for the beta
-#'   precision, which must be positive. Default is `NULL` to draw it.
+#'   precision, and for `tweedie()` a fixed value for the dispersion. Must be
+#'   positive. Default is `NULL` to draw it.
+#' @param power `numeric`; for `tweedie()`, the variance power \eqn{p} in
+#'   \eqn{\mathrm{Var}(y) = \phi\mu^p}, strictly between 1 and 2. Default is 1.5,
+#'   and the value is held fixed there rather than drawn, because the power is
+#'   weakly identified from data of the sizes this package is used on and a
+#'   badly determined power drags the dispersion around with it. Pass `NULL` to
+#'   draw it, which is worth doing only with a large sample and a real interest
+#'   in the shape rather than the mean.
 #' @param reference for `multinomial()`, the response category to hold as the
 #'   reference, given as a single value naming one of the response's levels.
 #'   Default is `NULL`, which with the logit link fits one forest per category
@@ -137,6 +145,7 @@
 #' | `zi_negbin()` | `log` | 2 | dispersion |
 #' | `Beta()` | `logit`, `probit`, `cloglog` | 1 | precision |
 #' | `ordbeta()` | `logit` | 1 | 2 cutpoints, precision |
+#' | `tweedie()` | `log` | 1 | dispersion, and the power if it is drawn |
 #' | `dpm()` | `identity` | 1 | error mixture, concentration |
 #'
 #' A family with more than one additive predictor fits one forest per predictor.
@@ -397,6 +406,25 @@
 #' whether it happens to in the sample: the two ask different questions, and
 #' `ordbeta()` fitted to a response with no boundary observations leaves its
 #' cutpoints with nothing to identify them.
+#'
+#' `tweedie()` is the compound Poisson-gamma, for a non-negative response with a
+#' point mass at zero and a continuous positive part, which is the shape of
+#' spending, rainfall, insurance claims and earnings. It is the analogue of
+#' `ordbeta()` at the other end: one predictor again drives both parts, but
+#' through the mean rather than through a cutpoint, since \eqn{\mu = \exp(\eta)}
+#' and \eqn{\mathrm{Var}(y) = \phi\mu^p} together fix the probability of a zero
+#' at \eqn{\exp(-\mu^{2-p}/(\phi(2-p)))}. That is what makes it a single process
+#' and is also its restriction: the share of zeros has no level of its own, so a
+#' response whose zeros are more or less common than its mean implies wants a
+#' two-part model instead, which `zi_poisson()` and `zi_negbin()` are for counts
+#' and which `custom_family()` can supply for anything else.
+#'
+#' Two things follow from the mean being \eqn{\exp(\eta)} exactly. A
+#' counterfactual mean through \CRANpkg{marginaleffects} needs nothing beyond the
+#' forest, unlike a two-part model where it has to be recombined across
+#' predictors; and the fit is comparable with a `poisson()` or `Gamma("log")` fit
+#' of the same response, since all three put the same quantity on the same
+#' scale.
 #'
 #' ## Several Additive Predictors
 #'
@@ -797,6 +825,37 @@ ordbeta <- function(link = "logit", phi = NULL) {
 
 #' @rdname bartisan-families
 #' @export
+tweedie <- function(link = "log", power = 1.5, phi = NULL) {
+  link <- arg::match_arg(link, "log")
+
+  # The open interval, since the family degenerates at both ends: to a Poisson
+  # multiple at 1 and to a gamma with no mass at zero at 2. The interior is all
+  # usable, which is worth knowing because the series that normalizes the
+  # density has a shape parameter of (2 - p) / (p - 1) and that runs from 999 at
+  # p = 1.001 to 0.001 at p = 1.999. Measured across that whole range, every
+  # density is finite and a fit runs. `NULL` is the request to draw the power,
+  # so it is not a value to be checked.
+  arg::when_not_null(
+    power,
+    arg::arg_and(
+      arg::arg_number,
+      arg::arg_between(c(1, 2), inclusive = FALSE)
+    )
+  )
+
+  arg::when_not_null(
+    phi,
+    arg::arg_and(
+      arg::arg_number,
+      arg::arg_gt(0)
+    )
+  )
+
+  new_bartisan_family("tweedie", link, power = power, phi = phi)
+}
+
+#' @rdname bartisan-families
+#' @export
 custom_family <- function(logdens, num_predictors = 1L, start = 0,
                           derivatives = NULL, aux_names = NULL, aux_start = NULL,
                           name = "custom") {
@@ -877,10 +936,10 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
   aux_start <- aux_start %or% numeric()
 
   if (num_aux > 0L && length(formals(logdens)) < 3L) {
-    arg::err("{.arg logdens} must take a third argument for the nuisance
-              parameters when there are any.",
-             i = "It is called as {.code logdens(y, eta, aux)}, with {.arg aux} a
-                  numeric vector of length {num_aux}.")
+    arg::err(c("{.arg logdens} must take a third argument for the nuisance
+                parameters when there are any.",
+               i = "It is called as {.code logdens(y, eta, aux)}, with
+                    {.arg aux} a numeric vector of length {num_aux}."))
   }
 
   new_bartisan_family("custom", "identity", logdens = logdens,
@@ -893,11 +952,24 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
                       name = name)
 }
 
+# The options a family of ours would have been built with, for a caller who
+# named the distribution through a plain `family` object instead. Only the
+# families whose defaults are something other than "draw it" need an entry, so
+# the list is short and stays that way.
+family_defaults <- function(name) {
+  if (!identical(name, "tweedie")) {
+    return(list())
+  }
+
+  built <- tweedie()
+  built[!names(built) %in% c("family", "link")]
+}
+
 bartisan_family_names <- c("gaussian", "binomial", "poisson", "negbin", "Gamma",
                            "ordinal", "multinomial", "dpm",
                            "weibull_aft", "loglogistic_aft", "lognormal_aft",
                            "gaussian_ls", "Gamma_ls", "zi_poisson", "zi_negbin",
-                           "Beta", "ordbeta", "ph", "dpm_aft")
+                           "Beta", "ordbeta", "tweedie", "ph", "dpm_aft")
 
 new_bartisan_family <- function(family, link, ...) {
   structure(c(list(family = family, link = link), list(...)),
@@ -929,7 +1001,8 @@ valid_links <- list(custom = "identity",
                     zip = "log",
                     zinb = "log",
                     beta = "logit",
-                    ordbeta = "logit")
+                    ordbeta = "logit",
+                    tweedie = "log")
 
 # Normalize whatever the user passed to `family` into a bartisan family object.
 # Accepts a string, a family-generating function, a stats::family object, or one
@@ -973,18 +1046,18 @@ default_family <- function(y, weights = NULL) {
   # say which of the two they meant.
   if (!is_null(weights)) {
     if (identical(chosen, "dpm")) {
-      arg::err("a numeric response defaults to {.fn dpm}, which does not take
-                prior weights",
-               i = "name a family: {.code family = gaussian()} keeps the weights,
-                    and so do {.fn ordinal} and {.fn gaussian_ls}")
+      arg::err(c("a numeric response defaults to {.fn dpm}, which does not take
+                  prior weights",
+                 i = "name a family: {.code family = gaussian()} keeps the
+                      weights, and so do {.fn ordinal} and {.fn gaussian_ls}"))
     }
 
     if (identical(chosen, "dpm_aft")) {
-      arg::err("a censored response defaults to {.fn dpm_aft}, which does not
-                take prior weights",
-               i = "name a family: {.code family = lognormal_aft()} keeps the
-                    weights, and so do {.fn weibull_aft},
-                    {.fn loglogistic_aft} and {.fn ph}")
+      arg::err(c("a censored response defaults to {.fn dpm_aft}, which does not
+                  take prior weights",
+                 i = "name a family: {.code family = lognormal_aft()} keeps the
+                      weights, and so do {.fn weibull_aft},
+                      {.fn loglogistic_aft} and {.fn ph}"))
     }
   }
 
@@ -1065,9 +1138,22 @@ as_bartisan_family <- function(family) {
   name <- family[["family"]]
   link <- family[["link"]]
 
+  # `bartisan_family_names` rather than `names(valid_links)`, which is what this
+  # used to report. Those are the engine's own family strings, and several of
+  # them are not names a caller can write: `"zip"` and `"zinb"` are reached
+  # through `zi_poisson()` and `zi_negbin()`, `"beta"` through `Beta()`, `"mnp"`
+  # through `multinomial("probit")`, `"aft"` through the three `*_aft()`
+  # functions, and `"custom"` through `custom_family()`. Reporting them sent a
+  # caller looking for functions that do not exist, and it disagreed with the
+  # error the string branch above gives for the same mistake.
   if (!name %in% names(valid_links)) {
-    arg::err("family {.val {name}} is not supported by {.fn bartisan}. Supported
-              families are {.val {names(valid_links)}}")
+    arg::err(c("family {.val {name}} is not supported by {.fn bartisan}",
+               i = "Supported families are {.val {bartisan_family_names}}, each
+                    the name of a function to call.",
+               i = "For a likelihood that is not among them, {.fn custom_family}
+                    takes the log density itself. A {.cls family} object carries
+                    a link and a variance function rather than a density, so one
+                    cannot be built from it automatically."))
   }
 
   # The gamma family is the one place a supplied link is overruled rather than
@@ -1107,11 +1193,21 @@ as_bartisan_family <- function(family) {
   # A bartisan family carries its own options -- a fixed dispersion, a reference
   # category, a supplied log density -- which have to survive; a stats::family
   # object carries link machinery that has already been read off above.
+  #
+  # An ordinary `family` object naming one of ours carries no settings at all,
+  # and for most families that is the same as taking the defaults, since their
+  # default is to draw everything. `tweedie()` is the exception: its power is
+  # fixed unless asked for, and an empty option list reads as "not supplied" and
+  # so as "draw it". Without the fill-in below, `family = "tweedie"` and
+  # `family = glmmTMB::tweedie()` would name the same distribution and fit
+  # different models.
   extra <- {
     if (inherits(family, "bartisan_family")) {
       family[!names(family) %in% c("family", "link")]
     }
-    else list()
+    else {
+      family_defaults(name)
+    }
   }
 
   family <- do.call(new_bartisan_family,

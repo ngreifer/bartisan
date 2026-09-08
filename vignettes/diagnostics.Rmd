@@ -90,6 +90,16 @@ catches drift but cannot catch two chains settling in different places. Running
 four costs four times as much sampling, which for most fits is a few seconds, and
 less than that under a `future` plan.
 
+More chains is not, however, a way to satisfy `rhat`, and it is worth knowing
+which way it cuts before reaching for it. Effective sample size depends on the
+total number of draws and not on how they are divided, so twice as many chains
+and twice as long a chain buy the same amount of it. `rhat` is not symmetric that
+way: because it compares chains against each other, its value under a sampler
+with nothing wrong is about `1 + chains / ess`, so at 400 effective draws four
+chains sit at 1.010 and sixteen chains at 1.040. Adding chains raises the bar it
+has to clear. When a fit fails on `rhat`, longer chains are the fix; when it
+fails only on effective sample size, either will do.
+
 `diagnose()` is where the diagnostics are computed, and the only place: a fit does
 not carry a table of its own, because the per-observation statistics cost more
 than the sampling and would only be recomputed here.
@@ -134,10 +144,16 @@ the table. A binomial likelihood has none, so they do not appear here; a
 Gaussian fit would show `aux.sigma`, and a survival fit its scale or baseline
 hazard.
 
-`eta.*` is the additive predictor, summarized over its worst 5% of observations
-rather than over the single worst one, because the worst of a thousand values is
-extreme even when every chain has converged. This is the fitted function, so it
-is the row that matters when predictions or effects are the output.
+`eta.*` is the additive predictor, and it gets two rows. One summarizes the
+worst 5% of observations rather than the single worst, because the worst of a
+thousand values is extreme even when every chain has converged; the other is the
+average over observations. Reading them against each other is the point of having
+both, because they routinely differ by orders of magnitude: a forest settles the
+level of the fitted function within a sweep or two and takes far longer to settle
+which observation gets which share of it. Which row binds depends on what we mean
+to report. An average or a contrast of averages, which is what
+`avg_comparisons()` gives, is governed by the average row; a prediction for one
+observation is governed by the other.
 
 One quantity is deliberately not in the table. The leaf prior scale, in
 `fit$sigma_mu`, mixes badly in every BART implementation: on one dataset its
@@ -259,6 +275,13 @@ same function, so the sampler mixes faster.
 posterior that is hard to explore, so the family is worth checking when more
 draws and a smaller forest have not helped; `vignette("families")` covers the
 alternatives.
+
+One thing to rule out first. `rhat` above 1.01 on a quantity carrying only a
+handful of effective draws is not yet evidence that the chains disagree, since
+that is roughly where `rhat` sits when nothing is wrong, and `diagnose()` says so
+rather than reporting a disagreement it cannot support. In that case the
+effective sample size is what to fix, and more draws is the whole of the
+remedy.
 
 ## Fit
 

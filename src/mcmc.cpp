@@ -1690,7 +1690,8 @@ void update_sigma_mu(Hypers& hypers, std::vector<Tree*>& forest) {
 
 } // namespace
 
-void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers) {
+void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers,
+                   bool draw_split_probs) {
 
   for (std::size_t t = 0; t < forest.size(); t++) {
     Tree* tree = forest[t];
@@ -1727,7 +1728,7 @@ void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers) {
     ctx.sigma_mu = hypers.sigma_mu;
   }
 
-  if (hypers.update_s) {
+  if (hypers.update_s && draw_split_probs) {
     arma::uvec counts = arma::zeros<arma::uvec>(hypers.num_groups());
     for (std::size_t t = 0; t < forest.size(); t++) {
       get_var_counts(forest[t]->root, counts);
@@ -1737,6 +1738,641 @@ void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers) {
       hypers.update_alpha_param();
     }
   }
+}
+
+void update_shared_s(const std::vector<std::vector<Tree*>>& forests,
+                     std::vector<std::unique_ptr<Hypers>>& hypers) {
+  // Only the forests that asked for a drawn Dirichlet take part. `sparsity` is
+  // a per-forest setting, so one component can be given the uniform prior while
+  // the others share, and handing it the pooled draw would override what it was
+  // asked for.
+  std::vector<std::size_t> sharing;
+
+  for (std::size_t h = 0; h < hypers.size(); h++) {
+    if (hypers[h]->update_s) {
+      sharing.push_back(h);
+    }
+  }
+
+  if (sharing.size() < 2) {
+    return;
+  }
+
+  arma::uvec counts =
+    arma::zeros<arma::uvec>(hypers[sharing[0]]->num_groups());
+
+  for (std::size_t k = 0; k < sharing.size(); k++) {
+    std::size_t h = sharing[k];
+    for (std::size_t t = 0; t < forests[h].size(); t++) {
+      get_var_counts(forests[h][t]->root, counts);
+    }
+  }
+
+  // One draw, then handed to the rest. Drawing per forest from the pooled
+  // counts would give each a different vector from the same posterior, which is
+  // a different model: the point is that they use the *same* proportions.
+  Hypers& lead = *hypers[sharing[0]];
+  lead.update_s_param(counts);
+
+  if (lead.update_alpha) {
+    lead.update_alpha_param();
+  }
+
+  for (std::size_t k = 1; k < sharing.size(); k++) {
+    hypers[sharing[k]]->copy_s_from(lead);
+  }
+}
+
+// Shared tree topology: the shared forests of Linero, Sinha and Lipsitz (2020).
+//
+// A group is the t-th tree of every additive predictor that shares. The three
+// moves below are the ordinary birth, death and change performed on all of them
+// at once: one rule is drawn, one support is divided, and the whole thing is
+// accepted or rejected together. What makes it one partition with a vector of
+// values in each leaf, rather than K partitions tried in step, is that the
+// tree-shape prior, the rule prior and the choice of which node to move enter
+// the ratio *once* however many components read them, while the likelihood and
+// the leaf-value proposals are summed. A rule only one component can justify is
+// then held back by the others, and a rule that helps them all is bought once.
+//
+// Two things here are easy to get wrong and both were, so they are worth
+// stating plainly.
+//
+// **The likelihood does not separate across components.** A `gaussian_ls()`
+// density is -log(sigma) - (y - mu)^2 / (2 sigma^2), and the mean and the log
+// standard deviation appear in it together. So the sum over components of each
+// one's conditional change -- each measured against the values the others held
+// before the move -- is *not* the change in the joint likelihood, and a ratio
+// built that way targets the wrong posterior. The components are therefore
+// visited one at a time and each is written into the predictor before the next
+// is weighed, so that component k's change is measured against the values
+// components 0..k-1 have just taken. The per-component differences then
+// telescope to the joint difference exactly. The price is that the predictor is
+// written during the move, so a rejection has to put it back from a saved copy
+// rather than by simply never having written it.
+//
+// **The visiting order is part of the proposal.** Each component's leaf values
+// are proposed from a Laplace fit that conditions on the other components as
+// they stand at that moment, so which fit the reverse move would use depends on
+// the order it visits them in. Ascending for a birth conditions component k on
+// {< k split, > k merged}; descending for a death conditions it on the same
+// set, which is what makes the pair reversible with the fits each already
+// computes. A change move is its own reverse, so it cannot use a fixed order:
+// it draws one, and the reverse draws the opposite with the same probability,
+// which cancels.
+namespace {
+
+// Point the context at one component of a group: which additive predictor is
+// being evaluated, the shape of the family's target in it, and that forest's
+// own leaf scale. The scale matters as much as the rest -- a log standard
+// deviation and a mean are on quite different scales, the Laplace fit is built
+// from the leaf prior as much as from the likelihood, and the components keep
+// their own leaf priors precisely so that sharing a topology does not force
+// them to share a size.
+void set_component(Context& ctx, int h, const Hypers& hypers) {
+  ctx.h = h;
+  ctx.form = ctx.family->target_form(h);
+  ctx.quadratic = ctx.family->is_quadratic(h);
+  ctx.sigma_mu = hypers.sigma_mu;
+}
+
+// The node at the same position as `lead_node` in the group's k-th tree.
+Node* member_node(Node* lead_node, const std::vector<Tree*>& group,
+                  std::size_t k, Context& ctx) {
+  return k == 0 ? lead_node
+                : twin_of(lead_node, group[k]->root, ctx.share_path);
+}
+
+// The node's own entries of one component's predictor, and putting them back.
+// A shared move writes the predictor as it goes, so this is its rollback.
+void save_eta(const Node* node, const arma::mat& eta, int h,
+              std::vector<double>& keep) {
+  std::size_t n = node->idx.size();
+  keep.resize(n);
+
+  for (std::size_t j = 0; j < n; j++) {
+    keep[j] = eta(h, node->idx[j]);
+  }
+}
+
+void restore_eta(const Node* node, arma::mat& eta, int h,
+                 const std::vector<double>& keep) {
+  std::size_t n = node->idx.size();
+
+  for (std::size_t j = 0; j < n; j++) {
+    eta(h, node->idx[j]) = keep[j];
+  }
+}
+
+
+void shared_birth(const std::vector<Tree*>& group,
+                  const std::vector<int>& members, Context& ctx,
+                  std::vector<std::unique_ptr<Hypers> >& hypers) {
+  const std::size_t K = group.size();
+  Tree* lead = group[0];
+  const Hypers& shape = *hypers[members[0]];
+
+  std::vector<Node*>& leaf_list = ctx.buf_leaves;
+  leaf_list.clear();
+  leaves(lead->root, leaf_list);
+  Node* leaf = leaf_list[sample_class(static_cast<int>(leaf_list.size()))];
+
+  double rho_d = grow_prob(&shape, leaf->depth);
+
+  if (!(rho_d > 0.0)) {
+    return;
+  }
+
+  double rho_d1 = grow_prob(&shape, leaf->depth + 1);
+
+  double p_forward = std::log(p_birth_move(lead->root)) -
+    std::log(static_cast<double>(leaf_list.size()));
+
+  // One rule for the group, drawn from the lead's prior and taken by the rest,
+  // along with the division of the support it implies. Evaluating those gates
+  // again in each of the other trees would give the same numbers back. Nothing
+  // here touches the predictor: the children start at zero, so it still carries
+  // the parent's own contribution.
+  std::vector<double>& w_left = ctx.buf_left;
+  std::vector<double>& w_right = ctx.buf_right;
+  leaf->birth_leaves(&w_left, &w_right);
+
+  for (std::size_t k = 1; k < K; k++) {
+    twin_of(leaf, group[k]->root, ctx.share_path)->mirror_birth(leaf);
+  }
+
+  double p_backward = std::log(p_death_move(lead->root)) -
+    std::log(static_cast<double>(num_not_grand_branches(lead->root)));
+
+  // Ascending, and each component written into the predictor before the next is
+  // weighed; see the note above.
+  double log_lik_delta = 0.0;
+  double log_g_reverse = 0.0;
+  double log_g_forward = 0.0;
+
+  for (std::size_t k = 0; k < K; k++) {
+    Node* node = member_node(leaf, group, k, ctx);
+    set_component(ctx, members[k], *hypers[members[k]]);
+
+    std::vector<double>& base = ctx.share_base[k];
+    ctx.make_base(node, base);
+    save_eta(node, *ctx.eta, members[k], ctx.share_keep[k]);
+
+    // The leaf configuration: this component's value before the move, and the
+    // fit the reverse death move would propose it from.
+    Target1 merged(ctx, node, &base, node->mu);
+    log_lik_delta -= merged.log_f(node->mu);
+    log_g_reverse += merged.laplace().log_dens(node->mu);
+
+    Target2 split(ctx, node, base, w_left, w_right);
+    Laplace2 fit = split.laplace();
+    double proposal[2];
+    fit.draw(proposal);
+    log_lik_delta += split.log_f(proposal[0], proposal[1]);
+    log_g_forward += fit.log_dens(proposal[0], proposal[1]);
+
+    ctx.share_mu_left[k] = proposal[0];
+    ctx.share_mu_right[k] = proposal[1];
+    commit_children(node, *ctx.eta, members[k], base, w_left, w_right,
+                    proposal[0], proposal[1]);
+  }
+
+  double log_ratio = log_lik_delta +
+    std::log(rho_d) + 2.0 * std::log1p(-rho_d1) - std::log1p(-rho_d) +
+    p_backward - p_forward + log_g_reverse - log_g_forward;
+
+  if (std::isfinite(log_ratio) && std::log(unif_rand()) < log_ratio) {
+    for (std::size_t k = 0; k < K; k++) {
+      Node* node = member_node(leaf, group, k, ctx);
+      node->left->mu = ctx.share_mu_left[k];
+      node->right->mu = ctx.share_mu_right[k];
+    }
+
+    return;
+  }
+
+  for (std::size_t k = 0; k < K; k++) {
+    Node* node = member_node(leaf, group, k, ctx);
+    restore_eta(node, *ctx.eta, members[k], ctx.share_keep[k]);
+    node->delete_leaves();
+    node->var = 0;
+    node->group = 0;
+    node->na_rule = NA_LEFT;
+    node->mask.clear();
+  }
+}
+
+void shared_death(const std::vector<Tree*>& group,
+                  const std::vector<int>& members, Context& ctx,
+                  std::vector<std::unique_ptr<Hypers> >& hypers) {
+  const std::size_t K = group.size();
+  Tree* lead = group[0];
+  const Hypers& shape = *hypers[members[0]];
+
+  std::vector<Node*>& ngb = ctx.buf_branches;
+  ngb.clear();
+  not_grand_branches(lead->root, ngb);
+
+  if (ngb.empty()) {
+    return;
+  }
+
+  Node* branch = ngb[sample_class(static_cast<int>(ngb.size()))];
+
+  double rho_d = grow_prob(&shape, branch->depth);
+  double rho_d1 = grow_prob(&shape, branch->depth + 1);
+
+  int num_leaf_before = num_leaves(lead->root);
+  double p_forward = std::log(p_death_move(lead->root)) -
+    std::log(static_cast<double>(ngb.size()));
+  double p_backward = std::log(p_birth_after_death(branch)) -
+    std::log(static_cast<double>(num_leaf_before - 1));
+
+  std::vector<double>& w_left = ctx.buf_left;
+  std::vector<double>& w_right = ctx.buf_right;
+
+  double log_lik_delta = 0.0;
+  double log_g_reverse = 0.0;
+  double log_g_forward = 0.0;
+
+  // Descending, which is what makes this the reverse of the ascending birth
+  // above: component k is then weighed against the same other components in
+  // both, so the fit each move computes is the fit the other one needs.
+  for (std::size_t r = K; r > 0; r--) {
+    std::size_t k = r - 1;
+    Node* node = member_node(branch, group, k, ctx);
+    set_component(ctx, members[k], *hypers[members[k]]);
+
+    std::vector<double>& base = ctx.share_base[k];
+    // The weights come out the same in every component, so this recomputes
+    // them K times. Splitting the pass in two to save one gate per observation
+    // would cost a second traversal of the same support, which is the more
+    // expensive half.
+    ctx.make_base_children(node, base, w_left, w_right);
+    save_eta(node, *ctx.eta, members[k], ctx.share_keep[k]);
+
+    Target2 split(ctx, node, base, w_left, w_right);
+    log_lik_delta -= split.log_f(node->left->mu, node->right->mu);
+    log_g_reverse += split.laplace().log_dens(node->left->mu, node->right->mu);
+
+    ctx.share_left[k] = node->left;
+    ctx.share_right[k] = node->right;
+    node->left = nullptr;
+    node->right = nullptr;
+    node->is_leaf = true;
+
+    Target1 merged(ctx, node, &base, 0.0);
+    Laplace1 fit = merged.laplace();
+    double mu_new = fit.draw();
+    log_lik_delta += merged.log_f(mu_new);
+    log_g_forward += fit.log_dens(mu_new);
+
+    ctx.share_mu_left[k] = mu_new;
+    commit_single(node, *ctx.eta, members[k], base, mu_new);
+  }
+
+  double log_ratio = log_lik_delta +
+    std::log1p(-rho_d) - std::log(rho_d) - 2.0 * std::log1p(-rho_d1) +
+    p_backward - p_forward + log_g_reverse - log_g_forward;
+
+  if (std::isfinite(log_ratio) && std::log(unif_rand()) < log_ratio) {
+    for (std::size_t k = 0; k < K; k++) {
+      Node* node = member_node(branch, group, k, ctx);
+      group[k]->give_node(ctx.share_left[k]);
+      group[k]->give_node(ctx.share_right[k]);
+      node->mu = ctx.share_mu_left[k];
+      node->var = 0;
+      node->group = 0;
+      node->na_rule = NA_LEFT;
+      node->mask.clear();
+    }
+
+    return;
+  }
+
+  for (std::size_t k = 0; k < K; k++) {
+    Node* node = member_node(branch, group, k, ctx);
+    node->left = ctx.share_left[k];
+    node->right = ctx.share_right[k];
+    node->is_leaf = false;
+    restore_eta(node, *ctx.eta, members[k], ctx.share_keep[k]);
+  }
+}
+
+void shared_change(const std::vector<Tree*>& group,
+                   const std::vector<int>& members, Context& ctx,
+                   std::vector<std::unique_ptr<Hypers> >& hypers) {
+  const std::size_t K = group.size();
+  Tree* lead = group[0];
+
+  std::vector<Node*>& ngb = ctx.buf_branches;
+  ngb.clear();
+  not_grand_branches(lead->root, ngb);
+
+  if (ngb.empty()) {
+    return;
+  }
+
+  Node* branch = ngb[sample_class(static_cast<int>(ngb.size()))];
+
+  // A change is its own reverse, so a fixed visiting order would make the
+  // proposal density the reverse move needs one this move never computes. The
+  // direction is drawn instead, and the reverse draws the opposite with the
+  // same probability, so the two cancel out of the ratio.
+  bool descend = unif_rand() < 0.5;
+
+  std::vector<double>& w_left = ctx.buf_left;
+  std::vector<double>& w_right = ctx.buf_right;
+
+  // The bases and the old weights first, for every component, because they have
+  // to be read while the old rule is still in place. Neither depends on the
+  // other components, so taking them all up front changes nothing.
+  for (std::size_t k = 0; k < K; k++) {
+    Node* node = member_node(branch, group, k, ctx);
+    ctx.h = members[k];
+    ctx.make_base_children(node, ctx.share_base[k], w_left, w_right);
+    save_eta(node, *ctx.eta, members[k], ctx.share_keep[k]);
+  }
+
+  Node::Rule rule_old = branch->rule();
+
+  std::vector<double>& wl_new = ctx.buf_left2;
+  std::vector<double>& wr_new = ctx.buf_right2;
+  branch->resample_rule(&wl_new, &wr_new);
+
+  for (std::size_t k = 1; k < K; k++) {
+    twin_of(branch, group[k]->root, ctx.share_path)->mirror_rule(branch);
+  }
+
+  double log_lik_delta = 0.0;
+  double log_g_reverse = 0.0;
+  double log_g_forward = 0.0;
+
+  for (std::size_t r = 0; r < K; r++) {
+    std::size_t k = descend ? K - 1 - r : r;
+    Node* node = member_node(branch, group, k, ctx);
+    set_component(ctx, members[k], *hypers[members[k]]);
+
+    const std::vector<double>& base = ctx.share_base[k];
+
+    // The old rule's target. `Target2` reads the weights it is handed rather
+    // than the node's rule, so the rule having already changed does not matter.
+    Target2 was(ctx, node, base, w_left, w_right);
+    log_lik_delta -= was.log_f(node->left->mu, node->right->mu);
+    log_g_reverse += was.laplace().log_dens(node->left->mu, node->right->mu);
+
+    Target2 now(ctx, node, base, wl_new, wr_new);
+    Laplace2 fit = now.laplace();
+    double proposal[2];
+    fit.draw(proposal);
+    log_lik_delta += now.log_f(proposal[0], proposal[1]);
+    log_g_forward += fit.log_dens(proposal[0], proposal[1]);
+
+    ctx.share_mu_left[k] = proposal[0];
+    ctx.share_mu_right[k] = proposal[1];
+    commit_children(node, *ctx.eta, members[k], base, wl_new, wr_new,
+                    proposal[0], proposal[1]);
+  }
+
+  // Both children keep their depth and the rule is drawn from its own prior, so
+  // the tree-shape prior and the rule prior cancel -- once, not once per
+  // component, since there is one rule.
+  double log_ratio = log_lik_delta + log_g_reverse - log_g_forward;
+
+  if (std::isfinite(log_ratio) && std::log(unif_rand()) < log_ratio) {
+    for (std::size_t k = 0; k < K; k++) {
+      Node* node = member_node(branch, group, k, ctx);
+      node->left->mu = ctx.share_mu_left[k];
+      node->right->mu = ctx.share_mu_right[k];
+    }
+
+    return;
+  }
+
+  branch->set_rule(rule_old);
+  branch->split_support();
+
+  for (std::size_t k = 1; k < K; k++) {
+    twin_of(branch, group[k]->root, ctx.share_path)->mirror_rule(branch);
+  }
+
+  for (std::size_t k = 0; k < K; k++) {
+    Node* node = member_node(branch, group, k, ctx);
+    restore_eta(node, *ctx.eta, members[k], ctx.share_keep[k]);
+  }
+}
+
+// The group's bandwidth, which is shared for the same reason the rules are: a
+// gate's width decides how the support divides, so two trees with the same
+// rules and different bandwidths hold different partitions and the group would
+// no longer be one topology.
+//
+// This move needs none of the care above. The bandwidth is one scalar, every
+// component's predictor is a deterministic function of it, and the proposal is
+// a symmetric random walk -- so the ratio is the change in the *joint*
+// likelihood, which `loglik_delta_rows()` computes in one pass with every
+// component's row replaced at once.
+void shared_bandwidth(const std::vector<Tree*>& group,
+                      const std::vector<int>& members, Context& ctx,
+                      const Hypers& hypers) {
+  const std::size_t K = group.size();
+  Tree* lead = group[0];
+
+  // No splits, so no gate, so the bandwidth does not enter the likelihood and
+  // its full conditional is the prior. One draw, taken by all of them.
+  if (lead->root->is_leaf) {
+    double drawn = exp_rand() * hypers.bandwidth_scale;
+
+    for (std::size_t k = 0; k < K; k++) {
+      group[k]->bandwidth = drawn;
+    }
+
+    return;
+  }
+
+  double bandwidth_old = lead->bandwidth;
+  double bandwidth_new = bandwidth_old *
+    std::exp(lead->log_step * (2.0 * unif_rand() - 1.0));
+
+  const int n_obs = ctx.family->N;
+  const int stride = ctx.H;
+
+  for (std::size_t k = 0; k < K; k++) {
+    std::vector<double>& base = ctx.share_bw_base[k];
+    base.resize(n_obs);
+    const double* e = ctx.eta->memptr() + members[k];
+
+    for (int i = 0; i < n_obs; i++) {
+      base[i] = e[static_cast<std::size_t>(i) * stride];
+    }
+
+    arma::rowvec view(base.data(), n_obs, false, true);
+    accumulate(group[k]->root, view, -1.0);
+  }
+
+  ctx.bw_support.clear();
+  save_support(lead->root, ctx.bw_support);
+
+  // Every gate in the tree moves at once, and it moves the same way in every
+  // component -- so it is evaluated on the lead and copied, which is the one
+  // place where sharing saves a whole traversal rather than a fraction of one.
+  lead->bandwidth = bandwidth_new;
+  rebuild_support(lead->root);
+
+  for (std::size_t k = 1; k < K; k++) {
+    group[k]->bandwidth = bandwidth_new;
+    copy_support(group[k]->root, lead->root);
+  }
+
+  for (std::size_t k = 0; k < K; k++) {
+    std::vector<double>& proposed = ctx.share_bw_new[k];
+    proposed.resize(n_obs);
+    std::copy(ctx.share_bw_base[k].begin(), ctx.share_bw_base[k].end(),
+              proposed.begin());
+    arma::rowvec view(proposed.data(), n_obs, false, true);
+    accumulate(group[k]->root, view, 1.0);
+    ctx.share_bw_ptr[k] = proposed.data();
+  }
+
+  double log_ratio =
+    ctx.family->loglik_delta_rows(*ctx.eta, members.data(),
+                                  static_cast<int>(K),
+                                  ctx.share_bw_ptr.data()) +
+    Rf_dexp(bandwidth_new, hypers.bandwidth_scale, 1) -
+    Rf_dexp(bandwidth_old, hypers.bandwidth_scale, 1) +
+    std::log(bandwidth_new) - std::log(bandwidth_old);
+
+  bool accept = std::isfinite(log_ratio) && std::log(unif_rand()) < log_ratio;
+
+  if (hypers.adapt) {
+    lead->attempts++;
+    double gain = 1.0 / std::sqrt(1.0 + lead->attempts / 50.0);
+    lead->log_step += gain * ((accept ? 1.0 : 0.0) - BANDWIDTH_TARGET);
+
+    if (lead->log_step < std::log(1.02)) {
+      lead->log_step = std::log(1.02);
+    }
+
+    if (lead->log_step > std::log(100.0)) {
+      lead->log_step = std::log(100.0);
+    }
+  }
+
+  if (accept) {
+    for (std::size_t k = 0; k < K; k++) {
+      double* out = ctx.eta->memptr() + members[k];
+      const std::vector<double>& proposed = ctx.share_bw_new[k];
+
+      for (int i = 0; i < n_obs; i++) {
+        out[static_cast<std::size_t>(i) * stride] = proposed[i];
+      }
+    }
+
+    return;
+  }
+
+  lead->bandwidth = bandwidth_old;
+  std::size_t pos = 0;
+  restore_support(lead->root, ctx.bw_support, pos);
+
+  for (std::size_t k = 1; k < K; k++) {
+    group[k]->bandwidth = bandwidth_old;
+    copy_support(group[k]->root, lead->root);
+  }
+}
+
+} // namespace
+
+void update_shared_forests(std::vector<std::vector<Tree*> >& forests,
+                           const std::vector<int>& members, Context& ctx,
+                           std::vector<std::unique_ptr<Hypers> >& hypers) {
+  const std::size_t K = members.size();
+
+  if (K == 0) {
+    return;
+  }
+
+  const std::size_t num_tree = forests[members[0]].size();
+  ctx.share_resize(K);
+
+  std::vector<Tree*> group(K);
+  Hypers& lead = *hypers[members[0]];
+
+  for (std::size_t t = 0; t < num_tree; t++) {
+    for (std::size_t k = 0; k < K; k++) {
+      group[k] = forests[members[k]][t];
+    }
+
+    if (group[0]->root->is_leaf) {
+      shared_birth(group, members, ctx, hypers);
+    }
+    else {
+      double u = unif_rand();
+
+      if (u < 0.5 * P_BIRTH_DEATH) {
+        shared_birth(group, members, ctx, hypers);
+      }
+      else if (u < P_BIRTH_DEATH) {
+        shared_death(group, members, ctx, hypers);
+      }
+      else {
+        shared_change(group, members, ctx, hypers);
+      }
+    }
+
+    // The leaf values are the one thing the components do not hold in common,
+    // so this is where they part company: one refresh per component, against
+    // that component's own predictor and its own leaf scale. It is also the
+    // bulk of the arithmetic, and sharing does not reduce it -- the model has
+    // as many leaf values as it had before, and only as many topologies as
+    // there are trees in one forest.
+    for (std::size_t k = 0; k < K; k++) {
+      set_component(ctx, members[k], *hypers[members[k]]);
+      update_leaf_params(group[k], ctx);
+    }
+
+    for (std::size_t k = 0; k < K; k++) {
+      group[k]->sweeps++;
+    }
+
+    if (lead.soft && lead.update_bandwidth &&
+        group[0]->sweeps % lead.bandwidth_every == 0) {
+      shared_bandwidth(group, members, ctx, lead);
+    }
+  }
+
+  for (std::size_t k = 0; k < K; k++) {
+    Hypers& hyp = *hypers[members[k]];
+
+    if (hyp.update_sigma_mu) {
+      update_sigma_mu(hyp, forests[members[k]]);
+    }
+  }
+
+  // One topology, so one set of split counts and one Dirichlet. Pooling every
+  // member's forest would multiply the counts by the number of components and
+  // sharpen the posterior by that factor over data that has not grown -- which
+  // is not the mistake `share_sparsity` makes, because there the forests really
+  // do carry separate rules to count. The draw is handed to the rest so that
+  // everything downstream still finds a full set of proportions per forest.
+  if (lead.update_s) {
+    arma::uvec counts = arma::zeros<arma::uvec>(lead.num_groups());
+
+    for (std::size_t t = 0; t < num_tree; t++) {
+      get_var_counts(forests[members[0]][t]->root, counts);
+    }
+
+    lead.update_s_param(counts);
+
+    if (lead.update_alpha) {
+      lead.update_alpha_param();
+    }
+
+    for (std::size_t k = 1; k < K; k++) {
+      hypers[members[k]]->copy_s_from(lead);
+    }
+  }
+
 }
 
 } // namespace bartisan

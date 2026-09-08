@@ -115,6 +115,17 @@ void Hypers::update_s_param(const arma::uvec& counts) {
   s_.elem(allowed_) = arma::exp(logs);
 }
 
+void Hypers::copy_s_from(const Hypers& other) {
+  s_ = other.s_;
+  log_s_ = other.log_s_;
+  alpha = other.alpha;
+}
+
+bool Hypers::same_allowed(const Hypers& other) const {
+  return allowed_.n_elem == other.allowed_.n_elem &&
+    arma::all(allowed_ == other.allowed_);
+}
+
 void Hypers::update_alpha_param() {
   // The allowed groups are the ones the Dirichlet is over, so they are the ones
   // its concentration is estimated from. Averaging over all of them would

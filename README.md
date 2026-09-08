@@ -19,14 +19,16 @@ about which terms enter the model, which are curved, or which interact.
 Ordinary `family` objects are used unchanged, including their links, so
 moving a model from `glm()` to `bartisan()` is a one-word change.
 Supported families include binomial, Poisson, negative binomial, gamma,
-ordinal, multinomial, zero-inflated counts, beta and ordered beta, three
-accelerated failure time models and a discrete proportional hazards
-model for right-censored data, location-scale regression for a variance
-that varies with the predictors, a Dirichlet process mixture for the
-error distribution itself, and a likelihood written as an R function.
-Decision rules may be hard, as in standard BART, or soft, as in the
-SoftBart model of Linero and Yang (2018), which yields smoother fits. A
-fitted model is read through the packages that already do that work:
+ordinal, multinomial, zero-inflated counts, beta and ordered beta, a
+Tweedie compound Poisson for a non-negative response with a point mass
+at zero, three accelerated failure time models and a discrete
+proportional hazards model for right-censored data, location-scale
+regression for a variance that varies with the predictors, a Dirichlet
+process mixture for the error distribution itself, and a likelihood
+written as an R function. Decision rules may be hard, as in standard
+BART, or soft, as in the SoftBart model of Linero and Yang (2018), which
+yields smoother fits. A fitted model is read through the packages that
+already do that work:
 [*marginaleffects*](https://CRAN.R-project.org/package=marginaleffects)
 for counterfactual estimands with posterior intervals,
 [*loo*](https://CRAN.R-project.org/package=loo) for model comparison,
@@ -190,7 +192,7 @@ package does not offer the feature, not that it fits it badly.
 | Binary, probit | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Binary, logit | ✓ | — | ✓ | ✓ | — | — | — |
 | Count: Poisson, negative binomial | ✓ | — | — | — | — | — | — |
-| Gamma, beta, ordered beta | ✓ | — | — | — | — | — | — |
+| Gamma, beta, ordered beta, Tweedie | ✓ | — | — | — | — | — | — |
 | Ordinal | ✓ 3 links | — | — | — | — | — | ✓ cloglog |
 | Multinomial | ✓ logit, probit | — | ✓ | — | — | — | — |
 | Zero-inflated counts | ✓ | — | — | — | — | — | — |

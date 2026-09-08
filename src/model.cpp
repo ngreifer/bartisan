@@ -249,6 +249,15 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   for (int h = 0; h < H; h++) {
     tree_offset[h + 1] = tree_offset[h] + num_trees[h];
   }
+  // Pooled splitting proportions across the forests. Only does anything with
+  // more than one forest and with the sparsity prior on, and the forests have
+  // to agree about which groups they may split on, since a pooled Dirichlet
+  // over different supports is not one distribution.
+  bool share_sparsity = control.containsElementNamed("share_sparsity") &&
+    as<bool>(control["share_sparsity"]);
+  bool share_forests = control.containsElementNamed("share_forests") &&
+    as<bool>(control["share_forests"]);
+
   int num_burn = as<int>(control["num_burn"]);
   int num_thin = as<int>(control["num_thin"]);
   int num_draws = as<int>(control["num_draws"]);
@@ -396,6 +405,114 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     }
   }
 
+  if (share_sparsity) {
+    if (H < 2) {
+      share_sparsity = false;
+    }
+    else {
+      // A pooled Dirichlet has to be over one support. Two forests that may
+      // split on different groups, which is what a per-forest formula gives,
+      // do not have one, and silently pooling them would hand a forest weight
+      // on a group its own formula never named. Checked over the forests that
+      // will actually share, which are the ones drawing their proportions.
+      int lead = -1;
+
+      for (int h = 0; h < H; h++) {
+        if (!hypers[h]->update_s) {
+          continue;
+        }
+        if (lead < 0) {
+          lead = h;
+        }
+        else if (!hypers[lead]->same_allowed(*hypers[h])) {
+          stop("`share_sparsity` needs the forests that share to be able to "
+               "split on the same predictors, and forest %d cannot split on "
+               "what forest %d can. Give every additive predictor the same "
+               "formula, or leave `share_sparsity` off.", h + 1, lead + 1);
+        }
+      }
+    }
+  }
+
+  // Which additive predictors share a topology, in order, with the first
+  // leading. Every reported forest takes part -- a varying coefficient's forest
+  // as much as a second parameter's, since both are forests over the same
+  // predictors and the user asked for one partition, not one per kind. Pinned
+  // forests are left out: a forest held at a single leaf has no topology to
+  // share, and its branching probability is zero, so a shared birth would be
+  // impossible for the whole group.
+  std::vector<int> share_members;
+
+  if (share_forests) {
+    if (n_report < 2) {
+      share_forests = false;
+    }
+    else {
+      for (int h = 0; h < n_report; h++) {
+        share_members.push_back(h);
+      }
+
+      const Hypers& lead = *hypers[share_members[0]];
+
+      for (std::size_t k = 1; k < share_members.size(); k++) {
+        int h = share_members[k];
+        const Hypers& other = *hypers[h];
+
+        // One topology means one set of rules, and a rule names a predictor.
+        // Forests that may split on different predictors have no common set of
+        // rules to hold, so there is nothing here to share.
+        if (!lead.same_allowed(other)) {
+          stop("`share_forests` needs every forest to be able to split on the "
+               "same predictors, and forest %d cannot split on what forest %d "
+               "can. Give every additive predictor the same formula, or leave "
+               "`share_forests` off.", h + 1, share_members[0] + 1);
+        }
+
+        // The rest are settings that describe the topology rather than the
+        // values hanging off it, so a shared topology can only have one of
+        // each. The leaf scale is deliberately not among them: that is what
+        // each component keeps.
+        if (num_trees[h] != num_trees[share_members[0]]) {
+          stop("`share_forests` needs every forest to have the same number of "
+               "trees, because the trees are shared, but forest %d has %d and "
+               "forest %d has %d.", h + 1, num_trees[h], share_members[0] + 1,
+               num_trees[share_members[0]]);
+        }
+
+        if (other.gamma != lead.gamma || other.beta != lead.beta) {
+          stop("`share_forests` needs every forest to have the same `gamma` "
+               "and `beta`, because one topology has one prior over its shape, "
+               "but forest %d and forest %d differ.", h + 1,
+               share_members[0] + 1);
+        }
+
+        if (other.update_s != lead.update_s) {
+          stop("`share_forests` needs every forest to have the same `sparsity` "
+               "setting, because one topology draws its rules from one set of "
+               "splitting proportions, but forest %d and forest %d differ.",
+               h + 1, share_members[0] + 1);
+        }
+
+        if (other.bandwidth_scale != lead.bandwidth_scale ||
+            other.update_bandwidth != lead.update_bandwidth ||
+            other.bandwidth_every != lead.bandwidth_every) {
+          stop("`share_forests` needs every forest to have the same "
+               "`bandwidth` settings, because a gate's width decides how the "
+               "shared support divides, but forest %d and forest %d differ.",
+               h + 1, share_members[0] + 1);
+        }
+      }
+    }
+  }
+
+  // One topology draws its rules from one set of splitting proportions, so a
+  // shared forest pools them by construction and there is nothing left for
+  // `share_sparsity` to do. Turning it off here rather than reading both flags
+  // everywhere below keeps one statement of that fact.
+  if (share_forests) {
+    share_sparsity = false;
+  }
+
   arma::mat eta = offset;
   // Forcing the blocked evaluation path lets the test suite check that it
   // reproduces the per-observation path exactly.
@@ -470,16 +587,48 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
               arma::fill::zeros));
 
   auto sweep = [&]() {
-    for (int h = 0; h < H; h++) {
+    // A shared topology cannot be swept a forest at a time: one move has to be
+    // weighed against every component it touches, so the components that share
+    // are done together and the ones that do not -- a family's pinned nuisance
+    // forests -- follow in the ordinary way.
+    int first_alone = 0;
+
+    if (share_forests) {
+      for (std::size_t k = 0; k < share_members.size(); k++) {
+        int h = share_members[k];
+        family->before_forest(h, eta);
+      }
+
+      update_shared_forests(forests, share_members, ctx, hypers);
+
+      for (std::size_t k = 0; k < share_members.size(); k++) {
+        int h = share_members[k];
+        ctx.h = h;
+        ctx.form = family->target_form(h);
+        ctx.quadratic = family->is_quadratic(h);
+        ctx.sigma_mu = hypers[h]->sigma_mu;
+        ranef->update(ctx, h);
+      }
+
+      first_alone = n_report;
+    }
+
+    for (int h = first_alone; h < H; h++) {
       ctx.h = h;
       ctx.form = family->target_form(h);
       ctx.quadratic = family->is_quadratic(h);
       family->before_forest(h, eta);
-      update_forest(forests[h], ctx, *hypers[h]);
+      update_forest(forests[h], ctx, *hypers[h], !share_sparsity);
       // After the forest, so that the intercepts are drawn against the
       // predictor the trees have just settled on rather than the one before it.
       ranef->update(ctx, h);
     }
+
+    // After every forest has moved, so the pooled counts are this sweep's.
+    if (share_sparsity) {
+      update_shared_s(forests, hypers);
+    }
+
     family->update_aux(eta);
   };
 

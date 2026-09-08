@@ -65,11 +65,17 @@
 #'   ```
 #' @param data a data frame containing the variables named in `formula`.
 #' @param family the response distribution, given as a [stats::family] object,
-#'   as one of the families in [bartisan-families], or as the name of either.
-#'   Ordinary `family` objects are used unchanged, including their links, and a
-#'   link the package does not compile is composed onto the scale its family
-#'   works on. Default is `NULL`, in which case the family is read off the
-#'   response and a message reports the choice; see Details for the rules.
+#'   as one of the families in [bartisan-families], or as the name of either. A
+#'   `family` object is accepted when the distribution it names is one this
+#'   package implements, since the likelihood is the package's rather than the
+#'   object's: a `family` object carries a link and a variance function and not a
+#'   density, so one naming anything else (e.g., [stats::inverse.gaussian], or a
+#'   Tweedie from another package) is an error rather than something a likelihood
+#'   can be built from, and [custom_family()] is the route for those. Links are
+#'   used as supplied, and a link the package does not compile is composed onto
+#'   the scale its family works on. Default is `NULL`, in which case the family
+#'   is read off the response and a message reports the choice; see Details for
+#'   the rules.
 #' @param weights optional; prior weights, one per observation. For a binomial
 #'   response given as proportions, these are the numbers of trials, as in
 #'   `glm()`.

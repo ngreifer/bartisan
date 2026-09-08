@@ -75,3 +75,14 @@ docs
 !_dev/where-mixing-lives.R
 !_dev/mixing-anatomy.R
 !_dev/lalonde-reproduce.R
+!_dev/tweedie-feasibility.R
+!_dev/zero-augmented-prototype.R
+!_dev/shared-forests-sim.R
+!_dev/share-sparsity-sim.R
+!_dev/shared-topology-sim.R
+!_dev/shared-topology-timing.R
+!_dev/shared-topology-results.R
+!_dev/shared-topology-mixing.R
+!_dev/justfile
+# Live-progress run records: rebuildable churn, served over loopback.
+.progress-runs/

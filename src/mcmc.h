@@ -130,6 +130,43 @@ struct Context {
   std::vector<double> buf_bw_base;
   std::vector<double> buf_bw_new;
 
+  // Working space for the shared-topology moves, where one proposal is weighed
+  // against every additive predictor at once and so every quantity that was a
+  // scalar or a vector becomes one per component. Sized by share_resize() when
+  // a group is first visited and reused after that, so a sweep over a shared
+  // forest allocates nothing.
+  //
+  // `share_base` is the only one of the pair-move buffers that has to be kept
+  // per component: the weights a split assigns are a property of the rule and
+  // the bandwidth, which the components hold in common, so `buf_left` and
+  // `buf_right` still serve for all of them.
+  std::vector<std::vector<double> > share_base;
+  std::vector<std::vector<double> > share_keep;
+  std::vector<double> share_mu_left;
+  std::vector<double> share_mu_right;
+  std::vector<Node*> share_left;
+  std::vector<Node*> share_right;
+  std::vector<std::vector<double> > share_bw_base;
+  std::vector<std::vector<double> > share_bw_new;
+  std::vector<const double*> share_bw_ptr;
+  std::vector<unsigned char> share_path;
+
+  void share_resize(std::size_t k) {
+    if (share_base.size() == k) {
+      return;
+    }
+
+    share_base.resize(k);
+    share_keep.resize(k);
+    share_mu_left.resize(k);
+    share_mu_right.resize(k);
+    share_left.resize(k);
+    share_right.resize(k);
+    share_bw_base.resize(k);
+    share_bw_new.resize(k);
+    share_bw_ptr.resize(k);
+  }
+
   // The supports as they stood before a bandwidth proposal, so that rejecting it
   // -- which happens rather more often than not -- costs a copy rather than a
   // second evaluation of every gate in the tree.
@@ -323,7 +360,35 @@ private:
 void update_scalar(Node* node, Context& ctx);
 
 // One sweep over the trees of one forest, then the forest's hyperparameters.
-void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers);
+// `draw_split_probs` false leaves the splitting proportions alone, for the case
+// where several forests share one draw; `update_shared_s()` then makes it.
+void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers,
+                   bool draw_split_probs = true);
+
+// One Dirichlet for every forest, from the pooled split counts, so that a
+// predictor which earns its rules in one component keeps its weight in the
+// others. This is the variable-selection content of the shared forests of
+// Linero, Sinha and Lipsitz (2020) without the shared topology: the forests
+// stay separate and only the prior over which predictors they may reach for is
+// held in common.
+void update_shared_s(const std::vector<std::vector<Tree*>>& forests,
+                     std::vector<std::unique_ptr<Hypers>>& hypers);
+
+// One sweep over a set of forests that share their tree topology: the shared
+// forests of Linero, Sinha and Lipsitz (2020). `members` names the additive
+// predictors taking part, in order, and the first of them leads -- it draws
+// every rule and every bandwidth, and the rest take what it drew.
+//
+// The trees are still one object per component, so everything downstream of the
+// sampler -- the flat encoding, prediction, the split counts, the reported
+// bandwidths -- sees the forests it always saw. What changes is that the t-th
+// tree of every member holds the same partition, and a move is accepted or
+// rejected against the sum of what it does to all of them. The leaf values
+// remain each component's own, which is the whole of the flexibility the model
+// keeps.
+void update_shared_forests(std::vector<std::vector<Tree*>>& forests,
+                           const std::vector<int>& members, Context& ctx,
+                           std::vector<std::unique_ptr<Hypers>>& hypers);
 
 } // namespace bartisan
 

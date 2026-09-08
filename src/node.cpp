@@ -320,6 +320,59 @@ void Node::resample_rule(std::vector<double>* w_left,
   split_support(w_left, w_right);
 }
 
+void Node::mirror_birth(const Node* from) {
+  if (!is_leaf) {
+    return;
+  }
+
+  is_leaf = false;
+  set_rule(from->rule());
+
+  left = tree->take_node(this);
+  right = tree->take_node(this);
+
+  copy_support(left, from->left);
+  copy_support(right, from->right);
+}
+
+void Node::mirror_rule(const Node* from) {
+  if (is_leaf) {
+    return;
+  }
+
+  set_rule(from->rule());
+  copy_support(left, from->left);
+  copy_support(right, from->right);
+}
+
+void copy_support(Node* dst, const Node* src) {
+  dst->idx = src->idx;
+  dst->wt = src->wt;
+
+  if (dst->is_leaf) {
+    return;
+  }
+
+  copy_support(dst->left, src->left);
+  copy_support(dst->right, src->right);
+}
+
+Node* twin_of(const Node* node, Node* root, std::vector<unsigned char>& path) {
+  path.clear();
+
+  for (const Node* p = node; p->parent != nullptr; p = p->parent) {
+    path.push_back(p->is_left() ? 1 : 0);
+  }
+
+  Node* out = root;
+
+  for (std::size_t k = path.size(); k > 0; k--) {
+    out = path[k - 1] ? out->left : out->right;
+  }
+
+  return out;
+}
+
 void save_support(const Node* node, SupportStore& store) {
   if (node->is_leaf) {
     return;

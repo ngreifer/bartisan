@@ -309,22 +309,49 @@ bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
 
   # A drawn coding needs a leaf target that is quadratic in the predictor, which
   # not every family has -- a cloglog binomial, a Poisson, a negative binomial
-  # under soft rules. The coding is this wrapper's choice rather than the
-  # caller's, so where it does not apply the fixed default is the right answer;
-  # refusing would turn an internal choice into a model the caller cannot fit.
-  # The refusal comes when the family is built, before any sampling, so the
-  # retry costs a family construction and nothing else.
+  # under soft rules, a Tweedie. The coding is this wrapper's choice rather than
+  # the caller's, so where it does not apply the fixed default is the right
+  # answer; refusing would turn an internal choice into a model the caller
+  # cannot fit.
+  #
+  # The attempt is made and caught rather than predicted, because whether the
+  # target is quadratic is settled by the family that reaches the sampler and
+  # augmentation can make a non-quadratic one quadratic; that choice belongs to
+  # the engine. What has to be contained is the noise around the refusal. It is
+  # raised inside the engine, so it reaches here through `run_chains()`, and
+  # with more than one chain *future.apply* announces the failing chunk with an
+  # immediate warning of its own -- "Caught
+  # Rcpp::exception. Canceling all iterations ..." -- before re-raising. Nothing
+  # is wrong when that happens: the attempt was this function's own initiative
+  # and it is about to be handled. So the trial's warnings are held and only
+  # passed on if the trial is what the caller ended up with.
   out <- {
     if (!adaptive) fit_with(FALSE)
     else {
-      tryCatch(fit_with(TRUE),
-               error = function(e) {
-                 if (!grepl("leaf target is\\s+quadratic",
-                            conditionMessage(e))) {
-                   stop(e)
-                 }
-                 fit_with(FALSE)
-               })
+      held <- list()
+
+      fit <- tryCatch(
+        withCallingHandlers(
+          fit_with(TRUE),
+          warning = function(w) {
+            held[[length(held) + 1L]] <<- w
+            invokeRestart("muffleWarning")
+          }),
+        error = function(e) {
+          if (!grepl("leaf target is\\s+quadratic", conditionMessage(e))) {
+            stop(e)
+          }
+
+          held <<- list()
+          fit_with(FALSE)
+        })
+
+      # Replayed out here rather than inside the handler's reach, which would
+      # catch and swallow them a second time. A caller therefore sees a
+      # successful trial's warnings after the fit rather than during it.
+      for (w in held) warning(w)
+
+      fit
     }
   }
 
@@ -394,13 +421,9 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
   }
 
   if (identical(kind, "continuous")) {
-    arg::err(c("a continuous treatment has no propensity score that is a
-                probability",
-               i = "Its analogue is the conditional density of the treatment
-                  given the covariates at the observed dose (Hirano and Imbens,
-                  2004), which needs a density model rather than a regression.",
-               i = "Pass {.code propensity = FALSE}, or supply one as a numeric
-                  vector."))
+    arg::err(c("A continuous treatment has no propensity score that is a probability.",
+               i = "Its analogue is the conditional density of the treatment given the covariates at the observed dose, which needs a density model rather than a regression.",
+               i = "Pass {.code propensity = FALSE}, or supply one as a numeric vector."))
   }
 
   terms <- {

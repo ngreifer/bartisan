@@ -17,6 +17,7 @@
 \alias{zi_negbin}
 \alias{Beta}
 \alias{ordbeta}
+\alias{tweedie}
 \alias{custom_family}
 \title{Response families for generalized BART}
 \usage{
@@ -56,6 +57,8 @@ zi_negbin(link = "log", theta = NULL)
 Beta(link = "logit", phi = NULL)
 
 ordbeta(link = "logit", phi = NULL)
+
+tweedie(link = "log", power = 1.5, phi = NULL)
 
 custom_family(
   logdens,
@@ -131,7 +134,16 @@ hazards. Default is \code{TRUE}; \code{FALSE} holds them at their prior mean, wh
 for diagnosis rather than analysis.}
 
 \item{phi}{\code{numeric}; for \code{Beta()} and \code{ordbeta()}, a fixed value for the beta
-precision, which must be positive. Default is \code{NULL} to draw it.}
+precision, and for \code{tweedie()} a fixed value for the dispersion. Must be
+positive. Default is \code{NULL} to draw it.}
+
+\item{power}{\code{numeric}; for \code{tweedie()}, the variance power \eqn{p} in
+\eqn{\mathrm{Var}(y) = \phi\mu^p}, strictly between 1 and 2. Default is 1.5,
+and the value is held fixed there rather than drawn, because the power is
+weakly identified from data of the sizes this package is used on and a
+badly determined power drags the dispersion around with it. Pass \code{NULL} to
+draw it, which is worth doing only with a large sample and a real interest
+in the shape rather than the mean.}
 
 \item{logdens}{for \code{custom_family()}, the log density, given as a function of
 the response and the additive predictors, \verb{function(y, eta)}, where \code{y} is a
@@ -221,6 +233,7 @@ The supported families and links are:\tabular{llll}{
    \code{zi_negbin()} \tab \code{log} \tab 2 \tab dispersion \cr
    \code{Beta()} \tab \code{logit}, \code{probit}, \code{cloglog} \tab 1 \tab precision \cr
    \code{ordbeta()} \tab \code{logit} \tab 1 \tab 2 cutpoints, precision \cr
+   \code{tweedie()} \tab \code{log} \tab 1 \tab dispersion, and the power if it is drawn \cr
    \code{dpm()} \tab \code{identity} \tab 1 \tab error mixture, concentration \cr
 }
 
@@ -484,6 +497,25 @@ Choose between them on whether the response can reach a boundary, not on
 whether it happens to in the sample: the two ask different questions, and
 \code{ordbeta()} fitted to a response with no boundary observations leaves its
 cutpoints with nothing to identify them.
+
+\code{tweedie()} is the compound Poisson-gamma, for a non-negative response with a
+point mass at zero and a continuous positive part, which is the shape of
+spending, rainfall, insurance claims and earnings. It is the analogue of
+\code{ordbeta()} at the other end: one predictor again drives both parts, but
+through the mean rather than through a cutpoint, since \eqn{\mu = \exp(\eta)}
+and \eqn{\mathrm{Var}(y) = \phi\mu^p} together fix the probability of a zero
+at \eqn{\exp(-\mu^{2-p}/(\phi(2-p)))}. That is what makes it a single process
+and is also its restriction: the share of zeros has no level of its own, so a
+response whose zeros are more or less common than its mean implies wants a
+two-part model instead, which \code{zi_poisson()} and \code{zi_negbin()} are for counts
+and which \code{custom_family()} can supply for anything else.
+
+Two things follow from the mean being \eqn{\exp(\eta)} exactly. A
+counterfactual mean through \CRANpkg{marginaleffects} needs nothing beyond the
+forest, unlike a two-part model where it has to be recombined across
+predictors; and the fit is comparable with a \code{poisson()} or \code{Gamma("log")} fit
+of the same response, since all three put the same quantity on the same
+scale.
 }
 
 \subsection{Several Additive Predictors}{

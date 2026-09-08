@@ -236,3 +236,40 @@ test_that("the interop methods work on a mixture fit", {
   expect_identical(dim(rstantools::log_lik(fit)), c(200L, 250L))
   expect_predictor_invariant(fit, d)
 })
+
+test_that("the error density carries a class and a plot method", {
+  d <- sim_x(n = 300, seed = 921)
+  set.seed(1921)
+  d$y <- 2 * d$x1 + stats::rt(nrow(d), 3)
+
+  fit <- bartisan(y ~ ., d, family = dpm(),
+                  control = quick_control(num_trees = 10L, num_burn = 100L,
+                                          num_draws = 100L))
+
+  out <- error_density(fit, at = seq(-3, 3, length.out = 21L))
+
+  expect_s3_class(out, "bartisan_error_density")
+  expect_s3_class(out, "data.frame")
+
+  # The class is on top of a data frame and changes nothing about using it as
+  # one, which is what `vignette("survival")` does with the values.
+  expect_identical(names(out), c("at", "mean", "lower", "upper"))
+  expect_identical(nrow(out), 21L)
+  expect_true(is.data.frame(out))
+
+  skip_if_not_installed("ggplot2")
+
+  # `plot = TRUE` goes through the method, so the two cannot draw different
+  # things; comparing the pieces a ggplot is made of rather than the object,
+  # which carries environments that will not compare equal.
+  by_arg <- error_density(fit, at = seq(-3, 3, length.out = 21L), plot = TRUE)
+  by_method <- plot(out)
+
+  expect_s3_class(by_method, "ggplot")
+  expect_s3_class(by_arg, "ggplot")
+  expect_equal(by_method$data, by_arg$data)
+  expect_identical(by_method$labels, by_arg$labels)
+
+  # And a subset of the grid is still something the method accepts.
+  expect_s3_class(plot(out[1:5, ]), "ggplot")
+})

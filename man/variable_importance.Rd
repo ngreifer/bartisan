@@ -2,29 +2,60 @@
 % Please edit documentation in R/methods.R
 \name{variable_importance}
 \alias{variable_importance}
+\alias{plot.bartisan_importance}
 \title{How often each predictor is used}
 \usage{
-variable_importance(object, level = 0.95)
+variable_importance(object, level = 0.95, draws = FALSE, plot = FALSE)
+
+\method{plot}{bartisan_importance}(x, y, ...)
 }
 \arguments{
 \item{object}{a \verb{<bartisan_fit>} object; the output of a call to \code{\link[=bartisan]{bartisan()}}.}
 
 \item{level}{\code{numeric}; the width of the interval reported for \code{splits}.
 Default is .95 for a 95\% interval.}
+
+\item{draws}{\code{logical}; whether to return the splitting counts of every
+posterior draw rather than a summary of them, which is what to use for a
+comparison the summary does not offer (e.g., the posterior probability that
+one predictor takes more rules than another). Default is \code{FALSE} to return
+the summary. Cannot be combined with \code{plot}.}
+
+\item{plot}{\code{logical}; whether to return a plot of the table instead of the
+table, as a \CRANpkg{ggplot2} object showing \code{splits} and its interval for
+each predictor. Default is \code{FALSE}. Equivalent to calling \code{plot()} on the
+result, which is usually the more convenient of the two since the table can
+be subset first (e.g., \code{plot(head(imp, 10))} for a wide model).
+\pkg{ggplot2} must be installed for either.}
+
+\item{x}{a \verb{<bartisan_importance>} object; the output of a call to
+\code{variable_importance()}.}
+
+\item{y}{not used.}
+
+\item{...}{not used.}
 }
 \value{
-A data frame with one row per predictor, sorted by \code{prop_used} and then
+A \verb{<bartisan_importance>} object, which is a data frame with one row per
+predictor and its own \code{print()} and \code{plot()} methods, sorted by \code{prop_used}
+and then
 \code{splits}, both decreasing, and with the following columns:
 \itemize{
 \item \code{variable}: the predictor, under the name the formula gave it
+\item \code{prop_used}: the proportion of draws in which it received at least one rule
+\item \code{prop_splits}: its share of all the splitting rules in the forest, averaged
+over draws
 \item \code{splits}: the mean number of splitting rules per draw that use it
 \item \code{splits_lower} and \code{splits_upper}: the endpoints of the \code{level} interval on
-that number
-\item \code{prop_used}: the proportion of draws in which it received at least one rule
+that number, which the \code{print()} method leaves out of the displayed table
 }
 
 A family with more than one additive predictor has a forest for each, and the
 data frame then gains a leading \code{predictor} column naming which.
+
+With \code{draws = TRUE}, the draws-by-predictors matrix of counts instead, or a
+named list of them when there is more than one forest. With \code{plot = TRUE}, a
+\pkg{ggplot2} object.
 }
 \description{
 Reports, for every predictor, how many splitting rules the forest spends on
@@ -40,7 +71,19 @@ received at least one splitting rule) is the one to read first. It behaves
 like a posterior probability that the predictor belongs in the model, and it
 separates signal from noise sharply once \code{sparsity = TRUE} in
 \code{\link[=bartisan_control]{bartisan_control()}}, which puts a Dirichlet prior on how the rules are shared
-out and lets unused predictors be dropped rather than merely used rarely.
+out and lets unused predictors be dropped rather than merely used rarely. With
+\code{sparsity = FALSE} every predictor keeps a share of the rules and \code{prop_used}
+sits near 1 throughout, so the \code{print()} method says so rather than leaving
+the column to be misread.
+
+\code{prop_splits} is the one to reach for when two fits are being compared.
+\code{splits} counts rules, so it scales with \code{num_trees} and a fit of 40 trees
+will report four times the count of a fit of 10 without being four times as
+informative; the share is computed within each draw before averaging, so the
+shares add to one whatever the forest size. Note that the share is a property
+of the forest and not only of the predictor, so it can still shift when the
+forest size changes how the rules are allocated; the ranking is the stable
+part.
 
 \code{splits}, the mean number of rules per draw, says how much of the forest's
 structure a predictor accounts for. It is the more familiar number and the
@@ -89,6 +132,25 @@ imp
 
 # The predictors the forest reaches for in nearly every draw
 subset(imp, prop_used > .9)
+
+# `prop_splits` is the column that survives a change of forest size, since
+# the shares add to one however many rules there are to share
+big <- bartisan(death ~ . - days, data = rhc, num_trees = 40,
+                num_burn = 50, num_draws = 50, sparsity = TRUE,
+                verbose = FALSE)
+
+merge(variable_importance(fit)[c("variable", "prop_splits")],
+      variable_importance(big)[c("variable", "prop_splits")],
+      by = "variable", suffixes = c("_10", "_40"))
+
+# The counts themselves, for a comparison the summary does not make
+counts <- variable_importance(fit, draws = TRUE)
+mean(counts[, "aps"] > counts[, "meanbp"])
+
+# The ranking, drawn. Subsetting first is what keeps a wide model readable.
+if (rlang::is_installed("ggplot2")) {
+  plot(head(imp, 8))
+}
 
 }
 \seealso{

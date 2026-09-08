@@ -72,11 +72,17 @@ bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
 \item{data}{a data frame containing the variables named in \code{formula}.}
 
 \item{family}{the response distribution, given as a \link[stats:family]{stats::family} object,
-as one of the families in \link{bartisan-families}, or as the name of either.
-Ordinary \code{family} objects are used unchanged, including their links, and a
-link the package does not compile is composed onto the scale its family
-works on. Default is \code{NULL}, in which case the family is read off the
-response and a message reports the choice; see Details for the rules.}
+as one of the families in \link{bartisan-families}, or as the name of either. A
+\code{family} object is accepted when the distribution it names is one this
+package implements, since the likelihood is the package's rather than the
+object's: a \code{family} object carries a link and a variance function and not a
+density, so one naming anything else (e.g., \link[stats:inverse.gaussian]{stats::inverse.gaussian}, or a
+Tweedie from another package) is an error rather than something a likelihood
+can be built from, and \code{\link[=custom_family]{custom_family()}} is the route for those. Links are
+used as supplied, and a link the package does not compile is composed onto
+the scale its family works on. Default is \code{NULL}, in which case the family
+is read off the response and a message reports the choice; see Details for
+the rules.}
 
 \item{weights}{optional; prior weights, one per observation. For a binomial
 response given as proportions, these are the numbers of trials, as in

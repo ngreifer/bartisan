@@ -636,6 +636,19 @@ per_forest_vector <- function(value, labels, arg, default, joint = FALSE) {
 }
 
 # Posterior summaries used by the print and summary methods.
+# The one place that says ggplot2 is needed. Two plot methods and the two `plot`
+# arguments that delegate to them would otherwise say it four times, in four
+# wordings, and the wordings would drift.
+require_ggplot2 <- function(what) {
+  if (rlang::is_installed("ggplot2")) {
+    return(invisible())
+  }
+
+  arg::err(c("{.pkg ggplot2} must be installed to plot {what}.",
+             i = "Without it the values are returned as a data frame, to draw
+                  however you like."))
+}
+
 post_summary <- function(x, level = 0.95) {
   probs <- c((1 - level) / 2, 1 - (1 - level) / 2)
   q <- stats::quantile(x, probs = probs, names = FALSE, na.rm = TRUE)

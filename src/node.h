@@ -262,6 +262,16 @@ struct Node {
   void resample_rule(std::vector<double>* w_left = nullptr,
                      std::vector<double>* w_right = nullptr);
 
+  // The same two moves performed to match a node in another tree of the same
+  // shape, for a forest that shares its topology with others. `from` has
+  // already drawn the rule and divided its support, and a shared topology means
+  // this node's rule is that rule and its children's supports are those
+  // supports -- so both are taken rather than drawn and computed again. That
+  // second part is where the saving is: evaluating a gate is many times the cost
+  // of copying the answer, and it would give the same answer.
+  void mirror_birth(const Node* from);
+  void mirror_rule(const Node* from);
+
   // Recompute the children's support from this node's, for use after a rule or
   // bandwidth change.
   //
@@ -379,6 +389,19 @@ struct SupportStore {
 
 void save_support(const Node* node, SupportStore& store);
 void restore_support(Node* node, const SupportStore& store, std::size_t& pos);
+
+// Copy the supports of `src`'s subtree onto `dst`'s, which must have the same
+// shape. This is how a tree that shares its topology gets its membership
+// weights: they are the same numbers, and a gate costs more to evaluate than
+// its answer costs to copy.
+void copy_support(Node* dst, const Node* src);
+
+// The node at the same position in another tree of the same shape. Shared trees
+// are grown by the same accepted moves in lockstep, so the path from the root
+// names the same node in every one of them -- and a path is what this follows,
+// rather than an index into a node list, so it does not depend on the order any
+// traversal happens to use. `path` is scratch space, reused across calls.
+Node* twin_of(const Node* node, Node* root, std::vector<unsigned char>& path);
 
 std::vector<Node*> leaves(Node* node);
 void leaves(Node* node, std::vector<Node*>& out);

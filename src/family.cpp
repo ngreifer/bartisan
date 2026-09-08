@@ -3088,6 +3088,331 @@ struct OrdBetaFamily : Family {
 };
 
 // ---------------------------------------------------------------------------
+// Tweedie compound Poisson-gamma, 1 < p < 2. A point mass at zero and a
+// continuous positive part, both governed by one additive predictor: the mean
+// is mu = exp(eta), the variance is phi * mu^p, and
+//
+//   P(y = 0) = exp(-mu^(2-p) / (phi (2-p)))
+//
+// so the share of zeros and the size of a positive value move together. That
+// tie is the family's content and its restriction; `ordbeta()` is the analogue
+// on the unit interval, where a cutpoint gives the boundary mass a level of its
+// own instead.
+//
+// The density has no closed form at a positive y, and it does not need one.
+// In exponential-dispersion form,
+//
+//   log f(y) = (1/phi)[y mu^(1-p)/(1-p) - mu^(2-p)/(2-p)] + log W(y, phi, p),
+//
+// the bracket is the whole of the dependence on eta and W carries none of it.
+// That is what `compute_eta_free()` is for: W is evaluated once per sweep
+// rather than once per leaf, and it cancels from every acceptance ratio in
+// between. Checked against the compound Poisson-gamma sum, where log f minus
+// the bracket agrees to six decimals across mu.
+//
+// The series is Dunn and Smyth (2005). Its terms are unimodal in j, and its
+// length depends on y, phi and p but never on mu, so it does not grow as the
+// forest moves: on earnings-scale data with the dispersion those data imply it
+// runs to twenty terms. The summand's width scales as the square root of its
+// peak index, so a small dispersion costs little more.
+// ---------------------------------------------------------------------------
+
+struct TweedieFamily : Concrete<TweedieFamily> {
+  double phi;
+  double power;
+  double prior_shape;
+  double prior_rate;
+  bool update_phi;
+  bool update_power;
+
+  double alpha;
+  arma::vec log_y;
+
+  // -lgamma(j + 1) - lgamma(j * alpha), which depends on the power and on
+  // nothing else and so survives every dispersion update. Grown on demand
+  // rather than sized in advance, because how far the series runs depends on
+  // the dispersion and the slice sampler is free to try a small one. Safe to
+  // mutate from a const member because a family instance is only ever touched
+  // by one thread: the parallelism in this package is across chains.
+  mutable std::vector<double> lgam;
+
+  TweedieFamily(const arma::vec& y_, const arma::vec& w_, double phi_,
+                double power_, double prior_shape_, double prior_rate_,
+                bool update_phi_, bool update_power_)
+    : Concrete<TweedieFamily>(y_, w_, 1), phi(phi_), power(power_),
+      prior_shape(prior_shape_), prior_rate(prior_rate_),
+      update_phi(update_phi_), update_power(update_power_) {
+    log_y.set_size(N);
+
+    for (int i = 0; i < N; i++) {
+      log_y(i) = y(i) > 0.0 ? std::log(y(i)) : 0.0;
+    }
+
+    set_power(power_);
+  }
+
+  void set_power(double p) {
+    power = p;
+    alpha = (2.0 - power) / (power - 1.0);
+    lgam.clear();
+    extend_lgam(64);
+  }
+
+  void extend_lgam(std::size_t upto) const {
+    std::size_t from = lgam.size();
+
+    if (upto <= from) {
+      return;
+    }
+
+    lgam.resize(upto);
+
+    for (std::size_t k = from; k < upto; k++) {
+      double j = static_cast<double>(k) + 1.0;
+      lgam[k] = -R::lgammafn(j + 1.0) - R::lgammafn(j * alpha);
+    }
+  }
+
+  double lgam_at(int j) const {
+    if (static_cast<std::size_t>(j) > lgam.size()) {
+      extend_lgam(static_cast<std::size_t>(j) * 2u);
+    }
+
+    return lgam[static_cast<std::size_t>(j) - 1u];
+  }
+
+  // The coefficient of j in the log summand. Everything else in the term is
+  // either the table or the single -log(y) added back at the end.
+  static double series_slope(double log_y_i, double ph, double p, double al) {
+    return al * log_y_i - (1.0 + al) * std::log(ph) - std::log(2.0 - p) -
+      al * std::log(p - 1.0);
+  }
+
+  // Where the summand peaks, from psi(x) ~ log(x) in its derivative. Only a
+  // starting point: the walk below corrects it.
+  static int series_peak(double slope, double al) {
+    double log_peak = (slope - al * std::log(al)) / (1.0 + al);
+
+    if (!(log_peak > 0.0) || !std::isfinite(log_peak)) {
+      return 1;
+    }
+
+    double cand = std::exp(std::min(log_peak, 18.0));
+    return cand < 1.0 ? 1 : static_cast<int>(cand);
+  }
+
+  // log W(y, phi, p), summed outward from the peak until the terms stop
+  // mattering. `term` is whichever of the two forms below the caller has: the
+  // tabulated one for the current power, and the direct one for a power the
+  // slice sampler is trying out.
+  template <typename Term>
+  static double log_series(double y_i, double log_y_i, double slope, double al,
+                           const Term& term) {
+    if (!(y_i > 0.0)) {
+      return 0.0;
+    }
+
+    int j = series_peak(slope, al);
+
+    // 4096 steps of walking is far past any peak the estimate above can be
+    // wrong by; the guard is against a non-finite slope rather than a distant
+    // peak.
+    for (int step = 0; step < 4096 && term(j + 1) > term(j); step++) {
+      j++;
+    }
+
+    for (int step = 0; step < 4096 && j > 1 && term(j - 1) > term(j); step++) {
+      j--;
+    }
+
+    double top = term(j);
+
+    if (!std::isfinite(top)) {
+      return R_NegInf;
+    }
+
+    // exp(-37) is below the last bit of a double against a summand of 1, so a
+    // term that far down cannot change the total.
+    double total = 1.0;
+
+    for (int k = j + 1; k < j + 100000; k++) {
+      double d = term(k) - top;
+
+      if (!(d > -37.0)) {
+        break;
+      }
+
+      total += std::exp(d);
+    }
+
+    for (int k = j - 1; k >= 1; k--) {
+      double d = term(k) - top;
+
+      if (!(d > -37.0)) {
+        break;
+      }
+
+      total += std::exp(d);
+    }
+
+    return top + std::log(total) - log_y_i;
+  }
+
+  // The series at the family's own power, which is what every pass except a
+  // power update wants, and the only form that gets the table.
+  double log_series_tab(int i, double ph) const {
+    double slope = series_slope(log_y(i), ph, power, alpha);
+    return log_series(y(i), log_y(i), slope, alpha,
+                      [&](int j) {
+                        return static_cast<double>(j) * slope + lgam_at(j);
+                      });
+  }
+
+  // The series at a power the slice sampler is trying, where the table does not
+  // apply and the log-gammas are paid for directly. Only reached when the power
+  // is being estimated, which is not the default.
+  double log_series_raw(int i, double ph, double p) const {
+    double al = (2.0 - p) / (p - 1.0);
+    double slope = series_slope(log_y(i), ph, p, al);
+    return log_series(y(i), log_y(i), slope, al,
+                      [&](int j) {
+                        double jd = static_cast<double>(j);
+                        return jd * slope - R::lgammafn(jd + 1.0) -
+                          R::lgammafn(jd * al);
+                      });
+  }
+
+  // The part of the log density that moves with eta, which is all the sampler
+  // needs. At y = 0 the first term vanishes and what is left is exactly
+  // log P(y = 0), so the zero and the positive cases need no branch.
+  double logdens_unit(int i, const double* eta) const override {
+    double e = eta[0];
+    return (y(i) * std::exp((1.0 - power) * e) / (1.0 - power) -
+            std::exp((2.0 - power) * e) / (2.0 - power)) / phi;
+  }
+
+  arma::vec compute_eta_free() const override {
+    arma::vec out(N, arma::fill::zeros);
+
+    for (int i = 0; i < N; i++) {
+      out(i) = log_series_tab(i, phi);
+    }
+
+    return out;
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double e = eta[0];
+    return (y(i) * std::exp((1.0 - power) * e) -
+            std::exp((2.0 - power) * e)) / phi;
+  }
+
+  // The observed second derivative rather than the expected information, for
+  // the reason `GammaFamily` gives: it is the true curvature, so the Laplace
+  // fit is a genuine second-order match. Both of its terms are positive for
+  // 1 < p < 2 and a non-negative response, so it cannot go negative and there
+  // is nothing to guard against. The expected version would be mu^(2-p)/phi.
+  double info_unit(int i, const double* eta, int h) const override {
+    double e = eta[0];
+    return ((2.0 - power) * std::exp((2.0 - power) * e) +
+            (power - 1.0) * y(i) * std::exp((1.0 - power) * e)) / phi;
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double e = eta[0];
+    double lo = y(i) * std::exp((1.0 - power) * e);
+    double hi = std::exp((2.0 - power) * e);
+    *d1 = (lo - hi) / phi;
+    *d2 = ((2.0 - power) * hi + (power - 1.0) * lo) / phi;
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    if (!update_phi && !update_power) {
+      return;
+    }
+
+    const arma::rowvec e = eta.row(0);
+
+    // Unlike every other family here, this target cannot drop the eta-free
+    // part: the series is what carries the dependence on the dispersion, so
+    // leaving it out would leave phi unidentified and send it off to infinity.
+    auto total = [this, &e](double ph, double p, bool tabulated) {
+      double out = 0.0;
+
+      for (int i = 0; i < N; i++) {
+        double ee = e(i);
+        double core = (y(i) * std::exp((1.0 - p) * ee) / (1.0 - p) -
+                       std::exp((2.0 - p) * ee) / (2.0 - p)) / ph;
+        double series = tabulated ? log_series_tab(i, ph)
+                                  : log_series_raw(i, ph, p);
+
+        if (!std::isfinite(series)) {
+          return R_NegInf;
+        }
+
+        out += w(i) * (core + series);
+      }
+
+      return out;
+    };
+
+    if (update_phi) {
+      double p_now = power;
+      phi = std::exp(slice_sampler(std::log(phi), [&](double log_phi) {
+        double ph = std::exp(log_phi);
+
+        if (!(ph > 0.0) || !std::isfinite(ph)) {
+          return R_NegInf;
+        }
+
+        return prior_shape * log_phi - prior_rate * ph +
+          total(ph, p_now, true);
+      }, 0.5, -10.0, 20.0));
+    }
+
+    if (update_power) {
+      // Sampled as log((p - 1) / (2 - p)) so that the bounds are automatic. The
+      // prior is uniform on (1, 2), and log((p - 1)(2 - p)) is the Jacobian
+      // that keeps it uniform there rather than on the transformed scale.
+      double ph_now = phi;
+      double u0 = std::log((power - 1.0) / (2.0 - power));
+      double u = slice_sampler(u0, [&](double v) {
+        double p = 1.0 + 1.0 / (1.0 + std::exp(-v));
+
+        if (!(p > 1.0) || !(p < 2.0)) {
+          return R_NegInf;
+        }
+
+        return std::log((p - 1.0) * (2.0 - p)) + total(ph_now, p, false);
+      }, 0.5, -6.0, 6.0);
+      set_power(1.0 + 1.0 / (1.0 + std::exp(-u)));
+    }
+
+    refresh_eta_free();
+  }
+
+  std::vector<std::string> aux_names() const override {
+    return std::vector<std::string>{"phi", "power"};
+  }
+
+  arma::vec aux_values() const override { return arma::vec{phi, power}; }
+
+  void set_aux(const arma::vec& values) override {
+    if (values.n_elem > 1) {
+      phi = values(0);
+
+      if (values(1) != power) {
+        set_power(values(1));
+      }
+
+      refresh_eta_free();
+    }
+  }
+};
+
+
+// ---------------------------------------------------------------------------
 // Polya-Gamma augmented families.
 //
 // All three of these rest on the same identity. A likelihood proportional to
@@ -5651,6 +5976,15 @@ Family* make_base_family(const std::string& name, const std::string& link,
                           as<double>(opts["phi_prior_shape"]),
                           as<double>(opts["phi_prior_rate"]),
                           as<bool>(opts["update_phi"])));
+  }
+
+  if (name == "tweedie") {
+    return with_link(finish(new TweedieFamily(y, w, as<double>(opts["phi"]),
+                            as<double>(opts["power"]),
+                            as<double>(opts["phi_prior_shape"]),
+                            as<double>(opts["phi_prior_rate"]),
+                            as<bool>(opts["update_phi"]),
+                            as<bool>(opts["update_power"]))), opts);
   }
 
   if (name == "ordbeta") {

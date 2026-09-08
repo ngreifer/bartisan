@@ -62,6 +62,7 @@ In this guide, we will work through the families one at a time. First we'll lay 
 | `multinomial()` | `logit`, `probit` | one per category, or per non-reference level | latent covariance, for the probit link |
 | `Beta()` | `logit`, `probit`, `cloglog` | 1 | precision |
 | `ordbeta()` | `logit` | 1 | 2 cutpoints, precision |
+| `tweedie()` | `log` | 1 | dispersion, and the power if it is drawn |
 | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
 | `ph()` | none | 1 | baseline hazard per bin |
 | `dpm_aft()` | none | 1 | error mixture, concentration |
@@ -79,6 +80,7 @@ We start from the shape of the response:
 | positive and continuous | `Gamma("log")`, or `Gamma_ls()` if the dispersion varies with the predictors |
 | a proportion strictly inside $(0, 1)$ | `Beta()` |
 | a proportion that can equal 0 or 1 | `ordbeta()` |
+| non-negative and continuous, with a point mass at zero | `tweedie()` |
 | a 0/1 indicator, or a two-column matrix of successes and failures | `binomial()` |
 | a count | `poisson()`, `negbin()` if overdispersed, or a zero-inflated family if there are more zeros than either can produce |
 | an ordered factor | `ordinal()` |
@@ -179,6 +181,31 @@ fit_sub <- bartisan(list(mean   = het ~ x1 + x2,
 summary(fit_sub)
 ```
 
+Separate is not always what we want. Each forest draws its own splitting proportions by default, so each has to work out on its own which predictors matter, and one component is often far better placed to answer that than the other: the mean of a location-scale model usually carries much more signal about the relevant predictors than the spread does. `share_sparsity = TRUE` pools the splitting counts of the forests behind one Dirichlet draw, so a predictor that earns its rules in one forest keeps its weight in the others. The forests stay separate in every other respect, with their own trees, cut points and leaf scales.
+
+```{r sharesparsity}
+set.seed(9)
+dw <- data.frame(matrix(runif(400 * 25), 400, 25))
+names(dw) <- paste0("x", 1:25)
+dw$y <- rnorm(400, 2 + 1.4 * sin(pi * dw$x1 * dw$x2) + 0.9 * dw$x4, 0.5)
+
+apart <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl)
+shared <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl,
+                   share_sparsity = TRUE)
+
+top3 <- function(fit, forest) {
+  imp <- variable_importance(fit)
+  part <- imp[imp$predictor == forest, ]
+  paste(head(part$variable[order(-part$prop_splits)], 3), collapse = " ")
+}
+
+# the spread is constant here, so the scale forest has nothing of its own to
+# find and whatever it concentrates on came from the mean forest
+c(apart = top3(apart, "log_sd"), shared = top3(shared, "log_sd"))
+```
+
+That is a statement about the data rather than a free improvement: it helps when the components really do depend on the same predictors and there are enough irrelevant ones for the selection to be hard, and it costs something when they depend on different ones. `variable_importance()` is where to check, and `?bartisan_control` has the measured trade-off.
+
 A formula that names no predictor at all is the limiting case of this, and it says the parameter is constant: `~ 1` leaves its forest nothing to split on, so every tree in it is a stump and the forest is a single drawn scalar. Every family that takes more than one formula accepts it, which is what makes the line between a nuisance parameter and an empty forest a thin one. `gaussian_ls()` with `~ 1` on its scale is `gaussian()` with its drawn `sigma`; `Gamma_ls()` with `~ 1` is `Gamma("log")` with its drawn shape; and `zi_poisson()` with `~ 1` on its inflation part is the ordinary zero-inflated Poisson with one structural-zero probability rather than a forest of them.
 
 ```{r emptyforest}
@@ -210,7 +237,7 @@ fit_dpm <- bartisan(heavy ~ x1 + x2, data = d,
 ```
 
 ```{r dpmplot, fig.height = 2.6, eval = rlang::is_installed("ggplot2")}
-error_density(fit_dpm, plot = TRUE)
+plot(error_density(fit_dpm))
 ```
 
 ## Positive Continuous Responses
@@ -373,6 +400,35 @@ mean(fit_beta$aux[, "phi"])
 The `ordbeta()` family requests the ordered beta regression of @kubinec2023, for a response on the *closed* unit interval $[0, 1]$ with point masses at zero and one (e.g., a percentage of a budget, a slider scale). One predictor drives both the probability of landing on an endpoint, through a pair of cutpoints as in an ordinal model, and the mean of the beta density in between.
 
 Choose between `Beta()` and `ordered_beta()` based on whether the response *can* reach a boundary, not on whether it happens to in the sample at hand. A response *at* zero or one has no beta density, so `Beta()` errors rather than nudging it inward. In the other direction, `ordbeta()` fitted to a response with no boundary observations leaves its two cutpoints with nothing to identify them; the fit is not much worse for it, but the cutpoints are not interpretable and drift to large magnitudes.
+
+## A Point Mass at Zero and a Continuous Positive Part
+
+Spending, rainfall, insurance claims and earnings share a shape that none of the families above has: a genuine mass of exact zeros, and a skewed continuum above them. The `tweedie()` family is the compound Poisson--gamma, which models the pair as one process. A Poisson number of gamma-distributed amounts are added up, so a count of zero produces an exact zero and any positive count produces a positive amount, and the mean and variance come out as
+
+$$\mathrm{E}[y \mid x] = \mu(x) = \exp(\eta(x)), \qquad \mathrm{Var}(y \mid x) = \phi\,\mu(x)^p$$
+
+for a variance power $p$ between 1 and 2. One forest does all of it, because the probability of a zero follows from the mean:
+
+$$\Pr(y = 0 \mid x) = \exp\!\left(-\frac{\mu(x)^{2-p}}{\phi\,(2-p)}\right)$$
+
+That tie is what makes this a single process rather than two, and it is also the assumption to check. The share of zeros has no level of its own: two people with the same mean have the same probability of a zero, with the functional form above. Where that is wrong, a two-part model is the alternative, and `custom_family()` is how to write one.
+
+```{r tweedie}
+mu <- exp(1.5 + sin(pi * d$x1))
+lambda <- mu^(2 - 1.5) / (4 * (2 - 1.5))
+claims <- rpois(n, lambda)
+d$spend <- ifelse(claims > 0,
+                  rgamma(n, shape = claims * (2 - 1.5) / (1.5 - 1),
+                         scale = 4 * (1.5 - 1) * mu^(1.5 - 1)),
+                  0)
+
+fit_tw <- bartisan(spend ~ x1 + x2, data = d, family = tweedie(), control = ctrl)
+c(zeros = mean(d$spend == 0), phi = mean(fit_tw$aux[, "phi"]))
+```
+
+The `power` argument is fixed at 1.5 by default rather than drawn, which is the one place this family differs from the rest in how its nuisance parameters are treated. The power is weakly identified at the sample sizes this package is used on, and a badly determined power drags the dispersion with it, since the two are identified jointly through the share of zeros. Pass `power = NULL` to draw it when the sample is large and the shape is of interest in itself; leave it alone when the mean is what is wanted.
+
+Because the mean is $\exp(\eta)$ and nothing more, a counterfactual mean needs nothing beyond the forest, and a `tweedie()` fit is directly comparable with a `poisson()` or `Gamma("log")` fit of the same response. A two-part model has no such property: its mean has to be recombined across two forests before anything can be contrasted.
 
 ## Right-Censored Survival Times
 

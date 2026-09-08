@@ -857,6 +857,21 @@ derivatives are:
 | `ordinal()` | ~2x with a latent variable, ~25x without |
 | `zi_poisson()` | ~10x |
 | `ordbeta()` | ~25x |
+| `tweedie()` | ~2x, half again as much with the power drawn |
+
+`tweedie()` earns a note because it looks as though it should be far worse: its
+density has no closed form at a positive response, and normalizing it takes an
+infinite series. Measured against a Gaussian fit of the same size it costs 5.5
+times as much where `Gamma("log")` costs 5.2, so the series is not visible in the
+total. The reason is where the series sits. Writing the log density in
+exponential-dispersion form separates it into a part that moves with the
+predictor, which is closed form, and a normalizing term that does not depend on
+the predictor at all; the second goes in the eta-free part, which is evaluated
+once per sweep rather than at every leaf, and cancels from every acceptance ratio
+in between. Its length depends on the response and the dispersion but never on
+the mean, so it does not grow as the forest moves. Drawing `power` costs about a
+third again, because the slice sampler has to re-sum the series at each candidate
+value and cannot use the table of log-gammas that a fixed power allows.
 
 `ordbeta()` is the expensive one because every evaluation of its log density
 needs two log-gamma calls that no amount of restructuring removes. `ordinal()`

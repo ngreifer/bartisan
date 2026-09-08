@@ -54,6 +54,16 @@
 #'   this argument sets `update_s`, `update_alpha`, `alpha_shape_1`, and
 #'   `alpha_shape_2` together, and that supplying any of those directly overrides
 #'   it. Read the trade-off in Details before turning it off or up.
+#' @param share_sparsity `logical`; for a family with more than one additive
+#'   predictor, whether the forests draw their splitting proportions from one
+#'   pooled Dirichlet instead of one each. Default is `FALSE` for a separate
+#'   prior per forest. `TRUE` says the same predictors are relevant to every
+#'   component, which is an assumption about the data rather than a free
+#'   improvement; see Details. It requires that the proportions be drawn at all,
+#'   so `sparsity` must not be `FALSE` for the forests that are to share, and
+#'   that those forests be able to split on the same predictors. Ignored rather
+#'   than an error for a family with a single forest, where there is nothing to
+#'   share.
 #' @param split_prior `numeric`; the relative prior weight on each predictor, for
 #'   use when some are expected to matter more than others. This is a named
 #'   vector, keyed by the names the predictors have in the formula, and every
@@ -388,6 +398,62 @@
 #'
 #' Run several chains either way, because one chain can look far more settled
 #' than the posterior is.
+#'
+#' ## Sharing the Sparsity Prior Across Forests
+#'
+#' A family with more than one additive predictor fits a forest for each, and by
+#' default each forest draws its own splitting proportions. That is the
+#' conservative choice and it wastes information whenever the components are
+#' functions of the same predictors, which they usually are: the zero-inflation
+#' probability and the count mean of `zi_poisson()` are two aspects of one
+#' process, and so are the mean and the spread of `gaussian_ls()`. One component
+#' is often far more informative about *which* predictors matter than another,
+#' and with separate priors the less informative one has to find them again from
+#' its own residual signal alone.
+#'
+#' `share_sparsity = TRUE` pools the splitting counts of the forests and draws
+#' one Dirichlet from the total, so every forest reaches for predictors in the
+#' same proportions. The forests themselves stay separate: they have their own
+#' trees, their own cut points, and their own leaf scales, and only the prior
+#' over which predictors they may use is held in common.
+#'
+#' Whether it helps has a clear shape, and the trade is asymmetric. Measured on
+#' `gaussian_ls()` at `n = 400` over 20 replicates, scoring each component
+#' against the truth on a held-out thousand, with the mean and the log standard
+#' deviation driven either by the same five predictors or by disjoint sets of
+#' five:
+#'
+#' | | predictors | weaker component | stronger component |
+#' |---|---|---|---|
+#' | `gaussian_ls()`, same 5 | 5 | 1.02x | 0.99x |
+#' | `gaussian_ls()`, same 5 | 25 | 1.13x | 1.03x |
+#' | `gaussian_ls()`, same 5 | 100 | **1.23x** | 1.12x |
+#' | `gaussian_ls()`, disjoint | 100 | 0.98x | 0.96x |
+#' | `zi_poisson()`, same 5 | 5 | 1.04x | 0.97x |
+#' | `zi_poisson()`, same 5 | 25 | 1.30x | 1.03x |
+#' | `zi_poisson()`, same 5 | 100 | **1.40x** | 1.02x |
+#' | `zi_poisson()`, disjoint | 100 | 1.00x | 0.92x |
+#'
+#' Ratios above 1 are reductions in root mean squared error against the default.
+#' The weaker component is the log standard deviation and the zero-inflation
+#' probability respectively, which are the ones with less signal to find the
+#' relevant predictors from on their own. Sharing buys nothing at five
+#' predictors, because there is no selection problem to transfer, and takes a
+#' quarter to two fifths off the weaker component's error at a hundred. When the
+#' assumption is false it costs 2% to 8%, since the pooled prior pulls each
+#' forest towards the other's variables. Turning it on is therefore a statement
+#' about the data, and one whose downside is a good deal smaller than its
+#' upside. `variable_importance()` is where to check it: with a shared prior the
+#' forests report similar `prop_splits`, and a fit that wants them different will
+#' show that under the default.
+#'
+#' This is the variable-selection content of the shared forests of Linero et al.
+#' (2020) and not their model. Theirs shares the tree *topology* across
+#' components, so the forests have the same partitions with different leaf
+#' values, which fixes the cut points as well as the choice of predictor. The
+#' pooled prior here is the weaker and cheaper assumption; [bcf()] sits at the
+#' other extreme, sharing an entire function between components rather than a
+#' prior.
 #'
 #' ## Arguments That Vary by Forest
 #'
@@ -734,6 +800,10 @@
 #' adapt to smoothness and sparsity. *Journal of the Royal Statistical Society
 #' Series B*, 80(5), 1087--1110.
 #'
+#' Linero, A. R., Sinha, D., & Lipsitz, S. R. (2020). Semiparametric mixed-scale
+#' models using shared Bayesian forests. *Biometrics*, 76(1), 131--144.
+#' \doi{10.1111/biom.13107}
+#'
 #' Van Dyk, D. A., & Park, T. (2008). Partially collapsed Gibbs samplers: theory
 #' and methods. *Journal of the American Statistical Association*, 103(482),
 #' 790--796.
@@ -768,6 +838,7 @@
 bartisan_control <- function(num_trees = NULL,
                              gate = "smoothstep",
                              sparsity = TRUE,
+                             share_sparsity = FALSE,
                              split_prior = NULL,
                              categorical = "subset",
                              k = 2,
@@ -898,6 +969,17 @@ bartisan_control <- function(num_trees = NULL,
     sparsity <- FALSE
   }
 
+  arg::arg_flag(share_sparsity)
+
+  # Nothing to pool when the proportions are not drawn at all, and saying so is
+  # better than accepting a setting that does nothing.
+  if (share_sparsity && !any(resolve_sparsity(sparsity)[["update_s"]])) {
+    arg::err(c("{.arg share_sparsity} has nothing to share when the splitting
+                proportions are not drawn.",
+               i = "It pools the counts behind one Dirichlet draw, which
+                    {.code sparsity = TRUE} is what asks for."))
+  }
+
   sparse <- resolve_sparsity(sparsity)
   augment <- resolve_augment(augment, soft)
 
@@ -905,6 +987,34 @@ bartisan_control <- function(num_trees = NULL,
               gate = gate,
               soft = soft,
               sparsity = sparsity,
+              share_sparsity = share_sparsity,
+              # Sharing the tree topology across a family's forests: built,
+              # measured, and deliberately not offered. It is the shared forest
+              # model of Linero, Sinha and Lipsitz (2020) with independent leaf
+              # priors, and the engine implements it in full -- see
+              # `update_shared_forests()` in `src/mcmc.cpp` and the guards in
+              # `src/model.cpp`.
+              #
+              # It is not an argument because it is not a setting: it is a
+              # different model, and a strong one. Every forest is held to the
+              # same partition of the covariate space, which asserts that the
+              # components are functions of the same predictors. Measured over
+              # 20 replicates, that assertion pays about 1.2x to 1.4x on the
+              # median quantity when it is true and costs up to 1.8x when it is
+              # false, and the time it saves is 1.00x to 1.12x -- flat in the
+              # number of forests, because the leaf refresh dominates and
+              # sharing leaves the number of leaf values alone. An asymmetric
+              # gamble on an assumption the caller has probably not examined is
+              # not something to put behind a flag.
+              #
+              # Reaching it takes a reference to that environment and an
+              # assignment into it (`flags <- bartisan:::the` then
+              # `flags$share_forests <- TRUE`; the one-line form is not an
+              # assignment R will make), which is what
+              # is what `tests/testthat/test-share-forests.R` and the
+              # `_dev/shared-topology-*.R` scripts do. `_dev/TASKS.md` has the
+              # full measurements and the acceptance-ratio derivation.
+              share_forests = isTRUE(the$share_forests),
               split_prior = split_prior,
               categorical = categorical,
               k = k,

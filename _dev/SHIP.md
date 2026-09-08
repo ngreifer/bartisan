@@ -12,9 +12,11 @@ already covers are excluded, however tempting.
 
 ### Blocking
 
-**1. The package name.** `bartisan` collides case-insensitively with the archived
-CRAN package `genBart`. This is a hard block on submission and nothing else on
-this list matters until it is settled. Candidates are in `TASKS.md`.
+**1. The package name.** *(done -- the rename to `bartisan` landed in `cdc3278`)*
+What collided, case-insensitively, was the old name `genbart` against the
+archived CRAN package `genBart`. `bartisan` collides with nothing on the current
+index or among the archived names. The shortlist that was drawn up is kept in
+`TASKS.md` as a record.
 
 **2. Variable importance has no accessor.** *(done -- `variable_importance()`)* This is the largest genuine gap
 against the stated workflow. The information exists and is correct --

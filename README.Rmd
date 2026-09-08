@@ -26,7 +26,8 @@ nothing has to be said about which terms enter the model, which are curved, or
 which interact. Ordinary `family` objects are used unchanged, including their
 links, so moving a model from `glm()` to `bartisan()` is a one-word change.
 Supported families include binomial, Poisson, negative binomial, gamma, ordinal,
-multinomial, zero-inflated counts, beta and ordered beta, three accelerated
+multinomial, zero-inflated counts, beta and ordered beta, a Tweedie compound
+Poisson for a non-negative response with a point mass at zero, three accelerated
 failure time models and a discrete proportional hazards model for right-censored
 data, location-scale regression for a variance that varies with the predictors, a
 Dirichlet process mixture for the error distribution itself, and a likelihood
@@ -128,6 +129,87 @@ for reading the fitted function, `vignette("diagnostics")` for convergence and
 fit, `vignette("importance")` for which predictors matter,
 `vignette("comparison")` for choosing between models, and `vignette("causal")`
 for causal inference.
+
+## Comparison With Other BART Packages
+
+Checked against the installed versions of each package rather than from
+memory: *dbarts* 0.9.34, *BART* 2.9.10, *flexBART* 2.0.3, *SoftBart*
+1.0.3, *bartMachine* 1.4.2, and *stochtree* 0.4.5. A dash means the
+package does not offer the feature, not that it fits it badly.
+
+|  | bartisan | dbarts | BART | flexBART | SoftBart | bartMachine | stochtree |
+|----|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| **Responses** |  |  |  |  |  |  |  |
+| Gaussian | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Binary, probit | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Binary, logit | ✓ | — | ✓ | ✓ | — | — | — |
+| Count: Poisson, negative binomial | ✓ | — | — | — | — | — | — |
+| Gamma, beta, ordered beta, Tweedie | ✓ | — | — | — | — | — | — |
+| Ordinal | ✓ 3 links | — | — | — | — | — | ✓ cloglog |
+| Multinomial | ✓ logit, probit | — | ✓ | — | — | — | — |
+| Zero-inflated counts | ✓ | — | — | — | — | — | — |
+| Survival | ✓ 3 AFT, PH | — | ✓ **+ recurrent, competing risks** | — | — | — | — |
+| Heteroskedastic | ✓ | — | — | ✓ | — | — | ✓ |
+| Error distribution itself modeled | ✓ | — | — | — | — | — | — |
+| A likelihood written by the user | ✓ | — | — | — | — | — | — |
+| **Rules and priors** |  |  |  |  |  |  |  |
+| Hard decision rules | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
+| Soft decision rules | ✓ 4 gates | — | — | — | ✓ | — | — |
+| Dirichlet sparsity prior (DART) | ✓ | — | ✓ | ✓ | ✓ | — | — |
+| Splitting weights fixed by the user | ✓ | — | — | — | ✓ groups | ✓ | — |
+| Categorical splits on level subsets | ✓ | — | — | ✓ **+ nested, network** | — | — | — |
+| Missing predictors, no imputation | ✓ default | — | — | — | — | ✓ | — |
+| **Structure** |  |  |  |  |  |  |  |
+| Random intercepts | ✓ | ✓ | — | — | — | — | ✓ |
+| Varying coefficients | ✓ | — | — | ✓ | ✓ | — | ✓ |
+| Treatment-effect (BCF) structure | ✓ | — | — | — | — | — | ✓ |
+| Formula interface | ✓ | ✓ | — | ✓ | — | — | — |
+| **Running it** |  |  |  |  |  |  |  |
+| Several chains | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
+| Threads inside one chain | — | ✓ | ✓ | — | — | ✓ | ✓ |
+| Grow-from-root warm start | — | — | — | — | — | — | ✓ |
+| Cross-validation over hyperparameters | — | ✓ | — | — | — | ✓ | — |
+| Save and reload a fitted model | RDS | — | — | — | — | ✓ | ✓ JSON |
+| **Reading the fit** |  |  |  |  |  |  |  |
+| `predict()` on new data | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Convergence diagnostics built in | ✓ | — | ✓ | — | — | ✓ | — |
+| Variable importance | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| Formal variable-selection test | ✎ | — | ✓ | — | ✓ | ✓ | — |
+| Partial dependence | ✎ | ✓ | — | — | ✓ | ✓ | — |
+| Interaction detection | ✎ | — | — | — | — | ✓ | — |
+| Counterfactual estimands with intervals | ✓ | — | — | — | — | — | — |
+| Cross-validated model comparison | ✓ | — | — | — | — | — | — |
+
+**✎ means a helper package covers it, not this one.** All three of those
+rows are things *bartMachine* does natively and *bartisan* does through
+*marginaleffects*, because a fit works with it and every estimand there
+is computed by pushing the draws through: `plot_predictions()` is a
+partial dependence plot, and
+`avg_comparisons(variables = "x", by = "z")` and `hypotheses(~pairwise)`
+are interaction detection, neither of which needs code here. What is
+genuinely missing is a *formal* variable-selection test: this package
+reports split counts and the share of draws that used a predictor, which
+is not a test, where *bartMachine* permutes the response and *SoftBart*
+reports posterior inclusion probabilities.
+
+The other columns worth reading as gaps rather than as differences are
+these. There are **no threads inside a chain**, so a single chain is
+single-core here where *dbarts*, *BART*, *bartMachine*, and *stochtree*
+all use several; chains do run in parallel, which is the cheaper win,
+but it does not help one chain. There is **no cross-validation** over
+`k`, `num_trees`, and the tree prior, which `dbarts::xbart()` and
+`bartMachine::bartMachineCV()` both automate. There is **no
+grow-from-root warm start**, which is *stochtree*’s way of shortening
+burn-in. And there is **no JSON serialization**, so a fit round-trips
+through `saveRDS()` and not into another language. On survival, *BART*
+is ahead: recurrent events and competing risks are there and here they
+are not.
+
+Three more packages are single-purpose rather than general, so they are
+not columns above: [*bcf*](https://CRAN.R-project.org/package=bcf) fits
+Bayesian causal forests only,
+[*VCBART*](https://github.com/skdeshpande91/VCBART) varying-coefficient
+models only, and *bartCause* wraps *dbarts* for causal estimands.
 
 ## Citing *bartisan*
 

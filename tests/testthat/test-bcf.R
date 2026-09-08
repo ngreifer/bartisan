@@ -177,3 +177,46 @@ test_that("bcf validates its treatment argument", {
   expect_error(bcf(y ~ z, treatment = ~ z, data = d),
                "at least one covariate")
 })
+
+# `bcf()` chooses a drawn coding for its treatment-effect forest, and the engine
+# refuses one for a family whose leaf target is not quadratic. The refusal is
+# expected and handled -- the fixed coding is used instead -- but it is raised
+# inside the sampler, so with more than one chain *future.apply* announces the
+# failing attempt with an immediate warning of its own before re-raising it. A
+# caller who asked for a Tweedie BCF fit got "Caught Rcpp::exception. Canceling
+# all iterations ..." from a fit that then completed correctly.
+test_that("a refused drawn coding does not leak the retry's noise", {
+  skip_on_cran()
+  skip_if_not_installed("future.apply")
+
+  d <- sim_x(n = 200L, p = 4L, seed = 41L)
+  d$z <- stats::rbinom(nrow(d), 1L, 0.4)
+  # Non-negative with a point mass at zero, which is what a Tweedie is for.
+  d$y <- ifelse(stats::runif(nrow(d)) < 0.25, 0,
+                stats::rgamma(nrow(d), shape = 2, rate = 1 / (200 * (1 + d$z))))
+
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
+  form <- y ~ x1 + x2 + x3 + x4
+
+  # Several chains is the case that warned; the refusal itself happens whatever
+  # the chain count.
+  expect_no_warning(
+    fit <- bcf(form, treatment = ~ z, data = d, family = tweedie(),
+               chains = 4L, control = ctrl))
+
+  # And the fit it fell back to is a real one, on the fixed coding.
+  expect_s3_class(fit, "bartisan_fit")
+  expect_length(fit[["counts"]], 2L)
+
+  # The holding-back is conditional on the attempt having failed. A genuine
+  # warning still reaches the caller, on the path where the trial is refused
+  # and on the path where it succeeds.
+  d$y[1:3] <- NA
+
+  expect_warning(bcf(form, treatment = ~ z, data = d, family = tweedie(),
+                     chains = 4L, control = ctrl),
+                 "missing response")
+  expect_warning(bcf(form, treatment = ~ z, data = d, family = dpm(),
+                     chains = 4L, control = ctrl),
+                 "missing response")
+})

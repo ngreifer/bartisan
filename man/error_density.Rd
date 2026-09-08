@@ -2,9 +2,12 @@
 % Please edit documentation in R/predict.R
 \name{error_density}
 \alias{error_density}
+\alias{plot.bartisan_error_density}
 \title{Error distribution of a Dirichlet process mixture fit}
 \usage{
 error_density(object, at = NULL, level = 0.95, plot = FALSE, iterations = NULL)
+
+\method{plot}{bartisan_error_density}(x, y, ...)
 }
 \arguments{
 \item{object}{a \verb{<bartisan_fit>} object fit with \code{family = dpm()} or
@@ -19,20 +22,29 @@ either side of zero.}
 for 95\% intervals.}
 
 \item{plot}{\code{logical}; whether to return a plot of the density rather than the
-density itself. Default is \code{FALSE} to return the values. \code{TRUE} needs
-\CRANpkg{ggplot2} and returns a \code{ggplot} object, so it can be added to in
-the usual way; the values are the thing to reach for when the density is to
-be drawn against something else, as \code{vignette("survival")} draws it against
-the normal a \code{lognormal_aft()} fit would have assumed.}
+density itself. Default is \code{FALSE} to return the values. Equivalent to
+calling \code{plot()} on the result. Either needs \CRANpkg{ggplot2} and returns
+a \code{ggplot} object, so it can be added to in the usual way; the values are
+the thing to reach for when the density is to be drawn against something
+else, as \code{vignette("survival")} draws it against the normal a
+\code{lognormal_aft()} fit would have assumed.}
 
 \item{iterations}{\code{numeric}; optional indices of the stored draws to use,
 between 1 and the number of draws the fit retains. Default is \code{NULL} to use
 all of them.}
+
+\item{x}{a \verb{<bartisan_error_density>} object; the output of a call to
+\code{error_density()}.}
+
+\item{y}{not used.}
+
+\item{...}{ignored; present for compatibility with the generic.}
 }
 \value{
-When \code{plot = FALSE}, a data frame with one row per grid point and columns
-\code{at}, \code{mean}, \code{lower}, and \code{upper}, giving the posterior mean density and a
-pointwise interval. When \code{plot = TRUE}, a \code{ggplot} object drawing the
+A \verb{<bartisan_error_density>} object, which is a data frame with one row per
+grid point and its own \code{plot()} method, with columns \code{at}, \code{mean}, \code{lower},
+and \code{upper}, giving the posterior mean density and a pointwise interval. With
+\code{plot = TRUE}, or from \code{plot()} on the result, a \code{ggplot} object drawing the
 posterior mean density with that interval as a ribbon.
 }
 \description{
@@ -58,7 +70,7 @@ head(error_density(fit, at = c(-2, 0, 2)))
 
 # The same thing drawn, with the pointwise interval as a ribbon
 if (rlang::is_installed("ggplot2")) {
-  error_density(fit, plot = TRUE)
+  plot(error_density(fit))
 }
 
 }

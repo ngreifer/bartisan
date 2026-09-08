@@ -55,10 +55,10 @@ prepare_response <- function(family, y, weights, offset, x, n) {
          # from a linear fit.
          dpm_aft = {
            if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
-             arg::err("{.fn dpm_aft} does not take prior weights, because a weight
-                  would have to be a multiplicity in the Dirichlet process,
-                  which is not what a fractional weight means",
-                      i = "the other survival families take them")
+             arg::err(c("{.fn dpm_aft} does not take prior weights, because a
+                         weight would have to be a multiplicity in the Dirichlet
+                         process, which is not what a fractional weight means",
+                        i = "the other survival families take them"))
            }
 
            a <- prepare_surv(y, n)
@@ -79,11 +79,11 @@ prepare_response <- function(family, y, weights, offset, x, n) {
 
          dpm = {
            if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
-             arg::err("{.fn dpm} does not take prior weights, because a weight
-                  would have to be a multiplicity in the Dirichlet process,
-                  which is not what a fractional weight means",
-                      i = "{.fn gaussian}, {.fn ordinal} and {.fn gaussian_ls} all
-                      take them")
+             arg::err(c("{.fn dpm} does not take prior weights, because a weight
+                         would have to be a multiplicity in the Dirichlet
+                         process, which is not what a fractional weight means",
+                        i = "{.fn gaussian}, {.fn ordinal} and {.fn gaussian_ls}
+                             all take them"))
            }
 
            y <- check_numeric_response(y, name)
@@ -219,6 +219,50 @@ prepare_response <- function(family, y, weights, offset, x, n) {
                             update_shape = TRUE)
          },
 
+         tweedie = {
+           y <- check_numeric_response(y, name)
+
+           if (any(y < 0)) {
+             arg::err("the {.val tweedie} family requires a non-negative response")
+           }
+
+           if (!any(y > 0)) {
+             arg::err("the {.val tweedie} family needs some positive responses,
+                       and every one of these is zero")
+           }
+
+           # Not an error. A Tweedie with no zeros is a perfectly good
+           # likelihood, but it is then a gamma with a variance power the caller
+           # has fixed by hand, and the zero probability that the power and the
+           # dispersion are jointly identified through has nothing to bear on.
+           if (!any(y == 0)) {
+             arg::wrn(c("the response has no zeros, which is what the
+                         {.val tweedie} family's point mass is for",
+                        i = "{.code Gamma(\"log\")} models a strictly positive
+                             response with the shape drawn rather than fixed"))
+           }
+
+           out$y <- y
+           out$weights <- weights
+           out$eta_scale <- 1
+           mu <- stats::weighted.mean(y, weights)
+           intercept <- log(mu)
+
+           # Method of moments, from Var(y) = phi mu^p at the fitted power. This
+           # is the same solve that makes the family plausible for a response in
+           # the first place: it has to land on a positive dispersion whose
+           # implied zero probability is near the observed share of zeros.
+           power <- family[["power"]] %or% 1.5
+           phi_start <- max(stats::var(y) / mu^power, 1e-8)
+
+           out$opts <- list(phi = family[["phi"]] %or% phi_start,
+                            power = power,
+                            phi_prior_shape = 0.01,
+                            phi_prior_rate = 0.01,
+                            update_phi = is_null(family[["phi"]]),
+                            update_power = is_null(family[["power"]]))
+         },
+
          ordinal = {
            o <- prepare_ordered(y, name)
            out$y <- o$codes
@@ -336,10 +380,10 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            y <- check_numeric_response(y, name)
 
            if (any(y <= 0) || any(y >= 1)) {
-             arg::err("The {.val beta} family requires a response strictly between 0
-                  and 1.",
-                      i = "With observations at 0 or 1, use {.fn ordbeta}, which
-                      models those as point masses.")
+             arg::err(c("The {.val beta} family requires a response strictly
+                         between 0 and 1.",
+                        i = "With observations at 0 or 1, use {.fn ordbeta},
+                             which models those as point masses."))
            }
 
            out$y <- y

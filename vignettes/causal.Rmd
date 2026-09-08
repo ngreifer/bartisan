@@ -1,12 +1,12 @@
 ---
-title: "Causal inference with BART"
+title: "Causal Inference with BART"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Causal inference with BART}
+  %\VignetteIndexEntry{Causal Inference with BART}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
 bibliography: references.bib
@@ -64,6 +64,8 @@ library(cobalt)
 library(marginaleffects)
 
 data(rhc)
+
+set.seed(2026)
 ```
 
 ## Confounding
@@ -133,12 +135,10 @@ model too, for the same reason it is a good choice for the outcome: the
 functional form is not known.
 
 ```{r psfit, eval = run}
-set.seed(2026)
-
 ps_fit <- bartisan(
   rhc ~ age + sex + race + edu + aps + meanbp + resp + hema + pafi +
     paco2 + crea + surv2m + card,
-  data = rhc, family = binomial("probit"), chains = 4
+  data = rhc, family = binomial(), chains = 4
 )
 
 prop_score <- fitted(ps_fit)
@@ -147,7 +147,7 @@ prop_score <- fitted(ps_fit)
 We can use `cobalt::bal.plot()` to examine the overlap of the propensity
 score distribution between the groups:
 
-```{r balplot, eval = run && has_cobalt, fig.height = 2.8}
+```{r balplot, eval = run && has_cobalt}
 bal.plot(rhc ~ prop_score, data = rhc, type = "hist", mirror = TRUE)
 ```
 
@@ -202,11 +202,10 @@ covariates that weighting them all alike is wasteful.
 
 ## The outcome model
 
-We can fit the outcome model as follows:
+We can fit the outcome model as a simply binary BART regression of the
+outcome on the treatment and covariates:
 
 ```{r po, eval = run}
-set.seed(2026)
-
 fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
                   hema + pafi + paco2 + crea + surv2m + card,
                 data = rhc, family = binomial(),
@@ -216,18 +215,31 @@ fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
 We include both the treatment and covariate in the formula's right-hand
 side, set `family = binomial()` to model the binary outcome with
 logistic regression, and `sparsity = FALSE` to remove the
-sparsity-inducing prior. Normally, we would examine convergence
-diagnostics for this model to make sure it was fit correctly; see
-`vignette("diagnostics")` for more information on how to do that.
+sparsity-inducing prior. We could also have included the propensity
+score as a covariate, which is recommended by @carnegie2019 to slightly
+improve performance (in this case it doesn't affect the result).
+Normally, we would examine convergence diagnostics for this model to
+make sure it was fit correctly; see `vignette("diagnostics")` for more
+information on how to do that.
 
 ## Potential outcomes
 
-The quantities underlying every effect below are the two average
+The quantities underlying the effect estimate are the two average
 potential outcomes: the proportion who would die if every patient were
 catheterized, and if none were. `marginaleffects::avg_predictions()`
 reports them directly.
 
+Before running any *marginaleffects* functions, we request that the
+estimates are summarized by the mean of the posterior distribution
+rather than the median, which is the default. This step is optional and
+doesn't affect the credible intervals, but we do it here to facilitate
+interpretation.
+
 ```{r}
+# Change the posterior center estimate to mean
+options(marginaleffects_posterior_center = "mean")
+
+# Compute the estimated potential outcomes
 avg_predictions(fit, variables = "rhc")
 ```
 
@@ -242,7 +254,10 @@ of six percentage points means something different against a baseline of
 The effect is the contrast between those two quantities, which can be
 requested using `marginaleffects::avg_comparisons()`[^1]:
 
-[^1]: Here we report the risk difference, the default quantity returned by `avg_comparisons()` with a binary outcome. You can also set `comparison = "lnratioavg", transform = "exp"` to report the risk ratio and its credible interval.
+[^1]: Here we report the risk difference, the default quantity returned
+    by `avg_comparisons()` with a binary outcome. You can also set
+    `comparison = "lnratioavg", transform = "exp"` to report the risk
+    ratio and its credible interval.
 
 ```{r ate, eval = run}
 ate <- avg_comparisons(fit, variables = "rhc")
@@ -256,7 +271,7 @@ catheterization raises the probability of death by about
 interval running from roughly `r round(100 * abs(ate$conf.low[1]))` to
 `r round(100 * abs(ate$conf.high[1]))`.
 
-## Using Bayesian causal forests
+## Using Bayesian Causal Forests
 
 Traditional BART shrinks the fitted function toward a constant; that
 shrinkage applies to everything the forest fits, including the part of
@@ -274,15 +289,15 @@ BART model. `bcf()` fits it.
 
 One specifies the control function in the model formula and identifies
 the treatment in the `treatment` argument. `bcf()` then fits a varying
-coefficient BART model, the BCF.
+coefficient BART model, the BCF. By default, `bcf()` estimate a
+propensity score using a logistic BART model and includes that as a
+covariate in the control function, as recommended by @hahn2020.
 
 ```{r bcffit, eval = run}
-set.seed(2026)
-
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
                  pafi + paco2 + crea + surv2m + card,
                treatment = ~ rhc, data = rhc,
-               family = binomial("probit"), chains = 4)
+               family = binomial(), chains = 4)
 
 fit_bcf
 ```
@@ -307,28 +322,35 @@ avg_comparisons(fit_bcf, variables = "rhc")
 ```
 
 Because the effect is a parameter of the model rather than a difference
-of predictions, it can be read off directly, one value per patient:
+of predictions, it can be read off directly, one value per patient, by
+extracting the predictions from the treatment effect forest. We'll
+exponentiate these to be on the odds ratio scale:
 
 ```{r bcfcoef, eval = run}
 coef(fit_bcf)[, "rhc"] |>
+  exp() |>
   quantile(probs = c(0, .25, .5, .75, 1)) |>
   round(3)
 ```
 
-That column is the conditional effect for each patient, **on the link
-scale** -- here a difference in log odds, because the outcome is binary.
-It is not the same number as the contrast above, which is on the
-probability scale, and for a binary outcome the probability scale is the
-one to report. `coef()` is for looking at how the effect varies from
-patient to patient, not for reporting its size.
+This can also be computed using *marginaleffects* as follows:
 
-For a family whose link is the identity, the two coincide exactly: the
-coefficient *is* the contrast, and averaging it gives the average
-treatment effect with nothing lost in between.
+```{r}
+comp <- comparisons(fit_bcf, variables = "rhc",
+                    comparison = "lnor")
 
-None of this changes what has to be true for the number to be causal. It
-changes how the prior treats the effect, not whether the covariates
-account for selection.
+comp$estimate |>
+  exp() |>
+  quantile(probs = c(0, .25, .5, .75, 1)) |>
+  round(3)
+```
+
+Note that these effects are conditional effects, here reported as odds
+ratios, whereas we had previously reported the ATE as a risk difference.
+Remember that the marginal odds ratio (which we did not compute here) is
+**not** the average of the conditional odds ratios. However, for a
+family whose link is the identity, which we'll examine below, the ATE
+*is* the average of the CATEs.
 
 ## A second example: a continuous outcome, and the ATT
 
@@ -347,87 +369,85 @@ data("lalonde", package = "cobalt")
 with(lalonde, tapply(re78, treat, mean))
 ```
 
-Participants earned less than non-participants. Taken at face value the
-program looks harmful, and it is not: participants were selected for
-being out of work, so they would have earned less anyway. This is
-confounding in the opposite direction to the catheterization example,
-and it is why the raw comparison is worth showing before the adjusted
-one.
+Participants earned less than non-participants. Taken at face value, the
+program looks harmful, but that doesn't mean it actually is:
+participants were selected for being out of work, so they would have
+earned less anyway. This is confounding in the opposite direction to the
+catheterization example, and it is why the raw comparison is worth
+showing before the adjusted one.
 
-```{r lalondefit, eval = run && has_cobalt}
-set.seed(2026)
+Below, we fit the BCF model, this time setting `family = dpm()`, which
+is the default for a numeric outcome and makes sense here. Earnings are
+heavily skewed with a spike at zero, which a single normal describes
+badly; the Dirichlet process mixture estimates the shape instead of
+assuming it, and costs almost nothing when a normal would have done.
+Alternatively, `family = tweedie()` can also work well for this type of
+outcome. See `vignette("families")`.
 
-fit_earn <- bartisan(
-  re78 ~ treat + age + educ + race + married + nodegree + re74 + re75,
-  data = lalonde, family = dpm(), chains = 4, sparsity = FALSE
+```{r}
+# Fit the BCF model
+fit_earn_bcf <- bcf(
+  re78 ~ age + educ + race + married + nodegree + re74 + re75,
+  treatment = ~treat,
+  data = lalonde, family = dpm(),
+  chains = 4
 )
 
-avg_comparisons(fit_earn, variables = "treat",
+# Compute the ATT
+avg_comparisons(fit_earn_bcf, variables = "treat",
                 newdata = subset(treat == 1))
 ```
-
-`newdata = subset(treat == 1)` is what makes this the ATT: the
-individual contrasts are averaged over the participants alone rather
-than over everyone. The adjusted estimate is positive where the raw
-difference was negative, though its interval is wide enough that the
-size is not settled.
-
-`family = dpm()` is the default for a numeric outcome and the right
-choice here. Earnings are heavily skewed with a spike at zero, which a
-single normal describes badly; the Dirichlet process mixture estimates
-the shape instead of assuming it, and costs almost nothing when a normal
-would have done. See `vignette("families")`.
 
 The two potential outcomes are worth reporting alongside the difference,
 since a few hundred dollars means something different against a baseline
 of six thousand than it would against six hundred:
 
 ```{r lalondepo, eval = run && has_cobalt}
-avg_predictions(fit_earn, variables = "treat",
+avg_predictions(fit_earn_bcf, variables = "treat",
                 newdata = subset(treat == 1))
 ```
 
-Everything said above about identification applies here unchanged. The
-observational Lalonde sample is famous precisely because its covariates
-are *not* enough to recover the experimental benchmark, which is a
-caution rather than a counterexample: it is what the assumption failing
-looks like.
+Now, we can also look at the distribution of the conditional effect
+estimates, the average of which (among the treated) is equal to the ATT
+(unlike in the binary example above).
 
-## Moderation
-
-A forest is free to fit a different effect for every covariate pattern,
-so asking whether the effect differs across groups needs no interaction
-term and no refit. `by` splits the average.
-
-```{r moderation, eval = run}
-avg_comparisons(fit, variables = "rhc", by = "card")
+```{r}
+coef(fit_earn_bcf)[, "treat"] |>
+  subset(lalonde$treat == 1) |>
+  quantile(probs = c(0, .25, .5, .75, 1)) |>
+  round(3)
 ```
 
-The estimates differ a little between patients with and without
-cardiovascular disease. It is tempting to read a difference like that as
-moderation, and more tempting still when the two intervals do not
-overlap equally or when one covers zero and the other does not. Neither
-reading is a test. Comparing two intervals says nothing about whether
-the quantities they cover differ, because the comparison that matters
-has an uncertainty of its own that neither interval reports.
+We can plot these conditional effects in a kind of forest plot, which
+makes it easier to see the degree of effect heterogeneity and whether
+any of the conditional effects are distinguishable from zero:
 
-The question is whether they differ from each other, which needs the
-difference itself:
+```{r}
+# Compute the CATEs and their CI
+comp <- comparisons(fit_earn_bcf, variables = "treat",
+                    newdata = subset(treat == 1)) |>
+  dplyr::arrange(estimate)
 
-```{r pairwise, eval = run}
-avg_comparisons(fit, variables = "rhc", by = "card",
-                hypothesis = ~pairwise)
+# Plot the CATEs
+library(ggplot2)
+ggplot(comp,
+       aes(x = 1:nrow(comp), y = estimate)) +
+  geom_hline(yintercept = 0, color = "blue") +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme_linedraw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  labs(y = "CATE", x = NULL)
 ```
 
-The difference is small with an interval covering zero. There is no
-evidence of moderation by cardiovascular disease here, and the subgroup
-estimates should be read as two noisy estimates of one common effect.
+We can see that in addition to there being a positive ATT, most CATEs
+are estimated as positive by the BCF. None of the CATE credible
+intervals exclude zero.
 
-Detecting moderation needs much more data than estimating a main effect,
-and a flexible model does not change that. What it changes is that you
-are not required to guess the form of the interaction in advance.
-
-## What the interval means
+## What the credible interval means
 
 The posterior interval is a credible interval for the estimand under the
 model and under the identification assumptions. It covers uncertainty
@@ -439,8 +459,7 @@ An unmeasured confounder does not widen the interval. It moves the
 estimate and leaves the interval where it was. This is why a sensitivity
 analysis, asking how strong a confounder would have to be to explain the
 result away, is a more informative addition than any refinement of the
-model. The `sensemakr` and `EValue` packages do this and work from the
-estimate and its standard error, which `avg_comparisons()` provides.
+model.
 
 ## Where to go next
 

@@ -843,7 +843,8 @@ diagnosis_advice <- function(checks, control = NULL) {
       "move between them."))
     out <- c(out, paste(
       "Then check the family. A likelihood that fits the data badly can give a",
-      "posterior with no single place to be; `pp_check()` is the diagnostic."))
+      "posterior with no single place to be; `bayesplot::pp_check()` is the",
+      "diagnostic."))
   }
 
   if (noted("where it is")) {
@@ -853,7 +854,7 @@ diagnosis_advice <- function(checks, control = NULL) {
       "this in a forest. An estimand averaged over observations therefore",
       "carries far more effective draws than the table's worst row does, and",
       "R-hat for that estimand is worth computing rather than inferring;",
-      "`as_draws()` hands the draws to *posterior* for it."))
+      "`posterior::as_draws()` hands the draws over for it."))
   }
 
   if ((failed("bulk ESS") || failed("tail ESS")) && !failed("rhat")) {

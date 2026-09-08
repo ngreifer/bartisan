@@ -227,10 +227,10 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
     }
 
     if (is_null(times)) {
-      arg::err("{.arg times} says at which times to report survival, and has no
-                default because the horizon is a choice rather than a property of
-                the fit",
-               i = "for example {.code times = c(1, 5)}")
+      arg::err(c("{.arg times} says at which times to report survival, and has
+                  no default because the horizon is a choice rather than a
+                  property of the fit",
+                 i = "for example {.code times = c(1, 5)}"))
     }
 
     arg::arg_numeric(times)
@@ -809,6 +809,7 @@ response_scale <- function(object, eta, aux, draws) {
                 poisson = ,
                 negbin = ,
                 Gamma = ,
+                tweedie = ,
                 Gamma_ls = if (supplied) inv(e) else exp(e),
                 # Solve Lambda_0(t) exp(eta) = log 2 for t. The cumulative
                 # baseline is piecewise linear in the drawn bin hazards, so this
@@ -1357,16 +1358,18 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' @param level `numeric`; the width of the pointwise interval. Default is .95
 #'   for 95% intervals.
 #' @param plot `logical`; whether to return a plot of the density rather than the
-#'   density itself. Default is `FALSE` to return the values. `TRUE` needs
-#'   \CRANpkg{ggplot2} and returns a `ggplot` object, so it can be added to in
-#'   the usual way; the values are the thing to reach for when the density is to
-#'   be drawn against something else, as `vignette("survival")` draws it against
-#'   the normal a `lognormal_aft()` fit would have assumed.
+#'   density itself. Default is `FALSE` to return the values. Equivalent to
+#'   calling `plot()` on the result. Either needs \CRANpkg{ggplot2} and returns
+#'   a `ggplot` object, so it can be added to in the usual way; the values are
+#'   the thing to reach for when the density is to be drawn against something
+#'   else, as `vignette("survival")` draws it against the normal a
+#'   `lognormal_aft()` fit would have assumed.
 #'
 #' @returns
-#' When `plot = FALSE`, a data frame with one row per grid point and columns
-#' `at`, `mean`, `lower`, and `upper`, giving the posterior mean density and a
-#' pointwise interval. When `plot = TRUE`, a `ggplot` object drawing the
+#' A `<bartisan_error_density>` object, which is a data frame with one row per
+#' grid point and its own `plot()` method, with columns `at`, `mean`, `lower`,
+#' and `upper`, giving the posterior mean density and a pointwise interval. With
+#' `plot = TRUE`, or from `plot()` on the result, a `ggplot` object drawing the
 #' posterior mean density with that interval as a ribbon.
 #'
 #' @seealso
@@ -1391,7 +1394,7 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #'
 #' # The same thing drawn, with the pointwise interval as a ribbon
 #' if (rlang::is_installed("ggplot2")) {
-#'   error_density(fit, plot = TRUE)
+#'   plot(error_density(fit))
 #' }
 #'
 #' @export
@@ -1441,17 +1444,26 @@ error_density <- function(object, at = NULL, level = 0.95, plot = FALSE,
                     lower = summarized["lower", ],
                     upper = summarized["upper", ])
 
+  class(out) <- c("bartisan_error_density", "data.frame")
+
   if (!plot) {
     return(out)
   }
 
-  if (!rlang::is_installed("ggplot2")) {
-    arg::err(c("{.pkg ggplot2} must be installed for {.code plot = TRUE}.",
-               i = "Omit {.arg plot} to get the density as a data frame and
-                    draw it however you like."))
-  }
+  # Through the method rather than beside it, so that `plot = TRUE` and
+  # `plot()` are not two drawings of the same thing that can drift apart.
+  plot(out)
+}
 
-  ggplot2::ggplot(out, ggplot2::aes(x = .data$at, y = .data$mean)) +
+#' @rdname error_density
+#' @param x a `<bartisan_error_density>` object; the output of a call to
+#'   `error_density()`.
+#' @param y not used.
+#' @export
+plot.bartisan_error_density <- function(x, y, ...) {
+  require_ggplot2("the error density")
+
+  ggplot2::ggplot(x, ggplot2::aes(x = .data$at, y = .data$mean)) +
     ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
                          fill = "grey85") +
     ggplot2::geom_line(linewidth = 0.5) +
@@ -1518,6 +1530,7 @@ density_response <- function(object, newdata, weights) {
                   gaussian = ,
                   gaussian_ls = check_numeric_response(y, family),
                   Gamma = ,
+                  tweedie = ,
                   Gamma_ls = check_numeric_response(y, family),
                   poisson = ,
                   negbin = ,

@@ -199,6 +199,24 @@ test_that("a binomial fit keeps its invariants under every structural wrapper", 
   }
 })
 
+# What a closure would cost to send, measured with its source references
+# removed.
+#
+# `serialize()` on a function also serializes its `srcref`, and a `srcref`
+# carries the entire text of the file the function was defined in. An installed
+# package has none, so the raw size is the retained data; but
+# `pkgload::load_all()` keeps them, which is what `devtools::test()` and
+# `testthat::test_local()` use, and there the text of `R/utils.R` adds 286 KB to
+# every closure defined in it. The two thresholds below are tight enough that
+# this drowned out what they measure, and the failure appeared only under
+# `devtools::test()` and never under `R CMD check`. Stripping the references
+# leaves the environment chain, which is the thing at issue: a closure holding a
+# 20,000-element vector still measures 320 KB through this, and one holding an
+# unforced promise to the frame containing it still measures 160 KB.
+closure_bytes <- function(f) {
+  length(serialize(utils::removeSource(f), NULL))
+}
+
 # A closure is sent to every worker, and a closure carries the frame it was
 # written in. Nothing about reading one says how large it is, which is what makes
 # this worth asserting rather than reviewing: the reporter `diagnose()` hands to
@@ -222,8 +240,8 @@ test_that("a progress reporter carries the progressor and nothing else", {
                                   handlers = progressr::handler_void())
 
   expect_gt(got[["ballast_size"]], 1e7)
-  expect_lt(length(serialize(got[["report"]], NULL)), 1e5)
-  expect_lt(length(serialize(got[["stepper"]], NULL)), 1e5)
+  expect_lt(closure_bytes(got[["report"]]), 1e5)
+  expect_lt(closure_bytes(got[["stepper"]]), 1e5)
 })
 
 # The same invariant one layer down, and the reason the two are next to each
@@ -261,8 +279,7 @@ test_that("a unit map carries only the numbers it uses", {
   expect_gt(whole, 4e4)
 
   for (type in c("quantile", "range")) {
-    sizes <- vapply(asks_for_maps(x, type),
-                    function(f) length(serialize(f, NULL)), numeric(1L))
+    sizes <- vapply(asks_for_maps(x, type), closure_bytes, numeric(1L))
 
     # Two numbers, or none, however long the column is.
     expect_lt(sizes[[2L]], 2e3)
@@ -271,6 +288,6 @@ test_that("a unit map carries only the numbers it uses", {
 
   # A quantile map holds an `ecdf` and so has to hold the values it was built
   # from, but its own column only; a range map is two numbers like the rest.
-  expect_lt(length(serialize(asks_for_maps(x, "quantile")[[1L]], NULL)), whole)
-  expect_lt(length(serialize(asks_for_maps(x, "range")[[1L]], NULL)), 2e3)
+  expect_lt(closure_bytes(asks_for_maps(x, "quantile")[[1L]]), whole)
+  expect_lt(closure_bytes(asks_for_maps(x, "range")[[1L]]), 2e3)
 })

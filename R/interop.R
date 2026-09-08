@@ -345,6 +345,24 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
       shape <- spread("shape")
       square(stats::rgamma(cells, shape = shape, rate = shape / mu))
     },
+    # Drawn from the representation rather than the density: a Poisson count of
+    # gamma claims, which is what the family is, and which gives the point mass
+    # at zero for free whenever the count comes out zero.
+    tweedie = {
+      p <- spread("power")
+      ph <- spread("phi")
+      lambda <- mu^(2 - p) / (ph * (2 - p))
+      shape <- (2 - p) / (p - 1)
+      scale <- ph * (p - 1) * mu^(p - 1)
+      # `spread()` gives one value per cell, so every one of these is a matrix
+      # of the same shape and the subsetting has to reach all of them.
+      n_claims <- stats::rpois(cells, lambda)
+      out <- numeric(cells)
+      hit <- n_claims > 0L
+      out[hit] <- stats::rgamma(sum(hit), shape = n_claims[hit] * shape[hit],
+                                scale = scale[hit])
+      square(out)
+    },
     binomial = {
       trials <- matrix(weights, nrow = ns, ncol = n, byrow = TRUE)
 
