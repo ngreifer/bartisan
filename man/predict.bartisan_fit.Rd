@@ -167,14 +167,14 @@ The \strong{scale} is \verb{sd(y*) = sqrt(var(eta) + var(e))}, where \code{var(e
 over the sample the model was fitted to, per draw, so it is a property of the
 model rather than of whatever is being predicted; the same divisor is used when
 predicting new data. \code{var(e)} is whatever the link implies: 1 for the probit
-link, \code{pi^2 / 3} for the logit, \code{pi^2 / 6} for the complementary log-log.
+link, \eqn{\pi^2 / 3} for the logit, \eqn{\pi^2 / 6} for the complementary log-log.
 
 The \strong{location} subtracts the latent error's mean, which shifts \verb{y*} so that
 its error is centered. That is invisible for the logit and probit links, whose
 errors are already centered, and is the whole of the difference for the
 complementary log-log link, whose error is a smallest extreme value variate.
 
-The \strong{sign of that shift differs between the two families}, and only for the
+The sign of that shift differs between the two families, and only for the
 complementary log-log link. A normal or logistic error is symmetric, so it does
 not matter whether \code{e} or \code{-e} is the thing added to the index. A smallest
 extreme value error is not symmetric, and the two families add it with opposite

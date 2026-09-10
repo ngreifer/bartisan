@@ -65,3 +65,22 @@ with_shared_forests <- function(code) {
 
   force(code)
 }
+
+# Everything a `print()` method emits. The tables go to stdout and the
+# explanatory notes go through `cli::cli_bullets()`, which writes to the message
+# stream, so a test that captures only one of the two sees half the output.
+printed <- function(x, ...) {
+  # Two calls rather than one nested pair: nesting the two sinks lets some of
+  # the stdout half through to the console, which makes the test output noisy
+  # without failing anything. Printing twice is cheap.
+  out <- utils::capture.output(print(x, ...), type = "output")
+  msg <- utils::capture.output(print(x, ...), type = "message")
+
+  c(out, msg)
+}
+
+# The same output as one whitespace-normalized string, for matching a phrase
+# that cli may have wrapped across lines.
+printed_text <- function(x, ...) {
+  gsub("\\s+", " ", paste(printed(x, ...), collapse = " "))
+}

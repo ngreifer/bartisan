@@ -1004,6 +1004,8 @@ valid_links <- list(custom = "identity",
                     ordbeta = "logit",
                     tweedie = "log")
 
+survival_families <- c("dpm_aft", "weibull_aft", "loglogistic_aft", "lognormal_aft", "ph")
+
 # Normalize whatever the user passed to `family` into a bartisan family object.
 # Accepts a string, a family-generating function, a stats::family object, or one
 # of the bartisan families above, mirroring how glm() resolves the argument.
@@ -1046,18 +1048,17 @@ default_family <- function(y, weights = NULL) {
   # say which of the two they meant.
   if (!is_null(weights)) {
     if (identical(chosen, "dpm")) {
-      arg::err(c("a numeric response defaults to {.fn dpm}, which does not take
-                  prior weights",
-                 i = "name a family: {.code family = gaussian()} keeps the
-                      weights, and so do {.fn ordinal} and {.fn gaussian_ls}"))
+      arg::err(c("A numeric response defaults to {.fn dpm}, which does not take
+                  prior weights.",
+                 i = "Name a family: {.code family = gaussian()} keeps the
+                      weights, and so do {.fn ordinal} and {.fn gaussian_ls}."))
     }
 
     if (identical(chosen, "dpm_aft")) {
-      arg::err(c("a censored response defaults to {.fn dpm_aft}, which does not
-                  take prior weights",
-                 i = "name a family: {.code family = lognormal_aft()} keeps the
-                      weights, and so do {.fn weibull_aft},
-                      {.fn loglogistic_aft} and {.fn ph}"))
+      arg::err(c("A censored response defaults to {.fn dpm_aft}, which does not
+                  take prior weights.",
+                 i = "Name a family: {.code family = lognormal_aft()} keeps the
+                      weights, and so do {.fn weibull_aft}, {.fn loglogistic_aft} and {.fn ph}."))
     }
   }
 
@@ -1147,7 +1148,7 @@ as_bartisan_family <- function(family) {
   # caller looking for functions that do not exist, and it disagreed with the
   # error the string branch above gives for the same mistake.
   if (!name %in% names(valid_links)) {
-    arg::err(c("family {.val {name}} is not supported by {.fn bartisan}",
+    arg::err(c("{.val {name}} is not a supported {.arg family} in {.fn bartisan}.",
                i = "Supported families are {.val {bartisan_family_names}}, each
                     the name of a function to call.",
                i = "For a likelihood that is not among them, {.fn custom_family}

@@ -93,7 +93,8 @@ Default is \code{FALSE}.}
 
 \item{nsim, ndraws}{\code{numeric}; the number of posterior draws to use, chosen at
 random from the retained ones. Defaults are 1 for \code{simulate()} and 10 for
-\code{pp_check()}.}
+\code{pp_check()}. A \verb{ppc_loo_*} check uses every retained draw whatever this is
+set to, and says so; see Details.}
 
 \item{seed}{optional seed, set with \code{\link[=set.seed]{set.seed()}} before drawing and restored
 afterwards, following the \code{\link[stats:simulate]{stats::simulate()}} convention. Default is \code{NULL}
@@ -165,20 +166,43 @@ also most of what \pkg{insight} needs to make the fit legible to the
 \pkg{easystats} packages.
 }
 
-\subsection{Leave-One-Out Is Approximate, and Strained Here}{
+\subsection{Leave-One-Out Is Approximate, and Mostly Holds Up}{
 
 \pkgfun{loo}{loo} estimates the leave-one-out predictive density by importance
 sampling from the full-data posterior, and the estimate is trustworthy only
 when the importance weights have a finite variance, which is what the Pareto
-\eqn{k} diagnostic reports on. A forest is a very flexible function of the
-predictors, so a single observation can have a lot of influence on the leaves
-it lands in, and high \eqn{k} values are common rather than exceptional. Note
-that the warning \pkg{loo} prints in that case is not boilerplate; it says the
-number is not reliable, and held-out data are the alternative. A log score on
-data the model has not seen is available directly:
+\eqn{k} diagnostic reports on. The worry for a forest is that it is a very
+flexible function of the predictors, so one observation might carry enough
+influence over the leaves it lands in that dropping it cannot be approximated
+from the fit in hand.
+
+Measured, it usually does not. Over nine fits (\code{gaussian()} at \eqn{n = 100}
+with 200 trees, \code{gaussian_ls()}, \code{poisson()}, \code{binomial()}, \code{dpm()}, and
+\code{\link[=bcf]{bcf()}} on \code{lalonde} with both \code{gaussian()} and \code{tweedie()}), at most 0.2\% of
+observations exceeded \eqn{k = 0.7} and the median \eqn{k} ran between 0.03
+and 0.32. The leaf prior is what makes the difference: it shrinks every leaf
+towards zero and the fit is a sum over many trees, so no single observation
+dominates the leaves it reaches. The exceptions that did turn up were about
+the likelihood rather than the trees, and are the ones worth having; fitting
+\eqn{t_2} errors with \code{gaussian()} left one observation of 400 at
+\eqn{k = 2.4}.
+
+So the warning \pkg{loo} prints there is worth reading rather than expecting.
+When it names a handful of observations, those are the influential ones, and
+refitting without them is what shows how badly they are predicted. A log
+score on data the model has not seen is available directly:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{predict(fit, newdata = held_out, type = "density", log = TRUE)
 }\if{html}{\out{</div>}}
+
+The seven \verb{ppc_loo_*} checks reweight the replicates towards the
+leave-one-out predictive instead of comparing them with the response
+directly, so they need those same weights. \code{pp_check()} computes them from
+the fit's own pointwise log likelihood and passes them on, and \code{ndraws} does
+not apply to those checks, because the weights and the replicates have to
+line up draw for draw; supplying \code{lw} or \code{psis_object} takes over from it.
+\pkgfun{bayesplot}{ppc_loo_calibration} wants a binary response besides,
+which is its own requirement rather than this package's.
 }
 
 \subsection{What a Posterior Predictive Draw Is On}{

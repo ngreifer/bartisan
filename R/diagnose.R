@@ -322,9 +322,8 @@ diagnosis_table <- function(object, chains, rhat_max, budget = NULL) {
 
   rows <- c(rows, diagnosis_worst_rows(object, chains, rhat_max, budget))
 
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
-  out
+  do.call(rbind, rows) |>
+    unrowname()
 }
 
 # The four numbers, from one quantity's draws by chains.
@@ -464,10 +463,13 @@ diagnosis_columns <- function(wide, chains, budget) {
 }
 
 diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
-  out <- list()
-
   parts <- list(list(draws = object[["eta"]], stem = "eta", over = "observations"),
                 list(draws = object[["ranef"]], stem = "ranef", over = "levels"))
+
+  # Two rows per forest, an average and a worst, over however many forests each
+  # part has. A part with nothing in it contributes none.
+  out <- vector("list", 2L * sum(lengths(lapply(parts, `[[`, "draws"))))
+  at <- 0L
 
   budget <- budget %or% function(n) function() invisible(NULL)
 
@@ -484,7 +486,8 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
       # observation gets which share of it is the slow part. Which of those is
       # happening decides both what to do about it and whether it matters for
       # what is being reported.
-      out[[length(out) + 1L]] <- diagnosis_row(
+      at <- at + 1L
+      out[[at]] <- diagnosis_row(
         sprintf("%s.%s (average over %s)", part[["stem"]],
                 names(part[["draws"]])[h], part[["over"]]),
         as_chains(rowMeans(wide), chains), rhat_max)
@@ -493,7 +496,8 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
       # worst of a thousand values is extreme even when every chain has
       # converged. `high()` and `low()` keep the direction straight: a large
       # R-hat is bad and a small effective sample size is.
-      out[[length(out) + 1L]] <- data.frame(
+      at <- at + 1L
+      out[[at]] <- data.frame(
         quantity = sprintf("%s.%s (worst 5%% of %s)", part[["stem"]],
                            names(part[["draws"]])[h], part[["over"]]),
         rhat = high(per_column[1L, ]),
@@ -742,9 +746,8 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
                         lo_frac[["quantity"]], 100 * lo_frac[["value"]]))
   }
 
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
-  out
+  do.call(rbind, rows) |>
+    unrowname()
 }
 
 # ", for 34% of them" when a row has many components and only some failed;

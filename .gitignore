@@ -83,6 +83,14 @@ docs
 !_dev/shared-topology-timing.R
 !_dev/shared-topology-results.R
 !_dev/shared-topology-mixing.R
+!_dev/bandwidth-every.R
+!_dev/hetero-dpm.R
+!_dev/bandwidth-confirm.R
+!_dev/relative-cost.R
+!_dev/augment-benchmark.R
+!_dev/coverage-calibration.R
 !_dev/justfile
 # Live-progress run records: rebuildable churn, served over loopback.
 .progress-runs/
+!_dev/varsel-check.R
+!_dev/plot-methods.md

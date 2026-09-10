@@ -381,9 +381,9 @@ get_predict.bartisan_fit <- function(model, newdata = NULL, type = NULL, ...) {
 
   out <- data.frame(rowid = row_id,
                     group = "main_marginaleffect",
-                    estimate = colMeans(draws))
+                    estimate = colMeans(draws)) |>
+    unrowname()
 
-  rownames(out) <- NULL
   attr(out, "posterior_draws") <- t(draws)
 
   out

@@ -137,14 +137,14 @@
 #' over the sample the model was fitted to, per draw, so it is a property of the
 #' model rather than of whatever is being predicted; the same divisor is used when
 #' predicting new data. `var(e)` is whatever the link implies: 1 for the probit
-#' link, `pi^2 / 3` for the logit, `pi^2 / 6` for the complementary log-log.
+#' link, \eqn{\pi^2 / 3} for the logit, \eqn{\pi^2 / 6} for the complementary log-log.
 #'
 #' The **location** subtracts the latent error's mean, which shifts `y*` so that
 #' its error is centered. That is invisible for the logit and probit links, whose
 #' errors are already centered, and is the whole of the difference for the
 #' complementary log-log link, whose error is a smallest extreme value variate.
 #'
-#' The **sign of that shift differs between the two families**, and only for the
+#' The sign of that shift differs between the two families, and only for the
 #' complementary log-log link. A normal or logistic error is symmetric, so it does
 #' not matter whether `e` or `-e` is the thing added to the index. A smallest
 #' extreme value error is not symmetric, and the two families add it with opposite
@@ -221,9 +221,8 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
 
   if (identical(type, "survival")) {
     if (!survival) {
-      arg::err("{.arg type} {.val survival} is available only for the survival
-                families, {.fn weibull_aft}, {.fn loglogistic_aft},
-                {.fn lognormal_aft} and {.fn ph}")
+      arg::err("{.code type = \"survival\"} is available only for the survival
+                families, {.fn {survival_families}}")
     }
 
     if (is_null(times)) {
@@ -244,12 +243,12 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
   }
 
   if (type %in% c("prob", "class", "mean") && !categorical) {
-    arg::err("{.arg type} {.val {type}} is available only for the
+    arg::err("{.code type = \"{type}\"} is available only for the
               {.val binomial}, {.val ordinal} and {.val multinomial} families")
   }
 
   if (identical(type, "stdlv") && !family %in% c("ordinal", "binomial")) {
-    arg::err("{.arg type} {.val stdlv} is available only for the
+    arg::err("{.code type = \"stdlv\"} is available only for the
               {.val ordinal} and {.val binomial} families, whose response is a
               threshold crossing of a latent variable")
   }
@@ -360,7 +359,7 @@ latent_error <- function(family, link) {
          probit = c(0, 1),
          logit = c(0, pi^2 / 3),
          cloglog = c(extreme_value_mean, pi^2 / 6),
-         arg::err("{.arg type} {.val stdlv} needs a link with a known latent
+         arg::err("{.code type = \"stdlv\"} needs a link with a known latent
                    distribution, which {.val {link}} is not"))
 }
 
@@ -485,8 +484,7 @@ predict_eta <- function(object, newdata, offset, iterations) {
   missing <- setdiff(expected, colnames(x))
 
   if (!is_null(missing)) {
-    arg::err("{.arg newdata} does not reproduce the predictor column{?s}
-              {.val {missing}}")
+    arg::err("{.arg newdata} does not reproduce the predictor column{?s} {.val {missing}}")
   }
 
   x <- x[, expected, drop = FALSE]
@@ -662,8 +660,7 @@ vc_newdata_codes <- function(object, newdata) {
     name <- object[["vc"]][["specs"]][[j]][["covariate"]]
 
     if (!name %in% names(newdata)) {
-      arg::err("{.arg newdata} has no column {.val {name}}, whose coefficient
-                varies")
+      arg::err("{.arg newdata} has no column {.val {name}}, whose coefficient varies")
     }
 
     x <- newdata[[name]]
@@ -860,7 +857,7 @@ response_scale <- function(object, eta, aux, draws) {
                     }
 
                     (lo + hi) / 2
-                  }, numeric(1))
+                  }, numeric(1L))
 
                   # One median per draw, added down the rows of `e`, which is
                   # draws by observations.
@@ -1159,12 +1156,12 @@ warn_undefined_density <- function(out, object) {
 
   arg::wrn(c("The conditional density is undefined for {n_draws} of
               {length(bad)} draw-by-observation values, which makes {n_obs} of
-              {total_obs} returned {cli::qty(total_obs)}value{?s} {.code NaN}.",
+              {total_obs} returned {cli::qty(total_obs)}value{?s} {.val {NaN}}.",
              i = "The {.val {link}} link's inverse does not cover the whole
                   additive predictor, so at these predictors some draws imply a
                   parameter outside the family's support. Draws are averaged
                   before the log is taken, so one undefined draw is enough to
-                  make an observation {.code NaN}.",
+                  make an observation {.val {NaN}}.",
              i = "A link whose inverse is defined on the whole line, such as
                   {.val log}, avoids this. {.code type = \"link\"} and
                   {.code draws = TRUE} show which predictors are responsible."))
@@ -1401,10 +1398,7 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 error_density <- function(object, at = NULL, level = 0.95, plot = FALSE,
                           iterations = NULL) {
 
-  if (!inherits(object, "bartisan_fit")) {
-    arg::err("{.arg object} must be a fit from {.fn bartisan}")
-  }
-
+  arg::arg_is(object, "bartisan_fit")
   arg::arg_flag(plot)
 
   if (!object[["family"]][["family"]] %in% c("dpm", "dpm_aft")) {

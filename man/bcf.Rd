@@ -18,8 +18,7 @@ bcf(
 \arguments{
 \item{formula}{a model formula. The right-hand side lists the covariates; the
 treatment is named in \code{treatment} rather than here, and is removed from the
-covariates if it appears among them, so \code{y ~ .} is usually the right
-specification.}
+covariates if it appears among them.}
 
 \item{treatment}{a one-sided formula naming the treatment, as in \code{~ z}. The
 treatment may be binary, categorical, or continuous, and which it is decides
@@ -60,10 +59,13 @@ default.}
 \item{...}{passed to \code{\link[=bartisan]{bartisan()}}, including \code{\link[=bartisan_control]{bartisan_control()}} settings.}
 }
 \value{
-A \verb{<bartisan_fit>} object, as \code{\link[=bartisan]{bartisan()}} returns, with the treatment's
-coefficient forest named for the treatment. \code{\link[=coef]{coef()}} gives the conditional
-effect for each observation and \pkgfun{marginaleffects}{avg_comparisons} the
-average; see \link{bartisan-marginaleffects}.
+A \verb{<bcf_fit>} object, which is the \verb{<bartisan_fit>} \code{\link[=bartisan]{bartisan()}} returns with
+a class in front of it and the treatment's coefficient forest named for the
+treatment. Everything that works on a \verb{<bartisan_fit>} works here unchanged;
+the class exists so that methods needing a named treatment have something to
+dispatch on. \code{\link[=coef]{coef()}} gives the conditional effect for each observation and
+\pkgfun{marginaleffects}{avg_comparisons} the average; see
+\link{bartisan-marginaleffects}.
 }
 \description{
 Fits a varying-coefficient model set up for estimating a treatment effect: a
@@ -188,10 +190,12 @@ fit <- bcf(death ~ . - days, treatment = ~ rhc, data = rhc,
 # to at each observation
 head(coef(fit))
 
-# The average effect over the sample
-if (rlang::is_installed("marginaleffects")) {
-  marginaleffects::avg_comparisons(fit, variables = "rhc")
-}
+# The average effect over the sample, on the response scale, which for a
+# binomial fit makes it a risk difference rather than a log odds ratio
+estimate_effect(fit)
+
+# Or the whole picture at once
+summary(fit)
 
 }
 \references{
@@ -211,6 +215,7 @@ heterogeneous effects of continuous exposures using Bayesian tree ensembles.
 \doi{10.48550/arXiv.2007.09845}
 }
 \seealso{
-\code{\link[=bartisan]{bartisan()}} and \code{\link[=vc]{vc()}} for the general interface this is written in
-terms of, and \code{vignette("causal")}.
+\code{\link[=estimate_effect]{estimate_effect()}} for the average or conditional effect, and
+\code{\link[=summary.bcf_fit]{summary.bcf_fit()}}, which reports it; \code{\link[=bartisan]{bartisan()}} and \code{\link[=vc]{vc()}} for the
+general interface this is written in terms of, and \code{vignette("causal")}.
 }

@@ -48,8 +48,8 @@ test_that("variable_importance() names the forest when there is more than one", 
 })
 
 test_that("variable_importance() rejects things that are not fits", {
-  expect_error(variable_importance(1), "must be a fit")
-  expect_error(variable_importance(1, level = 1), "must be a fit")
+  expect_error(variable_importance(1), "must inherit from class")
+  expect_error(variable_importance(1, level = 1), "must inherit from class")
 })
 
 test_that("prop_splits is a share, and so survives a change of forest size", {

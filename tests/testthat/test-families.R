@@ -27,7 +27,7 @@ test_that("unsupported families and links are rejected with a clear message", {
   expect_error(as_bartisan_family(bad), "link is not supported")
   expect_error(as_bartisan_family(ordinal("cauchit")), "should be one of")
   expect_error(as_bartisan_family(stats::inverse.gaussian()),
-               "not supported by")
+               "is not a supported")
   expect_error(as_bartisan_family(1), "must be a family name")
 })
 

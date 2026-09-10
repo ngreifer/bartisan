@@ -28,6 +28,7 @@ options(digits = 3)
 
 has_post <- rlang::is_installed("posterior")
 has_bp <- rlang::is_installed("bayesplot")
+has_loo <- rlang::is_installed("loo") && rlang::is_installed("rstantools")
 has_gg <- rlang::is_installed("ggplot2")
 run <- TRUE
 ```
@@ -90,7 +91,7 @@ catches drift but cannot catch two chains settling in different places. Running
 four costs four times as much sampling, which for most fits is a few seconds, and
 less than that under a `future` plan.
 
-More chains is not, however, a way to satisfy `rhat`, and it is worth knowing
+More chains is not, however, a way to improve `rhat`, and it is worth knowing
 which way it cuts before reaching for it. Effective sample size depends on the
 total number of draws and not on how they are divided, so twice as many chains
 and twice as long a chain buy the same amount of it. `rhat` is not symmetric that
@@ -100,9 +101,7 @@ chains sit at 1.010 and sixteen chains at 1.040. Adding chains raises the bar it
 has to clear. When a fit fails on `rhat`, longer chains are the fix; when it
 fails only on effective sample size, either will do.
 
-`diagnose()` is where the diagnostics are computed, and the only place: a fit does
-not carry a table of its own, because the per-observation statistics cost more
-than the sampling and would only be recomputed here.
+`diagnose()` is where the diagnostics are computed.
 
 ```{r rhat, eval = run}
 diagnose(fit)
@@ -128,7 +127,7 @@ computed on the second half of the retained draws alone, which is what tells a
 warmup that ended too early (i.e., too small a `num_burn`) from chains that have
 each settled somewhere different: throwing away the early draws is exactly what
 more `num_burn` would have done, so if that fixes `rhat`, warmup was the problem.
-And the `splits.*` row is the total number of splitting rules in the forest at
+The `splits.*` row is the total number of splitting rules in the forest at
 each draw, the one quantity here that is about the trees rather than about the
 fitted values, and which no general-purpose MCMC diagnostic would think to look
 at.
@@ -194,7 +193,7 @@ diagnose(too_short)$table
 ```
 
 Everything is bad. Every `rhat` is far above the 1.01 threshold, and the
-effective sample sizes are all under 30 out of the 200 draws kept. `rhat_late` is no
+effective sample sizes are all under 30 out of the 200 draws kept (4 chains x 50 kept draws per chain). `rhat_late` is no
 better than `rhat` on any row, which is the informative part: discarding the
 early draws does not fix it, so this is not a warmup that ended too soon but
 chains that have each settled somewhere different. Nothing from this fit should
@@ -248,13 +247,15 @@ scalar parameters and a representative set of `eta` columns.
 ```{r summarise, eval = run && has_post}
 library(posterior)
 
-summarise_draws(as_draws(fit))
+as_draws(fit) |>
+  summarise_draws()
 ```
 
 ```{r trace, eval = run && has_bp, fig.height = 2.6}
 library(bayesplot)
 
-mcmc_trace(as_draws(fit, eta = 1), pars = c("loglik", "eta[1]"))
+as_draws(fit, eta = 1) |>
+  mcmc_trace(pars = c("loglik", "eta[1]"))
 ```
 
 What we want to see is four chains overlapping, wandering around the same level,
@@ -307,6 +308,48 @@ For a **binary** outcome it is a weak check, which is worth knowing before
 reading too much into it. There are only two values the replicates can take, so
 they will match the observed proportion unless the model has gone badly wrong;
 passing this check tells us almost nothing.
+
+#### Checks Worth Reaching For
+
+`type` names any of *bayesplot*'s checks without its `ppc_` prefix, and four of
+them earn their place for a forest.
+
+The default compares whole distributions, which is a coarse question. A
+**test statistic** is a sharper one: `type = "stat"` compares any summary of the
+replicates with the same summary of the outcome, so the spread, a tail
+quantile, or the share of zeros can each be asked about on its own. The share of
+zeros is the one that finds an unmodeled point mass, which is what
+`vignette("families")` recommends `zi_poisson()` and `tweedie()` for.
+
+```{r ppcstat, eval = run && has_bp, fig.height = 2.6}
+pp_check(fit, type = "stat", stat = "sd")
+```
+
+**Calibration of the whole predictive distribution** is what
+`type = "loo_pit_ecdf"` asks. Each observation is transformed through its own
+leave-one-out predictive distribution, which should leave a uniform if the model
+is calibrated, and the plot compares the result with one. A curve that leaves
+the band says the predictive spread is wrong even where the mean is right, which
+the default check cannot see. Note that this needs importance weights as well as
+draws; `pp_check()` computes them from the fit's own pointwise log likelihood, so
+there is nothing to pass.
+
+```{r ppcloo, eval = run && has_bp && has_loo, fig.height = 2.8}
+pp_check(fit, type = "loo_pit_ecdf")
+```
+
+**Where a residual is left**, rather than how big it is, is what
+`type = "error_scatter_avg_vs_x"` shows: the average residual against a
+predictor, which is where a missing interaction appears as structure. And
+`type = "intervals"` draws a predictive interval per observation, so systematic
+under-coverage is visible as a run of points outside their intervals.
+
+The rest apply where the response allows, and say so when it does not: a
+rootogram wants counts, a bar plot wants discrete values, a calibration plot
+wants a binary outcome. `type = "km_overlay"` is the one written for censored
+data, overlaying the replicate survival curves on the observed Kaplan-Meier
+curve; it takes the censoring indicator from the fit's own response, and needs
+the *ggfortify* package installed alongside *bayesplot*.
 
 ### Calibration
 

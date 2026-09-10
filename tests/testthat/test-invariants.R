@@ -291,3 +291,27 @@ test_that("a unit map carries only the numbers it uses", {
   expect_lt(closure_bytes(asks_for_maps(x, "quantile")[[1L]]), whole)
   expect_lt(closure_bytes(asks_for_maps(x, "range")[[1L]]), 2e3)
 })
+
+# An S3 method registered on another package's generic is only reachable if
+# `NAMESPACE` says so, and `NAMESPACE` is generated from a roxygen tag whose
+# attachment is positional. Inserting a helper between the tag and the function
+# silently moves the registration onto the helper, and nothing in a normal test
+# run notices: `testthat::test_local()` loads the package with
+# `pkgload::load_all()`, which registers methods from the source regardless. The
+# failure only appears against an installed package, which is how every user has
+# it. So the registrations are asserted against the file itself.
+test_that("every S3 method on a foreign generic is registered", {
+  ns <- readLines("../../NAMESPACE", warn = FALSE)
+  registered <- grep("^S3method\\(", ns, value = TRUE)
+
+  foreign <- c("bayesplot::pp_check", "loo::loo", "loo::waic",
+               "posterior::as_draws", "performance::model_performance",
+               "insight::get_data", "marginaleffects::get_predict",
+               "rstantools::posterior_predict", "rstantools::log_lik")
+
+  for (generic in foreign) {
+    want <- sprintf("S3method(%s,bartisan_fit)", generic)
+    expect_true(want %in% registered,
+                info = paste(generic, "is not registered in NAMESPACE"))
+  }
+})

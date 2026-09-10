@@ -395,7 +395,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # the wrapped mention is removed. Which forest may split on what is settled
   # later, per parameter, from that parameter's own formula.
   vc_split <- split_vc_terms(split[["fixed"]], unique_covariates = FALSE)
-  vc_any <- length(vc_split[["vc"]]) > 0L
+  vc_any <- !is_null(vc_split[["vc"]])
   split[["fixed"]] <- vc_split[["fixed"]]
 
   mf <- match.call(expand.dots = FALSE)
@@ -433,7 +433,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # The frame's formula and the design's are expanded separately, because they
   # differ: `y ~ . + vc(z)` puts `z` in the frame either way, and whether it is
   # also a splitting predictor is what `.` decides.
-  if (!missing(data) && is.data.frame(data) && length(split[["bars"]]) == 0L) {
+  if (!missing(data) && is.data.frame(data) && is_null(split[["bars"]])) {
     resolved <- stats::update(stats::terms(mf[["formula"]], data = data), . ~ .)
     environment(resolved) <- environment(mf[["formula"]])
     mf[["formula"]] <- resolved

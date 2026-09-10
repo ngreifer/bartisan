@@ -1,9 +1,3 @@
-# Bayesian causal forests, as a wrapper over the varying-coefficient interface.
-#
-# Everything here is expressible in `bartisan()` with a `vc()` term, which is
-# deliberate: a wrapper that needed something the general interface could not say
-# would mean the general interface was wrong.
-
 #' Bayesian causal forests
 #'
 #' @description
@@ -17,8 +11,7 @@
 #' @inheritParams bartisan
 #' @param formula a model formula. The right-hand side lists the covariates; the
 #'   treatment is named in `treatment` rather than here, and is removed from the
-#'   covariates if it appears among them, so `y ~ .` is usually the right
-#'   specification.
+#'   covariates if it appears among them.
 #' @param treatment a one-sided formula naming the treatment, as in `~ z`. The
 #'   treatment may be binary, categorical, or continuous, and which it is decides
 #'   what the propensity score is and how it is modeled; see Details.
@@ -39,10 +32,13 @@
 #' @param ... passed to [bartisan()], including [bartisan_control()] settings.
 #'
 #' @returns
-#' A `<bartisan_fit>` object, as [bartisan()] returns, with the treatment's
-#' coefficient forest named for the treatment. [coef()] gives the conditional
-#' effect for each observation and \pkgfun{marginaleffects}{avg_comparisons} the
-#' average; see [bartisan-marginaleffects].
+#' A `<bcf_fit>` object, which is the `<bartisan_fit>` [bartisan()] returns with
+#' a class in front of it and the treatment's coefficient forest named for the
+#' treatment. Everything that works on a `<bartisan_fit>` works here unchanged;
+#' the class exists so that methods needing a named treatment have something to
+#' dispatch on. [coef()] gives the conditional effect for each observation and
+#' \pkgfun{marginaleffects}{avg_comparisons} the average; see
+#' [bartisan-marginaleffects].
 #'
 #' @details
 #' ## What the Wrapper Decides
@@ -137,8 +133,9 @@
 #' machine precision. Supplying `propensity` as a number rather than fitting it
 #' has the same effect, and then `newdata` must carry the column.
 #'
-#' @seealso [bartisan()] and [vc()] for the general interface this is written in
-#'   terms of, and `vignette("causal")`.
+#' @seealso [estimate_effect()] for the average or conditional effect, and
+#'   [summary.bcf_fit()], which reports it; [bartisan()] and [vc()] for the
+#'   general interface this is written in terms of, and `vignette("causal")`.
 #'
 #' @references
 #' Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian regression tree
@@ -174,10 +171,12 @@
 #' # to at each observation
 #' head(coef(fit))
 #'
-#' # The average effect over the sample
-#' if (rlang::is_installed("marginaleffects")) {
-#'   marginaleffects::avg_comparisons(fit, variables = "rhc")
-#' }
+#' # The average effect over the sample, on the response scale, which for a
+#' # binomial fit makes it a risk difference rather than a log odds ratio
+#' estimate_effect(fit)
+#'
+#' # Or the whole picture at once
+#' summary(fit)
 #'
 #' @export
 bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
@@ -205,8 +204,7 @@ bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
   # The treatment is not one of the covariates. Removing it rather than
   # complaining is the friendly reading of `y ~ .`, which is how most callers
   # will write the covariates.
-  covariates <- setdiff(
-    attr(stats::terms(formula, data = data), "term.labels"), name)
+  covariates <- setdiff(attr(stats::terms(formula, data = data), "term.labels"), name)
 
   if (is_null(covariates)) {
     arg::err("{.arg formula} must name at least one covariate besides the
@@ -368,6 +366,16 @@ bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
                        propensity = score,
                        model = scored[["model"]],
                        moderators = moderator_terms)
+
+  # Prepended rather than replacing, so that everything registered on
+  # `<bartisan_fit>` still dispatches: `predict()`, `pp_check()`, the
+  # \pkg{marginaleffects} methods, and the `arg::arg_is()` guards, none of which
+  # need to know a treatment was named. What the class buys is a place to hang
+  # the methods that only make sense when one was: a causal estimand has an
+  # estimand to choose and a scale to be careful about, and neither question
+  # exists for a fit without a treatment.
+  class(out) <- c("bcf_fit", class(out))
+
   out
 }
 

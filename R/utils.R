@@ -15,6 +15,11 @@ cli_cat <- function(..., .envir = parent.frame()) {
     cli::cat_line()
 }
 
+unrowname <- function(x) {
+  rownames(x) <- NULL
+  x
+}
+
 # Map a predictor to the unit interval. The cutpoint prior is uniform on a
 # node's live range, so the transformation decides what "uniform" means: the
 # quantile version makes the prior invariant to any monotone reparameterization
@@ -410,7 +415,7 @@ split_formula_list <- function(formula, arg = "formula") {
   # A named one says which forest each formula is for, so the response can be
   # wherever the caller put that forest.
   if (is_null(names(formula)) && !two_sided[[1L]]) {
-    arg::err(c("the first element of {.arg {arg}} must be two-sided",
+    arg::err(c("The first element of {.arg {arg}} must be two-sided.",
                i = "It is the model for the main parameter and carries the
                   response. Name the list to give the formulas in another
                   order."))
@@ -428,9 +433,8 @@ split_formula_list <- function(formula, arg = "formula") {
     # A response on a later formula is allowed and has to be the same one, since
     # there is only one response being modeled.
     if (!identical(deparse(f[[2L]]), deparse(lhs))) {
-      arg::err(c("element {i} of {.arg {arg}} has a different response from the
-                  first: {.code {deparse(f[[2L]])}} against
-                  {.code {deparse(lhs)}}",
+      arg::err(c("Element {i} of {.arg {arg}} has a different response from the
+                  first: {.code {deparse(f[[2L]])}} against {.code {deparse(lhs)}}.",
                  i = "Only the first formula needs a response, and every forest
                     models the same one."))
     }
@@ -640,13 +644,15 @@ per_forest_vector <- function(value, labels, arg, default, joint = FALSE) {
 # arguments that delegate to them would otherwise say it four times, in four
 # wordings, and the wordings would drift.
 require_ggplot2 <- function(what) {
-  if (rlang::is_installed("ggplot2")) {
-    return(invisible())
-  }
+  rlang::check_installed("ggplot2", sprintf("to plot %s.", what))
 
-  arg::err(c("{.pkg ggplot2} must be installed to plot {what}.",
-             i = "Without it the values are returned as a data frame, to draw
-                  however you like."))
+  # if (rlang::is_installed("ggplot2")) {
+  #   return(invisible())
+  # }
+  #
+  # arg::err(c("{.pkg ggplot2} must be installed to plot {what}.",
+  #            i = "Without it the values are returned as a data frame, to draw
+  #                 however you like."))
 }
 
 post_summary <- function(x, level = 0.95) {

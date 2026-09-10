@@ -6099,3 +6099,312 @@ to the last bit, and must not agree when the forests are separate. That is
 bandwidth block, and it is what `test-share-forests.R` mostly consists of. Two
 forests can agree on totals by accident; they cannot agree on a whole matrix of
 counts by predictor by draw.
+
+## `bandwidth_every = 10` is faster and mixes worse, and the default stays at 1
+
+`_dev/bandwidth-every.R` found the candidate at one sample size, one predictor
+count and one family: 1.6x faster, effective draws per second slightly up on
+smooth means and up by half on step means. That is a range of one, which is the
+design I had just faulted Souto & Louzada for, so `_dev/bandwidth-confirm.R`
+varied it: twelve cells over n in {250, 500, 1000}, p in {10, 50}, `gaussian()`,
+`binomial()` and `gaussian_ls()`, smooth and three-step mean functions, ten
+paired replicates each, 240 fits, 1h 22m.
+
+| quantity | `every = 10` against `every = 1` |
+|---|---|
+| seconds per fit | 1.12x to 1.64x faster; the low end is `gaussian_ls()` |
+| worst-quantity ESS | 0.79x |
+| ESS per second | 1.26x geometric mean, up in 10 of 12 cells |
+| RMSE | 1.2% worse on average, up in 7 of 12 cells |
+| 95% coverage | .9713 against .9718 |
+
+The two cells where ESS per second falls are not distinguishable from a wash
+(p = .46 and p = .81); three of the ten gains are significant. So the mixing
+loss and the speed gain very nearly cancel, and a quarter more effective draws
+per second is what is on offer.
+
+What decides it is where the RMSE penalty lands. The two cells with a
+significant accuracy difference are `gaussian()` step at n = 250, p = 50 (+4.8%)
+and `gaussian_ls()` step (+6.6%), both step functions, which is exactly the case
+the bandwidth update exists to handle: the rules have to sharpen toward hard
+ones and drawing the bandwidth is how they do it. A default should be safe on
+the hard case rather than fast on the easy one, so the default stays at 1 and
+`R/control.R` now records the measurement and says when raising it is
+reasonable (a mean function known to be smooth, and a compute-bound fit).
+
+## The variable-selection gap was half a gap
+
+`vignette("implementation")` listed "formal variable-selection test" as absent,
+filled by a helper package, and named two things other packages do. Reading the
+source settles the first half without fitting anything.
+`SoftBart::posterior_probs()` is, in its entirety,
+
+```r
+varimp <- colMeans(fit$var_counts)
+post_probs <- colMeans(fit$var_counts > 0)
+median_probability_model <- which(post_probs > 0.5)
+```
+
+which is the `prop_used` column of `variable_importance()` and a cut at .5. Both
+packages default to the sparse Dirichlet prior that makes the column readable,
+so this is the same quantity computed the same way from the same object, and the
+only thing missing here was the name: the posterior inclusion probability, and
+@barbieri2004's median probability model at the .5 cut. Named now, in
+`variable_importance()`'s details.
+
+The permutation test is the real gap. `bartMachine::var_selection_by_permute()`
+refits a 20-tree model on 100 response permutations, builds the null
+distribution of the splitting shares, and offers three thresholds: pointwise at
+the per-predictor 1 - alpha quantile, simultaneous at the 1 - alpha quantile of
+the row maxima, and simultaneous at mean + c SD with c bisected for 1 - alpha
+coverage. `BART::mc.wbart.gse()` offers the third one only, as a standalone
+function taking `x.train`/`y.train`. Neither can read a fit from another
+package, so neither integrates. `bartMachine::cov_importance_test()` is a
+separate thing again, permuting named covariates rather than the response and
+comparing pseudo-R-squared to the null.
+
+Whether it is worth writing is a measurement rather than a judgment, and
+`_dev/varsel-check.R` is it: 20 replicates at n = 300, p = 25 with three real
+predictors, and a null where none of them matter, crossed with
+`sparsity = TRUE`/`FALSE`, comparing the median probability model against all
+three permutation thresholds on the same fitted counts. The null arm is the
+point: a selector's size is not visible on a design where something is true.
+
+## A per-arm residual variance in `bcf()`: no, and not as an unbuilt family either
+
+The BCF modification that gives each treatment arm its own residual variance
+needs no new feature here: `gaussian_ls()` with `log_sd = ~ z` puts the
+treatment in the scale forest's formula. What is *not* available is a DPM error
+whose scale varies by arm, since `dpm()` carries one additive predictor and one
+drawn scale. `_dev/hetero-dpm.R` asks whether either is worth having, with
+`dpm()` fitted separately per arm as the stand-in for the family that does not
+exist, which bounds above what building one could buy.
+
+Ten paired replicates per cell, $n = 600$, $t_3$ errors, a 3:1 arm SD ratio in
+the heteroscedastic cell, truth $\tau = 1 + 1.5 x_1$, 60 fits, 40m 36s.
+
+**Heteroscedastic truth, which is the case the modification is for.** Nothing
+separates the three arms. ATE coverage is 9/10, 10/10 and 10/10, which at ten
+replicates carries an MCSE of .095 and therefore no information. CATE RMSE is
+.206 (`dpm()`), .199 (`gaussian_ls(z)`) and .217 (per-arm `dpm()`), and none of
+the three paired comparisons approaches significance (p = .66, .30, .58).
+`gaussian_ls(z)` gets its coverage with intervals 31% wider than the single
+DPM's, per-arm DPM with 4% wider. The flexible error absorbs the
+heteroscedasticity, so paying for the scale forest buys nothing measurable.
+
+**Homoscedastic truth, which is what the default would also have to survive.**
+Here there is separation, and it runs against both scale-varying models. Single
+`dpm()` beats `gaussian_ls(z)` on CATE RMSE by .037 (7 of 10, p = .014) and
+beats per-arm `dpm()` by .068 (**10 of 10**, p < .001), with `gaussian_ls(z)`
+still 23% wider. Splitting is the worse of the two because each fit sees half
+the data and loses the pooling of the prognostic surface, which is the reason
+`bcf()` pools in the first place.
+
+So: no upside in the case the feature exists for, a measurable and in one form
+unanimous downside otherwise. Not a default. And since per-arm `dpm()` bounds
+above what a heteroscedastic DPM family could deliver, and that bound is the
+*worst* CATE performer in the homoscedastic cell, there is no case for building
+the family either. A user who wants it can still write
+`list(mean = y ~ ... + vc(z), log_sd = ~ z)` with `gaussian_ls()`; the
+measurement says what that costs.
+
+One process note. At 6 of 10 replicates the heteroscedastic cell looked like a
+clean win for `gaussian_ls(z)` on CATE RMSE, 6 of 6 paired with a mean
+difference of .031. Four more replicates took that to 8 of 10 and .007, p = .66.
+The sign held and the magnitude did not, which is the usual shape of a partial
+result read too early.
+
+## Interval coverage, remeasured: conservative, not deficient
+
+`_dev/coverage-calibration.R`, 40 replicates at $n = 500$ with 10 predictors, at
+the package defaults, scoring the 95% interval for the additive predictor
+pointwise against the linear predictor the data were generated from.
+
+| family | coverage | MCSE | \|bias\| / posterior SD |
+|---|---|---|---|
+| `gaussian()` | .964 | .006 | .719 |
+| `binomial()` | .961 | .008 | .739 |
+| `poisson()` | .973 | .005 | .690 |
+| `Gamma("log")` | .970 | .005 | .700 |
+| `binomial()`, 4 chains and 5x the draws | .965 | .010 | .717 |
+
+The vignette said .95, .91, .96, .96, blamed the binomial on a binary response
+carrying the least information, and put the bias-to-SD ratio near .8. None of
+that survives. Coverage is .96 to .97 against a nominal .95, so the intervals
+are mildly conservative; the binomial sits .008 below the other three, which is
+not a difference at 40 replicates (p = .35); and the ratio runs .69 to .74. The
+one claim that does hold is the one about mixing: four chains and five times the
+draws move neither coverage nor the ratio (p = .20, p = .18).
+
+The honest caveat is that this is one data-generating process. The mean function
+has moderate spread and is mapped to each family's link, which keeps the
+binomial's success probabilities informative. A response whose probabilities sit
+near 0 or 1 would be a different measurement, and that, rather than anything
+here, is the reason to treat pointwise intervals as approximate. The vignette
+now says so.
+
+## The permutation test is worth having, and cannot be stacked on the prior
+
+`_dev/varsel-check.R`, 20 replicates at $n = 300$, $p = 25$ with 3 real
+predictors, 20 trees, 40 permutations, alpha = .05, crossed with `sparsity` and
+with a null design where nothing matters.
+
+Under the global null, family-wise error:
+
+| selector | `sparsity = TRUE` | `sparsity = FALSE` |
+|---|---|---|
+| .5 cut (median probability model) | **1.00** (7.1 of 25 selected) | **1.00** (25 of 25) |
+| pointwise permutation | .90 | .80 |
+| simultaneous max | .10 | .10 |
+| simultaneous SE | .40 | .10 |
+
+With signal, power over the 3 real predictors:
+
+| selector | `sparsity = TRUE` | `sparsity = FALSE` |
+|---|---|---|
+| .5 cut | .78 (FWER .35) | 1.00 (FWER 1.00, 13 false) |
+| pointwise | .73 (.15) | .87 (.95) |
+| simultaneous max | **.12** (.00) | .75 (.30) |
+| simultaneous SE | **.37** (.00) | .82 (.45) |
+
+Three things follow. First, the .5 cut is not a test and must not be documented
+as one: it fires on every replicate of a pure null. That is not a defect in the
+rule, which @barbieri2004 posed as predictive model choice, but it is a defect
+in how the package described it, now fixed in `variable_importance()`.
+
+Second, the simultaneous permutation thresholds do hold their size, .10 against
+a nominal .05 at 20 replicates, and keep useful power. So the gap is real and
+worth closing.
+
+Third, and this is the part that would be easy to get wrong in an
+implementation: **the two corrections do not compose.** With the sparsity prior
+on, the max threshold's power falls to .12, because the prior shrinks the null
+distribution by the very mechanism that shrinks the observed shares, and
+thresholding one against the other subtracts the effect twice. Anything built
+here has to fit both the observed and the permuted forests with
+`sparsity = FALSE`, and say why.
+
+Cost is not the obstacle: 80 replicates of 41 fits each ran in 6m 03s, so a
+hundred fits of a 20-tree model is seconds for a cheap family. It scales with
+the family, though, and `ordbeta()` at 22.6x a Gaussian fit would not be cheap.
+
+### Recommendation, not built
+
+A `variable_selection()` taking a `<bartisan_fit>`, refitting with
+`sparsity = FALSE` at a small `num_trees`, and reporting the three thresholds
+with the null distribution attached. Not written: the assessment was the task,
+and the design constraint above is the thing worth deciding on before code.
+
+## `bcf()` returns `<bcf_fit>`, and the plan for what dispatches on it
+
+`_dev/plot-methods.md` is the design document: a `causal_effect()` engine
+computing estimands on the response scale by per-draw g-computation, a
+`summary()` on a BCF fit that calls it with defaults, and plot methods on the
+result objects rather than a `what =` switch on the fit.
+
+The class is in. `bcf()` now returns `c("bcf_fit", "bartisan_fit")`, prepended
+rather than replacing, so `predict()`, `pp_check()`, the *marginaleffects*
+methods and the `arg::arg_is()` guards all keep dispatching. The audit for
+exact-class comparisons (`class(x) == "bartisan_fit"`, `identical(class(x), ...)`,
+`class(x)[1]`) found none anywhere in `R/` or `tests/`, and `test-bcf.R:208`
+passes unchanged because `expect_s3_class()` uses `inherits()`.
+
+One of the plan's four checks is already answered rather than assumed:
+intervening on the treatment does not perturb the stored propensity score.
+`bcf_newdata_score()` returns identical scores under `transform(d, z = 0)` and
+`transform(d, z = 1)`, because the score is a model of $z$ on $X$ and the
+intervention touches only $z$. That is what makes g-computation on a BCF fit
+correct without special handling, and it wants a test rather than a second
+round of reasoning.
+
+The reason the design puts everything on the response scale is worth keeping
+here too. `coef(fit)[, "z"]` is a link-scale contrast; on a logit fit the average
+of those is the average conditional odds ratio, which is not the marginal odds
+ratio. A plot method drawing the coefficient forest would be the easy thing to
+draw and wrong in a way that looks right.
+
+## What data augmentation buys, at fifteen replicates instead of three
+
+The vignette's augmentation table was rebuilt twice. The first rerun used three
+replicates and had to be thrown away: the speed column's median coefficient of
+variation was 3%, but the worst-quantity ESS ratio's was 66%, and within a
+single cell that ratio swung by a median factor of **4.5** across the three
+replicates, with `ordinal("probit")` soft running .38 and 6.61 on two of them.
+Publishing "augmentation triples the effective sample size" off three draws of
+a statistic that varies fourfold is exactly the mistake the numbers were being
+rechecked to avoid.
+
+The rerun that counts: 15 replicates, `n = 400`, `p = 8`, 50 trees, 500 warmup
+and 1000 draws over 2 chains, 480 fits, 2h 38m. Three changes to the design,
+each aimed at the variance rather than at the mean:
+
+- a **median-quantity** ESS alongside the worst-quantity one, since a minimum
+  over many quantities is inherently high-variance and the median says whether
+  the whole chain moved or only its worst corner;
+- **ratios of means** rather than means of ratios, because a per-replicate ratio
+  of two noisy ESS estimates has a heavy right tail and averaging those tails is
+  what produced the 3.81 in the discarded run;
+- an **80% bootstrap interval** over replicates, so the table shows its own
+  precision.
+
+The verdict, and it changes a claim rather than a default. Augmentation is 1.8x
+to 31x faster, median 9.2x. Its mixing cost is **not** universal: the median
+worst-quantity ESS ratio is 1.046, and of sixteen cells seven have an 80%
+interval entirely below 1, two entirely above, and seven include it. Effective
+draws per second favor augmentation in **16 of 16**. So the vignette's "every
+one of them trades speed for mixing" was wrong, and it now says what was
+measured instead.
+
+Two smaller things. The median-quantity ratios run .52 to 1.15 where the
+worst-quantity ones run .37 to 1.58, so the extremes in that column are mostly
+the minimum being a volatile statistic rather than the chain as a whole moving
+that far. And `negbin()` is the marginal default at 1.1x effective draws per
+second, which the vignette now says out loud; the old table had it at 0.5x,
+which would have made the default indefensible rather than merely close.
+
+`R/control.R`'s own augmentation table needed no change. It was measured over two
+problems and reported as ranges, and its `negbin()` hard row (1.7 to 1.9x speed,
+0.61 to 1.14x ESS, 1.2 to 2.0x ESS per second) contains the new point estimates
+(1.80x, 0.61x, 1.10x). Reporting a range over problems rather than a point over
+one turns out to have been the more durable choice, which is worth remembering
+the next time a single-problem number goes into a vignette.
+
+## Three things the full suite caught that a filtered run could not
+
+`estimate_effect()` and the plot methods were built and tested against filtered
+runs (`test_local(filter = ...)`), which passed. The full suite then found two
+failures and an error, and the interesting part is why the filtered runs missed
+them.
+
+**A filtered testthat run is a different run, not a weaker one.** `fit_effect()`
+in `test-estimate-effect.R` sets no seed, so its fit depends on whatever RNG
+state the preceding files left behind. Run alone the file passed; run after
+thirty-five others it did not. Reproduced deterministically with
+`set.seed(99); invisible(runif(17))` before the file, which is worth keeping as
+the trick for this class of thing.
+
+**The bug it exposed was real and constant, not intermittent.** `effect_focal()`
+was edited so that `ATC`'s default focal is the *control* level rather than the
+treated one, while `keep` still read `ATC` as the complement of focal. Composed,
+those two made `estimand = "ATC"` average over the treated: `z != 0`. ATT and
+ATC returned the same units every time, and only whether an assertion could see
+it depended on the RNG. The fix follows the edit's intent, which is the cleaner
+semantics anyway: **`focal` names the group averaged over in both cases**, and
+the estimands differ only in which level it defaults to, the second for `ATT`
+and the first for `ATC`. `keep` collapses to one expression, and the identity
+that catches this if it ever comes back is already in the tests: the ATE is the
+size-weighted average of the ATT and the ATC.
+
+One consequence to note: with three or more treatment levels `ATT` and `ATC` now
+differ only in the level named, so `ATC` is `ATT` with the control as focal.
+That falls out of the semantics rather than being chosen.
+
+**Two stale test regexes were left by the `R/` reorganization**, both of the same
+shape: a hand-written `arg::err()` message replaced by a standardized one, with
+the test still matching the old text. `test-methods.R` expected
+"must be a fit" where `arg::arg_is()` now says "must inherit from class", and
+`test-families.R` expected "not supported by" where the message is now "is not a
+supported `family`". Neither is a behavior change; both are the cost of matching
+on message text, which is worth paying only where the message *is* the contract.
+
+Final state: 36 files, 427 tests, **2088 passing, 0 failures**.

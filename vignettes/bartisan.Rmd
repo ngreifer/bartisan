@@ -111,7 +111,7 @@ the model fits.
 
 ### Convergence
 
-`diagnose()` is the one call to make. It computes the convergence and mixing
+`diagnose()` computes the convergence and mixing
 statistics, applies the conventional thresholds, and says what to change about
 whichever of them fall short.
 
@@ -237,7 +237,7 @@ new_patient$rhc <- 1
 predict(fit, newdata = new_patient)
 ```
 
-For a prediction with an interval, use `marginaleffects::predictions()`^[Note that by default, *marginaleffects* uses the posterior median as the point estimate, whereas `predict()` uses the posterior mean, so these values may differ slightly. Use `options("marginaleffects_posterior_center" = "mean")` prior to running `predictions()` to produce the posterior mean.]:
+For a prediction with an interval, use `marginaleffects::predictions()`^[Note that by default, *marginaleffects* uses the posterior median as the point estimate, whereas `predict()` uses the posterior mean, so these values may differ slightly. Use `options("marginaleffects_posterior_center" = "mean")` prior to running `predictions()` to produce the posterior mean. We do this in `vignette("causal")`.]:
 
 ```{r predint, eval = has_me}
 predictions(fit, newdata = new_patient)
@@ -250,7 +250,7 @@ probability of 0.7 is entirely compatible with survival.
 
 For a continuous outcome, the distinction between an interval for the mean and an
 interval for a new observation matters a great deal, and
-`vignette("effects")` covers it. For a binary outcome the second is rarely what
+`vignette("effects")` covers it. For a binary outcome, the second is rarely what
 anyone wants.
 
 ## Comparing models
@@ -277,7 +277,8 @@ set.seed(2026)
 demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
                          family = binomial(), chains = 4)
 
-loo_compare(list(full = loo(fit), demographics = loo(demographics)))
+loo_compare(list(full = loo(fit),
+                 demographics = loo(demographics)))
 ```
 
 The full model predicts better by around six times the standard error of the
@@ -318,6 +319,7 @@ matters more than any sampler setting.
 | Model comparison | `vignette("comparison")` |
 | Causal inference | `vignette("causal")` |
 | Censored and survival outcomes | `vignette("survival")` |
+| Frequently asked questions | `vignette("faq")` |
 
 `?bartisan-package` has a shorter version of the same map, organized by task.
 

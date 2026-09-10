@@ -745,8 +745,8 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
   n_param <- length(forest_vc)
   aux <- if (n_aux > 0L) n_param + seq_len(n_aux) else integer()
 
-  if (!any(vapply(forest_vc, function(f) length(f[["specs"]]) > 0L,
-                  logical(1L)))) {
+  if (all(vapply(forest_vc, function(f) is_null(f[["specs"]]),
+                 logical(1L)))) {
     masks <- cbind(base_masks,
                    matrix(TRUE, nrow = length(groups), ncol = n_aux))
     rownames(masks) <- groups
@@ -765,18 +765,19 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
     }), use.names = FALSE),
     names(mf))
 
-  if (length(missing_from_frame) > 0L) {
+  if (!is_null(missing_from_frame)) {
     arg::err("{.arg data} has no column {.val {missing_from_frame}}")
   }
 
   per <- lapply(seq_len(n_param), function(h) {
     specs <- forest_vc[[h]][["specs"]]
-    allowed <- groups[base_masks[, h]]
 
-    if (length(specs) == 0L) {
+    if (is_null(specs)) {
       return(list(specs = list(), parts = list(), columns = NULL,
                   masks = matrix(base_masks[, h], ncol = 1L)))
     }
+
+    allowed <- groups[base_masks[, h]]
 
     basis <- vc_basis(specs, mf)
 
@@ -906,7 +907,7 @@ vc_newdata_basis <- function(object, newdata) {
       indicators <- vapply(part[["levels"]],
                            function(l) as.numeric(!is.na(x) & x == l),
                            numeric(length(x)))
-      indicators[is.na(x), ] <- NA_real_
+      is.na(indicators[is.na(x), ]) <- TRUE
 
       return(sweep(indicators, 2L, part[["shares"]], "-"))
     }
@@ -953,7 +954,7 @@ vc_recenter <- function(slopes, vc, object, iterations = NULL) {
 
       for (k in seq_along(levels)[-1L]) {
         label <- if (length(levels) == 2L) base
-                 else sprintf("%s%s", base, levels[k])
+        else sprintf("%s%s", base, levels[k])
         out[[label]] <- (b[, k] - b[, 1L]) * slopes[[columns]]
       }
 
@@ -981,7 +982,7 @@ vc_recenter <- function(slopes, vc, object, iterations = NULL) {
 vc_coding <- function(vc) {
   parts <- vc[["parts"]]
 
-  if (length(parts) == 0L) {
+  if (is_null(parts)) {
     return(NULL)
   }
 

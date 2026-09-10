@@ -582,3 +582,83 @@ test_that("as_draws() carries the additive predictor, which is what mixing is ab
                ignore_attr = TRUE)
   expect_true("eta[3]" %in% posterior::summarise_draws(drawn)$variable)
 })
+
+# The `ppc_loo_*` checks reweight the replicates towards the leave-one-out
+# predictive, so they need the importance weights as well as the draws.
+# `pp_check()` passed only `y` and `yrep`, and every one of them failed with
+# "One of 'lw' and 'psis_object' must be specified."
+test_that("pp_check() supplies the weights a leave-one-out check needs", {
+  skip_on_cran()
+  skip_if_not_installed("bayesplot")
+  skip_if_not_installed("loo")
+  skip_if_not_installed("rstantools")
+
+  d <- sim_x(n = 150L, p = 3L, seed = 71L)
+  d$y <- 2 * d$x1 + stats::rnorm(nrow(d), 0, 0.5)
+
+  fit <- bartisan(y ~ ., d, family = stats::gaussian(),
+                  control = quick_control(num_trees = 5L, num_burn = 60L,
+                                          num_draws = 100L))
+
+  # `loo_calibration` is left out: it wants a binary response, which is
+  # *bayesplot*'s own requirement and is checked below.
+  drew <- vapply(c("loo_pit_ecdf", "loo_pit_overlay", "loo_pit_qq",
+                   "loo_intervals", "loo_ribbon"),
+                 function(type) {
+                   p <- suppressMessages(suppressWarnings(
+                     bayesplot::pp_check(fit, type = type)))
+                   inherits(p, "ggplot")
+                 }, logical(1L))
+
+  expect_true(all(drew))
+  expect_named(drew, c("loo_pit_ecdf", "loo_pit_overlay", "loo_pit_qq",
+                       "loo_intervals", "loo_ribbon"))
+
+  # Every draw is used, whatever `ndraws` says, because the weights and the
+  # replicates have to be the same shape. Saying so beats ignoring it.
+  #
+  # Collected rather than matched with `expect_warning()`, because the Pareto
+  # diagnostic may warn here too and which warnings fire is not the point.
+  warns <- character()
+
+  suppressMessages(withCallingHandlers(
+    bayesplot::pp_check(fit, type = "loo_pit_ecdf", ndraws = 5L),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }))
+
+  expect_true(any(grepl("does not apply", warns, fixed = TRUE)))
+
+  # A check that does not reweight still subsamples, and still says nothing.
+  expect_no_warning(
+    suppressMessages(bayesplot::pp_check(fit, type = "dens_overlay",
+                                         ndraws = 5L)))
+
+  # Weights the caller computed themselves are used instead of ours.
+  ll <- rstantools::log_lik(fit)
+  psis <- suppressWarnings(loo::psis(-ll, r_eff = NA))
+
+  expect_s3_class(
+    suppressMessages(suppressWarnings(
+      bayesplot::pp_check(fit, type = "loo_pit_ecdf", psis_object = psis))),
+    "ggplot")
+})
+
+test_that("a binary response reaches the calibration check", {
+  skip_on_cran()
+  skip_if_not_installed("bayesplot")
+  skip_if_not_installed("loo")
+
+  d <- sim_x(n = 200L, p = 3L, seed = 72L)
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(-0.5 + 2 * d$x1))
+
+  fit <- bartisan(y ~ ., d, family = stats::binomial(),
+                  control = quick_control(num_trees = 5L, num_burn = 60L,
+                                          num_draws = 100L))
+
+  expect_s3_class(
+    suppressMessages(suppressWarnings(
+      bayesplot::pp_check(fit, type = "loo_calibration"))),
+    "ggplot")
+})

@@ -134,9 +134,9 @@
 #'   survival families always, and the negative binomial when the rules are hard.
 #'   `FALSE` never does it, and a character vector of engine family names
 #'   (`"binomial"`, `"ordinal"`, `"multinomial"`, `"negbin"`, `"zip"`, `"zinb"`,
-#'   or `"aft"`) asks for exactly those. Every rewriting trades speed for mixing,
-#'   so the measured effect on effective sample size per second is what matters,
-#'   and it differs by family; see Details. In a fitted model, `control$augment`
+#'   or `"aft"`) asks for exactly those. A rewriting is always faster and does
+#'   not always cost mixing, so the measured effect on effective sample size per
+#'   second is what matters, and it differs by family; see Details. In a fitted model, `control$augment`
 #'   is instead a `logical` recording whether a rewriting was applied, since
 #'   whether the data admit one (a Bernoulli response, single trials) is settled
 #'   only when the model is fitted.
@@ -774,6 +774,21 @@
 #' ones. On a three-step function, measured RMSE was .42 fixed against .19 drawn.
 #' So the default draws it every sweep, and a larger `bandwidth_every` buys time
 #' at the cost of how fast that adaptation happens.
+#'
+#' `bandwidth_every = 10` is where that trade was measured, over twelve
+#' combinations of sample size, predictor count, response family, and whether the
+#' mean function is smooth or a set of steps. A fit runs 1.1 to 1.6 times faster,
+#' the low end being [gaussian_ls()] where the bandwidth draw is a smaller share
+#' of a two-forest sweep. Effective sample size in the worst-mixing quantity falls
+#' to about .79 of what drawing every sweep gives, so the two effects nearly
+#' cancel: effective draws per second come out about 1.26 times higher, better in
+#' ten of the twelve cells but not distinguishable from a wash in the other two.
+#' Coverage is unchanged. What decides the default is accuracy on the hard case:
+#' RMSE is 1% worse on average and 5 to 7% worse on the two step-function cells
+#' where the difference is significant, which is the case the update exists for.
+#' A quarter more effective draws per second is not worth paying for there, so
+#' the default stays at 1. Raising it is reasonable when the mean function is
+#' known to be smooth and the fit is compute-bound.
 #'
 #' There is nothing to rewrite for the Poisson and gamma families, whose targets
 #' are already in the exponential form, and no known rewriting for the accelerated
