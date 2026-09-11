@@ -70,7 +70,7 @@ imp <- variable_importance(fit)
 imp
 ```
 
-The output has three columns, and they answer different questions.
+The output has six columns, of which `print()` shows four, and the three read first answer different questions.
 
 `prop_used` is the proportion of draws in which the predictor received at least
 one rule, and it is the column to read first: under the default prior it behaves
@@ -252,7 +252,9 @@ report and move them together.
 moves the outcome are different quantities, and they can disagree in both
 directions; a predictor with a small effect over a range that gets split
 repeatedly will show high usage. When the question is how much the outcome
-changes, `avg_comparisons()` answers it directly and reports an interval. See
+changes, `partial_dependence()` shows how the prediction moves with the
+predictor and `avg_comparisons()` answers it as a contrast, both with an
+interval. See
 `vignette("effects")`.
 
 **It is not a test.** `prop_used` is a posterior probability under a particular

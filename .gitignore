@@ -94,3 +94,6 @@ docs
 .progress-runs/
 !_dev/varsel-check.R
 !_dev/plot-methods.md
+
+# Figures from knitting a vignette outside the package build.
+vignettes/figure/

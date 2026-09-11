@@ -81,14 +81,12 @@ have each settled somewhere different and a longer warmup will not help.
 
 A within-chain drift statistic would answer that question more directly and
 cannot be made to work at BART's autocorrelation. Three versions were
-calibrated against stationary autoregressive series, where by construction
-there is nothing to find: taking each half's Monte Carlo error from that half
-alone fires 31\% of the time at an autocorrelation of 0.995 against a nominal
-5\%; taking it from the whole chain holds specificity under 3\% but then misses
-a linear trend of six standard deviations three times in four; batch means
-catch everything and fire 92\% of the time on a chain that has converged. A
-forest is sticky enough to sit where all three fail, so there is no threshold
-to pick and the statistic is not offered.
+calibrated against stationary series where by construction there is nothing to
+find, and each failed in one of the two available directions: too many false
+alarms on a converged chain, or too little power against a trend that is
+really there. A forest is sticky enough to sit where all three fail, so there
+is no threshold to pick and the statistic is not offered.
+\code{vignette("implementation")} has the calibrations.
 
 The rows summarized over observations or levels report the \strong{worst 5\%}
 boundary rather than the single worst column, and the checks are keyed to the

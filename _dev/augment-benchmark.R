@@ -68,8 +68,33 @@ cells <- list(
   list(row = "zi_poisson(), hard rules",        y = "y_zi",  gate = "hard",       fam = quote(zi_poisson())),
   list(row = "zi_poisson(), soft rules",        y = "y_zi",  gate = "smoothstep", fam = quote(zi_poisson())),
   list(row = "zi_negbin(), hard rules",         y = "y_zo",  gate = "hard",       fam = quote(zi_negbin())),
-  list(row = "negbin()",                        y = "y_od",  gate = "hard",       fam = quote(negbin()))
+  list(row = "negbin(), hard rules",            y = "y_od",  gate = "hard",       fam = quote(negbin())),
+  # `augment = TRUE` does not cover the negative binomial under soft rules, so
+  # the "on" arm has to name the family or both arms fit the same model. The
+  # first run of this cell did exactly that and reported a 1.0x speed ratio,
+  # which is the tell: a rewriting that changes nothing takes the same time.
+  list(row = "negbin(), soft rules",            y = "y_od",  gate = "smoothstep", fam = quote(negbin()), on = "negbin")
 )
+
+# A subset can be run on its own, since a full pass is 2h 38m and a single
+# family's row is the thing that usually needs rechecking. `AUGMENT_ROWS` is a
+# regular expression matched against the row labels, and a filtered run writes
+# beside the full one rather than over it.
+pattern <- Sys.getenv("AUGMENT_ROWS")
+
+if (nzchar(pattern)) {
+  keep <- grepl(pattern, vapply(cells, `[[`, character(1L), "row"))
+
+  if (!any(keep)) {
+    stop("AUGMENT_ROWS matched no row: ", pattern)
+  }
+
+  cells <- cells[keep]
+  OUT <- sub("\\.rds$", sprintf("-%s.rds", gsub("[^A-Za-z0-9]+", "-", pattern)),
+             OUT)
+}
+
+`%or%` <- function(x, y) if (is.null(x)) y else x
 
 quiet <- function(expr) {
   invisible(utils::capture.output(out <- suppressMessages(suppressWarnings(expr))))
@@ -112,9 +137,13 @@ for (i in seq_along(cells)) {
     d <- make(600L + r)
 
     for (aug in c(TRUE, FALSE)) {
+      # `on` names the augmentation explicitly where `TRUE` would not reach it.
+      on <- cl$on %or% TRUE
+
       ctrl <- bartisan_control(num_trees = 50L, num_burn = 500L,
                                num_draws = 1000L, chains = 2L,
-                               gate = cl$gate, augment = aug)
+                               gate = cl$gate,
+                               augment = if (aug) on else FALSE)
       t0 <- Sys.time()
       fit <- tryCatch(quiet(bartisan(form(cl$y), d, family = fam,
                                      control = ctrl)),

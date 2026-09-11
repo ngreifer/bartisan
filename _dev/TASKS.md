@@ -6408,3 +6408,284 @@ supported `family`". Neither is a behavior change; both are the cost of matching
 on message text, which is worth paying only where the message *is* the contract.
 
 Final state: 36 files, 427 tests, **2088 passing, 0 failures**.
+
+## Tables moved out of `?bartisan_control`
+
+`@details` on `bartisan_control()` had grown to 637 lines carrying eight tables
+of simulation results, and none of them is something a user reads a help page
+for. They are the evidence for the defaults, which makes them a developer's
+record, so they live here now and the help page keeps only what follows from
+them. What a reader needs is the conclusion and the condition under which to
+depart from it; what the tables answer is "how do you know", which is this
+file's job.
+
+The one exception is the augmentation table, which had a better version in
+`vignette("implementation")` by the time it was cut: 15 replicates with a
+bootstrap interval against this one's single pass. The help page points there
+rather than repeating either.
+
+Reproduced verbatim below, each with the sentence that set it up.
+
+| design | 100 | 200 | paired SE |
+| --- | --- | --- | --- |
+| Gaussian, soft, n = 1500, p = 10 | -0.001 | +0.001 | 0.002 |
+| Gaussian, soft, n = 500, p = 30 | +0.003 | -0.002 | 0.003 |
+| Gaussian, hard, n = 1500, p = 10 | -0.001 | -0.002 | 0.003 |
+| `ordinal()`, hard | -0.021 | -0.007 | 0.011 |
+| `negbin()` | -0.002 | +0.001 | 0.003 |
+| `binomial()` | -0.019 | -0.016 | 0.009 |
+| `dpm()` | **+0.011** | **+0.006** | 0.002 |
+
+Every design but the last is within a standard error or two of the longer
+warmup, and several are better with the shorter one. Effective sample size per
+second improves everywhere, by 1.4 to 2.0 times, because the sweeps saved were
+producing nothing. `num_draws` went from 500 to 800 at the same time, which
+spends some of what warmup gave back on draws that do count towards an
+effective sample size; the two together still run in less time than the old
+pair did.
+
+| Rules | 5 trees | 10 | 20 | 50 | 100 | 200 |
+|---|---|---|---|---|---|---|
+| Soft rules | 0.286 | 0.281 | **0.270** | 0.284 | 0.289 | 0.319 |
+| Hard rules | 1.149 | 0.682 | 0.558 | **0.521** | 0.531 | 0.510 |
+
+Two things to read off it. **Soft rules need far fewer trees than hard ones**,
+which is what makes 200 (the default in most BART packages) actively worse here
+than 20. And **the two kinds of rule want different counts**, since hard rules
+are still improving at 200 where soft rules peaked at 20.
+
+| `num_trees` | Seconds | Mean RMSE | Log-SD RMSE | Log score |
+|---|---|---|---|---|
+| `c(50, 50)` | 14.5 | 0.092 | 0.050 | -1188 |
+| `c(50, 20)` | 8.3 | 0.094 | 0.047 | -1188 |
+| `c(50, 10)` | 5.9 | 0.093 | 0.051 | -1188 |
+| `c(50, 5)` | **4.9** | 0.094 | 0.046 | -1187 |
+| `c(20, 5)` | **2.9** | 0.084 | 0.041 | -1184 |
+
+A Gaussian fit on the same data takes 1.4 seconds, so `c(50, 50)` costs 10
+times a Gaussian fit and `c(50, 5)` costs 3.5 times, at the same accuracy to
+three decimal places. That is not the default, because how many trees a
+variance surface needs depends on how complicated it is, and silently
+under-parameterizing it would show up as intervals that are wrong, which is the
+thing `gaussian_ls()` exists to get right. It is worth setting by hand.
+
+| Sparsity | 10 predictors | 50 predictors |
+|---|---|---|
+| `"none"` | 0.446 | 0.465 |
+| `"weak"` | 0.385 | 0.346 |
+| `"moderate"` | 0.400 | 0.372 |
+| `"strong"` | 0.374 | 0.362 |
+
+For a contrast on a predictor whose signal is weak, any sparsity is actively
+harmful, and not only in the atom-at-zero sense above. A binary treatment
+among 20 predictors, continuous outcome, residual standard deviation 1,
+n = 800, five replicates, with `covers` the share of replicates whose 95%
+interval contains the truth:
+
+| true effect | setting | estimate | atom | covers |
+| --- | --- | --- | --- | --- |
+| 0.05 | `FALSE` | 0.031 | 0.08 | 0.80 |
+| 0.05 | `TRUE` | 0.000 | 0.89 | 0.40 |
+| 0.10 | `FALSE` | 0.131 | 0.03 | 1.00 |
+| 0.10 | `TRUE` | 0.029 | 0.69 | 1.00 |
+| 0.20 | `FALSE` | 0.161 | 0.05 | 1.00 |
+| 0.20 | `TRUE` | 0.094 | 0.55 | 0.60 |
+| 0.50 | `FALSE` | 0.475 | 0.00 | 1.00 |
+| 0.50 | `TRUE` | 0.474 | 0.00 | 1.00 |
+
+The prior attenuates a weak effect by half or more and its interval covers
+well below its nominal rate. A strong effect is untouched, because the prior
+never has reason to drop a predictor that is earning its splits, so this is a
+weak-signal failure rather than a general one.
+
+| | predictors | weaker component | stronger component |
+|---|---|---|---|
+| `gaussian_ls()`, same 5 | 5 | 1.02x | 0.99x |
+| `gaussian_ls()`, same 5 | 25 | 1.13x | 1.03x |
+| `gaussian_ls()`, same 5 | 100 | **1.23x** | 1.12x |
+| `gaussian_ls()`, disjoint | 100 | 0.98x | 0.96x |
+| `zi_poisson()`, same 5 | 5 | 1.04x | 0.97x |
+| `zi_poisson()`, same 5 | 25 | 1.30x | 1.03x |
+| `zi_poisson()`, same 5 | 100 | **1.40x** | 1.02x |
+| `zi_poisson()`, disjoint | 100 | 1.00x | 0.92x |
+
+Ratios above 1 are reductions in root mean squared error against the default.
+The weaker component is the log standard deviation and the zero-inflation
+probability respectively, which are the ones with less signal to find the
+relevant predictors from on their own. Sharing buys nothing at five
+predictors, because there is no selection problem to transfer, and takes a
+quarter to two fifths off the weaker component's error at a hundred. When the
+assumption is false it costs 2% to 8%, since the pooled prior pulls each
+forest towards the other's variables. Turning it on is therefore a statement
+about the data, and one whose downside is a good deal smaller than its
+upside. `variable_importance()` is where to check it: with a shared prior the
+forests report similar `prop_splits`, and a fit that wants them different will
+show that under the default.
+
+| Rule | 10 per level | 25 per level | 100 per level |
+|---|---|---|---|
+| subset, hard | 0.3705 | 0.2617 | 0.1421 |
+| onehot, hard | 0.3998 | 0.2725 | 0.1488 |
+| subset, soft | 0.3435 | 0.2265 | 0.1098 |
+| onehot, soft | 0.3445 | 0.2201 | 0.1059 |
+
+Under hard rules `"subset"` is better at every size, clearly so at ten
+observations per level, where the gap is 7% against a standard error of 2%,
+and by 4% at the two larger sizes, where the standard error is around half
+the gap. Under soft rules, which is the default, **the two are
+indistinguishable**: the largest gap is 0.006 against a standard error of
+0.005. Soft rules are worth far more than either choice, which is the biggest
+number in the table and the one to act on.
+
+| Family | Rules | Speed | Effective sample size | ESS per second |
+|---|---|---|---|---|
+| `binomial("probit")` | either | 5.7 to 7.2x | 0.66 to 0.75x | **3.8 to 5.3x** |
+| `binomial("logit")` | either | 2.6 to 3.7x | 0.81 to 1.8x | **2.1 to 6.7x** |
+| `ordinal("probit")` | soft | 14x | 0.79 to 0.95x | **11 to 13x** |
+| `ordinal("probit")` | hard | 26 to 30x | 0.73 to 0.90x | **22 to 24x** |
+| `ordinal("logit")` | soft | 7.0 to 7.2x | 0.70 to 0.82x | **5.0 to 5.9x** |
+| `ordinal("logit")` | hard | 14.5 to 15.3x | 0.87 to 1.02x | **13 to 15x** |
+| `ordinal("cloglog")` | soft | 2.8x | 0.57x | 1.6x |
+| `ordinal("cloglog")` | hard | 5.1x | 1.05x | **5.2x** |
+| `negbin()` | hard | 1.7 to 1.9x | 0.61 to 1.14x | 1.2 to 2.0x |
+| `negbin()` | soft | 1.1x | 0.71x | 0.8x |
+| `multinomial()` | soft | 9.3x | 1.09x | **10.1x** |
+| `multinomial()` | hard | 14.5x | 0.66x | **9.6x** |
+| `zi_poisson()` | soft | 4.6x | 0.85x | **3.9x** |
+| `zi_poisson()` | hard | 7.1x | 1.42x | **10.1x** |
+| `zi_negbin()` | soft | 5.9x | 0.98x | **5.8x** |
+| `zi_negbin()` | hard | 9.4x | 0.84x | **7.9x** |
+| `lognormal_aft()` | soft | 11.2 to 19.7x | 0.83 to 1.27x | **14 to 16x** |
+| `lognormal_aft()` | hard | 19.7 to 29.3x | 0.74 to 1.01x | **20 to 22x** |
+| `loglogistic_aft()` | soft | 8.4 to 9.3x | 0.58 to 0.84x | **4.9 to 7.7x** |
+| `loglogistic_aft()` | hard | 11.3 to 12.3x | 0.87 to 0.89x | **9.8 to 11x** |
+
+The ranges are two problems of different size and shape, which is a fair
+picture of how much this varies: what an augmentation costs in mixing depends
+on the data, not only on the family. The negative binomial is the marginal
+case (a clear gain on one problem and a slight one on the other) and is worth
+turning off if its diagnostics look poor.
+## The negative binomial's soft-rule exclusion did not replicate, and a run that measured nothing
+
+`augment = TRUE` excluded `negbin()` under soft rules, on a single measurement
+of 1.1x speed, 0.71x effective sample size and **0.8x** effective draws per
+second: a net loss. That was the least-supported default in `bartisan_control()`
+after the fifteen-replicate augmentation rerun, which had covered the negative
+binomial under hard rules only. Rechecked at the same fifteen replicates:
+
+| cell | speed | ESS, worst | 80% interval | ESS, median | ESS/sec |
+|---|---|---|---|---|---|
+| soft rules | 1.18x | 1.110x | [0.68, 1.64] | 0.857x | **1.31x** |
+| hard rules | 1.80x | 0.611x | [0.47, 0.79] | 0.835x | 1.10x |
+
+The hard cell reproduced the earlier run to three digits, which is what says the
+rerun measured the same thing. The soft cell is a modest gain rather than a
+loss, and it arrives differently: hard rules buy more time (1.80x) at a real
+cost in mixing (per-replicate ESS ratio median 0.52, paired p = .024), while
+soft rules buy less time (1.18x) at no measurable cost (p = .53). Both come out
+ahead on the ratio that matters, so `augment = TRUE` now means every family with
+a rewriting, whatever the rules, and `resolve_augment()` no longer takes `soft`.
+
+### The first attempt measured a model against itself
+
+The run before this one reported 1.0x speed and a 2.06x ESS ratio for the soft
+cell, and the speed was the tell: a rewriting that changes nothing takes exactly
+the same time. It changed nothing, because the benchmark's "on" arm passed
+`augment = TRUE`, which under soft rules resolved to a family list *without*
+`negbin` -- the very default being tested. Both arms fitted the same model, and
+the 2.06x was two identical configurations differing only in their RNG stream.
+
+Two things worth keeping from that. A benchmark that toggles a default cannot
+use the default's own spelling to turn the thing on; the "on" arm has to name
+what it wants, which is why the cell now carries `on = "negbin"` and the script
+says why. And a ratio of exactly 1.00 on a quantity that should have moved is
+worth more suspicion than a ratio that looks wrong: a wrong number invites
+checking, while a number that lands on the null reads as a finding.
+
+## A documentation audit, and the duplication list it left behind
+
+Six read-only agents audited the roxygen and the vignettes in parallel: the
+`bartisan_control()` `@param` blocks, its `@details`, every functional claim in
+every vignette against the source, the causal vignette's structure, what the new
+API obliges the other vignettes to say, and duplication between help pages and
+vignettes. What follows is what was acted on and what was not.
+
+### `?bartisan_control`, shortened again and stripped of measurements
+
+Details went from 637 lines this morning to 185, with **no simulation figure
+left in it**, and the `@param` block from 191 to 158. The arguments were
+reordered so the ones adjusted most come first (`chains`, the three chain
+lengths, then `num_trees`, `gate`, `sparsity`), in the signature as well as the
+documentation, which is safe because every internal call is by name. Two
+sections were cut almost entirely because a vignette does the same job better:
+"Gaussian Rewritings", which `vignette("implementation")` covers with the
+seventeen-row augmentation table and the derivations, survives as a short note
+saying which families have no rewriting at all, that being the one fact the
+vignette does not carry. Cutting it orphaned the Albert and Chib and Cowles
+references, which are removed from the page and live on in `references.bib`.
+
+The rule the trimming followed, in the maintainer's words: give the qualitative
+result that informs the choice, not the number from one simulation, and point at
+a vignette when the short version is incomplete.
+
+### Twenty-five inaccurate or stale claims, three of them written this session
+
+The claims pass verified every functional statement against `R/` and `src/`
+rather than against other documentation. What it found, with the three that were
+mine at the top:
+
+- `vignette("causal")` said the predictions are differenced within each draw and
+  then averaged. `effect_marginal()` does the opposite: it averages the potential
+  outcomes over units first and contrasts them afterward, which is what makes a
+  ratio the marginal one. The roxygen said so correctly and the vignette I had
+  just written contradicted it.
+- The same vignette said `summary()` on a fit reports the potential outcomes.
+  Only `summary.bcf_fit` does; `summary.bartisan_fit` reports the forests.
+- It also merged two different `focal` behaviors: required with more than two
+  levels, guessed with a message at two uninformative ones.
+- `@param chains` claimed split-R-hat "is reported in the `rhat` element". No
+  such element exists on a fit; `diagnose()` computes it. The same mistake
+  appeared twice more in the same file.
+- `predict()`'s `type = "response"` restricted the median-survival reading to the
+  accelerated failure time families. `ph()` returns one too, by exact inversion
+  of the piecewise-linear cumulative baseline. Checked, not assumed: survival at
+  the predicted value comes back at .509.
+- Three vignettes quoted "500 draws after 500 warmup" as the defaults, which
+  stopped being true when they became 200 and 800.
+- `ordered_beta()` does not exist; the function is `ordbeta()`.
+- `Beta()` was missing from the list of families that accept a composed link,
+  though `native_links` includes it.
+- A two-column numeric matrix was documented as always binomial; times and 0/1
+  events reach `dpm_aft()` first, which `default_family()` confirms.
+- `binomial("probit")` was called the fastest family in the package; the
+  relative-cost table puts `gaussian()` ahead of it.
+- `variable_importance()` was said to return three columns; it returns six.
+- `eta.eta` was described as one row of the diagnostics table; there are two, an
+  average and a worst-5%, and which one binds depends on the estimand.
+- The README's copy of the comparison table had drifted from the vignette's in
+  two cells and a footnote.
+
+### The duplication list, mostly not acted on
+
+Forty-one overlaps between roxygen and vignettes, eight of them verbatim. The
+five cheapest and clearest were fixed: the lalonde atom-at-zero figures, which
+were the same sentences in `R/control.R` and `R/marginaleffects.R`; the
+within-chain drift calibrations in `R/diagnose.R`; and three stale pointers that
+promised measurements the help pages no longer carry. The rest is a real task
+and wants its own pass, in rough order of severity:
+
+- **the atom at zero** has six copies, two of them roxygen-to-roxygen;
+  `vignette("effects")` should own it and the help pages should point
+- **per-forest arguments** appear in four roxygen blocks, with a byte-identical
+  example in `R/bartisan.R` and `R/varying.R`
+- **the family table** is in `R/families.R` and `vignette("families")` and will
+  drift; worth keeping both, worth a note saying which is canonical
+- **the default-family lookup** has three copies of the table and three of the
+  same aside
+- **the accelerated failure time estimand derivation** has three copies, one of
+  them a table rendered as prose
+- **`num_bins`** is covered fully in both `R/families.R` and
+  `vignette("survival")`
+
+None of these is wrong, which is why none of them was urgent; they are the cost
+of a package whose help pages were written before its vignettes.

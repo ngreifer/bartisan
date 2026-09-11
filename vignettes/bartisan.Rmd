@@ -128,10 +128,12 @@ many independent draws the correlated ones are worth, in the middle of the
 distribution and in the tails.
 
 Read the rows that correspond to quantities you will report. `eta.eta` is the
-fitted function, summarized over its worst 5% of observations, so it is the row
-that matters here. Forests mix slowly on their fitted values, so a figure above
-1.01 on that row is ordinary rather than alarming; `vignette("diagnostics")`
-explains what to do about it and when to worry.
+fitted function and appears twice, once averaged over the observations and once
+over the worst 5% of them: the average row governs an average effect and the
+worst-5% row governs a prediction for one observation. Forests mix slowly on
+their fitted values, so a figure above 1.01 on the worst-5% row is ordinary
+rather than alarming; `vignette("diagnostics")` explains what to do about it and
+when to worry.
 
 The table is in `diagnose(fit)$table` if what you want is the numbers rather
 than the report.
@@ -164,7 +166,7 @@ built to predict survival. Age follows. At the bottom, race and sex are used in
 about half the draws, which says the model can often do without them.
 
 Two cautions. Usage is not effect size: a predictor can be split on constantly
-and still move the prediction very little, and `marginaleffects::avg_comparisons()` in the next
+and still move the prediction very little, and `estimate_effect()` in the next
 section is the better guide to that. And, when predictors are correlated, the usage
 distributes among them more or less arbitrarily.
 
@@ -176,12 +178,13 @@ to tell whether a difference in this table means anything.
 A forest has no coefficients, so there is no table of slopes to read. The
 question "what is the effect of catheterization" is answered by asking the fitted
 model what it predicts when every patient receives it, asking again when none
-does, and taking the difference. *marginaleffects* does this.
+does, and taking the difference. `estimate_effect()` does this, and needs only to
+be told which predictor is the treatment:
 
-```{r effects, eval = has_me}
-library(marginaleffects)
+```{r effects}
+eff <- estimate_effect(fit, treatment = "rhc")
 
-avg_comparisons(fit, variables = "rhc")
+eff
 ```
 
 Catheterization is associated with an increase of about six percentage points in
@@ -195,10 +198,11 @@ posterior has a point mass there. The default settings are not necessarily the b
 
 Because the outcome is binary, this is a difference in probability, which is
 interpretable without reference to the model. That is usually the number to
-report. The underlying probabilities are also worth showing:
+report. The two underlying probabilities come with it, since the difference was
+computed from them:
 
-```{r risks, eval = has_me}
-avg_predictions(fit, variables = "rhc")
+```{r risks}
+attr(eff, "potential_outcomes")
 ```
 
 About 63% of patients would be expected to die without catheterization and 69%
@@ -209,11 +213,10 @@ with it, averaging over the covariates as they actually occur in this sample.
 Effects averaged over the sample hide the shape of the relationship. To see the
 shape, plot the model's predictions against one predictor.
 
-```{r pdp, eval = has_me && has_gg, fig.height = 3.0}
-plot_predictions(fit, condition = "surv2m") +
+```{r pdp, eval = has_gg, fig.height = 3.0}
+plot(fit, ~ surv2m) +
   ggplot2::labs(x = "estimated probability of surviving two months",
-                y = "fitted probability of death") +
-  ggplot2::theme_bw()
+                y = "fitted probability of death")
 ```
 
 The fitted probability of death falls from about 0.88 to about 0.45 as the
@@ -221,8 +224,11 @@ prognostic score rises, and the fall is not a straight line. A logistic
 regression reports one slope on the log-odds scale for the whole range. Nothing
 had to be specified to find the shape.
 
-The band is a credible interval, and it widens at the top where few patients
-were that healthy.
+The band is a credible interval on the *average* prediction at each value, not
+on any one patient's, and it widens at the top where few patients were that
+healthy. `partial_dependence()` returns the same numbers without drawing them,
+and `marginaleffects::plot_predictions()` is the one to reach for when the grid
+or what is conditioned on needs more control.
 
 `vignette("effects")` covers effects, curves, and interactions.
 
@@ -240,7 +246,7 @@ predict(fit, newdata = new_patient)
 For a prediction with an interval, use `marginaleffects::predictions()`^[Note that by default, *marginaleffects* uses the posterior median as the point estimate, whereas `predict()` uses the posterior mean, so these values may differ slightly. Use `options("marginaleffects_posterior_center" = "mean")` prior to running `predictions()` to produce the posterior mean. We do this in `vignette("causal")`.]:
 
 ```{r predint, eval = has_me}
-predictions(fit, newdata = new_patient)
+marginaleffects::predictions(fit, newdata = new_patient)
 ```
 
 This describes the probability that a patient with these characteristics dies. It

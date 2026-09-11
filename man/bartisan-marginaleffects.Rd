@@ -121,10 +121,9 @@ for.
 
 And \pkg{marginaleffects} centers a posterior at its \strong{median}. So once the
 atom holds more than half the mass, the reported estimate is exactly zero
-however large the rest of the posterior is. On \code{MatchIt::lalonde} with the
-default settings, \code{treat} was absent from all 50 trees in 64\% of draws and the
-contrast came out exactly zero in 65\%, which put the median at 0 while the
-posterior mean was 197 and the upper limit was above 2000.
+however large the rest of the posterior is, which is a thing that happens on
+real data rather than a curiosity: the median can land on the atom while the
+posterior mean and the upper limit of the interval are both far from zero.
 
 Four things are worth doing about it, in the order given.
 
@@ -140,13 +139,12 @@ against an atom.
 
 \strong{Reconsider the sparsity prior} when variable selection is not what the fit
 is for. \code{sparsity = FALSE} in \code{\link[=bartisan_control]{bartisan_control()}} removes the atom almost
-entirely: on the example above it fell from 20\% of draws to none by 50 trees.
-A larger \code{num_trees} does \emph{not} remove it, which is worth stating because it
-looks as though it should: with the prior on, the contrast was exactly zero in
-20\% of draws at 50 trees and 18\% at 200. Turning the prior off is a modeling
+entirely, where a larger \code{num_trees} does \emph{not}, which is worth stating
+because it looks as though it should. Turning the prior off is a modeling
 choice rather than a fix, so it wants a reason; it is the right one when a
 contrast on a particular predictor is the estimand, and the wrong one when
-there are many predictors and most are irrelevant.
+there are many predictors and most are irrelevant. \code{vignette("effects")}
+works the choice through.
 
 \strong{Run several chains and compare them.} The variable selection state mixes
 slowly, because a predictor whose splitting proportion has gone small is
@@ -164,14 +162,10 @@ to be differentiable in the predictor \emph{as the caller supplies it}. The defa
 distribution function before any rule sees it, and an empirical distribution
 function is a step function; the fit is therefore a step function of the
 original predictor whatever the decision rules are, and its difference
-quotient grows without bound as the step shrinks. Measured on a smooth
-surface where the average derivative is zero:\tabular{lll}{
-   step \tab \code{x_transform = "quantile"} \tab \code{x_transform = "range"} \cr
-   1e-4 \tab -4.79 \tab -0.28 \cr
-   1e-2 \tab -0.40 \tab -0.30 \cr
-   5e-2 \tab -0.29 \tab -0.25 \cr
-}
-
+quotient grows without bound as the step shrinks: on a smooth surface whose
+average derivative is zero, the estimate goes from -0.29 at a step of 5e-2 to
+-4.79 at 1e-4 under the quantile transform, where under \code{"range"} it stays
+near -0.28 throughout.
 
 So \strong{\code{x_transform = "range"} is what slopes want}, since it maps each
 predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a

@@ -365,3 +365,38 @@ test_that("with more than two levels ATT and ATC are the same estimand", {
   expect_identical(attr(atc, "n_units"), attr(att, "n_units"))
   expect_equal(att[["estimate"]], atc[["estimate"]], tolerance = 1e-12)
 })
+
+test_that("a newdata holding one arm is still a contrast", {
+  d <- sim_effect(seed = 17L)
+  fit <- fit_effect(d)
+
+  # The levels to contrast are a property of the fit, not of the units being
+  # averaged over. Reading them from `newdata` made the conditional effect
+  # among the treated impossible to ask for, since in that subset the treatment
+  # takes one value and a one-valued numeric column reads as continuous.
+  cate <- estimate_effect(fit, estimand = "CATE",
+                          newdata = subset(d, z == 1))
+
+  expect_identical(nrow(cate), sum(d$z == 1))
+  expect_identical(unique(cate[["contrast"]]), "1 - 0")
+
+  # Which is the same set of units the ATT averages over, so on an identity
+  # link the two must agree exactly.
+  att <- estimate_effect(fit, estimand = "ATT")
+  expect_equal(att[["estimate"]], mean(cate[["estimate"]]), tolerance = 1e-8)
+
+  # And the same for a factor treatment, where the assigned column has to carry
+  # the model frame's levels rather than the subset's.
+  d$zf <- factor(d$z, levels = c(0L, 1L), labels = c("ctrl", "trt"))
+  ff <- suppressMessages(suppressWarnings(
+    bcf(y ~ x1 + x2 + g, treatment = ~ zf, data = d,
+        family = stats::gaussian(),
+        control = quick_control(num_trees = 10L, num_burn = 50L,
+                                num_draws = 100L))))
+
+  one_arm <- estimate_effect(ff, estimand = "CATE",
+                             newdata = subset(d, zf == "trt"))
+
+  expect_identical(nrow(one_arm), sum(d$zf == "trt"))
+  expect_identical(unique(one_arm[["contrast"]]), "trt - ctrl")
+})

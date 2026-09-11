@@ -75,8 +75,8 @@ library(survival)
 set.seed(2026)
 
 # Small chains in the live examples, so that this vignette builds quickly. The
-# defaults are 50 trees and 500 draws after 500 warmup iterations, which is
-# what the simulations reported below use.
+# defaults are 50 trees and 800 draws after 200 warmup iterations; the
+# simulations reported below use 50 trees and 500 draws after 500 warmup.
 ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_draws = 150)
 ```
 
@@ -90,7 +90,7 @@ In this guide, we will start from the response and the five families that accept
 
 ## The Response (`Surv()`)
 
-Every family here takes a `survival::Surv()` object, or equivalently a two-column numeric matrix of non-negative times and 0/1 event indicators. A 1 means the event was observed at that time; a 0 means the subject was still event-free when last seen, so the true time is somewhere above it.
+Every family here takes a `survival::Surv()` object, or equivalently a two-column numeric matrix of strictly positive times and 0/1 event indicators. A 1 means the event was observed at that time; a 0 means the subject was still event-free when last seen, so the true time is somewhere above it.
 
 ```{r data}
 n <- 400
@@ -234,6 +234,8 @@ So `weibull_aft()` is the family whose level needs the most care, not `dpm_aft()
 ### Survival at a Horizon (`type = "survival"`)
 
 None of the three is normally the question, which is usually about survival at a horizon (e.g., the difference in one-year survival between treated and untreated). That is a contrast in $S(t \mid x)$ at a fixed $t$, and it is on the same scale (a probability) no matter which family produced it.
+
+This is also where `estimate_effect()` stops for a survival fit. Its default `type = "response"` contrasts median survival times, which is a real estimand and often the wrong one; a contrast in survival at a horizon needs `type = "survival"`, which needs `times`, and `estimate_effect()` has no argument for it. So the horizon contrast goes through `marginaleffects::avg_comparisons()` as below.
 
 ```{r survtype}
 head(predict(fit_ph, type = "survival", times = c(1, 2, 5)), 3)
@@ -510,7 +512,7 @@ h <- matrix(predict(fit_dt, newdata = grid_dat, type = "response"),
 round(t(apply(1 - h, 2, cumprod))[, c(1, 8, 15)], 3)
 ```
 
-`binomial("probit")` is the fastest family in the package, so the cost is the expansion rather than the sampler: the number of rows is the sum of how many grid points each subject reaches. Fifteen to twenty grid points is usually plenty; a finer grid multiplies the rows without adding much.
+`binomial("probit")` is among the cheapest families in the package, so the cost is the expansion rather than the sampler: the number of rows is the sum of how many grid points each subject reaches. Fifteen to twenty grid points is usually plenty; a finer grid multiplies the rows without adding much.
 
 **How it compares.** From the same simulation, on the two truths that separate it from `ph()`:
 

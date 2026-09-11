@@ -35,7 +35,7 @@ else is an error. See section \emph{Missing Predictor Values} in the Details of
 \item{\code{"link"}}{the additive predictor, one column per predictor for
 families that have more than one.}
 \item{\code{"response"}}{the mean of the response; the median survival time
-for the accelerated failure time families; and, for a response with
+for every survival family, \code{\link[=ph]{ph()}} included; and, for a response with
 categories, the category probabilities, since there is no single mean
 to report.}
 \item{\code{"prob"}}{category probabilities, for the binomial, ordinal and

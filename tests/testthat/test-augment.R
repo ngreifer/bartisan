@@ -36,13 +36,15 @@ test_that("the Polya-Gamma sampler has the moments it should", {
 })
 
 test_that("augment resolves to the families it says it does", {
-  every <- c("binomial", "ordinal", "multinomial", "zip", "zinb", "aft")
+  every <- c("binomial", "ordinal", "multinomial", "negbin", "zip", "zinb",
+             "aft")
 
-  # The negative binomial is the one whose rewriting depends on the rules: its
-  # gain is the exponential form, which only hard rules get.
+  # `TRUE` means every family that has a rewriting, whatever the rules. The
+  # negative binomial's gain is larger under hard rules, where the target's
+  # exponential form applies, but it is a gain under soft rules too.
   expect_setequal(bartisan_control(augment = TRUE)[["augment"]], every)
   expect_setequal(bartisan_control(augment = TRUE, gate = "hard")[["augment"]],
-                  c(every, "negbin"))
+                  every)
   expect_identical(bartisan_control(augment = FALSE)[["augment"]],
                    character())
   expect_identical(bartisan_control(augment = "multinomial")[["augment"]],

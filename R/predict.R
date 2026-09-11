@@ -20,7 +20,7 @@
 #'     \item{`"link"`}{the additive predictor, one column per predictor for
 #'       families that have more than one.}
 #'     \item{`"response"`}{the mean of the response; the median survival time
-#'       for the accelerated failure time families; and, for a response with
+#'       for every survival family, [ph()] included; and, for a response with
 #'       categories, the category probabilities, since there is no single mean
 #'       to report.}
 #'     \item{`"prob"`}{category probabilities, for the binomial, ordinal and

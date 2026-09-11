@@ -301,10 +301,12 @@ test_that("`gate` covers both kinds of rule and `sparsity` sets the DART prior",
     expect_identical(bartisan_control(gate = g)[["gate"]], g)
   }
 
-  # The negative binomial rewriting is a gain under hard rules only, so `gate`
-  # has to reach `augment` for the default to mean what it says.
+  # Every rewriting pays under either kind of rule, the negative binomial
+  # included, so `gate` does not change what the default resolves to.
   expect_true("negbin" %in% bartisan_control(gate = "hard")[["augment"]])
-  expect_false("negbin" %in% bartisan_control()[["augment"]])
+  expect_true("negbin" %in% bartisan_control()[["augment"]])
+  expect_setequal(bartisan_control()[["augment"]],
+                  bartisan_control(gate = "hard")[["augment"]])
 
   # The survival rewriting pays under both kinds of rule, so it is on either way.
   expect_true(all(c("aft") %in% bartisan_control()[["augment"]]))

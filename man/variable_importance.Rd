@@ -128,14 +128,6 @@ with 25 predictors and 20 trees, it selected 7 of the 25 on average with
 \code{sparsity = TRUE} and all 25 with \code{sparsity = FALSE}. A forest asked to fit
 noise still puts its rules somewhere, and \code{prop_used} reports where they went
 rather than whether they were needed.
-
-What this table does not offer is the tool for that question, a permutation
-test. \pkg{bartMachine} and \pkg{BART} refit the model on responses whose
-link to the predictors has been broken and threshold the splitting shares
-against the resulting null rather than against .5 (Bleich et al., 2014). On
-the same data their simultaneous thresholds held their size, selecting a null
-predictor in 1 replicate of 10 against a nominal .05, where the .5 cut did so
-in every one.
 }
 }
 \examples{

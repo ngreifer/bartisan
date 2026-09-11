@@ -133,13 +133,10 @@ prior has more to say, 0.0389 against 0.0830.
 \strong{Above two values it stops being free, and the restriction is a real one.}
 Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels
 share one shape of heterogeneity where the symmetric coding gives each its
-own. That is worth a great deal when it holds and expensive when it does not.
-Measured on a three-level covariate over 12 replicates:\tabular{lll}{
-   truth \tab symmetric, a forest per level \tab \code{"estimate"}, one shared forest \cr
-   every level the same shape \tab 0.266 \tab \strong{0.191} \cr
-   each level its own shape \tab \strong{0.242} \tab 0.696 \cr
-}
-
+own. That is worth a great deal when it holds and expensive when it does not:
+on a three-level covariate, \code{"estimate"} takes about a quarter off the error
+when every level really does share a shape, and nearly triples it when they do
+not.
 
 So the two are what they look like: \code{"estimate"} is the parsimonious model and
 the default is the general one. Reach for it when the levels plausibly differ

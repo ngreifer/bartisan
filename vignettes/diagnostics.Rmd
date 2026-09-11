@@ -151,7 +151,7 @@ both, because they routinely differ by orders of magnitude: a forest settles the
 level of the fitted function within a sweep or two and takes far longer to settle
 which observation gets which share of it. Which row binds depends on what we mean
 to report. An average or a contrast of averages, which is what
-`avg_comparisons()` gives, is governed by the average row; a prediction for one
+`estimate_effect()` and `avg_comparisons()` give, is governed by the average row; a prediction for one
 observation is governed by the other.
 
 One quantity is deliberately not in the table. The leaf prior scale, in

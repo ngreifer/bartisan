@@ -175,8 +175,22 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
   treatment <- effect_treatment(object, treatment)
   newdata <- effect_newdata(object, newdata, treatment)
 
+  # Which levels there are to contrast is a property of the fitted model, not of
+  # whatever units the caller asks to average over. Reading them from `newdata`
+  # would make the conditional effect among the treated impossible to ask for,
+  # since in that subset the treatment takes one value and a one-valued numeric
+  # column is indistinguishable from a continuous one.
+  fitted_z <- {
+    if (is_null(object[["model"]]) || is_null(object[["model"]][[treatment]])) {
+      newdata[[treatment]]
+    }
+    else {
+      object[["model"]][[treatment]]
+    }
+  }
+
   z <- newdata[[treatment]]
-  kind <- treatment_kind(z)
+  kind <- treatment_kind(fitted_z)
 
   if (identical(kind, "continuous")) {
     arg::err(c("{.arg treatment} {.val {treatment}} is continuous, and the
@@ -189,8 +203,8 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
                     a {.cls factor}."))
   }
 
-  levs <- effect_levels(z)
-  focal <- effect_focal(focal, levs, estimand, treatment, z)
+  levs <- effect_levels(fitted_z)
+  focal <- effect_focal(focal, levs, estimand, treatment, fitted_z)
   by <- effect_by(by, newdata)
 
   # The potential outcomes: one draws-by-units matrix per treatment level, each
@@ -200,7 +214,7 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
   # intervention and not a different model.
   po <- lapply(levs, function(a) {
     d <- newdata
-    d[[treatment]] <- effect_assign(z, a)
+    d[[treatment]] <- effect_assign(z, a, levels(fitted_z))
     draws <- stats::predict(object, newdata = d, type = type, draws = TRUE)
 
     if (!is.matrix(draws)) {
@@ -339,9 +353,12 @@ effect_levels <- function(z) {
 
 # Assignment has to keep the column's type, since a factor predictor's levels
 # are part of the model frame and a numeric one's are not.
-effect_assign <- function(z, a) {
+effect_assign <- function(z, a, levs = NULL) {
   if (is.factor(z)) {
-    return(factor(rep(as.character(a), length(z)), levels = levels(z)))
+    # The model frame's levels rather than the subset's, so a `newdata` holding
+    # one arm still produces a column the fit's design matrix recognizes.
+    return(factor(rep(as.character(a), length(z)),
+                  levels = levs %or% levels(z)))
   }
 
   if (is.character(z)) {

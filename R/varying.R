@@ -137,13 +137,10 @@
 #' **Above two values it stops being free, and the restriction is a real one.**
 #' Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels
 #' share one shape of heterogeneity where the symmetric coding gives each its
-#' own. That is worth a great deal when it holds and expensive when it does not.
-#' Measured on a three-level covariate over 12 replicates:
-#'
-#' | truth | symmetric, a forest per level | `"estimate"`, one shared forest |
-#' |---|---|---|
-#' | every level the same shape | 0.266 | **0.191** |
-#' | each level its own shape | **0.242** | 0.696 |
+#' own. That is worth a great deal when it holds and expensive when it does not:
+#' on a three-level covariate, `"estimate"` takes about a quarter off the error
+#' when every level really does share a shape, and nearly triples it when they do
+#' not.
 #'
 #' So the two are what they look like: `"estimate"` is the parsimonious model and
 #' the default is the general one. Reach for it when the levels plausibly differ

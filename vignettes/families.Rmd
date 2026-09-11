@@ -32,7 +32,7 @@ library(bartisan)
 set.seed(2026)
 
 # Small chains throughout, so that this vignette builds quickly. The defaults
-# are 50 trees and 500 draws after 500 warmup iterations.
+# are 50 trees and 800 draws after 200 warmup iterations.
 ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_draws = 150)
 ```
 
@@ -66,7 +66,7 @@ In this guide, we will work through the families one at a time. First we'll lay 
 | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
 | `ph()` | none | 1 | baseline hazard per bin |
 | `dpm_aft()` | none | 1 | error mixture, concentration |
-| `custom_family()` | implied by `logdens` | as many as requested | none |
+| `custom_family()` | implied by `logdens` | as many as requested | as many as named in `aux_names` |
 
 A family with more than one additive predictor fits one forest per predictor, and `predict(type = "link")` returns one column per forest. Nuisance parameters are drawn alongside the trees and reported in `fit$aux`.
 
@@ -117,7 +117,7 @@ loo::loo_compare(
 | an ordered factor | `ordinal()` |
 | logical, a factor or character with two levels, or numeric taking only the values 0 and 1 | `binomial()` |
 | any other factor or character | `multinomial()` |
-| a two-column numeric matrix | `binomial()`, read as successes and failures |
+| a two-column numeric matrix | `binomial()`, read as successes and failures, unless the columns look like strictly positive times and 0/1 events, which give `dpm_aft()` |
 | any other numeric | `dpm()` |
 
 The choice is reported when it is made, and naming `family` silences the message. That is the intended way to silence it: an inferred family is a modeling decision taken on the analyst's behalf, so confirming it in the call is a better outcome than suppressing the notice.
@@ -204,7 +204,7 @@ top3 <- function(fit, forest) {
 c(apart = top3(apart, "log_sd"), shared = top3(shared, "log_sd"))
 ```
 
-That is a statement about the data rather than a free improvement: it helps when the components really do depend on the same predictors and there are enough irrelevant ones for the selection to be hard, and it costs something when they depend on different ones. `variable_importance()` is where to check, and `?bartisan_control` has the measured trade-off.
+That is a statement about the data rather than a free improvement: it helps when the components really do depend on the same predictors and there are enough irrelevant ones for the selection to be hard, and it costs something when they depend on different ones. `variable_importance()` is where to check, and `?bartisan_control` explains the trade.
 
 A formula that names no predictor at all is the limiting case of this, and it says the parameter is constant: `~ 1` leaves its forest nothing to split on, so every tree in it is a stump and the forest is a single drawn scalar. Every family that takes more than one formula accepts it, which is what makes the line between a nuisance parameter and an empty forest a thin one. `gaussian_ls()` with `~ 1` on its scale is `gaussian()` with its drawn `sigma`; `Gamma_ls()` with `~ 1` is `Gamma("log")` with its drawn shape; and `zi_poisson()` with `~ 1` on its inflation part is the ordinary zero-inflated Poisson with one structural-zero probability rather than a forest of them.
 
@@ -350,7 +350,7 @@ Only the differences $c_k - \eta_i$ are identified, so one location has to be pi
 
 The three links are read as for the binomial, plus one consideration specific to the ordinal case: the link decides what is held constant across categories. `"logit"` gives the proportional odds model, in which a contrast is a log odds ratio that is the same at every cutpoint. `"probit"` gives the ordered probit, and is the link to choose when the latent variable is the object of interest (e.g., a trait, a utility, an underlying measurement recorded in bins). `"cloglog"` gives the proportional *hazards* model on the categories, so choose it when the categories are ordered durations or stages. Accuracy is much the same across the three; `"probit"` is the fastest by a wide margin.
 
-Ordered categoiries can also be treated as unordered categories and fit with `family = multinomial()`, described below; typically this produces more variable predictions as it requires a forest for each category rather than a single forest governing the entire distribution function.
+Ordered categories can also be treated as unordered categories and fit with `family = multinomial()`, described below; typically this produces more variable predictions as it requires a forest for each category rather than a single forest governing the entire distribution function.
 
 ### A Continuous Outcome as Ordinal {#a-continuous-outcome-as-ordinal}
 
@@ -399,7 +399,7 @@ mean(fit_beta$aux[, "phi"])
 
 The `ordbeta()` family requests the ordered beta regression of @kubinec2023, for a response on the *closed* unit interval $[0, 1]$ with point masses at zero and one (e.g., a percentage of a budget, a slider scale). One predictor drives both the probability of landing on an endpoint, through a pair of cutpoints as in an ordinal model, and the mean of the beta density in between.
 
-Choose between `Beta()` and `ordered_beta()` based on whether the response *can* reach a boundary, not on whether it happens to in the sample at hand. A response *at* zero or one has no beta density, so `Beta()` errors rather than nudging it inward. In the other direction, `ordbeta()` fitted to a response with no boundary observations leaves its two cutpoints with nothing to identify them; the fit is not much worse for it, but the cutpoints are not interpretable and drift to large magnitudes.
+Choose between `Beta()` and `ordbeta()` based on whether the response *can* reach a boundary, not on whether it happens to in the sample at hand. A response *at* zero or one has no beta density, so `Beta()` errors rather than nudging it inward. In the other direction, `ordbeta()` fitted to a response with no boundary observations leaves its two cutpoints with nothing to identify them; the fit is not much worse for it, but the cutpoints are not interpretable and drift to large magnitudes.
 
 ## A Point Mass at Zero and a Continuous Positive Part
 
@@ -477,7 +477,7 @@ The trade-offs behind these choices are measured in `vignette("survival", packag
 
 ## Other Links and Custom Likelihoods
 
-Links beyond those in the table are accepted for `gaussian()`, `binomial()`, `poisson()` and `negbin()`, and applied from R by composing the supplied inverse link with the family's own. So `binomial("cauchit")` works, as does any link object of the kind `stats::make.link()` returns, including one written by hand. Two cautions: 1) the fit is slower, because each leaf costs a call into R, and 2) the additive predictor is unconstrained, so a link whose inverse has a restricted range (e.g., `poisson("identity")`) gives non-finite densities for some predictors, which are rejected rather than breaking the chain but are wasted work. `bartisan()` reports that when the fit starts. The families with more than one predictor, or whose link enters somewhere other than a single mean, take only their listed links.
+Links beyond those in the table are accepted for `gaussian()`, `binomial()`, `poisson()`, `negbin()` and `Beta()`, and applied from R by composing the supplied inverse link with the family's own. So `binomial("cauchit")` works, as does any link object of the kind `stats::make.link()` returns, including one written by hand. Two cautions: 1) the fit is slower, because each leaf costs a call into R, and 2) the additive predictor is unconstrained, so a link whose inverse has a restricted range (e.g., `poisson("identity")`) gives non-finite densities for some predictors, which are rejected rather than breaking the chain but are wasted work. `bartisan()` reports that when the fit starts. The families with more than one predictor, or whose link enters somewhere other than a single mean, take only their listed links.
 
 `custom_family()`can be used to fit a BART model with a density of the user's design. It takes the log density itself and fits the model that goes with it. The sampler needs only the first two derivatives with respect to each additive predictor, and central differences of the supplied function produce both. Terms free of `eta`, the predictor to be modeled by BART, may be dropped: they cancel from every acceptance ratio. See below for an example of a "hand-rolled" Poisson fit using the Poisson density `dpois()`.
 

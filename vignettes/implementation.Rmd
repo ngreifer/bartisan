@@ -41,7 +41,7 @@ This vignette describes what the model is and how it is fitted. It is the refere
 
 In this guide we will first set out the model, which is a sum of trees supplying an additive predictor to an arbitrary likelihood, and then the prior that regularizes it. Next we will describe how it is fitted, which is where the generalization actually lives, and what data augmentation buys where it is available. We then turn to the practical matters that come up in a real fit, to what the sampler costs against the other BART packages, and to the checks that say the implementation is right.
 
-Fits below use a deliberately small chain so that the vignette builds quickly: 20 trees and 300 draws after 300 warmup iterations, on 400 observations. The defaults are 50 trees and 500 draws after 500 warmup iterations.
+Fits below use a deliberately small chain so that the vignette builds quickly: 20 trees and 300 draws after 300 warmup iterations, on 400 observations. The defaults are 50 trees and 800 draws after 200 warmup iterations.
 
 ```{r control}
 ctrl <- bartisan_control(num_trees = 20, num_burn = 300, num_draws = 300)
@@ -250,7 +250,7 @@ diagnose(fit_chains)$table
 
 This table is read selectively. `aux.sigma` and `loglik` are close to 1, which is what convergence looks like, and they respond to longer chains in the usual way.
 
-The `eta` row does not, and it is worth knowing why before it causes alarm. It is the worst value over all `r n` observations, so it is a maximum by construction, and forests mix slowly on their fitted values: two chains can visit quite different sets of trees that imply very similar predictions, which inflates a between-chain statistic without meaning that the answers disagree. Adding draws does not reliably bring it down. Values above 1.05 on this row are ordinary for a BART fit, and are characteristic of the method rather than of this implementation.
+The `eta` row does not, and it is worth knowing why before it causes alarm. It summarizes the worst 5% of the observations rather than the single worst, so it is a high percentile by construction, and forests mix slowly on their fitted values: two chains can visit quite different sets of trees that imply very similar predictions, which inflates a between-chain statistic without meaning that the answers disagree. Adding draws does not reliably bring it down. Values above 1.05 on this row are ordinary for a BART fit, and are characteristic of the method rather than of this implementation.
 
 What to check instead is that the quantities to be reported are stable. If `sigma` and the log likelihood have converged and an `avg_comparisons()` estimate is the same across chains, the fit is usable whatever the `eta` row says.
 
@@ -295,7 +295,7 @@ A non-conjugate sampler costs more than a conjugate one, and it is worth being p
 
 A major contributor to *bartisan*'s speed is a data augmentation that makes the conditional Gaussian, since then the Laplace approximation is exact rather than approximate. `augment` does this, using @albert1993 for a probit link and for an ordinal probit; Pólya-Gamma augmentation [@polson2013] for a logit link, an ordinal logit, or a multinomial; and imputation of the censored failure times for the log-normal and log-logistic survival models.
 
-Each of them is much faster, from 1.8 times for the negative binomial to 31 for an ordinal probit with hard rules, with a median of 9.2. What each costs in mixing is the question, and the answer is not that they all cost something: over 15 replicate datasets the worst-mixing quantity's effective sample size came out a median of 1.05 times what the direct likelihood gives, and of the sixteen cases below, seven have an 80% interval lying entirely below 1, two lie entirely above it, and seven include it. Effective draws per second, which is the ratio to judge, favors augmentation in all sixteen:
+Each of them is faster, from 1.2 times for the negative binomial under soft rules to 31 for an ordinal probit with hard rules, with a median of 8.8. What each costs in mixing is the question, and the answer is not that they all cost something: over 15 replicate datasets the worst-mixing quantity's effective sample size came out a median of 1.05 times what the direct likelihood gives, and of the seventeen cases below, seven have an 80% interval lying entirely below 1, two lie entirely above it, and eight include it. Effective draws per second, which is the ratio to judge, favors augmentation in all seventeen:
 
 | Family | Speed | ESS, worst quantity | ESS, median quantity | ESS per second |
 |-----------------------|-------|--------------------|-----------|-----------|
@@ -314,11 +314,12 @@ Each of them is much faster, from 1.8 times for the negative binomial to 31 for 
 | `ordinal("logit")`, hard rules | 15x | 0.37x [0.30, 0.46] | 0.52x | **5.5x** |
 | `zi_poisson()`, soft rules | 3.7x | 1.24x [0.86, 1.79] | 1.15x | **4.6x** |
 | `loglogistic_aft()`, soft rules | 6.9x | 0.58x [0.46, 0.80] | 0.69x | **4.0x** |
-| `negbin()` | 1.8x | 0.61x [0.47, 0.79] | 0.84x | 1.1x |
+| `negbin()`, soft rules | 1.2x | 1.11x [0.68, 1.64] | 0.86x | 1.3x |
+| `negbin()`, hard rules | 1.8x | 0.61x [0.47, 0.79] | 0.84x | 1.1x |
 
 The bracketed range is an 80% bootstrap interval over the replicates, and it is in the table because without it the column invites conclusions it cannot support: at three replicates the same quantity varied by a median factor of 4.5 within a single cell, since the worst-quantity effective sample size is a minimum over many quantities and so is a high-variance thing to estimate. The median quantity is the stabler reading, and comparing the two columns is informative on its own: those ratios run .52 to 1.15 where the worst-quantity ones run .37 to 1.58, so a family whose worst corner mixes noticeably better or worse under augmentation has usually moved less than that as a whole.
 
-`augment` is on by default and covers the binomial, ordinal, multinomial, zero-inflated, and survival families, plus the negative binomial when the rules are hard; there it is written as a Poisson whose rate comes from a gamma, which needs one gamma draw per observation rather than a Pólya-Gamma one. The negative binomial is also the one case where the default is close to a coin toss rather than a clear gain, at 1.1 times the effective draws per second, and `augment = FALSE` is worth trying if its diagnostics look poor.
+`augment` is on by default for every family that has a rewriting: the binomial, ordinal, multinomial, negative binomial, zero-inflated, and survival families. The negative binomial's is a Poisson whose rate comes from a gamma, which needs one gamma draw per observation rather than a Pólya-Gamma one, and it is the one family whose two rows differ in kind rather than degree. Under hard rules the target reaches the exponential form and the rewriting buys time at a real cost in mixing; under soft rules it cannot, and the rewriting instead buys a little time at no measurable cost in mixing. Both come out ahead on effective draws per second, but by the least of any family here, so `augment = FALSE` is worth trying if a negative binomial fit's diagnostics look poor.
 
 The survival families are the clearest case of what the rewriting is for. Right-censoring is what makes their likelihood expensive: an observed failure contributes a density in the additive predictor and a censored one contributes a survival function, and the two have different shapes, so nothing about the target is exploitable. Imputing each censored failure time above its censoring time replaces the survival term with a density, and then every observation contributes the same quadratic shape. `weibull_aft()` is absent from the table because it needs none of this, its likelihood being already exponential in the sense above, censoring included, which also makes it the slowest of the three at the default soft gate, where that form cannot be used.
 
@@ -349,7 +350,7 @@ Below we compare *bartisan*'s capabilities to those of other popular BART R pack
 | Binary, probit | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Binary, logit | ✓ | — | ✓ | ✓ | — | — | — |
 | Count: Poisson, negative binomial | ✓ | — | — | — | — | — | — |
-| Gamma, beta, ordered beta | ✓ | — | — | — | — | — | — |
+| Gamma, beta, ordered beta, Tweedie | ✓ | — | — | — | — | — | — |
 | Ordinal | ✓ 3 links | — | — | — | — | — | ✓ cloglog |
 | Multinomial | ✓ logit, probit | — | ✓[^1] | — | — | — | — |
 | Zero-inflated counts | ✓ | — | — | — | — | — | — |
@@ -380,14 +381,15 @@ Below we compare *bartisan*'s capabilities to those of other popular BART R pack
 | Convergence diagnostics built in | ✓ | — | ✓ | — | — | ✓ | — |
 | Variable importance | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
 | Formal variable-selection test | ✓ inclusion | — | ✓ permutation | — | ✓ inclusion | ✓ permutation | — |
-| Partial dependence | ✎ | ✓ | — | — | ✓ | ✓ | — |
+| Partial dependence | ✓ | ✓ | — | — | ✓ | ✓ | — |
 | Interaction detection | ✎ | — | — | — | — | ✓ | — |
 | Counterfactual estimands with intervals | ✓ | — | — | — | — | — | — |
+| ATE, ATT or per-unit treatment effects | ✓ | — | — | — | — | — | — |
 | Cross-validated model comparison | ✓ | — | — | — | — | — | — |
 
 [^1]: *BART*'s support is a set of binary fits rather than a multinomial model, which is worth knowing before the checkmark is read as a like-for-like. `BART::mbart2()` fits $K$ independent one-vs-rest binary probit or logit BARTs, each to the indicator `(y == h)`, and then normalizes their latent predictors afterward, so no forest is ever fitted to a multinomial likelihood. `BART::mbart()` instead fits $K - 1$ binary models to nested subsets, the $h$th to `y == h` among the observations with `y >= h`, and multiplies them as a continuation-ratio. That second one is an exact factorization of the multinomial mass function, so it is a coherent model, but each conditional carries its own independent forest and prior, and the factorization runs over the categories in sorted order, so the prior it puts on a probability vector is not exchangeable in the categories. *bartisan*'s `multinomial()` couples the forests through the likelihood itself instead: conditional on the others, the likelihood for category $j$ is exactly binomial-logistic in $\eta_j - \log C_j$ with $C_j$ summing $e^{\eta}$ over the rest, which is what the Pólya-Gamma augmentation exploits and what keeps the prior symmetric in the categories [@murray2021].
 
-**✎ means a helper package covers it, not this one.** Both of those rows are things *bartMachine* does natively and *bartisan* does through *marginaleffects*, because a fit works with it and every estimand there is computed by pushing the draws through: `plot_predictions()` is a partial dependence plot, and `avg_comparisons(variables = "x", by = "z")` and `hypotheses(~pairwise)` are interaction detection, neither of which needs code here.
+**✎ means a helper package covers it, not this one.** Interaction detection is the remaining one, and *bartisan* does it through *marginaleffects*, because a fit works with it and every estimand there is computed by pushing the draws through: `avg_comparisons(variables = "x", by = "z")` and `hypotheses(~pairwise)` are interaction detection, and neither needs code here. Partial dependence used to sit in the same row and now does not: `partial_dependence()` averages the fitted surface over the sample at each value of one or two predictors, and `plot()` on a fit is the same thing drawn. `marginaleffects::plot_predictions()` remains the one to reach for when the grid needs more control than that.
 
 The variable-selection row divides differently, into two things that both get called a test. One is the posterior inclusion probability under the Dirichlet sparsity prior, thresholded at .5 to give the median probability model of @barbieri2004. *SoftBart* reports it as `posterior_probs()`, and it is `colMeans(var_counts > 0)` on the splitting counts: the `prop_used` column of `variable_importance()` is that same quantity, under a prior that is on by default here as it is there. The other is a permutation test [@bleich2014], which refits the model on responses whose link to the predictors has been broken and thresholds the splitting shares against the resulting null rather than against .5. *bartMachine* offers all three of its thresholds and *BART* offers the third one, `BART::mc.wbart.gse()`; *bartisan* offers none of them, and that is the actual gap.
 
