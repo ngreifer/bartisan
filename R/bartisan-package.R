@@ -31,7 +31,7 @@
 #' | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [bartisan-families] |
 #' | a coefficient that varies with the other predictors | [vc()] in the formula, then [coef()] |
 #' | a treatment effect with its own prior | [bcf()], `vignette("causal")` |
-#' | the ATE, ATT or the effect for each unit | [estimate_effect()], or [summary()][summary.bcf_fit] on a [bcf()] fit |
+#' | the ATE, ATT or the effect for each unit | [estimate_effect()] |
 #' | to check it converged and mixed | [diagnose()], then [as_draws()][bartisan-interop] with \pkg{bayesplot} |
 #' | to check it fits | [pp_check()][bartisan-interop], [residuals()][bartisan-interop] |
 #' | to compare two models | [loo()][bartisan-interop] |

@@ -269,15 +269,14 @@ the way to reach anything else.
 
 \subsection{If No Family Is Given}{
 
-\code{family} may be omitted, in which case it is read off the response: a \code{Surv}
-object gets \code{dpm_aft()}, an ordered factor \code{ordinal()}, a two-valued
-response \code{binomial()}, any other factor \code{multinomial()}, and any numeric
-response \code{dpm()}. \code{dpm()} cannot take prior weights, so a weighted fit with no
-family named is an error rather than a silent substitution. The choice is
-reported with a message, which setting \code{family} silences. Note that a count is
-\emph{not} given \code{poisson()} and a numeric response taking two values other than 0
-and 1 is \emph{not} given \code{binomial()}, since either would be a modeling decision
-rather than a reading of the response's type.
+\code{family} may be omitted, in which case it is read off the response's type and
+the choice reported with a message; \code{\link[=bartisan]{bartisan()}} tabulates the lookup, since
+\code{family} is its argument. Two things about it are worth knowing here, because
+both are deliberate rather than oversights: a count is \emph{not} given \code{poisson()}
+and a numeric response taking two values other than 0 and 1 is \emph{not} given
+\code{binomial()}, either being a modeling decision rather than a reading of the
+response's type. \code{dpm()} cannot take prior weights, so a weighted fit with no
+family named is an error rather than a silent substitution.
 }
 
 \subsection{What to Know Before Reading the Output}{
@@ -383,18 +382,14 @@ with \eqn{\epsilon} standard Gumbel, logistic or normal respectively, giving
 Weibull, log-logistic and log-normal survival times.
 
 \strong{A contrast in the predictor is a log time ratio in all of them, and in
-\code{dpm_aft()} too.} That follows from the structure rather than from the error:
-with \eqn{\epsilon} independent of \eqn{x}, every quantile of \eqn{T}, the
-mean of \eqn{T}, and the geometric mean of \eqn{T} all scale by
-\eqn{e^{\Delta\eta}}, whatever shape the error has, so the reading does not
-rest on the error being symmetric. What does differ between the families is
-what \eqn{e^{\eta}} is on its own, because each pins its error's location
-differently: it is the median of \eqn{T} for \code{loglogistic_aft()} and
-\code{lognormal_aft()}, whose errors are symmetric about zero; the geometric mean of
-\eqn{T} for \code{dpm_aft()}, whose error is centered at mean zero but is not
-symmetric; and the Weibull scale, which is the 63.2nd percentile of \eqn{T},
-for \code{weibull_aft()}, whose error has location rather than mean zero. Contrasts
-are unaffected by any of that.
+\code{dpm_aft()} too}, because with \eqn{\epsilon} independent of \eqn{x} every
+quantile and both means of \eqn{T} scale by \eqn{e^{\Delta\eta}} whatever
+shape the error has. What differs is what \eqn{e^{\eta}} is on its own, each
+family pinning its error's location differently: the median of \eqn{T} for
+\code{loglogistic_aft()} and \code{lognormal_aft()}, the geometric mean for \code{dpm_aft()},
+and the Weibull scale for \code{weibull_aft()}. Contrasts are unaffected by any of
+that; \code{vignette("survival")} tabulates the levels and measures the difference
+between them.
 
 \code{weibull_aft()} is also the one family whose predictor carries a log \emph{hazard}
 ratio, of \eqn{-\Delta\eta/\sigma}, alongside its log time ratio. That is a
@@ -420,22 +415,19 @@ model does decompose, and it approaches the partial likelihood as the bins
 shrink, which is how \code{ph()} reaches proportional hazards without it.
 
 \strong{\code{num_bins} is not a modeling decision, and its default should be left
-alone.} It is exposed for checking that, not for tuning. Measured over three
-replicates at 700 observations, sweeping it from 4 to 250 (a sixty-fold
-range, against a baseline hazard that turns over and against a Weibull one)
-moved the error in the survival function between 0.035 and 0.048 and the error
-in the log hazard ratio between 0.135 and 0.185, with no trend in either and
-every difference inside the replicate-to-replicate spread. What the bin count
-does change is the effective number of parameters, which grows with it: from 17
-at four bins to 206 at 250. That is what makes the default matter for \code{loo()}
-and \code{waic()} rather than for the estimates: one parameter per event time
-would leave each observation's density inflated by a parameter only it informs,
-and leave-one-out unable to do its job.
+alone.} It is exposed for checking that rather than for tuning: swept over a
+sixty-fold range the estimates move by less than the spread between
+replicates, with no trend. What the bin count does change is the effective
+number of parameters, which grows with it, and that is what makes the default
+matter for \link[=bartisan-interop]{loo()} and \code{waic()} rather than for the
+estimates: one parameter per event time would leave each observation's density
+inflated by a parameter only it informs, and leave-one-out unable to do its
+job. \code{vignette("survival")} has the sweep.
 
 The three differ in cost, though not enough to decide a model on.
 \code{lognormal_aft()} and \code{loglogistic_aft()} impute each censored failure time
-above its censoring time, which makes their targets quadratic and is worth 8
-to 30 times the speed; \code{weibull_aft()} needs no imputation because its
+above its censoring time, which makes their targets quadratic and is worth a
+large multiple of the speed; \code{weibull_aft()} needs no imputation because its
 likelihood already has a form the sampler can collapse to a single pass, but
 only under hard rules, which makes it the slowest of the three at the default
 gate.
@@ -522,12 +514,14 @@ scale.
 
 Most families model one parameter with one forest. Some model several, and
 then every argument that could mean something different for each of them may
-be given once, to apply to all, or one per forest: positionally, or keyed by
-the names below. This includes \code{formula}, so a forest can have predictors of
-its own; see \code{\link[=bartisan]{bartisan()}}.
+be given per forest, keyed by the names below or positionally;
+\code{\link[=bartisan_control]{bartisan_control()}} states the recycling rule and lists which arguments it
+covers, and \code{formula} is among them, so a forest can have predictors of its
+own.
 
 The first forest is always the main parameter, the one a single-forest family
-would have on its own. The order is:\tabular{ll}{
+would have on its own. This table is the canonical list of the names, which
+\code{vignette("families")} reproduces:\tabular{ll}{
    Family \tab Forests, in order \cr
    \code{gaussian_ls()} \tab \code{mean}, \code{log_sd} \cr
    \code{Gamma_ls()} \tab \code{mean}, \code{log_dispersion} \cr

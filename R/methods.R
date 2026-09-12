@@ -201,6 +201,10 @@ summary.bartisan_fit <- function(object, level = 0.95, ...) {
   out <- list(call = object[["call"]],
               family = object[["family"]],
               n = object[["n"]],
+              # Recorded so that `print()` can point a reader at the function
+              # that reports the effect, which this summary deliberately does
+              # not: a named treatment is the whole of what makes that relevant.
+              treatment = object[["bcf"]][["treatment"]],
               num_forest = object[["num_forest"]],
               num_trees = object[["num_trees"]],
               soft = object[["soft"]],
@@ -273,6 +277,16 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
       cli_cat("Predictor {.val {names(x$usage)[h]}}:")
     }
     print(round(x[["usage"]][[h]], digits))
+  }
+
+  # A fit with a named treatment summarizes the same way as any other, since the
+  # forests are the same object; the effect is a different question and
+  # `estimate_effect()` is where it is asked.
+  if (!is_null(x[["treatment"]])) {
+    cli::cat_line()
+    cli::cli_bullets(c(i = "This fit has a treatment, {.val {x$treatment}}.
+                            {.fn estimate_effect} reports its effect, with the
+                            average potential outcomes beside it."))
   }
 
   invisible(x)

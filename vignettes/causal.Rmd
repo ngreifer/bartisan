@@ -148,13 +148,7 @@ We include both the treatment and covariate in the formula's right-hand side, se
 
 ## Potential outcomes
 
-The quantities underlying the effect estimate are the two average potential
-outcomes: the proportion who would die if every patient were catheterized, and
-if none were. `estimate_effect()` computes them on the way to the
-effect and keeps them, and `summary()` on a `bcf()` fit prints them beside it. On
-a fit from `bartisan()` the treatment has to be named, since nothing in the
-formula marks one predictor as the treatment, and `summary()` there reports the
-forests rather than an effect:
+The quantities underlying the effect estimate are the two average potential outcomes: the proportion who would die if every patient were catheterized, and if none were. `estimate_effect()` computes them on the way to the effect and keeps them, and `summary()` on a `bcf()` fit prints them beside it. On a fit from `bartisan()` the treatment has to be named, since nothing in the formula marks one predictor as the treatment, and `summary()` there reports the forests rather than an effect:
 
 ```{r ate, eval = run}
 ate <- estimate_effect(fit, treatment = "rhc")
@@ -162,12 +156,7 @@ ate <- estimate_effect(fit, treatment = "rhc")
 ate
 ```
 
-Under the assumptions above this is the average treatment effect: catheterization
-raises the probability of death by about
-`r if (run) round(100 * abs(ate$estimate[1])) else "3"` percentage points, with
-an interval running from roughly
-`r if (run) round(100 * ate$lower[1], 1) else "0"` to
-`r if (run) round(100 * ate$upper[1], 1) else "8"`.
+Under the assumptions above this is the average treatment effect: catheterization raises the probability of death by about `r if (run) round(100 * abs(ate$estimate[1])) else "3"` percentage points, with an interval running from roughly `r if (run) round(100 * ate$lower[1], 1) else "0"` to `r if (run) round(100 * ate$upper[1], 1) else "8"`.
 
 The potential outcomes come with it, in the `"potential_outcomes"` attribute:
 
@@ -175,29 +164,15 @@ The potential outcomes come with it, in the `"potential_outcomes"` attribute:
 attr(ate, "potential_outcomes")
 ```
 
-The two rows are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the
-observed covariate distribution. Reporting both is often more informative than
-reporting their difference alone, because a difference of a few percentage points
-means something different against a baseline of 63% than it would against 5%.
+The two rows are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%.
 
 ### How the estimate is computed, and on which scale
 
-`estimate_effect()` does the g-computation above literally. Every unit is
-predicted twice, once with the treatment set to each of its levels; the two sets
-of predictions are averaged over the units the estimand asks for, *within each
-posterior draw*; and only then are the two averages contrasted. What comes back
-is a posterior for the estimand, summarized by its mean and a credible interval.
+`estimate_effect()` performs the g-computation above literally. Every unit is predicted twice, once with the treatment set to each of its levels; the two sets of predictions are averaged over the units the estimand asks for, *within each posterior draw*; and only then are the two averages contrasted. What comes back is a posterior for the estimand, summarized by its mean and a credible interval.
 
-That order is what makes a ratio here the marginal ratio rather than the average
-of the conditional ones, which is a different quantity. For a difference the two
-orders agree, so it only shows up once a ratio is asked for.
+That order is what makes a ratio here the marginal ratio rather than the average of the conditional ones, which is a different quantity. For a difference the two orders agree, so it only shows up once a ratio is asked for.
 
-The scale matters, and it is the reason the default is `type = "response"`. On
-that scale the average of the unit-level differences *is* the marginal effect. A
-contrast read off the link scale is not: on a logistic fit the average of the
-conditional log odds ratios is not the marginal log odds ratio, and the two can
-differ by a good deal. `comparison` asks for the contrast rather than the scale,
-so a risk ratio or an odds ratio is available without leaving the response scale:
+The scale matters, and it is the reason the default is `type = "response"`. On that scale the average of the unit-level differences *is* the marginal effect. A contrast read off the link scale is not: on a logistic fit the average of the conditional log odds ratios is not the marginal log odds ratio, and the two can differ by a good deal. `comparison` asks for the contrast rather than the scale, so a risk ratio or an odds ratio is available without leaving the response scale:
 
 ```{r ate_or, eval = run}
 estimate_effect(fit, treatment = "rhc", comparison = "lnor")
@@ -205,11 +180,7 @@ estimate_effect(fit, treatment = "rhc", comparison = "lnor")
 
 ### The same answer through *marginaleffects*
 
-A fit also works with *marginaleffects*, and for the average effect the two
-routes compute the same thing from the same draws. The one thing to set is the
-posterior summary: *marginaleffects* reports the median by default and
-`estimate_effect()` reports the mean, so an unadjusted comparison shows a
-difference that is not there.
+A fit also works with *marginaleffects*, and for the average effect the two routes compute the same thing from the same draws. The one thing to set is the posterior summary: *marginaleffects* reports the median by default and `estimate_effect()` reports the mean, so an unadjusted comparison shows a difference that is not there.
 
 ```{r me_equiv, eval = run && has_me}
 options(marginaleffects_posterior_center = "mean")
@@ -217,32 +188,15 @@ options(marginaleffects_posterior_center = "mean")
 avg_comparisons(fit, variables = "rhc")
 ```
 
-The point estimate and the interval match `estimate_effect()` above to machine
-precision. Which to reach for is a question of what else is wanted:
-`estimate_effect()` covers the estimands a treatment question asks for and needs
-no extra package, while *marginaleffects* covers a much wider class of
-quantities. `vignette("effects")` is about the second.
+The point estimate and the interval match `estimate_effect()` above to machine precision. Which to reach for is a question of what else is wanted: `estimate_effect()` covers the estimands a treatment question asks for and needs no extra package, while *marginaleffects* covers a much wider class of quantities. `vignette("effects")` is about the second.
 
 ## Using Bayesian Causal Forests
 
-Traditional BART shrinks the fitted function toward a constant; that shrinkage
-applies to everything the forest fits, including the part of the outcome that
-depends on the exposure. When the exposure is strongly predicted by the
-covariates, the forest can explain the outcome using the covariates alone,
-leaving little for the exposure to explain, and shrink the estimated effect
-toward zero. The interval shrinks with it, so the result is a confident estimate
-biased toward no effect.
+Traditional BART shrinks the fitted function toward a constant; that shrinkage applies to everything the forest fits, including the part of the outcome that depends on the exposure. When the exposure is strongly predicted by the covariates, the forest can explain the outcome using the covariates alone, leaving little for the exposure to explain, and shrink the estimated effect toward zero. The interval shrinks with it, so the result is a confident estimate biased toward no effect.
 
-@hahn2020 identified this mechanism; their remedy is to give the treatment effect
-its own forest with its own prior, so that shrinking the confounding part does
-not shrink the effect. This is the Bayesian causal forest (BCF) model, a special
-case of the varying coefficients BART model. `bcf()` fits it.
+@hahn2020 identified this mechanism; their remedy is to give the treatment effect its own forest with its own prior, so that shrinking the confounding part does not shrink the effect. This is the Bayesian causal forest (BCF) model, a special case of the varying coefficients BART model. `bcf()` fits it.
 
-One specifies the control function in the model formula and identifies the
-treatment in the `treatment` argument. `bcf()` then fits a varying coefficient
-BART model, the BCF. By default, `bcf()` estimates a propensity score using a
-logistic BART model and includes that as a covariate in the control function, as
-recommended by @hahn2020.
+One specifies the control function in the model formula and identifies the treatment in the `treatment` argument. `bcf()` then fits a varying coefficient BART model, the BCF. By default, `bcf()` estimates a propensity score using a logistic BART model and includes that as a covariate in the control function, as recommended by @hahn2020.
 
 ```{r bcffit, eval = run}
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
@@ -253,35 +207,28 @@ fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
 fit_bcf
 ```
 
-Using `bcf()` rather than writing the varying coefficient BART model by hand sets
-four settings to improve effect estimation:
+Using `bcf()` rather than writing the varying coefficient BART model by hand sets four settings to improve effect estimation:
 
 1.  the effect gets a forest of its own
 2.  the estimated propensity score goes into the control function and not into the effect forest
 3.  the effect forest gets fewer trees because effect heterogeneity is usually simpler than a prognostic surface
 4.  a binary treatment's coding is drawn rather than fixed, so the answer does not depend on which arm was written as 1.
 
-Note that `sparsity = FALSE` is not among them: the reason for it in the section
-above is that the prior can drop the predictor whose contrast we want, and here
-the treatment is the coefficient rather than a predictor the forest splits on, so
-nothing can drop it.
+Note that `sparsity = FALSE` is not among them: the reason for it in the section above is that the prior can drop the predictor whose contrast we want, and here the treatment is the coefficient rather than a predictor the forest splits on, so nothing can drop it.
 
-Because the treatment is named in the call, the fit knows what its own effect is
-and `summary()` reports it. The treatment does not have to be named again:
+Because the treatment is named in the call, `estimate_effect()` needs nothing else:
 
-```{r bcfsummary, eval = run}
-summary(fit_bcf)
+```{r bcfeff, eval = run}
+estimate_effect(fit_bcf)
 ```
 
-Three blocks: the average effect, the two potential outcomes it is a difference
-of, and the quartiles of the per-unit effects, which say how much the effect
-varies rather than how well any one patient is estimated.
+The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 64% and another against 5%; `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` and `O(y)` are.
+
+`summary()` on a `bcf()` fit is the same summary of the forests it is on any other fit, and says at the end where the effect is reported. That way the same call means the same thing whichever way the model was written.
 
 ### Conditional effects
 
-The effect forest gives one value per patient, and `estimate_effect()` returns
-them with `estimand = "CATE"`. Here we ask for them as odds ratios, which for a
-conditional effect is a conditional odds ratio:
+The effect forest gives one value per patient, and `estimate_effect()` returns them with `estimand = "CATE"`. Here we ask for them as odds ratios, which for a conditional effect is a conditional odds ratio:
 
 ```{r bcfcate, eval = run}
 cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
@@ -289,33 +236,21 @@ cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 ```
 
-`plot()` draws them: patients ordered by their estimate, with a credible interval
-each and the marginal effect as a band behind them, which is what makes the
-spread readable as heterogeneity rather than as a list of numbers.
+`plot()` draws them: patients ordered by their estimate, with a credible interval each and the marginal effect as a band behind them, which is what makes the spread readable as heterogeneity rather than as a list of numbers.
 
 ```{r bcfplot, eval = run && has_ggplot2, fig.height = 3.4}
 plot(fit_bcf)
 ```
 
-`plot()` on the fit is the conditional effects on the response scale; passing a
-`<bartisan_effect>` object to `plot()` draws whatever that object holds, so
-`plot(estimate_effect(fit_bcf, by = ~ sex))` is a subgroup forest plot instead.
+`plot()` on the fit is the conditional effects on the response scale; passing a `<bartisan_effect>` object to `plot()` draws whatever that object holds, so `plot(estimate_effect(fit_bcf, by = ~ sex))` is a subgroup forest plot instead.
 
-Note that a conditional odds ratio is not the marginal one, and their average is
-not it either. That is the scale caution from earlier in a second place: an
-average of conditional contrasts equals the marginal contrast only when the
-contrast is a difference. For an identity link, which the next example uses, the
-ATE *is* the average of the conditional effects.
+Note that a conditional odds ratio is not the marginal one, and their average is not it either. That is the scale caution from earlier in a second place: an average of conditional contrasts equals the marginal contrast only when the contrast is a difference. For an identity link, which the next example uses, the ATE *is* the average of the conditional effects.
 
 ## A second example: a continuous outcome, and the ATT
 
-The catheterization question is about a whole population, so the ATE is the
-estimand. Many questions are not. When a program is offered to a particular group
-and the question is whether it helped *them*, the ATT is what to report, and the
-outcome is often continuous rather than binary.
+The catheterization question is about a whole population, so the ATE is the estimand. Many questions are not. When a program is offered to a particular group and the question is whether it helped *them*, the ATT is what to report, and the outcome is often continuous rather than binary.
 
-`lalonde`, from *cobalt*, is the standard example: a job training program, with
-earnings in 1978 as the outcome.
+`lalonde`, from *cobalt*, is the standard example: a job training program, with earnings in 1978 as the outcome.
 
 ```{r lalonde, eval = run && has_cobalt}
 data("lalonde", package = "cobalt")
@@ -323,18 +258,9 @@ data("lalonde", package = "cobalt")
 with(lalonde, tapply(re78, treat, mean))
 ```
 
-Participants earned less than non-participants. Taken at face value, the program
-looks harmful, but that doesn't mean it actually is: participants were selected
-for being out of work, so they would have earned less anyway. This is confounding
-in the opposite direction to the catheterization example, and it is why the raw
-comparison is worth showing before the adjusted one.
+Participants earned less than non-participants. Taken at face value, the program looks harmful, but that doesn't mean it actually is: participants were selected for being out of work, so they would have earned less anyway. This is confounding in the opposite direction to the catheterization example, and it is why the raw comparison is worth showing before the adjusted one.
 
-Below, we fit the BCF model, this time setting `family = dpm()`, which is the
-default for a numeric outcome and makes sense here. Earnings are heavily skewed
-with a spike at zero, which a single normal describes badly; the Dirichlet process
-mixture estimates the shape instead of assuming it, and costs almost nothing when
-a normal would have done. Alternatively, `family = tweedie()` can also work well
-for this type of outcome. See `vignette("families")`.
+Below, we fit the BCF model, this time setting `family = dpm()`, which is the default for a numeric outcome and makes sense here. Earnings are heavily skewed with a spike at zero, which a single normal describes badly; the Dirichlet process mixture estimates the shape instead of assuming it, and costs almost nothing when a normal would have done. Alternatively, `family = tweedie()` can also work well for this type of outcome. See `vignette("families")`.
 
 ```{r lalondefit, eval = run && has_cobalt}
 fit_earn_bcf <- bcf(
@@ -344,27 +270,18 @@ fit_earn_bcf <- bcf(
   chains = 4
 )
 
-summary(fit_earn_bcf, estimand = "ATT")
+estimate_effect(fit_earn_bcf, estimand = "ATT")
 ```
 
-`estimand = "ATT"` averages over the treated rather than over everyone, and
-`focal` is not needed because a 0/1 treatment settles which level is the treated
-one. Two cases do need it, and they differ. When the treatment has more than two
-levels, `focal` is required and naming it is the whole of the choice, since
-`"ATT"` and `"ATC"` then mean the same thing: the effect among the units in the
-level named. When it has two levels whose labels say nothing about which is which,
-the level order is assumed and a message says so, which `focal` silences.
+`estimand = "ATT"` averages over the treated rather than over everyone, and `focal` is not needed because a 0/1 treatment settles which level is the treated one. Two cases do need it, and they differ. When the treatment has more than two levels, `focal` is required and naming it is the whole of the choice, since `"ATT"` and `"ATC"` then mean the same thing: the effect among the units in the level named. When it has two levels whose labels say nothing about which is which, the level order is assumed and a message says so, which `focal` silences.
 
-The three blocks read as before, and the potential outcomes earn their place
-here: a few hundred dollars means something different against a baseline of six
-thousand than it would against six hundred.
+The potential outcomes earn their place here: a few hundred dollars means something different against a baseline of six thousand than it would against six hundred.
 
-Because the link is the identity, the ATT is exactly the average of the
-conditional effects among the treated, which is worth checking once to see that
-the two agree:
+Because the link is the identity, the ATT is exactly the average of the conditional effects among the treated, which is worth checking once to see that the two agree:
 
 ```{r lalondecate, eval = run && has_cobalt}
 att <- estimate_effect(fit_earn_bcf, estimand = "ATT")
+
 cate_att <- estimate_effect(fit_earn_bcf, estimand = "CATE",
                             newdata = subset(lalonde, treat == 1))
 
@@ -377,10 +294,7 @@ And the conditional effects, drawn:
 plot(cate_att)
 ```
 
-Most of the conditional effects are positive, as the ATT is, and none of their
-intervals excludes zero. That is the usual picture: a per-unit effect is estimated
-from far less information than an average, so the intervals are wide even where
-the average is clear.
+Most of the conditional effects are positive, as the ATT is, and none of their intervals excludes zero. That is the usual picture: a per-unit effect is estimated from far less information than an average, so the intervals are wide even where the average is clear.
 
 ## What the credible interval means
 

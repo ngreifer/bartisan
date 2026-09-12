@@ -61,6 +61,7 @@ model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
   hema + pafi + paco2 + crea + surv2m + card
 
 set.seed(2026)
+
 full <- bartisan(model, data = rhc, family = binomial())
 ```
 
@@ -100,8 +101,10 @@ the estimate is unreliable, and the remedy is held-out data rather than a
 different diagnostic:
 
 ```{r holdout, eval = FALSE}
-train <- rhc[1:1200, ]
-held  <- rhc[1201:nrow(rhc), ]
+train_id <- sample.int(nrow(rhc), 1200)
+
+train <- rhc[train_id, ]
+held  <- rhc[-train_id, ]
 
 fit <- bartisan(model, data = train, family = binomial())
 
@@ -114,10 +117,11 @@ This is the same quantity `elpd_loo` approximates, computed directly.
 
 ```{r compare, eval = run}
 set.seed(2026)
-demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
-                         family = binomial())
+demographics <- bartisan(death ~ rhc + age + sex + race + edu,
+                         data = rhc, family = binomial())
 
-loo_compare(list(full = loo(full), demographics = loo(demographics)))
+loo_compare(list(full = loo(full),
+                 demographics = loo(demographics)))
 ```
 
 The full model predicts better by around six times the standard error of the
@@ -144,7 +148,8 @@ probit <- bartisan(model, data = rhc, family = binomial("probit"))
 set.seed(2026)
 cloglog <- bartisan(model, data = rhc, family = binomial("cloglog"))
 
-loo_compare(list(logit = loo(full), probit = loo(probit),
+loo_compare(list(logit = loo(full),
+                 probit = loo(probit),
                  cloglog = loo(cloglog)))
 ```
 
@@ -155,12 +160,8 @@ that the link does not matter here.
 That is a useful negative result and worth reporting as one. It is also the
 usual outcome: with a flexible function on the inside, the link has little left
 to do, because the forest can absorb the difference between one link and
-another. This is not true of a linear model, where the link carries the whole
+another. This is not true of a generalized linear model, where the link carries the whole
 shape of the relationship.
-
-The one link worth thinking about separately is `"cloglog"`, which is asymmetric
-and is the right choice when the outcome is a discretized survival time. See
-`vignette("survival")`.
 
 ## The Scale of the Log Density
 

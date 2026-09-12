@@ -56,14 +56,18 @@ anything from a fit.
 ```{r libs, eval = run}
 library(bartisan)
 
-data("rhc")
+# For parallelization; optional
+if (rlang::is_installed("future")) {
+  future::plan(future::multisession)
+}
 
-model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
-  hema + pafi + paco2 + crea + surv2m + card
+data("rhc")
 
 set.seed(2026)
 
-fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
+fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+                  hema + pafi + paco2 + crea + surv2m + card,
+                data = rhc, family = binomial(), chains = 4)
 ```
 
 ## Convergence
@@ -158,11 +162,10 @@ One quantity is deliberately not in the table. The leaf prior scale, in
 `fit$sigma_mu`, mixes badly in every BART implementation: on one dataset its
 counterparts in *dbarts* and in *stochtree* come out at `rhat` 1.12 and 1.16
 with effective sample sizes of 22 and 17 out of 3000 draws, and *stochtree*
-draws it exactly from its full conditional, so no sampler can do better. The
-*BART* package avoids the question by never drawing it. It is a hyperparameter
+draws it exactly from its full conditional, so no sampler can do better. It is a hyperparameter
 whose disagreement between chains does not reach the fitted function, which on
 those same fits has `rhat` 1.00 and thousands of effective draws, so reporting it
-beside `eta` only produced an alarming row with nothing to act on. It is out of
+beside `eta` only produces an alarming row with nothing to act on. It is out of
 this table and only out of this table: the draws are in `fit$sigma_mu` and reach
 `as_draws()`, so it can still be diagnosed by anyone who wants to.
 
@@ -304,7 +307,7 @@ that put mass where the outcome cannot go. Simulating negative values for an
 outcome that cannot be negative says the family is wrong, and
 `vignette("families")` covers the alternatives.
 
-For a **binary** outcome it is a weak check, which is worth knowing before
+For a binary outcome it is a weak check, which is worth knowing before
 reading too much into it. There are only two values the replicates can take, so
 they will match the observed proportion unless the model has gone badly wrong;
 passing this check tells us almost nothing.
@@ -315,7 +318,7 @@ passing this check tells us almost nothing.
 them earn their place for a forest.
 
 The default compares whole distributions, which is a coarse question. A
-**test statistic** is a sharper one: `type = "stat"` compares any summary of the
+test statistic is a sharper one: `type = "stat"` compares any summary of the
 replicates with the same summary of the outcome, so the spread, a tail
 quantile, or the share of zeros can each be asked about on its own. The share of
 zeros is the one that finds an unmodeled point mass, which is what
@@ -330,9 +333,7 @@ pp_check(fit, type = "stat", stat = "sd")
 leave-one-out predictive distribution, which should leave a uniform if the model
 is calibrated, and the plot compares the result with one. A curve that leaves
 the band says the predictive spread is wrong even where the mean is right, which
-the default check cannot see. Note that this needs importance weights as well as
-draws; `pp_check()` computes them from the fit's own pointwise log likelihood, so
-there is nothing to pass.
+the default check cannot see.
 
 ```{r ppcloo, eval = run && has_bp && has_loo, fig.height = 2.8}
 pp_check(fit, type = "loo_pit_ecdf")
@@ -399,7 +400,7 @@ lowest pulled up. A strong slope is not expected, and a fan shape means the
 spread of the outcome depends on the predictors, which `gaussian_ls()` models
 directly.
 
-For a binary outcome the residuals take two values for any given fitted
+For a binary outcome, the residuals take two values for any given fitted
 probability and the plot is not informative; the calibration check above is what
 to use instead.
 

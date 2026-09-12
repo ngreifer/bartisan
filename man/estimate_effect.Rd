@@ -20,7 +20,7 @@ estimate_effect(
   plot = FALSE
 )
 
-\method{print}{bartisan_effect}(x, digits = 3L, contrasts = NULL, ...)
+\method{print}{bartisan_effect}(x, digits = 3L, contrasts = NULL, potential_outcomes = TRUE, ...)
 
 \method{plot}{bartisan_effect}(x, ...)
 }
@@ -195,7 +195,7 @@ estimate_effect(fit, by = ~ sex)
 }
 \seealso{
 \code{\link[=bcf]{bcf()}}, which fits the model this is usually called on;
-\code{\link[=summary.bcf_fit]{summary.bcf_fit()}}, which calls this with defaults and prints a compact
-block; \link{bartisan-marginaleffects} for the same estimands through
+\code{\link[=print.bcf_fit]{print.bcf_fit()}} for its other methods; \link{bartisan-marginaleffects} for the
+same estimands through
 \pkg{marginaleffects}, which also covers the ones not offered here
 }

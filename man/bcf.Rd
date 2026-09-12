@@ -215,7 +215,7 @@ heterogeneous effects of continuous exposures using Bayesian tree ensembles.
 \doi{10.48550/arXiv.2007.09845}
 }
 \seealso{
-\code{\link[=estimate_effect]{estimate_effect()}} for the average or conditional effect, and
-\code{\link[=summary.bcf_fit]{summary.bcf_fit()}}, which reports it; \code{\link[=bartisan]{bartisan()}} and \code{\link[=vc]{vc()}} for the
+\code{\link[=estimate_effect]{estimate_effect()}} for the average or conditional effect;
+\code{\link[=bartisan]{bartisan()}} and \code{\link[=vc]{vc()}} for the
 general interface this is written in terms of, and \code{vignette("causal")}.
 }

@@ -84,3 +84,9 @@ printed <- function(x, ...) {
 printed_text <- function(x, ...) {
   gsub("\\s+", " ", paste(printed(x, ...), collapse = " "))
 }
+
+# The same, with cli's box-drawing and bullet glyphs dropped, for matching a
+# phrase that a bullet may have prefixed.
+printed_plain <- function(x, ...) {
+  gsub("[^ -~]", "", printed_text(x, ...))
+}

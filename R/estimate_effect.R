@@ -127,8 +127,8 @@
 #' levels. See the \CRANpkg{adrftools} package for tools to visualize and summarize the effect of a continuous treatment.
 #'
 #' @seealso [bcf()], which fits the model this is usually called on;
-#'   [summary.bcf_fit()], which calls this with defaults and prints a compact
-#'   block; [bartisan-marginaleffects] for the same estimands through
+#'   [print.bcf_fit()] for its other methods; [bartisan-marginaleffects] for the
+#'   same estimands through
 #'   \pkg{marginaleffects}, which also covers the ones not offered here
 #'
 #' @examplesIf rlang::is_installed("ggplot2")
@@ -521,9 +521,39 @@ effect_pairs <- function(levs) {
   out
 }
 
+# A label that names the quantity rather than leaving it to the heading. `1 / 0`
+# is ambiguous between a ratio and a log odds ratio, and with numeric levels it
+# reads as arithmetic on the numbers themselves, so the level goes inside a
+# symbol: `Y[1]` cannot be misread as the number 1. `print()` prints one legend
+# line saying what `Y[]` and `O()` are, whatever the number of contrasts.
 contrast_label <- function(pair, comparison) {
-  sep <- if (comparison %in% c("difference")) " - " else " / "
-  paste0(as.character(pair[["hi"]]), sep, as.character(pair[["lo"]]))
+  hi <- sprintf("Y[%s]", as.character(pair[["hi"]]))
+  lo <- sprintf("Y[%s]", as.character(pair[["lo"]]))
+
+  switch(comparison,
+         difference = sprintf("%s - %s", hi, lo),
+         ratio = sprintf("%s / %s", hi, lo),
+         lnratio = sprintf("log(%s / %s)", hi, lo),
+         or = sprintf("O(%s) / O(%s)", hi, lo),
+         lnor = sprintf("log(O(%s) / O(%s))", hi, lo))
+}
+
+# The legend the labels above need, which depends on the comparison and on
+# whether an average or a single unit is being reported.
+contrast_legend <- function(comparison, treatment, estimand) {
+  what <- if (identical(estimand, "CATE")) {
+    sprintf("{.field Y[a]} is the predicted response for that unit with
+             {.val %s} set to {.emph a}", treatment)
+  } else {
+    sprintf("{.field Y[a]} is the average response with {.val %s} set to
+             {.emph a}", treatment)
+  }
+
+  if (comparison %in% c("or", "lnor")) {
+    paste0(what, ", and {.field O(y)} is the odds {.code y/(1-y)}.")
+  } else {
+    paste0(what, ".")
+  }
 }
 
 # The contrast itself, on two vectors of draws that are already whatever the
@@ -683,7 +713,7 @@ effect_po_summary <- function(po, keep, level, interval) {
       rowMeans() |>
       effect_summary(level, interval)
 
-    data.frame(level = nm,
+    data.frame(quantity = sprintf("Y[%s]", nm),
                estimate = s[["estimate"]],
                lower = s[["lower"]],
                upper = s[["upper"]],
@@ -696,9 +726,11 @@ effect_po_summary <- function(po, keep, level, interval) {
 
 #' @rdname estimate_effect
 #' @export
-print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL, ...) {
+print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
+                                  potential_outcomes = TRUE, ...) {
 
   arg::arg_whole_number(digits)
+  arg::arg_flag(potential_outcomes)
 
   estimand <- attr(x, "estimand")
   comparison <- attr(x, "comparison")
@@ -730,7 +762,27 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL, ...) {
   show <- effect_display(x, contrasts, focal)
 
   cli::cat_line()
-  print(effect_round(show, digits), row.names = FALSE)
+
+  if (identical(estimand, "CATE")) {
+    print(effect_round(cate_spread(show), digits), row.names = FALSE)
+  }
+  else {
+    print(effect_round(show, digits), row.names = FALSE)
+  }
+
+  # The two quantities the contrast is a contrast of, printed rather than left in
+  # an attribute: a difference of a few points means one thing against a
+  # baseline of .6 and another against .05, and a reader should not have to
+  # reach for `attr()` to see which.
+  po <- attr(x, "potential_outcomes")
+
+  if (potential_outcomes && !is_null(po)) {
+    cli::cat_line()
+    cli_cat("{.strong Average potential outcomes}")
+    cli::cat_line()
+    print(effect_round(as.data.frame(po), digits), row.names = FALSE)
+  }
+
   cli::cat_line()
 
   band <- switch(interval,
@@ -739,7 +791,14 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL, ...) {
 
   cli::cli_bullets(c(i = "{.field estimate} is the posterior mean;
                           {.field lower} and {.field upper} bound the
-                          {100 * level}% {band}."))
+                          {100 * level}% {band}.",
+                     i = contrast_legend(comparison, treatment, estimand)))
+
+  if (identical(estimand, "CATE")) {
+    cli::cli_bullets(c(i = "Quartiles of the per-unit estimates. The object
+                            itself holds one row per unit, with an interval
+                            each."))
+  }
 
   if (identical(estimand, "CATE") && !identical(comparison, "difference")) {
     cli::cli_bullets(c(i = "These are {.emph conditional} {comparison}s, and
@@ -823,8 +882,22 @@ effect_display <- function(x, contrasts, focal) {
   show[show[["contrast"]] %in% wanted, , drop = FALSE]
 }
 
+# The quartiles of the per-unit estimates, which say how much the effect varies
+# rather than how well any one unit is estimated.
+cate_spread <- function(show) {
+  do.call(rbind, lapply(split(show, show[["contrast"]]), function(z) {
+    q <- stats::quantile(z[["estimate"]], c(0, 0.25, 0.5, 0.75, 1),
+                         names = FALSE)
+    data.frame(contrast = z[["contrast"]][1L], units = nrow(z), min = q[1L],
+               q25 = q[2L], median = q[3L], q75 = q[4L], max = q[5L],
+               stringsAsFactors = FALSE)
+  })) |>
+    unrowname()
+}
+
 effect_round <- function(show, digits) {
-  for (nm in c("estimate", "lower", "upper")) {
+  for (nm in c("estimate", "lower", "upper", "min", "q25", "median", "q75",
+               "max")) {
     if (!is_null(show[[nm]])) {
       show[[nm]] <- signif(show[[nm]], digits)
     }
@@ -878,34 +951,58 @@ effect_forest_units <- function(x, ylab, null_at) {
     z <- z[order(z[["estimate"]]), , drop = FALSE]
     z[["rank"]] <- seq_len(nrow(z))
     z
-  }))
+  })) |>
+    unrowname()
 
-  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$rank, y = .data$estimate))
+  n <- max(d[["rank"]])
+
+  # The marginal effect goes beside the units rather than behind them. A band
+  # across the panel is the obvious way to draw it and the wrong one: it sits
+  # under every conditional interval, so the thing the reader most wants to
+  # locate is the thing hardest to see. One interval past the right edge, in its
+  # own color, is comparable by eye against any of them.
+  gap <- max(1, round(0.06 * n))
+  at <- n + gap + 1
+
+  # The marks shrink as the units multiply. At a few hundred they merge into a
+  # solid block at any fixed size, which loses the very thing the plot is for.
+  dot <- max(0.15, min(1.2, 60 / n))
+  bar_alpha <- max(0.35, min(0.9, 200 / n))
+  bar_width <- max(0.25, dot / 2)
+
+  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$rank, y = .data$estimate)) +
+    ggplot2::geom_hline(yintercept = null_at, linetype = 2, color = "grey40") +
+    ggplot2::geom_errorbar(ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
+                           width = 0, color = "grey60", alpha = bar_alpha,
+                           linewidth = bar_width) +
+    ggplot2::geom_point(size = dot)
 
   if (!is_null(marg)) {
     m <- as.data.frame(marg)
-    m <- m[match(unique(d[["contrast"]]), m[["contrast"]]), , drop = FALSE]
+    m <- m[m[["contrast"]] %in% unique(d[["contrast"]]), , drop = FALSE]
+    m[["rank"]] <- at
+
     p <- p +
-      ggplot2::geom_rect(data = m,
-                         ggplot2::aes(xmin = -Inf, xmax = Inf,
-                                      ymin = .data$lower, ymax = .data$upper),
-                         inherit.aes = FALSE, fill = "steelblue", alpha = 0.15) +
-      ggplot2::geom_hline(data = m,
-                          ggplot2::aes(yintercept = .data$estimate),
-                          color = "steelblue")
+      ggplot2::geom_vline(xintercept = n + gap / 2, color = "grey85") +
+      ggplot2::geom_errorbar(data = m,
+                             ggplot2::aes(ymin = .data$lower,
+                                          ymax = .data$upper),
+                             width = 0, linewidth = 1, color = "firebrick") +
+      ggplot2::geom_point(data = m, size = 2, color = "firebrick") +
+      ggplot2::scale_x_continuous(breaks = at, labels = "average",
+                                  limits = c(0, at + gap))
   }
 
   p <- p +
-    ggplot2::geom_hline(yintercept = null_at, linetype = 2, color = "grey40") +
-    ggplot2::geom_errorbar(ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
-                           width = 0, color = "grey60") +
-    ggplot2::geom_point(size = 0.8) +
     ggplot2::labs(x = NULL, y = ylab) +
     ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x = ggplot2::element_blank(),
-                   axis.ticks.x = ggplot2::element_blank(),
-                   panel.grid.major.x = ggplot2::element_blank(),
+    ggplot2::theme(panel.grid.major.x = ggplot2::element_blank(),
                    panel.grid.minor.x = ggplot2::element_blank())
+
+  if (is_null(marg)) {
+    p <- p + ggplot2::theme(axis.text.x = ggplot2::element_blank(),
+                            axis.ticks.x = ggplot2::element_blank())
+  }
 
   if (length(unique(d[["contrast"]])) > 1L) {
     p <- p + ggplot2::facet_wrap(~ .data$contrast)

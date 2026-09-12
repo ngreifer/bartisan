@@ -6689,3 +6689,72 @@ and wants its own pass, in rough order of severity:
 
 None of these is wrong, which is why none of them was urgent; they are the cost
 of a package whose help pages were written before its vignettes.
+
+## The duplication pass, and three changes to how an effect prints
+
+### What the effect object prints
+
+`print()` on a `<bartisan_effect>` now shows the average potential outcomes
+beneath the contrast, because a difference of a few points means one thing
+against a baseline of .6 and another against .05 and a reader should not have to
+reach for `attr()` to see which. `potential_outcomes = FALSE` turns it off.
+
+That made `summary.bcf_fit` redundant, so it is gone. `summary()` on a
+`<bcf_fit>` is now the same summary of the forests it is on any other fit, with
+a line at the end naming `estimate_effect()`, in the manner of *adrftools*'
+`print.effect_curve()`. The point is that the same call means the same thing
+whether the model came from `bcf()` or from `bartisan()` with a `vc()` term;
+before this, one printed forests and the other printed an effect.
+
+`print()` on a `CATE` object was unusable and is fixed in passing: it dumped one
+row per unit, which is 1500 rows on `rhc`. It now reports the quartiles of the
+per-unit estimates, which is what `summary.bcf_fit` used to show, and says the
+rows are still in the object.
+
+### The contrast label names the quantity
+
+`1 / 0` cannot distinguish a ratio from a log odds ratio, and with numeric levels
+it reads as arithmetic on the numbers themselves. Four options were laid out:
+
+- **the comparison in a second column** relocates the ambiguity rather than
+  removing it, since `1 / 0` still appears, and spends a column on something
+  constant within a call;
+- **a formula in the level names**, `log(O(1) / O(0))`, is self-describing and
+  needs no legend, but `log(1 / 0)` reads as the log of one over zero, which is
+  worse than the status quo in the commonest case;
+- **`E[y|z=1]` notation** needs no legend at all and runs to 35 characters,
+  repeating the treatment's name in every cell;
+- **a formula in symbolic means**, `log(O(Y[1]) / O(Y[0]))`, cannot be misread
+  because the bracket marks the level as an index, scales to any level names, and
+  costs one legend line per call however many rows the table has.
+
+The last one is in, and it is what *lmw* does. `print()` prints the legend, with
+the odds clause only where an odds appears.
+
+### The forest plot
+
+The marginal effect was a band across the panel, which put it underneath every
+conditional interval: the one quantity a reader wants to locate was the hardest
+to see. It is now a single interval past the right edge in its own color, with a
+rule separating it and an axis label. The marks also scale with the unit count,
+since at a thousand units a fixed point size merges into a solid block and loses
+the spread the plot exists to show.
+
+### The duplication list
+
+Acted on, in severity order: the lalonde atom-at-zero figures that were the same
+sentences in `R/control.R` and `R/marginaleffects.R`; the within-chain drift
+calibrations in `R/diagnose.R`; the `vc()` naming example that was byte-identical
+in `R/bartisan.R` and `R/varying.R`, which now defers to `vc()`; the
+default-family lookup table, which `bartisan()` owns since `family` is its
+argument and `R/families.R` now points at, keeping only the two deliberate
+non-inferences; the accelerated failure time level derivation, compressed to the
+claim and the per-family answer with the table left to `vignette("survival")`;
+`num_bins`, whose sweep the vignette owns; and the per-forest recycling rule,
+which `bartisan_control()` owns while `R/families.R` claims the table of forest
+names as canonical.
+
+What remains is the family capability table, in `R/families.R` and
+`vignette("families")` in two different orders. Both are wanted, the help page as
+a reference and the vignette as an opening, so the roxygen copy is now marked as
+the canonical one rather than being cut.

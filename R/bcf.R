@@ -133,8 +133,8 @@
 #' machine precision. Supplying `propensity` as a number rather than fitting it
 #' has the same effect, and then `newdata` must carry the column.
 #'
-#' @seealso [estimate_effect()] for the average or conditional effect, and
-#'   [summary.bcf_fit()], which reports it; [bartisan()] and [vc()] for the
+#' @seealso [estimate_effect()] for the average or conditional effect;
+#'   [bartisan()] and [vc()] for the
 #'   general interface this is written in terms of, and `vignette("causal")`.
 #'
 #' @references

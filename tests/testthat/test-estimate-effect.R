@@ -145,7 +145,8 @@ test_that("more than two treatment levels gives every pairwise contrast", {
   ate <- estimate_effect(fit)
   expect_identical(nrow(ate), 3L)
   expect_setequal(ate[["contrast"]],
-                  c("mid - low", "high - low", "high - mid"))
+                  c("Y[mid] - Y[low]", "Y[high] - Y[low]",
+                    "Y[high] - Y[mid]"))
 
   # `focal` has no default with three levels, since which group is the treated
   # one is not something the data says.
@@ -157,11 +158,11 @@ test_that("more than two treatment levels gives every pairwise contrast", {
 
   # Everything is computed; `contrasts` is display only.
   shown <- printed(att)
-  expect_true(any(grepl("high - low", shown, fixed = TRUE)))
-  expect_false(any(grepl("mid - low", shown, fixed = TRUE)))
+  expect_true(any(grepl("Y[high] - Y[low]", shown, fixed = TRUE)))
+  expect_false(any(grepl("Y[mid] - Y[low]", shown, fixed = TRUE)))
 
   all_shown <- printed(att, contrasts = "all")
-  expect_true(any(grepl("mid - low", all_shown, fixed = TRUE)))
+  expect_true(any(grepl("Y[mid] - Y[low]", all_shown, fixed = TRUE)))
 
   expect_error(print(att, contrasts = "nope - nope"), "does not have")
 })
@@ -236,33 +237,112 @@ test_that("the plot argument and the plot method draw the same thing", {
   }
 })
 
-test_that("summary() and plot() on a bcf fit report the effect", {
+test_that("print() reports the effect, its potential outcomes and its spread", {
   skip_if_not_installed("ggplot2")
 
   d <- sim_effect(seed = 12L)
   fit <- fit_effect(d)
 
+  eff <- estimate_effect(fit)
+  out <- printed(eff)
+
+  # The two quantities the contrast is a contrast of, printed rather than left
+  # in an attribute for the reader to find.
+  expect_true(any(grepl("Average potential outcomes", out, fixed = TRUE)))
+  expect_true(any(grepl("Y[0]", out, fixed = TRUE)))
+  expect_true(any(grepl("Y[1]", out, fixed = TRUE)))
+  expect_false(any(grepl("Average potential outcomes",
+                         printed(eff, potential_outcomes = FALSE),
+                         fixed = TRUE)))
+
+  # A CATE object has one row per unit, so printing it whole is unusable; the
+  # spread is what it reports instead, and the rows are still in the object.
+  cate <- estimate_effect(fit, estimand = "CATE")
+  expect_identical(nrow(cate), nrow(d))
+  spread <- printed(cate)
+  expect_match(printed_text(cate), "Quartiles of the per-unit estimates")
+  expect_true(any(grepl("median", spread, fixed = TRUE)))
+  # One row printed, not one per unit, which is the whole point of the change.
+  expect_length(grep("Y\\[1\\] - Y\\[0\\]", spread), 1L)
+
+  # `summary()` on a bcf fit is the same summary of the forests it is on any
+  # other fit, and says where the effect is reported instead.
   s <- summary(fit)
-  expect_s3_class(s, "summary.bcf_fit")
-  expect_s3_class(s[["effect"]], "bartisan_effect")
-  expect_identical(nrow(s[["potential_outcomes"]]), 2L)
-  expect_true(all(c("min", "q25", "median", "q75", "max") %in%
-                    names(s[["cate"]])))
+  expect_s3_class(s, "summary.bartisan_fit")
+  expect_identical(s[["treatment"]], "z")
+  expect_match(printed_text(s), "estimate_effect")
 
-  # `summary()` is `estimate_effect()` with defaults, so it must not disagree.
-  expect_equal(s[["effect"]][["estimate"]],
-               estimate_effect(fit)[["estimate"]], tolerance = 1e-8)
-
-  out <- printed(s)
-  expect_true(any(grepl("Potential outcomes", out, fixed = TRUE)))
+  # And on a fit with no treatment it says nothing of the kind.
+  plain <- suppressMessages(suppressWarnings(
+    bartisan(y ~ x1 + x2, d, family = stats::gaussian(),
+             control = quick_control())))
+  expect_null(summary(plain)[["treatment"]])
+  expect_false(grepl("estimate_effect", printed_text(summary(plain))))
 
   # `plot()` on the fit is the CATE forest, which is `plot()` on that object.
   expect_equal(plot(fit)[["data"]],
                plot(estimate_effect(fit, estimand = "CATE"))[["data"]])
+  expect_true(any(grepl("estimate_effect", printed(fit))))
+})
 
-  # And the class prepend left every inherited method reachable.
-  expect_s3_class(fit, "bartisan_fit")
-  expect_match(printed_text(fit), "estimate_effect")
+test_that("the contrast label names the quantity, not just the levels", {
+  d <- sim_effect(seed = 18L, binary = TRUE)
+  fit <- fit_effect(d, binary = TRUE)
+
+  # `1 / 0` cannot distinguish a ratio from a log odds ratio, and with numeric
+  # levels it reads as arithmetic on the numbers. The label carries the
+  # quantity, and the level sits inside a symbol so it cannot be misread.
+  expect_identical(estimate_effect(fit)[["contrast"]], "Y[1] - Y[0]")
+  expect_identical(estimate_effect(fit, comparison = "ratio")[["contrast"]],
+                   "Y[1] / Y[0]")
+  expect_identical(estimate_effect(fit, comparison = "lnratio")[["contrast"]],
+                   "log(Y[1] / Y[0])")
+  expect_identical(estimate_effect(fit, comparison = "or")[["contrast"]],
+                   "O(Y[1]) / O(Y[0])")
+  expect_identical(estimate_effect(fit, comparison = "lnor")[["contrast"]],
+                   "log(O(Y[1]) / O(Y[0]))")
+
+  # And the legend that makes the symbol readable is printed, with the odds
+  # clause only where an odds appears.
+  expect_match(printed_text(estimate_effect(fit)),
+               "Y\\[a\\] is the average response")
+  expect_match(printed_text(estimate_effect(fit, comparison = "lnor")),
+               "is the odds")
+  expect_false(grepl("is the odds", printed_text(estimate_effect(fit))))
+
+  # A factor treatment puts its level names in, so no legend entry is needed
+  # per contrast however many there are.
+  d3 <- sim_effect(seed = 19L, levels = 3L)
+  f3 <- fit_effect(d3)
+  expect_setequal(estimate_effect(f3)[["contrast"]],
+                  c("Y[mid] - Y[low]", "Y[high] - Y[low]",
+                    "Y[high] - Y[mid]"))
+})
+
+test_that("the marginal effect is drawn beside the units, not behind them", {
+  skip_if_not_installed("ggplot2")
+
+  d <- sim_effect(seed = 20L)
+  fit <- fit_effect(d)
+  p <- plot(estimate_effect(fit, estimand = "CATE"))
+
+  # A band across the panel put the marginal effect under every conditional
+  # interval, which is the one thing a reader wants to locate. It is now its own
+  # interval past the right edge, so there is no `geom_rect` and there is a
+  # layer whose data holds exactly one row per contrast.
+  geoms <- vapply(p[["layers"]], function(l) class(l[["geom"]])[1L],
+                  character(1L))
+  expect_false("GeomRect" %in% geoms)
+
+  marginal_layer <- vapply(p[["layers"]], function(l) {
+    is.data.frame(l[["data"]]) && nrow(l[["data"]]) == 1L &&
+      "rank" %in% names(l[["data"]])
+  }, logical(1L))
+  expect_true(any(marginal_layer))
+
+  # And it sits to the right of every unit.
+  marg <- p[["layers"]][[which(marginal_layer)[1L]]][["data"]]
+  expect_gt(marg[["rank"]][1L], nrow(d))
 })
 
 test_that("intervening on the treatment leaves the propensity score alone", {
@@ -378,7 +458,7 @@ test_that("a newdata holding one arm is still a contrast", {
                           newdata = subset(d, z == 1))
 
   expect_identical(nrow(cate), sum(d$z == 1))
-  expect_identical(unique(cate[["contrast"]]), "1 - 0")
+  expect_identical(unique(cate[["contrast"]]), "Y[1] - Y[0]")
 
   # Which is the same set of units the ATT averages over, so on an identity
   # link the two must agree exactly.
@@ -398,5 +478,5 @@ test_that("a newdata holding one arm is still a contrast", {
                              newdata = subset(d, zf == "trt"))
 
   expect_identical(nrow(one_arm), sum(d$zf == "trt"))
-  expect_identical(unique(one_arm[["contrast"]]), "trt - ctrl")
+  expect_identical(unique(one_arm[["contrast"]]), "Y[trt] - Y[ctrl]")
 })

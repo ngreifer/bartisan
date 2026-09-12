@@ -57,17 +57,9 @@ bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = gaussian_ls())
 }\if{html}{\out{</div>}}
 
 \code{\link[=vc]{vc()}} terms are read out of each formula in turn, so a parameter has the
-varying coefficients its own formula asks for and no others. That makes the
-forests two-dimensional (one axis the parameter, the other the coefficient),
-and the names below are what per-forest settings are keyed by:
-
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{# forests: mean, mean:z, log_sd
-bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-         family = gaussian_ls())
-
-# one formula reaches every parameter, so both get a coefficient of `z`
-bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
-}\if{html}{\out{</div>}}}
+varying coefficients its own formula asks for and no others, which makes the
+forests two-dimensional (one axis the parameter, the other the coefficient).
+\code{\link[=vc]{vc()}} documents how they are then named and keyed.}
 
 \item{data}{a data frame containing the variables named in \code{formula}.}
 

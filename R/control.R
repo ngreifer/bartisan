@@ -738,10 +738,5 @@ resolve_augment <- function(augment) {
     return(character())
   }
 
-  # Every rewriting, under either kind of rule. The negative binomial was
-  # excluded under soft rules on a measurement that did not replicate: at 15
-  # replicates it is 1.18x faster there with an effective sample size ratio whose
-  # interval straddles 1, so 1.31x the effective draws per second rather than the
-  # 0.8x once recorded.
   c("binomial", "ordinal", "multinomial", "zip", "zinb", "aft", "negbin")
 }

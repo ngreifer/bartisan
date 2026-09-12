@@ -81,7 +81,9 @@ catheterization.
 set.seed(2026)
 
 # For parallelization; optional
-future::plan(future::multisession)
+if (rlang::is_installed("future")) {
+  future::plan(future::multisession)
+}
 
 fit <- bartisan(
   death ~ rhc + age + sex + race + edu + aps + meanbp + resp + hema +
