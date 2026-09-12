@@ -6758,3 +6758,110 @@ What remains is the family capability table, in `R/families.R` and
 `vignette("families")` in two different orders. Both are wanted, the help page as
 a reference and the vignette as an opening, so the roxygen copy is now marked as
 the canonical one rather than being cut.
+
+## The binary-outcome check, and a comparison that was described but never run
+
+### `pp_check()` was feeding probabilities' worth of questions to zeros and ones
+
+A binned residual plot and a calibration plot both bin their second argument and
+read the outcome within each bin. Replicate outcomes are zeros and ones, so every
+bin held one value and every binned mean came back as exactly 0 or exactly 1:
+`ppc_error_binned` drew two points per facet and `ppc_calibration` drew a flat
+line at the outcome's own mean. Neither errored, and both looked like plots.
+
+The fix is the one *rstanarm* makes for the same two: pass the mean of the
+predictive distribution rather than a draw from it. `ppc_calibration()` names
+that argument `prep`, and its own family disagrees about whether `prep` or `yrep`
+comes second, so it is passed by name. `ppc_loo_calibration()` is not in the set
+— it takes replicates and forms the leave-one-out probabilities itself, which is
+why it was the one calibration check that had always worked.
+
+The test asserts the binned means are strictly inside the unit interval, which is
+what separates probabilities from what used to arrive; before the fix there were
+exactly two distinct values and they were 0 and 1.
+
+### `vignette("bartisan")` disclaimed its own check
+
+The fit vignette ran `pp_check()` on a binary outcome with `eval = FALSE` and
+then explained that the check says nothing there. It now runs
+`type = "loo_calibration"`, which is the check that does say something and holds
+each patient out of the probability it judges them against.
+`vignette("diagnostics")` owns the reading of it; the intro shows it and defers.
+The hand-rolled ten-line calibration plot in the diagnostics vignette is gone
+with it, since the package now draws the same thing honestly in one call.
+
+### The logistic regression comparison
+
+`vignette("comparison")` had a section saying a comparison against a Bayesian
+logistic regression was worth doing and describing how, without doing it. It now
+fits one with `rstanarm::stan_glm()` — precompiled, so it costs about three
+seconds and no toolchain — and the result is the useful negative: 16 coefficients
+predict this outcome as well as the forest, which is the honest report that the
+log-odds are close to linear here. `p_loo` carries the other half, about 17
+against the forest's 33.
+
+`loo_compare()` warns that the responses differ. They do not: the hash is
+*rstanarm*'s own convention, computed with `digest::sha1()` on its stored
+response, and ours is stored as double where theirs is integer, so the hashes
+would disagree for identical data. Attaching one would make the warning fire
+falsely rather than stop firing, so the vignette explains the warning instead.
+
+### Every print method was writing half its output to stderr
+
+Found by looking at the knitted `vignette("bartisan")` to check that the
+potential outcomes had appeared: they had, and `diagnose()` two sections above
+showed a bold **What to do** heading with nothing whatever under it.
+
+`cli::cli_bullets()` writes to stderr. `cli::cat_line()`, which `cli_cat()`
+wraps, writes to stdout. Every print method in the package mixed the two, so the
+tables and headings reached a knitted document and the bullets did not. What was
+being lost: every line of `diagnose()`'s advice, the legend naming the levels in
+`estimate_effect()`'s contrast labels, the note that a CATE ratio is a
+conditional one, `print.bcf_fit()`'s pointer to `estimate_effect()`, and
+`variable_importance()`'s warning that `prop_used` cannot be read as a selection
+rule under `sparsity = FALSE`. All of it invisible in `capture.output()`, in
+every vignette, and in anything else that redirects.
+
+The rule was already written down, in `R/methods.R` above `print_header()`:
+print methods use cli's `cat_*` functions because `cli_text()` emits on stderr
+and would be invisible to `capture.output()` and to knitr. The `cli_bullets()`
+call sites never applied it.
+
+`cli_bullets_cat()` in `R/utils.R` renders the same call through `cli::cli_fmt()`
+and cats the result. Rendering is byte-identical — bullets, glyphs, wrapping,
+`{.val }` styling — and only the stream changes, which was checked both ways
+before replacing the eleven call sites. Indentation inside the message strings
+moved with the shorter function name and does not matter, since cli collapses
+whitespace; that was checked too rather than assumed.
+
+`test-invariants.R` now asserts that eight print methods write nothing at all to
+stderr, and that the two passages that were lost are present on stdout.
+
+### Eight section titles that counted instead of naming
+
+`vignette("survival")`, `vignette("effects")` and `vignette("importance")` had
+titles that announced a count rather than a subject: "Two Estimands, Not Three",
+"A Comparison Across Six Truths", "Three Traps", "Three Questions". A reader
+scanning the table of contents learns nothing from a number, and the surrounding
+titles in all three vignettes are descriptive noun phrases, often carrying the
+function or argument in parentheses. Two more began with an interrogative, which
+reads as a rhetorical setup rather than a heading.
+
+| was | is |
+| --- | --- |
+| Two Estimands, Not Three | Time Ratios and Hazard Ratios |
+| Where the Level Sits | The Level Each Family Reports |
+| A Comparison Across Six Truths | The Families Compared by Simulation |
+| Three Traps | Details That Are Easy to Get Wrong |
+| Three Questions | Predictions, Comparisons, and Slopes |
+| The Step for a Numeric Predictor (`variables`) | Choosing the Step (`variables`) |
+| What These Estimates Are Not | Descriptions of the Fitted Model |
+| What Importance Does Not Measure | The Limits of a Usage Ranking |
+
+Each new title is the sentence the section already opens with: "Predictions,
+Comparisons, and Slopes" over a section whose three paragraphs bold exactly those
+words, "Descriptions of the Fitted Model" over "Everything here is a description
+of the fitted model." The one prose cross-reference, a comment in the setup chunk
+of `vignette("survival")` naming the simulation section, moved with them. The
+records above this line keep the old titles because they are records of when
+those titles were current.

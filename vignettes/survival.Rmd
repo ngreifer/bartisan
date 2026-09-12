@@ -7,7 +7,7 @@ output:
     toc: yes
 vignette: >
   %\VignetteIndexEntry{Survival analysis in bartisan}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
 link-citations: true
@@ -30,7 +30,7 @@ has_gg <- rlang::is_installed("ggplot2")
 has_surv <- rlang::is_installed("survival")
 
 # Precomputed by _dev/survival-sim.R and friends, so that this vignette builds
-# without refitting anything. See the section "A Comparison Across Six Truths".
+# without refitting anything. See "The Families Compared by Simulation".
 res <- readRDS("survival-results.rds")
 
 # One consistent ordering of the families and the truths across every table and
@@ -155,25 +155,6 @@ They differ only in the error's shape, and therefore in the shape of the hazard.
 
 In practice the log-logistic and log-normal are hard to tell apart from data and the Weibull is distinguishable from both, so the informative comparison is Weibull against either of the other two, by `loo()`.
 
-### A Free Baseline Hazard (`ph()`)
-
-`ph()` gives up on a parametric time distribution and models the hazard instead [@basak2024]:
-
-$$\lambda(t \mid x) = \lambda_0(t)\exp\{r(x)\},$$
-
-with $\lambda_0$ constant within each of `num_bins` pieces whose edges sit at evenly spaced quantiles of the observed times. This is the piecewise-exponential proportional hazards model with a forest on the log hazard ratio. The baseline can take any shape at all, including one that turns over, which none of the three parametric families can do.
-
-```{r phfit}
-fit_ph <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
-                   family = ph(), control = ctrl)
-
-head(round(colMeans(fit_ph$aux), 3))
-```
-
-The bin hazards come back as `lambda1`, `lambda2`, … alongside `lambda_rate`, the drawn rate of their own Gamma prior; the hazards are shrunk toward each other through it, which is what keeps a fine grid from overfitting.
-
-One point of interpretation matters here. The predictor and the baseline are identified only *jointly*: multiplying $\lambda_0$ by a constant and subtracting its log from $r(x)$ leaves the likelihood unchanged. The fit resolves this by letting the baseline carry the level and reporting $r(x)$ centered, so **`fit_ph`'s predictor is a contrast, not a level**. Differences between two values of $r$ are meaningful; a single value is not.
-
 ### An Estimated Error Distribution (`dpm_aft()`)
 
 `dpm_aft()` is an accelerated failure time model with the shape of the error left free [@henderson2020], and is the family used when a `Surv` response is given and no `family` is named:
@@ -208,7 +189,26 @@ ggplot(ed, aes(at, mean)) +
 
 Because the mixture can collapse to a single component, it costs almost nothing when a single normal was the right answer, which is the property that makes it a reasonable default rather than a specialist tool. Nor does it cost much time: conditional on which component each observation sits in, the model is Gaussian, so it takes the same fast path `lognormal_aft()` does and the mixture update on top is cheap. It runs at about twice `lognormal_aft()`'s cost and a third of `weibull_aft()`'s.
 
-## Two Estimands, Not Three
+### A Free Baseline Hazard (`ph()`)
+
+`ph()` gives up on a parametric time distribution and models the hazard instead [@basak2024]:
+
+$$\lambda(t \mid x) = \lambda_0(t)\exp\{r(x)\},$$
+
+with $\lambda_0$ constant within each of `num_bins` pieces whose edges sit at evenly spaced quantiles of the observed times. This is the piecewise-exponential proportional hazards model with a forest on the log hazard ratio. The baseline can take any shape at all, including one that turns over, which none of the three parametric families can do.
+
+```{r phfit}
+fit_ph <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
+                   family = ph(), control = ctrl)
+
+head(round(colMeans(fit_ph$aux), 3))
+```
+
+The bin hazards come back as `lambda1`, `lambda2`, … alongside `lambda_rate`, the drawn rate of their own Gamma prior; the hazards are shrunk toward each other through it, which is what keeps a fine grid from overfitting.
+
+One point of interpretation matters here. The predictor and the baseline are identified only *jointly*: multiplying $\lambda_0$ by a constant and subtracting its log from $r(x)$ leaves the likelihood unchanged. The fit resolves this by letting the baseline carry the level and reporting $r(x)$ centered, so **`fit_ph`'s predictor is a contrast, not a level**. Differences between two values of $r$ are meaningful; a single value is not.
+
+## Time Ratios and Hazard Ratios
 
 The five families report two genuinely different comparative quantities, and the difference matters because they move in opposite directions.
 
@@ -218,7 +218,7 @@ The five families report two genuinely different comparative quantities, and the
 
 `weibull_aft()` is the one family that supports both readings at once, and that is a property of its *error* rather than of its structural part, which it shares with the other three. The smallest extreme value error is the only one that makes an accelerated failure time model a proportional hazards model as well, so a Weibull fit with shape $k = 1/\sigma$ carries a log hazard ratio of $-k\,\Delta\eta$ alongside its log time ratio of $\Delta\eta$. Away from the Weibull there is no such correspondence at all.
 
-### Where the Level Sits
+### The Level Each Family Reports
 
 The contrast is a log time ratio in all four, but $e^{\eta}$ on its own is a different functional of $T$ in each, because the families pin their error's location differently. This matters only when the level is read directly rather than compared.
 
@@ -250,7 +250,7 @@ library(marginaleffects)
 avg_comparisons(fit_ph, variables = "trt", type = "survival", times = 5)
 ```
 
-One time per call. *marginaleffects* warns that it does not recognize `times`, because it checks the dots against a whitelist hardcoded per model class and offers no hook for registering an argument; it passes the argument through regardless and the result is correct. The warning is suppressed here.
+One time per call. *marginaleffects* may warn that it does not recognize `times`, because it checks the dots against a whitelist hardcoded per model class and offers no hook for registering an argument; it passes the argument through regardless and the result is correct. The warning is suppressed here.
 
 This works identically for all five families. It is the reason `type = "survival"` exists rather than leaving the curve to be assembled by hand from the draws, and it is the way we recommend reporting a survival model from this package: it sidesteps the estimand mismatch above, it comes with a posterior interval, and it is comparable across families in a way that the predictors are not.
 
@@ -291,7 +291,7 @@ ggplot(haz, aes(t, h, group = interaction(family, label))) +
 
 `dpm_aft()` is not in the figure because its hazard shape is whatever the fitted error mixture implies, which can be multi-modal (i.e., have more than one peak), something none of the other four can produce.
 
-## A Comparison Across Six Truths
+## The Families Compared by Simulation
 
 `r sprintf("The simulation behind this section fits each family to %d training observations and scores it on %d held-out observations, with %d trees and %d draws after %d warmup, over %d replicates and at about 30%% censoring.", res$meta$n_train, res$meta$n_test, res$meta$num_trees, res$meta$num_draws, res$meta$num_burn, res$meta$n_rep)`
 The script is `_dev/survival-sim.R` in the package sources.
@@ -536,7 +536,7 @@ Three further costs. The expansion inflates the data, so a large study with a fi
 
 **When to use it.** When there is a substantive reason to expect the covariate effect to move with time (e.g., a treatment whose benefit accrues or wears off, a risk factor that matters only early). Not as a hedge: under proportional hazards it is the most expensive option in the comparison, so reaching for it "just in case" costs about as much as being wrong about the error distribution. If the question is whether hazards are proportional, fitting it alongside `ph()` and comparing the fitted curves is a reasonable diagnostic; adopting it by default is not.
 
-## Three Traps
+## Details That Are Easy to Get Wrong
 
 ### The Measure Behind the Log Score (`type = "density"`) {#measure}
 

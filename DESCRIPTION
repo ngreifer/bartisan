@@ -54,6 +54,7 @@ Suggests:
     posterior,
     progressr,
     rmarkdown,
+    rstanarm,
     rstantools,
     survival,
     collapse,

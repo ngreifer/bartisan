@@ -124,6 +124,15 @@
 #' \pkgfun{bayesplot}{ppc_loo_calibration} wants a binary response besides,
 #' which is its own requirement rather than this package's.
 #'
+#' The two calibration checks are the ones to reach for when the response is
+#' binary, since the default check compares two distributions that can only take
+#' two values and so finds nothing. `type = "loo_calibration"` is the honest
+#' one, holding each observation out of the probability it is judged against;
+#' `type = "calibration"` is its in-sample counterpart and reads optimistically.
+#' A binned residual plot (`type = "error_binned"`) and either calibration check
+#' are about the predicted probabilities rather than replicate outcomes, so they
+#' are passed the mean of the predictive distribution instead of a draw from it.
+#'
 #' ## What a Posterior Predictive Draw Is On
 #'
 #' The replicate outcomes are on the scale the likelihood was written on, which
@@ -743,10 +752,37 @@ pp_check.bartisan_fit <- function(object, type = "dens_overlay", ndraws = 10, ..
     sample.int(num_draws, size = min(ndraws, num_draws))
   }
 
-  yrep <- posterior_predict.bartisan_fit(object, iterations = iterations)
+  # A binned residual plot and a calibration plot are about the predicted
+  # probabilities, not about replicate outcomes: both bin the second argument
+  # and read the outcome within each bin, which a vector of zeros and ones
+  # gives two degenerate bins of. So those checks get the mean of the
+  # predictive distribution rather than a draw from it, which is what rstanarm
+  # passes for the same two. `ppc_loo_calibration()` is not among them: it
+  # takes replicates and forms the leave-one-out probabilities itself.
+  epred_check <- type %in% c("error_binned", "calibration",
+                             "calibration_grouped", "calibration_overlay",
+                             "calibration_overlay_grouped")
 
-  do.call(getExportedValue("bayesplot", fun),
-          c(list(observed_response(object), yrep), dots))
+  reps <- if (epred_check) {
+    epred <- posterior_epred.bartisan_fit(object)
+
+    if (is.null(iterations)) epred else epred[iterations, , drop = FALSE]
+  }
+  else {
+    posterior_predict.bartisan_fit(object, iterations = iterations)
+  }
+
+  # `ppc_calibration()` names that argument `prep`, and takes `yrep` as an
+  # alternative it converts; the two differ in position between the members of
+  # its own family, so it is named rather than passed along.
+  args <- if (startsWith(type, "calibration")) {
+    c(list(observed_response(object), prep = reps), dots)
+  }
+  else {
+    c(list(observed_response(object), reps), dots)
+  }
+
+  do.call(getExportedValue("bayesplot", fun), args)
 }
 
 # ---------------------------------------------------------------------------

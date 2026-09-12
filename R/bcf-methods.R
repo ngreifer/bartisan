@@ -54,9 +54,9 @@ print.bcf_fit <- function(x, digits = 3L, ...) {
     cli_cat("Effect moderators: {.val {x$bcf$moderators}}")
   }
 
-  cli::cli_bullets(c(i = "{.fn estimate_effect} reports the treatment effect,
-                          with the average potential outcomes beside it;
-                          {.fn plot} draws the conditional ones."))
+  cli_bullets_cat(c(i = "{.fn estimate_effect} reports the treatment effect,
+                        with the average potential outcomes beside it;
+                        {.fn plot} draws the conditional ones."))
 
   invisible(x)
 }

@@ -131,18 +131,21 @@ test_that("the print method says which reading the fit supports", {
 
   # The interval columns are in the object and out of the printed table, and
   # `sparsity = FALSE` is called out because it is what makes `prop_used`
-  # unreadable as a selection rule.
-  # The table goes to stdout and the notes below it are cli bullets, which are
-  # conditions rather than printed output, so the two are captured separately.
+  # unreadable as a selection rule. Both the table and the notes below it go to
+  # stdout, so the header row is what says which columns were printed; the note
+  # naming the two interval columns is itself one of the lines captured.
   shown <- capture.output(print(variable_importance(on_fit)))
-  notes <- capture_messages(print(variable_importance(on_fit)))
+  header <- grep("prop_used", shown, value = TRUE)
 
-  expect_false(any(grepl("splits_lower", shown)))
-  expect_true(any(grepl("95% interval", notes)))
-  expect_false(any(grepl("sparsity = FALSE", notes)))
+  expect_length(header, 1L)
+  expect_false(any(grepl("splits_lower", header)))
 
-  notes_off <- capture_messages(print(variable_importance(off_fit)))
-  expect_true(any(grepl("sparsity = FALSE", notes_off)))
+  expect_match(printed_text(variable_importance(on_fit)), "95% interval")
+  expect_no_match(printed_text(variable_importance(on_fit)),
+                  "sparsity = FALSE", fixed = TRUE)
+
+  expect_match(printed_text(variable_importance(off_fit)), "sparsity = FALSE",
+               fixed = TRUE)
 
   # And a subset still prints, which it cannot do by carrying the attributes.
   expect_output(print(subset(variable_importance(on_fit), prop_used > 0)),

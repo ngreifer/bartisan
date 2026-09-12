@@ -661,4 +661,46 @@ test_that("a binary response reaches the calibration check", {
     suppressMessages(suppressWarnings(
       bayesplot::pp_check(fit, type = "loo_calibration"))),
     "ggplot")
+
+  expect_s3_class(
+    suppressMessages(suppressWarnings(
+      bayesplot::pp_check(fit, type = "calibration"))),
+    "ggplot")
+})
+
+# A binned residual plot and a calibration plot bin their second argument and
+# read the outcome within each bin, so replicate outcomes give two degenerate
+# bins: every binned mean came back as exactly 0 or exactly 1 and the plot said
+# nothing. They get the predictive mean instead.
+test_that("the binned and calibration checks are passed probabilities", {
+  skip_on_cran()
+  skip_if_not_installed("bayesplot")
+  skip_if_not_installed("rstantools")
+
+  d <- sim_x(n = 200L, p = 3L, seed = 73L)
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(-0.5 + 2 * d$x1))
+
+  fit <- bartisan(y ~ ., d, family = stats::binomial(),
+                  control = quick_control(num_trees = 5L, num_burn = 60L,
+                                          num_draws = 100L))
+
+  binned <- suppressMessages(suppressWarnings(
+    bayesplot::pp_check(fit, type = "error_binned", ndraws = 2L)))
+
+  expect_s3_class(binned, "ggplot")
+
+  # The binned means are strictly inside the unit interval, which is what
+  # distinguishes probabilities from the zeros and ones that used to arrive.
+  expect_true(all(binned[["data"]][["ey_bar"]] > 0))
+  expect_true(all(binned[["data"]][["ey_bar"]] < 1))
+
+  # `ndraws` still subsets, and does so on the draws of the mean.
+  expect_identical(length(unique(binned[["data"]][["rep_id"]])), 2L)
+
+  # A check that does compare replicates with the response keeps getting them.
+  reps <- suppressMessages(suppressWarnings(
+    bayesplot::pp_check(fit, type = "hist", ndraws = 2L)))
+
+  expect_s3_class(reps, "ggplot")
+  expect_true(all(reps[["data"]][["value"]] %in% c(0, 1)))
 })

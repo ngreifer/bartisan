@@ -297,16 +297,16 @@ print.bartisan_importance <- function(x, digits = 3L, ...) {
   cli::cat_line()
 
   if (isFALSE(sparse)) {
-    cli::cli_bullets(c(i = "Fitted with {.code sparsity = FALSE}, so every
-                            predictor keeps a share of the rules and
-                            {.field prop_used} is near 1 throughout. Refit with
-                            {.code sparsity = TRUE} to read it as a selection
-                            rule."))
+    cli_bullets_cat(c(i = "Fitted with {.code sparsity = FALSE}, so every
+                          predictor keeps a share of the rules and
+                          {.field prop_used} is near 1 throughout. Refit with
+                          {.code sparsity = TRUE} to read it as a selection
+                          rule."))
   }
 
   if (!is_null(level)) {
-    cli::cli_bullets(c(i = "{.field splits_lower} and {.field splits_upper} hold
-                            the {level * 100}% interval, not shown above."))
+    cli_bullets_cat(c(i = "{.field splits_lower} and {.field splits_upper} hold
+                          the {level * 100}% interval, not shown above."))
   }
 
   invisible(x)

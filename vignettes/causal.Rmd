@@ -8,7 +8,7 @@ output:
 vignette: >
   %\VignetteIndexEntry{Causal Inference with BART}
   %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
 bibliography: references.bib
 link-citations: true
 ---
@@ -148,7 +148,7 @@ We include both the treatment and covariate in the formula's right-hand side, se
 
 ## Potential outcomes
 
-The quantities underlying the effect estimate are the two average potential outcomes: the proportion who would die if every patient were catheterized, and if none were. `estimate_effect()` computes them on the way to the effect and keeps them, and `summary()` on a `bcf()` fit prints them beside it. On a fit from `bartisan()` the treatment has to be named, since nothing in the formula marks one predictor as the treatment, and `summary()` there reports the forests rather than an effect:
+The quantities underlying the effect estimate are the two average potential outcomes: the proportion who would die if every patient were catheterized, and if none were. `estimate_effect()` computes them on the way to the effect and prints them beneath it. On a fit from `bartisan()` the treatment has to be named, since nothing in the formula marks one predictor as the treatment:
 
 ```{r ate, eval = run}
 ate <- estimate_effect(fit, treatment = "rhc")
@@ -158,13 +158,7 @@ ate
 
 Under the assumptions above this is the average treatment effect: catheterization raises the probability of death by about `r if (run) round(100 * abs(ate$estimate[1])) else "3"` percentage points, with an interval running from roughly `r if (run) round(100 * ate$lower[1], 1) else "0"` to `r if (run) round(100 * ate$upper[1], 1) else "8"`.
 
-The potential outcomes come with it, in the `"potential_outcomes"` attribute:
-
-```{r po_attr, eval = run}
-attr(ate, "potential_outcomes")
-```
-
-The two rows are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%.
+The two rows below the contrast are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%. `potential_outcomes = FALSE` in the `print()` call drops them where the difference is all that is wanted.
 
 ### How the estimate is computed, and on which scale
 
@@ -236,7 +230,7 @@ cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 ```
 
-`plot()` draws them: patients ordered by their estimate, with a credible interval each and the marginal effect as a band behind them, which is what makes the spread readable as heterogeneity rather than as a list of numbers.
+`plot()` draws them: patients ordered by their estimate, with a credible interval each, and the marginal effect as a single interval past the right edge in its own color. Ordering is what makes the spread readable as heterogeneity rather than as a list of numbers, and keeping the average off to the side is what makes it comparable against any of them.
 
 ```{r bcfplot, eval = run && has_ggplot2, fig.height = 3.4}
 plot(fit_bcf)

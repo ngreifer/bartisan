@@ -7,7 +7,7 @@ output:
     toc: yes
 vignette: >
   %\VignetteIndexEntry{Which variables matter}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
 link-citations: true
@@ -246,7 +246,7 @@ The practical rule is to treat a set of correlated predictors as one unit: we
 decide in advance which variables measure the same underlying thing, and then
 report and move them together.
 
-## What Importance Does Not Measure
+## The Limits of a Usage Ranking
 
 **It is not an effect size.** How often a predictor is split on and how much it
 moves the outcome are different quantities, and they can disagree in both

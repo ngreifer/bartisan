@@ -203,6 +203,15 @@ not apply to those checks, because the weights and the replicates have to
 line up draw for draw; supplying \code{lw} or \code{psis_object} takes over from it.
 \pkgfun{bayesplot}{ppc_loo_calibration} wants a binary response besides,
 which is its own requirement rather than this package's.
+
+The two calibration checks are the ones to reach for when the response is
+binary, since the default check compares two distributions that can only take
+two values and so finds nothing. \code{type = "loo_calibration"} is the honest
+one, holding each observation out of the probability it is judged against;
+\code{type = "calibration"} is its in-sample counterpart and reads optimistically.
+A binned residual plot (\code{type = "error_binned"}) and either calibration check
+are about the predicted probabilities rather than replicate outcomes, so they
+are passed the mean of the predictive distribution instead of a draw from it.
 }
 
 \subsection{What a Posterior Predictive Draw Is On}{

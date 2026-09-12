@@ -315,3 +315,44 @@ test_that("every S3 method on a foreign generic is registered", {
                 info = paste(generic, "is not registered in NAMESPACE"))
   }
 })
+
+# A print method writes to stdout. `cli::cli_bullets()` writes to stderr, so
+# every bullet it produced was missing from `capture.output()` and from a
+# knitted document: `vignette("bartisan")` showed `diagnose()`'s "What to do"
+# heading with nothing under it, and `estimate_effect()`'s legend naming the
+# contrast's levels never appeared at all. The bullets now go through
+# `cli_bullets_cat()`, and this asserts none of them found their way back.
+test_that("print methods write nothing to stderr", {
+  skip_on_cran()
+
+  d <- sim_x(n = 200L, p = 3L, seed = 74L)
+  d$z <- stats::rbinom(nrow(d), 1L, 0.5)
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1 + 0.8 * d$z))
+
+  fit <- bartisan(y ~ ., d, family = stats::binomial(), chains = 2L,
+                  control = quick_control(num_trees = 5L, num_burn = 60L,
+                                          num_draws = 100L))
+
+  shown <- list(fit = fit,
+                summary = summary(fit),
+                diagnosis = diagnose(fit),
+                importance = variable_importance(fit),
+                effect = estimate_effect(fit, treatment = "z"),
+                lnor = estimate_effect(fit, treatment = "z",
+                                       comparison = "lnor"),
+                cate = estimate_effect(fit, treatment = "z",
+                                       estimand = "CATE"),
+                partial = partial_dependence(fit, ~ x1))
+
+  for (what in names(shown)) {
+    on_err <- utils::capture.output(type = "message",
+                                    print(shown[[what]]))
+
+    expect_identical(on_err, character(), info = what)
+  }
+
+  # And the content that used to be lost is on stdout, where a reader of a
+  # vignette will see it.
+  expect_match(printed_text(shown[["diagnosis"]]), "What to do")
+  expect_match(printed_text(shown[["lnor"]]), "O(y) is the odds", fixed = TRUE)
+})

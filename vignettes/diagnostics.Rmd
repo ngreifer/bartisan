@@ -7,7 +7,7 @@ output:
     toc: yes
 vignette: >
   %\VignetteIndexEntry{Has it converged, and does it fit?}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
 link-citations: true
@@ -29,7 +29,6 @@ options(digits = 3)
 has_post <- rlang::is_installed("posterior")
 has_bp <- rlang::is_installed("bayesplot")
 has_loo <- rlang::is_installed("loo") && rlang::is_installed("rstantools")
-has_gg <- rlang::is_installed("ggplot2")
 run <- TRUE
 ```
 
@@ -310,7 +309,8 @@ outcome that cannot be negative says the family is wrong, and
 For a binary outcome it is a weak check, which is worth knowing before
 reading too much into it. There are only two values the replicates can take, so
 they will match the observed proportion unless the model has gone badly wrong;
-passing this check tells us almost nothing.
+passing this check tells us almost nothing. The calibration check below is what
+to read instead.
 
 #### Checks Worth Reaching For
 
@@ -355,40 +355,28 @@ the *ggfortify* package installed alongside *bayesplot*.
 ### Calibration
 
 The useful question for a binary outcome is whether the predicted probabilities
-mean what they say. Below we group the patients by their fitted probability and
-compare the average prediction in each group with the proportion who actually
-died.
+mean what they say: among the patients the model gave a 30% chance of dying, did
+about 30% die?
 
-```{r calibration, eval = run && has_gg, fig.height = 3.4}
-library(ggplot2)
-
-p <- fitted(fit)
-bins <- cut(p, quantile(p, seq(0, 1, 0.1)), include.lowest = TRUE)
-
-calibration <- data.frame(
-  predicted = tapply(p, bins, mean),
-  observed  = tapply(rhc$death, bins, mean)
-)
-
-ggplot(calibration, aes(predicted, observed)) +
-  geom_abline(slope = 1, intercept = 0, colour = "grey60") +
-  geom_point(size = 2) +
-  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
-  labs(x = "mean predicted probability", y = "observed proportion") +
-  theme_bw(base_size = 9)
+```{r calibration, eval = run && has_bp && has_loo, fig.height = 3.4}
+pp_check(fit, type = "loo_calibration")
 ```
 
-Points on the diagonal mean the probabilities are calibrated: among patients the
-model gave a 30% chance of dying, about 30% died. These sit close to it across
-the whole range.
+A line on the diagonal means the probabilities are calibrated, and this one sits
+close to it across the whole range. The dots along the bottom show where the
+predictions fall, so a departure over a stretch holding few patients can be
+discounted.
 
-Points systematically above the line at the left and below it at the right would
-mean the predictions are too extreme, which is the usual failure of an
-overfitted model; the opposite pattern means they are too timid, which is what
-heavy shrinkage produces.
+A line above the diagonal at the left and below it at the right means the
+predictions are too extreme, which is the usual failure of an overfitted model;
+the opposite pattern means they are too timid, which is what heavy shrinkage
+produces.
 
-This is an in-sample check and so is optimistic. For an honest version, we would
-fit on part of the data and calibrate on the rest.
+Each patient is judged here against a probability estimated without them, which
+is what separates this from the in-sample version, `type = "calibration"`. That
+one reads optimistically, by however much the model has fitted the individual
+patients rather than the pattern. `fitted()` returns the probabilities
+themselves, for binning them some other way.
 
 ### Residuals
 

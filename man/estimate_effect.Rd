@@ -97,8 +97,9 @@ attribute, and the marginal mean of each potential outcome in
 \code{"potential_outcomes"}, so a caller can re-contrast or re-summarize without
 refitting.
 
-\code{print()} returns its input invisibly. \code{plot()} returns a \pkg{ggplot2}
-object.
+\code{print()} returns its input invisibly, and prints the potential outcomes
+below the contrasts unless \code{potential_outcomes = FALSE}. \code{plot()} returns a
+\pkg{ggplot2} object.
 }
 \description{
 Estimates the average or conditional effect of a treatment by g-computation

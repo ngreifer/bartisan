@@ -229,9 +229,9 @@ print.bartisan_partial <- function(x, digits = 3L, ...) {
 
   print(effect_round(as.data.frame(x), digits), row.names = FALSE)
   cli::cat_line()
-  cli::cli_bullets(c(i = "{.field lower} and {.field upper} bound the
-                          {100 * attr(x, 'level')}% credible interval on the
-                          {.emph average} prediction, not on any one unit's."))
+  cli_bullets_cat(c(i = "{.field lower} and {.field upper} bound the
+                        {100 * attr(x, 'level')}% credible interval on the
+                        {.emph average} prediction, not on any one unit's."))
 
   invisible(x)
 }

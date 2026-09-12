@@ -7,7 +7,7 @@ output:
     toc: yes
 vignette: >
   %\VignetteIndexEntry{Getting started with bartisan}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
 link-citations: true
@@ -142,16 +142,23 @@ than the report.
 
 ### Fit
 
-A posterior predictive check simulates new outcomes from the fitted model and
-compares their distribution to the observed one.
+The question worth asking of a binary outcome is whether the predicted
+probabilities mean what they say: among the patients the model gave a 30% chance
+of dying, did about 30% die? A calibration plot answers it.
 
-```{r ppcheck, eval = FALSE, fig.height = 3.0}
-bayesplot::pp_check(fit)
+```{r ppcheck, eval = has_bp && has_loo, fig.height = 3.0}
+bayesplot::pp_check(fit, type = "loo_calibration")
 ```
 
-For a binary outcome this is a weaker check than it is for a continuous one:
-there are only two values to get right, so the replicates match unless something
-has gone badly wrong. `vignette("diagnostics")` covers what to do instead.
+The line should follow the diagonal, and here it does across the whole range.
+Each patient is judged against a probability estimated without them, so this is
+not the optimistic in-sample reading.
+
+The default `pp_check()` compares the distribution of simulated outcomes with the
+observed distribution, which is the check to reach for when the outcome is
+continuous; with two values to get right it finds nothing here.
+`vignette("diagnostics")` covers what a departure from the diagonal looks like
+and what else to check.
 
 ## Which predictors the model uses
 
@@ -200,15 +207,12 @@ posterior has a point mass there. The default settings are not necessarily the b
 
 Because the outcome is binary, this is a difference in probability, which is
 interpretable without reference to the model. That is usually the number to
-report. The two underlying probabilities come with it, since the difference was
-computed from them:
+report.
 
-```{r risks}
-attr(eff, "potential_outcomes")
-```
-
-About 63% of patients would be expected to die without catheterization and 69%
-with it, averaging over the covariates as they actually occur in this sample.
+The two probabilities it is a difference of are printed below it, since the
+difference was computed from them: about 63% of patients would be expected to die
+without catheterization and 69% with it, averaging over the covariates as they
+actually occur in this sample.
 
 ### Looking at a relationship
 

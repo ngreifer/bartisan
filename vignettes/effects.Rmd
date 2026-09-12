@@ -7,7 +7,7 @@ output:
     toc: yes
 vignette: >
   %\VignetteIndexEntry{Effects, curves and interactions}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
 link-citations: true
@@ -84,7 +84,7 @@ set.seed(2026)
 fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
 ```
 
-## Three Questions
+## Predictions, Comparisons, and Slopes
 
 Everything below is one of three things.
 
@@ -134,7 +134,7 @@ If a contrast is what we are reporting, we fit with `sparsity = FALSE`, or with
 predictor is chosen for a split) and so cannot drop anything.
 `?bartisan_control` explains both halves of this.
 
-### The Step for a Numeric Predictor (`variables`)
+### Choosing the Step (`variables`)
 
 One unit is the default and is often the wrong scale. One point of an illness
 score is a small change; ten points is a difference someone would notice.
@@ -337,7 +337,7 @@ for the forests they come from, which is also how per-forest settings like
 `num_trees` are keyed. `?vc` covers the rest, including the one family that
 refuses this.
 
-## What These Estimates Are Not
+## Descriptions of the Fitted Model
 
 Everything here is a description of the fitted model. `avg_comparisons()` reports
 what the model predicts would differ between two versions of the data, which is a

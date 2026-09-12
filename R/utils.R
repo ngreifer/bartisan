@@ -15,6 +15,17 @@ cli_cat <- function(..., .envir = parent.frame()) {
     cli::cat_line()
 }
 
+# The bullet-list counterpart of `cli_cat()`. `cli::cli_bullets()` writes to
+# stderr, which for a print method means the bullets are missing from
+# `capture.output()` and from a knitted document: a reader of the vignette saw
+# `diagnose()`'s "What to do" heading with nothing under it. `cli_fmt()` renders
+# the same call to a character vector instead, which then goes to stdout with
+# the rest of the output.
+cli_bullets_cat <- function(text, .envir = parent.frame()) {
+  cli::cli_fmt(cli::cli_bullets(text, .envir = .envir)) |>
+    cli::cat_line()
+}
+
 unrowname <- function(x) {
   rownames(x) <- NULL
   x

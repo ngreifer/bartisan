@@ -284,9 +284,9 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
   # `estimate_effect()` is where it is asked.
   if (!is_null(x[["treatment"]])) {
     cli::cat_line()
-    cli::cli_bullets(c(i = "This fit has a treatment, {.val {x$treatment}}.
-                            {.fn estimate_effect} reports its effect, with the
-                            average potential outcomes beside it."))
+    cli_bullets_cat(c(i = "This fit has a treatment, {.val {x$treatment}}.
+                          {.fn estimate_effect} reports its effect, with the
+                          average potential outcomes beside it."))
   }
 
   invisible(x)

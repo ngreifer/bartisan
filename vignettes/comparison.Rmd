@@ -7,7 +7,7 @@ output:
     toc: yes
 vignette: >
   %\VignetteIndexEntry{Choosing between models}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
 link-citations: true
@@ -27,6 +27,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
 options(digits = 4)
 
 has_loo <- rlang::is_installed("loo")
+has_rstanarm <- rlang::is_installed("rstanarm")
 run <- has_loo
 ```
 
@@ -185,15 +186,53 @@ model of `log(y)` is the everyday version of this mistake.
 
 There is no obstacle to this, and it is worth doing. If a logistic regression
 predicts as well as the forest, that is evidence the relationship is close to
-linear on the log-odds scale, and the simpler model is easier to report.
+linear on the log-odds scale, and the simpler model is the easier one to report.
 
-The comparison has to be like for like, which means fitting both models in a
-framework that produces the same kind of pointwise log density: we can fit the
-logistic regression with *rstanarm* or *brms* and compare the two with
-`loo_compare()`, or compare held-out log scores computed the same way for both.
+The comparison has to be like for like, which means both models have to produce a
+pointwise log density of the same outcome on the same scale. Fitting the
+regression in a Bayesian framework is what arranges that: *rstanarm* fits it with
+`stan_glm()` and gives it a `loo()` method, and the resulting object goes into
+`loo_compare()` beside ours.
 
-Comparing `elpd_loo` from this package against `AIC()` from `glm()` is not a
-comparison and should not be reported as one.
+```{r stanglm, eval = run && has_rstanarm}
+logistic <- rstanarm::stan_glm(model, data = rhc, family = binomial(),
+                               chains = 4, refresh = 0, seed = 2026)
+
+loo(logistic)
+```
+
+```{r stancompare, eval = run && has_rstanarm}
+loo_compare(list(bart = loo(full), logistic = loo(logistic)))
+```
+
+The forest is behind by roughly half a standard error of the difference, which is
+to say the two predict this outcome equally well. Nothing was lost by fitting the
+forest and nothing was gained, and the honest report of that is the one above:
+the flexible model was tried and did not find anything the linear one missed.
+
+`p_loo` says where that came from. The regression has 16 coefficients and an
+effective number of parameters to match; the forest's is about twice that, which
+is the flexibility it spent looking for curvature and interaction that turned out
+not to be there. A forest that predicts no better while using twice the
+parameters is a forest reporting that the log-odds are close to linear here,
+which is a finding rather than a disappointment.
+
+Two cautions on the mechanics. `loo_compare()` warns that the models do not have
+the same `y` variable, which is not what has happened here. It compares a hash of
+the response that *rstanarm* and *brms* attach to their `loo()` output and this
+package does not, so it is holding a hash up against nothing. Attaching one would
+not help: the hash is taken of the response as each package stores it, and an
+outcome held as `integer` on one side and `double` on the other hashes
+differently, so the warning would start firing on identical data rather than stop
+firing. What we should check instead, and directly, is that both models were
+fitted to the same rows.
+
+And comparing `elpd_loo` from this package against `AIC()` from `glm()` is not a
+comparison and should not be reported as one. The two differ by a factor of $-2$
+before anything else, and `AIC()`'s penalty is a count of parameters, which a
+forest has no fixed number of; the `p_loo` above is an estimate rather than a
+count. Fitting the regression the Bayesian way is what lets us compare `loo()`
+against `loo()`, as above.
 
 ## Tuning and Variable Selection
 

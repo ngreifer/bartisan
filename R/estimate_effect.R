@@ -63,8 +63,9 @@
 #' `"potential_outcomes"`, so a caller can re-contrast or re-summarize without
 #' refitting.
 #'
-#' `print()` returns its input invisibly. `plot()` returns a \pkg{ggplot2}
-#' object.
+#' `print()` returns its input invisibly, and prints the potential outcomes
+#' below the contrasts unless `potential_outcomes = FALSE`. `plot()` returns a
+#' \pkg{ggplot2} object.
 #'
 #' @details
 #' ## Why the Response Scale
@@ -286,8 +287,8 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
   class(out) <- c("bartisan_effect", "data.frame")
 
   # The marginal effect is kept beside the conditional ones so that the forest
-  # plot can draw the band without a second call, and so that a reader of the
-  # object can see what the units average to.
+  # plot can draw it without a second call, and so that a reader of the object
+  # can see what the units average to.
   if (identical(estimand, "CATE")) {
     attr(out, "marginal") <- effect_marginal(po, pairs, comparison, level,
                                              interval, keep, newdata, NULL)
@@ -789,27 +790,27 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
                  hpdi = "highest posterior density interval",
                  "equal-tailed credible interval")
 
-  cli::cli_bullets(c(i = "{.field estimate} is the posterior mean;
-                          {.field lower} and {.field upper} bound the
-                          {100 * level}% {band}.",
-                     i = contrast_legend(comparison, treatment, estimand)))
+  cli_bullets_cat(c(i = "{.field estimate} is the posterior mean;
+                        {.field lower} and {.field upper} bound the
+                        {100 * level}% {band}.",
+                   i = contrast_legend(comparison, treatment, estimand)))
 
   if (identical(estimand, "CATE")) {
-    cli::cli_bullets(c(i = "Quartiles of the per-unit estimates. The object
-                            itself holds one row per unit, with an interval
-                            each."))
+    cli_bullets_cat(c(i = "Quartiles of the per-unit estimates. The object
+                          itself holds one row per unit, with an interval
+                          each."))
   }
 
   if (identical(estimand, "CATE") && !identical(comparison, "difference")) {
-    cli::cli_bullets(c(i = "These are {.emph conditional} {comparison}s, and
-                            their average is not the marginal {comparison}."))
+    cli_bullets_cat(c(i = "These are {.emph conditional} {comparison}s, and
+                          their average is not the marginal {comparison}."))
   }
 
   if (!identical(attr(x, "type"), "response")) {
     scale <- attr(x, "type")
-    cli::cli_bullets(c(i = "Computed on the {.val {scale}} scale, where an
-                            average of unit-level contrasts need not be the
-                            marginal effect."))
+    cli_bullets_cat(c(i = "Computed on the {.val {scale}} scale, where an
+                          average of unit-level contrasts need not be the
+                          marginal effect."))
   }
 
   invisible(x)
@@ -940,9 +941,9 @@ effect_axis_label <- function(estimand, comparison) {
   else what
 }
 
-# Units ordered by their estimate, with the marginal effect as a band behind
-# them, which is what makes the spread readable as heterogeneity rather than as
-# a list of numbers.
+# Units ordered by their estimate, with the marginal effect beside them, which
+# is what makes the spread readable as heterogeneity rather than as a list of
+# numbers.
 effect_forest_units <- function(x, ylab, null_at) {
   d <- as.data.frame(x)
   marg <- attr(x, "marginal")

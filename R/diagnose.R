@@ -904,12 +904,12 @@ print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
 
     list(row[["detail"]]) |>
       setNames(mark[[row[["status"]]]]) |>
-      cli::cli_bullets()
+      cli_bullets_cat()
   }
 
   if (is_null(x[["advice"]])) {
     cli::cat_line()
-    cli::cli_alert_success("Nothing to change.")
+    cli_bullets_cat(c(v = "Nothing to change."))
     return(invisible(x))
   }
 
@@ -920,7 +920,7 @@ print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
   for (i in seq_along(x[["advice"]])) {
     list(x[["advice"]][i]) |>
       setNames(as.character(i)) |>
-      cli::cli_bullets()
+      cli_bullets_cat()
   }
 
   invisible(x)
