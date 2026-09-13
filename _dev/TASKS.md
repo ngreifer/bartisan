@@ -6865,3 +6865,64 @@ of the fitted model." The one prose cross-reference, a comment in the setup chun
 of `vignette("survival")` naming the simulation section, moved with them. The
 records above this line keep the old titles because they are records of when
 those titles were current.
+
+## Three sections of `vignette("comparison")` that named a problem without solving it
+
+### The held-out score was a stub because its punchline was false
+
+The section showed `sum(predict(type = "density", log = TRUE))` on a held-out
+split and said it "is the same quantity `elpd_loo` approximates, computed
+directly". The two numbers on screen were -847.8 and -172.6, which is not what
+the same quantity looks like, and the section stopped there.
+
+They are the same quantity. `type = "density"` averages the draws before taking
+the log, which is the form of one pointwise `elpd_loo` contribution, and
+`log(colMeans(draws))` equals the `log = TRUE` output exactly. The totals differ
+because one sums 1500 terms and the other 300. Per observation: -0.5652 against
+-0.5753, the residual gap being leave-one-out's 1499 training rows against the
+split's 1200. The vignette prints that table rather than asserting the identity.
+
+What was missing was the use. A log score means nothing alone, so the section now
+puts two candidates through the same split and forms the difference with a
+standard error from the spread of the per-observation differences, 10.82 +/- 4.94,
+which is `loo_compare()`'s arithmetic by hand. It also prices the split: `loo()`
+on all 1500 finds the same difference at six standard errors and the split finds
+it at two.
+
+### One of the two scale problems has a fix and the other does not
+
+The section named the accelerated failure time against `ph()` case, said the
+comparison "can reverse the ordering", and deferred the correction to
+`vignette("survival")`. Measured here, uncorrected, the accelerated failure time
+model leads by 3390.9; subtracting `log t` from its pointwise contributions, on
+events only, puts `ph()` ahead by 131.0. The reversal is shown now instead of
+promised. The shortcut, shifting the total by `sum(jacobian)`, agrees to the
+digit, because a constant cancels from the importance ratio and leaves the
+weights untouched.
+
+Gaussian against `tweedie()` looks like the same problem and is not, which is
+worth stating because treating them alike would have produced a false
+instruction. Tweedie leads by 1247.4 on `lalonde`. Split at the zeros: at the
+positive outcomes the two are within 2 points (-4843 against -4841), and the
+whole gap is the 143 exact zeros, where tweedie reports a probability of .2325
+and gaussian a density of 3.96e-05 per dollar. No constant relates a probability
+to a density, so there is nothing to correct, and the restricted comparison is
+the valid one. The question that actually decides it is predictive, not an elpd:
+gaussian replicates 0.0000 exact zeros against an observed .2329.
+
+### Tuning and variable selection said what not to do and stopped
+
+Split into two sections, each showing the method rather than only the warning.
+Tuning is a grid fixed in advance, chosen with `loo()` on the training half and
+assessed on the held-out half, reusing the split from the first section. The
+result earns its place: the two orderings disagree, which is the warning's
+content rather than a contradiction.
+
+One claim did not survive being checked. "Dropping one predictor from a forest
+usually moves the predictive density very little even when the predictor is real"
+is too strong: dropping `surv2m` costs 40.5 +/- 9.4 and is plainly detectable.
+It is `rhc` that disappears, at 1.79 against a standard error of 2.54, while
+`vignette("causal")` puts its effect at six percentage points. The vignette shows
+that contrast now, which makes the same point honestly and makes it sharper.
+
+Build cost: `comparison.Rmd` goes from 47s to 105s.

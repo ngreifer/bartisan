@@ -28,29 +28,22 @@ options(digits = 4)
 
 has_loo <- rlang::is_installed("loo")
 has_rstanarm <- rlang::is_installed("rstanarm")
+has_surv <- rlang::is_installed("survival")
+has_cobalt <- rlang::is_installed("cobalt")
 run <- has_loo
 ```
 
 ## Introduction
 
-Model selection means something different for a BART model than it does for a
-linear model, and the difference is worth stating before any code.
+Model selection means something different for a BART model than it does for a linear model, and the difference is worth stating before any code.
 
-With `lm()` we choose which terms enter, whether to add a squared term, and
-whether to include an interaction; those choices are the model. With BART the
-forest makes them, so they are not ours to make. What remains is a shorter list:
+With `lm()` we choose which terms enter, whether to add a squared term, and whether to include an interaction; those choices are the model. With BART the forest makes them, so they are not ours to make. What remains is a shorter list:
 
-1. Which variables the model is allowed to see.
-2. Which likelihood, meaning which family and link.
-3. Occasionally, a sampler setting (e.g., the number of trees).
+1.  Which variables the model is allowed to see.
+2.  Which likelihood, meaning which family and link.
+3.  Occasionally, a sampler setting (e.g., the number of trees).
 
-In this guide we will compare those choices using leave-one-out
-cross-validation. First we'll fit a model to the `rhc` data and read its `loo()`
-output, including the diagnostics that say when the approximation cannot be
-trusted. Next we'll compare two sets of variables and then three links, and
-we'll work through the one case in this package where two log densities are not
-on the same scale. Finally we'll cover the choices that should not be made by
-cross-validation at all.
+In this guide we will compare those choices using leave-one-out cross-validation. First we'll fit a model to the `rhc` data and read its `loo()` output, including the diagnostics that say when the approximation cannot be trusted and what to do when it cannot. Next we'll compare two sets of variables and then three links, work through the two cases where two log densities are not on the same scale and repair the one of them that can be repaired, and put the forest up against a Bayesian logistic regression. Finally we'll cover how to tune a setting and how to select variables, both of which have a right way and a more tempting wrong one.
 
 ```{r libs, eval = run}
 library(bartisan)
@@ -66,11 +59,7 @@ set.seed(2026)
 full <- bartisan(model, data = rhc, family = binomial())
 ```
 
-The fits here use the default single chain rather than the four used elsewhere;
-leave-one-out needs draws rather than chains, and four times as many fits would
-make this vignette slow to build for no gain. Convergence should still be
-checked separately, as in `vignette("diagnostics")`, before we trust any of
-these comparisons.
+The fits here use the default single chain rather than the four used elsewhere; leave-one-out needs draws rather than chains, and four times as many fits would make this vignette slow to build for no gain. Convergence should still be checked separately, as in `vignette("diagnostics")`, before we trust any of these comparisons.
 
 ## Leave-One-Out Cross-Validation (`loo()`)
 
@@ -78,43 +67,62 @@ these comparisons.
 loo(full)
 ```
 
-`elpd_loo` estimates the log predictive density on data the model has not seen,
-with higher values being better. It is computed by importance sampling from the
-fitted posterior rather than by refitting, which is why it is fast
-[@vehtari2017].
+`elpd_loo` estimates the log predictive density on data the model has not seen, with higher values being better. It is computed by importance sampling from the fitted posterior rather than by refitting, which is why it is fast [@vehtari2017].
 
-`p_loo` is the effective number of parameters, about 32 here; for a forest with
-hundreds of leaves across its trees that number is small, because the prior
-shrinks most of them toward zero. It is a useful measure of how much of the data
-the model is actually using.
+`p_loo` is the effective number of parameters, about 32 here; for a forest with hundreds of leaves across its trees that number is small, because the prior shrinks most of them toward zero. It is a useful measure of how much of the data the model is actually using.
 
-The Pareto $k$ diagnostics are the thing to check: leave-one-out by importance
-sampling is trustworthy only when the importance weights are well behaved, and a
-$k$ above .7 says that for that observation they are not. Here they are all
-good.
+The Pareto $k$ diagnostics are the thing to check: leave-one-out by importance sampling is trustworthy only when the importance weights are well behaved, and a $k$ above .7 says that for that observation they are not. Here they are all good.
 
 ### When the Approximation Fails
 
-A forest is a flexible function, so a single observation can have a good deal of
-influence on the leaves it falls into, and high $k$ values are therefore more
-common than they are for a parametric model. If many observations are flagged,
-the estimate is unreliable, and the remedy is held-out data rather than a
-different diagnostic:
+A forest is a flexible function, so a single observation can have a good deal of influence on the leaves it falls into, and high $k$ values are therefore more common than they are for a parametric model. If many observations are flagged, the estimate is unreliable, and the remedy is held-out data rather than a different diagnostic: fit to part of the sample and score the part the model was not shown.
 
-```{r holdout, eval = FALSE}
+```{r holdout, eval = run}
+set.seed(2026)
 train_id <- sample.int(nrow(rhc), 1200)
 
 train <- rhc[train_id, ]
 held  <- rhc[-train_id, ]
 
-fit <- bartisan(model, data = train, family = binomial())
+fit_train <- bartisan(model, data = train, family = binomial())
 
-sum(predict(fit, newdata = held, type = "density", log = TRUE))
+score <- predict(fit_train, newdata = held, type = "density", log = TRUE)
+
+sum(score)
 ```
 
-This is the same quantity `elpd_loo` approximates, computed directly.
+`type = "density"` evaluates the outcome under each posterior draw and averages over the draws before taking the log, which is the same form as one pointwise `elpd_loo` contribution. The two are therefore estimates of the same thing, which the two numbers do not make obvious:
+
+```{r holdoutscale, eval = run}
+elpd <- loo(full)$estimates["elpd_loo", "Estimate"]
+
+rbind(loo     = c(total = elpd,       n = nrow(rhc),     per_obs = elpd / nrow(rhc)),
+      heldout = c(total = sum(score), n = length(score), per_obs = mean(score)))
+```
+
+The totals differ by a factor of five because they sum different numbers of terms: `loo()` scores every observation and the split scores only the ones held out. Per observation they nearly agree, and the gap that remains is in the direction to expect, since leave-one-out trains on 1499 observations and the split trains on 1200.
+
+A log score means nothing on its own; it is only ever read against another one. So the use of a held-out score is to put two candidates through the same split:
+
+```{r holdoutcompare, eval = run}
+demographics_train <- bartisan(death ~ rhc + age + sex + race + edu,
+                               data = train, family = binomial())
+
+score_demographics <- predict(demographics_train, newdata = held,
+                              type = "density", log = TRUE)
+
+d <- score - score_demographics
+
+c(elpd_diff = sum(d), se_diff = sqrt(length(d)) * sd(d))
+```
+
+That is the arithmetic `loo_compare()` performs, done by hand: the difference in totals, and a standard error from the spread of the per-observation differences. It reads the same way, and the full model is ahead by a little over two of them.
+
+Note what the split costs. The next section puts the same two models through `loo()` on all 1500 observations and finds the same difference at about six standard errors; this split sees 300 and finds it at two. Holding data out buys a score that owes nothing to an approximation, and pays for it in precision, which is why it is the fallback for when the Pareto diagnostics say leave-one-out cannot be trusted rather than the first thing to reach for.
 
 ## Comparing Two Models (`loo_compare()`)
+
+We can compare the fit of two models by supplying their `loo()` output to `loo::loo_compare()`. Below, we fit a model that only includes demographic variables as predictors to compare to our full model.
 
 ```{r compare, eval = run}
 set.seed(2026)
@@ -125,22 +133,13 @@ loo_compare(list(full = loo(full),
                  demographics = loo(demographics)))
 ```
 
-The full model predicts better by around six times the standard error of the
-difference. The standard error is the important half: a difference of many
-standard errors is clear, and a difference smaller than its own standard error
-is not evidence of anything.
+The full model predicts better by around six times the standard error of the difference. The standard error is the important half: a difference of many standard errors is clear, and a difference smaller than its own standard error is not evidence of anything.
 
-This is the right way to ask whether a set of variables earns its place, and it
-is a better question than the one variable importance answers, because it is
-about prediction rather than about how the forest happened to spend its splits.
-Here the answer is not in doubt: how sick a patient is on arrival predicts
-whether they die, and demographics alone do not.
+This is the right way to ask whether a set of variables earns its place, and it is a better question than the one variable importance answers, because it is about prediction rather than about how the forest happened to spend its splits. Here the answer is not in doubt: how sick a patient is on arrival predicts whether they die, and demographics alone do not.
 
 ## Comparing Links (`family`)
 
-The other choice is the likelihood. For a binary outcome the family is settled,
-and what remains is the link (i.e., the function that maps the forest's output
-onto a probability).
+The other choice is the likelihood. For a binary outcome the family is settled, and what remains is the link (i.e., the function that maps the forest's output onto a probability). Below we compare probit and complimentary log-log BART models to our original logistic BART model.
 
 ```{r links, eval = run}
 set.seed(2026)
@@ -154,45 +153,117 @@ loo_compare(list(logit = loo(full),
                  cloglog = loo(cloglog)))
 ```
 
-The three are within a point or two of each other, and the differences are
-smaller than their standard errors, which *loo* flags directly. The reading is
-that the link does not matter here.
+The three are within a point or two of each other, and the differences are smaller than their standard errors, which *loo* flags directly. The reading is that the link does not matter here.
 
-That is a useful negative result and worth reporting as one. It is also the
-usual outcome: with a flexible function on the inside, the link has little left
-to do, because the forest can absorb the difference between one link and
-another. This is not true of a generalized linear model, where the link carries the whole
-shape of the relationship.
+That is a useful negative result and worth reporting as one. It is also the usual outcome: with a flexible function on the inside, the link has little left to do, because the forest can absorb the difference between one link and another. This is not true of a generalized linear model, where the link carries the whole shape of the relationship.
 
 ## The Scale of the Log Density
 
-`loo()` is built on the pointwise log density of each observation, so comparing
-two models by it assumes that both densities are taken with respect to the same
-measure. That is normally automatic, but there is one case in this package where
-it is not.
+`loo()` is built on the pointwise log density of each observation, so comparing two models by it assumes both densities are taken with respect to the same measure. That is usually automatic. Two things break it, and only one of them has a fix.
 
-The accelerated failure time families report the density of $\log T$, while
-`ph()` reports the density of $T$. The two differ by a Jacobian, so a comparison
-across that boundary is off by $\sum \log t$, which can amount to hundreds of
-points and can reverse the ordering. `vignette("survival")` gives the
-correction.
+### A Change of Variable (`ph()` Against an AFT Family)
 
-The general rule is that `loo()` compares models fitted to the same outcome on
-the same scale. If we transform the outcome, refit, and compare, the comparison
-is invalid unless the Jacobian is accounted for; comparing a model of `y` to a
-model of `log(y)` is the everyday version of this mistake.
+The accelerated failure time families report the density of $\log T$, while `ph()` reports the density of $T$. Below we fit one of each to the survival outcome in these data and compare them as they come out:
 
-## Comparing Against a Logistic Regression
+```{r survfits, eval = run && has_surv}
+library(survival)
 
-There is no obstacle to this, and it is worth doing. If a logistic regression
-predicts as well as the forest, that is evidence the relationship is close to
-linear on the log-odds scale, and the simpler model is the easier one to report.
+surv_model <- Surv(days, death) ~ age + sex + race + edu + aps + meanbp + surv2m
 
-The comparison has to be like for like, which means both models have to produce a
-pointwise log density of the same outcome on the same scale. Fitting the
-regression in a Bayesian framework is what arranges that: *rstanarm* fits it with
-`stan_glm()` and gives it a `loo()` method, and the resulting object goes into
-`loo_compare()` beside ours.
+set.seed(2026)
+aft <- bartisan(surv_model, data = rhc, family = weibull_aft())
+
+set.seed(2026)
+prop_haz <- bartisan(surv_model, data = rhc, family = ph())
+
+loo_compare(list(aft = loo(aft), ph = loo(prop_haz)))
+```
+
+The accelerated failure time model appears to win by thousands of points, which is implausible on its face: no choice of baseline hazard is worth that much. What the comparison is measuring is the change of variable.
+
+Writing $Y = \log T$, the density of $T$ is $f_T(t) = f_Y(\log t) / t$, so the log density on the $T$ scale is $\log f_Y(\log t) - \log t$. Subtracting $\log t$ from each of the accelerated failure time model's pointwise contributions is the whole of the correction, and it applies to events only: a censored observation contributes a survival probability, which is a probability on either scale and carries no measure to change.
+
+```{r survjacobian, eval = run && has_surv}
+events <- rhc$death == 1
+jacobian <- ifelse(events, log(rhc$days), 0)
+
+ll_aft <- rstantools::log_lik(aft)
+
+aft_on_t <- loo(sweep(ll_aft, 2L, jacobian, "-"))
+
+loo_compare(list(aft = aft_on_t, ph = loo(prop_haz)))
+```
+
+The ordering reverses. Read on the scale they share, the two are a hundred-odd points apart rather than three thousand, and it is the proportional hazards model that predicts these times better.
+
+Because the correction is a constant per observation, it shifts the total by exactly the sum of those constants, and it leaves the importance weights alone, since a constant cancels from the ratio they are built on. So the total can be checked without recomputing anything:
+
+```{r survshortcut, eval = run && has_surv}
+c(corrected = aft_on_t$estimates["elpd_loo", "Estimate"],
+  shortcut  = loo(aft)$estimates["elpd_loo", "Estimate"] - sum(jacobian))
+```
+
+The everyday version of this mistake takes the same repair. A model of `log(y)` reports $\log f_Y(\log y)$, so subtracting $\log y$ from each of its pointwise contributions puts it on the scale of a model of `y` and makes the two comparable.
+
+There is also a way to sidestep the correction rather than apply it. Survival at a horizon is a probability under every family, so comparing fits on `predict(type = "survival")` needs no Jacobian at all; `vignette("survival")` gives that route, along with the same correction written for a held-out log score instead of for `loo()`.
+
+### A Different Measure (`gaussian()` Against `tweedie()`)
+
+Some pairs cannot be reconciled at all. `tweedie()` places a point mass at zero and a density on the positive half-line; `gaussian()` places a density on the whole line. Earnings in the `lalonde` data are the case this comes up in, since a quarter of the sample earned exactly nothing.
+
+```{r tweediefits, eval = run && has_cobalt}
+data("lalonde", package = "cobalt")
+
+earnings <- re78 ~ age + educ + race + married + nodegree + re74 + re75
+
+set.seed(2026)
+normal <- bartisan(earnings, data = lalonde, family = gaussian())
+
+set.seed(2026)
+compound <- bartisan(earnings, data = lalonde, family = tweedie())
+
+loo_compare(list(gaussian = loo(normal), tweedie = loo(compound)))
+```
+
+The tweedie is ahead by more than a thousand points. Splitting the pointwise contributions at the zeros shows where every one of them comes from:
+
+```{r tweediesplit, eval = run && has_cobalt}
+zero <- lalonde$re78 == 0
+
+rbind(gaussian = c(at_zero = sum(loo(normal)$pointwise[zero, "elpd_loo"]),
+                   positive = sum(loo(normal)$pointwise[!zero, "elpd_loo"])),
+      tweedie  = c(at_zero = sum(loo(compound)$pointwise[zero, "elpd_loo"]),
+                   positive = sum(loo(compound)$pointwise[!zero, "elpd_loo"])))
+```
+
+At the positive outcomes, where both models report a density with respect to the same measure, the two are within a couple of points of each other. The whole difference sits at the exact zeros, and the two quantities being added up there are not the same kind of thing:
+
+```{r tweediezero, eval = run && has_cobalt}
+c(gaussian = predict(normal, newdata = lalonde[zero, ][1, ], type = "density"),
+  tweedie  = predict(compound, newdata = lalonde[zero, ][1, ], type = "density"))
+```
+
+The tweedie's value is a probability, bounded by one. The gaussian's is a density, in units of one over dollars. Adding them to log densities from the positive observations gives a number in no units at all, and no constant relates the two, so there is nothing to correct: the restricted comparison above is the valid one, and on the observations both models describe the same way, neither predicts better.
+
+That leaves the real question, which is whether the outcome needs a point mass at zero, and which is about the shape of the predictive distribution rather than its density at a point. A posterior predictive check answers it directly:
+
+```{r tweediecheck, eval = run && has_cobalt}
+zero_share <- function(y) mean(y == 0)
+
+c(observed = zero_share(lalonde$re78),
+  gaussian = mean(apply(rstantools::posterior_predict(normal), 1, zero_share)),
+  tweedie  = mean(apply(rstantools::posterior_predict(compound), 1, zero_share)))
+```
+
+A gaussian fit never produces an exact zero, and about a quarter of these outcomes are exactly zero. That settles the choice, and it settles it without an `elpd` anywhere in the argument. `vignette("families")` covers the families that carry a point mass and `vignette("diagnostics")` covers the checks.
+
+The general rule behind both halves of this section is that `loo()` compares models fitted to the same outcome on the same scale. A transformation of the outcome can be undone with its Jacobian; a change in what the density is taken with respect to cannot.
+
+## Comparing Against a Bayesian GLM
+
+Often it is a good idea to compare a flexible model to a more easily interpretable (generalized) linear model to assess whether the flexibility buys us anything. There is no obstacle to this, and it is worth doing. If a logistic regression predicts as well as the forest, that is evidence the relationship is close to linear on the log-odds scale, and the simpler model is the easier one to report.
+
+The comparison has to be like for like, which means both models have to produce a pointwise log density of the same outcome on the same scale. Fitting the regression in a Bayesian framework is what arranges that: *rstanarm* fits it with `stan_glm()` and gives it a `loo()` method, and the resulting object goes into `loo_compare()` beside ours.
 
 ```{r stanglm, eval = run && has_rstanarm}
 logistic <- rstanarm::stan_glm(model, data = rhc, family = binomial(),
@@ -205,52 +276,72 @@ loo(logistic)
 loo_compare(list(bart = loo(full), logistic = loo(logistic)))
 ```
 
-The forest is behind by roughly half a standard error of the difference, which is
-to say the two predict this outcome equally well. Nothing was lost by fitting the
-forest and nothing was gained, and the honest report of that is the one above:
-the flexible model was tried and did not find anything the linear one missed.
+The forest is behind by roughly half a standard error of the difference, which is to say the two predict this outcome equally well[^1]. Nothing was lost by fitting the forest and nothing was gained, and the honest report of that is the one above: the flexible model was tried and did not find anything the linear one missed.
 
-`p_loo` says where that came from. The regression has 16 coefficients and an
-effective number of parameters to match; the forest's is about twice that, which
-is the flexibility it spent looking for curvature and interaction that turned out
-not to be there. A forest that predicts no better while using twice the
-parameters is a forest reporting that the log-odds are close to linear here,
-which is a finding rather than a disappointment.
+[^1]: `loo_compare()` warns that the models do not have the same `y` variable, which is not what has happened here. It compares a hash of the response that *rstanarm* and *brms* attach to their `loo()` output and this package does not, so it is holding a hash up against nothing. Attaching one would not help: the hash is taken of the response as each package stores it, and an outcome held as `integer` on one side and `double` on the other hashes differently, so the warning would start firing on identical data rather than stop firing. What we should check instead, and directly, is that both models were fitted to the same rows.
 
-Two cautions on the mechanics. `loo_compare()` warns that the models do not have
-the same `y` variable, which is not what has happened here. It compares a hash of
-the response that *rstanarm* and *brms* attach to their `loo()` output and this
-package does not, so it is holding a hash up against nothing. Attaching one would
-not help: the hash is taken of the response as each package stores it, and an
-outcome held as `integer` on one side and `double` on the other hashes
-differently, so the warning would start firing on identical data rather than stop
-firing. What we should check instead, and directly, is that both models were
-fitted to the same rows.
+`p_loo` says where that came from. The regression has 16 coefficients and an effective number of parameters to match; the forest's is about twice that, which is the flexibility it spent looking for curvature and interaction that turned out not to be there. A forest that predicts no better while using twice the parameters is a forest reporting that the log-odds are close to linear here, which is a finding rather than a disappointment.
 
-And comparing `elpd_loo` from this package against `AIC()` from `glm()` is not a
-comparison and should not be reported as one. The two differ by a factor of $-2$
-before anything else, and `AIC()`'s penalty is a count of parameters, which a
-forest has no fixed number of; the `p_loo` above is an estimate rather than a
-count. Fitting the regression the Bayesian way is what lets us compare `loo()`
-against `loo()`, as above.
+Comparing `elpd_loo` from this package against `AIC()` from `glm()` is not a comparison and should not be reported as one. The two differ by a factor of $-2$ before anything else, and `AIC()`'s penalty is a count of parameters, which a forest has no fixed number of; the `p_loo` above is an estimate rather than a count. Fitting the regression the Bayesian way is what lets us compare `loo()` against `loo()`, as above.
 
-## Tuning and Variable Selection
+## Tuning
 
-The number of trees, `k`, and the gate should not be chosen by cross-validation
-as a matter of routine. The priors are chosen so that the defaults work across a
-wide range of problems, and tuning them typically produces small gains together
-with an optimistically biased estimate of performance when the same data chose
-the setting. When we do tune, data should be held out for the final assessment.
+The number of trees, `k`, and the gate should not be chosen by cross-validation as a matter of routine. The priors are chosen so that the defaults work across a wide range of problems, and tuning them typically produces small gains together with an optimistically biased estimate of performance when the same data chose the setting.
 
-Nor should variables be selected by fitting many models and keeping the best.
-With a handful of candidate specifications chosen in advance, `loo_compare()` is
-informative; with a search over all subsets it is not, for the same reason
-stepwise regression is not.
+When there is a reason to tune, the shape of it is a grid fixed in advance, chosen on one set of observations and assessed on another. The split from the earlier section is already in hand, so the grid goes through `loo()` on the training set:
+
+```{r tunegrid, eval = run}
+trees <- c(20, 50, 200)
+
+tuned <- lapply(trees, function(n) {
+  set.seed(2026)
+  bartisan(model, data = train, family = binomial(), num_trees = n)
+})
+
+names(tuned) <- paste0("trees_", trees)
+
+loo_compare(lapply(tuned, loo))
+```
+
+Nothing separates them: every difference is smaller than its own standard error, and *loo* flags both comparisons as too small to read. Scoring the same three fits on the held-out observations says it again, and is the assessment the selection is not allowed to see:
+
+```{r tunedheld, eval = run}
+sapply(tuned, function(f) sum(predict(f, newdata = held, type = "density",
+                                      log = TRUE)))
+```
+
+The two orderings disagree, which is the practical content of the warning rather than a contradiction: when the spread across a grid is smaller than the noise in the estimate, whichever setting comes out top is the one the noise favored. Reporting its score as the model's performance is exactly the optimism this section opened with, and it is why the assessment has to come from observations the grid never touched. Here the honest summary is that `num_trees` does not matter on these data, and the default is what to keep.
+
+That is the usual outcome, and it is worth knowing before spending a grid on it. When tuning does pay, it tends to be for cost rather than accuracy, and `vignette("faq")` lists the settings that buy speed; `bartisan_control()` documents what each one changes.
+
+## Variable Selection
+
+Variables should not be selected by fitting many models and keeping the best. With a search over all subsets, the winner is chosen partly for fitting the noise, for the same reason stepwise regression is not to be trusted.
+
+Two things work instead, and which one to use depends on the question. When the question is whether a *set* of variables earns its place, the comparison is the one from earlier in this vignette: name the specifications in advance and put them through `loo_compare()`, as with the full and demographic models above. A handful of comparisons decided beforehand is informative in a way a search is not.
+
+When the question is which *individual* predictor matters, dropping one at a time and reading `loo()` is a weak instrument. It works for a dominant predictor and fails for the rest:
+
+```{r dropone, eval = run}
+drop_one <- function(v) {
+  set.seed(2026)
+  reduced <- bartisan(update(model, paste(". ~ . -", v)), data = rhc,
+                      family = binomial())
+
+  d <- loo(full)$pointwise[, "elpd_loo"] - loo(reduced)$pointwise[, "elpd_loo"]
+
+  c(elpd_diff = sum(d), se_diff = sqrt(length(d)) * sd(d))
+}
+
+rbind(surv2m = drop_one("surv2m"), rhc = drop_one("rhc"))
+```
+
+Losing `surv2m`, the prognostic score, costs about forty points and is plainly detectable. Losing `rhc` costs about two, which is smaller than its own standard error, and yet `rhc` is real enough that `vignette("causal")` puts its effect at around six percentage points on the probability of death. The remaining predictors carry that information too, so the forest reroutes around the one that was removed, and a comparison of predictive density cannot see a variable whose job something else can do. Running one such comparison per predictor would also be the search this section began by warning against.
+
+So that question belongs to `variable_importance()` and to the sparsity prior, which does the selection inside the model rather than across refits. `vignette("importance")` covers reading it, including the noise-predictor calibration that says which end of the table carries information, and `vignette("effects")` covers the step after: asking what a predictor does to the outcome rather than whether it is used.
 
 ## Further Reading
 
-`vignette("diagnostics")` covers checking that each model fits before comparing
-them, which is the step most often skipped. `vignette("families")` covers what
-the families assume, which is what a comparison between them is really about.
+`vignette("diagnostics")` covers checking that each model fits before comparing them, which is the step most often skipped. `vignette("families")` covers what the families assume, which is what a comparison between them is really about.
 
 ## References
