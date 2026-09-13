@@ -47,6 +47,7 @@
     <li><a class="dropdown-item" href="articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="articles/survival.html">Survival analysis in bartisan</a></li>
@@ -562,17 +563,17 @@
 </tr>
 <tr>
 <td>Formal variable-selection test</td>
-<td align="center">✎</td>
+<td align="center">✓ inclusion</td>
 <td align="center">—</td>
-<td align="center">✓</td>
+<td align="center">✓ permutation</td>
 <td align="center">—</td>
-<td align="center">✓</td>
-<td align="center">✓</td>
+<td align="center">✓ inclusion</td>
+<td align="center">✓ permutation</td>
 <td align="center">—</td>
 </tr>
 <tr>
 <td>Partial dependence</td>
-<td align="center">✎</td>
+<td align="center">✓</td>
 <td align="center">✓</td>
 <td align="center">—</td>
 <td align="center">—</td>
@@ -612,7 +613,8 @@
 </tr>
 </tbody>
 </table>
-<p><strong>✎ means a helper package covers it, not this one.</strong> All three of those rows are things <em>bartMachine</em> does natively and <em>bartisan</em> does through <em>marginaleffects</em>, because a fit works with it and every estimand there is computed by pushing the draws through: <code>plot_predictions()</code> is a partial dependence plot, and <code>avg_comparisons(variables = "x", by = "z")</code> and <code>hypotheses(~pairwise)</code> are interaction detection, neither of which needs code here. What is genuinely missing is a <em>formal</em> variable-selection test: this package reports split counts and the share of draws that used a predictor, which is not a test, where <em>bartMachine</em> permutes the response and <em>SoftBart</em> reports posterior inclusion probabilities.</p>
+<p><strong>✎ means a helper package covers it, not this one.</strong> Interaction detection is the one row left marked, and <em>bartisan</em> does it through <em>marginaleffects</em>, because a fit works with it and every estimand there is computed by pushing the draws through: <code>avg_comparisons(variables = "x", by = "z")</code> with <code>hypotheses(~pairwise)</code> is interaction detection and needs no code here.</p>
+<p>The variable-selection row divides into two things that both get called a test. One is the posterior inclusion probability under the sparsity prior, which <code><a href="reference/variable_importance.html">variable_importance()</a></code> reports as <code>prop_used</code> and <em>SoftBart</em> reports as <code>posterior_probs()</code>; the other is a permutation test, which <em>bartMachine</em> and <em>BART</em> offer and this package does not. See <code><a href="articles/implementation.html">vignette("implementation")</a></code>.</p>
 <p>The other columns worth reading as gaps rather than as differences are these. There are <strong>no threads inside a chain</strong>, so a single chain is single-core here where <em>dbarts</em>, <em>BART</em>, <em>bartMachine</em>, and <em>stochtree</em> all use several; chains do run in parallel, which is the cheaper win, but it does not help one chain. There is <strong>no cross-validation</strong> over <code>k</code>, <code>num_trees</code>, and the tree prior, which <code>dbarts::xbart()</code> and <code>bartMachine::bartMachineCV()</code> both automate. There is <strong>no grow-from-root warm start</strong>, which is <em>stochtree</em>’s way of shortening burn-in. And there is <strong>no JSON serialization</strong>, so a fit round-trips through <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> and not into another language. On survival, <em>BART</em> is ahead: recurrent events and competing risks are there and here they are not.</p>
 <p>Three more packages are single-purpose rather than general, so they are not columns above: <a href="https://CRAN.R-project.org/package=bcf" class="external-link"><em>bcf</em></a> fits Bayesian causal forests only, <a href="https://github.com/skdeshpande91/VCBART" class="external-link"><em>VCBART</em></a> varying-coefficient models only, and <em>bartCause</em> wraps <em>dbarts</em> for causal estimands.</p>
 </div>

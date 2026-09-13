@@ -56,10 +56,11 @@ predict(
 
   `"response"`
 
-  :   the mean of the response; the median survival time for the
-      accelerated failure time families; and, for a response with
-      categories, the category probabilities, since there is no single
-      mean to report.
+  :   the mean of the response; the median survival time for every
+      survival family,
+      [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+      included; and, for a response with categories, the category
+      probabilities, since there is no single mean to report.
 
   `"prob"`
 
@@ -226,8 +227,8 @@ The **scale** is `sd(y*) = sqrt(var(eta) + var(e))`, where `var(eta)` is
 taken over the sample the model was fitted to, per draw, so it is a
 property of the model rather than of whatever is being predicted; the
 same divisor is used when predicting new data. `var(e)` is whatever the
-link implies: 1 for the probit link, `pi^2 / 3` for the logit,
-`pi^2 / 6` for the complementary log-log.
+link implies: 1 for the probit link, \\\pi^2 / 3\\ for the logit,
+\\\pi^2 / 6\\ for the complementary log-log.
 
 The **location** subtracts the latent error's mean, which shifts `y*` so
 that its error is centered. That is invisible for the logit and probit
@@ -235,11 +236,11 @@ links, whose errors are already centered, and is the whole of the
 difference for the complementary log-log link, whose error is a smallest
 extreme value variate.
 
-The **sign of that shift differs between the two families**, and only
-for the complementary log-log link. A normal or logistic error is
-symmetric, so it does not matter whether `e` or `-e` is the thing added
-to the index. A smallest extreme value error is not symmetric, and the
-two families add it with opposite signs: an ordinal model has
+The sign of that shift differs between the two families, and only for
+the complementary log-log link. A normal or logistic error is symmetric,
+so it does not matter whether `e` or `-e` is the thing added to the
+index. A smallest extreme value error is not symmetric, and the two
+families add it with opposite signs: an ordinal model has
 `P(Y <= k) = G(c_k - eta)`, which is `P(eta + e <= c_k)`, so its error
 has mean `-gamma`; a binomial model has `P(Y = 1) = G(eta)`, which is
 `P(e <= eta)`, so its latent is `eta - e` and the error has mean

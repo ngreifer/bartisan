@@ -45,6 +45,7 @@
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -81,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-08</h4>
+            <h4 data-toc-skip class="date">2026-09-13</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/survival.Rmd" class="external-link"><code>vignettes/survival.Rmd</code></a></small>
       <div class="d-none name"><code>survival.Rmd</code></div>
@@ -100,8 +101,8 @@ pre code {word-wrap: normal; white-space: pre;}
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Small chains in the live examples, so that this vignette builds quickly. The</span></span>
-<span><span class="co"># defaults are 50 trees and 500 draws after 500 warmup iterations, which is</span></span>
-<span><span class="co"># what the simulations reported below use.</span></span>
+<span><span class="co"># defaults are 50 trees and 800 draws after 200 warmup iterations; the</span></span>
+<span><span class="co"># simulations reported below use 50 trees and 500 draws after 500 warmup.</span></span>
 <span><span class="va">ctrl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">150</span>, num_draws <span class="op">=</span> <span class="fl">150</span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
@@ -130,8 +131,8 @@ table for choosing.</p>
 <h2 id="the-response-surv">The Response (<code>Surv()</code>)<a class="anchor" aria-label="anchor" href="#the-response-surv"></a>
 </h2>
 <p>Every family here takes a <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or
-equivalently a two-column numeric matrix of non-negative times and 0/1
-event indicators. A 1 means the event was observed at that time; a 0
+equivalently a two-column numeric matrix of strictly positive times and
+0/1 event indicators. A 1 means the event was observed at that time; a 0
 means the subject was still event-free when last seen, so the true time
 is somewhere above it.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -258,39 +259,6 @@ informative comparison is Weibull against either of the other two, by
 <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>.</p>
 </div>
 <div class="section level3">
-<h3 id="a-free-baseline-hazard-ph">A Free Baseline Hazard (<code>ph()</code>)<a class="anchor" aria-label="anchor" href="#a-free-baseline-hazard-ph"></a>
-</h3>
-<p><code><a href="../reference/bartisan-families.html">ph()</a></code> gives up on a parametric time distribution and
-models the hazard instead <span class="citation">(<a href="#ref-basak2024">Basak et al. 2024</a>)</span>:</p>
-<p><span class="math display">\[\lambda(t \mid x) =
-\lambda_0(t)\exp\{r(x)\},\]</span></p>
-<p>with <span class="math inline">\(\lambda_0\)</span> constant within
-each of <code>num_bins</code> pieces whose edges sit at evenly spaced
-quantiles of the observed times. This is the piecewise-exponential
-proportional hazards model with a forest on the log hazard ratio. The
-baseline can take any shape at all, including one that turns over, which
-none of the three parametric families can do.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_ph</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span> <span class="op">+</span> <span class="va">trt</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>                   family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">ph</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_ph</span><span class="op">$</span><span class="va">aux</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; lambda1 lambda2 lambda3 lambda4 lambda5 lambda6 </span></span>
-<span><span class="co">#&gt;   0.013   0.043   0.079   0.070   0.082   0.078</span></span></code></pre></div>
-<p>The bin hazards come back as <code>lambda1</code>,
-<code>lambda2</code>, … alongside <code>lambda_rate</code>, the drawn
-rate of their own Gamma prior; the hazards are shrunk toward each other
-through it, which is what keeps a fine grid from overfitting.</p>
-<p>One point of interpretation matters here. The predictor and the
-baseline are identified only <em>jointly</em>: multiplying <span class="math inline">\(\lambda_0\)</span> by a constant and subtracting
-its log from <span class="math inline">\(r(x)\)</span> leaves the
-likelihood unchanged. The fit resolves this by letting the baseline
-carry the level and reporting <span class="math inline">\(r(x)\)</span>
-centered, so <strong><code>fit_ph</code>’s predictor is a contrast, not
-a level</strong>. Differences between two values of <span class="math inline">\(r\)</span> are meaningful; a single value is
-not.</p>
-</div>
-<div class="section level3">
 <h3 id="an-estimated-error-distribution-dpm_aft">An Estimated Error Distribution (<code>dpm_aft()</code>)<a class="anchor" aria-label="anchor" href="#an-estimated-error-distribution-dpm_aft"></a>
 </h3>
 <p><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> is an accelerated failure time model with the
@@ -303,17 +271,17 @@ Dirichlet process mixture of normals},\]</span></p>
 model with censoring added: each sweep, a right-censored log-time is
 imputed from the mixture component it currently sits in, truncated below
 at its censoring time.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_dpm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span> <span class="op">+</span> <span class="va">trt</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
 <span>                    family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">dpm_aft</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_dpm</span><span class="op">$</span><span class="va">aux</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    alpha clusters   center error_sd </span></span>
-<span><span class="co">#&gt;    1.069    6.040    0.048    0.714</span></span></code></pre></div>
+<span><span class="co">#&gt;    3.066   14.747    0.015    0.713</span></span></code></pre></div>
 <p><code><a href="../reference/error_density.html">error_density()</a></code> reports what the error distribution came
 out looking like, which is the diagnostic the model exists to
 provide:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/error_density.html">error_density</a></span><span class="op">(</span><span class="va">fit_dpm</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># The normal a lognormal_aft() fit would have assumed, given the same spread.</span></span>
@@ -336,9 +304,42 @@ path <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></co
 cheap. It runs at about twice <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>’s cost and a
 third of <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>’s.</p>
 </div>
+<div class="section level3">
+<h3 id="a-free-baseline-hazard-ph">A Free Baseline Hazard (<code>ph()</code>)<a class="anchor" aria-label="anchor" href="#a-free-baseline-hazard-ph"></a>
+</h3>
+<p><code><a href="../reference/bartisan-families.html">ph()</a></code> gives up on a parametric time distribution and
+models the hazard instead <span class="citation">(<a href="#ref-basak2024">Basak et al. 2024</a>)</span>:</p>
+<p><span class="math display">\[\lambda(t \mid x) =
+\lambda_0(t)\exp\{r(x)\},\]</span></p>
+<p>with <span class="math inline">\(\lambda_0\)</span> constant within
+each of <code>num_bins</code> pieces whose edges sit at evenly spaced
+quantiles of the observed times. This is the piecewise-exponential
+proportional hazards model with a forest on the log hazard ratio. The
+baseline can take any shape at all, including one that turns over, which
+none of the three parametric families can do.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_ph</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span> <span class="op">+</span> <span class="va">trt</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
+<span>                   family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">ph</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_ph</span><span class="op">$</span><span class="va">aux</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; lambda1 lambda2 lambda3 lambda4 lambda5 lambda6 </span></span>
+<span><span class="co">#&gt;   0.055   0.167   0.292   0.280   0.314   0.299</span></span></code></pre></div>
+<p>The bin hazards come back as <code>lambda1</code>,
+<code>lambda2</code>, … alongside <code>lambda_rate</code>, the drawn
+rate of their own Gamma prior; the hazards are shrunk toward each other
+through it, which is what keeps a fine grid from overfitting.</p>
+<p>One point of interpretation matters here. The predictor and the
+baseline are identified only <em>jointly</em>: multiplying <span class="math inline">\(\lambda_0\)</span> by a constant and subtracting
+its log from <span class="math inline">\(r(x)\)</span> leaves the
+likelihood unchanged. The fit resolves this by letting the baseline
+carry the level and reporting <span class="math inline">\(r(x)\)</span>
+centered, so <strong><code>fit_ph</code>’s predictor is a contrast, not
+a level</strong>. Differences between two values of <span class="math inline">\(r\)</span> are meaningful; a single value is
+not.</p>
+</div>
 </div>
 <div class="section level2">
-<h2 id="two-estimands-not-three">Two Estimands, Not Three<a class="anchor" aria-label="anchor" href="#two-estimands-not-three"></a>
+<h2 id="time-ratios-and-hazard-ratios">Time Ratios and Hazard Ratios<a class="anchor" aria-label="anchor" href="#time-ratios-and-hazard-ratios"></a>
 </h2>
 <p>The five families report two genuinely different comparative
 quantities, and the difference matters because they move in opposite
@@ -364,7 +365,7 @@ a log hazard ratio of <span class="math inline">\(-k\,\Delta\eta\)</span> alongs
 ratio of <span class="math inline">\(\Delta\eta\)</span>. Away from the
 Weibull there is no such correspondence at all.</p>
 <div class="section level3">
-<h3 id="where-the-level-sits">Where the Level Sits<a class="anchor" aria-label="anchor" href="#where-the-level-sits"></a>
+<h3 id="the-level-each-family-reports">The Level Each Family Reports<a class="anchor" aria-label="anchor" href="#the-level-each-family-reports"></a>
 </h3>
 <p>The contrast is a log time ratio in all four, but <span class="math inline">\(e^{\eta}\)</span> on its own is a different
 functional of <span class="math inline">\(T\)</span> in each, because
@@ -423,12 +424,20 @@ unaffected in every case, which is the usual reason to prefer them.</p>
 survival at a horizon (e.g., the difference in one-year survival between
 treated and untreated). That is a contrast in <span class="math inline">\(S(t \mid x)\)</span> at a fixed <span class="math inline">\(t\)</span>, and it is on the same scale (a
 probability) no matter which family produced it.</p>
+<p>This is also where <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> stops for a
+survival fit. Its default <code>type = "response"</code> contrasts
+median survival times, which is a real estimand and often the wrong one;
+a contrast in survival at a horizon needs
+<code>type = "survival"</code>, which needs <code>times</code>, and
+<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> has no argument for it. So the horizon
+contrast goes through <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code> as
+below.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_ph</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          1     2     5</span></span>
-<span><span class="co">#&gt; [1,] 0.991 0.973 0.851</span></span>
-<span><span class="co">#&gt; [2,] 0.983 0.949 0.732</span></span>
-<span><span class="co">#&gt; [3,] 0.921 0.774 0.225</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,] 0.990 0.971 0.842</span></span>
+<span><span class="co">#&gt; [2,] 0.982 0.945 0.720</span></span>
+<span><span class="co">#&gt; [3,] 0.933 0.809 0.297</span></span></code></pre></div>
 <p>and inside the estimand machinery:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://marginaleffects.com/" class="external-link">marginaleffects</a></span><span class="op">)</span></span>
@@ -437,12 +446,12 @@ probability) no matter which family produced it.</p>
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit_ph</span>, variables <span class="op">=</span> <span class="st">"trt"</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.176 0.111  0.234</span></span>
+<span><span class="co">#&gt;     0.167 0.115   0.22</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: trt</span></span>
 <span><span class="co">#&gt; Type: survival</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
-<p>One time per call. <em>marginaleffects</em> warns that it does not
+<p>One time per call. <em>marginaleffects</em> may warn that it does not
 recognize <code>times</code>, because it checks the dots against a
 whitelist hardcoded per model class and offers no hook for registering
 an argument; it passes the argument through regardless and the result is
@@ -471,7 +480,7 @@ is whatever the fitted error mixture implies, which can be multi-modal
 produce.</p>
 </div>
 <div class="section level2">
-<h2 id="a-comparison-across-six-truths">A Comparison Across Six Truths<a class="anchor" aria-label="anchor" href="#a-comparison-across-six-truths"></a>
+<h2 id="the-families-compared-by-simulation">The Families Compared by Simulation<a class="anchor" aria-label="anchor" href="#the-families-compared-by-simulation"></a>
 </h2>
 <p>The script is <code>_dev/survival-sim.R</code> in the package
 sources.</p>
@@ -895,14 +904,14 @@ hazards:</p>
 <span>            nrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">edges</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">h</span>, <span class="fl">2</span>, <span class="va">cumprod</span><span class="op">)</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">8</span>, <span class="fl">15</span><span class="op">)</span><span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       [,1]  [,2]  [,3]</span></span>
-<span><span class="co">#&gt; [1,] 0.995 0.935 0.233</span></span>
-<span><span class="co">#&gt; [2,] 0.979 0.768 0.045</span></span>
-<span><span class="co">#&gt; [3,] 0.852 0.189 0.002</span></span></code></pre></div>
-<p><code>binomial("probit")</code> is the fastest family in the package,
-so the cost is the expansion rather than the sampler: the number of rows
-is the sum of how many grid points each subject reaches. Fifteen to
-twenty grid points is usually plenty; a finer grid multiplies the rows
-without adding much.</p>
+<span><span class="co">#&gt; [1,] 0.995 0.926 0.318</span></span>
+<span><span class="co">#&gt; [2,] 0.981 0.747 0.089</span></span>
+<span><span class="co">#&gt; [3,] 0.849 0.232 0.011</span></span></code></pre></div>
+<p><code>binomial("probit")</code> is among the cheapest families in the
+package, so the cost is the expansion rather than the sampler: the
+number of rows is the sum of how many grid points each subject reaches.
+Fifteen to twenty grid points is usually plenty; a finer grid multiplies
+the rows without adding much.</p>
 <p><strong>How it compares.</strong> From the same simulation, on the
 two truths that separate it from <code><a href="../reference/bartisan-families.html">ph()</a></code>:</p>
 <table class="table">
@@ -1010,7 +1019,7 @@ question is whether hazards are proportional, fitting it alongside
 diagnostic; adopting it by default is not.</p>
 </div>
 <div class="section level2">
-<h2 id="three-traps">Three Traps<a class="anchor" aria-label="anchor" href="#three-traps"></a>
+<h2 id="details-that-are-easy-to-get-wrong">Details That Are Easy to Get Wrong<a class="anchor" aria-label="anchor" href="#details-that-are-easy-to-get-wrong"></a>
 </h2>
 <div class="section level3">
 <h3 id="measure">The Measure Behind the Log Score
@@ -1036,7 +1045,7 @@ probabilities and carry no measure at all.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>lognormal <span class="op">=</span> <span class="fu">log_score_T</span><span class="op">(</span><span class="va">fit_ln</span>, <span class="va">d</span><span class="op">)</span>, ph <span class="op">=</span> <span class="fu">log_score_T</span><span class="op">(</span><span class="va">fit_ph</span>, <span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; lognormal        ph </span></span>
-<span><span class="co">#&gt;      -777      -787</span></span></code></pre></div>
+<span><span class="co">#&gt;      -777      -788</span></span></code></pre></div>
 <p>Without the correction the comparison is meaningless: on one of the
 simulations above the uncorrected gap between <code><a href="../reference/bartisan-families.html">ph()</a></code> and the
 accelerated failure time families exceeded a thousand log points and

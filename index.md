@@ -234,23 +234,27 @@ package does not offer the feature, not that it fits it badly.
 | [`predict()`](https://rdrr.io/r/stats/predict.html) on new data | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Convergence diagnostics built in | ✓ | — | ✓ | — | — | ✓ | — |
 | Variable importance | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
-| Formal variable-selection test | ✎ | — | ✓ | — | ✓ | ✓ | — |
-| Partial dependence | ✎ | ✓ | — | — | ✓ | ✓ | — |
+| Formal variable-selection test | ✓ inclusion | — | ✓ permutation | — | ✓ inclusion | ✓ permutation | — |
+| Partial dependence | ✓ | ✓ | — | — | ✓ | ✓ | — |
 | Interaction detection | ✎ | — | — | — | — | ✓ | — |
 | Counterfactual estimands with intervals | ✓ | — | — | — | — | — | — |
 | Cross-validated model comparison | ✓ | — | — | — | — | — | — |
 
-**✎ means a helper package covers it, not this one.** All three of those
-rows are things *bartMachine* does natively and *bartisan* does through
+**✎ means a helper package covers it, not this one.** Interaction
+detection is the one row left marked, and *bartisan* does it through
 *marginaleffects*, because a fit works with it and every estimand there
-is computed by pushing the draws through: `plot_predictions()` is a
-partial dependence plot, and
-`avg_comparisons(variables = "x", by = "z")` and `hypotheses(~pairwise)`
-are interaction detection, neither of which needs code here. What is
-genuinely missing is a *formal* variable-selection test: this package
-reports split counts and the share of draws that used a predictor, which
-is not a test, where *bartMachine* permutes the response and *SoftBart*
-reports posterior inclusion probabilities.
+is computed by pushing the draws through:
+`avg_comparisons(variables = "x", by = "z")` with
+`hypotheses(~pairwise)` is interaction detection and needs no code here.
+
+The variable-selection row divides into two things that both get called
+a test. One is the posterior inclusion probability under the sparsity
+prior, which
+[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
+reports as `prop_used` and *SoftBart* reports as `posterior_probs()`;
+the other is a permutation test, which *bartMachine* and *BART* offer
+and this package does not. See
+[`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md).
 
 The other columns worth reading as gaps rather than as differences are
 these. There are **no threads inside a chain**, so a single chain is

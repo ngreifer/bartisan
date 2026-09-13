@@ -34,6 +34,7 @@ model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
   hema + pafi + paco2 + crea + surv2m + card
 
 set.seed(2026)
+
 full <- bartisan(model, data = rhc, family = binomial())
 ```
 
@@ -89,8 +90,10 @@ held-out data rather than a different diagnostic:
 
 ``` r
 
-train <- rhc[1:1200, ]
-held  <- rhc[1201:nrow(rhc), ]
+train_id <- sample.int(nrow(rhc), 1200)
+
+train <- rhc[train_id, ]
+held  <- rhc[-train_id, ]
 
 fit <- bartisan(model, data = train, family = binomial())
 
@@ -104,10 +107,11 @@ This is the same quantity `elpd_loo` approximates, computed directly.
 ``` r
 
 set.seed(2026)
-demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
-                         family = binomial())
+demographics <- bartisan(death ~ rhc + age + sex + race + edu,
+                         data = rhc, family = binomial())
 
-loo_compare(list(full = loo(full), demographics = loo(demographics)))
+loo_compare(list(full = loo(full),
+                 demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
 #>  demographics     -69.4    11.1    1.00
@@ -138,7 +142,8 @@ probit <- bartisan(model, data = rhc, family = binomial("probit"))
 set.seed(2026)
 cloglog <- bartisan(model, data = rhc, family = binomial("cloglog"))
 
-loo_compare(list(logit = loo(full), probit = loo(probit),
+loo_compare(list(logit = loo(full),
+                 probit = loo(probit),
                  cloglog = loo(cloglog)))
 #>    model elpd_diff se_diff p_worse       diag_diff diag_elpd
 #>  cloglog       0.0     0.0      NA                          
@@ -153,13 +158,8 @@ reading is that the link does not matter here.
 That is a useful negative result and worth reporting as one. It is also
 the usual outcome: with a flexible function on the inside, the link has
 little left to do, because the forest can absorb the difference between
-one link and another. This is not true of a linear model, where the link
-carries the whole shape of the relationship.
-
-The one link worth thinking about separately is `"cloglog"`, which is
-asymmetric and is the right choice when the outcome is a discretized
-survival time. See
-[`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md).
+one link and another. This is not true of a generalized linear model,
+where the link carries the whole shape of the relationship.
 
 ## The Scale of the Log Density
 
@@ -190,19 +190,83 @@ Jacobian is accounted for; comparing a model of `y` to a model of
 There is no obstacle to this, and it is worth doing. If a logistic
 regression predicts as well as the forest, that is evidence the
 relationship is close to linear on the log-odds scale, and the simpler
-model is easier to report.
+model is the easier one to report.
 
-The comparison has to be like for like, which means fitting both models
-in a framework that produces the same kind of pointwise log density: we
-can fit the logistic regression with *rstanarm* or *brms* and compare
-the two with
-[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html),
-or compare held-out log scores computed the same way for both.
+The comparison has to be like for like, which means both models have to
+produce a pointwise log density of the same outcome on the same scale.
+Fitting the regression in a Bayesian framework is what arranges that:
+*rstanarm* fits it with `stan_glm()` and gives it a
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) method, and the
+resulting object goes into
+[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+beside ours.
 
-Comparing `elpd_loo` from this package against
+``` r
+
+logistic <- rstanarm::stan_glm(model, data = rhc, family = binomial(),
+                               chains = 4, refresh = 0, seed = 2026)
+
+loo(logistic)
+#> 
+#> Computed from 4000 by 1500 log-likelihood matrix.
+#> 
+#>          Estimate   SE
+#> elpd_loo   -844.9 18.4
+#> p_loo        16.6  0.6
+#> looic      1689.7 36.8
+#> ------
+#> MCSE of elpd_loo is 0.1.
+#> MCSE and ESS estimates assume independent draws (r_eff=1).
+#> 
+#> All Pareto k estimates are good (k < 0.7).
+#> See help('pareto-k-diagnostic') for details.
+```
+
+``` r
+
+loo_compare(list(bart = loo(full), logistic = loo(logistic)))
+#>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
+#>  logistic       0.0     0.0      NA                          
+#>      bart      -2.9     5.1    0.72 |elpd_diff| < 4
+```
+
+The forest is behind by roughly half a standard error of the difference,
+which is to say the two predict this outcome equally well. Nothing was
+lost by fitting the forest and nothing was gained, and the honest report
+of that is the one above: the flexible model was tried and did not find
+anything the linear one missed.
+
+`p_loo` says where that came from. The regression has 16 coefficients
+and an effective number of parameters to match; the forest’s is about
+twice that, which is the flexibility it spent looking for curvature and
+interaction that turned out not to be there. A forest that predicts no
+better while using twice the parameters is a forest reporting that the
+log-odds are close to linear here, which is a finding rather than a
+disappointment.
+
+Two cautions on the mechanics.
+[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+warns that the models do not have the same `y` variable, which is not
+what has happened here. It compares a hash of the response that
+*rstanarm* and *brms* attach to their
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) output and this
+package does not, so it is holding a hash up against nothing. Attaching
+one would not help: the hash is taken of the response as each package
+stores it, and an outcome held as `integer` on one side and `double` on
+the other hashes differently, so the warning would start firing on
+identical data rather than stop firing. What we should check instead,
+and directly, is that both models were fitted to the same rows.
+
+And comparing `elpd_loo` from this package against
 [`AIC()`](https://rdrr.io/r/stats/AIC.html) from
 [`glm()`](https://rdrr.io/r/stats/glm.html) is not a comparison and
-should not be reported as one.
+should not be reported as one. The two differ by a factor of \\-2\\
+before anything else, and [`AIC()`](https://rdrr.io/r/stats/AIC.html)’s
+penalty is a count of parameters, which a forest has no fixed number of;
+the `p_loo` above is an estimate rather than a count. Fitting the
+regression the Bayesian way is what lets us compare
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) against
+[`loo()`](https://mc-stan.org/loo/reference/loo.html), as above.
 
 ## Tuning and Variable Selection
 

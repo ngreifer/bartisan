@@ -38,6 +38,7 @@ error if it is called on its own."></head><body>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -202,8 +203,11 @@ prior has more to say, 0.0389 against 0.0830.</p>
 <p><strong>Above two values it stops being free, and the restriction is a real one.</strong>
 Every contrast is then the same \(\tilde f\) times a scalar, so the levels
 share one shape of heterogeneity where the symmetric coding gives each its
-own. That is worth a great deal when it holds and expensive when it does not.
-Measured on a three-level covariate over 12 replicates:</p><table class="table table"><tr><td>truth</td><td>symmetric, a forest per level</td><td><code>"estimate"</code>, one shared forest</td></tr><tr><td>every level the same shape</td><td>0.266</td><td><strong>0.191</strong></td></tr><tr><td>each level its own shape</td><td><strong>0.242</strong></td><td>0.696</td></tr></table><p>So the two are what they look like: <code>"estimate"</code> is the parsimonious model and
+own. That is worth a great deal when it holds and expensive when it does not:
+on a three-level covariate, <code>"estimate"</code> takes about a quarter off the error
+when every level really does share a shape, and nearly triples it when they do
+not.</p>
+<p>So the two are what they look like: <code>"estimate"</code> is the parsimonious model and
 the default is the general one. Reach for it when the levels plausibly differ
 in degree rather than in kind.</p>
 </div>

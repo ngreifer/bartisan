@@ -42,6 +42,7 @@ counterpart for documented at bartisan-families."></head><body>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -131,15 +132,9 @@ would use, so the two agree to within that difference rather than exactly.</p>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="fl">1</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p><code><a href="vc.html">vc()</a></code> terms are read out of each formula in turn, so a parameter has the
-varying coefficients its own formula asks for and no others. That makes the
-forests two-dimensional (one axis the parameter, the other the coefficient),
-and the names below are what per-forest settings are keyed by:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="co"># forests: mean, mean:z, log_sd</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># one formula reaches every parameter, so both get a coefficient of `z`</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div></dd>
+varying coefficients its own formula asks for and no others, which makes the
+forests two-dimensional (one axis the parameter, the other the coefficient).
+<code><a href="vc.html">vc()</a></code> documents how they are then named and keyed.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>

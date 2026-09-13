@@ -118,7 +118,8 @@ model_performance(model, metrics = "all", verbose = TRUE, ...)
   `numeric`; the number of posterior draws to use, chosen at random from
   the retained ones. Defaults are 1 for
   [`simulate()`](https://rdrr.io/r/stats/simulate.html) and 10 for
-  `pp_check()`.
+  `pp_check()`. A `ppc_loo_*` check uses every retained draw whatever
+  this is set to, and says so; see Details.
 
 - seed:
 
@@ -220,21 +221,64 @@ or to the bayesplot MCMC diagnostics. **Basic accessors.**
 for a `glm`, which is also most of what insight needs to make the fit
 legible to the easystats packages.
 
-### Leave-One-Out Is Approximate, and Strained Here
+### Leave-One-Out Is Approximate, and Mostly Holds Up
 
 [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html) estimates the
 leave-one-out predictive density by importance sampling from the
 full-data posterior, and the estimate is trustworthy only when the
 importance weights have a finite variance, which is what the Pareto
-\\k\\ diagnostic reports on. A forest is a very flexible function of the
-predictors, so a single observation can have a lot of influence on the
-leaves it lands in, and high \\k\\ values are common rather than
-exceptional. Note that the warning loo prints in that case is not
-boilerplate; it says the number is not reliable, and held-out data are
-the alternative. A log score on data the model has not seen is available
-directly:
+\\k\\ diagnostic reports on. The worry for a forest is that it is a very
+flexible function of the predictors, so one observation might carry
+enough influence over the leaves it lands in that dropping it cannot be
+approximated from the fit in hand.
+
+Measured, it usually does not. Over nine fits
+([`gaussian()`](https://rdrr.io/r/stats/family.html) at \\n = 100\\ with
+200 trees,
+[`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+[`poisson()`](https://rdrr.io/r/stats/family.html),
+[`binomial()`](https://rdrr.io/r/stats/family.html),
+[`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+and [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) on
+`lalonde` with both [`gaussian()`](https://rdrr.io/r/stats/family.html)
+and
+[`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)),
+at most 0.2% of observations exceeded \\k = 0.7\\ and the median \\k\\
+ran between 0.03 and 0.32. The leaf prior is what makes the difference:
+it shrinks every leaf towards zero and the fit is a sum over many trees,
+so no single observation dominates the leaves it reaches. The exceptions
+that did turn up were about the likelihood rather than the trees, and
+are the ones worth having; fitting \\t_2\\ errors with
+[`gaussian()`](https://rdrr.io/r/stats/family.html) left one observation
+of 400 at \\k = 2.4\\.
+
+So the warning loo prints there is worth reading rather than expecting.
+When it names a handful of observations, those are the influential ones,
+and refitting without them is what shows how badly they are predicted. A
+log score on data the model has not seen is available directly:
 
     predict(fit, newdata = held_out, type = "density", log = TRUE)
+
+The seven `ppc_loo_*` checks reweight the replicates towards the
+leave-one-out predictive instead of comparing them with the response
+directly, so they need those same weights. `pp_check()` computes them
+from the fit's own pointwise log likelihood and passes them on, and
+`ndraws` does not apply to those checks, because the weights and the
+replicates have to line up draw for draw; supplying `lw` or
+`psis_object` takes over from it.
+[`bayesplot::ppc_loo_calibration()`](https://mc-stan.org/bayesplot/reference/PPC-calibration.html)
+wants a binary response besides, which is its own requirement rather
+than this package's.
+
+The two calibration checks are the ones to reach for when the response
+is binary, since the default check compares two distributions that can
+only take two values and so finds nothing. `type = "loo_calibration"` is
+the honest one, holding each observation out of the probability it is
+judged against; `type = "calibration"` is its in-sample counterpart and
+reads optimistically. A binned residual plot (`type = "error_binned"`)
+and either calibration check are about the predicted probabilities
+rather than replicate outcomes, so they are passed the mean of the
+predictive distribution instead of a draw from it.
 
 ### What a Posterior Predictive Draw Is On
 

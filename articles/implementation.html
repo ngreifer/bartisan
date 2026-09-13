@@ -45,6 +45,7 @@
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -81,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-08</h4>
+            <h4 data-toc-skip class="date">2026-09-13</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/implementation.Rmd" class="external-link"><code>vignettes/implementation.Rmd</code></a></small>
       <div class="d-none name"><code>implementation.Rmd</code></div>
@@ -117,7 +118,7 @@ the other BART packages, and to the checks that say the implementation
 is right.</p>
 <p>Fits below use a deliberately small chain so that the vignette builds
 quickly: 20 trees and 300 draws after 300 warmup iterations, on 400
-observations. The defaults are 50 trees and 500 draws after 500 warmup
+observations. The defaults are 50 trees and 800 draws after 200 warmup
 iterations.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ctrl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">20</span>, num_burn <span class="op">=</span> <span class="fl">300</span>, num_draws <span class="op">=</span> <span class="fl">300</span><span class="op">)</span></span>
@@ -146,7 +147,7 @@ The sum is flexible while each term is a weak learner, which is what
 makes the fit stable. Interactions come free: a path through a tree that
 splits on <span class="math inline">\(x_1\)</span> and then on <span class="math inline">\(x_2\)</span> is an interaction between them, and
 nothing had to be specified for it to appear.</p>
-<p>In ordinary BART the sum is the conditional mean of a Gaussian
+<p>In ordinary BART, the sum is the conditional mean of a Gaussian
 outcome,</p>
 <p><span class="math display">\[Y = f(x) + \varepsilon, \qquad
 \varepsilon \sim \mathrm{N}(0, \sigma^2).\]</span></p>
@@ -170,13 +171,14 @@ probability of a structural zero. Those get one forest each:</p>
 <p><span class="math display">\[\eta_h(x) = \sum_{m=1}^{M_h} g(x;
 T_{hm}, M_{hm}), \qquad h = 1, \dots, H,\]</span></p>
 <p>and the sampler cycles over all the forests.
-<code><a href="../articles/families.html">vignette("families")</a></code> says how many each family uses.</p>
+<code><a href="../articles/families.html">vignette("families")</a></code> says how many forests each family
+uses.</p>
 </div>
 <div class="section level3">
 <h3 id="the-prior">The Prior<a class="anchor" aria-label="anchor" href="#the-prior"></a>
 </h3>
-<p>Three pieces, all with defaults chosen so that the fit is regularized
-without being tuned <span class="citation">(<a href="#ref-chipman2010">Chipman et al. 2010</a>)</span>.</p>
+<p>The model prior has three pieces, all with defaults chosen so that
+the fit is regularized without being tuned <span class="citation">(<a href="#ref-chipman2010">Chipman et al. 2010</a>)</span>.</p>
 <p><strong>Tree structure.</strong> A node at depth <span class="math inline">\(d\)</span> is split rather than left as a leaf
 with probability</p>
 <p><span class="math display">\[\alpha (1 + d)^{-\beta}, \qquad \alpha =
@@ -247,7 +249,7 @@ usually worth it:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu">timed</span><span class="op">(</span><span class="st">"smoothstep"</span><span class="op">)</span>, <span class="fu">timed</span><span class="op">(</span><span class="st">"hard"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        rules test_rmse seconds</span></span>
-<span><span class="co">#&gt; 1 smoothstep     0.434     1.3</span></span>
+<span><span class="co">#&gt; 1 smoothstep     0.434     1.4</span></span>
 <span><span class="co">#&gt; 2       hard     1.025     0.4</span></span></code></pre></div>
 <p>The true function has a standard deviation of about 4.9, so both are
 fitting real structure and the soft fit is the more accurate.</p>
@@ -304,7 +306,7 @@ predictors sit at 1.00 in every cell.</caption>
 </tr>
 </tbody>
 </table>
-<p>Without the sparsity prior the advice to use fewer trees is
+<p>Without the sparsity prior, the advice to use fewer trees is
 essential: at 50 trees the noise predictors are used in 95% of draws and
 are indistinguishable from the real ones. With it, the noise predictors
 stay near zero at every tree count, and reducing the trees buys little.
@@ -319,7 +321,7 @@ covers both.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="how-it-is-fitted">How It Is Fitted<a class="anchor" aria-label="anchor" href="#how-it-is-fitted"></a>
+<h2 id="how-the-model-is-fit">How the Model Is Fit<a class="anchor" aria-label="anchor" href="#how-the-model-is-fit"></a>
 </h2>
 <div class="section level3">
 <h3 id="bayesian-backfitting">Bayesian Backfitting<a class="anchor" aria-label="anchor" href="#bayesian-backfitting"></a>
@@ -341,16 +343,16 @@ reversible-jump sampler.</p>
 <p>The acceptance ratio needs the likelihood of the tree with the leaf
 parameters integrated out,</p>
 <p><span class="math display">\[p(\text{residual} \mid T) = \int
-p(\text{residual} \mid T, M) \, p(M) \, dM.\]</span></p>
+p(\text{residual} \mid T, M) \, p(M) \, dM\]</span></p>
 </div>
 <div class="section level3">
 <h3 id="the-general-case-and-the-laplace-approximation">The General Case, and the Laplace Approximation<a class="anchor" aria-label="anchor" href="#the-general-case-and-the-laplace-approximation"></a>
 </h3>
-<p>For a Gaussian outcome with a normal leaf prior that integral is a
+<p>For a Gaussian outcome with a normal leaf prior, that integral is a
 normal integral and has a closed form. This is what confines classic
 BART to Gaussian likelihoods, or to likelihoods that can be made
 Gaussian by augmentation.</p>
-<p>For anything else the integral has no closed form. <span class="citation">Linero (<a href="#ref-linero2025">2025</a>)</span>
+<p>For anything else, the integral has no closed form. <span class="citation">Linero (<a href="#ref-linero2025">2025</a>)</span>
 replaces it with a Laplace approximation: expand the log integrand
 around its mode, integrate the resulting quadratic, and use that both to
 score the tree and to propose the leaf values. A Metropolis correction
@@ -360,8 +362,8 @@ right.</p>
 <p>The practical consequence is the reason the package exists. A family
 needs only the log density of one observation and its first two
 derivatives with respect to the predictor. Anything that can supply
-those can be fitted, which is why <code><a href="../reference/bartisan-families.html">custom_family()</a></code> takes an
-R function and works.</p>
+those can be fit, which is why <code><a href="../reference/bartisan-families.html">custom_family()</a></code> takes an R
+function and works.</p>
 <p>The sampler recognizes three shapes of the leaf-level target and uses
 the cheapest machinery each admits:</p>
 <table class="table">
@@ -506,14 +508,14 @@ sampling does, so they run when they are asked for.</p>
 <code>loglik</code> are close to 1, which is what convergence looks
 like, and they respond to longer chains in the usual way.</p>
 <p>The <code>eta</code> row does not, and it is worth knowing why before
-it causes alarm. It is the worst value over all 400 observations, so it
-is a maximum by construction, and forests mix slowly on their fitted
-values: two chains can visit quite different sets of trees that imply
-very similar predictions, which inflates a between-chain statistic
-without meaning that the answers disagree. Adding draws does not
-reliably bring it down. Values above 1.05 on this row are ordinary for a
-BART fit, and are characteristic of the method rather than of this
-implementation.</p>
+it causes alarm. It summarizes the worst 5% of the observations rather
+than the single worst, so it is a high percentile by construction, and
+forests mix slowly on their fitted values: two chains can visit quite
+different sets of trees that imply very similar predictions, which
+inflates a between-chain statistic without meaning that the answers
+disagree. Adding draws does not reliably bring it down. Values above
+1.05 on this row are ordinary for a BART fit, and are characteristic of
+the method rather than of this implementation.</p>
 <p>What to check instead is that the quantities to be reported are
 stable. If <code>sigma</code> and the log likelihood have converged and
 an <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> estimate is the same across chains,
@@ -621,493 +623,198 @@ reaches the quadratic target is several times faster than one that does
 not, which is why <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> fits in about a second
 where <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> takes eight on the same data.</p>
 <div class="section level3">
-<h3 id="the-benchmark">The Benchmark<a class="anchor" aria-label="anchor" href="#the-benchmark"></a>
-</h3>
-<p>From <code>_dev/benchmark.Rmd</code>, which is reproducible: the
-Friedman function, <span class="math inline">\(n = 1000\)</span>, 10
-predictors, 50 trees, 1000 warmup and 1000 saved draws, scored against
-the true regression function on a held-out thousand, best of three runs.
-Every package fits training data only and predicts afterward, so what is
-timed is the sampler rather than the sampler plus a thousand test
-evaluations, and <em>bartisan</em> names
-<code>family = gaussian()</code> rather than taking the default.</p>
-<table class="table">
-<colgroup>
-<col width="20%">
-<col width="20%">
-<col width="20%">
-<col width="20%">
-<col width="20%">
-</colgroup>
-<thead><tr class="header">
-<th>Task</th>
-<th>Package</th>
-<th>Time</th>
-<th>Effective sample size</th>
-<th>Held-out RMSE</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td>Gaussian</td>
-<td><code>dbarts</code></td>
-<td><strong>0.28 s</strong></td>
-<td>24</td>
-<td>0.225</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, hard rules</td>
-<td>0.91 s</td>
-<td>22</td>
-<td>0.193</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td><code>stochtree</code></td>
-<td>1.19 s</td>
-<td>20</td>
-<td>0.245</td>
-</tr>
-<tr class="even">
-<td></td>
-<td><code>BART::wbart</code></td>
-<td>1.93 s</td>
-<td>23</td>
-<td>0.231</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td><code>bartMachine</code></td>
-<td>2.08 s</td>
-<td>(not reported)</td>
-<td>0.234</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, soft, smoothstep gate (default)</td>
-<td>2.89 s</td>
-<td>50</td>
-<td>0.130</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>bartisan, soft, smootherstep gate</td>
-<td>2.98 s</td>
-<td>56</td>
-<td><strong>0.126</strong></td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, soft, logistic gate</td>
-<td>4.21 s</td>
-<td>54</td>
-<td>0.130</td>
-</tr>
-<tr class="odd">
-<td>probit</td>
-<td><code>dbarts</code></td>
-<td><strong>0.36 s</strong></td>
-<td>51</td>
-<td>0.113</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, hard rules</td>
-<td>1.09 s</td>
-<td>36</td>
-<td>0.107</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td><code>stochtree</code></td>
-<td>1.88 s</td>
-<td>34</td>
-<td>0.122</td>
-</tr>
-<tr class="even">
-<td></td>
-<td><code>BART::pbart</code></td>
-<td>2.06 s</td>
-<td>39</td>
-<td>0.117</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>bartisan, soft, logistic gate</td>
-<td>3.10 s</td>
-<td>64</td>
-<td>0.086</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, <code>augment = FALSE</code>
-</td>
-<td>42.1 s</td>
-<td>73</td>
-<td><strong>0.085</strong></td>
-</tr>
-<tr class="odd">
-<td>logit</td>
-<td>bartisan, soft, logistic gate</td>
-<td><strong>3.97 s</strong></td>
-<td>179</td>
-<td><strong>0.082</strong></td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, <code>augment = FALSE</code>
-</td>
-<td>25.0 s</td>
-<td>253</td>
-<td>0.088</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td><code>BART::lbart</code></td>
-<td>48.9 s</td>
-<td>69</td>
-<td>0.108</td>
-</tr>
-<tr class="even">
-<td>ordinal</td>
-<td>bartisan, hard, logit</td>
-<td><strong>1.87 s</strong></td>
-<td>44</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>bartisan, hard, probit</td>
-<td>2.41 s</td>
-<td>44</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, soft, logit</td>
-<td>3.92 s</td>
-<td>52</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>bartisan, soft, probit</td>
-<td>5.15 s</td>
-<td>100</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, hard, cloglog</td>
-<td>6.42 s</td>
-<td>36</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>
-<code>stochtree</code> (cloglog)</td>
-<td>8.10 s</td>
-<td>27</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, hard, logit, <code>augment = FALSE</code>
-</td>
-<td>32.1 s</td>
-<td>47</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="odd">
-<td></td>
-<td>bartisan, hard, cloglog, <code>augment = FALSE</code>
-</td>
-<td>38.2 s</td>
-<td>33</td>
-<td>(not comparable)</td>
-</tr>
-<tr class="even">
-<td></td>
-<td>bartisan, hard, probit, <code>augment = FALSE</code>
-</td>
-<td>51.7 s</td>
-<td>55</td>
-<td>(not comparable)</td>
-</tr>
-</tbody>
-</table>
-<p>With hard rules <em>bartisan</em> is <strong>about three times slower
-than <code>dbarts</code></strong> on the two tasks <code>dbarts</code>
-supports (0.91 s against 0.28 s on the Gaussian task and 1.09 s against
-0.36 s on probit), at comparable mixing and better accuracy, and it is
-faster <em>and</em> more accurate than every other package here on both.
-On the complementary log-log ordinal model, the one task
-<code>stochtree</code> supports and <code>dbarts</code> does not,
-<em>bartisan</em> is the faster of the two, and on a logit link it is 12
-times faster than <code>BART::lbart</code> and mixes two and a half
-times better. Soft rules, which are the default, cost a further three
-times and cut the held-out error by about a third, which makes the
-default configuration the most accurate fit in the table.</p>
-<p>The ordinal rows have no RMSE because the three links put the
-additive predictor on different scales, so the numbers would compare
-scales rather than fits; the timings and the mixing are comparable. The
-remaining families are the expensive ones (2.1 s for a log-logistic
-accelerated failure time model, 5.1 s for a Poisson, 10.0 s for a
-negative binomial, and 10.5 s for a Gamma), which is the price of the
-general machinery where no rewriting is available.</p>
-<p><strong>Two earlier versions of this table were not measuring what
-they claimed</strong>, and both errors are worth stating because they
-cut in opposite directions and the net was a gap reported as 1.8x that
-is really about 3x. The first is that <em>bartisan</em>’s Gaussian rows
-called <code>bartisan(y ~ ., data = dtr)</code> with no
-<code>family</code>; a numeric response with no family reaches
-<code><a href="../reference/bartisan-families.html">dpm()</a></code>, a Dirichlet process mixture for the error
-distribution rather than a Gaussian, so those rows timed a strictly more
-expensive model than the three packages they were compared against, and
-their accuracy column described a different fit. Naming the family is
-worth about 35%. The second, and the larger, is that the competing
-packages were called as <code>bart(xtr, ytr, xte, ...)</code>, which
-evaluates a thousand test points at every draw <em>inside</em> the timed
-call, while <em>bartisan</em>’s <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> ran after the
-timer stopped; on this task that is 0.28 s against 0.47 s for
-<code>dbarts</code>, so the comparison charged <code>dbarts</code> for
-two thirds again as much work as <em>bartisan</em> was doing.
-<code>_dev/parity-benchmark.R</code> isolates each of these, along with
-two settings that turned out not to matter: <em>bartisan</em>’s
-Dirichlet sparsity prior and its drawn leaf scale, neither of which
-<code>dbarts</code> has, are both free to within measurement noise.</p>
-</div>
-<div class="section level3">
-<h3 id="where-the-time-goes">Where the Time Goes<a class="anchor" aria-label="anchor" href="#where-the-time-goes"></a>
-</h3>
-<p>With <strong>hard rules</strong>, what is left against
-<code>dbarts</code> is tree bookkeeping rather than the family. A birth,
-death, or change move makes five or six passes over the node it touches,
-materializing the predictor with the node’s own contribution removed,
-fitting the proposal, splitting the node’s membership, recomputing the
-child weights, and committing, against about two passes for a sampler
-that only ever needs a sum of residuals and a count. Nothing in that gap
-is the likelihood: the acceptance ratio <em>bartisan</em> forms for a
-Gaussian response is algebraically the same marginal-likelihood ratio
-<code>dbarts</code> forms, because a quadratic target makes the Laplace
-approximation exact.</p>
-<p>Reading <code>dbarts</code>’s source says where the rest of it is,
-and all three of its techniques are things soft rules give up. Its nodes
-hold a pointer into <strong>one shared index array</strong> rather than
-a vector of their own, so a split is an in-place partition and costs no
-allocation and no copy; each node caches its <strong>sufficient
-statistics</strong> (a mean and an effective count) computed in the same
-recursion as that partition, so the marginal likelihood reads two
-doubles and never touches the data; and the predictors are
-pre-discretized to <strong>small integer cutpoint codes</strong>, so the
-split test is an integer compare over one or two bytes instead of a
-gather over doubles, and the partition itself is hand-vectorized with
-runtime dispatch to AVX2, SSE4.1, SSE2, or NEON.</p>
-<p>None of the three survives a soft rule, where an observation reaches
-both children with a weight rather than going to one of them: there is
-no partition to do in place, the leaf target is not a function of two
-summaries, and the gate needs the covariate’s value rather than which
-side of a cutpoint it fell. They are all available under
-<code>gate = "hard"</code>, but only by specializing a code path that
-soft and hard rules currently share, which is the trade this package has
-made deliberately, since the soft default is the configuration that wins
-on accuracy. <code>BART</code> has none of the three and reaches every
-observation on every move, which is most of why it is six times slower
-than <code>dbarts</code> here.</p>
-<p>What has actually paid, in order, is worth knowing before reaching
-for the obvious ideas. <strong>Sizing the children’s index vectors and
-filling them by index, instead of <code>push_back</code>,</strong> is
-worth 20% of a soft fit on its own, being four vectors’ worth of
-per-element capacity tests in the innermost loop of the sampler.
-<strong>Recycling tree nodes</strong> rather than allocating two per
-birth proposal, about two thirds of which are rejected, is worth 5%. And
-<strong>folding the child weights into the split that produces
-them</strong> removes a whole pass over the same gates.</p>
-<p>Two things that looked as though they should help did not. A hard
-tree used to carry a membership weight per observation per node, every
-one exactly 1.0, and the leaf-level sums used to write a node’s
-predictors into a buffer and read them back. Removing both is
-bit-identical (multiplying by 1.0 is exact) and together they are worth
-about 10%, against a predicted factor of several. Memory bandwidth was
-never the constraint: a node holds a few thousand observations at most,
-so the buffer stays in L1. Nor is dropping the remaining materialized
-base array worth much, measured directly at about 2%, and it would trade
-a sequential read for a gather.</p>
-<p>With <strong>soft rules</strong>, half the cost is a single move. The
-bandwidth of each tree is a parameter with a Metropolis step per tree
-per sweep, and every attempt rebuilds every membership weight in the
-tree. A rejected attempt, which is 58% of them, used to rebuild a second
-time to get back where it started; it is now rolled back from a
-snapshot, and a tree with no splits skips the move entirely and draws
-its bandwidth from the prior, which is its exact full conditional. The
-other half is that a logistic gate never saturates: dropping a weight
-needs it below 1e-10, which needs the observation 23 bandwidths from the
-cutpoint, further than the whole unit interval, so every observation
-reaches every leaf and a pass over a node covers 2.5 times the
-sample.</p>
-<p><code>gate = "smoothstep"</code>, the default, and
-<code>gate = "smootherstep"</code> are the fix for the second half,
-though not for the reason they were built. At a bandwidth wide enough
-that a bounded gate truncates <em>nothing</em>, it is still 1.45 times
-faster than the logistic: what a bounded gate saves is the
-<code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code>, not the work on the far side of the cutpoint. So the
-two bounded gates come out within noise of each other, and the choice
-between them is about smoothness (one derivative against two) rather
-than speed. Fixing the bandwidth outright is the fix for the first half,
-and is <em>not</em> the default, because on a function with jumps it
-more than doubles the error; letting the rules sharpen toward hard ones
-is what the move is for.</p>
-<p>The passes over the data are no longer part of it. A leaf value
-enters the additive predictor linearly, so the log target over a leaf
-inherits the shape of the log density, and where that shape is known,
-one pass over a node determines the whole function and everything after
-it is arithmetic. Two shapes are known. A <em>quadratic</em> log density
-(a Gaussian response, and anything <code>augment</code> rewrites into
-one) makes the Laplace approximation the conditional posterior exactly.
-An <em>exponential</em> one, <span class="math inline">\(a\eta + b
-e^{r\eta}\)</span>, covers the Poisson, the gamma, the Weibull survival
-model, the augmented negative binomial, and <code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code>’s
-log-scale forest under hard rules; there the fit still has to be
-iterated, but on three numbers rather than on the data. The rate <span class="math inline">\(r\)</span> matters, since it is what brings in the
-last two, at <span class="math inline">\(-1/\sigma\)</span> and <span class="math inline">\(-2\)</span>. Either way a birth move goes from six
-passes over the node to two.</p>
-</div>
-<div class="section level3">
 <h3 id="what-data-augmentation-buys-augment">What Data Augmentation Buys (<code>augment</code>)<a class="anchor" aria-label="anchor" href="#what-data-augmentation-buys-augment"></a>
 </h3>
-<p>What closes most of the first factor is a data augmentation that
-makes the conditional Gaussian, since then the Laplace approximation is
-exact rather than approximate. <code>augment</code> does this: <span class="citation">Albert and Chib (<a href="#ref-albert1993">1993</a>)</span> for a probit link and for an
-ordinal probit, Pólya-Gamma augmentation <span class="citation">(<a href="#ref-polson2013">Polson et al. 2013</a>)</span> for a logit one,
-an ordinal logit, or a multinomial, and imputation of the censored
-failure times for the log-normal and log-logistic survival models. Every
-one of them trades speed for mixing, so the ratio to judge is effective
-samples per second, and it differs a great deal by family:</p>
+<p>A major contributor to <em>bartisan</em>’s speed is a data
+augmentation that makes the conditional Gaussian, since then the Laplace
+approximation is exact rather than approximate. <code>augment</code>
+does this, using <span class="citation">Albert and Chib (<a href="#ref-albert1993">1993</a>)</span> for a probit link and for an
+ordinal probit; Pólya-Gamma augmentation <span class="citation">(<a href="#ref-polson2013">Polson et al. 2013</a>)</span> for a logit link,
+an ordinal logit, or a multinomial; and imputation of the censored
+failure times for the log-normal and log-logistic survival models.</p>
+<p>Each of them is faster, from 1.2 times for the negative binomial
+under soft rules to 31 for an ordinal probit with hard rules, with a
+median of 8.8. What each costs in mixing is the question, and the answer
+is not that they all cost something: over 15 replicate datasets the
+worst-mixing quantity’s effective sample size came out a median of 1.05
+times what the direct likelihood gives, and of the seventeen cases
+below, seven have an 80% interval lying entirely below 1, two lie
+entirely above it, and eight include it. Effective draws per second,
+which is the ratio to judge, favors augmentation in all seventeen:</p>
 <table class="table">
+<colgroup>
+<col width="31%">
+<col width="9%">
+<col width="27%">
+<col width="15%">
+<col width="15%">
+</colgroup>
 <thead><tr class="header">
 <th>Family</th>
 <th>Speed</th>
-<th>Effective sample size</th>
+<th>ESS, worst quantity</th>
+<th>ESS, median quantity</th>
 <th>ESS per second</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td>
-<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, hard rules</td>
-<td>29x</td>
-<td>0.87x</td>
-<td><strong>21x</strong></td>
-</tr>
-<tr class="even">
-<td>
 <code>ordinal("probit")</code>, hard rules</td>
-<td>30x</td>
-<td>0.76x</td>
-<td><strong>23x</strong></td>
-</tr>
-<tr class="odd">
-<td>
-<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, soft rules</td>
-<td>20x</td>
-<td>1.05x</td>
-<td><strong>15x</strong></td>
+<td>31x</td>
+<td>0.72x [0.54, 0.95]</td>
+<td>0.73x</td>
+<td><strong>22x</strong></td>
 </tr>
 <tr class="even">
-<td>
-<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, hard rules</td>
-<td>12x</td>
-<td>0.88x</td>
-<td><strong>10x</strong></td>
-</tr>
-<tr class="odd">
-<td>
-<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, soft rules</td>
-<td>8.9x</td>
-<td>0.71x</td>
-<td><strong>6.3x</strong></td>
-</tr>
-<tr class="even">
-<td>
-<code>ordinal("logit")</code>, hard rules</td>
-<td>15x</td>
-<td>0.94x</td>
-<td><strong>14x</strong></td>
-</tr>
-<tr class="odd">
 <td>
 <code>ordinal("probit")</code>, soft rules</td>
-<td>14x</td>
-<td>0.87x</td>
+<td>24x</td>
+<td>0.65x [0.52, 0.84]</td>
+<td>0.61x</td>
+<td><strong>16x</strong></td>
+</tr>
+<tr class="odd">
+<td>
+<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, hard rules</td>
+<td>12x</td>
+<td>1.06x [0.73, 1.48]</td>
+<td>0.97x</td>
+<td><strong>13x</strong></td>
+</tr>
+<tr class="even">
+<td>
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, soft rules</td>
+<td>11x</td>
+<td>1.09x [0.62, 1.95]</td>
+<td>1.05x</td>
+<td><strong>12x</strong></td>
+</tr>
+<tr class="odd">
+<td>
+<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, hard rules</td>
+<td>8.8x</td>
+<td>1.34x [0.72, 2.41]</td>
+<td>0.96x</td>
 <td><strong>12x</strong></td>
 </tr>
 <tr class="even">
 <td>
-<code>ordinal("logit")</code>, soft rules</td>
-<td>7.1x</td>
-<td>0.76x</td>
-<td><strong>5.4x</strong></td>
+<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, soft rules</td>
+<td>8.2x</td>
+<td>1.43x [1.00, 1.96]</td>
+<td>0.91x</td>
+<td><strong>12x</strong></td>
 </tr>
 <tr class="odd">
 <td><code>binomial("probit")</code></td>
-<td>5.7x</td>
-<td>0.66x</td>
-<td><strong>3.8x</strong></td>
+<td>9.7x</td>
+<td>1.19x [0.77, 2.01]</td>
+<td>1.12x</td>
+<td><strong>12x</strong></td>
 </tr>
 <tr class="even">
-<td><code>binomial("logit")</code></td>
-<td>2.6x</td>
-<td>0.81x</td>
-<td><strong>2.1x</strong></td>
+<td>
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, hard rules</td>
+<td>14x</td>
+<td>0.74x [0.57, 0.97]</td>
+<td>0.96x</td>
+<td><strong>10x</strong></td>
 </tr>
 <tr class="odd">
-<td>
-<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, soft rules</td>
-<td>9.3x</td>
-<td>1.09x</td>
-<td><strong>10.1x</strong></td>
-</tr>
-<tr class="even">
-<td>
-<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, hard rules</td>
-<td>14.5x</td>
-<td>0.66x</td>
+<td><code>binomial("logit")</code></td>
+<td>6.7x</td>
+<td>1.44x [1.02, 1.98]</td>
+<td>1.11x</td>
 <td><strong>9.6x</strong></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>
 <code><a href="../reference/bartisan-families.html">zi_poisson()</a></code>, hard rules</td>
-<td>7.1x</td>
-<td>1.42x</td>
-<td><strong>10.1x</strong></td>
+<td>5.8x</td>
+<td>1.58x [1.12, 2.09]</td>
+<td>1.05x</td>
+<td><strong>9.1x</strong></td>
+</tr>
+<tr class="odd">
+<td>
+<code>ordinal("logit")</code>, soft rules</td>
+<td>12x</td>
+<td>0.57x [0.45, 0.76]</td>
+<td>0.65x</td>
+<td><strong>7.1x</strong></td>
 </tr>
 <tr class="even">
 <td>
 <code><a href="../reference/bartisan-families.html">zi_negbin()</a></code>, hard rules</td>
-<td>9.4x</td>
-<td>0.84x</td>
-<td><strong>7.9x</strong></td>
+<td>6.7x</td>
+<td>1.04x [0.81, 1.37]</td>
+<td>0.99x</td>
+<td><strong>6.9x</strong></td>
 </tr>
 <tr class="odd">
 <td>
-<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code>, soft rules</td>
-<td>4.6x</td>
-<td>0.85x</td>
-<td><strong>3.9x</strong></td>
+<code>ordinal("logit")</code>, hard rules</td>
+<td>15x</td>
+<td>0.37x [0.30, 0.46]</td>
+<td>0.52x</td>
+<td><strong>5.5x</strong></td>
 </tr>
 <tr class="even">
-<td><code><a href="../reference/bartisan-families.html">negbin()</a></code></td>
-<td>0.8x</td>
-<td>0.56x</td>
-<td>0.5x</td>
+<td>
+<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code>, soft rules</td>
+<td>3.7x</td>
+<td>1.24x [0.86, 1.79]</td>
+<td>1.15x</td>
+<td><strong>4.6x</strong></td>
+</tr>
+<tr class="odd">
+<td>
+<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, soft rules</td>
+<td>6.9x</td>
+<td>0.58x [0.46, 0.80]</td>
+<td>0.69x</td>
+<td><strong>4.0x</strong></td>
+</tr>
+<tr class="even">
+<td>
+<code><a href="../reference/bartisan-families.html">negbin()</a></code>, soft rules</td>
+<td>1.2x</td>
+<td>1.11x [0.68, 1.64]</td>
+<td>0.86x</td>
+<td>1.3x</td>
+</tr>
+<tr class="odd">
+<td>
+<code><a href="../reference/bartisan-families.html">negbin()</a></code>, hard rules</td>
+<td>1.8x</td>
+<td>0.61x [0.47, 0.79]</td>
+<td>0.84x</td>
+<td>1.1x</td>
 </tr>
 </tbody>
 </table>
-<p><code>augment</code> is on by default and covers the binomial,
-ordinal, multinomial, zero-inflated, and survival families, plus the
-negative binomial when the rules are hard; there it is written as a
+<p>The bracketed range is an 80% bootstrap interval over the replicates,
+and it is in the table because without it the column invites conclusions
+it cannot support: at three replicates the same quantity varied by a
+median factor of 4.5 within a single cell, since the worst-quantity
+effective sample size is a minimum over many quantities and so is a
+high-variance thing to estimate. The median quantity is the stabler
+reading, and comparing the two columns is informative on its own: those
+ratios run .52 to 1.15 where the worst-quantity ones run .37 to 1.58, so
+a family whose worst corner mixes noticeably better or worse under
+augmentation has usually moved less than that as a whole.</p>
+<p><code>augment</code> is on by default for every family that has a
+rewriting: the binomial, ordinal, multinomial, negative binomial,
+zero-inflated, and survival families. The negative binomial’s is a
 Poisson whose rate comes from a gamma, which needs one gamma draw per
-observation rather than a Pólya-Gamma one.</p>
+observation rather than a Pólya-Gamma one, and it is the one family
+whose two rows differ in kind rather than degree. Under hard rules the
+target reaches the exponential form and the rewriting buys time at a
+real cost in mixing; under soft rules it cannot, and the rewriting
+instead buys a little time at no measurable cost in mixing. Both come
+out ahead on effective draws per second, but by the least of any family
+here, so <code>augment = FALSE</code> is worth trying if a negative
+binomial fit’s diagnostics look poor.</p>
 <p>The survival families are the clearest case of what the rewriting is
 for. Right-censoring is what makes their likelihood expensive: an
 observed failure contributes a density in the additive predictor and a
@@ -1155,18 +862,6 @@ the same quadratic target with nothing approximate anywhere. The Poisson
 and gamma families need no rewriting, their targets being already in a
 shape the sampler collapses to a single pass.</p>
 </div>
-<div class="section level3">
-<h3 id="unoptimized-builds">Unoptimized Builds<a class="anchor" aria-label="anchor" href="#unoptimized-builds"></a>
-</h3>
-<p>One warning is worth heeding: an unoptimized build of the compiled
-code is 5 to 20 times slower and looks no different.
-<code>devtools::load_all()</code> and <code>devtools::install()</code>
-compile without optimization and leave the object files for a later
-<code>R CMD INSTALL</code> to reuse. <code><a href="../reference/bartisan.html">bartisan()</a></code> warns once
-per session when it detects one, and
-<code>bartisan:::.bartisan_optimized()</code> reports the state
-directly.</p>
-</div>
 </div>
 <div class="section level2">
 <h2 id="correctness">Correctness<a class="anchor" aria-label="anchor" href="#correctness"></a>
@@ -1181,26 +876,34 @@ satisfy detailed balance.</p>
 of its own log density, which is an independent route to the same
 quantity. This is the check that matters for the sampler, since a wrong
 score sends the Fisher-scoring proposal to the wrong place.</p>
-<p>Across replicate datasets at the default settings, 95% credible
-intervals for the additive predictor cover the truth .95 (Gaussian), .91
-(binomial), .96 (Poisson), and .96 (gamma) of the time. The binomial
-case is the weakest because a binary response carries the least
-information per observation. The shortfall tracks the ratio of absolute
-bias to posterior standard deviation, which sits near .8: an interval
-centered on a shrunken estimate loses coverage in proportion to how far
-that center sits from the truth. Running more or longer chains does not
-help, which rules out mixing as the cause at this scale. This is in line
-with what is reported for BART generally, so pointwise intervals for the
-regression function are best treated as approximate.</p>
+<p>Over 40 replicate datasets at <span class="math inline">\(n =
+500\)</span> with 10 predictors and the default settings, 95% credible
+intervals for the additive predictor cover the truth .964 of the time
+for a Gaussian response, .961 binomial, .973 Poisson, and .970 gamma,
+each with a Monte Carlo standard error near .006. Nominal coverage is
+.95, so these intervals are mildly conservative rather than deficient,
+and the binomial sits .008 below the other three, which at this
+replicate count is not a difference (p = .35). The ratio of absolute
+bias to posterior standard deviation runs .69 to .74, so the posterior
+spread is comfortably larger than the distance from the truth, which is
+the same fact read a second way. Four chains and five times the draws
+move neither number (p = .20 and p = .18), so mixing is not what sets
+them. All of this is one data-generating process: a mean function of
+moderate spread mapped to each family’s link, which for the binomial
+keeps the success probabilities informative. A response whose
+probabilities sit near 0 or 1 carries much less information per
+observation, and pointwise intervals for the regression function are
+best treated as approximate on that account rather than because of
+anything measured here.</p>
 </div>
 <div class="section level2">
 <h2 id="comparison-with-other-bart-packages">Comparison With Other BART Packages<a class="anchor" aria-label="anchor" href="#comparison-with-other-bart-packages"></a>
 </h2>
-<p>Checked against the installed versions of each package rather than
-from memory: <em>dbarts</em> 0.9.34, <em>BART</em> 2.9.10,
+<p>Below we compare <em>bartisan</em>’s capabilities to those of other
+popular BART R packages: <em>dbarts</em> 0.9.34, <em>BART</em> 2.9.10,
 <em>flexBART</em> 2.0.3, <em>SoftBart</em> 1.0.3, <em>bartMachine</em>
 1.4.2, and <em>stochtree</em> 0.4.5. A dash means the package does not
-offer the feature, not that it fits it badly.</p>
+offer the feature.</p>
 <table class="table">
 <colgroup>
 <col width="12%">
@@ -1274,7 +977,7 @@ offer the feature, not that it fits it badly.</p>
 <td align="center">—</td>
 </tr>
 <tr class="even">
-<td>Gamma, beta, ordered beta</td>
+<td>Gamma, beta, ordered beta, Tweedie</td>
 <td align="center">✓</td>
 <td align="center">—</td>
 <td align="center">—</td>
@@ -1297,7 +1000,26 @@ offer the feature, not that it fits it badly.</p>
 <td>Multinomial</td>
 <td align="center">✓ logit, probit</td>
 <td align="center">—</td>
-<td align="center">✓ <strong>separate binary fits</strong>
+<td align="center">✓<a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content='&lt;p&gt;&lt;em&gt;BART&lt;/em&gt;’s support is a set of binary fits rather
+than a multinomial model, which is worth knowing before the checkmark is
+read as a like-for-like. &lt;code&gt;BART::mbart2()&lt;/code&gt; fits &lt;span class="math inline"&gt;\(K\)&lt;/span&gt; independent one-vs-rest binary probit
+or logit BARTs, each to the indicator &lt;code&gt;(y == h)&lt;/code&gt;, and then
+normalizes their latent predictors afterward, so no forest is ever
+fitted to a multinomial likelihood. &lt;code&gt;BART::mbart()&lt;/code&gt; instead
+fits &lt;span class="math inline"&gt;\(K - 1\)&lt;/span&gt; binary models to nested
+subsets, the &lt;span class="math inline"&gt;\(h\)&lt;/span&gt;th to
+&lt;code&gt;y == h&lt;/code&gt; among the observations with &lt;code&gt;y &amp;gt;= h&lt;/code&gt;,
+and multiplies them as a continuation-ratio. That second one is an exact
+factorization of the multinomial mass function, so it is a coherent
+model, but each conditional carries its own independent forest and
+prior, and the factorization runs over the categories in sorted order,
+so the prior it puts on a probability vector is not exchangeable in the
+categories. &lt;em&gt;bartisan&lt;/em&gt;’s &lt;code&gt;&lt;a href="../reference/bartisan-families.html"&gt;multinomial()&lt;/a&gt;&lt;/code&gt; couples the
+forests through the likelihood itself instead: conditional on the
+others, the likelihood for category &lt;span class="math inline"&gt;\(j\)&lt;/span&gt; is exactly binomial-logistic in &lt;span class="math inline"&gt;\(\eta_j - \log C_j\)&lt;/span&gt; with &lt;span class="math inline"&gt;\(C_j\)&lt;/span&gt; summing &lt;span class="math inline"&gt;\(e^{\eta}\)&lt;/span&gt; over the rest, which is what the
+Pólya-Gamma augmentation exploits and what keeps the prior symmetric in
+the categories &lt;span class="citation"&gt;(&lt;a href="#ref-murray2021"&gt;Murray
+2021&lt;/a&gt;)&lt;/span&gt;.&lt;/p&gt;'><sup>1</sup></a>
 </td>
 <td align="center">—</td>
 <td align="center">—</td>
@@ -1579,17 +1301,17 @@ offer the feature, not that it fits it badly.</p>
 </tr>
 <tr class="even">
 <td>Formal variable-selection test</td>
-<td align="center">✎</td>
+<td align="center">✓ inclusion</td>
 <td align="center">—</td>
-<td align="center">✓</td>
+<td align="center">✓ permutation</td>
 <td align="center">—</td>
-<td align="center">✓</td>
-<td align="center">✓</td>
+<td align="center">✓ inclusion</td>
+<td align="center">✓ permutation</td>
 <td align="center">—</td>
 </tr>
 <tr class="odd">
 <td>Partial dependence</td>
-<td align="center">✎</td>
+<td align="center">✓</td>
 <td align="center">✓</td>
 <td align="center">—</td>
 <td align="center">—</td>
@@ -1618,6 +1340,16 @@ offer the feature, not that it fits it badly.</p>
 <td align="center">—</td>
 </tr>
 <tr class="even">
+<td>ATE, ATT or per-unit treatment effects</td>
+<td align="center">✓</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+</tr>
+<tr class="odd">
 <td>Cross-validated model comparison</td>
 <td align="center">✓</td>
 <td align="center">—</td>
@@ -1629,56 +1361,63 @@ offer the feature, not that it fits it badly.</p>
 </tr>
 </tbody>
 </table>
-<p><strong>On the multinomial row, <em>BART</em>’s support is a set of
-binary fits rather than a multinomial model</strong>, which is worth
-knowing before the checkmark is read as a like-for-like.
-<code>BART::mbart2()</code> fits <span class="math inline">\(K\)</span>
-independent one-vs-rest binary probit or logit BARTs, each to the
-indicator <code>(y == h)</code>, and then normalizes their latent
-predictors afterward, so no forest is ever fitted to a multinomial
-likelihood. <code>BART::mbart()</code> instead fits <span class="math inline">\(K - 1\)</span> binary models to nested subsets,
-the <span class="math inline">\(h\)</span>th to <code>y == h</code>
-among the observations with <code>y &gt;= h</code>, and multiplies them
-as a continuation-ratio. That second one is an exact factorization of
-the multinomial mass function, so it is a coherent model, but each
-conditional carries its own independent forest and prior, and the
-factorization runs over the categories in sorted order, so the prior it
-puts on a probability vector is not exchangeable in the categories.
-<em>bartisan</em>’s <code><a href="../reference/bartisan-families.html">multinomial()</a></code> couples the forests
-through the likelihood itself instead: conditional on the others, the
-likelihood for category <span class="math inline">\(j\)</span> is
-exactly binomial-logistic in <span class="math inline">\(\eta_j - \log
-C_j\)</span> with <span class="math inline">\(C_j\)</span> summing <span class="math inline">\(e^{\eta}\)</span> over the rest, which is what the
-Pólya-Gamma augmentation exploits and what keeps the prior symmetric in
-the categories <span class="citation">(<a href="#ref-murray2021">Murray
-2021</a>)</span>.</p>
 <p><strong>✎ means a helper package covers it, not this one.</strong>
-All three of those rows are things <em>bartMachine</em> does natively
-and <em>bartisan</em> does through <em>marginaleffects</em>, because a
-fit works with it and every estimand there is computed by pushing the
-draws through: <code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions()</a></code> is a partial dependence
-plot, and <code>avg_comparisons(variables = "x", by = "z")</code> and
-<code>hypotheses(~pairwise)</code> are interaction detection, neither of
-which needs code here. What is genuinely missing is a <em>formal</em>
-variable-selection test: this package reports split counts and the share
-of draws that used a predictor, which is not a test, where
-<em>bartMachine</em> permutes the response and <em>SoftBart</em> reports
-posterior inclusion probabilities.</p>
+Interaction detection is the remaining one, and <em>bartisan</em> does
+it through <em>marginaleffects</em>, because a fit works with it and
+every estimand there is computed by pushing the draws through:
+<code>avg_comparisons(variables = "x", by = "z")</code> and
+<code>hypotheses(~pairwise)</code> are interaction detection, and
+neither needs code here. Partial dependence used to sit in the same row
+and now does not: <code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> averages the fitted
+surface over the sample at each value of one or two predictors, and
+<code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on a fit is the same thing drawn.
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">marginaleffects::plot_predictions()</a></code> remains the one to
+reach for when the grid needs more control than that.</p>
+<p>The variable-selection row divides differently, into two things that
+both get called a test. One is the posterior inclusion probability under
+the Dirichlet sparsity prior, thresholded at .5 to give the median
+probability model of <span class="citation">Barbieri and Berger (<a href="#ref-barbieri2004">2004</a>)</span>. <em>SoftBart</em> reports it
+as <code>posterior_probs()</code>, and it is
+<code>colMeans(var_counts &gt; 0)</code> on the splitting counts: the
+<code>prop_used</code> column of <code><a href="../reference/variable_importance.html">variable_importance()</a></code> is
+that same quantity, under a prior that is on by default here as it is
+there. The other is a permutation test <span class="citation">(<a href="#ref-bleich2014">Bleich et al. 2014</a>)</span>, which refits the
+model on responses whose link to the predictors has been broken and
+thresholds the splitting shares against the resulting null rather than
+against .5. <em>bartMachine</em> offers all three of its thresholds and
+<em>BART</em> offers the third one, <code>BART::mc.wbart.gse()</code>;
+<em>bartisan</em> offers none of them, and that is the actual gap.</p>
+<p>It is a gap worth closing, because the two answer differently.
+Measured over 20 replicates at <span class="math inline">\(n =
+300\)</span> with 25 predictors, 3 of them real, and 20 trees: on data
+where nothing matters, the .5 cut selected a null predictor in every
+replicate, 7 of the 25 on average with the sparsity prior and all 25
+without, while the two simultaneous permutation thresholds selected one
+in 1 replicate of 10 against a nominal .05. The .5 cut is a rule for
+choosing a predictive submodel and behaves like one; only the
+permutation null controls a false-positive rate. The cost is not the
+obstacle either, since a hundred fits of a 20-tree model runs in seconds
+for a cheap family. The obstacle is that the two corrections do not
+compose: run the permutation test with <code>sparsity = TRUE</code> and
+power collapses, to .12 for the max threshold and .37 for the SE one
+against .75 and .82 with <code>sparsity = FALSE</code>, because the
+prior shrinks the null distribution by the same mechanism it shrinks the
+observed shares. Anything implemented here would have to fit its null
+with the sparsity prior off, and say so.</p>
 <p>The other columns worth reading as gaps rather than as differences
-are these. There are <strong>no threads inside a chain</strong>, so a
-single chain is single-core here where <em>dbarts</em>, <em>BART</em>,
+are these. There are no threads inside a chain, so a single chain is
+single-core here where <em>dbarts</em>, <em>BART</em>,
 <em>bartMachine</em>, and <em>stochtree</em> all use several; chains do
 run in parallel, which is the cheaper win, but it does not help one
-chain. There is <strong>no cross-validation</strong> over
-<code>k</code>, <code>num_trees</code>, and the tree prior, which
+chain. There is no cross-validation over <code>k</code>,
+<code>num_trees</code>, or the tree prior, which
 <code>dbarts::xbart()</code> and
-<code>bartMachine::bartMachineCV()</code> both automate. There is
-<strong>no grow-from-root warm start</strong>, which is
-<em>stochtree</em>’s way of shortening burn-in. And there is <strong>no
-JSON serialization</strong>, so a fit round-trips through
-<code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> and not into another language. On survival,
-<em>BART</em> is ahead: recurrent events and competing risks are there
-and here they are not.</p>
+<code>bartMachine::bartMachineCV()</code> both automate. There is no
+grow-from-root warm start, which is <em>stochtree</em>’s way of
+shortening burn-in. And there is no JSON serialization, so a fit
+round-trips through <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> and not into another
+language. On survival, <em>BART</em> is ahead: recurrent events and
+competing risks are there and here they are not.</p>
 <p>Three more packages are single-purpose rather than general, so they
 are not columns above: <a href="https://CRAN.R-project.org/package=bcf" class="external-link"><em>bcf</em></a> fits
 Bayesian causal forests only, <a href="https://github.com/skdeshpande91/VCBART" class="external-link"><em>VCBART</em></a>
@@ -1696,11 +1435,13 @@ would otherwise be.</p>
 <p>Absolute timings are machine- and load-dependent, so these are
 indicative rather than exact; repeated runs on the same laptop varied by
 about 20%. As an anchor, a Gaussian response with 10 predictors, 50 soft
-trees, and the default 1000 warmup plus 1000 saved draws takes roughly 6
-seconds at <span class="math inline">\(n = 500\)</span> and roughly a
-minute at <span class="math inline">\(n = 5000\)</span>, measured at
+trees, and the default 200 warmup plus 800 saved draws takes about a
+second at <span class="math inline">\(n = 500\)</span> and about ten
+seconds at <span class="math inline">\(n = 5000\)</span>, measured at
 steady state on one core of an M-series Mac. Hard rules are about 3
-times faster, and doubling the tree count roughly doubles the cost.</p>
+times faster (2.9 times at <span class="math inline">\(n = 500\)</span>
+and 3.2 at <span class="math inline">\(n = 5000\)</span>), and doubling
+the tree count roughly doubles the cost.</p>
 <p>The ratios are stabler than the absolute times. Cost relative to a
 Gaussian fit at the same size is set by how expensive the family’s log
 density and its derivatives are:</p>
@@ -1716,39 +1457,62 @@ density and its derivatives are:</p>
 </tr>
 <tr class="even">
 <td>
-<code>Gamma("log")</code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>
-</td>
-<td>~2x</td>
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, either link</td>
+<td>1.1x</td>
 </tr>
 <tr class="odd">
+<td><code><a href="../reference/bartisan-families.html">dpm()</a></code></td>
+<td>1.2x</td>
+</tr>
+<tr class="even">
 <td>
-<code><a href="../reference/bartisan-families.html">negbin()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>
-</td>
-<td>2–3x</td>
-</tr>
-<tr class="even">
-<td><code><a href="../reference/bartisan-families.html">ordinal()</a></code></td>
-<td>~2x with a latent variable, ~25x without</td>
+<code><a href="../reference/bartisan-families.html">ordinal()</a></code>, logit or probit</td>
+<td>1.2x</td>
 </tr>
 <tr class="odd">
-<td><code><a href="../reference/bartisan-families.html">zi_poisson()</a></code></td>
-<td>~10x</td>
+<td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code></td>
+<td>3.6x</td>
 </tr>
 <tr class="even">
-<td><code><a href="../reference/bartisan-families.html">ordbeta()</a></code></td>
-<td>~25x</td>
+<td><code>Gamma("log")</code></td>
+<td>5.6x</td>
 </tr>
 <tr class="odd">
 <td><code><a href="../reference/bartisan-families.html">tweedie()</a></code></td>
-<td>~2x, half again as much with the power drawn</td>
+<td>6.5x</td>
+</tr>
+<tr class="even">
+<td><code><a href="../reference/bartisan-families.html">negbin()</a></code></td>
+<td>6.8x</td>
+</tr>
+<tr class="odd">
+<td><code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code></td>
+<td>7.8x</td>
+</tr>
+<tr class="even">
+<td><code><a href="../reference/bartisan-families.html">zi_poisson()</a></code></td>
+<td>8.5x</td>
+</tr>
+<tr class="odd">
+<td>
+<code><a href="../reference/bartisan-families.html">tweedie()</a></code>, with <code>power</code> drawn</td>
+<td>9.1x</td>
+</tr>
+<tr class="even">
+<td><code><a href="../reference/bartisan-families.html">Beta()</a></code></td>
+<td>18x</td>
+</tr>
+<tr class="odd">
+<td><code><a href="../reference/bartisan-families.html">ordbeta()</a></code></td>
+<td>23x</td>
 </tr>
 </tbody>
 </table>
 <p><code><a href="../reference/bartisan-families.html">tweedie()</a></code> earns a note because it looks as though it
 should be far worse: its density has no closed form at a positive
 response, and normalizing it takes an infinite series. Measured against
-a Gaussian fit of the same size it costs 5.5 times as much where
-<code>Gamma("log")</code> costs 5.2, so the series is not visible in the
+a Gaussian fit of the same size it costs 6.5 times as much where
+<code>Gamma("log")</code> costs 5.6, so the series is not visible in the
 total. The reason is where the series sits. Writing the log density in
 exponential-dispersion form separates it into a part that moves with the
 predictor, which is closed form, and a normalizing term that does not
@@ -1756,18 +1520,20 @@ depend on the predictor at all; the second goes in the eta-free part,
 which is evaluated once per sweep rather than at every leaf, and cancels
 from every acceptance ratio in between. Its length depends on the
 response and the dispersion but never on the mean, so it does not grow
-as the forest moves. Drawing <code>power</code> costs about a third
-again, because the slice sampler has to re-sum the series at each
-candidate value and cannot use the table of log-gammas that a fixed
-power allows.</p>
-<p><code><a href="../reference/bartisan-families.html">ordbeta()</a></code> is the expensive one because every evaluation
-of its log density needs two log-gamma calls that no amount of
-restructuring removes. <code><a href="../reference/bartisan-families.html">ordinal()</a></code> spans a wide range because
-all three of its links have a latent-variable representation that the
-sampler uses by default (a normal for the probit, a normal with a
-Pólya-Gamma precision for the logit, and an exponential waiting time for
-the complementary log-log), and <code>augment = FALSE</code> turns them
-off.</p>
+as the forest moves. Drawing <code>power</code> costs about 40% again,
+because the slice sampler has to re-sum the series at each candidate
+value and cannot use the table of log-gammas that a fixed power
+allows.</p>
+<p><code><a href="../reference/bartisan-families.html">ordbeta()</a></code> and <code><a href="../reference/bartisan-families.html">Beta()</a></code> are the expensive ones
+because every evaluation of their log density needs two log-gamma calls
+that no amount of restructuring removes. <code><a href="../reference/bartisan-families.html">ordinal()</a></code> is at
+the other end, and only because of augmentation: all three of its links
+have a latent-variable representation that the sampler uses by default
+(a normal for the probit, a normal with a Pólya-Gamma precision for the
+logit, and an exponential waiting time for the complementary log-log),
+which is what puts it beside <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code> here.
+<code>augment = FALSE</code> turns them off, and the table above is then
+no guide at all; the augmentation table earlier in this section is.</p>
 <p>An ordinal model is identified only up to a common shift of its
 cutpoints and its predictor. With three or more categories the draws are
 reported in the chart where <strong>the predictor has mean zero over the
@@ -1840,6 +1606,17 @@ count and multinomial outcomes.</p>
 Albert, James H., and Siddhartha Chib. 1993. <span>“Bayesian Analysis of
 Binary and Polychotomous Response Data.”</span> <em>Journal of the
 American Statistical Association</em> 88 (422): 669–79. <a href="https://doi.org/10.1080/01621459.1993.10476321" class="external-link">https://doi.org/10.1080/01621459.1993.10476321</a>.
+</div>
+<div id="ref-barbieri2004" class="csl-entry">
+Barbieri, Maria Maddalena, and James O. Berger. 2004. <span>“Optimal
+Predictive Model Selection.”</span> <em>The Annals of Statistics</em> 32
+(3). <a href="https://doi.org/10.1214/009053604000000238" class="external-link">https://doi.org/10.1214/009053604000000238</a>.
+</div>
+<div id="ref-bleich2014" class="csl-entry">
+Bleich, Justin, Adam Kapelner, Edward I. George, and Shane T. Jensen.
+2014. <span>“Variable Selection for <span>BART</span>: <span>An</span>
+Application to Gene Regulation.”</span> <em>The Annals of Applied
+Statistics</em> 8 (3). <a href="https://doi.org/10.1214/14-AOAS755" class="external-link">https://doi.org/10.1214/14-AOAS755</a>.
 </div>
 <div id="ref-chipman2010" class="csl-entry">
 Chipman, Hugh A., Edward I. George, and Robert E. McCulloch. 2010.
@@ -1921,6 +1698,7 @@ Methods for Coping with Missing Data in Decision Trees.”</span>
 </div>
 </div>
 </div>
+
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>

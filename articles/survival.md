@@ -8,8 +8,8 @@ library(survival)
 set.seed(2026)
 
 # Small chains in the live examples, so that this vignette builds quickly. The
-# defaults are 50 trees and 500 draws after 500 warmup iterations, which is
-# what the simulations reported below use.
+# defaults are 50 trees and 800 draws after 200 warmup iterations; the
+# simulations reported below use 50 trees and 500 draws after 500 warmup.
 ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_draws = 150)
 ```
 
@@ -41,10 +41,10 @@ table for choosing.
 
 Every family here takes a
 [`survival::Surv()`](https://rdrr.io/pkg/survival/man/Surv.html) object,
-or equivalently a two-column numeric matrix of non-negative times and
-0/1 event indicators. A 1 means the event was observed at that time; a 0
-means the subject was still event-free when last seen, so the true time
-is somewhere above it.
+or equivalently a two-column numeric matrix of strictly positive times
+and 0/1 event indicators. A 1 means the event was observed at that time;
+a 0 means the subject was still event-free when last seen, so the true
+time is somewhere above it.
 
 ``` r
 
@@ -135,43 +135,6 @@ data and the Weibull is distinguishable from both, so the informative
 comparison is Weibull against either of the other two, by
 [`loo()`](https://mc-stan.org/loo/reference/loo.html).
 
-### A Free Baseline Hazard (`ph()`)
-
-[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-gives up on a parametric time distribution and models the hazard instead
-([Basak et al. 2024](#ref-basak2024)):
-
-\\\lambda(t \mid x) = \lambda_0(t)\exp\\r(x)\\,\\
-
-with \\\lambda_0\\ constant within each of `num_bins` pieces whose edges
-sit at evenly spaced quantiles of the observed times. This is the
-piecewise-exponential proportional hazards model with a forest on the
-log hazard ratio. The baseline can take any shape at all, including one
-that turns over, which none of the three parametric families can do.
-
-``` r
-
-fit_ph <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
-                   family = ph(), control = ctrl)
-
-head(round(colMeans(fit_ph$aux), 3))
-#> lambda1 lambda2 lambda3 lambda4 lambda5 lambda6 
-#>   0.013   0.043   0.079   0.070   0.082   0.078
-```
-
-The bin hazards come back as `lambda1`, `lambda2`, … alongside
-`lambda_rate`, the drawn rate of their own Gamma prior; the hazards are
-shrunk toward each other through it, which is what keeps a fine grid
-from overfitting.
-
-One point of interpretation matters here. The predictor and the baseline
-are identified only *jointly*: multiplying \\\lambda_0\\ by a constant
-and subtracting its log from \\r(x)\\ leaves the likelihood unchanged.
-The fit resolves this by letting the baseline carry the level and
-reporting \\r(x)\\ centered, so **`fit_ph`’s predictor is a contrast,
-not a level**. Differences between two values of \\r\\ are meaningful; a
-single value is not.
-
 ### An Estimated Error Distribution (`dpm_aft()`)
 
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -196,7 +159,7 @@ fit_dpm <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
 
 round(colMeans(fit_dpm$aux), 3)
 #>    alpha clusters   center error_sd 
-#>    1.069    6.040    0.048    0.714
+#>    3.066   14.747    0.015    0.713
 ```
 
 [`error_density()`](https://ngreifer.github.io/bartisan/reference/error_density.md)
@@ -232,7 +195,44 @@ does and the mixture update on top is cheap. It runs at about twice
 cost and a third of
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s.
 
-## Two Estimands, Not Three
+### A Free Baseline Hazard (`ph()`)
+
+[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+gives up on a parametric time distribution and models the hazard instead
+([Basak et al. 2024](#ref-basak2024)):
+
+\\\lambda(t \mid x) = \lambda_0(t)\exp\\r(x)\\,\\
+
+with \\\lambda_0\\ constant within each of `num_bins` pieces whose edges
+sit at evenly spaced quantiles of the observed times. This is the
+piecewise-exponential proportional hazards model with a forest on the
+log hazard ratio. The baseline can take any shape at all, including one
+that turns over, which none of the three parametric families can do.
+
+``` r
+
+fit_ph <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
+                   family = ph(), control = ctrl)
+
+head(round(colMeans(fit_ph$aux), 3))
+#> lambda1 lambda2 lambda3 lambda4 lambda5 lambda6 
+#>   0.055   0.167   0.292   0.280   0.314   0.299
+```
+
+The bin hazards come back as `lambda1`, `lambda2`, … alongside
+`lambda_rate`, the drawn rate of their own Gamma prior; the hazards are
+shrunk toward each other through it, which is what keeps a fine grid
+from overfitting.
+
+One point of interpretation matters here. The predictor and the baseline
+are identified only *jointly*: multiplying \\\lambda_0\\ by a constant
+and subtracting its log from \\r(x)\\ leaves the likelihood unchanged.
+The fit resolves this by letting the baseline carry the level and
+reporting \\r(x)\\ centered, so **`fit_ph`’s predictor is a contrast,
+not a level**. Differences between two values of \\r\\ are meaningful; a
+single value is not.
+
+## Time Ratios and Hazard Ratios
 
 The five families report two genuinely different comparative quantities,
 and the difference matters because they move in opposite directions.
@@ -265,7 +265,7 @@ carries a log hazard ratio of \\-k\\\Delta\eta\\ alongside its log time
 ratio of \\\Delta\eta\\. Away from the Weibull there is no such
 correspondence at all.
 
-### Where the Level Sits
+### The Level Each Family Reports
 
 The contrast is a log time ratio in all four, but \\e^{\eta}\\ on its
 own is a different functional of \\T\\ in each, because the families pin
@@ -296,13 +296,24 @@ treated and untreated). That is a contrast in \\S(t \mid x)\\ at a fixed
 \\t\\, and it is on the same scale (a probability) no matter which
 family produced it.
 
+This is also where
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+stops for a survival fit. Its default `type = "response"` contrasts
+median survival times, which is a real estimand and often the wrong one;
+a contrast in survival at a horizon needs `type = "survival"`, which
+needs `times`, and
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+has no argument for it. So the horizon contrast goes through
+[`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
+as below.
+
 ``` r
 
 head(predict(fit_ph, type = "survival", times = c(1, 2, 5)), 3)
 #>          1     2     5
-#> [1,] 0.991 0.973 0.851
-#> [2,] 0.983 0.949 0.732
-#> [3,] 0.921 0.774 0.225
+#> [1,] 0.990 0.971 0.842
+#> [2,] 0.982 0.945 0.720
+#> [3,] 0.933 0.809 0.297
 ```
 
 and inside the estimand machinery:
@@ -315,14 +326,14 @@ library(marginaleffects)
 avg_comparisons(fit_ph, variables = "trt", type = "survival", times = 5)
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>     0.176 0.111  0.234
+#>     0.167 0.115   0.22
 #> 
 #> Term: trt
 #> Type: survival
 #> Comparison: 1 - 0
 ```
 
-One time per call. *marginaleffects* warns that it does not recognize
+One time per call. *marginaleffects* may warn that it does not recognize
 `times`, because it checks the dots against a whitelist hardcoded per
 model class and offers no hook for registering an argument; it passes
 the argument through regardless and the result is correct. The warning
@@ -353,7 +364,7 @@ is not in the figure because its hazard shape is whatever the fitted
 error mixture implies, which can be multi-modal (i.e., have more than
 one peak), something none of the other four can produce.
 
-## A Comparison Across Six Truths
+## The Families Compared by Simulation
 
 The script is `_dev/survival-sim.R` in the package sources.
 
@@ -676,15 +687,15 @@ h <- matrix(predict(fit_dt, newdata = grid_dat, type = "response"),
             nrow = length(edges))
 round(t(apply(1 - h, 2, cumprod))[, c(1, 8, 15)], 3)
 #>       [,1]  [,2]  [,3]
-#> [1,] 0.995 0.935 0.233
-#> [2,] 0.979 0.768 0.045
-#> [3,] 0.852 0.189 0.002
+#> [1,] 0.995 0.926 0.318
+#> [2,] 0.981 0.747 0.089
+#> [3,] 0.849 0.232 0.011
 ```
 
-`binomial("probit")` is the fastest family in the package, so the cost
-is the expansion rather than the sampler: the number of rows is the sum
-of how many grid points each subject reaches. Fifteen to twenty grid
-points is usually plenty; a finer grid multiplies the rows without
+`binomial("probit")` is among the cheapest families in the package, so
+the cost is the expansion rather than the sampler: the number of rows is
+the sum of how many grid points each subject reaches. Fifteen to twenty
+grid points is usually plenty; a finer grid multiplies the rows without
 adding much.
 
 **How it compares.** From the same simulation, on the two truths that
@@ -743,7 +754,7 @@ hazards are proportional, fitting it alongside
 and comparing the fitted curves is a reasonable diagnostic; adopting it
 by default is not.
 
-## Three Traps
+## Details That Are Easy to Get Wrong
 
 ### The Measure Behind the Log Score (`type = "density"`)
 
@@ -771,7 +782,7 @@ log_score_T <- function(fit, newdata) {
 
 c(lognormal = log_score_T(fit_ln, d), ph = log_score_T(fit_ph, d))
 #> lognormal        ph 
-#>      -777      -787
+#>      -777      -788
 ```
 
 Without the correction the comparison is meaningless: on one of the

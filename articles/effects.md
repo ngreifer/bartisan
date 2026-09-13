@@ -15,6 +15,22 @@ The *marginaleffects* package ([Arel-Bundock et al.
 2024](#ref-arelbundock2024)) asks all of them, and returns posterior
 intervals with the answers.
 
+Two of those questions the package answers itself, and it is worth
+knowing which before reading further.
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+contrasts one binary or factor treatment and averages it as the ATE, the
+ATT, the ATC, or one effect per unit, optionally within subgroups;
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+averages the fitted surface over the sample at each value of one or two
+predictors. Neither needs a suggested package, and
+[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
+is the worked version of the first. Everything else in this vignette is
+*marginaleffects*: slopes, contrasts between arbitrary covariate values,
+a continuous treatment, hypotheses comparing one estimate to another,
+and any grid more particular than a predictor’s own range. That last
+class is the one to watch for, because it is where the native route
+stops rather than where it is merely less convenient.
+
 This vignette covers the questions worth asking and how to phrase them.
 [`vignette("bartisan")`](https://ngreifer.github.io/bartisan/articles/bartisan.md)
 is the shorter tour, and this expands its section on interpreting the
@@ -46,7 +62,7 @@ set.seed(2026)
 fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
 ```
 
-## Three Questions
+## Predictions, Comparisons, and Slopes
 
 Everything below is one of three things.
 
@@ -100,19 +116,19 @@ tree the prediction does not depend on it and the contrast is exactly
 zero; the posterior of the contrast is a mixture with a point mass
 there, holding whatever share of draws dropped the predictor.
 
-It matters more than it sounds: on a simulated effect of .2 against
-residual noise of 1, the prior halved the estimate and its 95% interval
-covered the truth only 60% of the time. A strong effect is untouched,
-because the prior never has reason to drop a predictor that is earning
-its splits, so this is a weak-signal problem rather than a general one.
+It matters more than it sounds: on a weak signal the prior attenuates
+the estimate substantially and its interval covers the truth well below
+its nominal rate. A strong effect is untouched, because the prior never
+has reason to drop a predictor that is earning its splits, so this is a
+weak-signal problem rather than a general one.
 
 If a contrast is what we are reporting, we fit with `sparsity = FALSE`,
 or with `split_prior`, which fixes the weights (i.e., the probability
 that each predictor is chosen for a split) and so cannot drop anything.
 [`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-has the measurements for both.
+explains both halves of this.
 
-### The Step for a Numeric Predictor (`variables`)
+### Choosing the Step (`variables`)
 
 One unit is the default and is often the wrong scale. One point of an
 illness score is a small change; ten points is a difference someone
@@ -153,6 +169,8 @@ avg_comparisons(fit, variables = "rhc", by = "card")
 ```
 
 The two subgroup estimates are close, and both intervals reach zero.
+`estimate_effect(fit, treatment = "rhc", by = ~ card)` gives the same
+two numbers natively.
 
 A common mistake is to stop here and conclude that the effect differs
 between groups; that comparison is not a test. The question is whether
@@ -177,6 +195,13 @@ that never had an interaction term to test, and the interval on that
 difference is the only thing that separates a real interaction from two
 subgroup estimates that merely look different.
 
+It is also the clearest place where the native route stops:
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+reports each subgroup effect with its own interval and has no way to ask
+for the difference between them, so this call is the reason to reach for
+*marginaleffects* even when the subgroup estimates came from the other
+route.
+
 [`avg_predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html)
 does the same thing for predictions rather than differences, which is
 useful for describing groups:
@@ -195,9 +220,12 @@ avg_predictions(fit, by = "card")
 ## The Shape of a Relationship (`plot_predictions()`)
 
 Averages hide shape. The fitted function is seen by plotting predictions
-against one predictor with everything else held fixed; below we ask for
-the numbers rather than the plot, which gives more control over how it
-is drawn:
+against one predictor with everything else held fixed.
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+draws this natively, and `plot(fit, ~ x)` is the short way to it; the
+section uses `plot_predictions(draw = FALSE)` instead because it gives
+more control over the grid and over what is held fixed, which is what
+the hand-built *ggplot2* calls below are for:
 
 ``` r
 
@@ -388,7 +416,7 @@ from, which is also how per-forest settings like `num_trees` are keyed.
 [`?vc`](https://ngreifer.github.io/bartisan/reference/vc.md) covers the
 rest, including the one family that refuses this.
 
-## What These Estimates Are Not
+## Descriptions of the Fitted Model
 
 Everything here is a description of the fitted model.
 [`avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
@@ -413,7 +441,11 @@ from how much they move the outcome.
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 covers whether the fit can be trusted before any of this is read.
 `?bartisan-marginaleffects` documents which *marginaleffects* functions
-are supported and the arguments that are specific to this package.
+are supported and the arguments that are specific to this package, and
+[`?estimate_effect`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+and
+[`?partial_dependence`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+document the two questions answered without it.
 
 ## References
 

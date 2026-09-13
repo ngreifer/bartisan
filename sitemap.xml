@@ -7,6 +7,7 @@
 <url><loc>https://ngreifer.github.io/bartisan/articles/diagnostics.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/articles/effects.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/articles/families.html</loc></url>
+<url><loc>https://ngreifer.github.io/bartisan/articles/faq.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/articles/implementation.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/articles/importance.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/articles/index.html</loc></url>
@@ -30,9 +31,12 @@
 <url><loc>https://ngreifer.github.io/bartisan/reference/dot-bartisan_predict.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/dot-bartisan_rpg.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/error_density.html</loc></url>
+<url><loc>https://ngreifer.github.io/bartisan/reference/estimate_effect.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/index.html</loc></url>
+<url><loc>https://ngreifer.github.io/bartisan/reference/partial_dependence.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/print.bartisan_fit.html</loc></url>
+<url><loc>https://ngreifer.github.io/bartisan/reference/print.bcf_fit.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/rhc.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/variable_importance.html</loc></url>
 <url><loc>https://ngreifer.github.io/bartisan/reference/vc.html</loc></url>

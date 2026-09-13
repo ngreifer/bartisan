@@ -62,9 +62,13 @@ imp
 #>      race     0.462       0.021    1.5
 #>      resp     0.453       0.027    2.0
 #>       sex     0.410       0.020    1.5
+#> 
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
-The output has three columns, and they answer different questions.
+The output has six columns, of which
+[`print()`](https://rdrr.io/r/base/print.html) shows four, and the three
+read first answer different questions.
 
 `prop_used` is the proportion of draws in which the predictor received
 at least one rule, and it is the column to read first: under the default
@@ -167,6 +171,8 @@ variable_importance(fit_noise)
 #>      resp     0.538       0.023    1.7
 #>       sex     0.525       0.033    2.5
 #>      race     0.498       0.018    1.4
+#> 
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 The noise variables do not sort to the bottom. They land in the middle
@@ -218,6 +224,8 @@ variable_importance(fit_fr)
 #>        x6     0.048       0.001    0.1
 #>        x7     0.043       0.001    0.1
 #>        x8     0.025       0.000    0.0
+#> 
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 The five real predictors sit at 1.00 and four of the five noise
@@ -256,6 +264,8 @@ variable_importance(fit_corr)
 #>        x1     1.000       0.257   19.6
 #>        x3     0.320       0.013    0.9
 #>        x2     0.079       0.001    0.1
+#> 
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 The outcome depends on `x1`. The forest used `x1_copy` in every draw and
@@ -309,15 +319,17 @@ The practical rule is to treat a set of correlated predictors as one
 unit: we decide in advance which variables measure the same underlying
 thing, and then report and move them together.
 
-## What Importance Does Not Measure
+## The Limits of a Usage Ranking
 
 **It is not an effect size.** How often a predictor is split on and how
 much it moves the outcome are different quantities, and they can
 disagree in both directions; a predictor with a small effect over a
 range that gets split repeatedly will show high usage. When the question
 is how much the outcome changes,
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+shows how the prediction moves with the predictor and
 [`avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-answers it directly and reports an interval. See
+answers it as a contrast, both with an interval. See
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md).
 
 **It is not a test.** `prop_used` is a posterior probability under a

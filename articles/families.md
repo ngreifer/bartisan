@@ -7,7 +7,7 @@ library(bartisan)
 set.seed(2026)
 
 # Small chains throughout, so that this vignette builds quickly. The defaults
-# are 50 trees and 500 draws after 500 warmup iterations.
+# are 50 trees and 800 draws after 200 warmup iterations.
 ctrl <- bartisan_control(num_trees = 10, num_burn = 150, num_draws = 150)
 ```
 
@@ -66,7 +66,7 @@ likelihood of one’s own through
 | [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | none | 1 | scale |
 | [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | none | 1 | baseline hazard per bin |
 | [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | none | 1 | error mixture, concentration |
-| [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | implied by `logdens` | as many as requested | none |
+| [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | implied by `logdens` | as many as requested | as many as named in `aux_names` |
 
 A family with more than one additive predictor fits one forest per
 predictor, and `predict(type = "link")` returns one column per forest.
@@ -132,7 +132,7 @@ loo::loo_compare(
 #> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 #>   model elpd_diff se_diff p_worse       diag_diff       diag_elpd
 #>  model1       0.0     0.0      NA                 2 k_psis > 0.54
-#>  model2      -0.3     0.8    0.63 |elpd_diff| < 4
+#>  model2      -0.1     1.5    0.54 |elpd_diff| < 4
 #> 
 #> Diagnostic flags present.
 #> See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)
@@ -151,7 +151,7 @@ in which case its default value is determined by the response variable:
 | an ordered factor | [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | logical, a factor or character with two levels, or numeric taking only the values 0 and 1 | [`binomial()`](https://rdrr.io/r/stats/family.html) |
 | any other factor or character | [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
-| a two-column numeric matrix | [`binomial()`](https://rdrr.io/r/stats/family.html), read as successes and failures |
+| a two-column numeric matrix | [`binomial()`](https://rdrr.io/r/stats/family.html), read as successes and failures, unless the columns look like strictly positive times and 0/1 events, which give [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | any other numeric | [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 
 The choice is reported when it is made, and naming `family` silences the
@@ -319,14 +319,14 @@ summary(fit_sub)
 #> Splitting rules per draw, and how often used at all.
 #> 
 #> Predictor "mean":
-#>     mean    sd lower upper prop_used
-#> x1 15.85 3.100    10    22     1.000
-#> x2  0.06 0.289     0     1     0.047
+#>      mean    sd lower  upper prop_used
+#> x1 14.873 2.112    11 19.000     1.000
+#> x2  0.027 0.162     0  0.275     0.027
 #> 
 #> Predictor "log_sd":
-#>    mean   sd lower upper prop_used
-#> x2 6.91 1.45     4    10         1
-#> x1 0.00 0.00     0     0         0
+#>    mean  sd lower upper prop_used
+#> x2 7.95 1.9     5  12.3         1
+#> x1 0.00 0.0     0   0.0         0
 ```
 
 Separate is not always what we want. Each forest draws its own splitting
@@ -370,7 +370,7 @@ costs something when they depend on different ones.
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
 is where to check, and
 [`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-has the measured trade-off.
+explains the trade.
 
 A formula that names no predictor at all is the limiting case of this,
 and it says the parameter is constant: `~ 1` leaves its forest nothing
@@ -659,9 +659,9 @@ loo::loo_compare(list(poisson = count_fit(poisson()),
                       zi_negbin = count_fit(zi_negbin())))
 #>       model elpd_diff se_diff p_worse       diag_diff       diag_elpd
 #>     poisson       0.0     0.0      NA                                
-#>      negbin      -0.4     0.9    0.66 |elpd_diff| < 4                
 #>  zi_poisson      -1.3     0.7    0.97 |elpd_diff| < 4 1 k_psis > 0.63
 #>   zi_negbin      -3.3     3.2    0.85 |elpd_diff| < 4 1 k_psis > 0.63
+#>      negbin      -4.0     3.6    0.87 |elpd_diff| < 4
 #> 
 #> Diagnostic flags present.
 #> See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)
@@ -741,7 +741,7 @@ proportional *hazards* model on the categories, so choose it when the
 categories are ordered durations or stages. Accuracy is much the same
 across the three; `"probit"` is the fastest by a wide margin.
 
-Ordered categoiries can also be treated as unordered categories and fit
+Ordered categories can also be treated as unordered categories and fit
 with `family = multinomial()`, described below; typically this produces
 more variable predictions as it requires a forest for each category
 rather than a single forest governing the entire distribution function.
@@ -873,9 +873,11 @@ model, and the mean of the beta density in between.
 
 Choose between
 [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and `ordered_beta()` based on whether the response *can* reach a
-boundary, not on whether it happens to in the sample at hand. A response
-*at* zero or one has no beta density, so
+and
+[`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+based on whether the response *can* reach a boundary, not on whether it
+happens to in the sample at hand. A response *at* zero or one has no
+beta density, so
 [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 errors rather than nudging it inward. In the other direction,
 [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -1060,8 +1062,10 @@ and one trap in comparing their log scores.
 Links beyond those in the table are accepted for
 [`gaussian()`](https://rdrr.io/r/stats/family.html),
 [`binomial()`](https://rdrr.io/r/stats/family.html),
-[`poisson()`](https://rdrr.io/r/stats/family.html) and
-[`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+[`poisson()`](https://rdrr.io/r/stats/family.html),
+[`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+and
+[`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 and applied from R by composing the supplied inverse link with the
 family’s own. So `binomial("cauchit")` works, as does any link object of
 the kind [`stats::make.link()`](https://rdrr.io/r/stats/make.link.html)

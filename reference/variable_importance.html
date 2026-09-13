@@ -36,6 +36,7 @@ as a data frame rather than displayed (i.e., ready to sort, filter, or plot).'><
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -58,7 +59,7 @@ as a data frame rather than displayed (i.e., ready to sort, filter, or plot).'><
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>How often each predictor is used</h1>
-      <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/R/methods.R" class="external-link"><code>R/methods.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/R/variable_importance.R" class="external-link"><code>R/variable_importance.R</code></a></small>
       <div class="d-none name"><code>variable_importance.Rd</code></div>
     </div>
 
@@ -192,11 +193,34 @@ this fitted function, not of what would happen if any of them were changed.</p>
 
 <p>With <code>sparsity = TRUE</code>, <code>prop_used</code> is usable as a selection rule: predictors
 the forest genuinely needs sit near 1 and the rest fall near 0, usually with a
-wide gap rather than a continuum. No threshold is correct in general, so the
-gap is the thing to look at, and a conclusion worth reporting will not depend
-on where in it the cut is made.</p>
+wide gap rather than a continuum. It is the posterior inclusion probability
+that the Dirichlet prior was introduced to make readable (Linero, 2018), and
+cutting it at .5 gives the median probability model, which Barbieri and Berger
+(2004) show is often a better predictive submodel under squared error loss
+than the model of highest posterior probability. That is the same quantity and
+the same cut <span class="pkg">SoftBart</span> reports from a soft BART fit, computed from the
+same splitting counts. No threshold is correct in general, though, so the gap
+is the thing to look at, and a conclusion worth reporting will not depend on
+where in it the cut is made.</p>
+<p>The .5 cut chooses a predictive submodel and is not a test, and it does not
+behave like one. On data where no predictor matters at all, at \(n = 300\)
+with 25 predictors and 20 trees, it selected 7 of the 25 on average with
+<code>sparsity = TRUE</code> and all 25 with <code>sparsity = FALSE</code>. A forest asked to fit
+noise still puts its rules somewhere, and <code>prop_used</code> reports where they went
+rather than whether they were needed.</p>
 </div>
 
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Barbieri, M. M., &amp; Berger, J. O. (2004). Optimal predictive model selection.
+<em>The Annals of Statistics</em>, 32(3). <a href="https://doi.org/10.1214/009053604000000238" class="external-link">doi:10.1214/009053604000000238</a></p>
+<p>Bleich, J., Kapelner, A., George, E. I., &amp; Jensen, S. T. (2014). Variable
+selection for BART: an application to gene regulation. <em>The Annals of Applied
+Statistics</em>, 8(3). <a href="https://doi.org/10.1214/14-AOAS755" class="external-link">doi:10.1214/14-AOAS755</a></p>
+<p>Linero, A. R. (2018). Bayesian regression trees for high-dimensional
+prediction and variable selection. <em>Journal of the American Statistical
+Association</em>, 113(522), 626–636. <a href="https://doi.org/10.1080/01621459.2016.1264957" class="external-link">doi:10.1080/01621459.2016.1264957</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -238,7 +262,7 @@ rather than usage</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      hema      0.06       0.004    0.1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       sex      0.02       0.002    0.0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The predictors the forest reaches for in nearly every draw</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">imp</span>, <span class="va">prop_used</span> <span class="op">&gt;</span> <span class="fl">.9</span><span class="op">)</span></span></span>

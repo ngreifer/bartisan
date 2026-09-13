@@ -45,6 +45,7 @@
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -81,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-08</h4>
+            <h4 data-toc-skip class="date">2026-09-13</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -159,7 +160,9 @@ surviving two months. All were recorded before catheterization.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># For parallelization; optional</span></span>
-<span><span class="fu">future</span><span class="fu">::</span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="fu">future</span><span class="fu">::</span><span class="va"><a href="https://future.futureverse.org/reference/multisession.html" class="external-link">multisession</a></span><span class="op">)</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"future"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu">future</span><span class="fu">::</span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="fu">future</span><span class="fu">::</span><span class="va"><a href="https://future.futureverse.org/reference/multisession.html" class="external-link">multisession</a></span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span></span>
 <span>  <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span></span>
@@ -200,9 +203,9 @@ and whether the model fits.</p>
 <div class="section level3">
 <h3 id="convergence">Convergence<a class="anchor" aria-label="anchor" href="#convergence"></a>
 </h3>
-<p><code><a href="../reference/diagnose.html">diagnose()</a></code> is the one call to make. It computes the
-convergence and mixing statistics, applies the conventional thresholds,
-and says what to change about whichever of them fall short.</p>
+<p><code><a href="../reference/diagnose.html">diagnose()</a></code> computes the convergence and mixing
+statistics, applies the conventional thresholds, and says what to change
+about whichever of them fall short.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="font-weight: bold;">Convergence and mixing</span></span></span>
@@ -213,7 +216,40 @@ and says what to change about whichever of them fall short.</p>
 <span><span class="co">#&gt;  eta.eta (average over observations) 1.004     0.999     1610     2278</span></span>
 <span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.045     1.073       80      305</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">What to do</span></span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> above 1.01 for loglik</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> that R-hat rests on 23 effective draws, where 4 chains average 1.171 even</span></span>
+<span><span class="co">#&gt;   when they agree</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> not the fix: R-hat stays high on the second half of the draws alone as well,</span></span>
+<span><span class="co">#&gt;   so a longer warmup is not what is missing</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> the chains disagree about how many splitting rules the forest has (R-hat</span></span>
+<span><span class="co">#&gt;   1.01)</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> 23 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> 234 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> the chains disagree about individual observations and agree about their</span></span>
+<span><span class="co">#&gt;   average (R-hat 1.00, 1610 effective draws)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> loglik carries 0.7 effective draws per hundred kept</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="font-weight: bold;">What to do</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Raise `num_draws`, which was `800`. R-hat is above the threshold for a quantity</span></span>
+<span><span class="co">#&gt; that carries too few effective draws for the threshold to mean anything: with</span></span>
+<span><span class="co">#&gt; this many chains it would sit about where it does even if the chains agreed</span></span>
+<span><span class="co">#&gt; exactly, as the check above reports. Effective sample size is what makes it</span></span>
+<span><span class="co">#&gt; readable, and that grows with the total number of draws; using fewer chains</span></span>
+<span><span class="co">#&gt; lowers the bar as well, since R-hat's null rises with the number of chains</span></span>
+<span><span class="co">#&gt; being compared.</span></span>
+<span><span class="co">#&gt; If that does not settle it, reduce `num_trees`. A smaller forest has fewer ways</span></span>
+<span><span class="co">#&gt; to represent the same fit, so the sampler has less room to move between them.</span></span>
+<span><span class="co">#&gt; Then check the family. A likelihood that fits the data badly can give a</span></span>
+<span><span class="co">#&gt; posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
+<span><span class="co">#&gt; diagnostic.</span></span>
+<span><span class="co">#&gt; Note that the chains disagree about the fitted values of individual</span></span>
+<span><span class="co">#&gt; observations and not about their average, which is the usual shape of this in a</span></span>
+<span><span class="co">#&gt; forest. An estimand averaged over observations therefore carries far more</span></span>
+<span><span class="co">#&gt; effective draws than the table's worst row does, and R-hat for that estimand is</span></span>
+<span><span class="co">#&gt; worth computing rather than inferring; `posterior::as_draws()` hands the draws</span></span>
+<span><span class="co">#&gt; over for it.</span></span></code></pre></div>
 <p><code>rhat</code> compares variation between chains to variation
 within them; values near 1 indicate the chains have settled on the same
 answer. <code>rhat_late</code> is the same statistic on the second half
@@ -223,25 +259,34 @@ early from chains that have each settled somewhere different.
 sizes, and count how many independent draws the correlated ones are
 worth, in the middle of the distribution and in the tails.</p>
 <p>Read the rows that correspond to quantities you will report.
-<code>eta.eta</code> is the fitted function, summarized over its worst
-5% of observations, so it is the row that matters here. Forests mix
-slowly on their fitted values, so a figure above 1.01 on that row is
-ordinary rather than alarming; <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code>
-explains what to do about it and when to worry.</p>
+<code>eta.eta</code> is the fitted function and appears twice, once
+averaged over the observations and once over the worst 5% of them: the
+average row governs an average effect and the worst-5% row governs a
+prediction for one observation. Forests mix slowly on their fitted
+values, so a figure above 1.01 on the worst-5% row is ordinary rather
+than alarming; <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> explains what to do
+about it and when to worry.</p>
 <p>The table is in <code>diagnose(fit)$table</code> if what you want is
 the numbers rather than the report.</p>
 </div>
 <div class="section level3">
 <h3 id="fit">Fit<a class="anchor" aria-label="anchor" href="#fit"></a>
 </h3>
-<p>A posterior predictive check simulates new outcomes from the fitted
-model and compares their distribution to the observed one.</p>
+<p>The question worth asking of a binary outcome is whether the
+predicted probabilities mean what they say: among the patients the model
+gave a 30% chance of dying, did about 30% die? A calibration plot
+answers it.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">bayesplot</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/pp_check.html" class="external-link">pp_check</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
-<p>For a binary outcome this is a weaker check than it is for a
-continuous one: there are only two values to get right, so the
-replicates match unless something has gone badly wrong.
-<code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers what to do instead.</p>
+<code class="sourceCode R"><span><span class="fu">bayesplot</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/pp_check.html" class="external-link">pp_check</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"loo_calibration"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="bartisan_files/figure-html/ppcheck-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p>The line should follow the diagonal, and here it does across the
+whole range. Each patient is judged against a probability estimated
+without them, so this is not the optimistic in-sample reading.</p>
+<p>The default <code>pp_check()</code> compares the distribution of
+simulated outcomes with the observed distribution, which is the check to
+reach for when the outcome is continuous; with two values to get right
+it finds nothing here. <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers what
+a departure from the diagonal looks like and what else to check.</p>
 </div>
 </div>
 <div class="section level2">
@@ -265,7 +310,9 @@ replicates match unless something has gone badly wrong.
 <span><span class="co">#&gt;    meanbp     0.490       0.020    1.5</span></span>
 <span><span class="co">#&gt;      race     0.462       0.021    1.5</span></span>
 <span><span class="co">#&gt;      resp     0.453       0.027    2.0</span></span>
-<span><span class="co">#&gt;       sex     0.410       0.020    1.5</span></span></code></pre></div>
+<span><span class="co">#&gt;       sex     0.410       0.020    1.5</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p><code>splits</code> is the average number of splitting rules the
 forest spends on each predictor per draw, and <code>prop_used</code> is
 the proportion of draws in which the predictor received any rule at
@@ -276,9 +323,9 @@ bottom, race and sex are used in about half the draws, which says the
 model can often do without them.</p>
 <p>Two cautions. Usage is not effect size: a predictor can be split on
 constantly and still move the prediction very little, and
-<code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code> in the next section is
-the better guide to that. And, when predictors are correlated, the usage
-distributes among them more or less arbitrarily.</p>
+<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> in the next section is the better guide
+to that. And, when predictors are correlated, the usage distributes
+among them more or less arbitrarily.</p>
 <p><code><a href="../articles/importance.html">vignette("importance")</a></code> covers variable importance and
 selection, including how to tell whether a difference in this table
 means anything.</p>
@@ -290,18 +337,29 @@ means anything.</p>
 The question “what is the effect of catheterization” is answered by
 asking the fitted model what it predicts when every patient receives it,
 asking again when none does, and taking the difference.
-<em>marginaleffects</em> does this.</p>
+<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> does this, and needs only to be told
+which predictor is the treatment:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://marginaleffects.com/" class="external-link">marginaleffects</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">eff</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treatment <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
+<span><span class="va">eff</span></span>
+<span><span class="co">#&gt; <span style="font-weight: bold;">Average treatment effect (difference)</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0.0596     0  0.111</span></span>
+<span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"rhc"</span></span></span>
+<span><span class="co">#&gt; Averaged over 1500 units</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Term: rhc</span></span>
-<span><span class="co">#&gt; Type: response</span></span>
-<span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
+<span><span class="co">#&gt;     contrast estimate lower upper    n</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0]   0.0568     0 0.111 1500</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="font-weight: bold;">Average potential outcomes</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  quantity estimate lower upper</span></span>
+<span><span class="co">#&gt;      Y[0]    0.633 0.601 0.666</span></span>
+<span><span class="co">#&gt;      Y[1]    0.690 0.646 0.729</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
+<span><span class="co">#&gt;   credible interval.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">Y[a]</span> is the average response with <span style="color: #0000BB;">"rhc"</span> set to <span style="font-style: italic;">a</span>.</span></span></code></pre></div>
 <p>Catheterization is associated with an increase of about six
 percentage points in the probability of death. The interval runs from
 roughly zero to eleven points, so the direction is reasonably clear and
@@ -316,37 +374,32 @@ Bayesian causal forests (BCF) and BART without sparsity-inducing priors,
 are described at <code><a href="../articles/causal.html">vignette("causal")</a></code>.</p>
 <p>Because the outcome is binary, this is a difference in probability,
 which is interpretable without reference to the model. That is usually
-the number to report. The underlying probabilities are also worth
-showing:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  rhc Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0    0.632 0.601  0.666</span></span>
-<span><span class="co">#&gt;    1    0.691 0.646  0.729</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Type: response</span></span></code></pre></div>
-<p>About 63% of patients would be expected to die without
-catheterization and 69% with it, averaging over the covariates as they
-actually occur in this sample.</p>
+the number to report.</p>
+<p>The two probabilities it is a difference of are printed below it,
+since the difference was computed from them: about 63% of patients would
+be expected to die without catheterization and 69% with it, averaging
+over the covariates as they actually occur in this sample.</p>
 <div class="section level3">
 <h3 id="looking-at-a-relationship">Looking at a relationship<a class="anchor" aria-label="anchor" href="#looking-at-a-relationship"></a>
 </h3>
 <p>Effects averaged over the sample hide the shape of the relationship.
 To see the shape, plot the model’s predictions against one
 predictor.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions</a></span><span class="op">(</span><span class="va">fit</span>, condition <span class="op">=</span> <span class="st">"surv2m"</span><span class="op">)</span> <span class="op">+</span></span>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"estimated probability of surviving two months"</span>,</span>
-<span>                y <span class="op">=</span> <span class="st">"fitted probability of death"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span>                y <span class="op">=</span> <span class="st">"fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bartisan_files/figure-html/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The fitted probability of death falls from about 0.88 to about 0.45
 as the prognostic score rises, and the fall is not a straight line. A
 logistic regression reports one slope on the log-odds scale for the
 whole range. Nothing had to be specified to find the shape.</p>
-<p>The band is a credible interval, and it widens at the top where few
-patients were that healthy.</p>
+<p>The band is a credible interval on the <em>average</em> prediction at
+each value, not on any one patient’s, and it widens at the top where few
+patients were that healthy. <code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> returns
+the same numbers without drawing them, and
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">marginaleffects::plot_predictions()</a></code> is the one to reach for
+when the grid or what is conditioned on needs more control.</p>
 <p><code><a href="../articles/effects.html">vignette("effects")</a></code> covers effects, curves, and
 interactions.</p>
 </div>
@@ -355,7 +408,7 @@ interactions.</p>
 <h2 id="predicting-new-observations">Predicting new observations<a class="anchor" aria-label="anchor" href="#predicting-new-observations"></a>
 </h2>
 <p><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns the posterior mean prediction.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">new_patient</span> <span class="op">&lt;-</span> <span class="va">rhc</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">new_patient</span><span class="op">$</span><span class="va">rhc</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span></span>
@@ -366,9 +419,10 @@ interactions.</p>
 posterior median as the point estimate, whereas &lt;code&gt;&lt;a href="https://rdrr.io/r/stats/predict.html" class="external-link"&gt;predict()&lt;/a&gt;&lt;/code&gt;
 uses the posterior mean, so these values may differ slightly. Use
 &lt;code&gt;options("marginaleffects_posterior_center" = "mean")&lt;/code&gt; prior
-to running &lt;code&gt;&lt;a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link"&gt;predictions()&lt;/a&gt;&lt;/code&gt; to produce the posterior mean.&lt;/p&gt;'><sup>1</sup></a>:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
+to running &lt;code&gt;predictions()&lt;/code&gt; to produce the posterior mean. We
+do this in &lt;code&gt;&lt;a href="../articles/causal.html"&gt;vignette("causal")&lt;/a&gt;&lt;/code&gt;.&lt;/p&gt;'><sup>1</sup></a>:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
 <span><span class="co">#&gt;     0.839 0.739  0.908</span></span>
@@ -381,7 +435,7 @@ itself is either 0 or 1, and a probability of 0.7 is entirely compatible
 with survival.</p>
 <p>For a continuous outcome, the distinction between an interval for the
 mean and an interval for a new observation matters a great deal, and
-<code><a href="../articles/effects.html">vignette("effects")</a></code> covers it. For a binary outcome the
+<code><a href="../articles/effects.html">vignette("effects")</a></code> covers it. For a binary outcome, the
 second is rarely what anyone wants.</p>
 </div>
 <div class="section level2">
@@ -389,7 +443,7 @@ second is rarely what anyone wants.</p>
 </h2>
 <p>Approximate leave-one-out cross-validation estimates how well a model
 predicts data it has not seen.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/loo/" class="external-link">loo</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
@@ -414,12 +468,13 @@ good, meaning the approximation is trustworthy for this fit.</p>
 <p>Two models can be compared directly. Here we ask whether the
 physiological measurements earn their keep over knowing the patient’s
 demographics alone:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
 <span>                         family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>, demographics <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">demographics</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>,</span>
+<span>                 demographics <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">demographics</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
 <span><span class="co">#&gt;  demographics     -68.2    11.2    1.00</span></span></code></pre></div>
@@ -488,6 +543,10 @@ distribution wrong matters more than any sampler setting.</p>
 <tr class="even">
 <td>Censored and survival outcomes</td>
 <td><code><a href="../articles/survival.html">vignette("survival")</a></code></td>
+</tr>
+<tr class="odd">
+<td>Frequently asked questions</td>
+<td><code><a href="../articles/faq.html">vignette("faq")</a></code></td>
 </tr>
 </tbody>
 </table>

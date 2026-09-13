@@ -45,6 +45,7 @@
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -81,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-08</h4>
+            <h4 data-toc-skip class="date">2026-09-13</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/families.Rmd" class="external-link"><code>vignettes/families.Rmd</code></a></small>
       <div class="d-none name"><code>families.Rmd</code></div>
@@ -99,7 +100,7 @@ pre code {word-wrap: normal; white-space: pre;}
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Small chains throughout, so that this vignette builds quickly. The defaults</span></span>
-<span><span class="co"># are 50 trees and 500 draws after 500 warmup iterations.</span></span>
+<span><span class="co"># are 50 trees and 800 draws after 200 warmup iterations.</span></span>
 <span><span class="va">ctrl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">150</span>, num_draws <span class="op">=</span> <span class="fl">150</span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
@@ -267,7 +268,8 @@ to a likelihood of one’s own through <code><a href="../reference/bartisan-fami
 <td>implied by <code>logdens</code>
 </td>
 <td>as many as requested</td>
-<td>none</td>
+<td>as many as named in <code>aux_names</code>
+</td>
 </tr>
 </tbody>
 </table>
@@ -383,7 +385,7 @@ on a fit:</p>
 <span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
 <span><span class="co">#&gt;   model elpd_diff se_diff p_worse       diag_diff       diag_elpd</span></span>
 <span><span class="co">#&gt;  model1       0.0     0.0      NA                 2 k_psis &gt; 0.54</span></span>
-<span><span class="co">#&gt;  model2      -0.3     0.8    0.63 |elpd_diff| &lt; 4</span></span>
+<span><span class="co">#&gt;  model2      -0.1     1.5    0.54 |elpd_diff| &lt; 4</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Diagnostic flags present.</span></span>
 <span><span class="co">#&gt; See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)</span></span>
@@ -424,7 +426,10 @@ only the values 0 and 1</td>
 <tr class="odd">
 <td>a two-column numeric matrix</td>
 <td>
-<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, read as successes and failures</td>
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, read as successes and failures, unless the
+columns look like strictly positive times and 0/1 events, which give
+<code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>
+</td>
 </tr>
 <tr class="even">
 <td>any other numeric</td>
@@ -627,14 +632,14 @@ or fewer:</p>
 <span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"mean"</span>:</span></span>
-<span><span class="co">#&gt;     mean    sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; x1 15.85 3.100    10    22     1.000</span></span>
-<span><span class="co">#&gt; x2  0.06 0.289     0     1     0.047</span></span>
+<span><span class="co">#&gt;      mean    sd lower  upper prop_used</span></span>
+<span><span class="co">#&gt; x1 14.873 2.112    11 19.000     1.000</span></span>
+<span><span class="co">#&gt; x2  0.027 0.162     0  0.275     0.027</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"log_sd"</span>:</span></span>
-<span><span class="co">#&gt;    mean   sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; x2 6.91 1.45     4    10         1</span></span>
-<span><span class="co">#&gt; x1 0.00 0.00     0     0         0</span></span></code></pre></div>
+<span><span class="co">#&gt;    mean  sd lower upper prop_used</span></span>
+<span><span class="co">#&gt; x2 7.95 1.9     5  12.3         1</span></span>
+<span><span class="co">#&gt; x1 0.00 0.0     0   0.0         0</span></span></code></pre></div>
 <p>Separate is not always what we want. Each forest draws its own
 splitting proportions by default, so each has to work out on its own
 which predictors matter, and one component is often far better placed to
@@ -671,7 +676,7 @@ helps when the components really do depend on the same predictors and
 there are enough irrelevant ones for the selection to be hard, and it
 costs something when they depend on different ones.
 <code><a href="../reference/variable_importance.html">variable_importance()</a></code> is where to check, and
-<code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> has the measured trade-off.</p>
+<code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> explains the trade.</p>
 <p>A formula that names no predictor at all is the limiting case of
 this, and it says the parameter is constant: <code>~ 1</code> leaves its
 forest nothing to split on, so every tree in it is a stump and the
@@ -961,9 +966,9 @@ own standard errors:</p>
 <span>                      zi_negbin <span class="op">=</span> <span class="fu">count_fit</span><span class="op">(</span><span class="fu"><a href="../reference/bartisan-families.html">zi_negbin</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       model elpd_diff se_diff p_worse       diag_diff       diag_elpd</span></span>
 <span><span class="co">#&gt;     poisson       0.0     0.0      NA                                </span></span>
-<span><span class="co">#&gt;      negbin      -0.4     0.9    0.66 |elpd_diff| &lt; 4                </span></span>
 <span><span class="co">#&gt;  zi_poisson      -1.3     0.7    0.97 |elpd_diff| &lt; 4 1 k_psis &gt; 0.63</span></span>
 <span><span class="co">#&gt;   zi_negbin      -3.3     3.2    0.85 |elpd_diff| &lt; 4 1 k_psis &gt; 0.63</span></span>
+<span><span class="co">#&gt;      negbin      -4.0     3.6    0.87 |elpd_diff| &lt; 4</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Diagnostic flags present.</span></span>
 <span><span class="co">#&gt; See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)</span></span>
@@ -1045,7 +1050,7 @@ a trait, a utility, an underlying measurement recorded in bins).
 the categories, so choose it when the categories are ordered durations
 or stages. Accuracy is much the same across the three;
 <code>"probit"</code> is the fastest by a wide margin.</p>
-<p>Ordered categoiries can also be treated as unordered categories and
+<p>Ordered categories can also be treated as unordered categories and
 fit with <code>family = multinomial()</code>, described below; typically
 this produces more variable predictions as it requires a forest for each
 category rather than a single forest governing the entire distribution
@@ -1160,13 +1165,13 @@ regression of <span class="citation">Kubinec (<a href="#ref-kubinec2023">2023</a
 budget, a slider scale). One predictor drives both the probability of
 landing on an endpoint, through a pair of cutpoints as in an ordinal
 model, and the mean of the beta density in between.</p>
-<p>Choose between <code><a href="../reference/bartisan-families.html">Beta()</a></code> and <code>ordered_beta()</code>
-based on whether the response <em>can</em> reach a boundary, not on
-whether it happens to in the sample at hand. A response <em>at</em> zero
-or one has no beta density, so <code><a href="../reference/bartisan-families.html">Beta()</a></code> errors rather than
-nudging it inward. In the other direction, <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> fitted
-to a response with no boundary observations leaves its two cutpoints
-with nothing to identify them; the fit is not much worse for it, but the
+<p>Choose between <code><a href="../reference/bartisan-families.html">Beta()</a></code> and <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> based
+on whether the response <em>can</em> reach a boundary, not on whether it
+happens to in the sample at hand. A response <em>at</em> zero or one has
+no beta density, so <code><a href="../reference/bartisan-families.html">Beta()</a></code> errors rather than nudging it
+inward. In the other direction, <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> fitted to a
+response with no boundary observations leaves its two cutpoints with
+nothing to identify them; the fit is not much worse for it, but the
 cutpoints are not interpretable and drift to large magnitudes.</p>
 </div>
 <div class="section level2">
@@ -1357,19 +1362,19 @@ comparing their log scores.</p>
 <h2 id="other-links-and-custom-likelihoods">Other Links and Custom Likelihoods<a class="anchor" aria-label="anchor" href="#other-links-and-custom-likelihoods"></a>
 </h2>
 <p>Links beyond those in the table are accepted for
-<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>
-and <code><a href="../reference/bartisan-families.html">negbin()</a></code>, and applied from R by composing the supplied
-inverse link with the family’s own. So <code>binomial("cauchit")</code>
-works, as does any link object of the kind
-<code><a href="https://rdrr.io/r/stats/make.link.html" class="external-link">stats::make.link()</a></code> returns, including one written by hand.
-Two cautions: 1) the fit is slower, because each leaf costs a call into
-R, and 2) the additive predictor is unconstrained, so a link whose
-inverse has a restricted range (e.g., <code>poisson("identity")</code>)
-gives non-finite densities for some predictors, which are rejected
-rather than breaking the chain but are wasted work.
-<code><a href="../reference/bartisan.html">bartisan()</a></code> reports that when the fit starts. The families
-with more than one predictor, or whose link enters somewhere other than
-a single mean, take only their listed links.</p>
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>,
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>, <code><a href="../reference/bartisan-families.html">negbin()</a></code> and <code><a href="../reference/bartisan-families.html">Beta()</a></code>,
+and applied from R by composing the supplied inverse link with the
+family’s own. So <code>binomial("cauchit")</code> works, as does any
+link object of the kind <code><a href="https://rdrr.io/r/stats/make.link.html" class="external-link">stats::make.link()</a></code> returns,
+including one written by hand. Two cautions: 1) the fit is slower,
+because each leaf costs a call into R, and 2) the additive predictor is
+unconstrained, so a link whose inverse has a restricted range (e.g.,
+<code>poisson("identity")</code>) gives non-finite densities for some
+predictors, which are rejected rather than breaking the chain but are
+wasted work. <code><a href="../reference/bartisan.html">bartisan()</a></code> reports that when the fit starts.
+The families with more than one predictor, or whose link enters
+somewhere other than a single mean, take only their listed links.</p>
 <p><code><a href="../reference/bartisan-families.html">custom_family()</a></code>can be used to fit a BART model with a
 density of the user’s design. It takes the log density itself and fits
 the model that goes with it. The sampler needs only the first two

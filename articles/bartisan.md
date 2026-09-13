@@ -80,7 +80,9 @@ months. All were recorded before catheterization.
 set.seed(2026)
 
 # For parallelization; optional
-future::plan(future::multisession)
+if (rlang::is_installed("future")) {
+  future::plan(future::multisession)
+}
 
 fit <- bartisan(
   death ~ rhc + age + sex + race + edu + aps + meanbp + resp + hema +
@@ -127,9 +129,8 @@ whether the model fits.
 ### Convergence
 
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-is the one call to make. It computes the convergence and mixing
-statistics, applies the conventional thresholds, and says what to change
-about whichever of them fall short.
+computes the convergence and mixing statistics, applies the conventional
+thresholds, and says what to change about whichever of them fall short.
 
 ``` r
 
@@ -142,7 +143,40 @@ diagnose(fit)
 #>  eta.eta (average over observations) 1.004     0.999     1610     2278
 #>   eta.eta (worst 5% of observations) 1.045     1.073       80      305
 #> 
+#> ✔ 4 chains, 3200 draws kept in total
+#> ✖ above 1.01 for loglik
+#> ✖ that R-hat rests on 23 effective draws, where 4 chains average 1.171 even
+#>   when they agree
+#> ℹ not the fix: R-hat stays high on the second half of the draws alone as well,
+#>   so a longer warmup is not what is missing
+#> ✖ the chains disagree about how many splitting rules the forest has (R-hat
+#>   1.01)
+#> ✖ 23 for loglik, below 400
+#> ✖ 234 for loglik, below 400
+#> ℹ the chains disagree about individual observations and agree about their
+#>   average (R-hat 1.00, 1610 effective draws)
+#> ℹ loglik carries 0.7 effective draws per hundred kept
+#> 
 #> What to do
+#> 
+#> Raise `num_draws`, which was `800`. R-hat is above the threshold for a quantity
+#> that carries too few effective draws for the threshold to mean anything: with
+#> this many chains it would sit about where it does even if the chains agreed
+#> exactly, as the check above reports. Effective sample size is what makes it
+#> readable, and that grows with the total number of draws; using fewer chains
+#> lowers the bar as well, since R-hat's null rises with the number of chains
+#> being compared.
+#> If that does not settle it, reduce `num_trees`. A smaller forest has fewer ways
+#> to represent the same fit, so the sampler has less room to move between them.
+#> Then check the family. A likelihood that fits the data badly can give a
+#> posterior with no single place to be; `bayesplot::pp_check()` is the
+#> diagnostic.
+#> Note that the chains disagree about the fitted values of individual
+#> observations and not about their average, which is the usual shape of this in a
+#> forest. An estimand averaged over observations therefore carries far more
+#> effective draws than the table's worst row does, and R-hat for that estimand is
+#> worth computing rather than inferring; `posterior::as_draws()` hands the draws
+#> over for it.
 ```
 
 `rhat` compares variation between chains to variation within them;
@@ -155,10 +189,11 @@ correlated ones are worth, in the middle of the distribution and in the
 tails.
 
 Read the rows that correspond to quantities you will report. `eta.eta`
-is the fitted function, summarized over its worst 5% of observations, so
-it is the row that matters here. Forests mix slowly on their fitted
-values, so a figure above 1.01 on that row is ordinary rather than
-alarming;
+is the fitted function and appears twice, once averaged over the
+observations and once over the worst 5% of them: the average row governs
+an average effect and the worst-5% row governs a prediction for one
+observation. Forests mix slowly on their fitted values, so a figure
+above 1.01 on the worst-5% row is ordinary rather than alarming;
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 explains what to do about it and when to worry.
 
@@ -167,19 +202,28 @@ rather than the report.
 
 ### Fit
 
-A posterior predictive check simulates new outcomes from the fitted
-model and compares their distribution to the observed one.
+The question worth asking of a binary outcome is whether the predicted
+probabilities mean what they say: among the patients the model gave a
+30% chance of dying, did about 30% die? A calibration plot answers it.
 
 ``` r
 
-bayesplot::pp_check(fit)
+bayesplot::pp_check(fit, type = "loo_calibration")
 ```
 
-For a binary outcome this is a weaker check than it is for a continuous
-one: there are only two values to get right, so the replicates match
-unless something has gone badly wrong.
+![](bartisan_files/figure-html/ppcheck-1.png)
+
+The line should follow the diagonal, and here it does across the whole
+range. Each patient is judged against a probability estimated without
+them, so this is not the optimistic in-sample reading.
+
+The default `pp_check()` compares the distribution of simulated outcomes
+with the observed distribution, which is the check to reach for when the
+outcome is continuous; with two values to get right it finds nothing
+here.
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
-covers what to do instead.
+covers what a departure from the diagonal looks like and what else to
+check.
 
 ## Which predictors the model uses
 
@@ -203,6 +247,8 @@ variable_importance(fit)
 #>      race     0.462       0.021    1.5
 #>      resp     0.453       0.027    2.0
 #>       sex     0.410       0.020    1.5
+#> 
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 `splits` is the average number of splitting rules the forest spends on
@@ -216,7 +262,7 @@ without them.
 
 Two cautions. Usage is not effect size: a predictor can be split on
 constantly and still move the prediction very little, and
-[`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 in the next section is the better guide to that. And, when predictors
 are correlated, the usage distributes among them more or less
 arbitrarily.
@@ -231,20 +277,31 @@ A forest has no coefficients, so there is no table of slopes to read.
 The question “what is the effect of catheterization” is answered by
 asking the fitted model what it predicts when every patient receives it,
 asking again when none does, and taking the difference.
-*marginaleffects* does this.
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+does this, and needs only to be told which predictor is the treatment:
 
 ``` r
 
-library(marginaleffects)
+eff <- estimate_effect(fit, treatment = "rhc")
 
-avg_comparisons(fit, variables = "rhc")
+eff
+#> Average treatment effect (difference)
 #> 
-#>  Estimate 2.5 % 97.5 %
-#>    0.0596     0  0.111
+#> Treatment: "rhc"
+#> Averaged over 1500 units
 #> 
-#> Term: rhc
-#> Type: response
-#> Comparison: 1 - 0
+#>     contrast estimate lower upper    n
+#>  Y[1] - Y[0]   0.0568     0 0.111 1500
+#> 
+#> Average potential outcomes
+#> 
+#>  quantity estimate lower upper
+#>      Y[0]    0.633 0.601 0.666
+#>      Y[1]    0.690 0.646 0.729
+#> 
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
+#> ℹ Y[a] is the average response with "rhc" set to a.
 ```
 
 Catheterization is associated with an increase of about six percentage
@@ -264,23 +321,12 @@ at
 
 Because the outcome is binary, this is a difference in probability,
 which is interpretable without reference to the model. That is usually
-the number to report. The underlying probabilities are also worth
-showing:
+the number to report.
 
-``` r
-
-avg_predictions(fit, variables = "rhc")
-#> 
-#>  rhc Estimate 2.5 % 97.5 %
-#>    0    0.632 0.601  0.666
-#>    1    0.691 0.646  0.729
-#> 
-#> Type: response
-```
-
-About 63% of patients would be expected to die without catheterization
-and 69% with it, averaging over the covariates as they actually occur in
-this sample.
+The two probabilities it is a difference of are printed below it, since
+the difference was computed from them: about 63% of patients would be
+expected to die without catheterization and 69% with it, averaging over
+the covariates as they actually occur in this sample.
 
 ### Looking at a relationship
 
@@ -289,10 +335,9 @@ see the shape, plot the model’s predictions against one predictor.
 
 ``` r
 
-plot_predictions(fit, condition = "surv2m") +
+plot(fit, ~ surv2m) +
   ggplot2::labs(x = "estimated probability of surviving two months",
-                y = "fitted probability of death") +
-  ggplot2::theme_bw()
+                y = "fitted probability of death")
 ```
 
 ![](bartisan_files/figure-html/pdp-1.png)
@@ -302,8 +347,14 @@ the prognostic score rises, and the fall is not a straight line. A
 logistic regression reports one slope on the log-odds scale for the
 whole range. Nothing had to be specified to find the shape.
 
-The band is a credible interval, and it widens at the top where few
+The band is a credible interval on the *average* prediction at each
+value, not on any one patient’s, and it widens at the top where few
 patients were that healthy.
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+returns the same numbers without drawing them, and
+[`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html)
+is the one to reach for when the grid or what is conditioned on needs
+more control.
 
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
 covers effects, curves, and interactions.
@@ -327,7 +378,7 @@ For a prediction with an interval, use
 
 ``` r
 
-predictions(fit, newdata = new_patient)
+marginaleffects::predictions(fit, newdata = new_patient)
 #> 
 #>  Estimate 2.5 % 97.5 %
 #>     0.839 0.739  0.908
@@ -343,7 +394,7 @@ or 1, and a probability of 0.7 is entirely compatible with survival.
 For a continuous outcome, the distinction between an interval for the
 mean and an interval for a new observation matters a great deal, and
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
-covers it. For a binary outcome the second is rarely what anyone wants.
+covers it. For a binary outcome, the second is rarely what anyone wants.
 
 ## Comparing models
 
@@ -386,7 +437,8 @@ set.seed(2026)
 demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
                          family = binomial(), chains = 4)
 
-loo_compare(list(full = loo(fit), demographics = loo(demographics)))
+loo_compare(list(full = loo(fit),
+                 demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
 #>  demographics     -68.2    11.2    1.00
@@ -432,6 +484,7 @@ wrong matters more than any sampler setting.
 | Model comparison | [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md) |
 | Causal inference | [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md) |
 | Censored and survival outcomes | [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md) |
+| Frequently asked questions | [`vignette("faq")`](https://ngreifer.github.io/bartisan/articles/faq.md) |
 
 `?bartisan-package` has a shorter version of the same map, organized by
 task.
@@ -448,6 +501,5 @@ Critically Ill Patients.” *JAMA* 276 (11): 889–97.
     [`predict()`](https://rdrr.io/r/stats/predict.html) uses the
     posterior mean, so these values may differ slightly. Use
     `options("marginaleffects_posterior_center" = "mean")` prior to
-    running
-    [`predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html)
-    to produce the posterior mean.
+    running `predictions()` to produce the posterior mean. We do this in
+    [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md).

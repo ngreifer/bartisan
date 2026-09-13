@@ -38,6 +38,7 @@ the fit."></head><body>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -202,10 +203,9 @@ selection prior, and dropping a weak predictor from every tree is what it is
 for.</p>
 <p>And <span class="pkg">marginaleffects</span> centers a posterior at its <strong>median</strong>. So once the
 atom holds more than half the mass, the reported estimate is exactly zero
-however large the rest of the posterior is. On <code>MatchIt::lalonde</code> with the
-default settings, <code>treat</code> was absent from all 50 trees in 64% of draws and the
-contrast came out exactly zero in 65%, which put the median at 0 while the
-posterior mean was 197 and the upper limit was above 2000.</p>
+however large the rest of the posterior is, which is a thing that happens on
+real data rather than a curiosity: the median can land on the atom while the
+posterior mean and the upper limit of the interval are both far from zero.</p>
 <p>Four things are worth doing about it, in the order given.</p>
 <p><strong>Look at the inclusion probability</strong>, which is what the zero reports.
 <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> gives it as <code>prop_used</code>: the posterior probability that each
@@ -217,13 +217,12 @@ zero is a predictor the model is not sure belongs.</p>
 against an atom.</p>
 <p><strong>Reconsider the sparsity prior</strong> when variable selection is not what the fit
 is for. <code>sparsity = FALSE</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code> removes the atom almost
-entirely: on the example above it fell from 20% of draws to none by 50 trees.
-A larger <code>num_trees</code> does <em>not</em> remove it, which is worth stating because it
-looks as though it should: with the prior on, the contrast was exactly zero in
-20% of draws at 50 trees and 18% at 200. Turning the prior off is a modeling
+entirely, where a larger <code>num_trees</code> does <em>not</em>, which is worth stating
+because it looks as though it should. Turning the prior off is a modeling
 choice rather than a fix, so it wants a reason; it is the right one when a
 contrast on a particular predictor is the estimand, and the wrong one when
-there are many predictors and most are irrelevant.</p>
+there are many predictors and most are irrelevant. <code><a href="../articles/effects.html">vignette("effects")</a></code>
+works the choice through.</p>
 <p><strong>Run several chains and compare them.</strong> The variable selection state mixes
 slowly, because a predictor whose splitting proportion has gone small is
 rarely proposed and so is hard to get back in. On the example above, four
@@ -242,8 +241,11 @@ to be differentiable in the predictor <em>as the caller supplies it</em>. The de
 distribution function before any rule sees it, and an empirical distribution
 function is a step function; the fit is therefore a step function of the
 original predictor whatever the decision rules are, and its difference
-quotient grows without bound as the step shrinks. Measured on a smooth
-surface where the average derivative is zero:</p><table class="table table"><tr><td>step</td><td><code>x_transform = "quantile"</code></td><td><code>x_transform = "range"</code></td></tr><tr><td>1e-4</td><td>-4.79</td><td>-0.28</td></tr><tr><td>1e-2</td><td>-0.40</td><td>-0.30</td></tr><tr><td>5e-2</td><td>-0.29</td><td>-0.25</td></tr></table><p>So <strong><code>x_transform = "range"</code> is what slopes want</strong>, since it maps each
+quotient grows without bound as the step shrinks: on a smooth surface whose
+average derivative is zero, the estimate goes from -0.29 at a step of 5e-2 to
+-4.79 at 1e-4 under the quantile transform, where under <code>"range"</code> it stays
+near -0.28 throughout.</p>
+<p>So <strong><code>x_transform = "range"</code> is what slopes want</strong>, since it maps each
 predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a
 piecewise-constant fit under either transform, and a derivative of one is not
 a meaningful quantity however it is computed.</p>

@@ -26,14 +26,18 @@ anything from a fit.
 
 library(bartisan)
 
-data("rhc")
+# For parallelization; optional
+if (rlang::is_installed("future")) {
+  future::plan(future::multisession)
+}
 
-model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
-  hema + pafi + paco2 + crea + surv2m + card
+data("rhc")
 
 set.seed(2026)
 
-fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
+fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+                  hema + pafi + paco2 + crea + surv2m + card,
+                data = rhc, family = binomial(), chains = 4)
 ```
 
 ## Convergence
@@ -56,7 +60,40 @@ diagnose(fit)
 #>  eta.eta (average over observations) 1.00     0.999     1610     2278
 #>   eta.eta (worst 5% of observations) 1.04     1.073       80      305
 #> 
+#> ✔ 4 chains, 3200 draws kept in total
+#> ✖ above 1.01 for loglik
+#> ✖ that R-hat rests on 23 effective draws, where 4 chains average 1.171 even
+#>   when they agree
+#> ℹ not the fix: R-hat stays high on the second half of the draws alone as well,
+#>   so a longer warmup is not what is missing
+#> ✖ the chains disagree about how many splitting rules the forest has (R-hat
+#>   1.01)
+#> ✖ 23 for loglik, below 400
+#> ✖ 234 for loglik, below 400
+#> ℹ the chains disagree about individual observations and agree about their
+#>   average (R-hat 1.00, 1610 effective draws)
+#> ℹ loglik carries 0.7 effective draws per hundred kept
+#> 
 #> What to do
+#> 
+#> Raise `num_draws`, which was `800`. R-hat is above the threshold for a quantity
+#> that carries too few effective draws for the threshold to mean anything: with
+#> this many chains it would sit about where it does even if the chains agreed
+#> exactly, as the check above reports. Effective sample size is what makes it
+#> readable, and that grows with the total number of draws; using fewer chains
+#> lowers the bar as well, since R-hat's null rises with the number of chains
+#> being compared.
+#> If that does not settle it, reduce `num_trees`. A smaller forest has fewer ways
+#> to represent the same fit, so the sampler has less room to move between them.
+#> Then check the family. A likelihood that fits the data badly can give a
+#> posterior with no single place to be; `bayesplot::pp_check()` is the
+#> diagnostic.
+#> Note that the chains disagree about the fitted values of individual
+#> observations and not about their average, which is the usual shape of this in a
+#> forest. An estimand averaged over observations therefore carries far more
+#> effective draws than the table's worst row does, and R-hat for that estimand is
+#> worth computing rather than inferring; `posterior::as_draws()` hands the draws
+#> over for it.
 ```
 
 The rest of this section is what it is reporting and why, which is worth
@@ -74,7 +111,7 @@ settling in different places. Running four costs four times as much
 sampling, which for most fits is a few seconds, and less than that under
 a `future` plan.
 
-More chains is not, however, a way to satisfy `rhat`, and it is worth
+More chains is not, however, a way to improve `rhat`, and it is worth
 knowing which way it cuts before reaching for it. Effective sample size
 depends on the total number of draws and not on how they are divided, so
 twice as many chains and twice as long a chain buy the same amount of
@@ -86,9 +123,7 @@ clear. When a fit fails on `rhat`, longer chains are the fix; when it
 fails only on effective sample size, either will do.
 
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-is where the diagnostics are computed, and the only place: a fit does
-not carry a table of its own, because the per-observation statistics
-cost more than the sampling and would only be recomputed here.
+is where the diagnostics are computed.
 
 ``` r
 
@@ -101,7 +136,40 @@ diagnose(fit)
 #>  eta.eta (average over observations) 1.00     0.999     1610     2278
 #>   eta.eta (worst 5% of observations) 1.04     1.073       80      305
 #> 
+#> ✔ 4 chains, 3200 draws kept in total
+#> ✖ above 1.01 for loglik
+#> ✖ that R-hat rests on 23 effective draws, where 4 chains average 1.171 even
+#>   when they agree
+#> ℹ not the fix: R-hat stays high on the second half of the draws alone as well,
+#>   so a longer warmup is not what is missing
+#> ✖ the chains disagree about how many splitting rules the forest has (R-hat
+#>   1.01)
+#> ✖ 23 for loglik, below 400
+#> ✖ 234 for loglik, below 400
+#> ℹ the chains disagree about individual observations and agree about their
+#>   average (R-hat 1.00, 1610 effective draws)
+#> ℹ loglik carries 0.7 effective draws per hundred kept
+#> 
 #> What to do
+#> 
+#> Raise `num_draws`, which was `800`. R-hat is above the threshold for a quantity
+#> that carries too few effective draws for the threshold to mean anything: with
+#> this many chains it would sit about where it does even if the chains agreed
+#> exactly, as the check above reports. Effective sample size is what makes it
+#> readable, and that grows with the total number of draws; using fewer chains
+#> lowers the bar as well, since R-hat's null rises with the number of chains
+#> being compared.
+#> If that does not settle it, reduce `num_trees`. A smaller forest has fewer ways
+#> to represent the same fit, so the sampler has less room to move between them.
+#> Then check the family. A likelihood that fits the data badly can give a
+#> posterior with no single place to be; `bayesplot::pp_check()` is the
+#> diagnostic.
+#> Note that the chains disagree about the fitted values of individual
+#> observations and not about their average, which is the usual shape of this in a
+#> forest. An estimand averaged over observations therefore carries far more
+#> effective draws than the table's worst row does, and R-hat for that estimand is
+#> worth computing rather than inferring; `posterior::as_draws()` hands the draws
+#> over for it.
 ```
 
 The table is in `diagnose(fit)$table` when it is wanted as a data frame,
@@ -126,11 +194,11 @@ statistic computed on the second half of the retained draws alone, which
 is what tells a warmup that ended too early (i.e., too small a
 `num_burn`) from chains that have each settled somewhere different:
 throwing away the early draws is exactly what more `num_burn` would have
-done, so if that fixes `rhat`, warmup was the problem. And the
-`splits.*` row is the total number of splitting rules in the forest at
-each draw, the one quantity here that is about the trees rather than
-about the fitted values, and which no general-purpose MCMC diagnostic
-would think to look at.
+done, so if that fixes `rhat`, warmup was the problem. The `splits.*`
+row is the total number of splitting rules in the forest at each draw,
+the one quantity here that is about the trees rather than about the
+fitted values, and which no general-purpose MCMC diagnostic would think
+to look at.
 
 ### The Rows of the Table
 
@@ -152,21 +220,20 @@ differ by orders of magnitude: a forest settles the level of the fitted
 function within a sweep or two and takes far longer to settle which
 observation gets which share of it. Which row binds depends on what we
 mean to report. An average or a contrast of averages, which is what
-[`avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-gives, is governed by the average row; a prediction for one observation
-is governed by the other.
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+and `avg_comparisons()` give, is governed by the average row; a
+prediction for one observation is governed by the other.
 
 One quantity is deliberately not in the table. The leaf prior scale, in
 `fit$sigma_mu`, mixes badly in every BART implementation: on one dataset
 its counterparts in *dbarts* and in *stochtree* come out at `rhat` 1.12
 and 1.16 with effective sample sizes of 22 and 17 out of 3000 draws, and
 *stochtree* draws it exactly from its full conditional, so no sampler
-can do better. The *BART* package avoids the question by never drawing
-it. It is a hyperparameter whose disagreement between chains does not
-reach the fitted function, which on those same fits has `rhat` 1.00 and
-thousands of effective draws, so reporting it beside `eta` only produced
-an alarming row with nothing to act on. It is out of this table and only
-out of this table: the draws are in `fit$sigma_mu` and reach
+can do better. It is a hyperparameter whose disagreement between chains
+does not reach the fitted function, which on those same fits has `rhat`
+1.00 and thousands of effective draws, so reporting it beside `eta` only
+produces an alarming row with nothing to act on. It is out of this table
+and only out of this table: the draws are in `fit$sigma_mu` and reach
 [`as_draws()`](https://mc-stan.org/posterior/reference/draws.html), so
 it can still be diagnosed by anyone who wants to.
 
@@ -211,11 +278,12 @@ diagnose(too_short)$table
 ```
 
 Everything is bad. Every `rhat` is far above the 1.01 threshold, and the
-effective sample sizes are all under 30 out of the 200 draws kept.
-`rhat_late` is no better than `rhat` on any row, which is the
-informative part: discarding the early draws does not fix it, so this is
-not a warmup that ended too soon but chains that have each settled
-somewhere different. Nothing from this fit should be used.
+effective sample sizes are all under 30 out of the 200 draws kept (4
+chains x 50 kept draws per chain). `rhat_late` is no better than `rhat`
+on any row, which is the informative part: discarding the early draws
+does not fix it, so this is not a warmup that ended too soon but chains
+that have each settled somewhere different. Nothing from this fit should
+be used.
 
 ``` r
 
@@ -268,9 +336,8 @@ fitted function as a whole mixes slowly here. That is the phenomenon
 described above rather than a broken chain, and the two are told apart
 by what happens to the quantities we report. If the log likelihood has
 converged, along with any nuisance parameters the family has, and an
-[`avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-estimate is stable across chains and across a longer run, the fit is
-usable.
+`avg_comparisons()` estimate is stable across chains and across a longer
+run, the fit is usable.
 
 If instead the log likelihood were badly elevated too, or the estimate
 moved when the chain was lengthened, that would be a chain that has not
@@ -286,7 +353,8 @@ and a representative set of `eta` columns.
 
 library(posterior)
 
-summarise_draws(as_draws(fit))
+as_draws(fit) |>
+  summarise_draws()
 #> # A tibble: 12 × 10
 #>    variable         mean   median     sd    mad       q5      q95  rhat ess_bulk
 #>    <chr>           <dbl>    <dbl>  <dbl>  <dbl>    <dbl>    <dbl> <dbl>    <dbl>
@@ -309,7 +377,8 @@ summarise_draws(as_draws(fit))
 
 library(bayesplot)
 
-mcmc_trace(as_draws(fit, eta = 1), pars = c("loglik", "eta[1]"))
+as_draws(fit, eta = 1) |>
+  mcmc_trace(pars = c("loglik", "eta[1]"))
 ```
 
 ![](diagnostics_files/figure-html/trace-1.png)
@@ -369,52 +438,95 @@ the family is wrong, and
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 covers the alternatives.
 
-For a **binary** outcome it is a weak check, which is worth knowing
-before reading too much into it. There are only two values the
-replicates can take, so they will match the observed proportion unless
-the model has gone badly wrong; passing this check tells us almost
-nothing.
+For a binary outcome it is a weak check, which is worth knowing before
+reading too much into it. There are only two values the replicates can
+take, so they will match the observed proportion unless the model has
+gone badly wrong; passing this check tells us almost nothing. The
+calibration check below is what to read instead.
+
+#### Checks Worth Reaching For
+
+`type` names any of *bayesplot*’s checks without its `ppc_` prefix, and
+four of them earn their place for a forest.
+
+The default compares whole distributions, which is a coarse question. A
+test statistic is a sharper one: `type = "stat"` compares any summary of
+the replicates with the same summary of the outcome, so the spread, a
+tail quantile, or the share of zeros can each be asked about on its own.
+The share of zeros is the one that finds an unmodeled point mass, which
+is what
+[`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
+recommends
+[`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+and
+[`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+for.
+
+``` r
+
+pp_check(fit, type = "stat", stat = "sd")
+```
+
+![](diagnostics_files/figure-html/ppcstat-1.png)
+
+**Calibration of the whole predictive distribution** is what
+`type = "loo_pit_ecdf"` asks. Each observation is transformed through
+its own leave-one-out predictive distribution, which should leave a
+uniform if the model is calibrated, and the plot compares the result
+with one. A curve that leaves the band says the predictive spread is
+wrong even where the mean is right, which the default check cannot see.
+
+``` r
+
+pp_check(fit, type = "loo_pit_ecdf")
+```
+
+![](diagnostics_files/figure-html/ppcloo-1.png)
+
+**Where a residual is left**, rather than how big it is, is what
+`type = "error_scatter_avg_vs_x"` shows: the average residual against a
+predictor, which is where a missing interaction appears as structure.
+And `type = "intervals"` draws a predictive interval per observation, so
+systematic under-coverage is visible as a run of points outside their
+intervals.
+
+The rest apply where the response allows, and say so when it does not: a
+rootogram wants counts, a bar plot wants discrete values, a calibration
+plot wants a binary outcome. `type = "km_overlay"` is the one written
+for censored data, overlaying the replicate survival curves on the
+observed Kaplan-Meier curve; it takes the censoring indicator from the
+fit’s own response, and needs the *ggfortify* package installed
+alongside *bayesplot*.
 
 ### Calibration
 
 The useful question for a binary outcome is whether the predicted
-probabilities mean what they say. Below we group the patients by their
-fitted probability and compare the average prediction in each group with
-the proportion who actually died.
+probabilities mean what they say: among the patients the model gave a
+30% chance of dying, did about 30% die?
 
 ``` r
 
-library(ggplot2)
-
-p <- fitted(fit)
-bins <- cut(p, quantile(p, seq(0, 1, 0.1)), include.lowest = TRUE)
-
-calibration <- data.frame(
-  predicted = tapply(p, bins, mean),
-  observed  = tapply(rhc$death, bins, mean)
-)
-
-ggplot(calibration, aes(predicted, observed)) +
-  geom_abline(slope = 1, intercept = 0, colour = "grey60") +
-  geom_point(size = 2) +
-  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
-  labs(x = "mean predicted probability", y = "observed proportion") +
-  theme_bw(base_size = 9)
+pp_check(fit, type = "loo_calibration")
 ```
 
 ![](diagnostics_files/figure-html/calibration-1.png)
 
-Points on the diagonal mean the probabilities are calibrated: among
-patients the model gave a 30% chance of dying, about 30% died. These sit
-close to it across the whole range.
+A line on the diagonal means the probabilities are calibrated, and this
+one sits close to it across the whole range. The dots along the bottom
+show where the predictions fall, so a departure over a stretch holding
+few patients can be discounted.
 
-Points systematically above the line at the left and below it at the
-right would mean the predictions are too extreme, which is the usual
-failure of an overfitted model; the opposite pattern means they are too
-timid, which is what heavy shrinkage produces.
+A line above the diagonal at the left and below it at the right means
+the predictions are too extreme, which is the usual failure of an
+overfitted model; the opposite pattern means they are too timid, which
+is what heavy shrinkage produces.
 
-This is an in-sample check and so is optimistic. For an honest version,
-we would fit on part of the data and calibrate on the rest.
+Each patient is judged here against a probability estimated without
+them, which is what separates this from the in-sample version,
+`type = "calibration"`. That one reads optimistically, by however much
+the model has fitted the individual patients rather than the pattern.
+[`fitted()`](https://rdrr.io/r/stats/fitted.values.html) returns the
+probabilities themselves, for binning them some other way.
 
 ### Residuals
 
@@ -428,7 +540,7 @@ predictors, which
 [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 models directly.
 
-For a binary outcome the residuals take two values for any given fitted
+For a binary outcome, the residuals take two values for any given fitted
 probability and the plot is not informative; the calibration check above
 is what to use instead.
 

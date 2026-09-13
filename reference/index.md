@@ -74,6 +74,17 @@
   [`plot(`*`<bartisan_error_density>`*`)`](https://ngreifer.github.io/bartisan/reference/error_density.md)
   : Error distribution of a Dirichlet process mixture fit
 
+- [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+  [`print(`*`<bartisan_effect>`*`)`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+  [`plot(`*`<bartisan_effect>`*`)`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+  : Causal effects from a fitted model
+
+- [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+  [`print(`*`<bartisan_partial>`*`)`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+  [`plot(`*`<bartisan_partial>`*`)`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+  [`plot(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+  : Partial dependence on one or two predictors
+
 - [`predict(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md)
   : Predictions from a generalized BART model
 
@@ -81,6 +92,10 @@
   [`summary(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/print.bartisan_fit.md)
   [`print(`*`<summary.bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/print.bartisan_fit.md)
   : Summarize a generalized BART model
+
+- [`print(`*`<bcf_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/print.bcf_fit.md)
+  [`plot(`*`<bcf_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/print.bcf_fit.md)
+  : Methods for Bayesian causal forest fits
 
 - [`rhc`](https://ngreifer.github.io/bartisan/reference/rhc.md) : Right
   heart catheterization in critically ill patients

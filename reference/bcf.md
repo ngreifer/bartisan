@@ -28,8 +28,7 @@ bcf(
 
   a model formula. The right-hand side lists the covariates; the
   treatment is named in `treatment` rather than here, and is removed
-  from the covariates if it appears among them, so `y ~ .` is usually
-  the right specification.
+  from the covariates if it appears among them.
 
 - treatment:
 
@@ -96,11 +95,14 @@ bcf(
 
 ## Value
 
-A `<bartisan_fit>` object, as
+A `<bcf_fit>` object, which is the `<bartisan_fit>`
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-returns, with the treatment's coefficient forest named for the
-treatment. [`coef()`](https://rdrr.io/r/stats/coef.html) gives the
-conditional effect for each observation and
+returns with a class in front of it and the treatment's coefficient
+forest named for the treatment. Everything that works on a
+`<bartisan_fit>` works here unchanged; the class exists so that methods
+needing a named treatment have something to dispatch on.
+[`coef()`](https://rdrr.io/r/stats/coef.html) gives the conditional
+effect for each observation and
 [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
 the average; see
 [bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
@@ -238,6 +240,8 @@ tree ensembles.
 
 ## See also
 
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+for the average or conditional effect;
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 and [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) for
 the general interface this is written in terms of, and
@@ -270,16 +274,84 @@ head(coef(fit))
 #> [5,] 0.5088872
 #> [6,] 0.4356817
 
-# The average effect over the sample
-if (rlang::is_installed("marginaleffects")) {
-  marginaleffects::avg_comparisons(fit, variables = "rhc")
-}
+# The average effect over the sample, on the response scale, which for a
+# binomial fit makes it a risk difference rather than a log odds ratio
+estimate_effect(fit)
+#> Average treatment effect (difference)
 #> 
-#>  Estimate  2.5 % 97.5 %
-#>    0.0532 0.0048  0.119
+#> Treatment: "rhc"
+#> Averaged over 1500 units
 #> 
-#> Term: rhc
-#> Type: response
-#> Comparison: 1 - 0
+#>     contrast estimate  lower upper    n
+#>  Y[1] - Y[0]   0.0539 0.0048 0.119 1500
 #> 
+#> Average potential outcomes
+#> 
+#>  quantity estimate lower upper
+#>      Y[0]    0.632 0.607 0.659
+#>      Y[1]    0.686 0.652 0.720
+#> 
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
+#> ℹ Y[a] is the average response with "rhc" set to a.
+
+# Or the whole picture at once
+summary(fit)
+#> Generalized BART
+#> 
+#> Call:
+#> bcf(formula = death ~ . - days, treatment = ~rhc, data = rhc, 
+#>     family = binomial(), propensity_args = list(num_trees = 10, 
+#>         num_burn = 50, num_draws = 50), num_trees = c(10, 5), 
+#>     num_burn = 50, num_draws = 50)
+#> 
+#> Family: "binomial" with the "logit" link
+#> Observations: 1500
+#> Structure: 2 forests of 10 and 5 trees, soft decision rules
+#> Draws: 50
+#> 
+#> Nuisance parameters
+#>          mean    sd  lower upper
+#> b.rhc.0 0.431 0.424 -0.595 0.965
+#> b.rhc.1 1.148 0.327  0.732 1.690
+#> 
+#> Predictor usage
+#> Splitting rules per draw, and how often used at all.
+#> 
+#> Predictor "(Intercept)":
+#>             mean    sd lower  upper prop_used
+#> age         5.46 2.305     2 10.550      1.00
+#> surv2m      5.78 3.079     2 11.775      1.00
+#> paco2       1.64 1.367     0  4.775      0.78
+#> card        1.44 1.280     0  3.775      0.64
+#> race        0.64 0.776     0  2.775      0.50
+#> hema        0.34 0.593     0  1.000      0.30
+#> resp        0.26 0.443     0  1.000      0.26
+#> edu         0.30 0.735     0  2.775      0.18
+#> aps         0.14 0.405     0  1.000      0.12
+#> sex         0.08 0.274     0  1.000      0.08
+#> pafi        0.12 0.435     0  1.775      0.08
+#> meanbp      0.04 0.198     0  0.775      0.04
+#> .propensity 0.04 0.198     0  0.775      0.04
+#> crea        0.02 0.141     0  0.000      0.02
+#> 
+#> Predictor "rhc":
+#>             mean    sd lower upper prop_used
+#> pafi        1.52 0.789     0     3      0.90
+#> crea        1.26 0.828     0     3      0.84
+#> hema        1.42 1.357     0     4      0.66
+#> age         0.70 0.707     0     2      0.56
+#> aps         0.58 0.642     0     2      0.50
+#> edu         0.70 0.814     0     2      0.48
+#> sex         0.34 0.688     0     2      0.24
+#> meanbp      0.26 0.487     0     1      0.24
+#> race        0.24 0.476     0     1      0.22
+#> paco2       0.22 0.418     0     1      0.22
+#> card        0.18 0.388     0     1      0.18
+#> surv2m      0.16 0.370     0     1      0.16
+#> resp        0.14 0.351     0     1      0.14
+#> .propensity 0.00 0.000     0     0      0.00
+#> 
+#> ℹ This fit has a treatment, "rhc". `estimate_effect()` reports its effect, with
+#>   the average potential outcomes beside it.
 ```

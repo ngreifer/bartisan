@@ -144,9 +144,40 @@ changed.
 
 With `sparsity = TRUE`, `prop_used` is usable as a selection rule:
 predictors the forest genuinely needs sit near 1 and the rest fall near
-0, usually with a wide gap rather than a continuum. No threshold is
-correct in general, so the gap is the thing to look at, and a conclusion
-worth reporting will not depend on where in it the cut is made.
+0, usually with a wide gap rather than a continuum. It is the posterior
+inclusion probability that the Dirichlet prior was introduced to make
+readable (Linero, 2018), and cutting it at .5 gives the median
+probability model, which Barbieri and Berger (2004) show is often a
+better predictive submodel under squared error loss than the model of
+highest posterior probability. That is the same quantity and the same
+cut SoftBart reports from a soft BART fit, computed from the same
+splitting counts. No threshold is correct in general, though, so the gap
+is the thing to look at, and a conclusion worth reporting will not
+depend on where in it the cut is made.
+
+The .5 cut chooses a predictive submodel and is not a test, and it does
+not behave like one. On data where no predictor matters at all, at \\n =
+300\\ with 25 predictors and 20 trees, it selected 7 of the 25 on
+average with `sparsity = TRUE` and all 25 with `sparsity = FALSE`. A
+forest asked to fit noise still puts its rules somewhere, and
+`prop_used` reports where they went rather than whether they were
+needed.
+
+## References
+
+Barbieri, M. M., & Berger, J. O. (2004). Optimal predictive model
+selection. *The Annals of Statistics*, 32(3).
+[doi:10.1214/009053604000000238](https://doi.org/10.1214/009053604000000238)
+
+Bleich, J., Kapelner, A., George, E. I., & Jensen, S. T. (2014).
+Variable selection for BART: an application to gene regulation. *The
+Annals of Applied Statistics*, 8(3).
+[doi:10.1214/14-AOAS755](https://doi.org/10.1214/14-AOAS755)
+
+Linero, A. R. (2018). Bayesian regression trees for high-dimensional
+prediction and variable selection. *Journal of the American Statistical
+Association*, 113(522), 626–636.
+[doi:10.1080/01621459.2016.1264957](https://doi.org/10.1080/01621459.2016.1264957)
 
 ## See also
 

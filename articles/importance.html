@@ -45,6 +45,7 @@
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -81,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-08</h4>
+            <h4 data-toc-skip class="date">2026-09-13</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/importance.Rmd" class="external-link"><code>vignettes/importance.Rmd</code></a></small>
       <div class="d-none name"><code>importance.Rmd</code></div>
@@ -150,9 +151,11 @@ variables.</p>
 <span><span class="co">#&gt;    meanbp     0.490       0.020    1.5</span></span>
 <span><span class="co">#&gt;      race     0.462       0.021    1.5</span></span>
 <span><span class="co">#&gt;      resp     0.453       0.027    2.0</span></span>
-<span><span class="co">#&gt;       sex     0.410       0.020    1.5</span></span></code></pre></div>
-<p>The output has three columns, and they answer different
-questions.</p>
+<span><span class="co">#&gt;       sex     0.410       0.020    1.5</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
+<p>The output has six columns, of which <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> shows four,
+and the three read first answer different questions.</p>
 <p><code>prop_used</code> is the proportion of draws in which the
 predictor received at least one rule, and it is the column to read
 first: under the default prior it behaves like a posterior probability
@@ -238,7 +241,9 @@ means adding a few.</p>
 <span><span class="co">#&gt;    noise3     0.606       0.037    2.8</span></span>
 <span><span class="co">#&gt;      resp     0.538       0.023    1.7</span></span>
 <span><span class="co">#&gt;       sex     0.525       0.033    2.5</span></span>
-<span><span class="co">#&gt;      race     0.498       0.018    1.4</span></span></code></pre></div>
+<span><span class="co">#&gt;      race     0.498       0.018    1.4</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The noise variables do not sort to the bottom. They land in the
 middle of the table, above several of the real predictors, and that is
 the answer to the question: the lower half of this table carries no
@@ -286,7 +291,9 @@ Below we use the Friedman function, in which <code>x1</code> through
 <span><span class="co">#&gt;       x10     0.058       0.001    0.1</span></span>
 <span><span class="co">#&gt;        x6     0.048       0.001    0.1</span></span>
 <span><span class="co">#&gt;        x7     0.043       0.001    0.1</span></span>
-<span><span class="co">#&gt;        x8     0.025       0.000    0.0</span></span></code></pre></div>
+<span><span class="co">#&gt;        x8     0.025       0.000    0.0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The five real predictors sit at 1.00 and four of the five noise
 predictors below .13. The fifth, <code>x8</code>, comes in around .4,
 which is a useful reminder that even a clean separation has a straggler:
@@ -320,7 +327,9 @@ a confident and wrong answer rather than an uninformative one.</p>
 <span><span class="co">#&gt;   x1_copy     1.000       0.729   55.3</span></span>
 <span><span class="co">#&gt;        x1     1.000       0.257   19.6</span></span>
 <span><span class="co">#&gt;        x3     0.320       0.013    0.9</span></span>
-<span><span class="co">#&gt;        x2     0.079       0.001    0.1</span></span></code></pre></div>
+<span><span class="co">#&gt;        x2     0.079       0.001    0.1</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The outcome depends on <code>x1</code>. The forest used
 <code>x1_copy</code> in every draw and <code>x1</code> in under 10% of
 them, so read as a selection result, this table says to keep the
@@ -362,14 +371,16 @@ unit: we decide in advance which variables measure the same underlying
 thing, and then report and move them together.</p>
 </div>
 <div class="section level2">
-<h2 id="what-importance-does-not-measure">What Importance Does Not Measure<a class="anchor" aria-label="anchor" href="#what-importance-does-not-measure"></a>
+<h2 id="the-limits-of-a-usage-ranking">The Limits of a Usage Ranking<a class="anchor" aria-label="anchor" href="#the-limits-of-a-usage-ranking"></a>
 </h2>
 <p><strong>It is not an effect size.</strong> How often a predictor is
 split on and how much it moves the outcome are different quantities, and
 they can disagree in both directions; a predictor with a small effect
 over a range that gets split repeatedly will show high usage. When the
-question is how much the outcome changes, <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code>
-answers it directly and reports an interval. See
+question is how much the outcome changes,
+<code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> shows how the prediction moves with
+the predictor and <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> answers it as a
+contrast, both with an interval. See
 <code><a href="../articles/effects.html">vignette("effects")</a></code>.</p>
 <p><strong>It is not a test.</strong> <code>prop_used</code> is a
 posterior probability under a particular prior (i.e., the Dirichlet

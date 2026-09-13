@@ -14,6 +14,8 @@
   interactions](https://ngreifer.github.io/bartisan/articles/effects.md):
 - [Response families in
   bartisan](https://ngreifer.github.io/bartisan/articles/families.md):
+- [bartisan Frequently Asked
+  Questions](https://ngreifer.github.io/bartisan/articles/faq.md):
 - [Generalized BART with
   bartisan](https://ngreifer.github.io/bartisan/articles/implementation.md):
 - [Which variables

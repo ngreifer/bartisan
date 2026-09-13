@@ -78,17 +78,11 @@ bartisan(
 
   [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) terms
   are read out of each formula in turn, so a parameter has the varying
-  coefficients its own formula asks for and no others. That makes the
+  coefficients its own formula asks for and no others, which makes the
   forests two-dimensional (one axis the parameter, the other the
-  coefficient), and the names below are what per-forest settings are
-  keyed by:
-
-      # forests: mean, mean:z, log_sd
-      bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-               family = gaussian_ls())
-
-      # one formula reaches every parameter, so both get a coefficient of `z`
-      bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
+  coefficient).
+  [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md)
+  documents how they are then named and keyed.
 
 - data:
 

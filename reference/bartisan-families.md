@@ -319,18 +319,18 @@ families and `ordbeta()`), take only their listed links.
 
 ### If No Family Is Given
 
-`family` may be omitted, in which case it is read off the response: a
-`Surv` object gets `dpm_aft()`, an ordered factor `ordinal()`, a
-two-valued response [`binomial()`](https://rdrr.io/r/stats/family.html),
-any other factor `multinomial()`, and any numeric response `dpm()`.
-`dpm()` cannot take prior weights, so a weighted fit with no family
-named is an error rather than a silent substitution. The choice is
-reported with a message, which setting `family` silences. Note that a
-count is *not* given [`poisson()`](https://rdrr.io/r/stats/family.html)
-and a numeric response taking two values other than 0 and 1 is *not*
-given [`binomial()`](https://rdrr.io/r/stats/family.html), since either
-would be a modeling decision rather than a reading of the response's
-type.
+`family` may be omitted, in which case it is read off the response's
+type and the choice reported with a message;
+[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
+tabulates the lookup, since `family` is its argument. Two things about
+it are worth knowing here, because both are deliberate rather than
+oversights: a count is *not* given
+[`poisson()`](https://rdrr.io/r/stats/family.html) and a numeric
+response taking two values other than 0 and 1 is *not* given
+[`binomial()`](https://rdrr.io/r/stats/family.html), either being a
+modeling decision rather than a reading of the response's type. `dpm()`
+cannot take prior weights, so a weighted fit with no family named is an
+error rather than a silent substitution.
 
 ### What to Know Before Reading the Output
 
@@ -450,18 +450,15 @@ logistic or normal respectively, giving Weibull, log-logistic and
 log-normal survival times.
 
 **A contrast in the predictor is a log time ratio in all of them, and in
-`dpm_aft()` too.** That follows from the structure rather than from the
-error: with \\\epsilon\\ independent of \\x\\, every quantile of \\T\\,
-the mean of \\T\\, and the geometric mean of \\T\\ all scale by
-\\e^{\Delta\eta}\\, whatever shape the error has, so the reading does
-not rest on the error being symmetric. What does differ between the
-families is what \\e^{\eta}\\ is on its own, because each pins its
-error's location differently: it is the median of \\T\\ for
-`loglogistic_aft()` and `lognormal_aft()`, whose errors are symmetric
-about zero; the geometric mean of \\T\\ for `dpm_aft()`, whose error is
-centered at mean zero but is not symmetric; and the Weibull scale, which
-is the 63.2nd percentile of \\T\\, for `weibull_aft()`, whose error has
-location rather than mean zero. Contrasts are unaffected by any of that.
+`dpm_aft()` too**, because with \\\epsilon\\ independent of \\x\\ every
+quantile and both means of \\T\\ scale by \\e^{\Delta\eta}\\ whatever
+shape the error has. What differs is what \\e^{\eta}\\ is on its own,
+each family pinning its error's location differently: the median of
+\\T\\ for `loglogistic_aft()` and `lognormal_aft()`, the geometric mean
+for `dpm_aft()`, and the Weibull scale for `weibull_aft()`. Contrasts
+are unaffected by any of that;
+[`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
+tabulates the levels and measures the difference between them.
 
 `weibull_aft()` is also the one family whose predictor carries a log
 *hazard* ratio, of \\-\Delta\eta/\sigma\\, alongside its log time ratio.
@@ -489,26 +486,25 @@ partial likelihood as the bins shrink, which is how `ph()` reaches
 proportional hazards without it.
 
 **`num_bins` is not a modeling decision, and its default should be left
-alone.** It is exposed for checking that, not for tuning. Measured over
-three replicates at 700 observations, sweeping it from 4 to 250 (a
-sixty-fold range, against a baseline hazard that turns over and against
-a Weibull one) moved the error in the survival function between 0.035
-and 0.048 and the error in the log hazard ratio between 0.135 and 0.185,
-with no trend in either and every difference inside the
-replicate-to-replicate spread. What the bin count does change is the
-effective number of parameters, which grows with it: from 17 at four
-bins to 206 at 250. That is what makes the default matter for `loo()`
+alone.** It is exposed for checking that rather than for tuning: swept
+over a sixty-fold range the estimates move by less than the spread
+between replicates, with no trend. What the bin count does change is the
+effective number of parameters, which grows with it, and that is what
+makes the default matter for
+[loo()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 and `waic()` rather than for the estimates: one parameter per event time
 would leave each observation's density inflated by a parameter only it
 informs, and leave-one-out unable to do its job.
+[`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
+has the sweep.
 
 The three differ in cost, though not enough to decide a model on.
 `lognormal_aft()` and `loglogistic_aft()` impute each censored failure
 time above its censoring time, which makes their targets quadratic and
-is worth 8 to 30 times the speed; `weibull_aft()` needs no imputation
-because its likelihood already has a form the sampler can collapse to a
-single pass, but only under hard rules, which makes it the slowest of
-the three at the default gate.
+is worth a large multiple of the speed; `weibull_aft()` needs no
+imputation because its likelihood already has a form the sampler can
+collapse to a single pass, but only under hard rules, which makes it the
+slowest of the three at the default gate.
 
 `dpm_aft()` is the accelerated failure time model with the error
 distribution estimated rather than assumed: \\\log T = m(x) + W\\ with
@@ -599,13 +595,16 @@ scale.
 
 Most families model one parameter with one forest. Some model several,
 and then every argument that could mean something different for each of
-them may be given once, to apply to all, or one per forest:
-positionally, or keyed by the names below. This includes `formula`, so a
-forest can have predictors of its own; see
-[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md).
+them may be given per forest, keyed by the names below or positionally;
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+states the recycling rule and lists which arguments it covers, and
+`formula` is among them, so a forest can have predictors of its own.
 
 The first forest is always the main parameter, the one a single-forest
-family would have on its own. The order is:
+family would have on its own. This table is the canonical list of the
+names, which
+[`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
+reproduces:
 
 |  |  |
 |----|----|

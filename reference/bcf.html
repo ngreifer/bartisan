@@ -40,6 +40,7 @@ one."></head><body>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -96,8 +97,7 @@ one.</p>
 <dl><dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
 <dd><p>a model formula. The right-hand side lists the covariates; the
 treatment is named in <code>treatment</code> rather than here, and is removed from the
-covariates if it appears among them, so <code>y ~ .</code> is usually the right
-specification.</p></dd>
+covariates if it appears among them.</p></dd>
 
 
 <dt id="arg-treatment">treatment<a class="anchor" aria-label="anchor" href="#arg-treatment"></a></dt>
@@ -154,11 +154,14 @@ default.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>&lt;bartisan_fit&gt;</code> object, as <code><a href="bartisan.html">bartisan()</a></code> returns, with the treatment's
-coefficient forest named for the treatment. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> gives the conditional
-effect for each observation and <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code>
- the
-average; see <a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>.</p>
+    <p>A <code>&lt;bcf_fit&gt;</code> object, which is the <code>&lt;bartisan_fit&gt;</code> <code><a href="bartisan.html">bartisan()</a></code> returns with
+a class in front of it and the treatment's coefficient forest named for the
+treatment. Everything that works on a <code>&lt;bartisan_fit&gt;</code> works here unchanged;
+the class exists so that methods needing a named treatment have something to
+dispatch on. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> gives the conditional effect for each observation and
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code>
+ the average; see
+<a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -269,8 +272,9 @@ heterogeneous effects of continuous exposures using Bayesian tree ensembles.
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="bartisan.html">bartisan()</a></code> and <code><a href="vc.html">vc()</a></code> for the general interface this is written in
-terms of, and <code><a href="../articles/causal.html">vignette("causal")</a></code>.</p></div>
+    <div class="dont-index"><p><code><a href="estimate_effect.html">estimate_effect()</a></code> for the average or conditional effect;
+<code><a href="bartisan.html">bartisan()</a></code> and <code><a href="vc.html">vc()</a></code> for the
+general interface this is written in terms of, and <code><a href="../articles/causal.html">vignette("causal")</a></code>.</p></div>
     </div>
 
     <div class="section level2">
@@ -299,18 +303,86 @@ terms of, and <code><a href="../articles/causal.html">vignette("causal")</a></co
 <span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.5088872</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.4356817</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The average effect over the sample</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"marginaleffects"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="co"># The average effect over the sample, on the response scale, which for a</span></span></span>
+<span class="r-in"><span><span class="co"># binomial fit makes it a risk difference rather than a log odds ratio</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Average treatment effect (difference)</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate  2.5 % 97.5 %</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    0.0532 0.0048  0.119</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Treatment: <span style="color: #0000BB;">"rhc"</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over 1500 units</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Term: rhc</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Comparison: 1 - 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     contrast estimate  lower upper    n</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] - Y[0]   0.0539 0.0048 0.119 1500</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Average potential outcomes</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  quantity estimate lower upper</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.632 0.607 0.659</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.686 0.652 0.720</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">Y[a]</span> is the average response with <span style="color: #0000BB;">"rhc"</span> set to <span style="font-style: italic;">a</span>.</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Or the whole picture at once</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> bcf(formula = death ~ . - days, treatment = ~rhc, data = rhc, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     family = binomial(), propensity_args = list(num_trees = 10, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         num_burn = 50, num_draws = 50), num_trees = c(10, 5), </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     num_burn = 50, num_draws = 50)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 2 forests of 10 and 5 trees, soft decision rules</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Nuisance parameters</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          mean    sd  lower upper</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> b.rhc.0 0.431 0.424 -0.595 0.965</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> b.rhc.1 1.148 0.327  0.732 1.690</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Predictor usage</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Predictor <span style="color: #0000BB;">"(Intercept)"</span>:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             mean    sd lower  upper prop_used</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> age         5.46 2.305     2 10.550      1.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> surv2m      5.78 3.079     2 11.775      1.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> paco2       1.64 1.367     0  4.775      0.78</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> card        1.44 1.280     0  3.775      0.64</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> race        0.64 0.776     0  2.775      0.50</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> hema        0.34 0.593     0  1.000      0.30</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> resp        0.26 0.443     0  1.000      0.26</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> edu         0.30 0.735     0  2.775      0.18</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> aps         0.14 0.405     0  1.000      0.12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> sex         0.08 0.274     0  1.000      0.08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> pafi        0.12 0.435     0  1.775      0.08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> meanbp      0.04 0.198     0  0.775      0.04</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> .propensity 0.04 0.198     0  0.775      0.04</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> crea        0.02 0.141     0  0.000      0.02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Predictor <span style="color: #0000BB;">"rhc"</span>:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             mean    sd lower upper prop_used</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> pafi        1.52 0.789     0     3      0.90</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> crea        1.26 0.828     0     3      0.84</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> hema        1.42 1.357     0     4      0.66</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> age         0.70 0.707     0     2      0.56</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> aps         0.58 0.642     0     2      0.50</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> edu         0.70 0.814     0     2      0.48</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> sex         0.34 0.688     0     2      0.24</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> meanbp      0.26 0.487     0     1      0.24</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> race        0.24 0.476     0     1      0.22</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> paco2       0.22 0.418     0     1      0.22</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> card        0.18 0.388     0     1      0.18</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> surv2m      0.16 0.370     0     1      0.16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> resp        0.14 0.351     0     1      0.14</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> .propensity 0.00 0.000     0     0      0.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> This fit has a treatment, <span style="color: #0000BB;">"rhc"</span>. `estimate_effect()` reports its effect, with</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   the average potential outcomes beside it.</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

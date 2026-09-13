@@ -46,6 +46,7 @@ this package's own spelling and resolves to the log link; see Details."></head><
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
@@ -344,15 +345,14 @@ the way to reach anything else.</p>
 <h3 id="if-no-family-is-given">If No Family Is Given<a class="anchor" aria-label="anchor" href="#if-no-family-is-given"></a></h3>
 
 
-<p><code>family</code> may be omitted, in which case it is read off the response: a <code>Surv</code>
-object gets <code>dpm_aft()</code>, an ordered factor <code>ordinal()</code>, a two-valued
-response <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, any other factor <code>multinomial()</code>, and any numeric
-response <code>dpm()</code>. <code>dpm()</code> cannot take prior weights, so a weighted fit with no
-family named is an error rather than a silent substitution. The choice is
-reported with a message, which setting <code>family</code> silences. Note that a count is
-<em>not</em> given <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code> and a numeric response taking two values other than 0
-and 1 is <em>not</em> given <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, since either would be a modeling decision
-rather than a reading of the response's type.</p>
+<p><code>family</code> may be omitted, in which case it is read off the response's type and
+the choice reported with a message; <code><a href="bartisan.html">bartisan()</a></code> tabulates the lookup, since
+<code>family</code> is its argument. Two things about it are worth knowing here, because
+both are deliberate rather than oversights: a count is <em>not</em> given <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>
+and a numeric response taking two values other than 0 and 1 is <em>not</em> given
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, either being a modeling decision rather than a reading of the
+response's type. <code>dpm()</code> cannot take prior weights, so a weighted fit with no
+family named is an error rather than a silent substitution.</p>
 </div>
 
 <div class="section">
@@ -453,18 +453,14 @@ of times and event indicators. They model \(\log T = \eta + \sigma\epsilon\)
 with \(\epsilon\) standard Gumbel, logistic or normal respectively, giving
 Weibull, log-logistic and log-normal survival times.</p>
 <p><strong>A contrast in the predictor is a log time ratio in all of them, and in
-<code>dpm_aft()</code> too.</strong> That follows from the structure rather than from the error:
-with \(\epsilon\) independent of \(x\), every quantile of \(T\), the
-mean of \(T\), and the geometric mean of \(T\) all scale by
-\(e^{\Delta\eta}\), whatever shape the error has, so the reading does not
-rest on the error being symmetric. What does differ between the families is
-what \(e^{\eta}\) is on its own, because each pins its error's location
-differently: it is the median of \(T\) for <code>loglogistic_aft()</code> and
-<code>lognormal_aft()</code>, whose errors are symmetric about zero; the geometric mean of
-\(T\) for <code>dpm_aft()</code>, whose error is centered at mean zero but is not
-symmetric; and the Weibull scale, which is the 63.2nd percentile of \(T\),
-for <code>weibull_aft()</code>, whose error has location rather than mean zero. Contrasts
-are unaffected by any of that.</p>
+<code>dpm_aft()</code> too</strong>, because with \(\epsilon\) independent of \(x\) every
+quantile and both means of \(T\) scale by \(e^{\Delta\eta}\) whatever
+shape the error has. What differs is what \(e^{\eta}\) is on its own, each
+family pinning its error's location differently: the median of \(T\) for
+<code>loglogistic_aft()</code> and <code>lognormal_aft()</code>, the geometric mean for <code>dpm_aft()</code>,
+and the Weibull scale for <code>weibull_aft()</code>. Contrasts are unaffected by any of
+that; <code><a href="../articles/survival.html">vignette("survival")</a></code> tabulates the levels and measures the difference
+between them.</p>
 <p><code>weibull_aft()</code> is also the one family whose predictor carries a log <em>hazard</em>
 ratio, of \(-\Delta\eta/\sigma\), alongside its log time ratio. That is a
 property of the Gumbel error rather than of the structural part it shares with
@@ -486,21 +482,18 @@ observations reaching a leaf. The full likelihood of the piecewise-exponential
 model does decompose, and it approaches the partial likelihood as the bins
 shrink, which is how <code>ph()</code> reaches proportional hazards without it.</p>
 <p><strong><code>num_bins</code> is not a modeling decision, and its default should be left
-alone.</strong> It is exposed for checking that, not for tuning. Measured over three
-replicates at 700 observations, sweeping it from 4 to 250 (a sixty-fold
-range, against a baseline hazard that turns over and against a Weibull one)
-moved the error in the survival function between 0.035 and 0.048 and the error
-in the log hazard ratio between 0.135 and 0.185, with no trend in either and
-every difference inside the replicate-to-replicate spread. What the bin count
-does change is the effective number of parameters, which grows with it: from 17
-at four bins to 206 at 250. That is what makes the default matter for <code>loo()</code>
-and <code>waic()</code> rather than for the estimates: one parameter per event time
-would leave each observation's density inflated by a parameter only it informs,
-and leave-one-out unable to do its job.</p>
+alone.</strong> It is exposed for checking that rather than for tuning: swept over a
+sixty-fold range the estimates move by less than the spread between
+replicates, with no trend. What the bin count does change is the effective
+number of parameters, which grows with it, and that is what makes the default
+matter for <a href="bartisan-interop.html">loo()</a> and <code>waic()</code> rather than for the
+estimates: one parameter per event time would leave each observation's density
+inflated by a parameter only it informs, and leave-one-out unable to do its
+job. <code><a href="../articles/survival.html">vignette("survival")</a></code> has the sweep.</p>
 <p>The three differ in cost, though not enough to decide a model on.
 <code>lognormal_aft()</code> and <code>loglogistic_aft()</code> impute each censored failure time
-above its censoring time, which makes their targets quadratic and is worth 8
-to 30 times the speed; <code>weibull_aft()</code> needs no imputation because its
+above its censoring time, which makes their targets quadratic and is worth a
+large multiple of the speed; <code>weibull_aft()</code> needs no imputation because its
 likelihood already has a form the sampler can collapse to a single pass, but
 only under hard rules, which makes it the slowest of the three at the default
 gate.</p>
@@ -578,11 +571,13 @@ scale.</p>
 
 <p>Most families model one parameter with one forest. Some model several, and
 then every argument that could mean something different for each of them may
-be given once, to apply to all, or one per forest: positionally, or keyed by
-the names below. This includes <code>formula</code>, so a forest can have predictors of
-its own; see <code><a href="bartisan.html">bartisan()</a></code>.</p>
+be given per forest, keyed by the names below or positionally;
+<code><a href="bartisan_control.html">bartisan_control()</a></code> states the recycling rule and lists which arguments it
+covers, and <code>formula</code> is among them, so a forest can have predictors of its
+own.</p>
 <p>The first forest is always the main parameter, the one a single-forest family
-would have on its own. The order is:</p><table class="table table"><tr><td>Family</td><td>Forests, in order</td></tr><tr><td><code>gaussian_ls()</code></td><td><code>mean</code>, <code>log_sd</code></td></tr><tr><td><code>Gamma_ls()</code></td><td><code>mean</code>, <code>log_dispersion</code></td></tr><tr><td><code>zi_poisson()</code>, <code>zi_negbin()</code></td><td><code>count</code>, <code>zero</code></td></tr><tr><td><code>custom_family(num_predictors = k)</code></td><td><code>eta1</code> ... <code>etak</code></td></tr><tr><td><code>multinomial("logit")</code></td><td>one per level, or per non-reference level</td></tr><tr><td><code>multinomial("probit")</code></td><td>one per non-reference level, named for its contrast</td></tr><tr><td>everything else</td><td><code>eta</code></td></tr></table><p><code>mean</code> is the mean and <code>log_sd</code> is the logarithm of the standard deviation,
+would have on its own. This table is the canonical list of the names, which
+<code><a href="../articles/families.html">vignette("families")</a></code> reproduces:</p><table class="table table"><tr><td>Family</td><td>Forests, in order</td></tr><tr><td><code>gaussian_ls()</code></td><td><code>mean</code>, <code>log_sd</code></td></tr><tr><td><code>Gamma_ls()</code></td><td><code>mean</code>, <code>log_dispersion</code></td></tr><tr><td><code>zi_poisson()</code>, <code>zi_negbin()</code></td><td><code>count</code>, <code>zero</code></td></tr><tr><td><code>custom_family(num_predictors = k)</code></td><td><code>eta1</code> ... <code>etak</code></td></tr><tr><td><code>multinomial("logit")</code></td><td>one per level, or per non-reference level</td></tr><tr><td><code>multinomial("probit")</code></td><td>one per non-reference level, named for its contrast</td></tr><tr><td>everything else</td><td><code>eta</code></td></tr></table><p><code>mean</code> is the mean and <code>log_sd</code> is the logarithm of the standard deviation,
 which is the scale the forest works on. <code>Gamma_ls()</code>'s <code>mean</code> is the log mean,
 as <code>Gamma("log")</code>'s single forest is, and its <code>log_dispersion</code> is the
 logarithm of the dispersion, so that in both location-scale families a larger
