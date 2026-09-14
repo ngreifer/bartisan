@@ -267,3 +267,41 @@ test_that("an intercept-only inflation forest is a constant zero probability", {
   expect_equal(mean(stats::plogis(fit[["eta"]][[2L]])), 0.3, tolerance = 0.08)
   expect_lt(sqrt(mean((colMeans(fit[["eta"]][[1L]]) - log(lambda))^2)), 0.2)
 })
+
+# `?bartisan_control` promises that "a forest a named argument does not mention
+# keeps that argument's default rather than borrowing another forest's value".
+# The resolver was handed `control[[nm]][[1L]]` as the default, so it did the
+# opposite: `gamma = c(log_sd = 0.5)` gave the mean forest 0.5 too. Twelve
+# arguments went through that loop.
+test_that("a forest an argument does not name keeps the argument's default", {
+  labels <- c("mean", "log_sd")
+
+  resolve <- function(value, nm) {
+    bartisan:::per_forest_vector(value, labels, nm,
+                                 bartisan:::PER_FOREST_DEFAULTS[[nm]], FALSE)
+  }
+
+  # The case that was wrong: the unnamed forest takes 0.95, not the 0.5 given
+  # to the other one.
+  expect_equal(resolve(c(log_sd = 0.5), "gamma"), c(0.95, 0.5))
+  expect_equal(resolve(c(mean = 0.8), "gamma"), c(0.8, 0.95))
+
+  # The cases that were right and must stay right: one value spreads to every
+  # forest, and a positional vector is taken in order.
+  expect_equal(resolve(0.5, "gamma"), c(0.5, 0.5))
+  expect_equal(resolve(c(0.5, 0.8), "gamma"), c(0.5, 0.8))
+
+  # It is not specific to `gamma`; every argument in that loop had it.
+  expect_equal(resolve(c(log_sd = 1), "beta"),
+               c(bartisan:::PER_FOREST_DEFAULTS[["beta"]], 1))
+
+  # And it reaches a fit: the mean forest's branching prior is the default.
+  d <- sim_x(n = 200L, p = 2L, seed = 98L)
+  d$y <- stats::rnorm(nrow(d), d$x1, exp(-1 + d$x2))
+
+  fit <- bartisan(y ~ x1 + x2, d, family = gaussian_ls(),
+                  control = quick_control(num_trees = c(mean = 5L, log_sd = 5L),
+                                          gamma = c(log_sd = 0.5)))
+
+  expect_s3_class(fit, "bartisan_fit")
+})

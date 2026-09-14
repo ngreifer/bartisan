@@ -672,10 +672,15 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # scalar means, and each keeps its own default where a named argument left a
   # forest out. `k` is not among them: it is a way of writing `sigma_mu`, and
   # that is spread just below.
+  # The default for a forest the caller did not name is the argument's own
+  # default, not the first value they did give. Passing `control[[nm]][[1L]]`
+  # here made `gamma = c(log_sd = 0.5)` give the mean forest 0.5 as well, which
+  # is borrowing another forest's value -- the one thing `?bartisan_control`
+  # promises this does not do. A scalar still spreads to every forest, and a
+  # positional vector is still taken in order; only the partly-named case moved.
   for (nm in names(PER_FOREST_DEFAULTS)) {
     engine_control[[nm]] <- per_forest_vector(
-      control[[nm]], labels, nm,
-      control[[nm]][[1L]] %or% PER_FOREST_DEFAULTS[[nm]], joint)
+      control[[nm]], labels, nm, PER_FOREST_DEFAULTS[[nm]], joint)
     engine_control[[nm]] <- rep(engine_control[[nm]],
                                 length.out = response[["n_forest"]])
   }

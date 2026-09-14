@@ -30,7 +30,17 @@
 #' @param seed optional seed, set with [set.seed()] before drawing and restored
 #'   afterwards, following the [stats::simulate()] convention. Default is `NULL`
 #'   to leave the stream alone.
-#' @param scale `string`; for `loo()` and `waic()` on a survival fit, the
+#' @param K `numeric`; for `kfold()`, how many folds to split the sample into.
+#'   Default is 10. Ignored when `folds` is given.
+#' @param folds optional; for `kfold()`, an integer vector of one fold number
+#'   per observation, as \pkgfun{loo}{kfold_split_random} and its relatives
+#'   return. Default is `NULL` to draw them at random. Supply them to stratify,
+#'   to group, or to score two models on the same split.
+#' @param save_fits `logical`; for `kfold()`, whether to keep the \eqn{K} refits
+#'   in the result's `fits` element. Default is `FALSE`, since each is a whole
+#'   fit.
+#' @param scale `string`; for `loo()`, `waic()` and `kfold()` on a survival fit,
+#'   the
 #'   measure to report the pointwise densities with respect to: `"time"` for the
 #'   density of \eqn{T} and `"log_time"` for the density of \eqn{\log T}.
 #'   Default is `NULL` to use the family's own, which is \eqn{\log T} for the
@@ -61,6 +71,11 @@
 #'   to pass them.
 #'
 #' @returns
+#' `kfold()` returns a `<kfold>` object, a list whose `estimates` holds
+#' `elpd_kfold`, `p_kfold` and `kfoldic` with their standard errors, whose
+#' `pointwise` holds the same three per observation, and whose `folds` records
+#' the split; `save_fits = TRUE` adds the \eqn{K} refits in `fits`.
+#'
 #' `posterior_predict()`, `posterior_epred()`, `posterior_linpred()` and
 #' `log_lik()` return a matrix of draws by observations. `simulate()` returns a
 #' data frame of one column per replicate. `loo()` and `waic()` return the
@@ -121,6 +136,34 @@
 #' ```r
 #' predict(fit, newdata = held_out, type = "density", log = TRUE)
 #' ```
+#'
+#' ## Cross-Validation Without the Approximation
+#'
+#' `loo()` estimates the leave-one-out density by importance sampling from one
+#' fit. `kfold()` does not estimate it: it splits the sample, refits \eqn{K}
+#' times, and scores each part under a fit that never saw it. That costs \eqn{K}
+#' fits and owes nothing to an approximation, which makes it the thing to reach
+#' for when the Pareto diagnostics say the weights cannot be trusted.
+#'
+#' It returns a `<kfold>` object that \pkgfun{loo}{loo_compare} accepts beside a
+#' `<loo>` one, so two models can be compared on one split by passing the folds
+#' from the first to the second:
+#' ```r
+#' folds <- loo::kfold_split_random(K = 10, N = nobs(fit))
+#'
+#' loo_compare(list(full = kfold(fit, folds = folds),
+#'                  small = kfold(other, folds = folds)))
+#' ```
+#' The refits run under a `future` plan when one is set, and one `set.seed()`
+#' reproduces them either way. Each is refitted from the original call, so a fit
+#' whose `data` argument no longer names the data it was made from is an error
+#' rather than a wrong answer; prior weights and an offset are carried into both
+#' the refits and the held-out scores, since a score taken without them is wrong
+#' rather than approximate.
+#'
+#' `p_kfold` is the gap between what the model predicts for an observation it was
+#' fitted to and what it predicts for the same one held out, which is the price
+#' of having used it. `vignette("comparison")` reads an example.
 #'
 #' ## Comparing Survival Families
 #'
@@ -660,6 +703,223 @@ waic.bartisan_fit <- function(x, scale = NULL, ...) {
     loo::waic.matrix(...)
 }
 
+#' @rdname bartisan-interop
+#' @exportS3Method loo::kfold
+kfold.bartisan_fit <- function(x, K = 10, folds = NULL, scale = NULL,
+                               save_fits = FALSE, ...) {
+
+  rlang::check_installed("loo", "for K-fold cross-validation.")
+
+  arg::arg_flag(save_fits)
+
+  n <- nobs(x)
+  data <- kfold_data(x)
+  rows <- rownames(x[["model"]])
+
+  folds <- kfold_folds(folds, K, n)
+  K <- length(unique(folds))
+
+  # Each fold is scored by a fit that never saw it, so the call is rebuilt
+  # against the training rows. The original *expression* for the formula is what
+  # is re-evaluated, not `x[["formula"]]`: that one has already had its bars
+  # replaced and its `vc()` terms reduced to names, so refitting from it would
+  # silently drop the random-effect and varying-coefficient structure.
+  base <- kfold_call(x, data)
+
+  # Prior weights and the offset come from the stored model frame rather than
+  # being re-evaluated, since either may have lived in the caller's workspace
+  # rather than in `data`. They have to be carried into the *score* as well:
+  # `predict(type = "density")` falls back to the fit's own weights when none
+  # are given, so a weighted fit scored without them is wrong rather than an
+  # error.
+  weights <- stats::model.weights(x[["model"]])
+  offset <- stats::model.offset(x[["model"]])
+
+  one_fold <- function(k) {
+    train <- rows[folds != k]
+    held <- rows[folds == k]
+
+    call <- base
+    call[["data"]] <- data[train, , drop = FALSE]
+
+    if (!is_null(weights)) {
+      call[["weights"]] <- weights[folds != k]
+    }
+
+    if (!is_null(offset)) {
+      call[["offset"]] <- offset[folds != k]
+    }
+
+    fit <- eval(call)
+
+    score <- stats::predict(fit, newdata = data[held, , drop = FALSE],
+                            type = "density", log = TRUE,
+                            weights = weights[folds == k],
+                            offset = offset[folds == k])
+
+    list(score = score, fit = if (save_fits) fit)
+  }
+
+  # The folds are independent refits, so they go to workers when a plan has
+  # any, with the streams drawn here for the reason `estimate_effect()` gives.
+  seeds <- parallel_streams(K)
+
+  done <- if (rlang::is_installed("future.apply")) {
+    future.apply::future_lapply(seq_len(K), one_fold, future.seed = seeds,
+                                future.packages = "bartisan")
+  }
+  else {
+    restore <- restore_stream()
+    on.exit(restore(), add = TRUE)
+
+    lapply(seq_len(K), function(k) {
+      assign(".Random.seed", seeds[[k]], envir = globalenv())
+      one_fold(k)
+    })
+  }
+
+  elpd <- numeric(n)
+
+  for (k in seq_len(K)) {
+    elpd[folds == k] <- done[[k]][["score"]]
+  }
+
+  # `p_kfold` is the gap between what the model predicts for an observation it
+  # was fitted to and what it predicts for the same one held out. Both sides
+  # have to be on the same measure or the difference is not that gap, so
+  # `scale` is applied to each rather than only to the held-out side.
+  lpd <- stats::predict(x, type = "density", log = TRUE)
+
+  if (!is_null(scale)) {
+    shift <- survival_shift(x, scale)
+    elpd <- elpd - shift
+    lpd <- lpd - shift
+  }
+
+  kfold_object(elpd, lpd, folds, K, nrow(x[["sigma_mu"]]),
+               if (save_fits) lapply(done, `[[`, "fit"))
+}
+
+# The data the fit was made from, recovered the way `stats::update()` recovers
+# it: the call's own `data` expression, evaluated in the environment the formula
+# carries.
+kfold_data <- function(x) {
+  expr <- x[["call"]][["data"]]
+
+  if (is_null(expr)) {
+    arg::err(c("This fit's call names no {.arg data}, so the folds have nothing
+                to be taken from.",
+               i = "Refit with {.arg data} given as a data frame."))
+  }
+
+  out <- eval(expr, environment(stats::formula(x)))
+
+  if (!is.data.frame(out)) {
+    out <- as.data.frame(out)
+  }
+
+  missing <- setdiff(rownames(x[["model"]]), rownames(out))
+
+  if (length(missing) > 0L) {
+    arg::err(c("The data this fit was made from is not the data that name now
+                reaches: {length(missing)} of its rows are gone.",
+               i = "K-fold refits from the original call, so the data has to be
+                    what it was."))
+  }
+
+  out
+}
+
+# Fold assignments, either the caller's or drawn at random.
+kfold_folds <- function(folds, K, n) {
+  if (is_null(folds)) {
+    arg::arg_count(K)
+    arg::arg_gte(K, 2)
+    arg::arg_lte(K, n)
+
+    return(loo::kfold_split_random(K = K, N = n))
+  }
+
+  arg::arg_numeric(folds)
+
+  if (length(folds) != n) {
+    arg::err("{.arg folds} must give one fold per observation, and gives
+              {length(folds)} for {n}")
+  }
+
+  folds <- as.integer(folds)
+
+  if (anyNA(folds) || min(folds) < 1L) {
+    arg::err("{.arg folds} must be whole numbers from 1 up, with no missing
+              values")
+  }
+
+  if (!setequal(folds, seq_len(max(folds)))) {
+    arg::err("{.arg folds} must use every fold from 1 to {max(folds)}, and
+              leaves at least one empty")
+  }
+
+  folds
+}
+
+# The call a fold refits from: the original, with everything but the data
+# resolved to a value so that a worker needs nothing from the caller's
+# environment. The function in position one is resolved too, without which a
+# worker cannot find `bartisan()` at all.
+kfold_call <- function(x, data) {
+  env <- environment(stats::formula(x))
+  call <- x[["call"]]
+
+  call[[1L]] <- eval(call[[1L]], env)
+
+  for (nm in setdiff(names(call), c("", "data", "subset", "weights",
+                                    "offset"))) {
+    call[[nm]] <- eval(call[[nm]], env)
+  }
+
+  # The rows are chosen by name below, so a `subset` would choose them twice.
+  # Assigning NULL to a name a call does not have is an error, hence the guard.
+  if ("subset" %in% names(call)) {
+    call[["subset"]] <- NULL
+  }
+
+  # K refits would otherwise report progress K times over.
+  if (!"verbose" %in% names(call)) {
+    call[["verbose"]] <- FALSE
+  }
+
+  call
+}
+
+# The three columns \pkg{loo} expects, and the shape its own
+# `table_of_estimates()` produces: the estimate is the sum over observations and
+# the standard error is the spread of the pointwise values scaled by the count.
+#
+# Three rows rather than one because `loo_compare()` flattens each object's
+# estimates and binds them: a one-row matrix beside a `loo` object's three makes
+# `sapply()` return a list rather than a matrix, and the comparison fails.
+kfold_object <- function(elpd, lpd, folds, K, draws, fits = NULL) {
+  pointwise <- cbind(elpd_kfold = elpd,
+                     p_kfold = lpd - elpd,
+                     kfoldic = -2 * elpd)
+
+  estimates <- cbind(Estimate = colSums(pointwise),
+                     SE = sqrt(nrow(pointwise) * apply(pointwise, 2L,
+                                                       stats::var)))
+
+  out <- list(estimates = estimates, pointwise = pointwise, folds = folds)
+
+  if (!is_null(fits)) {
+    out[["fits"]] <- fits
+  }
+
+  attr(out, "K") <- as.integer(K)
+  attr(out, "dims") <- c(draws, nrow(pointwise))
+
+  class(out) <- c("kfold", "loo")
+  out
+}
+
 # The survival families do not all write their likelihood with respect to the
 # same measure. An accelerated failure time family reports the density of
 # \eqn{\log T} and `ph()` the density of \eqn{T}, so the two differ by the
@@ -673,8 +933,23 @@ waic.bartisan_fit <- function(x, scale = NULL, ...) {
 # remove. Naming the scale is what asks for it, and it reads the same from
 # either side, since whichever family is already there is left alone.
 survival_measure <- function(object, ll, scale) {
-  if (is_null(scale)) {
+  shift <- survival_shift(object, scale)
+
+  if (is_null(shift)) {
     return(ll)
+  }
+
+  sweep(ll, 2L, shift, "-")
+}
+
+# The per-observation constant the change of variable adds, or `NULL` when there
+# is none to add because the fit is already on the scale asked for. Split out of
+# the sweep above so that `kfold()` can apply the same shift to two vectors: the
+# held-out score and the in-sample one it is differenced against have to be on
+# one measure or their difference is not the quantity `p_kfold` names.
+survival_shift <- function(object, scale) {
+  if (is_null(scale)) {
+    return(NULL)
   }
 
   scale <- arg::match_arg(scale, c("time", "log_time"))
@@ -692,15 +967,16 @@ survival_measure <- function(object, ll, scale) {
   on_log_time <- !identical(family, "ph")
 
   if (identical(scale, "log_time") == on_log_time) {
-    return(ll)
+    return(NULL)
   }
 
   # Events only. A censored observation contributes a survival probability,
   # which is a probability on either scale and has no measure to change.
   y <- stats::model.response(object[["model"]])
-  offset <- as.numeric(y[, "status"]) * log(as.numeric(y[, "time"]))
+  shift <- as.numeric(y[, "status"]) * log(as.numeric(y[, "time"]))
 
-  sweep(ll, 2L, offset, if (identical(scale, "time")) "-" else "+")
+  # Going the other way is the same constant with the other sign.
+  if (identical(scale, "time")) shift else -shift
 }
 
 # ---------------------------------------------------------------------------

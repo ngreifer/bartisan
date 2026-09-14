@@ -152,40 +152,34 @@ That is `loo_compare()`'s arithmetic done by hand and quoted per observation: th
 
 ### Every Observation Held Out Once (K-Fold)
 
-A single split is honest but wasteful: it scores 300 observations and throws the other 1200 into training, where they tell us nothing about prediction. Splitting the sample into $K$ parts instead, and fitting $K$ times so that each part is scored by a model that never saw it, holds every observation out exactly once. `loo::kfold_split_random()` assigns the folds:
+A single split is honest but wasteful: it scores 300 observations and throws the other 1200 into training, where they tell us nothing about prediction. Splitting the sample into $K$ parts instead, and fitting $K$ times so that each part is scored by a model that never saw it, holds every observation out exactly once. `kfold()` does that:
 
 ```{r kfold, eval = run}
 set.seed(2026)
 folds <- loo::kfold_split_random(K = 5, N = nrow(rhc))
 
-fold_score <- function(formula) {
-  score <- numeric(nrow(rhc))
+kfold_full <- kfold(full, folds = folds)
 
-  for (k in seq_len(5)) {
-    fit <- bartisan(formula, data = rhc[folds != k, ], family = binomial())
-
-    score[folds == k] <- predict(fit, newdata = rhc[folds == k, ],
-                                 type = "density", log = TRUE)
-  }
-
-  score
-}
-
-kfold_full <- fold_score(model)
-kfold_demographics <- fold_score(death ~ rhc + age + sex + race + edu)
-
-dk <- kfold_full - kfold_demographics
-
-c(mean_diff = mean(dk), se = sd(dk) / sqrt(length(dk)),
-  ratio = mean(dk) / (sd(dk) / sqrt(length(dk))))
+kfold_full
 ```
 
-Every observation is scored, so the difference is as precisely known as the leave-one-out one, at around six standard errors rather than the two the single split managed, and it owes nothing to an importance-sampling approximation. What it costs is five fits per model instead of one.
+`elpd_kfold` is the held-out log score, summed over every observation, and it owes nothing to an importance-sampling approximation: the model really was refitted without each fold. `p_kfold` is the gap between what the model predicts for an observation it was fitted to and what it predicts for the same one held out, which is the price of having used it. The cost is five fits rather than one.
+
+The folds are passed rather than drawn so that the second model is scored on the same split, which is what makes the two comparable:
+
+```{r kfoldcompare, eval = run}
+kfold_demographics <- kfold(demographics, folds = folds)
+
+loo_compare(list(full = kfold_full, demographics = kfold_demographics))
+```
+
+The same reading as before, and at the same precision as the leave-one-out comparison rather than the single split's: every observation is scored, so nothing is thrown away.
 
 It also gives a way to check `loo()` rather than taking the Pareto diagnostics' word for it, since the two estimate the same thing:
 
 ```{r kfoldcheck, eval = run}
-c(kfold = mean(kfold_full), loo = elpd_total / nrow(rhc))
+c(kfold = kfold_full$estimates["elpd_kfold", "Estimate"] / nrow(rhc),
+  loo = elpd_total / nrow(rhc))
 ```
 
 They agree, which is what a clean Pareto $k$ column was saying in less direct form. That is the division of labour between the three routes: `loo()` for one fit and a diagnostic, $K$-fold for $K$ fits and no approximation, and a single split when even that is too expensive. When the outcome is rare enough that a random split could leave a fold with no events in it, `loo::kfold_split_stratified()` assigns the folds instead.

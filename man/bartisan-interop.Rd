@@ -13,6 +13,7 @@
 \alias{sigma.bartisan_fit}
 \alias{loo.bartisan_fit}
 \alias{waic.bartisan_fit}
+\alias{kfold.bartisan_fit}
 \alias{pp_check.bartisan_fit}
 \alias{as_draws.bartisan_fit}
 \alias{r2_posterior.bartisan_fit}
@@ -48,6 +49,8 @@
 \method{loo}{bartisan_fit}(x, scale = NULL, ...)
 
 \method{waic}{bartisan_fit}(x, scale = NULL, ...)
+
+\method{kfold}{bartisan_fit}(x, K = 10, folds = NULL, scale = NULL, save_fits = FALSE, ...)
 
 \method{pp_check}{bartisan_fit}(object, type = "dens_overlay", ndraws = 10, ...)
 
@@ -107,13 +110,26 @@ name of the \pkg{bayesplot} check to run without its \code{ppc_} prefix, so that
 \pkgfun{bayesplot}{ppc_dens_overlay}; \pkgfun{bayesplot}{available_ppc}
 lists them.}
 
-\item{scale}{\code{string}; for \code{loo()} and \code{waic()} on a survival fit, the
+\item{scale}{\code{string}; for \code{loo()}, \code{waic()} and \code{kfold()} on a survival fit,
+the
 measure to report the pointwise densities with respect to: \code{"time"} for the
 density of \eqn{T} and \code{"log_time"} for the density of \eqn{\log T}.
 Default is \code{NULL} to use the family's own, which is \eqn{\log T} for the
 accelerated failure time families and \eqn{T} for \code{\link[=ph]{ph()}}. A fit already on
 the scale named is left alone, so naming one scale for every model in a
 comparison is enough. See Details.}
+
+\item{K}{\code{numeric}; for \code{kfold()}, how many folds to split the sample into.
+Default is 10. Ignored when \code{folds} is given.}
+
+\item{folds}{optional; for \code{kfold()}, an integer vector of one fold number
+per observation, as \pkgfun{loo}{kfold_split_random} and its relatives
+return. Default is \code{NULL} to draw them at random. Supply them to stratify,
+to group, or to score two models on the same split.}
+
+\item{save_fits}{\code{logical}; for \code{kfold()}, whether to keep the \eqn{K} refits
+in the result's \code{fits} element. Default is \code{FALSE}, since each is a whole
+fit.}
 
 \item{eta}{for \code{as_draws()}, which columns of the additive predictor to carry
 into the draws array alongside the scalar parameters, given as either a
@@ -136,6 +152,11 @@ report. Allowable options include \code{"all"} (the default), \code{"ELPD"},
 selects several.}
 }
 \value{
+\code{kfold()} returns a \verb{<kfold>} object, a list whose \code{estimates} holds
+\code{elpd_kfold}, \code{p_kfold} and \code{kfoldic} with their standard errors, whose
+\code{pointwise} holds the same three per observation, and whose \code{folds} records
+the split; \code{save_fits = TRUE} adds the \eqn{K} refits in \code{fits}.
+
 \code{posterior_predict()}, \code{posterior_epred()}, \code{posterior_linpred()} and
 \code{log_lik()} return a matrix of draws by observations. \code{simulate()} returns a
 data frame of one column per replicate. \code{loo()} and \code{waic()} return the
@@ -202,6 +223,36 @@ score on data the model has not seen is available directly:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{predict(fit, newdata = held_out, type = "density", log = TRUE)
 }\if{html}{\out{</div>}}
+}
+
+\subsection{Cross-Validation Without the Approximation}{
+
+\code{loo()} estimates the leave-one-out density by importance sampling from one
+fit. \code{kfold()} does not estimate it: it splits the sample, refits \eqn{K}
+times, and scores each part under a fit that never saw it. That costs \eqn{K}
+fits and owes nothing to an approximation, which makes it the thing to reach
+for when the Pareto diagnostics say the weights cannot be trusted.
+
+It returns a \verb{<kfold>} object that \pkgfun{loo}{loo_compare} accepts beside a
+\verb{<loo>} one, so two models can be compared on one split by passing the folds
+from the first to the second:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{folds <- loo::kfold_split_random(K = 10, N = nobs(fit))
+
+loo_compare(list(full = kfold(fit, folds = folds),
+                 small = kfold(other, folds = folds)))
+}\if{html}{\out{</div>}}
+
+The refits run under a \code{future} plan when one is set, and one \code{set.seed()}
+reproduces them either way. Each is refitted from the original call, so a fit
+whose \code{data} argument no longer names the data it was made from is an error
+rather than a wrong answer; prior weights and an offset are carried into both
+the refits and the held-out scores, since a score taken without them is wrong
+rather than approximate.
+
+\code{p_kfold} is the gap between what the model predicts for an observation it was
+fitted to and what it predicts for the same one held out, which is the price
+of having used it. \code{vignette("comparison")} reads an example.
 }
 
 \subsection{Comparing Survival Families}{

@@ -763,3 +763,97 @@ test_that("loo(scale=) puts the survival families on one measure", {
 
   expect_error(loo::loo(gaussian_fit, scale = "time"), "names the measure")
 })
+
+# `loo()` estimates the leave-one-out density from one fit; `kfold()` refits and
+# does not estimate it. The contract that matters is that `loo_compare()` takes
+# the result beside a `<loo>` object, which needs three rows in `estimates`: with
+# one, `loo_compare()` flattens a length-2 vector beside a length-6 one and
+# `sapply()` returns a list rather than a matrix.
+test_that("kfold() returns what loo_compare() accepts", {
+  skip_on_cran()
+  skip_if_not_installed("loo")
+  skip_if_not_installed("rstantools")
+
+  d <- sim_x(n = 150L, p = 3L, seed = 101L)
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1))
+
+  ctrl <- quick_control(num_trees = 5L, num_burn = 50L, num_draws = 80L)
+  fit <- bartisan(y ~ ., data = d, family = stats::binomial(), control = ctrl)
+
+  kf <- loo::kfold(fit, K = 3L)
+
+  expect_s3_class(kf, "kfold")
+  expect_true(loo::is.kfold(kf))
+  expect_identical(attr(kf, "K"), 3L)
+
+  expect_identical(rownames(kf[["estimates"]]),
+                   c("elpd_kfold", "p_kfold", "kfoldic"))
+  expect_identical(colnames(kf[["estimates"]]), c("Estimate", "SE"))
+  expect_identical(nrow(kf[["pointwise"]]), nrow(d))
+
+  # The estimate is the sum of the pointwise values, and `kfoldic` is -2 times
+  # the elpd, which is what makes the three rows one object rather than three.
+  expect_equal(kf[["estimates"]]["elpd_kfold", "Estimate"],
+               sum(kf[["pointwise"]][, "elpd_kfold"]))
+  expect_equal(kf[["estimates"]]["kfoldic", "Estimate"],
+               -2 * kf[["estimates"]]["elpd_kfold", "Estimate"])
+
+  # Every observation is scored exactly once, by a fit that did not see it.
+  expect_setequal(kf[["folds"]], 1:3)
+  expect_false(anyNA(kf[["pointwise"]]))
+
+  # The contract itself, against a `<loo>` object rather than another `<kfold>`.
+  cmp <- suppressWarnings(loo::loo_compare(list(kfold = kf,
+                                                loo = loo::loo(fit))))
+  expect_s3_class(cmp, "compare.loo")
+  expect_true(all(c("elpd_diff", "se_diff") %in% colnames(cmp)))
+  expect_identical(nrow(cmp), 2L)
+
+  # Held out, a model predicts worse than it does in sample; that gap is what
+  # `p_kfold` is.
+  expect_gt(kf[["estimates"]]["p_kfold", "Estimate"], 0)
+
+  # Folds may be supplied, which is how two models are scored on one split.
+  same <- loo::kfold(fit, folds = kf[["folds"]])
+  expect_identical(same[["folds"]], kf[["folds"]])
+
+  expect_error(loo::kfold(fit, folds = c(1L, 2L)), "one fold per observation")
+  expect_error(loo::kfold(fit, folds = rep(c(1L, 3L), length.out = nrow(d))),
+               "every fold")
+
+  # `save_fits` keeps the refits, and does not by default.
+  expect_null(kf[["fits"]])
+  expect_length(loo::kfold(fit, K = 2L, save_fits = TRUE)[["fits"]], 2L)
+})
+
+# `predict(type = "density")` falls back to the fit's own prior weights when it
+# is given none, so a weighted fit scored on held-out rows without them came
+# back wrong rather than erroring. The refits and the scores both have to carry
+# them.
+test_that("kfold() carries prior weights into the refits and the scores", {
+  skip_on_cran()
+  skip_if_not_installed("loo")
+  skip_if_not_installed("rstantools")
+
+  d <- sim_x(n = 120L, p = 2L, seed = 102L)
+  d$trials <- 6
+  d$y <- stats::rbinom(nrow(d), 6L, stats::plogis(d$x1)) / 6
+
+  ctrl <- quick_control(num_trees = 5L, num_burn = 50L, num_draws = 80L)
+  fit <- bartisan(y ~ x1 + x2, data = d, family = stats::binomial(),
+                  weights = trials, control = ctrl)
+
+  kf <- loo::kfold(fit, K = 2L)
+
+  expect_false(anyNA(kf[["pointwise"]]))
+
+  # Six trials per row makes each contribution a sum of six Bernoulli terms, so
+  # a score taken as though there were one trial is far too close to zero. The
+  # in-sample log density is the scale to judge that against.
+  in_sample <- sum(stats::predict(fit, type = "density", log = TRUE))
+  held_out <- kf[["estimates"]]["elpd_kfold", "Estimate"]
+
+  expect_lt(held_out, 0)
+  expect_gt(held_out, 4 * in_sample)
+  expect_lt(held_out, in_sample / 4)
+})
