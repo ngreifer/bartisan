@@ -172,7 +172,7 @@ family_label <- function(family) {
 # cli_text(), which emits a message on stderr and would leave the output
 # invisible to capture.output() and to knitr.
 print_header <- function(call) {
-  cli_cat("{.strong Generalized BART}")
+  cli_head("Generalized BART")
   cli::cat_line()
   cli::cat_line("Call:\n", paste(deparse(call), collapse = "\n"))
   cli::cat_line()
@@ -241,7 +241,7 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 
   if (!is_null(x[["aux"]])) {
     cli::cat_line()
-    cli_cat("{.strong Nuisance parameters}")
+    cli_head("Nuisance parameters")
 
     # A baseline hazard can have one entry per event time, which is too many to
     # read. Printing the ends and saying how many were left out keeps the block
@@ -262,13 +262,13 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 
   if (!is_null(x[["tau"]])) {
     cli::cat_line()
-    cli_cat("{.strong Random-effect scales}")
+    cli_head("Random-effect scales")
     cli_cat("{.emph Standard deviation of the group intercepts.}")
     print(round(x[["tau"]], digits))
   }
 
   cli::cat_line()
-  cli_cat("{.strong Predictor usage}")
+  cli_head("Predictor usage")
   cli_cat("{.emph Splitting rules per draw, and how often used at all.}")
 
   for (h in seq_along(x[["usage"]])) {

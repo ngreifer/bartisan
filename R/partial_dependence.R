@@ -220,7 +220,7 @@ print.bartisan_partial <- function(x, digits = 3L, ...) {
 
   vars <- attr(x, "variables")
 
-  cli_cat("{.strong Partial dependence}")
+  cli_head("Partial dependence")
   cli::cat_line()
   cli_cat("{cli::qty(length(vars))}Predictor{?s}: {.val {vars}}")
   cli_cat("Averaged over {attr(x, 'n_units')} unit{?s}, on the

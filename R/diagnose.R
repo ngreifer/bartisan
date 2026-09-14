@@ -798,7 +798,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
 
   if (unreadable) {
     rows <- add(rows, "rhat readable", "warn",
-                sprintf("that R-hat rests on only %.0f effective draws, where %d chains average %.3f even when they agree",
+                sprintf("That R-hat rests on only %.0f effective draws, where %d chains average %.3f even when they agree",
                         bad_rhat[["ess"]], chains, null_rhat(bad_rhat[["ess"]])))
   }
 
@@ -1031,7 +1031,7 @@ diagnosis_advice <- function(checks, control = NULL) {
 
 #' @export
 print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
-  cli_cat("{.strong Convergence and mixing}")
+  cli_head("Convergence and mixing")
   cli::cat_line()
 
   show <- x[["table"]]
@@ -1065,7 +1065,7 @@ print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
   }
 
   cli::cat_line()
-  cli_cat("{.strong What to do}")
+  cli_head("What to do")
   cli::cat_line()
 
   # A bullet per step rather than a run-on block. The name has to be one cli

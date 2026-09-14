@@ -7202,3 +7202,55 @@ the draws are not wasted. At 3% and a single chain, 10,000 draws gives about 300
 effective, which is the reported figure. R-hat is 1.003 there, so the chain has
 converged and is merely autocorrelated: "mixes slowly", not "fails to mix", and
 more draws is the whole remedy.
+
+## Headings underline, and a worked example of fixing mixing with draws alone
+
+### `{.strong}` reads as an accident
+
+cli renders it bold, which in many terminals and in the fonts an editor pane
+uses is close enough to the body text that a heading does not look like one. cli
+has no `{.underline}` inline class, and an ANSI string embedded in a `{}` slot
+does not survive `format_inline()`, which strips it. So `cli_head()` formats
+first and styles the result, giving `ESC[4m` where `{.strong}` gave `ESC[1m` and
+plain text where the terminal has no ANSI to give it. Ten headings across
+`diagnose()`, `estimate_effect()`, `summary()`, `variable_importance()` and
+`partial_dependence()`.
+
+### Getting to clean mixing on draws alone
+
+The vignette's list of remedies puts more draws first and notes that the other
+two change the model. What it lacked was the demonstration, so `rhc` was measured
+until a configuration was found where draws alone genuinely suffice. Three did
+not, and the failures were the informative part:
+
+- The full 14-predictor model plateaus. R-hat sits at 1.019 at 8,000 draws and
+  1.019 at 12,000, at 269 seconds, so the disagreement there is real and no
+  number of draws removes it.
+- An `n = 800` subset mixes *worse* per draw, not better: less information, a
+  flatter posterior, and the sampler wanders further in it.
+- Cutting `num_trees` helps but is a change to the model, which is the thing
+  being held fixed.
+
+What works, on the five-predictor model over the whole sample:
+
+| draws | max R-hat | min bulk ESS | warnings |
+| --- | --- | --- | --- |
+| 200/800 (defaults) | 1.036 | 101 | rhat, rhat readable, bulk ESS, tail ESS |
+| 1,000/4,000 | 1.010 | 479 | rhat |
+| 2,000/8,000 | 1.008 | 744 | none |
+
+The intermediate row is in the prose rather than the vignette, because it carries
+the lesson: the effective sample sizes clear first and R-hat clears last, a hair
+at a time, so the final stretch costs the most.
+
+Two cautions went in with it. Effective sample size is non-monotone in draws --
+280 at 4,000, 199 at 8,000, 490 at 12,000 on the fourteen-predictor model --
+because a short chain cannot see long-lag autocorrelation and reports an
+efficiency the chain does not have, so the factor is what to read and not the
+figure. And the example says what it does not show: draws sufficed here because
+the flagged R-hat was the unreadable kind resting on too few effective draws, and
+where R-hat stays put instead, more draws will not help.
+
+Cost: `diagnostics.Rmd` goes from 110s to 194s, which leaves it beside
+`bartisan.Rmd` at 198s rather than making it the slowest, so the precompute route
+`vignette("survival")` uses was not needed.

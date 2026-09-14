@@ -359,6 +359,64 @@ rather than reporting a disagreement it cannot support. In that case the
 effective sample size is what to fix, and more draws is the whole of the
 remedy.
 
+### A Worked Example: More Draws, Same Model
+
+The first remedy is the only one that leaves the model alone, so it is worth
+seeing how far it goes on its own. Below, a fit that fails and then the same
+model run longer; the formula, the family, the tree count and every prior setting
+are identical between the two, and only `num_burn` and `num_draws` move.
+
+```{r mixmodel, eval = run}
+model <- death ~ rhc + age + aps + meanbp + surv2m
+
+set.seed(2026)
+short <- bartisan(model, data = rhc, family = binomial(), chains = 4)
+
+diagnose(short)
+```
+
+Four things are flagged. `rhat` is above the threshold, and the check under it
+says that the R-hat in question rests on too few effective draws for the
+threshold to mean anything, which is the case the previous section says to rule
+out first: the chains are not demonstrably disagreeing, they have not run long
+enough for the statistic to be readable. Both effective sample sizes are short of
+400 as well. Everything here points the same way, and none of it points at the
+model.
+
+So run it longer. Nothing else changes:
+
+```{r mixfixed, eval = run}
+set.seed(2026)
+longer <- bartisan(model, data = rhc, family = binomial(), chains = 4,
+                   num_burn = 2000, num_draws = 8000)
+
+diagnose(longer)
+```
+
+Nothing is flagged. R-hat is under 1.01 on every row, both effective sample sizes
+clear 400 with room, and the largest R-hat has moved onto the worst-5% row, which
+is where a forest's usually sits. This fit can be reported from.
+
+Two things about the arithmetic are worth taking from it. The first is that
+effective sample size grows roughly in proportion to the draws, so the shortfall
+tells you the factor you need: a fit an order of magnitude short of 400 needs
+about an order of magnitude more draws, not a little more. An intermediate run at
+`num_burn = 1000` and `num_draws = 4000` cleared both effective-sample-size
+warnings on these data and still left R-hat at 1.010, a hair over the line, which
+is the usual shape of the last stretch.
+
+The second is that the estimate of effective sample size is itself noisy, and can
+fall as the chain lengthens: a short chain cannot see autocorrelation at long
+lags, so it reports an efficiency the chain does not have. Reading a single ESS
+figure as exact invites chasing it; the factor is what to read.
+
+What this example does *not* show is that draws always suffice. They sufficed
+here because the flagged R-hat was the unreadable kind, resting on too few
+effective draws. Where R-hat instead stays put as the draws grow, as it does for
+the Friedman fit above, the chains genuinely disagree and more of them will not
+help. That is when the remedies that change the model come up, and the order in
+the list above is the order to try them in.
+
 ## Fit
 
 Convergence says the sampler did its job; it says nothing at all about whether

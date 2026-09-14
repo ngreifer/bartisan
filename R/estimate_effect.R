@@ -794,7 +794,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
   focal <- attr(x, "focal")
   by <- attr(x, "by")
 
-  cli_cat("{.strong {effect_title(estimand, comparison)}}")
+  cli_head("{effect_title(estimand, comparison)}")
   cli::cat_line()
 
   cli_cat("Treatment: {.val {treat}}")
@@ -832,7 +832,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
 
   if (potential_outcomes && !is_null(po)) {
     cli::cat_line()
-    cli_cat("{.strong Average potential outcomes}")
+    cli_head("Average potential outcomes")
     cli::cat_line()
     print(effect_round(as.data.frame(po), digits), row.names = FALSE)
   }

@@ -15,6 +15,18 @@ cli_cat <- function(..., .envir = parent.frame()) {
     cli::cat_line()
 }
 
+# A heading. Underlined rather than bold: cli renders `{.strong}` as bold, which
+# in a lot of terminals and in the fonts an editor pane uses is close enough to
+# the body text to read as an accident rather than as a heading. The text is
+# formatted first and styled afterwards, since `format_inline()` strips ANSI out
+# of what it interpolates, and `style_underline()` returns the text unchanged
+# where the terminal has no ANSI to give it.
+cli_head <- function(..., .envir = parent.frame()) {
+  cli::format_inline(..., .envir = .envir) |>
+    cli::style_underline() |>
+    cli::cat_line()
+}
+
 # The bullet-list counterpart of `cli_cat()`. `cli::cli_bullets()` writes to
 # stderr, which for a print method means the bullets are missing from
 # `capture.output()` and from a knitted document: a reader of the vignette saw
