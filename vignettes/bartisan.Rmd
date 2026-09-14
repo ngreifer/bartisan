@@ -142,7 +142,7 @@ where the function it is a contrast of mixes well. `diagnose()` takes the
 estimand itself when there is one to take:
 
 ```{r diagnose_effect}
-diagnose(estimate_effect(fit, treatment = "rhc"))
+diagnose(estimate_effect(fit, treat = "rhc"))
 ```
 
 Far fewer effective draws than the table above would suggest, and the last check
@@ -206,7 +206,7 @@ does, and taking the difference. `estimate_effect()` does this, and needs only t
 be told which predictor is the treatment:
 
 ```{r effects}
-eff <- estimate_effect(fit, treatment = "rhc")
+eff <- estimate_effect(fit, treat = "rhc")
 
 eff
 ```

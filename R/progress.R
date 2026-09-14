@@ -31,10 +31,20 @@ progress_ticks <- function(control) {
 # exits, so one owned by this function would be finished before the sampler
 # started.
 #
-# How many times the convergence pass reports, for the same reason the sampler is
-# capped: it walks one column per observation, and a handler redrawing a bar
+# How many times the convergence pass reports. Capped for the same reason the
+# sampler is: it walks one column per observation, and a handler redrawing a bar
 # thousands of times would cost more than the statistics.
-PROGRESS_DIAG_TICKS <- 50L
+#
+# Set well above the sampler's because the pass is split across workers and they
+# run in step. Each worker holds its own share of these and fires at its own
+# thresholds, so with the share small the workers reach their thresholds at
+# about the same moment and the bar advances in jumps of one-per-worker rather
+# than one at a time. At 50 that was a visible eighth of the bar on four
+# workers, worse the longer each column takes, which is why a fit with many
+# draws showed it most. Measured at 1500 columns and 10,000 draws, raising it to
+# 200 costs nothing in the pass and cuts the largest gap between reports from
+# 2.8% of the run to 1.3%.
+PROGRESS_DIAG_TICKS <- 200L
 
 # A reporter that can reach the progressor and nothing else.
 #

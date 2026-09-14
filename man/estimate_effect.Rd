@@ -8,7 +8,7 @@
 \usage{
 estimate_effect(
   object,
-  treatment = NULL,
+  treat = NULL,
   estimand = "ATE",
   comparison = "difference",
   by = NULL,
@@ -28,7 +28,7 @@ estimate_effect(
 \item{object}{a \verb{<bartisan_fit>} object; the output of a call to \code{\link[=bcf]{bcf()}} or
 \code{\link[=bartisan]{bartisan()}}.}
 
-\item{treatment}{\code{string}; the name of the treatment variable. A fit from
+\item{treat}{\code{string}; the name of the treatment variable. A fit from
 \code{\link[=bcf]{bcf()}} carries its own and needs none, so this is for a fit from
 \code{\link[=bartisan]{bartisan()}}, where nothing marks one predictor as the treatment.}
 
@@ -176,7 +176,7 @@ levels. See the \CRANpkg{adrftools} package for tools to visualize and summarize
 data("rhc")
 set.seed(123)
 
-fit <- bcf(death ~ age + sex + meanbp + aps, treatment = ~ rhc,
+fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
            verbose = FALSE)
 

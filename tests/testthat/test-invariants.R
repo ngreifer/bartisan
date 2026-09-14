@@ -337,10 +337,10 @@ test_that("print methods write nothing to stderr", {
                 summary = summary(fit),
                 diagnosis = diagnose(fit),
                 importance = variable_importance(fit),
-                effect = estimate_effect(fit, treatment = "z"),
-                lnor = estimate_effect(fit, treatment = "z",
+                effect = estimate_effect(fit, treat = "z"),
+                lnor = estimate_effect(fit, treat = "z",
                                        comparison = "lnor"),
-                cate = estimate_effect(fit, treatment = "z",
+                cate = estimate_effect(fit, treat = "z",
                                        estimand = "CATE"),
                 partial = partial_dependence(fit, ~ x1))
 

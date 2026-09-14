@@ -332,6 +332,17 @@ diagnose.bartisan_effect <- function(object, rhat_max = 1.01, ess_min = 400,
                late_bad = mean(per_column[2L, ] > rhat_max, na.rm = TRUE))
   })
 
+  # The two averages the contrast is built from, reported under it. A contrast
+  # that mixes badly can have one of them to blame rather than both, and the
+  # contrast alone does not say which.
+  po <- attr(object, "po_draws")
+
+  if (!is_null(po)) {
+    rows <- c(rows, lapply(names(po), function(nm) {
+      diagnosis_row(nm, as_chains(po[[nm]], chains), rhat_max)
+    }))
+  }
+
   table <- unrowname(do.call(rbind, rows))
   checks <- diagnosis_checks(table, chains, n_draws, rhat_max, ess_min)
   advice <- diagnosis_advice(checks, attr(object, "control"))
@@ -549,55 +560,41 @@ diagnosis_columns <- function(wide, chains, budget) {
     workers <- 1L
   }
 
-  if (columns < 100L || !isTRUE(workers > 1L)) {
+  if (columns < 100L || !isTRUE(workers > 1L) ||
+        !rlang::is_installed("future.apply")) {
     return(diagnosis_block(wide, chains, budget(columns)))
   }
 
+  # Cut the columns here rather than on the worker. A worker that slices `wide`
+  # itself has to be sent `wide` to slice, and that send is what the bar waits
+  # on. One piece per worker is what `future_lapply()` schedules by default
+  # anyway, so this decides what travels rather than how the work is spread.
+  #
+  # Each piece carries its own stepper, drawn before anything is dispatched so
+  # that the shares add up to the whole bar however many pieces there are. One
+  # stepper copied to every worker would have each copy counting from zero,
+  # which left the bar short of full by two ticks at four workers and more above
+  # that. The reports themselves come back from the workers as they are made, as
+  # they do for the chains of a fit.
   chunks <- split(seq_len(columns),
                   cut(seq_len(columns), workers, labels = FALSE))
 
-  # One stepper per chunk, drawn here before anything is dispatched, so that the
-  # shares add up to the whole bar however many chunks there are. A single
-  # stepper is copied to each worker, and the copies each count from zero, which
-  # left the bar short of full by two ticks at four workers and more above that.
-  steppers <- lapply(chunks, function(js) budget(length(js)))
+  parts <- lapply(chunks, function(js) {
+    list(draws = wide[, js, drop = FALSE], step = budget(length(js)))
+  })
 
-  futures <- vector("list", length(chunks))
+  # `future_lapply()` rather than a loop over `future()`: it owns the
+  # scheduling, and it ships the globals the piece needs without being told,
+  # which a bare `future()` call did not. Written as one, \pkg{future} read
+  # `diagnosis_block` as belonging to this package, dropped it from what it
+  # sent, and left the worker to find an unexported function on a search path
+  # that carries only exports.
+  blocks <- future.apply::future_lapply(
+    parts,
+    function(part) diagnosis_block(part[["draws"]], chains, part[["step"]]),
+    future.packages = "bartisan", future.seed = FALSE)
 
-  # The worker has to be given `diagnosis_block()` rather than left to find it.
-  # Written as a bare call, \pkg{future} reads it as belonging to this package,
-  # drops it from the globals it ships, and names the package in `packages`
-  # instead; the worker then attaches the package, which puts only its *exports*
-  # on the search path, and this function is not one of them. Installed, that
-  # happens to resolve anyway. Under `pkgload::load_all()`, which attaches the
-  # internals to the calling session and so makes the misreading certain, it
-  # fails outright with "could not find function". Naming it in `globals` ships
-  # it either way and does not depend on the heuristic being right.
-  block <- diagnosis_block
-
-  for (k in seq_along(chunks)) {
-    # Cut here rather than on the worker. A worker that slices `wide` itself has
-    # to be sent `wide` to slice, and that send is what the bar waits on.
-    part <- wide[, chunks[[k]], drop = FALSE]
-    step <- steppers[[k]]
-
-    futures[[k]] <- future::future(
-      block(part, chains, step),
-      seed = FALSE, packages = "bartisan",
-      globals = list(block = block, part = part, chains = chains, step = step))
-
-    # Sending the chunks out takes a share of the pass, and while this session
-    # is sending it is the one thing that cannot report: a worker's progress
-    # reaches a bar only when this session looks for it. So look, once per
-    # chunk, at the workers already running. Without this the first chunk's
-    # reports wait on the last chunk being sent, which is what left the bar at
-    # zero for the first third of the pass and then moved it in one jump.
-    for (f in futures[seq_len(k - 1L)]) {
-      future::resolved(f)
-    }
-  }
-
-  do.call(cbind, lapply(futures, future::value))
+  do.call(cbind, blocks)
 }
 
 diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
@@ -710,6 +707,12 @@ rhat_late <- function(x) {
 # 95% critical value even when every chain is stationary -- with room to spare.
 FAIL_SHARE <- 0.2
 
+# "bulk ESS" reads as a subject at the head of a sentence only with its first
+# letter raised, and the labels are written lowercase because they are also keys.
+upper_first <- function(x) {
+  sub("^(.)", "\\U\\1", x, perl = TRUE)
+}
+
 diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   rows <- list()
 
@@ -722,7 +725,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
 
   if (chains < 2L) {
     rows <- add(rows, "chains", "warn",
-                sprintf("one chain, so R-hat can only compare it with itself; %s",
+                sprintf("Only one chain, so R-hat can only compare it with itself; %s",
                         "set `chains = 4`"))
   }
   else {
@@ -759,15 +762,17 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   bad_rhat <- worst_share("rhat_bad")
 
   if (is_null(bad_rhat)) {
-    rows <- add(rows, "rhat", "note", "not available")
+    rows <- add(rows, "rhat", "note", "R-hat is not available")
   }
   else if (bad_rhat[["share"]] > FAIL_SHARE) {
     rows <- add(rows, "rhat", "warn",
-                sprintf("above %.2f for %s%s", rhat_max, bad_rhat[["quantity"]],
+                sprintf("R-hat is above %.2f for %s%s", rhat_max,
+                        bad_rhat[["quantity"]],
                         share_suffix(bad_rhat[["share"]])))
   }
   else {
-    rows <- add(rows, "rhat", "ok", sprintf("below %.2f throughout", rhat_max))
+    rows <- add(rows, "rhat", "ok",
+                sprintf("R-hat is below %.2f throughout", rhat_max))
   }
 
   # R-hat is a ratio of two variance estimates taken from the same draws, so with
@@ -793,21 +798,22 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
 
   if (unreadable) {
     rows <- add(rows, "rhat readable", "warn",
-                sprintf("that R-hat rests on %.0f effective draws, where %d chains average %.3f even when they agree",
+                sprintf("that R-hat rests on only %.0f effective draws, where %d chains average %.3f even when they agree",
                         bad_rhat[["ess"]], chains, null_rhat(bad_rhat[["ess"]])))
   }
 
   bad_late <- worst_share("late_bad")
 
   if (is_null(bad_late) || is_null(bad_rhat)) {
-    rows <- add(rows, "warmup", "note", "not available")
+    rows <- add(rows, "warmup", "note", "Warmup cannot be judged here")
   }
   else if (bad_rhat[["share"]] <= FAIL_SHARE) {
-    rows <- add(rows, "warmup", "ok", "long enough, since R-hat is already fine")
+    rows <- add(rows, "warmup", "ok",
+                "Warmup was long enough, since R-hat is already fine")
   }
   else if (bad_late[["share"]] <= FAIL_SHARE) {
     rows <- add(rows, "warmup", "warn",
-                sprintf("too short: R-hat is fine on the second half of the draws alone, which is what more `num_burn` would have given"))
+                sprintf("Warmup was too short: R-hat is fine on the second half of the draws alone, which is what more `num_burn` would have given"))
   }
   else if (unreadable) {
     # The stronger reading is withheld here for the same reason the check above
@@ -815,11 +821,11 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     # effective draws. What it does rule out is warmup, which is all this line
     # claims.
     rows <- add(rows, "warmup", "note",
-                "not the fix: R-hat stays high on the second half of the draws alone as well, so a longer warmup is not what is missing")
+                "A longer warmup is not the fix: R-hat stays high on the second half of the draws alone as well")
   }
   else {
     rows <- add(rows, "warmup", "note",
-                "not the whole story: R-hat stays high on the second half of the draws alone, so the chains disagree rather than merely start badly")
+                "A longer warmup is not the whole story: R-hat stays high on the second half of the draws alone, so the chains disagree rather than merely start badly")
   }
 
   # The forest's own size gets its own line, because it is the one signal that
@@ -832,12 +838,12 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
 
     if (isTRUE(forest[["rhat_bad"]][at] > 0)) {
       rows <- add(rows, "forest size", "warn",
-                  sprintf("the chains disagree about how many splitting rules the forest has (R-hat %.2f)",
+                  sprintf("The chains disagree about how many splitting rules the forest has (R-hat %.2f)",
                           forest[["rhat"]][at]))
     }
     else {
       rows <- add(rows, "forest size", "ok",
-                  "the chains agree about the size of the forest")
+                  "The chains agree about the size of the forest")
     }
   }
 
@@ -846,16 +852,18 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     label <- if (identical(which, "ess_bulk")) "bulk ESS" else "tail ESS"
 
     if (is_null(lo)) {
-      rows <- add(rows, label, "note", "not available")
+      rows <- add(rows, label, "note",
+                  sprintf("%s is not available", upper_first(label)))
     }
     else if (lo[["value"]] < ess_min) {
       rows <- add(rows, label, "warn",
-                  sprintf("%.0f for %s, below %.0f", lo[["value"]], lo[["quantity"]],
-                          ess_min))
+                  sprintf("%s is %.0f for %s, below %.0f", upper_first(label),
+                          lo[["value"]], lo[["quantity"]], ess_min))
     }
     else {
-      rows <- add(rows, label, "ok", sprintf("at least %.0f, above %.0f", lo[["value"]],
-                                             ess_min))
+      rows <- add(rows, label, "ok",
+                  sprintf("%s is at least %.0f everywhere, above %.0f",
+                          upper_first(label), lo[["value"]], ess_min))
     }
   }
 
@@ -871,7 +879,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
         any(worst[["rhat_bad"]] > FAIL_SHARE, na.rm = TRUE) &&
         all(averaged[["rhat_bad"]] == 0, na.rm = TRUE)) {
     rows <- add(rows, "where it is", "note",
-                sprintf("the chains disagree about individual observations and agree about their average (R-hat %.2f, %.0f effective draws)",
+                sprintf("The chains disagree about individual observations and agree about their average (R-hat %.2f, %.0f effective draws)",
                         max(averaged[["rhat"]], na.rm = TRUE),
                         min(averaged[["ess_bulk"]], na.rm = TRUE)))
   }
@@ -880,7 +888,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
 
   if (!is_null(lo_frac) && lo_frac[["value"]] < 0.05) {
     rows <- add(rows, "autocorrelation", "note",
-                sprintf("%s carries %.1f effective draws per hundred kept",
+                sprintf("Per-draw efficiency is lowest for %s, which carries %.1f effective draws per hundred kept",
                         lo_frac[["quantity"]], 100 * lo_frac[["value"]]))
   }
 
@@ -1060,9 +1068,12 @@ print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
   cli_cat("{.strong What to do}")
   cli::cat_line()
 
+  # A bullet per step rather than a run-on block. The name has to be one cli
+  # recognizes: a number is not, and a numbered name printed as unmarked text,
+  # which ran the steps together.
   for (i in seq_along(x[["advice"]])) {
     list(x[["advice"]][i]) |>
-      setNames(as.character(i)) |>
+      setNames("*") |>
       cli_bullets_cat()
   }
 

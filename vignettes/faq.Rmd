@@ -74,7 +74,7 @@ beneath. A fit from `bcf()` carries its own treatment, so nothing else has to be
 named:
 
 ```r
-fit <- bcf(y ~ x1 + x2, treatment = ~ z, data = d)
+fit <- bcf(y ~ x1 + x2, treat = ~ z, data = d)
 
 estimate_effect(fit)
 ```
@@ -83,7 +83,7 @@ The estimand is an argument, so `estimand = "ATT"` averages over the treated
 instead of over everyone, `estimand = "CATE"` returns one effect per unit,
 `by = ~ g` gives subgroup effects, and `comparison = "ratio"` reports a ratio
 rather than a difference. On a fit from `bartisan()` rather than `bcf()` it works
-the same way once `treatment` names the column. `plot()` draws whatever was asked
+the same way once `treat` names the column. `plot()` draws whatever was asked
 for, and `diagnose()` on the result says whether the estimand itself has mixed,
 which is not implied by the fit's own diagnostics.
 

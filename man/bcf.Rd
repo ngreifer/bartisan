@@ -6,7 +6,7 @@
 \usage{
 bcf(
   formula,
-  treatment,
+  treat,
   data,
   family = NULL,
   moderators = NULL,
@@ -17,10 +17,10 @@ bcf(
 }
 \arguments{
 \item{formula}{a model formula. The right-hand side lists the covariates; the
-treatment is named in \code{treatment} rather than here, and is removed from the
+treatment is named in \code{treat} rather than here, and is removed from the
 covariates if it appears among them.}
 
-\item{treatment}{a one-sided formula naming the treatment, as in \code{~ z}. The
+\item{treat}{a one-sided formula naming the treatment, as in \code{~ z}. The
 treatment may be binary, categorical, or continuous, and which it is decides
 what the propensity score is and how it is modeled; see Details.}
 
@@ -180,7 +180,7 @@ set.seed(123)
 # The effect of right heart catheterization on death, free to vary with
 # every covariate, with the propensity score entering the control function
 # alone
-fit <- bcf(death ~ . - days, treatment = ~ rhc, data = rhc,
+fit <- bcf(death ~ . - days, treat = ~ rhc, data = rhc,
            family = binomial(), num_trees = c(10, 5), num_burn = 50,
            num_draws = 50,
            propensity_args = list(num_trees = 10, num_burn = 50,

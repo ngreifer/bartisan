@@ -10,9 +10,9 @@
 #'
 #' @inheritParams bartisan
 #' @param formula a model formula. The right-hand side lists the covariates; the
-#'   treatment is named in `treatment` rather than here, and is removed from the
+#'   treatment is named in `treat` rather than here, and is removed from the
 #'   covariates if it appears among them.
-#' @param treatment a one-sided formula naming the treatment, as in `~ z`. The
+#' @param treat a one-sided formula naming the treatment, as in `~ z`. The
 #'   treatment may be binary, categorical, or continuous, and which it is decides
 #'   what the propensity score is and how it is modeled; see Details.
 #' @param moderators a one-sided formula naming the covariates the treatment
@@ -161,7 +161,7 @@
 #' # The effect of right heart catheterization on death, free to vary with
 #' # every covariate, with the propensity score entering the control function
 #' # alone
-#' fit <- bcf(death ~ . - days, treatment = ~ rhc, data = rhc,
+#' fit <- bcf(death ~ . - days, treat = ~ rhc, data = rhc,
 #'            family = binomial(), num_trees = c(10, 5), num_burn = 50,
 #'            num_draws = 50,
 #'            propensity_args = list(num_trees = 10, num_burn = 50,
@@ -179,18 +179,18 @@
 #' summary(fit)
 #'
 #' @export
-bcf <- function(formula, treatment, data, family = NULL, moderators = NULL,
+bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
                 propensity = TRUE, propensity_args = list(), ...) {
 
   cl <- match.call()
 
   arg::arg_formula(formula, one_sided = FALSE)
-  arg::arg_formula(treatment, one_sided = TRUE)
+  arg::arg_formula(treat, one_sided = TRUE)
 
-  name <- all.vars(treatment)
+  name <- all.vars(treat)
 
   if (length(name) != 1L) {
-    arg::err("{.arg treatment} must name exactly one variable, as in
+    arg::err("{.arg treat} must name exactly one variable, as in
               {.code ~ z}")
   }
 

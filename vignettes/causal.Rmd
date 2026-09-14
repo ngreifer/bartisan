@@ -151,7 +151,7 @@ We include both the treatment and covariate in the formula's right-hand side, se
 The quantities underlying the effect estimate are the two average potential outcomes: the proportion who would die if every patient were catheterized, and if none were. `estimate_effect()` computes them on the way to the effect and prints them beneath it. On a fit from `bartisan()` the treatment has to be named, since nothing in the formula marks one predictor as the treatment:
 
 ```{r ate, eval = run}
-ate <- estimate_effect(fit, treatment = "rhc")
+ate <- estimate_effect(fit, treat = "rhc")
 
 ate
 ```
@@ -169,7 +169,7 @@ That order is what makes a ratio here the marginal ratio rather than the average
 The scale matters, and it is the reason the default is `type = "response"`. On that scale the average of the unit-level differences *is* the marginal effect. A contrast read off the link scale is not: on a logistic fit the average of the conditional log odds ratios is not the marginal log odds ratio, and the two can differ by a good deal. `comparison` asks for the contrast rather than the scale, so a risk ratio or an odds ratio is available without leaving the response scale:
 
 ```{r ate_or, eval = run}
-estimate_effect(fit, treatment = "rhc", comparison = "lnor")
+estimate_effect(fit, treat = "rhc", comparison = "lnor")
 ```
 
 ### The same answer through *marginaleffects*
@@ -190,12 +190,12 @@ Traditional BART shrinks the fitted function toward a constant; that shrinkage a
 
 @hahn2020 identified this mechanism; their remedy is to give the treatment effect its own forest with its own prior, so that shrinking the confounding part does not shrink the effect. This is the Bayesian causal forest (BCF) model, a special case of the varying coefficients BART model. `bcf()` fits it.
 
-One specifies the control function in the model formula and identifies the treatment in the `treatment` argument. `bcf()` then fits a varying coefficient BART model, the BCF. By default, `bcf()` estimates a propensity score using a logistic BART model and includes that as a covariate in the control function, as recommended by @hahn2020.
+One specifies the control function in the model formula and identifies the treatment in the `treat` argument. `bcf()` then fits a varying coefficient BART model, the BCF. By default, `bcf()` estimates a propensity score using a logistic BART model and includes that as a covariate in the control function, as recommended by @hahn2020.
 
 ```{r bcffit, eval = run}
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
                  pafi + paco2 + crea + surv2m + card,
-               treatment = ~ rhc, data = rhc,
+               treat = ~ rhc, data = rhc,
                family = binomial(), chains = 4)
 
 fit_bcf
@@ -259,7 +259,7 @@ Below, we fit the BCF model, this time setting `family = dpm()`, which is the de
 ```{r lalondefit, eval = run && has_cobalt}
 fit_earn_bcf <- bcf(
   re78 ~ age + educ + race + married + nodegree + re74 + re75,
-  treatment = ~ treat,
+  treat = ~ treat,
   data = lalonde, family = dpm(),
   chains = 4
 )

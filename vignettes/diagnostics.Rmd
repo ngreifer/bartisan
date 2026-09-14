@@ -278,7 +278,7 @@ When estimating a treatment effect, the quantity of interest is produced by `est
 ```{r diagnose_effect, eval = run}
 bcf_fit <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp +
                  hema + pafi + paco2 + crea + surv2m + card,
-               treatment = ~rhc, data = rhc,
+               treat = ~rhc, data = rhc,
                family = binomial("probit"), chains = 4)
 
 diagnose(estimate_effect(bcf_fit, estimand = "ATE"))
@@ -339,16 +339,18 @@ gives.
 
 Three things are worth trying, in the order in which they usually help.
 
-**More draws.** Increasing `num_burn` and `num_draws` is the first thing to try,
+* **More draws.** Increasing `num_burn` and `num_draws` is the first thing to try,
 and it fixes most cases.
 
-**A smaller forest.** Reducing `num_trees` leaves fewer ways to represent the
+* **A smaller forest.** Reducing `num_trees` leaves fewer ways to represent the
 same function, so the sampler mixes faster.
 
-**A different family.** A likelihood that fits the data badly can produce a
+* **A different family.** A likelihood that fits the data badly can produce a
 posterior that is hard to explore, so the family is worth checking when more
 draws and a smaller forest have not helped; `vignette("families")` covers the
 alternatives.
+
+Note these latter two options change the model itself, so only use them when required, not as a routine fix.
 
 One thing to rule out first. `rhat` above 1.01 on a quantity carrying only a
 handful of effective draws is not yet evidence that the chains disagree, since

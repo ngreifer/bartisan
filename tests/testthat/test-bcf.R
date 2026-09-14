@@ -2,11 +2,11 @@
 # is expressible in `bartisan()` with a `vc()` term, which is what these check:
 # the wrapper's decisions, not the sampler underneath it.
 
-sim_causal <- function(n = 600, seed = 1, treatment = "binary") {
+sim_causal <- function(n = 600, seed = 1, kind = "binary") {
   set.seed(seed)
   d <- data.frame(x1 = stats::rnorm(n), x2 = stats::rnorm(n))
 
-  d$z <- switch(treatment,
+  d$z <- switch(kind,
                 binary = stats::rbinom(n, 1L, stats::plogis(0.8 * d$x1)),
                 categorical = factor(sample(c("a", "b", "c"), n, TRUE)),
                 continuous = d$x1 + stats::rnorm(n))
@@ -25,7 +25,7 @@ bcf_args <- function(...) {
 test_that("bcf sets up the model the way it says it does", {
   d <- sim_causal()
 
-  fit <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                              family = gaussian()), bcf_args()))
 
   expect_named(fit[["eta"]], c("(Intercept)", "z"))
@@ -44,7 +44,7 @@ test_that("bcf sets up the model the way it says it does", {
 test_that("the propensity score reaches the control function and not the effect", {
   d <- sim_causal(seed = 2)
 
-  fit <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                              family = gaussian()), bcf_args()))
 
   # This is the whole point of estimating it: the control function absorbs the
@@ -57,7 +57,7 @@ test_that("the propensity score reaches the control function and not the effect"
 test_that("bcf recovers a treatment effect under confounding", {
   d <- sim_causal(seed = 3)
 
-  fit <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                              family = gaussian()), bcf_args()))
 
   expect_gt(cor(coef(fit)[, "z"], d$tau), 0.85)
@@ -70,16 +70,16 @@ test_that("a treatment among the covariates is removed rather than refused", {
   # `y ~ .` is how most callers will write the covariates, and the treatment is
   # not one of them.
   expect_no_error(
-    fit <- do.call(bcf, c(list(y ~ x1 + x2 + z, treatment = ~ z, data = d,
+    fit <- do.call(bcf, c(list(y ~ x1 + x2 + z, treat = ~ z, data = d,
                                family = gaussian()), bcf_args())))
 
   expect_named(fit[["eta"]], c("(Intercept)", "z"))
 })
 
 test_that("a categorical treatment gets a forest per level and a score per level", {
-  d <- sim_causal(seed = 5, treatment = "categorical")
+  d <- sim_causal(seed = 5, kind = "categorical")
 
-  fit <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                              family = gaussian()), bcf_args()))
 
   # The balancing score for a multi-valued treatment is the whole vector of
@@ -90,17 +90,17 @@ test_that("a categorical treatment gets a forest per level and a score per level
 })
 
 test_that("a continuous treatment refuses a propensity score, with the reason", {
-  d <- sim_causal(seed = 6, treatment = "continuous")
+  d <- sim_causal(seed = 6, kind = "continuous")
 
-  expect_error(do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  expect_error(do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                                    family = gaussian()), bcf_args())),
                "no propensity score that is a probability")
 
   # Without one it fits, and a score supplied as a number is taken as given.
-  expect_no_error(do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  expect_no_error(do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                                       family = gaussian(), propensity = FALSE),
                                  bcf_args())))
-  expect_no_error(do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  expect_no_error(do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                                       family = gaussian(),
                                       propensity = stats::runif(nrow(d))),
                                  bcf_args())))
@@ -109,7 +109,7 @@ test_that("a continuous treatment refuses a propensity score, with the reason", 
 test_that("moderators restrict what the effect may vary with", {
   d <- sim_causal(seed = 7)
 
-  fit <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                              family = gaussian(), moderators = ~ x2),
                         bcf_args()))
 
@@ -121,7 +121,7 @@ test_that("moderators restrict what the effect may vary with", {
 test_that("predict works on the caller's own data", {
   d <- sim_causal(seed = 9)
 
-  fit <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                              family = gaussian()), bcf_args()))
 
   # The fit uses a propensity score the caller never named, so their own frame
@@ -144,7 +144,7 @@ test_that("predict works on the caller's own data", {
 
   # And a supplied score cannot be rebuilt, so that says so rather than failing
   # on the missing column.
-  supplied <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  supplied <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                                   family = gaussian(),
                                   propensity = stats::runif(nrow(d))),
                              bcf_args()))
@@ -155,7 +155,7 @@ test_that("predict works on the caller's own data", {
 test_that("the coefficient is the contrast on the link scale", {
   d <- sim_causal(seed = 10)
 
-  fit <- do.call(bcf, c(list(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
                              family = gaussian()), bcf_args()))
 
   treated <- predict(fit, newdata = transform(d, z = 1), type = "link",
@@ -170,11 +170,11 @@ test_that("the coefficient is the contrast on the link scale", {
 test_that("bcf validates its treatment argument", {
   d <- sim_causal(seed = 8)
 
-  expect_error(bcf(y ~ x1 + x2, treatment = ~ z + x1, data = d),
+  expect_error(bcf(y ~ x1 + x2, treat = ~ z + x1, data = d),
                "exactly one variable")
-  expect_error(bcf(y ~ x1 + x2, treatment = ~ nope, data = d),
+  expect_error(bcf(y ~ x1 + x2, treat = ~ nope, data = d),
                "no column")
-  expect_error(bcf(y ~ z, treatment = ~ z, data = d),
+  expect_error(bcf(y ~ z, treat = ~ z, data = d),
                "at least one covariate")
 })
 
@@ -201,7 +201,7 @@ test_that("a refused drawn coding does not leak the retry's noise", {
   # Several chains is the case that warned; the refusal itself happens whatever
   # the chain count.
   expect_no_warning(
-    fit <- bcf(form, treatment = ~ z, data = d, family = tweedie(),
+    fit <- bcf(form, treat = ~ z, data = d, family = tweedie(),
                chains = 4L, control = ctrl))
 
   # And the fit it fell back to is a real one, on the fixed coding.
@@ -213,10 +213,10 @@ test_that("a refused drawn coding does not leak the retry's noise", {
   # and on the path where it succeeds.
   d$y[1:3] <- NA
 
-  expect_warning(bcf(form, treatment = ~ z, data = d, family = tweedie(),
+  expect_warning(bcf(form, treat = ~ z, data = d, family = tweedie(),
                      chains = 4L, control = ctrl),
                  "missing response")
-  expect_warning(bcf(form, treatment = ~ z, data = d, family = dpm(),
+  expect_warning(bcf(form, treat = ~ z, data = d, family = dpm(),
                      chains = 4L, control = ctrl),
                  "missing response")
 })

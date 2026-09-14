@@ -572,9 +572,9 @@ test_that("bcf draws the coding for a binary treatment and not for more levels",
   d <- sim_vc(n = 250, seed = 27)
   d$y <- d$x1 + d$z * (1 + d$x2) + stats::rnorm(250)
 
-  binary <- bcf(y ~ x1 + x2, treatment = ~ z, data = d, family = gaussian(),
+  binary <- bcf(y ~ x1 + x2, treat = ~ z, data = d, family = gaussian(),
                 propensity = FALSE, num_trees = 15L, control = vc_control())
-  several <- bcf(y ~ x1 + x2, treatment = ~ g, data = d, family = gaussian(),
+  several <- bcf(y ~ x1 + x2, treat = ~ g, data = d, family = gaussian(),
                  propensity = FALSE, num_trees = 15L, control = vc_control())
 
   expect_true("b.z.0" %in% colnames(binary[["aux"]]))
@@ -593,7 +593,7 @@ test_that("a two-level factor treatment sizes its forests from the coding", {
 
   # The drawn coding is one forest whatever the type, so the default tree count
   # has to follow the coding rather than the treatment being a factor.
-  fit <- bcf(y ~ x1 + x2, treatment = ~ zf, data = d, family = gaussian(),
+  fit <- bcf(y ~ x1 + x2, treat = ~ zf, data = d, family = gaussian(),
              propensity = FALSE, num_trees = 15L, control = vc_control())
 
   expect_identical(fit[["num_forest"]], 2L)
@@ -629,7 +629,7 @@ test_that("bcf falls back to a fixed coding where a drawn one is not exact", {
 
   # The coding is bcf's choice rather than the caller's, so a family that cannot
   # have it drawn gets the fixed default instead of an error.
-  fit <- bcf(count ~ x1 + x2, treatment = ~ z, data = d, family = poisson(),
+  fit <- bcf(count ~ x1 + x2, treat = ~ z, data = d, family = poisson(),
              propensity = FALSE, num_trees = 15L, control = vc_control())
 
   expect_false(any(startsWith(colnames(fit[["aux"]]) %or% character(), "b.")))
@@ -640,10 +640,10 @@ test_that("bcf falls back to a fixed coding where a drawn one is not exact", {
   # single forest a drawn coding would have had.
   d$zf <- factor(ifelse(d$z == 1L, "yes", "no"))
 
-  fell_back <- bcf(count ~ x1 + x2, treatment = ~ zf, data = d,
+  fell_back <- bcf(count ~ x1 + x2, treat = ~ zf, data = d,
                    family = poisson(), propensity = FALSE,
                    control = vc_control())
-  drawn <- bcf(y ~ x1 + x2, treatment = ~ zf, data = d, family = gaussian(),
+  drawn <- bcf(y ~ x1 + x2, treat = ~ zf, data = d, family = gaussian(),
                propensity = FALSE, control = vc_control())
 
   expect_identical(fell_back[["num_forest"]], 3L)
@@ -653,7 +653,7 @@ test_that("bcf falls back to a fixed coding where a drawn one is not exact", {
 test_that("bcf reports its own call rather than the one do.call made", {
   d <- sim_vc(n = 200, seed = 31)
 
-  fit <- bcf(y ~ x1 + x2, treatment = ~ z, data = d, family = gaussian(),
+  fit <- bcf(y ~ x1 + x2, treat = ~ z, data = d, family = gaussian(),
              propensity = FALSE, num_trees = 15L, control = vc_control())
 
   expect_match(deparse(fit[["call"]])[1L], "^bcf\\(")
@@ -896,7 +896,7 @@ test_that("bcf composes with a family that has two additive predictors", {
   # parameters, and the drawn coding a binary treatment would otherwise get is
   # refused on the log standard deviation, so the whole fit falls back to a fixed
   # coding rather than failing.
-  fit <- bcf(y ~ x1 + x2, treatment = ~ z, data = d,
+  fit <- bcf(y ~ x1 + x2, treat = ~ z, data = d,
              family = gaussian_ls(), propensity = FALSE, num_trees = 12L,
              control = vc_control())
 

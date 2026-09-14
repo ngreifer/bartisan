@@ -14,7 +14,7 @@
 #'   treated and the untreated without `focal` being named. `"CATE"` does not
 #'   average at all and returns one effect per unit. Abbreviations and lowercase
 #'   spellings are allowed.
-#' @param treatment `string`; the name of the treatment variable. A fit from
+#' @param treat `string`; the name of the treatment variable. A fit from
 #'   [bcf()] carries its own and needs none, so this is for a fit from
 #'   [bartisan()], where nothing marks one predictor as the treatment.
 #' @param comparison `string`; how the two potential outcomes are contrasted.
@@ -136,7 +136,7 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' fit <- bcf(death ~ age + sex + meanbp + aps, treatment = ~ rhc,
+#' fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
 #'            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
 #'            verbose = FALSE)
 #'
@@ -154,7 +154,7 @@
 #' estimate_effect(fit, by = ~ sex)
 #'
 #' @export
-estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
+estimate_effect <- function(object, treat = NULL, estimand = "ATE",
                             comparison = "difference", by = NULL,
                             newdata = NULL, level = 0.95, interval = "eti",
                             focal = NULL, type = "response", plot = FALSE) {
@@ -173,8 +173,8 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
 
   interval <- arg::match_arg(tolower(interval), c("eti", "hpdi"))
 
-  treatment <- effect_treatment(object, treatment)
-  newdata <- effect_newdata(object, newdata, treatment)
+  treat <- effect_treatment(object, treat)
+  newdata <- effect_newdata(object, newdata, treat)
 
   # Which levels there are to contrast is a property of the fitted model, not of
   # whatever units the caller asks to average over. Reading them from `newdata`
@@ -182,19 +182,19 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
   # since in that subset the treatment takes one value and a one-valued numeric
   # column is indistinguishable from a continuous one.
   fitted_z <- {
-    if (is_null(object[["model"]]) || is_null(object[["model"]][[treatment]])) {
-      newdata[[treatment]]
+    if (is_null(object[["model"]]) || is_null(object[["model"]][[treat]])) {
+      newdata[[treat]]
     }
     else {
-      object[["model"]][[treatment]]
+      object[["model"]][[treat]]
     }
   }
 
-  z <- newdata[[treatment]]
+  z <- newdata[[treat]]
   kind <- treatment_kind(fitted_z)
 
   if (identical(kind, "continuous")) {
-    arg::err(c("{.arg treatment} {.val {treatment}} is continuous, and the
+    arg::err(c("{.arg treat} {.val {treat}} is continuous, and the
                 effect of a continuous treatment is a slope rather than a
                 contrast of levels",
                i = "Use {.fn marginaleffects::avg_slopes} for an average slope
@@ -205,7 +205,7 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
   }
 
   levs <- effect_levels(fitted_z)
-  focal <- effect_focal(focal, levs, estimand, treatment, fitted_z)
+  focal <- effect_focal(focal, levs, estimand, treat, fitted_z)
   by <- effect_by(by, newdata)
 
   # The potential outcomes: one draws-by-units matrix per treatment level, each
@@ -213,9 +213,9 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
   # score is a function of the covariates alone, so it is carried through
   # unchanged rather than recomputed, which is what makes this the right
   # intervention and not a different model.
-  po <- lapply(levs, function(a) {
+  predict_at <- function(a) {
     d <- newdata
-    d[[treatment]] <- effect_assign(z, a, levels(fitted_z))
+    d[[treat]] <- effect_assign(z, a, levels(fitted_z))
     draws <- stats::predict(object, newdata = d, type = type, draws = TRUE)
 
     if (!is.matrix(draws)) {
@@ -226,7 +226,29 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
     }
 
     draws
-  })
+  }
+
+  # One prediction per level, and none of them depends on another, so they go to
+  # workers when a plan has any. The streams are drawn here rather than left to
+  # `future.seed = TRUE` so that both branches below use the same ones: a family
+  # whose prediction simulates rather than evaluating in closed form, as a
+  # multinomial probit's orthant probabilities do, would otherwise give
+  # different draws depending on whether a plan happened to be set.
+  seeds <- parallel_streams(length(levs))
+
+  po <- if (rlang::is_installed("future.apply")) {
+    future.apply::future_lapply(levs, predict_at, future.seed = seeds,
+                                future.packages = "bartisan")
+  }
+  else {
+    restore <- restore_stream()
+    on.exit(restore(), add = TRUE)
+
+    lapply(seq_along(levs), function(i) {
+      assign(".Random.seed", seeds[[i]], envir = globalenv())
+      predict_at(levs[[i]])
+    })
+  }
 
   names(po) <- as.character(levs)
 
@@ -274,11 +296,21 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
 
   attr(out, "potential_outcomes") <- effect_po_summary(po, keep, level,
                                                        interval)
+
+  # The draws behind that table, kept so that `diagnose()` can report on the two
+  # averages as well as on their contrast. They are what the contrast is built
+  # from, and a contrast that mixes badly can have one of them to blame rather
+  # than both.
+  attr(out, "po_draws") <- lapply(po, function(m) {
+    rowMeans(m[, keep, drop = FALSE])
+  })
+
+  names(attr(out, "po_draws")) <- sprintf("Y[%s]", names(po))
   attr(out, "estimand") <- estimand
   attr(out, "comparison") <- comparison
   attr(out, "interval") <- interval
   attr(out, "level") <- level
-  attr(out, "treatment") <- treatment
+  attr(out, "treatment") <- treat
   attr(out, "focal") <- focal
   attr(out, "type") <- type
   attr(out, "n_units") <- sum(keep)
@@ -309,10 +341,10 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
 }
 
 # The treatment's name: a `bcf()` fit knows it, a `bartisan()` fit cannot.
-effect_treatment <- function(object, treatment) {
-  if (!is_null(treatment)) {
-    arg::arg_string(treatment)
-    return(treatment)
+effect_treatment <- function(object, treat) {
+  if (!is_null(treat)) {
+    arg::arg_string(treat)
+    return(treat)
   }
 
   spec <- object[["bcf"]]
@@ -321,15 +353,15 @@ effect_treatment <- function(object, treatment) {
     return(spec[["treatment"]])
   }
 
-  arg::err(c("{.arg treatment} must name the treatment variable.",
+  arg::err(c("{.arg treat} must name the treatment variable.",
              i = "A fit from {.fn bcf} carries the name and needs none, but
                   nothing in a fit from {.fn bartisan} marks one predictor as
                   the treatment.",
-             i = "For example {.code treatment = \"z\"}."))
+             i = "For example {.code treat = \"z\"}."))
 }
 
 # The units to average over, and the check that the treatment is among them.
-effect_newdata <- function(object, newdata, treatment) {
+effect_newdata <- function(object, newdata, treat) {
   if (is_null(newdata)) {
     newdata <- object[["model"]]
 
@@ -343,8 +375,8 @@ effect_newdata <- function(object, newdata, treatment) {
     newdata <- as.data.frame(newdata)
   }
 
-  if (!treatment %in% names(newdata)) {
-    arg::err("{.arg newdata} has no column {.val {treatment}}, which is the
+  if (!treat %in% names(newdata)) {
+    arg::err("{.arg newdata} has no column {.val {treat}}, which is the
               treatment this effect is a contrast on")
   }
 
@@ -376,10 +408,10 @@ effect_assign <- function(z, a, levs = NULL) {
   rep(as.numeric(a), length(z))
 }
 
-effect_focal <- function(focal, levs, estimand, treatment, z) {
+effect_focal <- function(focal, levs, estimand, treat, z) {
   if (!is_null(focal)) {
     if (length(focal) != 1L || !as.character(focal) %in% as.character(levs)) {
-      arg::err("{.arg focal} must be one of {.var {treatment}}'s levels,
+      arg::err("{.arg focal} must be one of {.var {treat}}'s levels,
                 {.val {levs}}")
     }
 
@@ -396,7 +428,7 @@ effect_focal <- function(focal, levs, estimand, treatment, z) {
     }
 
     arg::err(c("{.arg focal} must name the focal treatment level for
-                {.code estimand = \"{estimand}\"} when {.var {treatment}} has
+                {.code estimand = \"{estimand}\"} when {.var {treat}} has
                 {length(levs)} levels.",
                i = "Its levels are {.val {levs}}.",
                i = "With more than two levels {.val ATT} and {.val ATC} are the
@@ -420,7 +452,7 @@ effect_focal <- function(focal, levs, estimand, treatment, z) {
   if (is.null(attr(guess, "deduced")) && estimand %in% c("ATT", "ATC")) {
     what <- if (identical(estimand, "ATC")) "control" else "treated"
     lab <- as.character(chosen)
-    arg::msg("assuming {.val {lab}} is the {what} level of {.var {treatment}};
+    arg::msg("assuming {.val {lab}} is the {what} level of {.var {treat}};
               supply {.arg focal} if not")
   }
 
@@ -562,13 +594,13 @@ contrast_label <- function(pair, comparison) {
 
 # The legend the labels above need, which depends on the comparison and on
 # whether an average or a single unit is being reported.
-contrast_legend <- function(comparison, treatment, estimand) {
+contrast_legend <- function(comparison, treat, estimand) {
   what <- if (identical(estimand, "CATE")) {
     sprintf("{.field Y[a]} is the predicted response for that unit with
-             {.val %s} set to {.emph a}", treatment)
+             {.val %s} set to {.emph a}", treat)
   } else {
     sprintf("{.field Y[a]} is the average response with {.val %s} set to
-             {.emph a}", treatment)
+             {.emph a}", treat)
   }
 
   if (comparison %in% c("or", "lnor")) {
@@ -758,14 +790,14 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
   comparison <- attr(x, "comparison")
   interval <- attr(x, "interval")
   level <- attr(x, "level")
-  treatment <- attr(x, "treatment")
+  treat <- attr(x, "treatment")
   focal <- attr(x, "focal")
   by <- attr(x, "by")
 
   cli_cat("{.strong {effect_title(estimand, comparison)}}")
   cli::cat_line()
 
-  cli_cat("Treatment: {.val {treatment}}")
+  cli_cat("Treatment: {.val {treat}}")
 
   units <- attr(x, "n_units")
 
@@ -814,7 +846,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
   cli_bullets_cat(c(i = "{.field estimate} is the posterior mean;
                         {.field lower} and {.field upper} bound the
                         {100 * level}% {band}.",
-                   i = contrast_legend(comparison, treatment, estimand)))
+                   i = contrast_legend(comparison, treat, estimand)))
 
   if (identical(estimand, "CATE")) {
     cli_bullets_cat(c(i = "Quartiles of the per-unit estimates. The object

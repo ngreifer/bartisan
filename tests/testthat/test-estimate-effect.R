@@ -32,7 +32,7 @@ sim_effect <- function(n = 200L, seed = 1L, binary = FALSE, levels = 2L) {
 
 fit_effect <- function(d, binary = FALSE) {
   suppressMessages(suppressWarnings(
-    bcf(y ~ x1 + x2 + g, treatment = ~ z, data = d,
+    bcf(y ~ x1 + x2 + g, treat = ~ z, data = d,
         family = if (binary) stats::binomial() else stats::gaussian(),
         control = quick_control(num_trees = 10L, num_burn = 50L,
                                 num_draws = 100L))))
@@ -176,7 +176,7 @@ test_that("a continuous treatment is refused, and says what to use instead", {
     bartisan(y ~ x1 + x2 + w, d, family = stats::gaussian(),
              control = quick_control())))
 
-  expect_error(estimate_effect(fit, treatment = "w"), "is continuous")
+  expect_error(estimate_effect(fit, treat = "w"), "is continuous")
 })
 
 test_that("a fit without a named treatment asks for one", {
@@ -189,7 +189,7 @@ test_that("a fit without a named treatment asks for one", {
 
   # And works once named, since g-computation needs only a column to intervene
   # on and not the `bcf()` structure.
-  eff <- estimate_effect(fit, treatment = "z")
+  eff <- estimate_effect(fit, treat = "z")
   expect_s3_class(eff, "bartisan_effect")
   expect_identical(nrow(eff), 1L)
 })
@@ -410,7 +410,7 @@ test_that("a guessed treated level is announced", {
   d$z <- factor(d$z, levels = c(0L, 1L), labels = c("alpha", "beta"))
 
   fit <- suppressMessages(suppressWarnings(
-    bcf(y ~ x1 + x2 + g, treatment = ~ z, data = d,
+    bcf(y ~ x1 + x2 + g, treat = ~ z, data = d,
         family = stats::gaussian(),
         control = quick_control(num_trees = 10L, num_burn = 50L,
                                 num_draws = 100L))))
@@ -469,7 +469,7 @@ test_that("a newdata holding one arm is still a contrast", {
   # the model frame's levels rather than the subset's.
   d$zf <- factor(d$z, levels = c(0L, 1L), labels = c("ctrl", "trt"))
   ff <- suppressMessages(suppressWarnings(
-    bcf(y ~ x1 + x2 + g, treatment = ~ zf, data = d,
+    bcf(y ~ x1 + x2 + g, treat = ~ zf, data = d,
         family = stats::gaussian(),
         control = quick_control(num_trees = 10L, num_burn = 50L,
                                 num_draws = 100L))))
@@ -479,4 +479,46 @@ test_that("a newdata holding one arm is still a contrast", {
 
   expect_identical(nrow(one_arm), sum(d$zf == "trt"))
   expect_identical(unique(one_arm[["contrast"]]), "Y[trt] - Y[ctrl]")
+})
+
+# The per-level predictions go to workers when a plan has any. The streams are
+# drawn before the branch so both paths use the same ones, which is what keeps a
+# family whose prediction simulates from depending on whether a plan was set.
+test_that("the per-level predictions are the same in parallel as in sequence", {
+  skip_on_cran()
+  skip_if_not_installed("future")
+  skip_if_not_installed("future.apply")
+
+  old <- future::plan(future::sequential)
+  on.exit(future::plan(old), add = TRUE)
+
+  d <- sim_x(n = 250L, p = 3L, seed = 96L)
+  d$g <- factor(sample(c("a", "b", "c"), nrow(d), replace = TRUE))
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1 + (d$g == "c")))
+
+  fit <- bartisan(y ~ ., d, family = stats::binomial(), chains = 2L,
+                  control = quick_control(num_trees = 5L, num_burn = 60L,
+                                          num_draws = 100L))
+
+  effect_now <- function() {
+    set.seed(7L)
+    estimate_effect(fit, treat = "g")
+  }
+
+  future::plan(future::sequential)
+  one <- effect_now()
+
+  started <- tryCatch({
+    future::plan(future::multisession, workers = 2L)
+    isTRUE(future::nbrOfWorkers() >= 2L)
+  }, error = function(e) FALSE)
+
+  skip_if_not(started, "no second worker available")
+
+  many <- effect_now()
+
+  # Three levels means three predictions and three pairwise contrasts.
+  expect_identical(nrow(one), 3L)
+  expect_equal(as.data.frame(many), as.data.frame(one))
+  expect_equal(attr(many, "draws"), attr(one, "draws"))
 })

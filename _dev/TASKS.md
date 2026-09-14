@@ -7127,3 +7127,78 @@ three harnesses failed to make worker-side progress relay at all, zero update
 events for both designs, so the comments' measured claims about the bar are
 unconfirmed and so is any claim that a rewrite would preserve it. That check
 wants eyes on a terminal.
+
+## Progress in chunks, and three questions about mixing
+
+### The bar jumped because the workers were in step
+
+Measured separately, which is what separated the causes. Worker ticks are
+*generated* spread through the pass (17/46/61/76/100 percentiles), and
+`future_lapply` *relays* them progressively -- 22/41/61/80/100 against an
+explicit `resolved()` poll's 21/40/60/80/99, so the rewrite cost nothing here.
+
+What jumped was the arithmetic. `PROGRESS_DIAG_TICKS` was 50, divided among the
+workers, so on four workers each held about twelve and fired at its own
+thresholds; since the workers run in step they crossed those thresholds at about
+the same moment and the bar advanced four ticks at a time, an eighth of its
+width. The longer each column takes the further apart the jumps, which is why a
+fit with many draws showed it most. At 200 ticks the largest gap between reports
+falls from 2.8% of the run to 1.3% and the pass costs the same.
+
+Note on method: every "zero progress events" measurement in the previous entry
+was worthless, because \pkg{progressr} handlers are disabled in non-interactive
+R. Those harnesses were measuring a switched-off system. Second time in this
+session a conclusion came from a broken harness rather than from checking the
+harness first.
+
+### ess_tail above ess_bulk is the normal shape here
+
+Not an error, and systematic: on `rhc` every row has it, `loglik` 23 against
+234, `splits.eta` 264 against 731, `eta.eta` averaged 1610 against 2278, its
+worst 5% 80 against 305. `ess_bulk` is computed on rank-normalized draws and so
+reflects how fast the chain crosses the *centre*; `ess_tail` is the smaller of
+the two tail-membership indicators' effective sizes. A slowly drifting level --
+what a forest's fitted level does -- is strongly autocorrelated in the middle
+while indicators that are mostly zero and flip only on excursions are cheap. So
+the pattern says the centre drifts, not that the tails are good.
+
+The ATE inverts it, bulk 117 against tail 64, and splitting the tails says why:
+the 5% indicator has ESS 64 and the 95% has 1793. The atom at zero *is* the
+lower tail, so `ess_tail` is reporting the stuck atom. Two phenomena, one
+column.
+
+### `bcf()` mixing: the propensity score made it worse, not better
+
+At 4 chains and 2000 draws on `rhc`, `propensity = TRUE` gave the ATE bulk 127
+and the control forest R-hat 1.32 at ESS 10; `propensity = FALSE` gave bulk 630
+and R-hat 1.09 at ESS 34. Five times better without the score, which is the
+opposite of the expected direction and worth following up: the score is itself a
+fitted BART function of the same covariates, so adding it to the control function
+hands that forest two nearly equivalent ways to build one surface, which is the
+"fewer ways to represent the same fit" problem the advice already names for
+`num_trees`. Seen in one configuration; not concluded.
+
+Neither arm has an atom (0.000 either way), so the `bartisan()` ATE's mechanism
+is absent here. Both forests mix far worse than the ATE does, ESS 10 to 48
+against 127 to 630, which is the level trade between `f0` and `f1`: only jointly
+identified on the treated, so the sampler shifts level between them while the sum
+stays put.
+
+### Why ten thousand draws yields a small ESS
+
+Scored on prefixes of one 4-chain, 10,000-draw run, `propensity = FALSE`:
+
+| per chain | bulk ESS | bulk per draw |
+| --- | --- | --- |
+| 1,000 | 274 | 6.9% |
+| 2,000 | 541 | 6.8% |
+| 5,000 | 711 | 3.6% |
+| 10,000 | 1,200 | 3.0% |
+
+Per-draw efficiency *halves* as the chain lengthens. A short chain cannot observe
+autocorrelation at long lags, so its ESS is biased upward; the longer chain sees
+the slow mode and reports the more honest number. Absolute ESS still grows, so
+the draws are not wasted. At 3% and a single chain, 10,000 draws gives about 300
+effective, which is the reported figure. R-hat is 1.003 there, so the chain has
+converged and is merely autocorrelated: "mixes slowly", not "fails to mix", and
+more draws is the whole remedy.

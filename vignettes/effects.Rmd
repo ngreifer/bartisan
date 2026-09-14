@@ -156,7 +156,7 @@ avg_comparisons(fit, variables = "rhc", by = "card")
 ```
 
 The two subgroup estimates are close, and both intervals reach zero.
-`estimate_effect(fit, treatment = "rhc", by = ~ card)` gives the same two
+`estimate_effect(fit, treat = "rhc", by = ~ card)` gives the same two
 numbers natively.
 
 A common mistake is to stop here and conclude that the effect differs between

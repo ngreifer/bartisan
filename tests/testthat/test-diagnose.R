@@ -169,33 +169,39 @@ test_that("diagnose() reports on the estimand, not only on the fit", {
                   control = quick_control(num_trees = 10L, num_burn = 100L,
                                           num_draws = 200L))
 
-  eff <- estimate_effect(fit, treatment = "z")
+  eff <- estimate_effect(fit, treat = "z")
   dg <- diagnose(eff)
 
   expect_s3_class(dg, "bartisan_diagnosis")
-  expect_identical(nrow(dg[["table"]]), 1L)
   expect_identical(dg[["chains"]], 2L)
   expect_identical(dg[["draws"]], 400L)
 
-  # The row is the reported contrast, and the statistics are real numbers rather
-  # than the fit's copied over.
-  expect_identical(dg[["table"]][["quantity"]], names(attr(eff, "draws")))
-  expect_true(is.finite(dg[["table"]][["ess_bulk"]]))
-  expect_true(is.finite(dg[["table"]][["rhat"]]))
+  # The contrast, and under it the two averages it is a contrast of: a contrast
+  # that mixes badly can have one of them to blame rather than both.
+  expect_identical(dg[["table"]][["quantity"]],
+                   c(names(attr(eff, "draws")), names(attr(eff, "po_draws"))))
+  expect_identical(nrow(dg[["table"]]), 3L)
+  expect_true(all(is.finite(dg[["table"]][["ess_bulk"]])))
+  expect_true(all(is.finite(dg[["table"]][["rhat"]])))
 
   fit_diag <- diagnose(fit)
   expect_false(identical(dg[["table"]][["ess_bulk"]],
                          fit_diag[["table"]][["ess_bulk"]]))
 
-  # `by` gives one row per reported group, and `CATE` folds the units the way
-  # the fit's table folds observations rather than printing one row each.
-  by_rows <- diagnose(estimate_effect(fit, treatment = "z", by = ~ x3 > 0.5))
-  expect_identical(nrow(by_rows[["table"]]), 2L)
+  # `by` gives one row per reported group, plus the potential outcomes, and
+  # `CATE` folds the units the way the fit's table folds observations rather
+  # than printing one row each.
+  by_rows <- diagnose(estimate_effect(fit, treat = "z", by = ~ x3 > 0.5))
+  expect_identical(nrow(by_rows[["table"]]), 4L)
 
-  cate <- diagnose(estimate_effect(fit, treatment = "z", estimand = "CATE"))
-  expect_identical(nrow(cate[["table"]]), 1L)
-  expect_match(cate[["table"]][["quantity"]], "worst 5% of 250 units",
+  cate <- diagnose(estimate_effect(fit, treat = "z", estimand = "CATE"))
+  expect_match(cate[["table"]][["quantity"]][1L], "worst 5% of 250 units",
                fixed = TRUE)
+
+  # Every check reads as a sentence that names what it is about, rather than as
+  # a fragment continuing a label the reader cannot see.
+  expect_match(paste(dg[["checks"]][["detail"]], collapse = " "), "R-hat is")
+  expect_match(paste(dg[["checks"]][["detail"]], collapse = " "), "ESS is")
 
   # The atom is the failure the fit cannot show, so it is named when present.
   stuck <- mean(attr(eff, "draws")[[1L]] == 0)
@@ -254,7 +260,7 @@ test_that("the parallel convergence pass ships what the worker needs", {
 
   # And the same for an estimand, whose `CATE` path takes the same branch.
   future::plan(future::multisession, workers = 2L)
-  cate <- estimate_effect(fit, treatment = "z", estimand = "CATE")
+  cate <- estimate_effect(fit, treat = "z", estimand = "CATE")
 
   expect_s3_class(diagnose(cate), "bartisan_diagnosis")
 })

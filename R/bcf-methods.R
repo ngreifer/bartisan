@@ -29,7 +29,7 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' fit <- bcf(death ~ age + sex + meanbp + aps, treatment = ~ rhc,
+#' fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
 #'            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
 #'            verbose = FALSE)
 #'
