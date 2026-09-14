@@ -273,10 +273,15 @@ some covariate value, a difference between two subgroups. Those need their own
 diagnostics, because a contrast can mix badly where the function it is a contrast
 of mixes well, and nothing in the table above will say so.
 
-`diagnose()` takes the output of `estimate_effect()` directly:
+When estimating a treatment effect, the quantity of interest is produced by `estimate_effect()`, the output of which is accepted by `diagnose()` directly. Below we fit a Bayesian causal forest model to estimate the ATE:
 
 ```{r diagnose_effect, eval = run}
-diagnose(estimate_effect(fit, treatment = "rhc"))
+bcf_fit <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp +
+                 hema + pafi + paco2 + crea + surv2m + card,
+               treatment = ~rhc, data = rhc,
+               family = binomial("probit"), chains = 4)
+
+diagnose(estimate_effect(bcf_fit, estimand = "ATE"))
 ```
 
 The contrast carries far fewer effective draws than `eta` does, and the check at

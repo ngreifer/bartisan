@@ -208,3 +208,53 @@ test_that("diagnose() reports on the estimand, not only on the fit", {
   expect_error(diagnose(1), "must be a fit")
   expect_error(diagnose(list()), "must be a fit")
 })
+
+# The convergence pass splits its columns over a `future` plan. Written as a
+# bare call, `diagnosis_block()` is read by future as belonging to this package
+# and dropped from the globals it ships, leaving the worker to find an
+# unexported function on a search path that carries only exports. Installed that
+# resolved anyway; under `pkgload::load_all()`, which is how the package is run
+# while being worked on, `diagnose()` died with "could not find function
+# diagnosis_block" as soon as a plan had more than one worker and the pass was
+# wide enough to split.
+test_that("the parallel convergence pass ships what the worker needs", {
+  skip_on_cran()
+  skip_if_not_installed("future")
+
+  # Two real workers, or there is nothing to test; a plan that cannot be set up
+  # here (a single core, a sandbox) is a skip rather than a failure.
+  old <- future::plan(future::sequential)
+  on.exit(future::plan(old), add = TRUE)
+
+  started <- tryCatch({
+    future::plan(future::multisession, workers = 2L)
+    isTRUE(future::nbrOfWorkers() >= 2L)
+  }, error = function(e) FALSE)
+
+  skip_if_not(started, "no second worker available")
+
+  d <- sim_x(n = 200L, p = 3L, seed = 95L)
+  d$z <- stats::rbinom(nrow(d), 1L, 0.5)
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1 + 0.7 * d$z))
+
+  fit <- bartisan(y ~ ., d, family = stats::binomial(), chains = 2L,
+                  control = quick_control(num_trees = 5L, num_burn = 60L,
+                                          num_draws = 100L))
+
+  # 200 observations is over the 100-column floor, so the pass really splits.
+  parallel <- diagnose(fit)
+
+  expect_s3_class(parallel, "bartisan_diagnosis")
+
+  # Splitting is an implementation detail and must not change the answer.
+  future::plan("sequential")
+  sequential <- diagnose(fit)
+
+  expect_equal(parallel[["table"]], sequential[["table"]])
+
+  # And the same for an estimand, whose `CATE` path takes the same branch.
+  future::plan(future::multisession, workers = 2L)
+  cate <- estimate_effect(fit, treatment = "z", estimand = "CATE")
+
+  expect_s3_class(diagnose(cate), "bartisan_diagnosis")
+})

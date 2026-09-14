@@ -7073,3 +7073,57 @@ six columns and four printed, the claim that the quantile transform is a step
 (it is `stats::ecdf()`), and `ppc_km_overlay`'s ggfortify requirement. Two sweeps
 came back clean: every backticked call named in a vignette resolves to a bartisan
 export or a Suggests package, and every `vignette()` cross-reference resolves.
+
+## `diagnose()` died on multiple workers, and the error had been dismissed once
+
+Reproduced as `could not find function "diagnosis_block"`. It needs three things
+at once: a `future` plan with more than one worker, a pass wide enough to clear
+the 100-column floor, and the package loaded with `pkgload::load_all()`.
+
+The convergence pass splits its columns with
+`future::future(diagnosis_block(part, chains, step), packages = "bartisan")`.
+Written as a bare call, \pkg{future} reads `diagnosis_block` as belonging to this
+package and drops it from the globals it ships, naming the package in `packages`
+instead. Checked directly: `getGlobalsAndPackages()` returns no globals and
+infers `packages: bartisan`. The worker then attaches the package, which puts
+only its *exports* on the search path, and this function is not one.
+`load_all(export_all = TRUE)` attaches the internals to the calling session,
+which makes that misreading certain; installed, the lookup resolved anyway. So
+the code was relying on a heuristic being right and it was right by luck.
+
+Fixed by naming it in `globals`. Verified under `load_all()` and installed, with
+and without a \pkg{progressr} handler, on the fit and the `CATE` path, and the
+parallel table is `all.equal` to the sequential one. The regression test runs two
+real workers and skips where a second cannot be started.
+
+`future.apply::future_lapply()` in `R/bartisan.R` was never exposed to this: it
+ships `engine`, a local closure, which future serializes by value.
+
+### This error was seen before and written off
+
+An earlier entry recorded these as "a `pkgload::load_all()` + `future` worker
+artifact, not defects -- confirmed by installing and re-knitting (0 errors)".
+That was wrong. Installing did make it go away, which is what misled me, but
+`load_all()` is the ordinary development workflow and the error there was real
+the whole time. A clean re-knit confirmed the vignettes build, not that the code
+was sound.
+
+### Whether the manual chunking should be there at all
+
+Asked why this splits chunks by hand rather than calling `future_lapply()`, which
+would chunk automatically. The simplification argument holds: it would remove the
+`cut()`, the per-chunk steppers, the `resolved()` poll and the explicit `globals`,
+and it would have made this bug impossible, since future.apply handles the applied
+function's globals -- which is exactly why the chains path never had it. The data
+send is answerable by iterating over pre-sliced parts rather than closing over
+`wide`.
+
+The progress argument does not hold. The stepper runs on the *worker*, proven by
+an instrumentation attempt failing with "could not find function stamp" from
+inside `value.Future -> signalConditions`; that stack also shows progressr's
+conditions being signalled at collection. So both designs relay in chunk-sized
+bursts and the poll only covers the dispatch window. Not measured either way:
+three harnesses failed to make worker-side progress relay at all, zero update
+events for both designs, so the comments' measured claims about the bar are
+unconfirmed and so is any claim that a rewrite would preserve it. That check
+wants eyes on a terminal.

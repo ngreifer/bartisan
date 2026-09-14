@@ -355,7 +355,7 @@ diagnose.bartisan_effect <- function(object, rhat_max = 1.01, ess_min = 400,
                                         "prior dropping the treatment"),
                                   share)))
 
-    advice <- c(advice, paste(
+    advice <- c(advice, i = paste(
       "Note the atom at zero. The splitting prior drops the treatment in some",
       "draws, and the sampler can stay there for a long run, which costs",
       "effective draws here without costing them in the fit. If the effect is",
@@ -564,14 +564,27 @@ diagnosis_columns <- function(wide, chains, budget) {
 
   futures <- vector("list", length(chunks))
 
+  # The worker has to be given `diagnosis_block()` rather than left to find it.
+  # Written as a bare call, \pkg{future} reads it as belonging to this package,
+  # drops it from the globals it ships, and names the package in `packages`
+  # instead; the worker then attaches the package, which puts only its *exports*
+  # on the search path, and this function is not one of them. Installed, that
+  # happens to resolve anyway. Under `pkgload::load_all()`, which attaches the
+  # internals to the calling session and so makes the misreading certain, it
+  # fails outright with "could not find function". Naming it in `globals` ships
+  # it either way and does not depend on the heuristic being right.
+  block <- diagnosis_block
+
   for (k in seq_along(chunks)) {
     # Cut here rather than on the worker. A worker that slices `wide` itself has
     # to be sent `wide` to slice, and that send is what the bar waits on.
     part <- wide[, chunks[[k]], drop = FALSE]
     step <- steppers[[k]]
 
-    futures[[k]] <- future::future(diagnosis_block(part, chains, step),
-                                   seed = FALSE, packages = "bartisan")
+    futures[[k]] <- future::future(
+      block(part, chains, step),
+      seed = FALSE, packages = "bartisan",
+      globals = list(block = block, part = part, chains = chains, step = step))
 
     # Sending the chunks out takes a share of the pass, and while this session
     # is sending it is the one thing that cannot report: a worker's progress
@@ -1004,7 +1017,8 @@ diagnosis_advice <- function(checks, control = NULL) {
       "what gets reported."))
   }
 
-  out
+  out |>
+    setNames(rep.int("i", length(out)))
 }
 
 #' @export
