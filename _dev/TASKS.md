@@ -6926,3 +6926,75 @@ It is `rhc` that disappears, at 1.79 against a standard error of 2.54, while
 that contrast now, which makes the same point honestly and makes it sharper.
 
 Build cost: `comparison.Rmd` goes from 47s to 105s.
+
+## The atom correction that the previous commit said did not exist
+
+### `loo()` learns the survival measure, and is not allowed to apply it alone
+
+`loo(x, scale = )` and `waic(x, scale = )` take `"time"` or `"log_time"` and put
+a survival fit's pointwise densities on the measure named, subtracting or adding
+`log t` over the events. A fit already on that scale is returned untouched, so
+one `scale` named for every model in a comparison is enough and it reads the same
+from either side.
+
+It is deliberately not automatic. Correcting `ph()` on its own initiative would
+make `loo()` stop reporting the model's own predictive density: it would no
+longer agree with `log_lik()`, and a comparison against a proportional hazards
+fit from another package would quietly acquire the error the correction exists to
+remove. That trades a visible trap for an invisible one. The argument is the
+compromise, with the Details section saying why.
+
+Verified: the argument reproduces the manual `sweep()` to the digit in both
+directions, is a no-op on the side that is already right, and leaves the
+comparison unchanged at 131 whichever of the two scales is named, since a
+constant per observation cancels from a difference.
+
+### Gaussian against tweedie is repairable, and the last commit said it was not
+
+`0a25d3d` claimed "no constant relates the two, so there is nothing to correct".
+That is wrong, and the way to see it is that the raw comparison is not invariant
+to the units the outcome is recorded in. Refitting `lalonde` earnings in
+thousands moves the gap from 1247.4 to 260.1, a shift of 987.3 against a
+predicted `143 * log(1000) = 987.8`. A density carries units of one over the
+outcome, so all 614 gaussian densities rescale together; the 143 tweedie atoms do
+not, because a probability has no units.
+
+The repair follows from the diagnosis. A probability becomes a density when it is
+spread over the width the outcome is recorded to, so the atom contributes
+`log P(Y = 0) - log(delta)`. Corrected, the gap is 1247 and 1248 in the two unit
+systems. In dollars the correction is zero because `log(1) = 0`, which is why the
+raw comparison looked reasonable: right by coincidence, not by construction.
+
+`delta` is a fact about the data rather than a tuning knob, and where the zeros
+are exact rather than rounded there is no `delta` and the comparison stays ill
+posed. That is the case the restricted comparison over the positive observations
+still covers.
+
+### What `p_worse` is
+
+`pnorm(0, elpd_diff, se_diff)`, `NA` on the reference row, and at least .5 by
+construction because `loo_compare()` sorts before computing it. So .5 does not
+mean even odds after weighing evidence; it means the ranking is arbitrary. It
+inherits the normal approximation behind `se_diff`, which is what `diag_diff` and
+`diag_elpd` flag. Now stated in the vignette.
+
+### Why the convention is a total
+
+A log score is additive, so the sum is a log predictive likelihood and a
+difference of two is a log likelihood ratio, which is evidence in nats and ought
+to grow with the sample. It is also the scale AIC, WAIC and DIC are quoted on.
+
+The choice costs nothing either way: the mean difference and the total differ by
+a factor of n, the standard error differs by the same factor, and the ratio that
+decides whether a difference is real is identical, which was checked rather than
+assumed. The average is better only when the two halves do not sum over the same
+observations, which is the leave-one-out against held-out case and never arises
+inside one `loo_compare()` call.
+
+### Structure
+
+All comparison moved out of "When the Approximation Fails", which now stops at
+the single-model score and the per-observation table against `loo()`. The
+held-out comparison became "The Same Comparison Through the Split" under
+"Comparing Two Models", where the price of the split (two standard errors against
+six) sits beside the `loo()` result it is being read against.

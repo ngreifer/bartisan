@@ -30,6 +30,13 @@
 #' @param seed optional seed, set with [set.seed()] before drawing and restored
 #'   afterwards, following the [stats::simulate()] convention. Default is `NULL`
 #'   to leave the stream alone.
+#' @param scale `string`; for `loo()` and `waic()` on a survival fit, the
+#'   measure to report the pointwise densities with respect to: `"time"` for the
+#'   density of \eqn{T} and `"log_time"` for the density of \eqn{\log T}.
+#'   Default is `NULL` to use the family's own, which is \eqn{\log T} for the
+#'   accelerated failure time families and \eqn{T} for [ph()]. A fit already on
+#'   the scale named is left alone, so naming one scale for every model in a
+#'   comparison is enough. See Details.
 #' @param metrics `character`; for `model_performance()`, which fit statistics to
 #'   report. Allowable options include `"all"` (the default), `"ELPD"`,
 #'   `"LOOIC"`, `"WAIC"`, `"R2"`, `"RMSE"`, and `"SIGMA"`, and a vector of them
@@ -114,6 +121,29 @@
 #' ```r
 #' predict(fit, newdata = held_out, type = "density", log = TRUE)
 #' ```
+#'
+#' ## Comparing Survival Families
+#'
+#' The accelerated failure time families report the density of \eqn{\log T} and
+#' [ph()] the density of \eqn{T}. Both are correct for the model that produced
+#' them, and neither is comparable with the other: they differ by the Jacobian of
+#' the change of variable, so a log score taken across that boundary is off by
+#' \eqn{\sum \log t} over the events, which runs to thousands of points on a
+#' sample of any size and can reverse which family looks better.
+#'
+#' `scale` puts them on one measure. It is not applied on its own initiative,
+#' because `loo()` would then stop reporting the model's own predictive density,
+#' would no longer agree with `log_lik()`, and would silently carry the same
+#' error into a comparison against a proportional hazards fit from another
+#' package. It reads the same from either side, since a fit already on the scale
+#' named is returned untouched:
+#' ```r
+#' loo_compare(list(aft = loo(aft_fit, scale = "time"),
+#'                  ph = loo(ph_fit, scale = "time")))
+#' ```
+#' Censored observations are not adjusted, since a survival probability is a
+#' probability on either scale. `vignette("comparison")` works through the
+#' comparison and `vignette("survival")` through the families.
 #'
 #' The seven `ppc_loo_*` checks reweight the replicates towards the
 #' leave-one-out predictive instead of comparing them with the response
@@ -616,8 +646,8 @@ chain_ids <- function(object) {
 
 #' @rdname bartisan-interop
 #' @exportS3Method loo::loo
-loo.bartisan_fit <- function(x, ...) {
-  ll <- log_lik.bartisan_fit(x)
+loo.bartisan_fit <- function(x, scale = NULL, ...) {
+  ll <- survival_measure(x, log_lik.bartisan_fit(x), scale)
   r_eff <- loo::relative_eff(exp(ll), chain_id = chain_ids(x))
 
   loo::loo.matrix(ll, r_eff = r_eff, ...)
@@ -625,9 +655,52 @@ loo.bartisan_fit <- function(x, ...) {
 
 #' @rdname bartisan-interop
 #' @exportS3Method loo::waic
-waic.bartisan_fit <- function(x, ...) {
-  log_lik.bartisan_fit(x) |>
+waic.bartisan_fit <- function(x, scale = NULL, ...) {
+  survival_measure(x, log_lik.bartisan_fit(x), scale) |>
     loo::waic.matrix(...)
+}
+
+# The survival families do not all write their likelihood with respect to the
+# same measure. An accelerated failure time family reports the density of
+# \eqn{\log T} and `ph()` the density of \eqn{T}, so the two differ by the
+# Jacobian of the change of variable and a log score taken across that boundary
+# is off by \eqn{\sum \log t}, which is large enough to reverse an ordering.
+#
+# The correction is not applied on its own initiative, because `loo()` would
+# then stop reporting the model's own predictive density: it would no longer
+# agree with `log_lik()`, and a comparison against a proportional hazards fit
+# from another package would silently acquire the error this is meant to
+# remove. Naming the scale is what asks for it, and it reads the same from
+# either side, since whichever family is already there is left alone.
+survival_measure <- function(object, ll, scale) {
+  if (is_null(scale)) {
+    return(ll)
+  }
+
+  scale <- arg::match_arg(scale, c("time", "log_time"))
+
+  family <- object[["family"]][["family"]]
+
+  if (!family %in% c("aft", "dpm_aft", "ph")) {
+    arg::err(c("{.arg scale} names the measure a survival model's density is
+                taken with respect to, and this fit's family is
+                {.val {family}}.",
+               i = "Leave it empty; only {.fn ph} and the accelerated failure
+                    time families report on two different scales."))
+  }
+
+  on_log_time <- !identical(family, "ph")
+
+  if (identical(scale, "log_time") == on_log_time) {
+    return(ll)
+  }
+
+  # Events only. A censored observation contributes a survival probability,
+  # which is a probability on either scale and has no measure to change.
+  y <- stats::model.response(object[["model"]])
+  offset <- as.numeric(y[, "status"]) * log(as.numeric(y[, "time"]))
+
+  sweep(ll, 2L, offset, if (identical(scale, "time")) "-" else "+")
 }
 
 # ---------------------------------------------------------------------------

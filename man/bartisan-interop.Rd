@@ -45,9 +45,9 @@
 
 \method{sigma}{bartisan_fit}(object, ...)
 
-\method{loo}{bartisan_fit}(x, ...)
+\method{loo}{bartisan_fit}(x, scale = NULL, ...)
 
-\method{waic}{bartisan_fit}(x, ...)
+\method{waic}{bartisan_fit}(x, scale = NULL, ...)
 
 \method{pp_check}{bartisan_fit}(object, type = "dens_overlay", ndraws = 10, ...)
 
@@ -106,6 +106,14 @@ name of the \pkg{bayesplot} check to run without its \code{ppc_} prefix, so that
 \code{"dens_overlay"} (the default) calls
 \pkgfun{bayesplot}{ppc_dens_overlay}; \pkgfun{bayesplot}{available_ppc}
 lists them.}
+
+\item{scale}{\code{string}; for \code{loo()} and \code{waic()} on a survival fit, the
+measure to report the pointwise densities with respect to: \code{"time"} for the
+density of \eqn{T} and \code{"log_time"} for the density of \eqn{\log T}.
+Default is \code{NULL} to use the family's own, which is \eqn{\log T} for the
+accelerated failure time families and \eqn{T} for \code{\link[=ph]{ph()}}. A fit already on
+the scale named is left alone, so naming one scale for every model in a
+comparison is enough. See Details.}
 
 \item{eta}{for \code{as_draws()}, which columns of the additive predictor to carry
 into the draws array alongside the scalar parameters, given as either a
@@ -194,6 +202,31 @@ score on data the model has not seen is available directly:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{predict(fit, newdata = held_out, type = "density", log = TRUE)
 }\if{html}{\out{</div>}}
+}
+
+\subsection{Comparing Survival Families}{
+
+The accelerated failure time families report the density of \eqn{\log T} and
+\code{\link[=ph]{ph()}} the density of \eqn{T}. Both are correct for the model that produced
+them, and neither is comparable with the other: they differ by the Jacobian of
+the change of variable, so a log score taken across that boundary is off by
+\eqn{\sum \log t} over the events, which runs to thousands of points on a
+sample of any size and can reverse which family looks better.
+
+\code{scale} puts them on one measure. It is not applied on its own initiative,
+because \code{loo()} would then stop reporting the model's own predictive density,
+would no longer agree with \code{log_lik()}, and would silently carry the same
+error into a comparison against a proportional hazards fit from another
+package. It reads the same from either side, since a fit already on the scale
+named is returned untouched:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{loo_compare(list(aft = loo(aft_fit, scale = "time"),
+                 ph = loo(ph_fit, scale = "time")))
+}\if{html}{\out{</div>}}
+
+Censored observations are not adjusted, since a survival probability is a
+probability on either scale. \code{vignette("comparison")} works through the
+comparison and \code{vignette("survival")} through the families.
 
 The seven \verb{ppc_loo_*} checks reweight the replicates towards the
 leave-one-out predictive instead of comparing them with the response

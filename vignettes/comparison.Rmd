@@ -29,6 +29,8 @@ options(digits = 4)
 has_loo <- rlang::is_installed("loo")
 has_rstanarm <- rlang::is_installed("rstanarm")
 has_surv <- rlang::is_installed("survival")
+
+elpd <- function(x) unname(x$estimates["elpd_loo", "Estimate"])
 has_cobalt <- rlang::is_installed("cobalt")
 run <- has_loo
 ```
@@ -43,7 +45,7 @@ With `lm()` we choose which terms enter, whether to add a squared term, and whet
 2.  Which likelihood, meaning which family and link.
 3.  Occasionally, a sampler setting (e.g., the number of trees).
 
-In this guide we will compare those choices using leave-one-out cross-validation. First we'll fit a model to the `rhc` data and read its `loo()` output, including the diagnostics that say when the approximation cannot be trusted and what to do when it cannot. Next we'll compare two sets of variables and then three links, work through the two cases where two log densities are not on the same scale and repair the one of them that can be repaired, and put the forest up against a Bayesian logistic regression. Finally we'll cover how to tune a setting and how to select variables, both of which have a right way and a more tempting wrong one.
+In this guide we will compare those choices using leave-one-out cross-validation. First we'll fit a model to the `rhc` data and read its `loo()` output, including the diagnostics that say when the approximation cannot be trusted and what to do when it cannot. Next we'll compare two sets of variables and then three links, work through the two ways two log densities end up on different scales and repair both, and put the forest up against a Bayesian logistic regression. Finally we'll cover how to tune a setting and how to select variables, both of which have a right way and a more tempting wrong one.
 
 ```{r libs, eval = run}
 library(bartisan)
@@ -94,31 +96,15 @@ sum(score)
 `type = "density"` evaluates the outcome under each posterior draw and averages over the draws before taking the log, which is the same form as one pointwise `elpd_loo` contribution. The two are therefore estimates of the same thing, which the two numbers do not make obvious:
 
 ```{r holdoutscale, eval = run}
-elpd <- loo(full)$estimates["elpd_loo", "Estimate"]
+elpd_total <- loo(full)$estimates["elpd_loo", "Estimate"]
 
-rbind(loo     = c(total = elpd,       n = nrow(rhc),     per_obs = elpd / nrow(rhc)),
+rbind(loo     = c(total = elpd_total, n = nrow(rhc),     per_obs = elpd_total / nrow(rhc)),
       heldout = c(total = sum(score), n = length(score), per_obs = mean(score)))
 ```
 
-The totals differ by a factor of five because they sum different numbers of terms: `loo()` scores every observation and the split scores only the ones held out. Per observation they nearly agree, and the gap that remains is in the direction to expect, since leave-one-out trains on 1499 observations and the split trains on 1200.
+The totals differ by a factor of five because they sum different numbers of terms: `loo()` scores every observation and the split scores only the ones held out. It is the per-observation column that the two can be read against each other, and there they nearly agree. The gap that remains is in the direction to expect, since leave-one-out trains on 1499 observations and the split trains on 1200.
 
-A log score means nothing on its own; it is only ever read against another one. So the use of a held-out score is to put two candidates through the same split:
-
-```{r holdoutcompare, eval = run}
-demographics_train <- bartisan(death ~ rhc + age + sex + race + edu,
-                               data = train, family = binomial())
-
-score_demographics <- predict(demographics_train, newdata = held,
-                              type = "density", log = TRUE)
-
-d <- score - score_demographics
-
-c(elpd_diff = sum(d), se_diff = sqrt(length(d)) * sd(d))
-```
-
-That is the arithmetic `loo_compare()` performs, done by hand: the difference in totals, and a standard error from the spread of the per-observation differences. It reads the same way, and the full model is ahead by a little over two of them.
-
-Note what the split costs. The next section puts the same two models through `loo()` on all 1500 observations and finds the same difference at about six standard errors; this split sees 300 and finds it at two. Holding data out buys a score that owes nothing to an approximation, and pays for it in precision, which is why it is the fallback for when the Pareto diagnostics say leave-one-out cannot be trusted rather than the first thing to reach for.
+That is the whole of what a held-out score gives us on its own, which is not much: a log score has no scale, and the only thing to do with one is put it beside another. The next section does that, first through `loo()` and then through this split.
 
 ## Comparing Two Models (`loo_compare()`)
 
@@ -135,7 +121,36 @@ loo_compare(list(full = loo(full),
 
 The full model predicts better by around six times the standard error of the difference. The standard error is the important half: a difference of many standard errors is clear, and a difference smaller than its own standard error is not evidence of anything.
 
-This is the right way to ask whether a set of variables earns its place, and it is a better question than the one variable importance answers, because it is about prediction rather than about how the forest happened to spend its splits. Here the answer is not in doubt: how sick a patient is on arrival predicts whether they die, and demographics alone do not.
+`p_worse` reports that reading as a probability. It is `pnorm(0, elpd_diff, se_diff)`, the chance that the model on that row is really the worse of the two given how far apart they came out and how precisely the difference is known. The best-ranked model has nothing to be compared against and gets `NA`. Two properties are worth knowing before reading one. Because the models are sorted by `elpd_loo` before it is computed, every reported value is at least .5 by construction, so .5 does not mean "even odds after weighing the evidence" but "the ranking is arbitrary and another sample could reverse it"; and because it comes from the normal approximation behind `se_diff`, it inherits that approximation's failures, which is why *loo* flags them in `diag_diff` and `diag_elpd` when it detects them. Here it is 1.00, and the reading is that a sample like this one would essentially never put the demographic model ahead.
+
+### Totals, Averages, and Why the Convention Is a Total
+
+`elpd_diff` is a difference of *totals*, and the reason is that a log score is additive. Summing it over observations gives a log predictive likelihood, so the difference between two models is a log likelihood ratio: the evidence the sample carries about which model predicts better, in nats. On that reading the total is the quantity with meaning, and it should grow with the sample, because more data is more evidence. It also puts `elpd` on the scale AIC, WAIC and DIC are quoted on, which are likewise totals.
+
+Nothing is lost by preferring the average, because the decision does not depend on the choice. The mean difference and the total differ by a factor of $n$, its standard error differs by the same factor, and the ratio of the two, which is what says whether the difference is real, is identical either way.
+
+What the average is better for is a comparison whose two halves do not sum over the same observations. The section above ran into exactly that: `elpd_loo` totals 1500 terms and the held-out score totals 300, so the totals are not comparable and the per-observation averages are. The same is true of a score quoted across datasets, or across subgroups of different sizes. Within one `loo_compare()` call it never arises, since every model there is scored on the same rows, which is why the convention can afford to be a total.
+
+### The Same Comparison Through the Split
+
+When the Pareto diagnostics say leave-one-out cannot be trusted, this comparison is the one to rebuild on held-out data. Both candidates are fitted to the training half and scored on the observations neither of them saw:
+
+```{r holdoutcompare, eval = run}
+demographics_train <- bartisan(death ~ rhc + age + sex + race + edu,
+                               data = train, family = binomial())
+
+score_demographics <- predict(demographics_train, newdata = held,
+                              type = "density", log = TRUE)
+
+d <- score - score_demographics
+
+c(mean_diff = mean(d), se = sd(d) / sqrt(length(d)),
+  ratio = mean(d) / (sd(d) / sqrt(length(d))))
+```
+
+That is `loo_compare()`'s arithmetic done by hand and quoted per observation: the average difference in log score, its standard error, and the ratio that decides whether to believe it. The full model is ahead by a little over two standard errors rather than six, which is what the split costs. It sees 300 observations where `loo()` sees 1500, and the precision of a difference goes as the square root of the count.
+
+This is the right way to ask whether a set of variables earns its place, and it is a better question than the one variable importance answers, because it is about prediction rather than about how the forest happened to spend its splits. Here the answer is not in doubt by either route: how sick a patient is on arrival predicts whether they die, and demographics alone do not.
 
 ## Comparing Links (`family`)
 
@@ -159,7 +174,7 @@ That is a useful negative result and worth reporting as one. It is also the usua
 
 ## The Scale of the Log Density
 
-`loo()` is built on the pointwise log density of each observation, so comparing two models by it assumes both densities are taken with respect to the same measure. That is usually automatic. Two things break it, and only one of them has a fix.
+`loo()` is built on the pointwise log density of each observation, so comparing two models by it assumes both densities are taken with respect to the same measure. That is usually automatic. Two different things break it, and each is repaired by a constant added to every pointwise contribution.
 
 ### A Change of Variable (`ph()` Against an AFT Family)
 
@@ -183,33 +198,32 @@ The accelerated failure time model appears to win by thousands of points, which 
 
 Writing $Y = \log T$, the density of $T$ is $f_T(t) = f_Y(\log t) / t$, so the log density on the $T$ scale is $\log f_Y(\log t) - \log t$. Subtracting $\log t$ from each of the accelerated failure time model's pointwise contributions is the whole of the correction, and it applies to events only: a censored observation contributes a survival probability, which is a probability on either scale and carries no measure to change.
 
+`scale` asks `loo()` for it. Naming one measure for every model in the comparison is enough, because a fit already on the scale named is returned untouched:
+
 ```{r survjacobian, eval = run && has_surv}
-events <- rhc$death == 1
-jacobian <- ifelse(events, log(rhc$days), 0)
-
-ll_aft <- rstantools::log_lik(aft)
-
-aft_on_t <- loo(sweep(ll_aft, 2L, jacobian, "-"))
-
-loo_compare(list(aft = aft_on_t, ph = loo(prop_haz)))
+loo_compare(list(aft = loo(aft, scale = "time"),
+                 ph = loo(prop_haz, scale = "time")))
 ```
 
 The ordering reverses. Read on the scale they share, the two are a hundred-odd points apart rather than three thousand, and it is the proportional hazards model that predicts these times better.
 
-Because the correction is a constant per observation, it shifts the total by exactly the sum of those constants, and it leaves the importance weights alone, since a constant cancels from the ratio they are built on. So the total can be checked without recomputing anything:
+The correction is not applied without being asked for, because `loo()` would then stop reporting the model's own predictive density: it would no longer agree with `log_lik()`, and a comparison against a proportional hazards fit from some other package would quietly take on the error the correction exists to remove.
 
-```{r survshortcut, eval = run && has_surv}
-c(corrected = aft_on_t$estimates["elpd_loo", "Estimate"],
-  shortcut  = loo(aft)$estimates["elpd_loo", "Estimate"] - sum(jacobian))
+Which of the two scales is named does not matter, since a constant per observation cancels from a difference. Asking for `"log_time"` moves both totals and leaves the gap where it was:
+
+```{r survboth, eval = run && has_surv}
+c(on_time = elpd(loo(prop_haz, scale = "time")) - elpd(loo(aft, scale = "time")),
+  on_log_time = elpd(loo(prop_haz, scale = "log_time")) -
+    elpd(loo(aft, scale = "log_time")))
 ```
 
-The everyday version of this mistake takes the same repair. A model of `log(y)` reports $\log f_Y(\log y)$, so subtracting $\log y$ from each of its pointwise contributions puts it on the scale of a model of `y` and makes the two comparable.
+The everyday version of this mistake takes the same repair by hand. A model of `log(y)` reports $\log f_Y(\log y)$, so subtracting $\log y$ from each of its pointwise contributions, with `loo(sweep(log_lik(fit), 2, log(y), "-"))`, puts it on the scale of a model of `y`.
 
 There is also a way to sidestep the correction rather than apply it. Survival at a horizon is a probability under every family, so comparing fits on `predict(type = "survival")` needs no Jacobian at all; `vignette("survival")` gives that route, along with the same correction written for a held-out log score instead of for `loo()`.
 
-### A Different Measure (`gaussian()` Against `tweedie()`)
+### A Point Mass Against a Density (`gaussian()` Against `tweedie()`)
 
-Some pairs cannot be reconciled at all. `tweedie()` places a point mass at zero and a density on the positive half-line; `gaussian()` places a density on the whole line. Earnings in the `lalonde` data are the case this comes up in, since a quarter of the sample earned exactly nothing.
+The second break is not a transformation. `tweedie()` places a point mass at zero and a density on the positive half-line; `gaussian()` places a density on the whole line. Earnings in the `lalonde` data are the case this comes up in, since a quarter of the sample earned exactly nothing.
 
 ```{r tweediefits, eval = run && has_cobalt}
 data("lalonde", package = "cobalt")
@@ -243,9 +257,40 @@ c(gaussian = predict(normal, newdata = lalonde[zero, ][1, ], type = "density"),
   tweedie  = predict(compound, newdata = lalonde[zero, ][1, ], type = "density"))
 ```
 
-The tweedie's value is a probability, bounded by one. The gaussian's is a density, in units of one over dollars. Adding them to log densities from the positive observations gives a number in no units at all, and no constant relates the two, so there is nothing to correct: the restricted comparison above is the valid one, and on the observations both models describe the same way, neither predicts better.
+The tweedie's value is a probability, bounded by one. The gaussian's is a density, in units of one over dollars. Adding either to log densities from the positive observations gives a total in no units at all, and the sign that something is wrong is that the total then depends on what the outcome is measured in. Refitting both on earnings in thousands moves the gap by hundreds of points without changing a single fact about the data:
 
-That leaves the real question, which is whether the outcome needs a point mass at zero, and which is about the shape of the predictive distribution rather than its density at a point. A posterior predictive check answers it directly:
+```{r tweedieunits, eval = run && has_cobalt}
+thousands <- transform(lalonde, re78 = re78 / 1000,
+                       re74 = re74 / 1000, re75 = re75 / 1000)
+
+set.seed(2026)
+normal_k <- bartisan(earnings, data = thousands, family = gaussian())
+
+set.seed(2026)
+compound_k <- bartisan(earnings, data = thousands, family = tweedie())
+
+c(dollars   = elpd(loo(compound))   - elpd(loo(normal)),
+  thousands = elpd(loo(compound_k)) - elpd(loo(normal_k)))
+```
+
+A density has units of one over the outcome, so dividing earnings by a thousand multiplies every gaussian density by a thousand, and all 614 of them move together. The tweedie's positive observations move with them, but its 143 atoms do not, because a probability has no units to change. The gap shifts by the difference between them, $143 \log 1000 \approx 988$, up to the noise in refitting.
+
+That also says how to repair it. The atom needs to be a density before it can be added to densities, and a probability becomes a density when it is spread over the width the outcome is recorded to: earnings to the nearest dollar put $P(Y = 0)$ over an interval one dollar wide, so the density there is $P(Y = 0) / \delta$ and the log density is $\log P(Y = 0) - \log \delta$. That is a constant per observation, exactly like the Jacobian above, and it makes the comparison well posed:
+
+```{r tweediefix, eval = run && has_cobalt}
+on_grid <- function(fit, resolution) {
+  elpd(loo(fit)) - sum(zero) * log(resolution)
+}
+
+c(dollars   = on_grid(compound, 1)     - elpd(loo(normal)),
+  thousands = on_grid(compound_k, .001) - elpd(loo(normal_k)))
+```
+
+The two now agree, and the tweedie is ahead by the same amount whichever units the outcome was recorded in. In dollars the correction happens to be zero, since $\log 1 = 0$, which is why the raw comparison looked reasonable and was right by coincidence rather than by construction.
+
+Note what $\delta$ is and is not. It is a fact about the data, the resolution the outcome was recorded at, and it has to be supplied because no fitted model knows it; it is not a tuning knob, and choosing it to favor a model is choosing an answer. Where the outcome really is continuous and the zeros are exact rather than rounded, there is no $\delta$ to use and the comparison stays ill posed, which is the case the restricted comparison above covers instead.
+
+Even with the correction in hand, an `elpd` is a blunt way to settle whether the outcome needs a point mass, because it answers with one number where the question is about the shape of the predictive distribution. A posterior predictive check answers it directly:
 
 ```{r tweediecheck, eval = run && has_cobalt}
 zero_share <- function(y) mean(y == 0)
@@ -255,9 +300,9 @@ c(observed = zero_share(lalonde$re78),
   tweedie  = mean(apply(rstantools::posterior_predict(compound), 1, zero_share)))
 ```
 
-A gaussian fit never produces an exact zero, and about a quarter of these outcomes are exactly zero. That settles the choice, and it settles it without an `elpd` anywhere in the argument. `vignette("families")` covers the families that carry a point mass and `vignette("diagnostics")` covers the checks.
+A gaussian fit never produces an exact zero, and about a quarter of these outcomes are exactly zero. `vignette("families")` covers the families that carry a point mass and `vignette("diagnostics")` covers the checks.
 
-The general rule behind both halves of this section is that `loo()` compares models fitted to the same outcome on the same scale. A transformation of the outcome can be undone with its Jacobian; a change in what the density is taken with respect to cannot.
+The rule behind both halves of this section is that `loo()` compares models whose densities are taken with respect to the same measure. A transformation of the outcome is undone with its Jacobian, and a point mass is reconciled with a density by the resolution the outcome is recorded at. Both are a constant added to each pointwise contribution, and in both cases the tell that one is needed is that the comparison moves when something about the outcome that should not matter changes.
 
 ## Comparing Against a Bayesian GLM
 

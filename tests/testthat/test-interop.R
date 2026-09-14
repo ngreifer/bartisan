@@ -704,3 +704,62 @@ test_that("the binned and calibration checks are passed probabilities", {
   expect_s3_class(reps, "ggplot")
   expect_true(all(reps[["data"]][["value"]] %in% c(0, 1)))
 })
+
+# An accelerated failure time family reports the density of log(T) and `ph()`
+# the density of T, so a log score taken across that boundary is off by the
+# Jacobian, by thousands of points, and the ordering it produces can be the
+# wrong way round. `scale` puts both on one measure.
+test_that("loo(scale=) puts the survival families on one measure", {
+  skip_on_cran()
+  skip_if_not_installed("loo")
+  skip_if_not_installed("survival")
+
+  d <- sim_x(n = 150L, p = 3L, seed = 81L)
+  d$time <- stats::rexp(nrow(d), rate = exp(-1 - d$x1))
+  d$status <- stats::rbinom(nrow(d), 1L, 0.7)
+
+  f <- survival::Surv(time, status) ~ x1 + x2 + x3
+  ctrl <- quick_control(num_trees = 5L, num_burn = 60L, num_draws = 100L)
+
+  aft <- bartisan(f, d, family = weibull_aft(), control = ctrl)
+  prop_haz <- bartisan(f, d, family = ph(), control = ctrl)
+
+  elpd <- function(x) unname(x[["estimates"]]["elpd_loo", "Estimate"])
+  quiet <- function(e) suppressWarnings(suppressMessages(e))
+
+  jacobian <- sum(d$status * log(d$time))
+
+  # The correction is the Jacobian, on events only.
+  expect_equal(elpd(quiet(loo::loo(aft, scale = "time"))),
+               elpd(quiet(loo::loo(aft))) - jacobian)
+
+  expect_equal(elpd(quiet(loo::loo(prop_haz, scale = "log_time"))),
+               elpd(quiet(loo::loo(prop_haz))) + jacobian)
+
+  # A fit already on the scale named is returned untouched, which is what lets
+  # one `scale` be named for every model in a comparison.
+  expect_equal(elpd(quiet(loo::loo(aft, scale = "log_time"))),
+               elpd(quiet(loo::loo(aft))))
+
+  expect_equal(elpd(quiet(loo::loo(prop_haz, scale = "time"))),
+               elpd(quiet(loo::loo(prop_haz))))
+
+  # And the comparison does not depend on which of the two scales is chosen,
+  # since a constant per observation cancels from the difference.
+  on_time <- elpd(quiet(loo::loo(prop_haz, scale = "time"))) -
+    elpd(quiet(loo::loo(aft, scale = "time")))
+
+  on_log <- elpd(quiet(loo::loo(prop_haz, scale = "log_time"))) -
+    elpd(quiet(loo::loo(aft, scale = "log_time")))
+
+  expect_equal(on_time, on_log)
+
+  # `waic()` takes it too, and a family with only one scale rejects it.
+  expect_s3_class(quiet(loo::waic(aft, scale = "time")), "waic")
+
+  gaussian_fit <- bartisan(y ~ ., sim_x(n = 120L, p = 2L, seed = 82L) |>
+                             transform(y = stats::rnorm(120L)),
+                           family = stats::gaussian(), control = ctrl)
+
+  expect_error(loo::loo(gaussian_fit, scale = "time"), "names the measure")
+})
