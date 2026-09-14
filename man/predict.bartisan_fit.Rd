@@ -200,7 +200,7 @@ what a standardized quantity is for, are unaffected.
 \code{type = "density"} returns \code{NaN} for an observation whose density is
 undefined at any of the draws, which happens when a link the package does not
 compile has been composed onto the family's own scale and its inverse does not
-cover the whole additive predictor (e.g., \code{Gamma("inverse")}, which gives a
+cover the whole additive predictor (e.g., \code{poisson("identity")}, which gives a
 positive mean only where the predictor is positive). A saved draw can imply a
 parameter outside the family's support at a predictor the forest extrapolates
 to, even though \code{\link[=bartisan]{bartisan()}} warns about such a link at fit time and rejects

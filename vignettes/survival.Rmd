@@ -119,7 +119,7 @@ Censoring is assumed **independent** of the event time given the covariates, as 
 knitr::kable(data.frame(
   Family = c("`weibull_aft()`", "`loglogistic_aft()`", "`lognormal_aft()`",
              "`ph()`", "`dpm_aft()`"),
-  Model = c("$\\log T = \\eta + \\sigma\\epsilon$, $\\epsilon$ standard Gumbel",
+  Model = c("$\\log T = \\eta + \\sigma\\epsilon$, $\\epsilon$ smallest extreme value",
             "the same with $\\epsilon$ standard logistic",
             "the same with $\\epsilon$ standard normal",
             "$\\lambda(t \\mid x) = \\lambda_0(t)\\,e^{r(x)}$",
@@ -470,7 +470,7 @@ ggplot(sw, aes(censor, s_rmse, colour = family)) +
 
 The degradation is gentle up to about half the observations censored (`ph()` goes from .044 to .055), which is the usual reassurance about likelihood-based survival analysis: a censored observation is not a missing one, since it contributes $S(t)$ and that is real information. Beyond half, the curves steepen.
 
-**One line does not behave**, and it is worth understanding rather than passing over. `weibull_aft()` is the *worst* family in the panel with no censoring at all, at .097, and it gets **better** as censoring increases, reaching .072 at 70%. Everything else degrades monotonically. The likely reason is that this truth has a heavy, polynomial tail, which a Gumbel error in log time cannot represent; with no censoring the fit is dragged by observed times far out in that tail, and censoring truncates exactly the observations it cannot accommodate. Censoring is protecting a misspecified model from the part of the distribution it gets wrong. That is a caution about reading a fit's apparent quality off a heavily censored sample, not a reason to want censoring.
+**One line does not behave**, and it is worth understanding rather than passing over. `weibull_aft()` is the *worst* family in the panel with no censoring at all, at .097, and it gets **better** as censoring increases, reaching .072 at 70%. Everything else degrades monotonically. The likely reason is that this truth has a heavy, polynomial tail, which a smallest extreme value error in log time cannot represent; with no censoring the fit is dragged by observed times far out in that tail, and censoring truncates exactly the observations it cannot accommodate. Censoring is protecting a misspecified model from the part of the distribution it gets wrong. That is a caution about reading a fit's apparent quality off a heavily censored sample, not a reason to want censoring.
 
 One expectation the sweep did not bear out: we might have expected `dpm_aft()` to suffer most under heavy censoring, since it estimates a whole density from log-times that are increasingly imputed rather than observed. It does not. Over the sweep its error grows by a factor of 1.4, against 1.5 for both `ph()` and `loglogistic_aft()`. Its advantage is not fragile in the way the extra machinery suggests.
 

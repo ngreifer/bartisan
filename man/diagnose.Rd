@@ -2,12 +2,23 @@
 % Please edit documentation in R/diagnose.R
 \name{diagnose}
 \alias{diagnose}
+\alias{diagnose.default}
+\alias{diagnose.bartisan_fit}
+\alias{diagnose.bartisan_effect}
 \title{Check whether a fit converged and mixed}
 \usage{
-diagnose(object, rhat_max = 1.01, ess_min = 400)
+diagnose(object, rhat_max = 1.01, ess_min = 400, ...)
+
+\method{diagnose}{default}(object, rhat_max = 1.01, ess_min = 400, ...)
+
+\method{diagnose}{bartisan_fit}(object, rhat_max = 1.01, ess_min = 400, ...)
+
+\method{diagnose}{bartisan_effect}(object, rhat_max = 1.01, ess_min = 400, ...)
 }
 \arguments{
-\item{object}{a \verb{<bartisan_fit>} object; the output of a call to \code{\link[=bartisan]{bartisan()}}.}
+\item{object}{a \verb{<bartisan_fit>} object, the output of a call to \code{\link[=bartisan]{bartisan()}},
+or a \verb{<bartisan_effect>} object, the output of a call to
+\code{\link[=estimate_effect]{estimate_effect()}}.}
 
 \item{rhat_max}{\code{numeric}; the largest R-hat treated as acceptable. Default
 is 1.01, the threshold of Vehtari et al. (2021); 1.1 was the older
@@ -18,6 +29,8 @@ acceptable, for the bulk and the tail alike. Default is 400, Vehtari et
 al.'s recommendation of 100 per chain at four chains, which is about what it
 takes for the Monte Carlo error of an interval endpoint to be small next to
 the posterior's own width.}
+
+\item{...}{ignored.}
 }
 \value{
 A \verb{<bartisan_diagnosis>} object, a list with a \code{print()} method that shows the
@@ -33,6 +46,26 @@ of the draws kept.}
 everything passed.}
 \item{\code{chains},\code{draws}}{how many chains, and how many draws were kept in
 total.}
+}
+\subsection{Diagnosing an Estimand}{
+
+Called on the output of \code{\link[=estimate_effect]{estimate_effect()}}, the table has one row per
+reported quantity rather than one per sampled parameter, and everything else
+reads the same way.
+
+It is worth doing rather than inferred from the fit's own table, because the
+two can disagree. An estimand is a contrast, and a contrast can mix badly
+where the function it is a contrast of mixes well: under the default
+splitting prior a draw that gives the treatment no rule puts the contrast at
+exactly zero, and the sampler can stay there for a long run while the other
+predictors keep the fitted function moving. Nothing in the fit's table shows
+that, since no parameter the sampler draws is stuck. The check reports the
+share of draws sitting at the atom when there is one.
+
+This complements the fit's diagnosis rather than replacing it. Chains that
+have settled on different fitted functions can still agree about an average
+over them, so an estimand that looks converged is not on its own evidence
+that the sampler did its job.
 }
 }
 \description{

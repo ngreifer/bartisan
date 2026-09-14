@@ -221,7 +221,7 @@ The supported families and links are:\tabular{llll}{
    \code{binomial()} \tab \code{logit}, \code{probit}, \code{cloglog} \tab 1 \tab none \cr
    \code{poisson()} \tab \code{log} \tab 1 \tab none \cr
    \code{negbin()} \tab \code{log} \tab 1 \tab dispersion \cr
-   \code{Gamma("log")} \tab \code{log} (also \code{inverse}, \code{identity}, any link) \tab 1 \tab shape \cr
+   \code{Gamma("log")} \tab \code{log}; any other link is ignored \tab 1 \tab shape \cr
    \code{ordinal()} \tab \code{logit}, \code{probit}, \code{cloglog} \tab 1 \tab cutpoints \cr
    \code{multinomial()} \tab \code{logit}, \code{probit} \tab one per category, or per non-reference level \tab latent covariance, for the probit link \cr
    \code{weibull_aft()}, \code{loglogistic_aft()}, \code{lognormal_aft()} \tab none \tab 1 \tab scale \cr
@@ -243,22 +243,26 @@ Nuisance parameters are drawn alongside the trees and reported in \code{fit$aux}
 \subsection{Links the Engine Does Not Compile}{
 
 The links listed above are the ones the sampler evaluates in compiled code.
-Any other link is accepted for \code{gaussian()}, \code{binomial()}, \code{poisson()},
-\code{Beta()} and \code{\link[stats:Gamma]{stats::Gamma()}}, and applied from R by composing the caller's
-inverse link with the family's own, with the chain rule carrying the
-derivatives back. So \code{binomial("cauchit")} works, as does any link object of
-the kind \code{\link[stats:make.link]{stats::make.link()}} returns. It costs a call into R for every leaf
-the sampler visits, and the leaf prior scale is calibrated for the compiled
-link. Note that \code{negbin()} is the exception among the single-predictor
-families: it takes \code{"log"} alone, so a link given to it is an error rather
-than a composition.
+Any other link is accepted for \code{gaussian()}, \code{binomial()}, \code{poisson()} and
+\code{Beta()}, and applied from R by composing the caller's inverse link with the
+family's own, with the chain rule carrying the derivatives back. So
+\code{binomial("cauchit")} works, as does any link object of the kind
+\code{\link[stats:make.link]{stats::make.link()}} returns. It costs a call into R for every leaf the
+sampler visits, and the leaf prior scale is calibrated for the compiled link.
 
-A link whose inverse has a restricted range (\code{Gamma("inverse")},
-\code{Gamma("identity")}, \code{poisson("identity")}) will give non-finite densities
-for some predictors. Those proposals are rejected rather than breaking the
-chain, but they are wasted work and the fit is worse for it, so \code{bartisan()}
-says so when it starts. Prefer links whose inverse is defined on the whole
-line.
+Two single-predictor families are exceptions. \code{negbin()} takes \code{"log"} alone,
+so a link given to it is an error rather than a composition. \code{\link[stats:Gamma]{stats::Gamma()}}
+accepts any link and fits none of them but \code{"log"}: every other link is
+dropped with a message, because the ones base R offers have inverses that go
+non-positive over part of the line and the additive predictor is
+unconstrained. \code{custom_family()} is the route to a gamma response on another
+link.
+
+A composed link whose inverse has a restricted range (\code{poisson("identity")},
+\code{poisson("sqrt")}) will give non-finite densities for some predictors. Those
+proposals are rejected rather than breaking the chain, but they are wasted
+work and the fit is worse for it, so \code{bartisan()} says so when it starts.
+Prefer links whose inverse is defined on the whole line.
 
 The families with more than one additive predictor, or whose link enters
 somewhere other than a single mean (\code{ordinal()}, \code{multinomial()}, the
@@ -378,7 +382,8 @@ whose inverse has a restricted range is reported when the fit starts.
 The accelerated failure time families expect a right-censored response,
 supplied either as a \pkgfun{survival}{Surv} object or as a two-column matrix
 of times and event indicators. They model \eqn{\log T = \eta + \sigma\epsilon}
-with \eqn{\epsilon} standard Gumbel, logistic or normal respectively, giving
+with \eqn{\epsilon} a standard smallest extreme value, logistic or normal
+variate respectively, giving
 Weibull, log-logistic and log-normal survival times.
 
 \strong{A contrast in the predictor is a log time ratio in all of them, and in
@@ -393,7 +398,7 @@ between them.
 
 \code{weibull_aft()} is also the one family whose predictor carries a log \emph{hazard}
 ratio, of \eqn{-\Delta\eta/\sigma}, alongside its log time ratio. That is a
-property of the Gumbel error rather than of the structural part it shares with
+property of the smallest extreme value error rather than of the structural part it shares with
 the other three: it is the only error making an accelerated failure time model
 a proportional hazards model as well.
 

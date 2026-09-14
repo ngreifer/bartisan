@@ -152,3 +152,59 @@ test_that("the advice follows which statistic failed, not merely that one did", 
   expect_length(diagnosis_advice(data.frame(check = "rhat", status = "ok",
                                             detail = "")), 0L)
 })
+
+# An estimand is a contrast, and a contrast can mix badly where the function it
+# is a contrast of mixes well. Under the default splitting prior a draw that
+# gives the treatment no rule puts the contrast at exactly zero, and the sampler
+# can stay there for a long run while the other predictors keep the fitted
+# function moving, so the fit's own table shows nothing wrong.
+test_that("diagnose() reports on the estimand, not only on the fit", {
+  skip_on_cran()
+
+  d <- sim_x(n = 250L, p = 3L, seed = 91L)
+  d$z <- stats::rbinom(nrow(d), 1L, 0.5)
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1 + 0.7 * d$z))
+
+  fit <- bartisan(y ~ ., d, family = stats::binomial(), chains = 2L,
+                  control = quick_control(num_trees = 10L, num_burn = 100L,
+                                          num_draws = 200L))
+
+  eff <- estimate_effect(fit, treatment = "z")
+  dg <- diagnose(eff)
+
+  expect_s3_class(dg, "bartisan_diagnosis")
+  expect_identical(nrow(dg[["table"]]), 1L)
+  expect_identical(dg[["chains"]], 2L)
+  expect_identical(dg[["draws"]], 400L)
+
+  # The row is the reported contrast, and the statistics are real numbers rather
+  # than the fit's copied over.
+  expect_identical(dg[["table"]][["quantity"]], names(attr(eff, "draws")))
+  expect_true(is.finite(dg[["table"]][["ess_bulk"]]))
+  expect_true(is.finite(dg[["table"]][["rhat"]]))
+
+  fit_diag <- diagnose(fit)
+  expect_false(identical(dg[["table"]][["ess_bulk"]],
+                         fit_diag[["table"]][["ess_bulk"]]))
+
+  # `by` gives one row per reported group, and `CATE` folds the units the way
+  # the fit's table folds observations rather than printing one row each.
+  by_rows <- diagnose(estimate_effect(fit, treatment = "z", by = ~ x3 > 0.5))
+  expect_identical(nrow(by_rows[["table"]]), 2L)
+
+  cate <- diagnose(estimate_effect(fit, treatment = "z", estimand = "CATE"))
+  expect_identical(nrow(cate[["table"]]), 1L)
+  expect_match(cate[["table"]][["quantity"]], "worst 5% of 250 units",
+               fixed = TRUE)
+
+  # The atom is the failure the fit cannot show, so it is named when present.
+  stuck <- mean(attr(eff, "draws")[[1L]] == 0)
+
+  if (stuck > 0.01) {
+    expect_true("atom" %in% dg[["checks"]][["check"]])
+    expect_match(paste(dg[["advice"]], collapse = " "), "atom at zero")
+  }
+
+  expect_error(diagnose(1), "must be a fit")
+  expect_error(diagnose(list()), "must be a fit")
+})

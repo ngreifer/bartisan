@@ -131,11 +131,26 @@ distribution and in the tails.
 
 Read the rows that correspond to quantities you will report. `eta.eta` is the
 fitted function and appears twice, once averaged over the observations and once
-over the worst 5% of them: the average row governs an average effect and the
-worst-5% row governs a prediction for one observation. Forests mix slowly on
-their fitted values, so a figure above 1.01 on the worst-5% row is ordinary
-rather than alarming; `vignette("diagnostics")` explains what to do about it and
-when to worry.
+over the worst 5% of them; the second is what governs a prediction for one
+observation. Forests mix slowly on their fitted values, so a figure above 1.01 on
+the worst-5% row is ordinary rather than alarming; `vignette("diagnostics")`
+explains what to do about it and when to worry.
+
+No row here governs an effect, though, and the average row in particular should
+not be read as if it did. An effect is a contrast, and a contrast can mix badly
+where the function it is a contrast of mixes well. `diagnose()` takes the
+estimand itself when there is one to take:
+
+```{r diagnose_effect}
+diagnose(estimate_effect(fit, treatment = "rhc"))
+```
+
+Far fewer effective draws than the table above would suggest, and the last check
+says why: the splitting prior gives `rhc` no rule in some draws, which puts the
+contrast at exactly zero and can hold it there for a long run. Nothing in the
+fit's own table shows it, because the other predictors keep the fitted function
+moving the whole time. `vignette("causal")` covers the settings that remove the
+atom when an effect is what is being reported.
 
 The table is in `diagnose(fit)$table` if what you want is the numbers rather
 than the report.

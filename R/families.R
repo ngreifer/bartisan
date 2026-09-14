@@ -133,7 +133,7 @@
 #' | `binomial()` | `logit`, `probit`, `cloglog` | 1 | none |
 #' | `poisson()` | `log` | 1 | none |
 #' | `negbin()` | `log` | 1 | dispersion |
-#' | `Gamma("log")` | `log` (also `inverse`, `identity`, any link) | 1 | shape |
+#' | `Gamma("log")` | `log`; any other link is ignored | 1 | shape |
 #' | `ordinal()` | `logit`, `probit`, `cloglog` | 1 | cutpoints |
 #' | `multinomial()` | `logit`, `probit` | one per category, or per non-reference level | latent covariance, for the probit link |
 #' | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
@@ -154,22 +154,26 @@
 #' ## Links the Engine Does Not Compile
 #'
 #' The links listed above are the ones the sampler evaluates in compiled code.
-#' Any other link is accepted for `gaussian()`, `binomial()`, `poisson()`,
-#' `Beta()` and [stats::Gamma()], and applied from R by composing the caller's
-#' inverse link with the family's own, with the chain rule carrying the
-#' derivatives back. So `binomial("cauchit")` works, as does any link object of
-#' the kind [stats::make.link()] returns. It costs a call into R for every leaf
-#' the sampler visits, and the leaf prior scale is calibrated for the compiled
-#' link. Note that `negbin()` is the exception among the single-predictor
-#' families: it takes `"log"` alone, so a link given to it is an error rather
-#' than a composition.
+#' Any other link is accepted for `gaussian()`, `binomial()`, `poisson()` and
+#' `Beta()`, and applied from R by composing the caller's inverse link with the
+#' family's own, with the chain rule carrying the derivatives back. So
+#' `binomial("cauchit")` works, as does any link object of the kind
+#' [stats::make.link()] returns. It costs a call into R for every leaf the
+#' sampler visits, and the leaf prior scale is calibrated for the compiled link.
 #'
-#' A link whose inverse has a restricted range (`Gamma("inverse")`,
-#' `Gamma("identity")`, `poisson("identity")`) will give non-finite densities
-#' for some predictors. Those proposals are rejected rather than breaking the
-#' chain, but they are wasted work and the fit is worse for it, so `bartisan()`
-#' says so when it starts. Prefer links whose inverse is defined on the whole
-#' line.
+#' Two single-predictor families are exceptions. `negbin()` takes `"log"` alone,
+#' so a link given to it is an error rather than a composition. [stats::Gamma()]
+#' accepts any link and fits none of them but `"log"`: every other link is
+#' dropped with a message, because the ones base R offers have inverses that go
+#' non-positive over part of the line and the additive predictor is
+#' unconstrained. `custom_family()` is the route to a gamma response on another
+#' link.
+#'
+#' A composed link whose inverse has a restricted range (`poisson("identity")`,
+#' `poisson("sqrt")`) will give non-finite densities for some predictors. Those
+#' proposals are rejected rather than breaking the chain, but they are wasted
+#' work and the fit is worse for it, so `bartisan()` says so when it starts.
+#' Prefer links whose inverse is defined on the whole line.
 #'
 #' The families with more than one additive predictor, or whose link enters
 #' somewhere other than a single mean (`ordinal()`, `multinomial()`, the
@@ -287,7 +291,8 @@
 #' The accelerated failure time families expect a right-censored response,
 #' supplied either as a \pkgfun{survival}{Surv} object or as a two-column matrix
 #' of times and event indicators. They model \eqn{\log T = \eta + \sigma\epsilon}
-#' with \eqn{\epsilon} standard Gumbel, logistic or normal respectively, giving
+#' with \eqn{\epsilon} a standard smallest extreme value, logistic or normal
+#' variate respectively, giving
 #' Weibull, log-logistic and log-normal survival times.
 #'
 #' **A contrast in the predictor is a log time ratio in all of them, and in
@@ -302,7 +307,7 @@
 #'
 #' `weibull_aft()` is also the one family whose predictor carries a log *hazard*
 #' ratio, of \eqn{-\Delta\eta/\sigma}, alongside its log time ratio. That is a
-#' property of the Gumbel error rather than of the structural part it shares with
+#' property of the smallest extreme value error rather than of the structural part it shares with
 #' the other three: it is the only error making an accelerated failure time model
 #' a proportional hazards model as well.
 #'
@@ -1067,8 +1072,9 @@ default_family <- function(y, weights = NULL) {
 
 # Two levels, or numeric zeros and ones -- the responses for which a binomial
 # model is the only sensible reading. A numeric response with two values that
-# are not zero and one is left to the Gaussian default, since treating `c(1, 2)`
-# as a success indicator would be a guess about which value is the success.
+# are not zero and one is left to the numeric default, `dpm()`, since treating
+# `c(1, 2)` as a success indicator would be a guess about which value is the
+# success.
 is_binary <- function(y) {
   if (is.logical(y)) {
     return(TRUE)

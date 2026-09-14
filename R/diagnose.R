@@ -27,7 +27,10 @@
 #' plan in place the pass is spread over the workers, and it reports progress
 #' through \CRANpkg{progressr} the way the sampler does.
 #'
-#' @param object a `<bartisan_fit>` object; the output of a call to [bartisan()].
+#' @param object a `<bartisan_fit>` object, the output of a call to [bartisan()],
+#'   or a `<bartisan_effect>` object, the output of a call to
+#'   [estimate_effect()].
+#' @param ... ignored.
 #' @param rhat_max `numeric`; the largest R-hat treated as acceptable. Default
 #'   is 1.01, the threshold of Vehtari et al. (2021); 1.1 was the older
 #'   convention and is now considered too permissive.
@@ -52,6 +55,26 @@
 #'   \item{`chains`,`draws`}{how many chains, and how many draws were kept in
 #'     total.}
 #' }
+#'
+#' ## Diagnosing an Estimand
+#'
+#' Called on the output of [estimate_effect()], the table has one row per
+#' reported quantity rather than one per sampled parameter, and everything else
+#' reads the same way.
+#'
+#' It is worth doing rather than inferred from the fit's own table, because the
+#' two can disagree. An estimand is a contrast, and a contrast can mix badly
+#' where the function it is a contrast of mixes well: under the default
+#' splitting prior a draw that gives the treatment no rule puts the contrast at
+#' exactly zero, and the sampler can stay there for a long run while the other
+#' predictors keep the fitted function moving. Nothing in the fit's table shows
+#' that, since no parameter the sampler draws is stuck. The check reports the
+#' share of draws sitting at the atom when there is one.
+#'
+#' This complements the fit's diagnosis rather than replacing it. Chains that
+#' have settled on different fitted functions can still agree about an average
+#' over them, so an estimand that looks converged is not on its own evidence
+#' that the sampler did its job.
 #'
 #' @details
 #' ## What Is Reported
@@ -209,11 +232,20 @@
 #' diagnose(fit, ess_min = 1000)
 #'
 #' @export
-diagnose <- function(object, rhat_max = 1.01, ess_min = 400) {
+diagnose <- function(object, rhat_max = 1.01, ess_min = 400, ...) {
+  UseMethod("diagnose")
+}
 
-  if (!inherits(object, "bartisan_fit")) {
-    arg::err("{.arg object} must be a fit from {.fn bartisan}")
-  }
+#' @rdname diagnose
+#' @export
+diagnose.default <- function(object, rhat_max = 1.01, ess_min = 400, ...) {
+  arg::err("{.arg object} must be a fit from {.fn bartisan} or the output of
+            {.fn estimate_effect}")
+}
+
+#' @rdname diagnose
+#' @export
+diagnose.bartisan_fit <- function(object, rhat_max = 1.01, ess_min = 400, ...) {
 
   arg::arg_number(rhat_max)
   arg::arg_gte(rhat_max, 1)
@@ -242,6 +274,101 @@ diagnose <- function(object, rhat_max = 1.01, ess_min = 400) {
               advice = diagnosis_advice(checks, object[["control"]]),
               chains = chains,
               draws = draws,
+              rhat_max = rhat_max,
+              ess_min = ess_min)
+
+  class(out) <- "bartisan_diagnosis"
+  out
+}
+
+#' @rdname diagnose
+#' @export
+diagnose.bartisan_effect <- function(object, rhat_max = 1.01, ess_min = 400,
+                                     ...) {
+
+  arg::arg_number(rhat_max)
+  arg::arg_gte(rhat_max, 1)
+  arg::arg_number(ess_min)
+  arg::arg_gte(ess_min, 1)
+
+  draws <- attr(object, "draws")
+
+  if (is_null(draws)) {
+    arg::err(c("This effect carries no posterior draws to diagnose.",
+               i = "It was not produced by {.fn estimate_effect}, or the draws
+                    were dropped."))
+  }
+
+  chains <- attr(object, "chains") %or% 1L
+
+  # A vector per reported quantity, except under `estimand = "CATE"`, where it
+  # is one column per unit and the reduction below is the one the fit's own
+  # table uses over observations.
+  width <- function(d) if (is.matrix(d)) ncol(d) else 1L
+  depth <- function(d) if (is.matrix(d)) nrow(d) else length(d)
+
+  n_draws <- depth(draws[[1L]])
+
+  columns <- sum(vapply(draws, width, integer(1L)))
+  ticks <- min(PROGRESS_DIAG_TICKS, max(columns, 0))
+  budget <- progress_budget(diagnosis_reporter(ticks), columns, ticks)
+
+  rows <- lapply(names(draws), function(nm) {
+    d <- draws[[nm]]
+
+    if (!is.matrix(d)) {
+      return(diagnosis_row(nm, as_chains(d, chains), rhat_max))
+    }
+
+    per_column <- diagnosis_columns(d, chains, budget)
+
+    data.frame(quantity = sprintf("%s (worst 5%% of %d units)", nm, ncol(d)),
+               rhat = high(per_column[1L, ]),
+               rhat_late = high(per_column[2L, ]),
+               ess_bulk = low(per_column[3L, ]),
+               ess_tail = low(per_column[4L, ]),
+               ess_frac = low(per_column[3L, ]) / nrow(d),
+               rhat_bad = mean(per_column[1L, ] > rhat_max, na.rm = TRUE),
+               late_bad = mean(per_column[2L, ] > rhat_max, na.rm = TRUE))
+  })
+
+  table <- unrowname(do.call(rbind, rows))
+  checks <- diagnosis_checks(table, chains, n_draws, rhat_max, ess_min)
+  advice <- diagnosis_advice(checks, attr(object, "control"))
+
+  # A contrast under the sparsity prior has an atom at zero: in a draw where the
+  # prior gives the treatment no splitting rule, both potential outcomes are the
+  # same number and the contrast is exactly zero. The sampler can stay there for
+  # long runs, which costs effective draws on the estimand while leaving the
+  # fitted function's own mixing untouched, since the other predictors carry it.
+  # So this is the one failure the fit's table cannot show.
+  stuck <- vapply(draws, function(d) mean(d == 0, na.rm = TRUE), numeric(1L))
+
+  if (any(stuck > 0.01, na.rm = TRUE)) {
+    share <- round(100 * max(stuck, na.rm = TRUE))
+
+    checks <- rbind(
+      checks,
+      data.frame(check = "atom", status = "note",
+                 detail = sprintf(paste("%d%% of draws put the contrast at",
+                                        "exactly zero, which is the splitting",
+                                        "prior dropping the treatment"),
+                                  share)))
+
+    advice <- c(advice, paste(
+      "Note the atom at zero. The splitting prior drops the treatment in some",
+      "draws, and the sampler can stay there for a long run, which costs",
+      "effective draws here without costing them in the fit. If the effect is",
+      "the quantity being reported, `sparsity = FALSE` removes the atom, and",
+      "`bcf()` gives the treatment a forest the prior cannot take it out of;",
+      "`vignette(\"causal\")` covers both."))
+  }
+
+  out <- list(table = table,
+              checks = checks,
+              advice = advice,
+              chains = chains,
+              draws = n_draws,
               rhat_max = rhat_max,
               ess_min = ess_min)
 
@@ -852,10 +979,12 @@ diagnosis_advice <- function(checks, control = NULL) {
     out <- c(out, paste(
       "Note that the chains disagree about the fitted values of individual",
       "observations and not about their average, which is the usual shape of",
-      "this in a forest. An estimand averaged over observations therefore",
-      "carries far more effective draws than the table's worst row does, and",
-      "R-hat for that estimand is worth computing rather than inferring;",
-      "`posterior::as_draws()` hands the draws over for it."))
+      "this in a forest. What that means for an estimand cannot be read off",
+      "this table either way, since an estimand is a contrast and a contrast",
+      "can mix badly where the function it contrasts mixes well. Compute it:",
+      "`diagnose()` takes the output of `estimate_effect()`, and",
+      "`posterior::as_draws()` hands the draws to `posterior::summarise_draws()`",
+      "for anything else."))
   }
 
   if ((failed("bulk ESS") || failed("tail ESS")) && !failed("rhat")) {

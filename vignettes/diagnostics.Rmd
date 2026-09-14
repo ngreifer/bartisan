@@ -27,6 +27,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
 options(digits = 3)
 
 has_post <- rlang::is_installed("posterior")
+has_me <- rlang::is_installed("marginaleffects")
 has_bp <- rlang::is_installed("bayesplot")
 has_loo <- rlang::is_installed("loo") && rlang::is_installed("rstantools")
 run <- TRUE
@@ -263,6 +264,71 @@ as_draws(fit, eta = 1) |>
 What we want to see is four chains overlapping, wandering around the same level,
 with no drift and no long excursions. `eta = 1` selects the first observation;
 `eta = TRUE` gives a spread of ten and `eta = FALSE` gives none.
+
+### Diagnosing the Quantity Being Reported
+
+Everything above is about the parameters the sampler draws. What gets reported is
+usually not one of them: it is an effect, a contrast, a predicted probability at
+some covariate value, a difference between two subgroups. Those need their own
+diagnostics, because a contrast can mix badly where the function it is a contrast
+of mixes well, and nothing in the table above will say so.
+
+`diagnose()` takes the output of `estimate_effect()` directly:
+
+```{r diagnose_effect, eval = run}
+diagnose(estimate_effect(fit, treatment = "rhc"))
+```
+
+The contrast carries far fewer effective draws than `eta` does, and the check at
+the bottom says why. Under the default splitting prior some draws give `rhc` no
+rule at all, which puts the contrast at exactly zero, and the sampler can sit
+there for a long run. The fitted function keeps moving throughout, because the
+other predictors carry it, so the fit's own diagnosis sees nothing wrong.
+
+This does not replace diagnosing the fit. Chains that have settled on different
+fitted functions can still agree about an average taken over them, so an estimand
+that looks converged is not by itself evidence that the sampler did its job. Run
+both.
+
+### Diagnosing Anything Else (`summarise_draws()`)
+
+For a quantity this package has no method for, *posterior* is the general tool:
+anything that can be arranged as draws by chains can be handed to
+`summarise_draws()`, which computes the same statistics `diagnose()` reports.
+
+The arranging is the only step with a decision in it. The sampler stacks its
+chains, so the draws of any quantity are one long vector in chain order, and
+folding it into an iterations-by-chains matrix is what recovers the structure
+R-hat needs. Below, the quantity is an average comparison computed by
+*marginaleffects*, whose draws come out of `posterior_draws()`:
+
+```{r me_draws, eval = run && has_me && has_post}
+library(marginaleffects)
+
+drawn <- avg_comparisons(fit, variables = "rhc") |>
+  posterior_draws()
+
+chains <- fit$chains
+per_chain <- nrow(drawn) / chains
+
+folded <- array(drawn$draw, dim = c(per_chain, chains, 1L),
+                dimnames = list(NULL, NULL, "ATE"))
+
+folded |>
+  as_draws_array() |>
+  summarise_draws("mean", "rhat", "ess_bulk", "ess_tail")
+```
+
+The same numbers `diagnose()` gave for the same estimand, by a different route,
+which is the point: any posterior quantity can be diagnosed this way, including
+ones neither package knows about. Draw it, fold it, summarize it.
+
+Two things to get right. The fold has to match the order the draws are stored in,
+which here is all of chain one, then all of chain two, and so on; filling the
+array in that order is what `dim = c(per_chain, chains, 1)` does. And the
+quantity has to be the one being reported: diagnosing a prediction is not
+diagnosing the contrast of two predictions, for the reason the section above
+gives.
 
 ### Remedies for a Chain That Has Not Converged
 

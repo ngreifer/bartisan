@@ -282,6 +282,13 @@ estimate_effect <- function(object, treatment = NULL, estimand = "ATE",
   attr(out, "focal") <- focal
   attr(out, "type") <- type
   attr(out, "n_units") <- sum(keep)
+
+  # What `diagnose()` needs to fold the draws back into chains and to name the
+  # settings its advice would change. The estimand is what gets reported, and
+  # its own mixing is not implied by the fit's: a contrast can stick where the
+  # fitted function does not.
+  attr(out, "chains") <- object[["chains"]] %or% 1L
+  attr(out, "control") <- object[["control"]]
   attr(out, "by") <- by[["name"]]
 
   class(out) <- c("bartisan_effect", "data.frame")
@@ -484,13 +491,27 @@ effect_by <- function(by, newdata) {
     return(NULL)
   }
 
+  # The right-hand side is evaluated rather than reduced to the names it
+  # mentions. `all.vars()` read `by = ~ x3 > 0` as `x3` and then grouped by a
+  # continuous predictor, one group per distinct value, which is the wrong
+  # answer and gives no sign of being one.
   if (rlang::is_formula(by)) {
-    by <- all.vars(by)
+    rhs <- rlang::f_rhs(by)
+    label <- rlang::as_label(rhs)
 
-    if (length(by) != 1L) {
-      arg::err("{.arg by} must name exactly one variable, as in
-                  {.code by = ~ sex}")
+    value <- rlang::try_fetch(
+      rlang::eval_tidy(rhs, data = newdata),
+      error = function(cnd) {
+        arg::err("{.arg by} could not be evaluated in the data the effect is
+                  averaged over: {.code {label}}")
+      })
+
+    if (length(value) != nrow(newdata)) {
+      arg::err("{.arg by} must give one value per unit, and {.code {label}}
+                gave {length(value)} for {nrow(newdata)} units")
     }
+
+    return(list(name = label, value = value))
   }
 
   if (!by %in% names(newdata)) {

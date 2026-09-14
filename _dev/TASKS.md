@@ -6998,3 +6998,78 @@ the single-model score and the per-observation table against `loo()`. The
 held-out comparison became "The Same Comparison Through the Split" under
 "Comparing Two Models", where the price of the split (two standard errors against
 six) sits beside the `loo()` result it is being read against.
+
+## Diagnosing the estimand, and an accuracy pass over the remaining vignettes
+
+### The reported quantity mixes worse than anything the fit's table shows
+
+`eta.eta` averaged over observations: R-hat 1.004, 1610 effective draws. The ATE
+computed from the same fit: R-hat 1.04, 117. One chain had sat at exactly zero
+for 663 consecutive draws, because the splitting prior gave `rhc` no rule and the
+contrast of two identical predictions is exactly zero. The fitted function never
+stopped moving, the other predictors carrying it, so no parameter the sampler
+draws looks stuck and the fit's diagnosis reports nothing. With
+`sparsity = FALSE` the same estimand gets 1223 effective draws and R-hat 1.01.
+
+So `diagnose()` is generic now, with a method for `<bartisan_effect>` that
+reuses `diagnosis_row()`, `diagnosis_columns()`, the thresholds and the print
+method, folds `CATE` over units the way the fit's table folds observations, and
+adds one check the fit cannot have: the share of draws sitting at the atom.
+`estimate_effect()` stores `chains` and `control` so the method can fold the
+draws and name the settings its advice would change.
+
+This complements the fit's diagnosis and does not replace it, since chains that
+have settled on different fitted functions can still agree about an average over
+them. Both are run in `vignette("diagnostics")`.
+
+The general case is `posterior::summarise_draws()` on anything that can be
+arranged as draws by chains, which the diagnostics vignette now shows for a
+*marginaleffects* `avg_comparisons()` result. It returns the same four numbers
+`diagnose()` gives for the same estimand, which is the point of including it.
+
+Two claims fell to this. `vignette("bartisan")` said "the average row governs an
+average effect"; it does not, and no row does. The advice string in
+`diagnose()` said an estimand "carries far more effective draws than the table's
+worst row does", which invites the same inference.
+
+### `by = ~ x3 > 0` grouped by `x3`
+
+`all.vars()` reduced the formula to the names it mentions, so the expression was
+discarded and the grouping ran over a continuous predictor, one group per
+distinct value, 250 of them, with no complaint. The right-hand side is evaluated
+now, so an expression groups by what it says and a wrong-length one errors.
+
+### The rest of the vignettes, read as a reviewer
+
+`vignette("faq")` still documented `summary.bcf_fit()`, deleted three commits
+earlier. The code block ran and produced something entirely unlike what the text
+described, which is the worst shape this kind of staleness takes.
+
+The Gamma links were the reverse of the expected direction: `vignette("families")`
+was right that every link but `log` is ignored, and `?bartisan-families` was
+wrong three times over -- the table row offering `inverse` and `identity`, the
+paragraph listing `Gamma()` among the families that compose any link, and the
+restricted-range warning naming two links Gamma never reaches. Measured:
+`Gamma("inverse")`, `Gamma("identity")` and `Gamma("sqrt")` all come back fitted
+on `log`, while `poisson("identity")`, `poisson("sqrt")`, `binomial("cauchit")`
+and `Beta("cauchit")` keep theirs. `?predict.bartisan_fit` used the same bad
+example for an undefined density and now uses `poisson("identity")`.
+
+Both family tables called the Weibull AFT error "standard Gumbel" where
+`src/family.cpp` implements `exp(z - exp(z))`, the smallest extreme value
+density; plain Gumbel is conventionally the maximum, and the survival vignette's
+own prose already said "smallest extreme value".
+
+A `###` heading in `vignette("families")` had swallowed a paragraph, so the whole
+overdispersion discussion rendered as a heading. A comment in `R/families.R` said
+a two-valued numeric response falls to "the Gaussian default" when the numeric
+default is `dpm()`.
+
+Verified and left alone: the capability table's every link option against every
+constructor, the prior-weights rules, the default-family table, all four of
+`bcf()`'s settings (`num_trees = c(50, 25)` for the last), `power = NULL`, the
+tweedie mean, variance and zero-probability formulas, `variable_importance()`'s
+six columns and four printed, the claim that the quantile transform is a step
+(it is `stats::ecdf()`), and `ppc_km_overlay`'s ggfortify requirement. Two sweeps
+came back clean: every backticked call named in a vignette resolves to a bartisan
+export or a Suggests package, and every `vignette()` cross-reference resolves.

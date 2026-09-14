@@ -336,7 +336,9 @@ Read this the way `vignette("comparison")` recommends, which is to look at the s
 
 What has happened is that the forest already accounts for the zeros by finding where the conditional mean is small, which is what a nonparametric mean is for, so a mixture has nothing left to explain and pays for its parameters. The lesson generalizes past counts: with a flexible mean, a feature of the *marginal* distribution of the response is not evidence about the conditional model. Reach for zero inflation when the zero mechanism is a process worth modeling in its own right, and let a comparison of fits, not a histogram, settle whether it is there.
 
-### 2. Is the count component overdispersed once the zeros are accounted for? A spike at zero inflates the sample variance and looks like dispersion. `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `zi_poisson()` is the better-conditioned fit.
+### 2. Is the count component overdispersed once the zeros are accounted for?
+
+A spike at zero inflates the sample variance and looks like dispersion. `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `zi_poisson()` is the better-conditioned fit.
 
 Once again, the `ordinal()` family is another option worth knowing about for counts. A count is ordered and takes few distinct values, which is exactly what the cutpoint structure is for: it makes no assumption about the count distribution, needs no dispersion parameter, and handles excess zeros without a mixture, since the zero category simply gets whatever probability the cutpoints give it. Predict with `type = "mean"` to get predictions on the original response scale. The limits are that it cannot predict a count larger than the largest one observed, and that it has no rate interpretation (i.e., no log link, so no incidence-rate ratio). It can be useful to bin first if the counts range over more than a few dozen values, as below.
 
@@ -436,13 +438,13 @@ There are five families that can be used with survival time response, all taking
 
 | Family | Model | A contrast in the predictor is | Left free |
 |------------------|------------------|------------------|------------------|
-| `weibull_aft()` | $\log T = \eta + \sigma\epsilon$, $\epsilon$ Gumbel | a log **time** ratio, and also a log **hazard** ratio | $\sigma$ |
+| `weibull_aft()` | $\log T = \eta + \sigma\epsilon$, $\epsilon$ smallest extreme value | a log **time** ratio, and also a log **hazard** ratio | $\sigma$ |
 | `loglogistic_aft()` | the same with $\epsilon$ logistic | a log **time** ratio | $\sigma$ |
 | `lognormal_aft()` | the same with $\epsilon$ normal | a log **time** ratio | $\sigma$ |
 | `dpm_aft()` | $\log T = \eta + W$, $W$ a mixture | a log **time** ratio | the whole error density |
 | `ph()` | $\lambda(t \mid x) = \lambda_0(t)e^{r(x)}$ | a log **hazard** ratio | the baseline $\lambda_0$ |
 
-All four accelerated failure time families share the structure $\log T = \eta(x) + W$ with $W$ independent of $x$, and that alone makes a contrast in the predictor a log time ratio: every quantile of $T$, its mean, and its geometric mean all scale by $e^{\Delta\eta}$, whatever shape $W$ has. What differs between them is what $e^{\eta}$ is on its own, since each pins its error's location differently, and `vignette("survival")` gives that per family. `weibull_aft()` is the only one whose predictor also carries a log hazard ratio, of $-\Delta\eta/\sigma$, and that is a property of the Gumbel error rather than of the shared structure: it is the only error that makes an accelerated failure time model proportional hazards as well.
+All four accelerated failure time families share the structure $\log T = \eta(x) + W$ with $W$ independent of $x$, and that alone makes a contrast in the predictor a log time ratio: every quantile of $T$, its mean, and its geometric mean all scale by $e^{\Delta\eta}$, whatever shape $W$ has. What differs between them is what $e^{\eta}$ is on its own, since each pins its error's location differently, and `vignette("survival")` gives that per family. `weibull_aft()` is the only one whose predictor also carries a log hazard ratio, of $-\Delta\eta/\sigma$, and that is a property of the smallest extreme value error rather than of the shared structure: it is the only error that makes an accelerated failure time model proportional hazards as well.
 
 The three structured accelerated failure time families (i.e., the first three above) fix the shape of the error and so of the hazard, and are quick to fit. `ph()` frees the baseline hazard instead, so it fits a hazard of any shape, at the price of asserting proportionality and of reading the predictor on the hazard scale. `dpm_aft()` frees the error density [@henderson2020], which costs little when a single normal was right and gains a great deal when it was not.
 
