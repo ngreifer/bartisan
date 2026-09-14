@@ -110,7 +110,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
   combos <- expand.grid(points, KEEP.OUT.ATTRS = FALSE,
                         stringsAsFactors = FALSE)
 
-  rows <- lapply(seq_len(nrow(combos)), function(i) {
+  at_grid_point <- function(i) {
     d <- newdata
 
     for (v in vars) {
@@ -130,7 +130,29 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
     s <- post_summary(rowMeans(draws), level = level)
     data.frame(estimate = s[["mean"]], lower = s[["lower"]],
                upper = s[["upper"]])
-  })
+  }
+
+  # One prediction per grid point, over the whole sample each time, and none of
+  # them depends on another, so they go to workers when a plan has any. The
+  # streams are drawn before the branch so that both use the same ones: a family
+  # whose prediction simulates rather than evaluating in closed form would
+  # otherwise give different draws depending on whether a plan was set.
+  seeds <- parallel_streams(nrow(combos))
+
+  if (rlang::is_installed("future.apply")) {
+    rows <- future.apply::future_lapply(seq_len(nrow(combos)), at_grid_point,
+                                        future.seed = seeds,
+                                        future.packages = "bartisan")
+  }
+  else {
+    restore <- restore_stream()
+    on.exit(restore(), add = TRUE)
+
+    rows <- lapply(seq_len(nrow(combos)), function(i) {
+      assign(".Random.seed", seeds[[i]], envir = globalenv())
+      at_grid_point(i)
+    })
+  }
 
   out <- cbind(combos, do.call(rbind, rows)) |>
     unrowname()
@@ -220,7 +242,7 @@ print.bartisan_partial <- function(x, digits = 3L, ...) {
 
   vars <- attr(x, "variables")
 
-  cli_head("Partial dependence")
+  cli_cat("{.underline Partial dependence}")
   cli::cat_line()
   cli_cat("{cli::qty(length(vars))}Predictor{?s}: {.val {vars}}")
   cli_cat("Averaged over {attr(x, 'n_units')} unit{?s}, on the

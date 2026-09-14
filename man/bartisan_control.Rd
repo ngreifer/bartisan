@@ -428,6 +428,25 @@ included because they are not part of a fit; they run in \code{\link[=diagnose]{
 reports its own progress the same way. Progress does not touch the draws.
 }
 
+\subsection{What Else Runs in Parallel, and One Limit on It}{
+
+A \code{future} plan is used by three things, and only the first is the sampler:
+the chains of a fit, the per-observation pass in \code{\link[=diagnose]{diagnose()}}, and the
+repeated predictions in \code{\link[=partial_dependence]{partial_dependence()}} and \code{\link[=estimate_effect]{estimate_effect()}}. The
+sampler has no other axis, since a sweep conditions on the one before it.
+Measured on 1500 observations with a 25-point grid, the predictions run about
+three times faster on four workers.
+
+The limit worth knowing is \pkg{future}'s, not this package's. Anything that
+predicts on a worker has to be sent the fit, and a fit is mostly its stored
+predictor and flattened forests, which grow with the draws and the sample: at
+1500 observations and 3200 draws one serializes to about 70 MB, so four
+workers move 280 MB. \pkgfun{future}{plan} refuses a single export above
+\code{future.globals.maxSize}, 500 MB by default, and a fit large enough on both
+counts will trip it. The error names the option; raising it is the fix, and
+running sequentially is the alternative.
+}
+
 \subsection{Soft Rules and the Cost of a Gate}{
 
 A soft rule is charged for in two places: every observation reaches more than

@@ -126,3 +126,51 @@ test_that("the plot argument and the plot method draw the same thing", {
   # And it says what it needs when told nothing.
   expect_error(plot(fit), "told which predictors")
 })
+
+# The grid loop predicts once per point over the whole sample, so it goes to
+# workers when a plan has any. The streams are drawn before the branch, which is
+# what keeps a family whose prediction simulates from depending on whether a
+# plan was set.
+test_that("the grid is the same in parallel as in sequence", {
+  skip_on_cran()
+  skip_if_not_installed("future")
+  skip_if_not_installed("future.apply")
+
+  old <- future::plan(future::sequential)
+  on.exit(future::plan(old), add = TRUE)
+
+  d <- sim_x(n = 200L, p = 3L, seed = 97L)
+  d$g <- factor(sample(c("a", "b"), nrow(d), replace = TRUE))
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1))
+
+  fit <- bartisan(y ~ ., d, family = stats::binomial(),
+                  control = quick_control(num_trees = 5L, num_burn = 60L,
+                                          num_draws = 100L))
+
+  future::plan(future::sequential)
+  one <- partial_dependence(fit, ~ x1, grid = 6L)
+
+  started <- tryCatch({
+    future::plan(future::multisession, workers = 2L)
+    isTRUE(future::nbrOfWorkers() >= 2L)
+  }, error = function(e) FALSE)
+
+  skip_if_not(started, "no second worker available")
+
+  many <- partial_dependence(fit, ~ x1, grid = 6L)
+
+  expect_identical(nrow(one), 6L)
+  expect_equal(as.data.frame(many), as.data.frame(one))
+
+  # Two predictors give one row per combination, and the same must hold there.
+  pair_seq <- local({
+    future::plan(future::sequential)
+    partial_dependence(fit, ~ x1 + g, grid = 4L)
+  })
+
+  future::plan(future::multisession, workers = 2L)
+  pair_par <- partial_dependence(fit, ~ x1 + g, grid = 4L)
+
+  expect_identical(nrow(pair_seq), 8L)
+  expect_equal(as.data.frame(pair_par), as.data.frame(pair_seq))
+})

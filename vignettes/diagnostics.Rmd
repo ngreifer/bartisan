@@ -1,12 +1,12 @@
 ---
-title: "Has it converged, and does it fit?"
+title: "Checking convergence and fit"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Has it converged, and does it fit?}
+  %\VignetteIndexEntry{Checking convergence and fit}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
@@ -153,10 +153,14 @@ thousand values is extreme even when every chain has converged; the other is the
 average over observations. Reading them against each other is the point of having
 both, because they routinely differ by orders of magnitude: a forest settles the
 level of the fitted function within a sweep or two and takes far longer to settle
-which observation gets which share of it. Which row binds depends on what we mean
-to report. An average or a contrast of averages, which is what
-`estimate_effect()` and `avg_comparisons()` give, is governed by the average row; a prediction for one
-observation is governed by the other.
+which observation gets which share of it. A prediction for one observation is
+governed by the worst-5% row.
+
+Neither row governs an effect, and the average row in particular should not be
+read as though it did. An effect is a *contrast*, and a contrast can mix badly
+where the function it is a contrast of mixes well, so what
+`estimate_effect()` or `avg_comparisons()` reports needs diagnosing on its own
+draws rather than inferring from this table. The section below does that.
 
 One quantity is deliberately not in the table. The leaf prior scale, in
 `fit$sigma_mu`, mixes badly in every BART implementation: on one dataset its
@@ -281,19 +285,35 @@ bcf_fit <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp +
                treat = ~rhc, data = rhc,
                family = binomial("probit"), chains = 4)
 
-diagnose(estimate_effect(bcf_fit, estimand = "ATE"))
+estimate_effect(bcf_fit, estimand = "ATE") |>
+  diagnose()
 ```
 
-The contrast carries far fewer effective draws than `eta` does, and the check at
-the bottom says why. Under the default splitting prior some draws give `rhc` no
-rule at all, which puts the contrast at exactly zero, and the sampler can sit
-there for a long run. The fitted function keeps moving throughout, because the
-other predictors carry it, so the fit's own diagnosis sees nothing wrong.
+Three rows: the contrast, and the two average potential outcomes it is a
+contrast of. The effect is the row that falls short, at a bulk effective sample
+size well under 400 and an R-hat above the threshold, while the two averages it
+is built from are in better shape than it is. A difference can be worse than
+either of its parts, and that is the reading here.
 
-This does not replace diagnosing the fit. Chains that have settled on different
-fitted functions can still agree about an average taken over them, so an estimand
-that looks converged is not by itself evidence that the sampler did its job. Run
-both.
+Now compare what the fit's own table says about the same sampler:
+
+```{r diagnose_bcf_fit, eval = run}
+diagnose(bcf_fit)$table
+```
+
+The two forests are far worse than the estimand. Their R-hats are in the region
+of 1.4 to 1.7 with effective sample sizes in single figures, where the effect
+manages a bulk size in the low hundreds. That is not a contradiction: a varying
+coefficient model is $f_0(x) + z\,f_1(x)$, and on the treated units the two
+forests are only jointly identified, so the sampler can move level between them
+while their sum, and much of what is built from it, stays where it was. The
+effect inherits part of that wandering and not all of it.
+
+So the estimand's diagnosis cannot be deduced from the fit's in either
+direction. Read only the `eta` rows here and the fit looks unusable; read only
+the averaged row and it looks settled; the effect is neither. Both are worth
+running, and it is the second that decides whether the number being reported can
+be reported.
 
 ### Diagnosing Anything Else (`summarise_draws()`)
 
@@ -383,12 +403,11 @@ enough for the statistic to be readable. Both effective sample sizes are short o
 400 as well. Everything here points the same way, and none of it points at the
 model.
 
-So run it longer. Nothing else changes:
+So we run it longer, increasing the burn-in to 2000 and the number of draws per chain to 8000. Nothing else changes, so we can call `update()` on the previous model with our new arguments supplied:
 
 ```{r mixfixed, eval = run}
 set.seed(2026)
-longer <- bartisan(model, data = rhc, family = binomial(), chains = 4,
-                   num_burn = 2000, num_draws = 8000)
+longer <- update(short, num_burn = 2000, num_draws = 8000)
 
 diagnose(longer)
 ```
@@ -410,7 +429,7 @@ fall as the chain lengthens: a short chain cannot see autocorrelation at long
 lags, so it reports an efficiency the chain does not have. Reading a single ESS
 figure as exact invites chasing it; the factor is what to read.
 
-What this example does *not* show is that draws always suffice. They sufficed
+Increasing draws does not always suffice. Doing so sufficed
 here because the flagged R-hat was the unreadable kind, resting on too few
 effective draws. Where R-hat instead stays put as the draws grow, as it does for
 the Friedman fit above, the chains genuinely disagree and more of them will not
@@ -420,7 +439,7 @@ the list above is the order to try them in.
 ## Fit
 
 Convergence says the sampler did its job; it says nothing at all about whether
-the model is right.
+the model is right. The checks below assess the fit of the model to the data.
 
 ### Posterior Predictive Checks (`pp_check()`)
 

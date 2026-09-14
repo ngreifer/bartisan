@@ -236,15 +236,15 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
   # different draws depending on whether a plan happened to be set.
   seeds <- parallel_streams(length(levs))
 
-  po <- if (rlang::is_installed("future.apply")) {
-    future.apply::future_lapply(levs, predict_at, future.seed = seeds,
-                                future.packages = "bartisan")
+  if (rlang::is_installed("future.apply")) {
+    po <- future.apply::future_lapply(levs, predict_at, future.seed = seeds,
+                                      future.packages = "bartisan")
   }
   else {
     restore <- restore_stream()
     on.exit(restore(), add = TRUE)
 
-    lapply(seq_along(levs), function(i) {
+    po <- lapply(seq_along(levs), function(i) {
       assign(".Random.seed", seeds[[i]], envir = globalenv())
       predict_at(levs[[i]])
     })
@@ -272,7 +272,7 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
                  ATT = , ATC = as.character(z) == as.character(focal))
 
   if (!any(keep)) {
-    arg::err("no observation is in the group {.arg estimand} = {.val {estimand}}
+    arg::err("no observation is in the group {.code estimand = \"{estimand}\"}
               asks to average over")
   }
 
@@ -794,7 +794,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
   focal <- attr(x, "focal")
   by <- attr(x, "by")
 
-  cli_head("{effect_title(estimand, comparison)}")
+  cli_cat("{.underline {effect_title(estimand, comparison)}}")
   cli::cat_line()
 
   cli_cat("Treatment: {.val {treat}}")
@@ -832,7 +832,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
 
   if (potential_outcomes && !is_null(po)) {
     cli::cat_line()
-    cli_head("Average potential outcomes")
+    cli_cat("{.underline Average potential outcomes}")
     cli::cat_line()
     print(effect_round(as.data.frame(po), digits), row.names = FALSE)
   }
@@ -846,7 +846,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
   cli_bullets_cat(c(i = "{.field estimate} is the posterior mean;
                         {.field lower} and {.field upper} bound the
                         {100 * level}% {band}.",
-                   i = contrast_legend(comparison, treat, estimand)))
+                    i = contrast_legend(comparison, treat, estimand)))
 
   if (identical(estimand, "CATE")) {
     cli_bullets_cat(c(i = "Quartiles of the per-unit estimates. The object

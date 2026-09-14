@@ -1031,7 +1031,7 @@ diagnosis_advice <- function(checks, control = NULL) {
 
 #' @export
 print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
-  cli_head("Convergence and mixing")
+  cli_cat("{.underline Convergence and mixing}")
   cli::cat_line()
 
   show <- x[["table"]]
@@ -1065,7 +1065,7 @@ print.bartisan_diagnosis <- function(x, digits = 3L, ...) {
   }
 
   cli::cat_line()
-  cli_head("What to do")
+  cli_cat("{.underline What to do}")
   cli::cat_line()
 
   # A bullet per step rather than a run-on block. The name has to be one cli

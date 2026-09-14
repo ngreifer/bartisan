@@ -7254,3 +7254,46 @@ where R-hat stays put instead, more draws will not help.
 Cost: `diagnostics.Rmd` goes from 110s to 194s, which leaves it beside
 `bartisan.Rmd` at 198s rather than making it the slowest, so the precompute route
 `vignette("survival")` uses was not needed.
+
+## Parallelism where it pays, and the limit nobody had written down
+
+### `partial_dependence()` is the only other site worth it
+
+Every loop in `R/` was read. One qualifies: the grid loop in
+`partial_dependence()`, which predicts once per grid point over the whole
+sample. Measured on 1500 observations with four workers:
+
+| grid | sequential | 4 workers |
+| --- | --- | --- |
+| 10 | 93.3s | 32.5s |
+| 25 | 242.8s | 72.4s |
+| 50 | 350.5s | 129.4s |
+
+A floor was planned, on the model of `diagnosis_columns()`'s hundred columns,
+and the measurement says not to have one: even ten points pays 2.9x, because a
+point is a whole prediction and costs about nine seconds here. Streams come from
+`parallel_streams()` before the branch, so the two paths agree exactly.
+
+Rejected, with reasons, so the next reader does not re-litigate them:
+
+- `interop.R:369`, the Dirichlet process replicate loop, is per-draw and calls
+  `sample.int()`, so the RNG order *is* the result and parallelising it would
+  change `posterior_predict()` output. Cheap bodies besides.
+- The loops over forests and random-effect terms (`bartisan.R:829`, `:838`,
+  `diagnose.R:429`, `:450`, `methods.R:127`, `:274`, `interop.R:899`,
+  `predict.R:550`) run over one to three components assembling lists.
+- `varying.R` and `predict.R` carry most of the package's loops and they build
+  design matrices; the expensive part sits under them in C++.
+
+### A fit is 70 MB, and `future` refuses 500
+
+Measured at 1500 observations and 3200 draws: 71.8 MB serialized, of which
+`eta` is 38.4 and `forest_flat` 31.0 -- 97% between them. `eta` is draws by
+observations, so at 8000 draws and 5000 observations that term alone is 320 MB.
+
+`future.globals.maxSize` defaults to 500 MB and refuses a single export above
+it, which now affects three paths: the chains, the convergence pass, and the two
+prediction loops. It was documented nowhere. `?bartisan_control` now names all
+three axes, the measured speedup, and the limit with its remedy. A user meets
+this exactly when the parallelism starts to matter, which is the wrong moment to
+meet an undocumented error.

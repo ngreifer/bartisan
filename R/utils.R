@@ -10,20 +10,21 @@ is_null <- function(x) {
   if (is_null(x)) y else x
 }
 
-cli_cat <- function(..., .envir = parent.frame()) {
-  cli::format_inline(..., .envir = .envir) |>
-    cli::cat_line()
-}
+# The package's own inline markup. cli has no underline class, and a heading set
+# in `{.strong}` comes out bold, which in a lot of terminals and in the fonts an
+# editor pane uses sits close enough to the body text to read as an accident
+# rather than as a heading. Adding a class is what `cli_div()` is for; see
+# `?cli::"inline-markup"`. A container closes when the frame that opened it
+# exits, so each helper below opens its own and the class is available in every
+# string they format.
+cli_theme <- list(
+  span.underline = list("text-decoration" = "underline")
+)
 
-# A heading. Underlined rather than bold: cli renders `{.strong}` as bold, which
-# in a lot of terminals and in the fonts an editor pane uses is close enough to
-# the body text to read as an accident rather than as a heading. The text is
-# formatted first and styled afterwards, since `format_inline()` strips ANSI out
-# of what it interpolates, and `style_underline()` returns the text unchanged
-# where the terminal has no ANSI to give it.
-cli_head <- function(..., .envir = parent.frame()) {
+cli_cat <- function(..., .envir = parent.frame()) {
+  cli::cli_div(theme = cli_theme)
+
   cli::format_inline(..., .envir = .envir) |>
-    cli::style_underline() |>
     cli::cat_line()
 }
 
@@ -34,6 +35,8 @@ cli_head <- function(..., .envir = parent.frame()) {
 # the same call to a character vector instead, which then goes to stdout with
 # the rest of the output.
 cli_bullets_cat <- function(text, .envir = parent.frame()) {
+  cli::cli_div(theme = cli_theme)
+
   cli::cli_fmt(cli::cli_bullets(text, .envir = .envir)) |>
     cli::cat_line()
 }

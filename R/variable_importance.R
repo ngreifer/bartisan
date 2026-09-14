@@ -277,7 +277,7 @@ print.bartisan_importance <- function(x, digits = 3L, ...) {
   level <- attr(x, "level")
   sparse <- attr(x, "sparsity")
 
-  cli_head("Variable importance")
+  cli_cat("{.underline Variable importance}")
   cli::cat_line()
 
   show <- as.data.frame(x)
