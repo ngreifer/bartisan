@@ -30,6 +30,7 @@ has_post <- rlang::is_installed("posterior")
 has_me <- rlang::is_installed("marginaleffects")
 has_bp <- rlang::is_installed("bayesplot")
 has_loo <- rlang::is_installed("loo") && rlang::is_installed("rstantools")
+has_rst <- rlang::is_installed("rstantools")
 run <- TRUE
 ```
 
@@ -441,14 +442,31 @@ the list above is the order to try them in.
 Convergence says the sampler did its job; it says nothing at all about whether
 the model is right. The checks below assess the fit of the model to the data.
 
-### Before the Data: The Prior Predictive (`prior_only`)
+### What the Prior Is (`prior_summary()`)
 
 Everything else in this section compares the model to the data it was fitted to.
-One check is worth running before any of that information has been spent. The
-settings in `bartisan_control()` are statements about trees and leaves, and
-nobody has intuition for what `k = 2` implies about a patient's chance of dying.
-A prior predictive check puts the prior on the outcome's own scale, where it can
-be judged.
+Two checks are worth running before any of that information has been spent, and
+the first is simply to read the prior back.
+
+```{r priorsummary, eval = run && has_rst}
+rstantools::prior_summary(fit)
+```
+
+This is the prior the engine was given rather than the one we wrote, and the two
+are not the same object: we named no priors at all, and the defaults are a
+function of the response and of the number of trees. Note in particular that the
+leaf scale is not a number anyone typed. It is `3 * s / (k * sqrt(num_trees))`,
+so halving the number of trees widens each leaf's prior by a factor of
+$\sqrt 2$ and leaves the prior on their sum alone, which is why `num_trees` is
+not the tuning knob it looks like.
+
+### Before the Data: The Prior Predictive (`prior_only`)
+
+Reading the prior back is not the same as knowing what it implies. The settings
+in `bartisan_control()` are statements about trees and leaves, and nobody has
+intuition for what `k = 2` implies about a patient's chance of dying. A prior
+predictive check puts the prior on the outcome's own scale, where it can be
+judged.
 
 `prior_only = TRUE` fits the same model to no data. Every observation is given a
 weight of zero, and since the weight multiplies that observation's contribution
@@ -488,9 +506,9 @@ which is how a BART prior is specified and not a leak. The replicates take their
 location and scale from the response and everything else from the prior, so read
 them for shape and spread rather than for level.
 
-Every family supports this except `ordinal()`, whose cutpoints are drawn from the
-likelihood alone and so have nothing to fall back on when the likelihood goes
-flat; `?bartisan` has the details.
+Every family supports this except `ordinal()` and `ordbeta()`, whose cutpoints
+are drawn from the likelihood alone and so have nothing to fall back on when the
+likelihood goes flat; `?bartisan` has the details.
 
 ### Posterior Predictive Checks (`pp_check()`)
 
@@ -606,10 +624,10 @@ is best read as a relative measure rather than against any absolute standard.
 
 ## A Checklist
 
-Before fitting in earnest we run the model once with `prior_only = TRUE` and
-check that the replicates fall where the outcome can actually go, since a prior
-worth changing is cheapest to change before any of the data's information has
-been spent. Then, before reporting anything from a fit, we run it with
+Before fitting in earnest we read the prior back with `prior_summary()` and run
+the model once with `prior_only = TRUE`, checking that the replicates fall where
+the outcome can actually go, since a prior worth changing is cheapest to change
+before any of the data's information has been spent. Then, before reporting anything from a fit, we run it with
 `chains = 4` and pass it to
 `diagnose()`, reading what that says to change: it applies the thresholds, names
 the rows that are exempt from them, and separates a warmup that ended too early

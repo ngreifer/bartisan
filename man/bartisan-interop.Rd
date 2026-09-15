@@ -11,6 +11,8 @@
 \alias{residuals.bartisan_fit}
 \alias{weights.bartisan_fit}
 \alias{sigma.bartisan_fit}
+\alias{prior_summary.bartisan_fit}
+\alias{print.bartisan_prior_summary}
 \alias{loo.bartisan_fit}
 \alias{waic.bartisan_fit}
 \alias{kfold.bartisan_fit}
@@ -45,6 +47,10 @@
 \method{weights}{bartisan_fit}(object, ...)
 
 \method{sigma}{bartisan_fit}(object, ...)
+
+\method{prior_summary}{bartisan_fit}(object, ...)
+
+\method{print}{bartisan_prior_summary}(x, digits = 3L, ...)
 
 \method{loo}{bartisan_fit}(x, scale = NULL, ...)
 
@@ -110,6 +116,9 @@ name of the \pkg{bayesplot} check to run without its \code{ppc_} prefix, so that
 \pkgfun{bayesplot}{ppc_dens_overlay}; \pkgfun{bayesplot}{available_ppc}
 lists them.}
 
+\item{digits}{\code{integer}; for \code{print()} on the output of \code{prior_summary()},
+how many digits to round the prior's scales to. Default is 3.}
+
 \item{scale}{\code{string}; for \code{loo()}, \code{waic()} and \code{kfold()} on a survival fit,
 the
 measure to report the pointwise densities with respect to: \code{"time"} for the
@@ -163,6 +172,14 @@ data frame of one column per replicate. \code{loo()} and \code{waic()} return th
 \verb{<loo>} and \verb{<waic>} objects those functions produce, and
 \code{model_performance()} a one-row data frame of class \verb{<performance_model>}.
 \code{as_draws()} returns a \verb{<draws_array>} of iterations by chains by parameters.
+
+\code{prior_summary()} returns a \verb{<bartisan_prior_summary>} object, a list whose
+\code{forests} is a data frame of one row per additive predictor and one column per
+setting the prior is made of, whose \code{estimated} says in the same shape which
+of them were drawn rather than held, and whose \code{family} holds the family's own
+parameters with the prior each was given. \code{random} and \code{response} record the
+group-intercept scale and what was read off the response.
+
 The accessors return what their names suggest.
 }
 \description{
@@ -189,7 +206,10 @@ posterior-predictive checks on the fit. \strong{Summaries.}
 table, \pkgfun{performance}{r2} gives the Bayesian \eqn{R^2}, and
 \pkgfun{posterior}{as_draws} hands the scalar parameters to
 \pkgfun{posterior}{summarise_draws} or to the \pkg{bayesplot} MCMC
-diagnostics. \strong{Basic accessors.} \code{\link[stats:fitted]{stats::fitted()}}, \code{\link[stats:residuals]{stats::residuals()}},
+diagnostics. \strong{The prior.} \pkgfun{rstantools}{prior_summary} writes out
+every prior the fit was given, on the scale it was given on, which is the
+companion to \code{prior_only = TRUE} in \code{\link[=bartisan]{bartisan()}}: one says what the prior is
+and the other says what it implies about the outcome. \strong{Basic accessors.} \code{\link[stats:fitted]{stats::fitted()}}, \code{\link[stats:residuals]{stats::residuals()}},
 \code{\link[stats:weights]{stats::weights()}} and \code{\link[stats:sigma]{stats::sigma()}} do what they do for a \code{glm}, which is
 also most of what \pkg{insight} needs to make the fit legible to the
 \pkg{easystats} packages.
@@ -358,6 +378,9 @@ range(colMeans(rstantools::posterior_epred(fit)) - fitted(fit))
 
 # Pointwise log likelihood, and the fit statistics built on it
 loo::waic(rstantools::log_lik(fit))
+
+# Every prior the fit was given, on the scale it was given on
+rstantools::prior_summary(fit)
 
 # Whether replicate outcomes look like the observed ones
 if (rlang::is_installed("bayesplot")) {

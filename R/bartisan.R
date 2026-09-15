@@ -328,14 +328,15 @@
 #' much the fitted function departs from that anchor. Read them for shape and
 #' spread rather than for level.
 #'
-#' **The one family that refuses it.** `ordinal()` draws its cutpoints from the
-#' likelihood alone, with no prior term to fall back on, so at zero weight the
-#' target is not flattened but empty and the cutpoints wander out to the bound.
-#' Every replicate would land in one category with nothing in the fit to say so,
-#' which is why this is an error rather than a warning. The gap is in the model
-#' and not in the mechanism; it would close if a prior over ordered cutpoints
-#' were specified. For an ordered outcome with few enough categories,
-#' `multinomial()` allows `prior_only = TRUE` and is the nearest substitute.
+#' **The two families that refuse it.** `ordinal()` and `ordbeta()` draw their
+#' cutpoints from the likelihood alone, with no prior term to fall back on, so at
+#' zero weight the target is not flattened but empty and the cutpoints wander out
+#' to the bound. The replicates would pile at one end of the scale with nothing
+#' in the fit to say so, which is why this is an error rather than a warning. The
+#' gap is in the model and not in the mechanism; it would close if a prior over
+#' ordered cutpoints were specified. Every other family allows it, and for an
+#' ordered outcome with few enough categories `multinomial()` is the nearest
+#' substitute.
 #'
 #' Note that the wider a prior is, the wider its replicates, and that is a
 #' finding rather than a fault. `gaussian_ls()` and `Gamma_ls()` put a log scale
@@ -850,6 +851,18 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
               eta = draws[["eta"]],
               counts = draws[["counts"]],
               sigma_mu = draws[["sigma_mu"]],
+              # Every prior setting as the engine received it, which is not
+              # what the caller wrote: the per-forest arguments have been spread
+              # to one value each, `k` and `sigma_mu` are two ways of saying the
+              # same thing and the default is neither, and an intercept-only
+              # forest has had its branching probability zeroed. Kept so that
+              # `prior_summary()` reports the prior that was used rather than
+              # rebuilding it, and small enough not to matter: a handful of
+              # vectors as long as there are forests.
+              prior = prior_record(engine_control, control, k,
+                                   response[["eta_scale"]], split,
+                                   ncol(group_probs),
+                                   draws[["num_forest"]]),
               bandwidth = draws[["bandwidth"]],
               loglik = as.vector(draws[["loglik"]]),
               forest_flat = draws[["forest_flat"]],
@@ -1020,19 +1033,67 @@ run_chains <- function(engine, chains) {
 #   those utilities was no longer symmetric. A weightless observation's
 #   utilities now sit on the predictor, leaving the covariance at its prior.
 #
-# What is left is the one case where the weight is not the obstacle.
-# `ordinal()` draws its cutpoints from a target that is the weighted log
-# probability *with no prior term at all*, so at zero weight the target is not
-# flattened but empty: the slice sampler walks a flat improper density out to
-# the bound the code puts on the top cutpoint, which is 1e4. There is nothing
-# to fall back on until the model specifies a prior over ordered cutpoints,
-# which is a modeling decision and not a switch.
+# What is left are the cases where the weight is not the obstacle. Two families
+# draw a cutpoint from a target that is the weighted log probability *with no
+# prior term at all*, so at zero weight the target is not flattened but empty
+# and the slice sampler walks a flat improper density out to whatever bound the
+# code happens to put on it: 1e4 for `ordinal()`, and plus or minus 30 for
+# `ordbeta()`. There is nothing to fall back on until the model specifies a
+# prior over ordered cutpoints, which is a modeling decision and not a switch.
+#
+# Every other auxiliary parameter drawn by slice sampling carries its prior into
+# the target, which was checked one at a time rather than assumed: the gamma
+# prior on `negbin()`'s size, `Gamma()`'s shape, `Beta()`'s and `tweedie()`'s
+# precision and `ph()`'s baseline hazard, the half-Cauchy on the AFT scale, and
+# the uniform on `tweedie()`'s power. `multinomial(link = "probit")` draws its
+# covariance from an inverse Wishart whose scatter is weighted, so at zero
+# weight it falls back on the identity and the prior degrees of freedom.
 #
 # Refused rather than warned about, because the failure is silent: a fit comes
-# back and the replicates look like replicates, all of them in one category.
+# back and the replicates look like replicates, all of them piled at one end.
 PRIOR_ONLY_REFUSED <- c(
   ordinal = "its cutpoints are drawn from the likelihood alone, with no prior
+             term to fall back on when the likelihood goes flat",
+  ordbeta = "its cutpoints are drawn from the likelihood alone, with no prior
              term to fall back on when the likelihood goes flat")
+
+# The prior as the engine received it, trimmed to the forests that are reported.
+#
+# `engine_control` holds the per-forest spread of everything in
+# `PER_FOREST_DEFAULTS`, so these are one value per forest even where the caller
+# wrote a scalar. `alpha_scale` is the one entry whose default the engine
+# resolves rather than R: zero there means "the number of predictors this forest
+# may split on", which is what `Hypers()` substitutes, so it is substituted here
+# too and the recorded value is the one in force.
+prior_record <- function(engine_control, control, k, eta_scale, split,
+                         n_group, n_forest) {
+  keep <- seq_len(n_forest)
+
+  per_forest <- c(names(PER_FOREST_DEFAULTS), "sigma_mu")
+  out <- lapply(engine_control[per_forest], function(x) {
+    if (is_null(x)) NULL else x[keep]
+  })
+
+  mask <- split[["mask"]]
+
+  out[["candidates"]] <- {
+    if (is_null(mask)) rep.int(n_group, n_forest)
+    else colSums(mask[, keep, drop = FALSE] != 0)
+  }
+
+  out[["alpha_scale"]] <- ifelse(out[["alpha_scale"]] > 0,
+                                 out[["alpha_scale"]],
+                                 out[["candidates"]])
+
+  out[["k"]] <- rep(k, length.out = n_forest)[keep]
+  out[["eta_scale"]] <- rep(eta_scale, length.out = n_forest)[keep]
+  out[["sparsity"]] <- control[["sparsity"]]
+  out[["split_prior"]] <- !is_null(split[["prior"]])
+  out[["share_sparsity"]] <- isTRUE(control[["share_sparsity"]])
+  out[["update_tau"]] <- isTRUE(control[["update_tau"]])
+
+  out
+}
 
 prior_only_check <- function(family) {
   if (!family %in% names(PRIOR_ONLY_REFUSED)) {
@@ -1041,11 +1102,12 @@ prior_only_check <- function(family) {
 
   arg::err(c("{.code prior_only = TRUE} is not available for
               {.code {family}()}, because {PRIOR_ONLY_REFUSED[[family]]}.",
-             i = "The cutpoints would walk out to the bound and every replicate
-                  would land in one category, with nothing in them to say so.",
-             i = "Every other family supports it, {.fn multinomial} included.
-                  For an ordered outcome with a modest number of categories,
-                  {.fn multinomial} is the nearest thing that does."))
+             i = "The cutpoints would walk out to the bound and the replicates
+                  would pile at one end of the scale, with nothing in them to
+                  say so.",
+             i = "Every other family supports it. For an ordered outcome with a
+                  modest number of categories, {.fn multinomial} is the nearest
+                  thing that does."))
 }
 
 # One L'Ecuyer stream per chain, advanced from the current seed, which is what

@@ -31,6 +31,8 @@ need rather than reimplementing them. This table is the map.\tabular{ll}{
    a partial dependence plot \tab \code{\link[=partial_dependence]{partial_dependence()}}, or \code{marginaleffects::plot_predictions()} for more control over the grid \cr
    which predictors the forest uses \tab \code{\link[=variable_importance]{variable_importance()}} \cr
    to tell the prior which predictors matter \tab \code{split_prior} in \code{\link[=bartisan_control]{bartisan_control()}} \cr
+   to see what prior a fit was given \tab \link[=bartisan-interop]{prior_summary()} \cr
+   to see what that prior implies about the outcome \tab \code{prior_only} in \code{\link[=bartisan]{bartisan()}} \cr
    to give one forest its own predictors or settings \tab a list of formulas, and per-forest arguments; see \link{bartisan-families} \cr
    a coefficient that varies with the other predictors \tab \code{\link[=vc]{vc()}} in the formula, then \code{\link[=coef]{coef()}} \cr
    a treatment effect with its own prior \tab \code{\link[=bcf]{bcf()}}, \code{vignette("causal")} \cr

@@ -32,6 +32,27 @@ grep -n '\\[A-Za-z]\+{' NEWS.md README.md vignettes/*.Rmd
 Every hit is either a violation or LaTeX inside `$...$`; there is no third case.
 Roxygen blocks in `R/` are the only place Rd markup belongs.
 
+## Knit the vignettes against an installed package, not under `load_all()`
+
+`kfold()` sends its K refits to workers with `future.packages = "bartisan"`, and
+the thing it sends is the `bartisan` function object itself, since
+`kfold_call()` rebuilds the original call. Serializing a closure whose
+environment is a namespace writes a *reference* to that namespace rather than
+its contents, so the worker resolves it by loading the package by name, which is
+the **installed** one. Under `pkgload::load_all()` with an install that predates
+the change in hand, any internal function added since is missing there, and
+`vignette("comparison")` comes back with
+
+```
+#> Error in `prior_record()`: could not find function "prior_record"
+```
+
+on every `kfold()` chunk. Nothing is wrong with the code; `R CMD INSTALL .`
+first and the same knit is clean. This looks exactly like the real
+`diagnosis_block` bug (an unexported function a worker could not find), which
+was *not* an install artifact, so the two have to be told apart by installing
+rather than by inspection.
+
 ## Package specifics
 
 - `_dev/` is development scratch and is gitignored apart from an allowlist in

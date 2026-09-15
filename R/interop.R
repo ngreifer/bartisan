@@ -51,6 +51,8 @@
 #'   report. Allowable options include `"all"` (the default), `"ELPD"`,
 #'   `"LOOIC"`, `"WAIC"`, `"R2"`, `"RMSE"`, and `"SIGMA"`, and a vector of them
 #'   selects several.
+#' @param digits `integer`; for `print()` on the output of `prior_summary()`,
+#'   how many digits to round the prior's scales to. Default is 3.
 #' @param eta for `as_draws()`, which columns of the additive predictor to carry
 #'   into the draws array alongside the scalar parameters, given as either a
 #'   logical value or a numeric vector. Default is `TRUE`, which takes a
@@ -82,6 +84,14 @@
 #' `<loo>` and `<waic>` objects those functions produce, and
 #' `model_performance()` a one-row data frame of class `<performance_model>`.
 #' `as_draws()` returns a `<draws_array>` of iterations by chains by parameters.
+#'
+#' `prior_summary()` returns a `<bartisan_prior_summary>` object, a list whose
+#' `forests` is a data frame of one row per additive predictor and one column per
+#' setting the prior is made of, whose `estimated` says in the same shape which
+#' of them were drawn rather than held, and whose `family` holds the family's own
+#' parameters with the prior each was given. `random` and `response` record the
+#' group-intercept scale and what was read off the response.
+#'
 #' The accessors return what their names suggest.
 #'
 #' @details
@@ -103,7 +113,10 @@
 #' table, \pkgfun{performance}{r2} gives the Bayesian \eqn{R^2}, and
 #' \pkgfun{posterior}{as_draws} hands the scalar parameters to
 #' \pkgfun{posterior}{summarise_draws} or to the \pkg{bayesplot} MCMC
-#' diagnostics. **Basic accessors.** [stats::fitted()], [stats::residuals()],
+#' diagnostics. **The prior.** \pkgfun{rstantools}{prior_summary} writes out
+#' every prior the fit was given, on the scale it was given on, which is the
+#' companion to `prior_only = TRUE` in [bartisan()]: one says what the prior is
+#' and the other says what it implies about the outcome. **Basic accessors.** [stats::fitted()], [stats::residuals()],
 #' [stats::weights()] and [stats::sigma()] do what they do for a `glm`, which is
 #' also most of what \pkg{insight} needs to make the fit legible to the
 #' \pkg{easystats} packages.
@@ -276,6 +289,9 @@
 #'
 #' # Pointwise log likelihood, and the fit statistics built on it
 #' loo::waic(rstantools::log_lik(fit))
+#'
+#' # Every prior the fit was given, on the scale it was given on
+#' rstantools::prior_summary(fit)
 #'
 #' # Whether replicate outcomes look like the observed ones
 #' if (rlang::is_installed("bayesplot")) {
@@ -670,6 +686,403 @@ sigma.bartisan_fit <- function(object, ...) {
   }
 
   mean(aux[, "sigma"])
+}
+
+# ---------------------------------------------------------------------------
+# prior_summary
+# ---------------------------------------------------------------------------
+
+#' @rdname bartisan-interop
+#' @exportS3Method rstantools::prior_summary
+prior_summary.bartisan_fit <- function(object, ...) {
+  arg::arg_is(object, "bartisan_fit")
+
+  prior <- object[["prior"]]
+
+  if (is_null(prior)) {
+    arg::err(c("this fit kept no record of the prior it was given",
+               i = "It was made before {.fn prior_summary} existed; refit it to
+                    summarize the prior."))
+  }
+
+  forests <- predictor_names(object)
+
+  # One row per forest, because nearly every setting is per-forest even when the
+  # caller wrote a scalar, and a forest that was given its own is exactly the
+  # case worth being able to see.
+  table <- data.frame(forest = forests,
+                      num_trees = object[["num_trees"]][seq_along(forests)],
+                      gamma = prior[["gamma"]],
+                      beta = prior[["beta"]],
+                      leaf_scale = prior[["sigma_mu"]],
+                      k = prior[["k"]],
+                      candidates = prior[["candidates"]],
+                      alpha = prior[["alpha"]],
+                      alpha_scale = prior[["alpha_scale"]],
+                      shape_1 = prior[["alpha_shape_1"]],
+                      shape_2 = prior[["alpha_shape_2"]],
+                      bandwidth = prior[["bandwidth"]],
+                      row.names = NULL)
+
+  estimated <- data.frame(forest = forests,
+                          leaf_scale = prior[["update_sigma_mu"]],
+                          splits = prior[["update_s"]],
+                          alpha = prior[["update_alpha"]],
+                          bandwidth = prior[["update_bandwidth"]],
+                          row.names = NULL)
+
+  out <- list(forests = table,
+              estimated = estimated,
+              rules = list(soft = isTRUE(object[["soft"]]),
+                           gate = object[["gate"]]),
+              sparsity = prior[["sparsity"]],
+              split_prior = isTRUE(prior[["split_prior"]]),
+              share_sparsity = isTRUE(prior[["share_sparsity"]]),
+              random = random_prior(object, prior),
+              family = list(name = object[["family"]][["family"]],
+                            link = object[["family"]][["link"]],
+                            parameters = family_prior(object)),
+              response = list(intercept = object[["intercept"]][[1L]],
+                              scale = prior[["eta_scale"]]),
+              prior_only = isTRUE(object[["prior_only"]]))
+
+  class(out) <- "bartisan_prior_summary"
+
+  out
+}
+
+# The group intercepts, when the formula has a bar. Each is Gaussian with a
+# scale shared by the term's levels, and that scale is given the same
+# half-Cauchy the leaf scale gets, at the first forest's leaf scale; see
+# `make_random_effects()` in `src/random.cpp`.
+random_prior <- function(object, prior) {
+  random <- object[["random"]]
+
+  if (is_null(random)) {
+    return(NULL)
+  }
+
+  list(terms = vapply(random, `[[`, character(1L), "label"),
+       levels = vapply(random, `[[`, integer(1L), "num_levels"),
+       scale = prior[["sigma_mu"]][[1L]],
+       estimated = isTRUE(prior[["update_tau"]]))
+}
+
+# The family's own parameters, as one row each of what they are and what they
+# are given.
+#
+# Most of them follow one of two naming conventions in `family_opts`, either
+# `<p>_prior_shape` and `<p>_prior_rate` or `<p>_shape` and `<p>_rate`, and both
+# mean a gamma prior on `<p>` drawn when `update_<p>` is set. The rest are named
+# one at a time below. The `_prior_` pair is matched first and its names are
+# then withheld from the plain pattern, since `shape_prior_shape` would
+# otherwise also read as a gamma prior on something called `shape_prior`.
+family_prior <- function(object) {
+  opts <- object[["family_opts"]]
+  family <- object[["family"]][["family"]]
+
+  rows <- list()
+
+  add <- function(parameter, prior, estimated) {
+    rows[[length(rows) + 1L]] <<- data.frame(parameter = parameter,
+                                             prior = prior,
+                                             estimated = estimated,
+                                             row.names = NULL)
+  }
+
+  value <- function(nm) {
+    signif(as.numeric(opts[[nm]])[[1L]], 4L)
+  }
+
+  drawn <- function(nm) {
+    flag <- opts[[paste0("update_", nm)]]
+
+    is_null(flag) || isTRUE(as.logical(flag)[[1L]])
+  }
+
+  # The Gaussian and accelerated failure time scales, both half-Cauchy at a
+  # scale read off the response.
+  if (!is_null(opts[["sigma_hat"]])) {
+    add("sigma", sprintf("HalfCauchy(0, %s)", value("sigma_hat")),
+        drawn("sigma"))
+  }
+
+  long <- grep("_prior_shape$", names(opts), value = TRUE)
+  short <- setdiff(grep("_shape$", names(opts), value = TRUE), long)
+
+  for (nm in c(long, short)) {
+    stem <- sub("_(prior_)?shape$", "", nm)
+    rate <- sub("shape$", "rate", nm)
+
+    if (is_null(opts[[rate]])) {
+      next
+    }
+
+    # The proportional hazards baseline is one rate per time bin under the same
+    # prior, which is worth saying since the others are single numbers.
+    each <- if (stem == "lambda" && !is_null(opts[["edges"]]))
+      sprintf(", one for each of %s time bins",
+              length(opts[["edges"]]) - 1L)
+    else ""
+
+    add(stem, sprintf("Gamma(shape = %s, rate = %s)%s", value(nm), value(rate),
+                      each),
+        drawn(stem))
+  }
+
+  # The Dirichlet process mixture's base measure, which is where a weightless
+  # observation's atom comes from, and the concentration that governs how many
+  # atoms there are.
+  if (family %in% c("dpm", "dpm_aft")) {
+    add("atom variance",
+        sprintf("%s * %s / ChiSq(%s)", value("nu"), value("lambda"),
+                value("nu")),
+        TRUE)
+    add("atom mean",
+        sprintf("Normal(%s, variance / %s)", value("mu_0"), value("k_0")),
+        TRUE)
+    grid <- opts[["alpha_grid"]]
+
+    add("concentration",
+        if (!drawn("alpha")) sprintf("fixed at %s", value("alpha"))
+        else sprintf("tapered over a grid of %s values from %s to %s",
+                     length(grid), signif(min(grid), 4L),
+                     signif(max(grid), 4L)),
+        drawn("alpha"))
+  }
+
+  if (family == "tweedie") {
+    add("power",
+        if (drawn("power")) "Uniform(1, 2)"
+        else sprintf("fixed at %s", value("power")),
+        drawn("power"))
+  }
+
+  if (family == "mnp") {
+    add("covariance",
+        sprintf("InverseWishart(%s, I), rescaled to unit mean variance",
+                value("nu")),
+        drawn("sigma"))
+  }
+
+  # The one thing worth saying about these is that there is nothing to say: the
+  # cutpoints are drawn from the likelihood and have no prior, which is why
+  # `prior_only = TRUE` refuses both families.
+  if (family %in% c("ordinal", "ordbeta")) {
+    add("cutpoints",
+        if (family == "ordinal" && !drawn("cuts")) "fixed at the values given"
+        else "none; drawn from the likelihood alone",
+        family != "ordinal" || drawn("cuts"))
+  }
+
+  if (length(rows) == 0L) {
+    return(NULL)
+  }
+
+  do.call(rbind, rows)
+}
+
+# Whether a setting was drawn, said in a way that survives a fit whose forests
+# disagree about it: naming the ones it was drawn for is the only accurate thing
+# to say when a per-forest argument was used.
+estimated_phrase <- function(flags, forests) {
+  if (all(flags)) {
+    return("estimated")
+  }
+
+  if (!any(flags)) {
+    return("held fixed")
+  }
+
+  sprintf("estimated for %s and held fixed for the rest",
+          paste(forests[flags], collapse = ", "))
+}
+
+# A per-forest setting written into the prose: the number itself when every
+# forest was given the same one, and the name of the column carrying it when
+# they were not. The column is in the table printed just above in that case, so
+# the sentence reads as the formula it is and the numbers are one line away.
+shared_value <- function(column, name, digits) {
+  values <- unique(column)
+
+  if (length(values) != 1L) {
+    return(name)
+  }
+
+  format(round(values, digits))
+}
+
+#' @rdname bartisan-interop
+#' @export
+print.bartisan_prior_summary <- function(x, digits = 3L, ...) {
+
+  arg::arg_whole_number(digits)
+
+  table <- x[["forests"]]
+  est <- x[["estimated"]]
+  forests <- table[["forest"]]
+
+  val <- function(nm) {
+    shared_value(table[[nm]], nm, digits)
+  }
+
+  varies <- function(...) {
+    any(vapply(c(...), function(nm) length(unique(table[[nm]])) > 1L, TRUE))
+  }
+
+  cli_cat("{.underline Priors}")
+  cli::cat_line()
+
+  # The table earns its place only when the forests were given different
+  # settings, which is what a per-forest argument is for. Otherwise every number
+  # in it appears in the prose below, and printing both says it twice.
+  if (nrow(table) > 1L && varies(setdiff(names(table), "forest"))) {
+    show <- table[c(TRUE, vapply(table[-1L], function(z) length(unique(z)) > 1L,
+                                 TRUE))]
+
+    for (nm in setdiff(names(show), "forest")) {
+      show[[nm]] <- round(show[[nm]], digits)
+    }
+
+    print(show, row.names = FALSE)
+    cli::cat_line()
+  }
+
+  cli_cat("{.underline Trees}")
+
+  tree_qty <- if (varies("num_trees")) 2L else table[["num_trees"]][[1L]]
+
+  # Worth an illustration only when one number governs every forest; two
+  # different branching probabilities do not have one root probability.
+  depth_note <- {
+    if (varies("gamma", "beta")) ""
+    else sprintf(", so the root splits with probability %s and a node at depth 3 with %s",
+                 val("gamma"),
+                 round(table[["gamma"]][[1L]] * 4^-table[["beta"]][[1L]],
+                       digits))
+  }
+
+  cli_bullets_cat(c(
+    "*" = "{val('num_trees')}{cli::qty(tree_qty)} tree{?s} per additive predictor, summed. A node at
+           depth {.emph d} branches with probability {val('gamma')} *
+           (1 + {.emph d})^-{val('beta')}{depth_note}."))
+  cli::cat_line()
+
+  cli_cat("{.underline Leaves}")
+  cli_bullets_cat(c(
+    "*" = "Each leaf value is Normal(0, {val('leaf_scale')}^2), that scale being
+           3 * {.emph s} / ({val('k')} * sqrt({val('num_trees')})) with
+           {.emph s} the response's scale on the link scale. The scale is itself
+           given a half-Cauchy prior centred there and is
+           {estimated_phrase(est[['leaf_scale']], forests)}."))
+  cli::cat_line()
+
+  cli_cat("{.underline Splitting variables}")
+
+  if (x[["split_prior"]]) {
+    cli_bullets_cat(c(
+      "*" = "Fixed by {.arg split_prior}, so how the rules are shared out among
+             the {val('candidates')} predictors is not drawn."))
+  }
+  else if (isFALSE(x[["sparsity"]])) {
+    cli_bullets_cat(c(
+      "*" = "Each of the {val('candidates')} predictors is equally likely to be
+             split on, and that is not drawn
+             ({.code sparsity = FALSE})."))
+  }
+  else {
+    # Assembled here rather than inside the message, since cli parses a `{}`
+    # expression on one line and an `if` written across several is a syntax
+    # error by the time it gets there.
+    sparsity_drawn <- {
+      if (all(est[["splits"]]) && all(est[["alpha"]])) "Both are estimated."
+      else if (identical(est[["splits"]], est[["alpha"]]))
+        sprintf("Both are %s.", estimated_phrase(est[["splits"]], forests))
+      else sprintf("The shares are %s and the concentration is %s.",
+                   estimated_phrase(est[["splits"]], forests),
+                   estimated_phrase(est[["alpha"]], forests))
+    }
+
+    cli_bullets_cat(c(
+      "*" = "The share of the rules each of the {val('candidates')} predictors
+             receives is Dirichlet({val('alpha')} / {val('candidates')}), whose
+             concentration enters as
+             a / (a + {val('alpha_scale')}) ~ Beta({val('shape_1')},
+             {val('shape_2')}). {sparsity_drawn}"))
+
+    if (x[["share_sparsity"]]) {
+      cli_bullets_cat(c(
+        "*" = "The forests share one set of shares
+               ({.code share_sparsity = TRUE})."))
+    }
+  }
+
+  cli::cat_line()
+  cli_cat("{.underline Decision rules}")
+
+  if (x[["rules"]][["soft"]]) {
+    cli_bullets_cat(c(
+      "*" = "Soft, with {.val {x[['rules']][['gate']]}} gates. Each tree's
+             bandwidth is drawn from an exponential with mean
+             {val('bandwidth')}, on predictors mapped to [0, 1], and is
+             {estimated_phrase(est[['bandwidth']], forests)}."))
+  }
+  else {
+    cli_bullets_cat(c(
+      "*" = "Hard, as in standard BART, so no bandwidth is used."))
+  }
+
+  if (!is_null(x[["random"]])) {
+    random <- x[["random"]]
+
+    tau_drawn <- if (random[["estimated"]]) "it is drawn"
+      else "it is held at that prior's median"
+
+    cli::cat_line()
+    cli_cat("{.underline Group intercepts}")
+    cli_bullets_cat(c(
+      "*" = "{cli::qty(length(random[['terms']]))}Term{?s}
+             {.val {random[['terms']]}}, with
+             {paste(random[['levels']], collapse = ' and ')} levels. Each
+             level's intercept is Normal(0, tau^2), and tau is given the
+             half-Cauchy prior the leaf scale gets, centred at
+             {round(random[['scale']], digits)}; {tau_drawn}."))
+  }
+
+  cli::cat_line()
+
+  family <- x[["family"]]
+
+  cli_cat("{.underline Family}: {family[['name']]}, {family[['link']]} link")
+
+  params <- family[["parameters"]]
+
+  if (is_null(params)) {
+    cli_bullets_cat(c(
+      "*" = "No parameters of its own beyond the additive predictors above."))
+  }
+  else {
+    for (i in seq_len(nrow(params))) {
+      row <- params[i, ]
+      drawn <- if (row[["estimated"]]) "(estimated)" else "(fixed)"
+
+      cli_bullets_cat(c(
+        "*" = "{row[['parameter']]}: {row[['prior']]} {drawn}"))
+    }
+  }
+
+  cli::cat_line()
+  cli_bullets_cat(c(
+    i = "The leaf scale, and any number above read off the response, are
+         calibrated rather than fitted; that is how a BART prior is specified.",
+    i = "{.code prior_only = TRUE} in {.fn bartisan} draws from all of this, so
+         that what it implies can be read on the outcome's own scale."))
+
+  if (x[["prior_only"]]) {
+    cli_bullets_cat(c(i = "This fit is itself a draw from the prior."))
+  }
+
+  invisible(x)
 }
 
 # ---------------------------------------------------------------------------

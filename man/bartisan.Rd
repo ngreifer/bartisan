@@ -379,14 +379,15 @@ everything else from the prior: which predictors are split on, how deep, how
 much the fitted function departs from that anchor. Read them for shape and
 spread rather than for level.
 
-\strong{The one family that refuses it.} \code{ordinal()} draws its cutpoints from the
-likelihood alone, with no prior term to fall back on, so at zero weight the
-target is not flattened but empty and the cutpoints wander out to the bound.
-Every replicate would land in one category with nothing in the fit to say so,
-which is why this is an error rather than a warning. The gap is in the model
-and not in the mechanism; it would close if a prior over ordered cutpoints
-were specified. For an ordered outcome with few enough categories,
-\code{multinomial()} allows \code{prior_only = TRUE} and is the nearest substitute.
+\strong{The two families that refuse it.} \code{ordinal()} and \code{ordbeta()} draw their
+cutpoints from the likelihood alone, with no prior term to fall back on, so at
+zero weight the target is not flattened but empty and the cutpoints wander out
+to the bound. The replicates would pile at one end of the scale with nothing
+in the fit to say so, which is why this is an error rather than a warning. The
+gap is in the model and not in the mechanism; it would close if a prior over
+ordered cutpoints were specified. Every other family allows it, and for an
+ordered outcome with few enough categories \code{multinomial()} is the nearest
+substitute.
 
 Note that the wider a prior is, the wider its replicates, and that is a
 finding rather than a fault. \code{gaussian_ls()} and \code{Gamma_ls()} put a log scale

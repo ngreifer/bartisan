@@ -28,6 +28,8 @@
 #' | a partial dependence plot | [partial_dependence()], or `marginaleffects::plot_predictions()` for more control over the grid |
 #' | which predictors the forest uses | [variable_importance()] |
 #' | to tell the prior which predictors matter | `split_prior` in [bartisan_control()] |
+#' | to see what prior a fit was given | [prior_summary()][bartisan-interop] |
+#' | to see what that prior implies about the outcome | `prior_only` in [bartisan()] |
 #' | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [bartisan-families] |
 #' | a coefficient that varies with the other predictors | [vc()] in the formula, then [coef()] |
 #' | a treatment effect with its own prior | [bcf()], `vignette("causal")` |
