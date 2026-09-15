@@ -8,6 +8,33 @@ The standard applied throughout: **does this seriously affect a workflow the
 package claims to support?** Speedups, polish and features that another package
 already covers are excluded, however tempting.
 
+## Where we stand (2026-09-14)
+
+Everything the original list called blocking has landed except one item, and that
+one has an argument for reclassifying rather than doing. The vignette series is
+written: ten vignettes, all knitting clean. The suite is 38 files, 456 tests and
+2275 assertions, green under `testthat::test_local()`.
+
+`R CMD check` is **1 ERROR, 1 WARNING, 1 NOTE**, which is the finding of this
+round: the suite and the knit were not standing in for a check. All three are
+small and none is about the model. Part 4 has them.
+
+| | |
+| --- | --- |
+| Blocking, done | the rename, `variable_importance()`, `as_draws(eta = )`, the `predict(type = "density")` warning |
+| Blocking, open | `custom_family()` has no posterior predictive draws (item 4); already documented elsewhere, needs one cross-reference to stop being a blocker |
+| Landed since, unplanned | `estimate_effect()`, `bcf()`, `diagnose()`, `partial_dependence()`, `kfold()`, `prior_only`, `prior_summary()` |
+| Blocked on packaging, not code | one test reads a path that only exists in a checkout; two arguments undocumented; a leftover `knitr` directory in the tarball (Part 4) |
+| New gaps found while surveying | no `ranef()` or `VarCorr()` accessor, a milder version of item 2 since `?bartisan` already names the components; and a cross-reference in `vignette("bartisan")` promising a prediction interval that `vignette("effects")` does not deliver (Part 3) |
+
+The judgment: **the feature work is done, and the packaging is not.** Part 3 is
+the survey that says the first half, and it replaces guessing about parity with
+reading an export list. Part 4 is the second half. What is left is none of it a
+feature: three check findings, one accessor a mixed-model user will look for, one
+cross-reference that promises a section that does not exist, and a `NEWS.md` with
+a version that is not `0.0.0.9000`. "What to do next" at the bottom has them in
+order.
+
 ## Part 1: what is actually missing
 
 ### Blocking
@@ -49,10 +76,19 @@ draws array themselves from `posterior_epred()`.
 *Needs:* a `variables` argument on `as_draws.bartisan()`, or including a small
 representative set of `eta` columns by default. Small work; vignette 2 needs it.
 
-**4. `custom_family()` has no posterior predictive draws.** A log density supplies
+**4. `custom_family()` has no posterior predictive draws.** *(open, and the only
+one still open)* A log density supplies
 no way to draw from it, so `simulate()`, `pp_check()`, `r2()` and everything
 built on them are unavailable for a user-written likelihood. Already in `TASKS.md`.
 Medium work: an optional `rng` argument alongside the density.
+
+`TASKS.md` argues the lighter reading, that `custom_family()` is the escape hatch
+rather than a supported path and every compiled family has a sampler. That
+reading is the right one *provided the limitation is documented where it is met
+rather than discovered*, and it is nearly there already: `?bartisan-interop` and
+`vignette("faq")` both state it plainly, while `?bartisan-families`, the page
+that documents `custom_family()` itself, does not. One cross-reference settles
+it, and the `rng` argument is then a post-1.0 feature rather than a blocker.
 
 **5. `predict(type = "density")` returns NaN silently** *(done -- it warns; the value stays NaN)* when a composed link's
 inverse sends the predictor outside the family's support. Already in `TASKS.md`,
@@ -70,11 +106,11 @@ These are real work, but none of them blocks a workflow the package claims:
 - **Model selection** -- `loo()` and `waic()` are present and work.
 - **Mixing diagnostics** -- `rhat`, `ess_bulk`, `ess_tail` are present and
   already cover `eta`; only the plotting hand-off is missing (item 3).
-- **A separate treatment forest (BCF)** -- a real modeling gap and the right
-  post-1.0 feature, but `marginaleffects` covers the estimand side of causal
-  inference for a model fitted by hand, and regularization-induced confounding is
-  a documentable caveat rather than a broken feature. **The documentation of how
-  to do causal inference with what exists is blocking; the feature is not.**
+- **A separate treatment forest (BCF)** -- *this was called the right post-1.0
+  feature and then landed anyway, as `bcf()`.* The reasoning held right up to the
+  point where writing `vignette("causal")` made the caveat about
+  regularization-induced confounding tiresome to keep making, which is the usual
+  sign that the feature is cheaper than the paragraph.
 - Correlated random effects across predictors, `quasi()`, the joint ordinal
   cutpoint update, grow-from-root warm start, categorical splits on level
   subsets, soft random tree features -- all post-1.0.
@@ -104,17 +140,21 @@ lives here:
 | convergence plots (`plot_convergence_diagnostics`) | `fit$rhat`, `as_draws()` + bayesplot |
 | fit checks (`plot_y_vs_yhat`, `check_bart_error_assumptions`) | `pp_check()`, `residuals()` |
 | interaction detection (`interaction_investigator`) | `marginaleffects::comparisons(by = )`, partially |
-| k-fold CV (`k_fold_cv`, `xbart`, `bartMachineCV`) | **absent**; `loo()` covers model comparison |
+| k-fold CV (`k_fold_cv`, `xbart`, `bartMachineCV`) | `kfold()`, added since this table was written |
 | model matrix helpers (`makeModelMatrixFromDataFrame`, `dummify_data`, `preprocess_df`, `bartModelMatrix`) | **not needed** -- the formula interface does it |
 
 Two conclusions.
 
 **There is no remaining feature gap.** After `variable_importance()`, everything
 those four packages export is either present, covered by a better-maintained
-general package, or unnecessary here. The only genuine absence is k-fold
-cross-validation, and it is absent for a reason: `xbart` and `bartMachineCV`
-exist to tune `k`, `q` and the tree count, which the defaults here are meant to
-settle, and `loo()` covers model comparison without refitting.
+general package, or unnecessary here. The one absence when this was written was
+k-fold cross-validation, argued away on the grounds that `xbart` and
+`bartMachineCV` exist to tune `k`, `q` and the tree count, which the defaults
+here are meant to settle. That argument was half right: tuning is not what a
+`kfold()` here is for, but *checking `loo()`* is, since the two estimate the same
+quantity and the Pareto diagnostics are the only thing otherwise vouching for
+the approximation. `kfold()` exists now and `vignette("comparison")` uses it
+that way.
 
 **What is left is discoverability, not function.** A newcomer cannot guess that
 intervals come from `marginaleffects::predictions()`, or that a prediction
@@ -122,15 +162,124 @@ interval needs `posterior_predict()`. Four of those packages ship one function
 per task with an obvious name; this one ships a map. The map has to be good --
 hence the rewritten `?bartisan-package` and the vignette series below.
 
+## Part 3: measured against rstanarm
+
+The question that prompted this was whether *bartisan* could stand in for
+*rstanarm* as the thing reached for by default. Surveyed the same way as the BART
+packages above, by reading `getNamespaceExports("rstanarm")` rather than from
+memory, and restricted to what applies to a single-response regression: the
+joint longitudinal-survival machinery (`posterior_survfit`, `posterior_traj`,
+`ps_check`, `stanjm_*`, `stanmvreg_*`) is a different model class, `plot_nonlinear`
+is for GAM terms, `se` and `posterior_interval` are about coefficients a forest
+does not have, and `pairs_*` is a geometry diagnostic for a Hamiltonian sampler.
+
+| rstanarm | Here |
+| --- | --- |
+| `posterior_predict`, `posterior_epred`, `posterior_linpred`, `log_lik` | present, same names |
+| `loo`, `waic`, `loo_compare`, `kfold` | present; `kfold()` was the gap and is not now |
+| `loo_model_weights` | works already on our `<loo>` objects (checked: 0.889 / 0.111 on two nested fits) |
+| `pp_check` | present, and dispatches the whole *bayesplot* set including the `loo_*` checks |
+| `bayes_R2` | `performance::r2()` and `r2_posterior()` |
+| `prior_summary` | present, and says more than rstanarm's can: the prior here is a function of the response and the tree count |
+| `sigma`, `nsamples` | `sigma()`; a draw count is `nrow(fit$sigma_mu)` and wants no accessor |
+| `get_y`, `get_x`, `get_z` | `insight::get_data()`, `fit$model` |
+| `Surv`, `invlogit`, `logit` | re-exports and one-liners; use the originals |
+| **`ranef`, `VarCorr`, `fixef`, `ngrps`** | **absent.** See below |
+| `predictive_interval`, `predictive_error` | absent; both are one line over `posterior_predict()` |
+| `loo_predict`, `loo_linpred`, `loo_predictive_interval`, `loo_R2` | absent; the PSIS machinery is there, the four wrappers are not |
+| `posterior_vs_prior` | absent, and newly *possible*: `prior_only = TRUE` gives the other half |
+| `pp_validate` | absent as an export; the simulation-based calibration it does is in `_dev/sbc.R` and was run |
+| `launch_shinystan` | out of scope; wants a shinystan object |
+
+### The one that matters: no `ranef()`
+
+The package advertises `(1 | group)` in the formula, fits it, and stores the
+result correctly: `fit$ranef$eta` is a draws-by-levels matrix with columns named
+`g:a`, `g:b` and so on, and `fit$tau$eta` is the draws of each term's scale.
+`?bartisan` says as much, in as many words ("The intercepts are in `fit$ranef`
+and their standard deviations in `fit$tau`"), so this is a weaker version of item
+2 than that item was: the information is documented as well as correct. What is
+missing is only the accessor. `lme4::ranef()` and `nlme::VarCorr()` both fail
+with "no applicable method", and those are the two names a mixed-model user tries
+before reading anything.
+
+It is still worth doing before submission, on the same argument that made
+`variable_importance()` blocking and for the same reason the map in Part 1's
+closing note has to be good: a package that ships a map cannot also ship the one
+turning the reader is sure to take without checking. And it is small. Two
+methods over matrices that already exist, and `tau` gives the scale for free.
+
+The counter-argument, which is not nothing: a `$`-accessible matrix that the help
+page names is a perfectly usable interface, and `ranef()` would be sugar. If the
+release is being held for this alone, ship without it.
+
+`fixef` and `ngrps` do not follow. A forest has no fixed effects to return, and a
+group count is `length(levels(...))`.
+
+### The rest is convenience, and one is newly cheap
+
+`predictive_interval()` and `predictive_error()` are a quantile and a
+subtraction over `posterior_predict()`. No vignette does either, and looking for
+one turned up a dangling cross-reference. `vignette("bartisan")` raises the
+distinction between an interval on the mean and an interval on a new observation,
+says it "matters a great deal" for a continuous outcome, and sends the reader to
+`vignette("effects")` for it:
+
+> For a continuous outcome, the distinction between an interval for the mean and
+> an interval for a new observation matters a great deal, and
+> `vignette("effects")` covers it.
+
+`vignette("effects")` does not cover it. It has no section on it and does not use
+the words, and `posterior_predict()` appears in only two vignettes,
+`comparison` (for a zero-share statistic) and `faq` (in prose). So the one place
+a reader is told to go for a prediction interval is the one place that does not
+have one, which makes this the strongest of the parity items rather than the
+weakest: it is a promise already made.
+
+`posterior_vs_prior()` is the interesting one. It was impossible here until
+`prior_only` landed and is now two fits and a comparison, which is what
+`vignette("diagnostics")` walks through: the prior's fitted risk against the
+posterior's over the same quantiles. Whether that deserves a function or stays a
+documented recipe is a discoverability judgment rather than a capability one.
+
+### What this does not answer
+
+Parity of *exports* is not parity of *purpose*. Someone reaching for
+`stan_glm()` wants a coefficient with an interval on it, and this package will
+never return one: that is what the model is. The honest claim is narrower than
+"replaces rstanarm" -- it is that for the questions a forest can answer
+(prediction, effects, comparison, calibration), there is no longer a workflow
+step that rstanarm supports and this does not, once `ranef()` exists.
+
 ## Part 2: the vignette series (written)
 
-Three vignettes exist: `bartisan` (the model and the sampler), `families`
-(choosing a likelihood), `survival` (censored responses). Those are
-*reference* documents, organized by the package's own structure.
+All six landed, and two more besides. The names moved as they went, so the
+sketches below are keyed to the files that came of them:
 
-The series below is organized by **the analyst's workflow instead** -- the arc a
-person actually walks from a data frame to a defensible claim. Each answers a
-question someone would ask about a regression, and answers it with BART.
+| Sketched as | Shipped as | Title |
+| --- | --- | --- |
+| 1 `workflow` | `bartisan.Rmd` | Getting started with bartisan |
+| 2 `diagnostics` | `diagnostics.Rmd` | Checking convergence and fit |
+| 3 `importance` | `importance.Rmd` | Which variables matter |
+| 4 `effects` | `effects.Rmd` | Effects, curves and interactions |
+| 5 `comparison` | `comparison.Rmd` | Choosing between models |
+| 6 `causal` | `causal.Rmd` | Causal Inference with BART |
+| -- | `implementation.Rmd` | Generalized BART with bartisan |
+| -- | `faq.Rmd` | bartisan Frequently Asked Questions |
+| reference | `families.Rmd`, `survival.Rmd` | unchanged in role |
+
+The one structural change: `bartisan.Rmd` was the method document and is now the
+orientation piece, the method having moved to `implementation.Rmd`. That is the
+right way round. A reader who types `vignette("bartisan")` wants to fit
+something, not to read about a reversible-jump sampler.
+
+`faq.Rmd` was not planned and came out of the questions that kept recurring
+while the other six were written, which is a better way to arrive at an FAQ than
+guessing at one.
+
+Everything below is the original sketch, kept as the record of what was intended
+against what shipped. The series was organized by **the analyst's workflow** --
+the arc a person actually walks from a data frame to a defensible claim.
 
 A design rule for all of them: they must be honest about the places where the
 BART answer is *worse* or *harder* than the `lm()` answer, not only where it is
@@ -256,7 +405,7 @@ effect unless the identification assumptions hold. Worth one paragraph, plainly.
 
 ---
 
-### Sequencing
+### Sequencing (as planned, and what actually happened)
 
 1 first: it is the entry point and the others are its expansions. Then 4, which
 is the highest-value single document (most people's real question is "what is the
@@ -267,3 +416,103 @@ costly and it benefits from the other five being settled.
 `families` and `survival` stay as reference documents and get cross-links from 1
 and 5. `bartisan` stays as the "how it works" document; it is the only one
 organized around the method rather than the workflow, which is correct for it.
+
+That last paragraph is the one the plan got wrong, and it is worth saying why.
+Keeping the method document at `vignette("bartisan")` meant the name a reader
+guesses first pointed at the hardest document in the set. Renaming it to
+`implementation` cost nothing and fixed the entry point.
+
+Otherwise the order held. What it did not predict is how much package code the
+*writing* would turn up: `estimate_effect()`, `diagnose()`,
+`partial_dependence()`, `bcf()`, `kfold()`, `prior_only` and `prior_summary()`
+all came out of a vignette needing something and finding it absent, which was the
+premise of doing the two halves together and is the strongest evidence for it.
+
+## Part 4: what `R CMD check` says
+
+Run with `_dev/check.sh` on 2026-09-14, against the built tarball rather than the
+source tree. `Status: 1 ERROR, 1 WARNING, 1 NOTE`. None of the three had shown up
+in `testthat::test_local()` or in a knit, because none of them can.
+
+### ERROR: a test that only passes in a checkout
+
+```
+── Error ('test-invariants.R:304:3'): every S3 method on a foreign generic is registered ──
+Error in `file(con, "r")`: cannot open the connection
+ 1. └─base::readLines("../../NAMESPACE", warn = FALSE)
+```
+
+The test is there for a good reason, and its own comment gives it: roxygen
+attaches `@exportS3Method` positionally, so inserting a helper between the tag
+and the function moves the registration onto the helper, and `load_all()` hides
+that by registering from source regardless. So it asserts against `NAMESPACE`
+itself.
+
+It reads `../../NAMESPACE`, which resolves in `tests/testthat/` and does not
+resolve under `R CMD check`, where the tests run from `bartisan.Rcheck/tests/`.
+The test written specifically to catch what only breaks in an installed package
+is the one that breaks against the installed package.
+
+The fix is not a path. It is to assert against the registry rather than the file:
+`getNamespaceInfo("bartisan", "S3methods")` is what actually governs dispatch,
+exists in both contexts, and is the thing the test is really about. `NAMESPACE`
+was only ever a proxy for it.
+
+### WARNING: two undocumented arguments
+
+```
+Undocumented arguments in Rd file 'estimate_effect.Rd'
+  'potential_outcomes'
+Undocumented arguments in Rd file 'partial_dependence.Rd'
+  'digits'
+```
+
+Both are real and both are one `@param` each. `digits` is on
+`print.bartisan_partial()`, which shares a page with `partial_dependence()` and
+never had the tag; `potential_outcomes` is an `estimate_effect()` argument.
+
+### NOTE: a leftover knitr directory
+
+```
+The following directory looks like a leftover from 'knitr':
+  'figure'
+```
+
+This is `vignettes/figure`. `.Rbuildignore` has `^figure$`, which excludes the
+root-level one and not this one, and both exist on disk from knitting vignettes
+outside a build. `.gitignore` covers both, so neither is committed and the
+tarball picked one up anyway, which is the distinction between the two files
+worth remembering: `.gitignore` keeps it out of the repository and
+`.Rbuildignore` keeps it out of the package. Needs `^vignettes/figure$`.
+
+## What to do next, in order
+
+0. **The three check findings.** Part 4. Smallest and most certain work on the
+   list, and the only items that are outright errors rather than judgments: the
+   invariants test asserts against the wrong thing, two `@param` tags are
+   missing, and `.Rbuildignore` needs one line.
+1. **`ranef()` and `VarCorr()` methods.** Part 3. Small, and the two names a
+   mixed-model user reaches for first. Weaker than it looks, since `?bartisan`
+   already names `fit$ranef` and `fit$tau`; do it, but do not hold the release
+   for it alone.
+2. **Move the `custom_family()` limitation onto its own help page.** It is
+   already stated on `?bartisan-interop` ("no posterior predictive distribution
+   at all, because a log density supplies no way to draw from it") and in
+   `vignette("faq")`, so this is one cross-reference rather than new prose. But
+   `?bartisan-families` is where `custom_family()` is documented and where a
+   reader meets it, and the caveat is not there. That placement is what makes
+   item 4 non-blocking rather than merely unfinished.
+3. **Settle the prediction-interval cross-reference**, which is a promise to a
+   reader rather than a parity item. Either `vignette("effects")` gains the
+   section `vignette("bartisan")` says it has, or the pointer goes. The first is
+   better and wants `predictive_interval()` to exist so the section is three
+   lines instead of a digression about `posterior_predict()`'s shape.
+4. **`NEWS.md` does not exist.** Nothing requires one before a first release, but
+   the version is still `0.0.0.9000` and something has to say what 0.1.0 is.
+5. **Re-run `_dev/check.sh` to a clean bill** once 0 is done, since one of its
+   three findings is a test and a green check is the only thing that shows the
+   test now passes where it has to.
+6. Post-1.0, in no order: `predictive_error()`, the
+   `loo_*` prediction wrappers, `posterior_vs_prior()`, an `rng` for
+   `custom_family()`, and the DART inclusion probability as a stored quantity
+   (`TASKS.md` has why it is a C++ change).
