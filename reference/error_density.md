@@ -112,8 +112,6 @@ head(error_density(fit, at = c(-2, 0, 2)))
 #> 3  2 0.1149345 0.1115033 0.1173836
 
 # The same thing drawn, with the pointwise interval as a ribbon
-if (rlang::is_installed("ggplot2")) {
-  plot(error_density(fit))
-}
+plot(error_density(fit))
 
 ```

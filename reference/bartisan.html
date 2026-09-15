@@ -39,8 +39,8 @@ counterpart for documented at bartisan-families."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -90,6 +90,7 @@ counterpart for documented at <a href="bartisan-families.html">bartisan-families
 <span>  subset <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  na.action <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">na.pass</a></span>,</span>
 <span>  control <span class="op">=</span> <span class="fu"><a href="bartisan_control.html">bartisan_control</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  prior_only <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -184,6 +185,12 @@ nothing to fit them to.</p></dd>
 <dt id="arg-control">control<a class="anchor" aria-label="anchor" href="#arg-control"></a></dt>
 <dd><p>a <code>&lt;bartisan_control&gt;</code> object; the output of a call to
 <code><a href="bartisan_control.html">bartisan_control()</a></code>, containing the sampler and prior settings.</p></dd>
+
+
+<dt id="arg-prior-only">prior_only<a class="anchor" aria-label="anchor" href="#arg-prior-only"></a></dt>
+<dd><p><code>logical</code>; whether to draw from the prior rather than the
+posterior, which is what a prior predictive check reads. Default is <code>FALSE</code>.
+Not available for every family; see Details.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -404,7 +411,59 @@ for assessing convergence of MCMC. <em>Bayesian Analysis</em>, 16(2), 667–718.
 <a href="https://doi.org/10.1214/20-BA1221" class="external-link">doi:10.1214/20-BA1221</a></p>
 <p>Twala, B. E. T. H., Jones, M. C., &amp; Hand, D. J. (2008). Good methods for
 coping with missing data in decision trees. <em>Pattern Recognition Letters</em>,
-29(7), 950–956. <a href="https://doi.org/10.1016/j.patrec.2008.01.010" class="external-link">doi:10.1016/j.patrec.2008.01.010</a></p>
+29(7), 950–956. <a href="https://doi.org/10.1016/j.patrec.2008.01.010" class="external-link">doi:10.1016/j.patrec.2008.01.010</a></p><div class="section">
+<h3 id="drawing-from-the-prior-prior-only-">Drawing From the Prior (<code>prior_only</code>)<a class="anchor" aria-label="anchor" href="#drawing-from-the-prior-prior-only-"></a></h3>
+
+
+<p><code>prior_only = TRUE</code> fits the same model to no data. Every observation is given
+a weight of zero, and since the weight multiplies that observation's log
+density, its gradient and its curvature, the likelihood is flat: each tree
+move is accepted or rejected on the prior alone and each leaf is drawn from
+its prior. A family that draws an auxiliary parameter from the response
+directly rather than through the weighted density (the mixture atoms under
+<code><a href="bartisan-families.html">dpm()</a></code>, the latent utilities under <code>multinomial(link = "probit")</code>) is told
+separately that a weightless observation carries no information, and draws
+that parameter from its own prior instead. The sampler is otherwise untouched,
+so what comes back is an ordinary fit whose draws are prior draws, and
+<code><a href="https://mc-stan.org/rstantools/reference/posterior_predict.html" class="external-link">rstantools::posterior_predict()</a></code>
+ on it gives the prior predictive
+distribution.</p>
+<p>It answers a question the priors themselves cannot. <code>k</code>, <code>gamma</code> and <code>beta</code>
+are statements about trees and leaves, and nobody has intuition for what they
+imply about an outcome. The replicates put that on the response's own scale,
+where it can be judged: a prior predictive that puts its mass where the
+outcome cannot go, or spread over an implausible range, is a prior worth
+changing before the data are seen and before any of their information is
+spent.</p>
+<p><strong>What the prior is still conditioned on.</strong> The additive predictor is anchored
+at an intercept-only fit on the link scale, and the leaf scale is calibrated
+from the response, which is how a BART prior is specified and not a leak.
+So the replicates take their <em>location and scale</em> from the response and
+everything else from the prior: which predictors are split on, how deep, how
+much the fitted function departs from that anchor. Read them for shape and
+spread rather than for level.</p>
+<p><strong>The two families that refuse it.</strong> <code><a href="bartisan-families.html">ordinal()</a></code> and <code><a href="bartisan-families.html">ordbeta()</a></code> draw their
+cutpoints from the likelihood alone, with no prior term to fall back on, so at
+zero weight the target is not flattened but empty and the cutpoints wander out
+to the bound. The replicates would pile at one end of the scale with nothing
+in the fit to say so, which is why this is an error rather than a warning. The
+gap is in the model and not in the mechanism; it would close if a prior over
+ordered cutpoints were specified. Every other family allows it, and for an
+ordered outcome with few enough categories <code><a href="bartisan-families.html">multinomial()</a></code> is the nearest
+substitute.</p>
+<p>Note that the wider a prior is, the wider its replicates, and that is a
+finding rather than a fault. <code><a href="bartisan-families.html">gaussian_ls()</a></code> and <code><a href="bartisan-families.html">Gamma_ls()</a></code> put a log scale
+in a second forest, and a scale drawn from the leaf prior sends their
+replicates far wider than the response ever runs. That is the prior the
+defaults specify, shown on the scale where it can be judged, which is what
+the check is for.</p>
+<p>Nothing that scores a fit against data will run on one. <code>loo()</code>, <code>waic()</code> and
+<code>kfold()</code> refuse, and
+<code><a href="https://easystats.github.io/performance/reference/model_performance.html" class="external-link">performance::model_performance()</a></code>
+ leaves out the three columns built on
+them.</p>
+</div>
+
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -428,7 +487,7 @@ likelihoods, and <code><a href="../articles/families.html">vignette("families")<
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span>
 <span class="r-in"><span><span class="va">fit</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, </span>

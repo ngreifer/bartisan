@@ -43,8 +43,8 @@ this package's own spelling and resolves to the log link; see Details."></head><
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -313,27 +313,30 @@ available families is not restricted to the conditionally conjugate ones.</p>
 to choose a family, how to choose among the links a family offers, and what
 each family is and is not for. What follows is the short version, and the
 points that could lead to output being misread.</p>
-<p>The supported families and links are:</p><table class="table table"><tr><td>Family</td><td>Links</td><td>Additive predictors</td><td>Drawn nuisance parameters</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code></td><td><code>identity</code></td><td>1</td><td>residual standard deviation</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>none</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code></td><td><code>log</code></td><td>1</td><td>none</td></tr><tr><td><code>negbin()</code></td><td><code>log</code></td><td>1</td><td>dispersion</td></tr><tr><td><code>Gamma("log")</code></td><td><code>log</code> (also <code>inverse</code>, <code>identity</code>, any link)</td><td>1</td><td>shape</td></tr><tr><td><code>ordinal()</code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>cutpoints</td></tr><tr><td><code>multinomial()</code></td><td><code>logit</code>, <code>probit</code></td><td>one per category, or per non-reference level</td><td>latent covariance, for the probit link</td></tr><tr><td><code>weibull_aft()</code>, <code>loglogistic_aft()</code>, <code>lognormal_aft()</code></td><td>none</td><td>1</td><td>scale</td></tr><tr><td><code>ph()</code></td><td>none</td><td>1</td><td>baseline hazard per bin</td></tr><tr><td><code>dpm_aft()</code></td><td>none</td><td>1</td><td>error mixture, concentration</td></tr><tr><td><code>gaussian_ls()</code></td><td><code>identity</code></td><td>2</td><td>none</td></tr><tr><td><code>Gamma_ls()</code></td><td><code>log</code></td><td>2</td><td>none</td></tr><tr><td><code>zi_poisson()</code></td><td><code>log</code></td><td>2</td><td>none</td></tr><tr><td><code>zi_negbin()</code></td><td><code>log</code></td><td>2</td><td>dispersion</td></tr><tr><td><code>Beta()</code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>precision</td></tr><tr><td><code>ordbeta()</code></td><td><code>logit</code></td><td>1</td><td>2 cutpoints, precision</td></tr><tr><td><code>tweedie()</code></td><td><code>log</code></td><td>1</td><td>dispersion, and the power if it is drawn</td></tr><tr><td><code>dpm()</code></td><td><code>identity</code></td><td>1</td><td>error mixture, concentration</td></tr></table><p>A family with more than one additive predictor fits one forest per predictor.
+<p>The supported families and links are:</p><table class="table table"><tr><td>Family</td><td>Links</td><td>Additive predictors</td><td>Drawn nuisance parameters</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code></td><td><code>identity</code></td><td>1</td><td>residual standard deviation</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>none</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code></td><td><code>log</code></td><td>1</td><td>none</td></tr><tr><td><code>negbin()</code></td><td><code>log</code></td><td>1</td><td>dispersion</td></tr><tr><td><code>Gamma("log")</code></td><td><code>log</code>; any other link is ignored</td><td>1</td><td>shape</td></tr><tr><td><code>ordinal()</code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>cutpoints</td></tr><tr><td><code>multinomial()</code></td><td><code>logit</code>, <code>probit</code></td><td>one per category, or per non-reference level</td><td>latent covariance, for the probit link</td></tr><tr><td><code>weibull_aft()</code>, <code>loglogistic_aft()</code>, <code>lognormal_aft()</code></td><td>none</td><td>1</td><td>scale</td></tr><tr><td><code>ph()</code></td><td>none</td><td>1</td><td>baseline hazard per bin</td></tr><tr><td><code>dpm_aft()</code></td><td>none</td><td>1</td><td>error mixture, concentration</td></tr><tr><td><code>gaussian_ls()</code></td><td><code>identity</code></td><td>2</td><td>none</td></tr><tr><td><code>Gamma_ls()</code></td><td><code>log</code></td><td>2</td><td>none</td></tr><tr><td><code>zi_poisson()</code></td><td><code>log</code></td><td>2</td><td>none</td></tr><tr><td><code>zi_negbin()</code></td><td><code>log</code></td><td>2</td><td>dispersion</td></tr><tr><td><code>Beta()</code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>precision</td></tr><tr><td><code>ordbeta()</code></td><td><code>logit</code></td><td>1</td><td>2 cutpoints, precision</td></tr><tr><td><code>tweedie()</code></td><td><code>log</code></td><td>1</td><td>dispersion, and the power if it is drawn</td></tr><tr><td><code>dpm()</code></td><td><code>identity</code></td><td>1</td><td>error mixture, concentration</td></tr></table><p>A family with more than one additive predictor fits one forest per predictor.
 Nuisance parameters are drawn alongside the trees and reported in <code>fit$aux</code>.</p><div class="section">
 <h3 id="links-the-engine-does-not-compile">Links the Engine Does Not Compile<a class="anchor" aria-label="anchor" href="#links-the-engine-does-not-compile"></a></h3>
 
 
 <p>The links listed above are the ones the sampler evaluates in compiled code.
-Any other link is accepted for <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>,
-<code>Beta()</code> and <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::Gamma()</a></code>, and applied from R by composing the caller's
-inverse link with the family's own, with the chain rule carrying the
-derivatives back. So <code>binomial("cauchit")</code> works, as does any link object of
-the kind <code><a href="https://rdrr.io/r/stats/make.link.html" class="external-link">stats::make.link()</a></code> returns. It costs a call into R for every leaf
-the sampler visits, and the leaf prior scale is calibrated for the compiled
-link. Note that <code>negbin()</code> is the exception among the single-predictor
-families: it takes <code>"log"</code> alone, so a link given to it is an error rather
-than a composition.</p>
-<p>A link whose inverse has a restricted range (<code>Gamma("inverse")</code>,
-<code>Gamma("identity")</code>, <code>poisson("identity")</code>) will give non-finite densities
-for some predictors. Those proposals are rejected rather than breaking the
-chain, but they are wasted work and the fit is worse for it, so <code><a href="bartisan.html">bartisan()</a></code>
-says so when it starts. Prefer links whose inverse is defined on the whole
-line.</p>
+Any other link is accepted for <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code> and
+<code>Beta()</code>, and applied from R by composing the caller's inverse link with the
+family's own, with the chain rule carrying the derivatives back. So
+<code>binomial("cauchit")</code> works, as does any link object of the kind
+<code><a href="https://rdrr.io/r/stats/make.link.html" class="external-link">stats::make.link()</a></code> returns. It costs a call into R for every leaf the
+sampler visits, and the leaf prior scale is calibrated for the compiled link.</p>
+<p>Two single-predictor families are exceptions. <code>negbin()</code> takes <code>"log"</code> alone,
+so a link given to it is an error rather than a composition. <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::Gamma()</a></code>
+accepts any link and fits none of them but <code>"log"</code>: every other link is
+dropped with a message, because the ones base R offers have inverses that go
+non-positive over part of the line and the additive predictor is
+unconstrained. <code>custom_family()</code> is the route to a gamma response on another
+link.</p>
+<p>A composed link whose inverse has a restricted range (<code>poisson("identity")</code>,
+<code>poisson("sqrt")</code>) will give non-finite densities for some predictors. Those
+proposals are rejected rather than breaking the chain, but they are wasted
+work and the fit is worse for it, so <code><a href="bartisan.html">bartisan()</a></code> says so when it starts.
+Prefer links whose inverse is defined on the whole line.</p>
 <p>The families with more than one additive predictor, or whose link enters
 somewhere other than a single mean (<code>ordinal()</code>, <code>multinomial()</code>, the
 accelerated failure time families, <code>gaussian_ls()</code>, the zero-inflated
@@ -450,7 +453,8 @@ whose inverse has a restricted range is reported when the fit starts.</p>
 supplied either as a <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code>
  object or as a two-column matrix
 of times and event indicators. They model \(\log T = \eta + \sigma\epsilon\)
-with \(\epsilon\) standard Gumbel, logistic or normal respectively, giving
+with \(\epsilon\) a standard smallest extreme value, logistic or normal
+variate respectively, giving
 Weibull, log-logistic and log-normal survival times.</p>
 <p><strong>A contrast in the predictor is a log time ratio in all of them, and in
 <code>dpm_aft()</code> too</strong>, because with \(\epsilon\) independent of \(x\) every
@@ -463,7 +467,7 @@ that; <code><a href="../articles/survival.html">vignette("survival")</a></code> 
 between them.</p>
 <p><code>weibull_aft()</code> is also the one family whose predictor carries a log <em>hazard</em>
 ratio, of \(-\Delta\eta/\sigma\), alongside its log time ratio. That is a
-property of the Gumbel error rather than of the structural part it shares with
+property of the smallest extreme value error rather than of the structural part it shares with
 the other three: it is the only error making an accelerated failure time model
 a proportional hazards model as well.</p>
 <p><code>ph()</code> is the proportional hazards alternative, with a piecewise-constant
@@ -712,7 +716,7 @@ estimates; <code><a href="../articles/families.html">vignette("families", packag
 <span class="r-in"><span><span class="co"># hazard ratio and whose baseline is free to take any shape</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">days</span>, <span class="va">death</span><span class="op">)</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu">ph</span><span class="op">(</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>         num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = cbind(days, death) ~ ., data = rhc, family = ph(), </span>
@@ -729,7 +733,7 @@ estimates; <code><a href="../articles/families.html">vignette("families", packag
 <span class="r-in"><span><span class="co"># symmetric in them</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">race</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span> <span class="op">-</span> <span class="va">death</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu">multinomial</span><span class="op">(</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>         num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = race ~ . - days - death, data = rhc, family = multinomial(), </span>
@@ -743,7 +747,7 @@ estimates; <code><a href="../articles/families.html">vignette("families", packag
 <span class="r-in"><span><span class="co"># A link the engine does not compile, applied from R</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="st">"cauchit"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>         num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ . - days, data = rhc, family = binomial("cauchit"), </span>

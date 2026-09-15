@@ -27,8 +27,8 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -74,7 +74,7 @@
 
         <dt>
 
-          <code><a href="bartisan-interop.html">posterior_predict(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">posterior_epred(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">posterior_linpred(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">log_lik(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">simulate(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">fitted(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">residuals(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">weights(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">sigma(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">loo(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">waic(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">pp_check(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">as_draws(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">r2_posterior(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">r2(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">model_performance(<i>&lt;bartisan_fit&gt;</i>)</a></code>
+          <code><a href="bartisan-interop.html">posterior_predict(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">posterior_epred(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">posterior_linpred(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">log_lik(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">simulate(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">fitted(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">residuals(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">weights(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">sigma(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">prior_summary(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">print(<i>&lt;bartisan_prior_summary&gt;</i>)</a></code> <code><a href="bartisan-interop.html">loo(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">waic(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">kfold(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">pp_check(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">as_draws(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">r2_posterior(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">r2(<i>&lt;bartisan_fit&gt;</i>)</a></code> <code><a href="bartisan-interop.html">model_performance(<i>&lt;bartisan_fit&gt;</i>)</a></code>
 
         </dt>
         <dd>Interfaces to other packages</dd>
@@ -162,6 +162,13 @@
 
         </dt>
         <dd>Methods for Bayesian causal forest fits</dd>
+
+        <dt>
+
+          <code><a href="ranef.bartisan_fit.html">ranef(<i>&lt;bartisan_fit&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Group intercepts from a random-effect term</dd>
 
         <dt>
 

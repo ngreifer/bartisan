@@ -33,8 +33,8 @@ model's variable-selection output."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -134,7 +134,7 @@ are computed from have converged</p></div>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># What was fit, and how many draws it rests on</span></span></span>
 <span class="r-in"><span><span class="va">fit</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, </span>
@@ -147,7 +147,7 @@ are computed from have converged</p></div>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The splitting counts, which say which predictors the forest reaches for</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, </span>
@@ -158,7 +158,7 @@ are computed from have converged</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 100</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Predictor usage</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Predictor usage</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        mean    sd lower upper prop_used</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> age    2.50 1.202     1 5.000      1.00</span>
@@ -183,7 +183,7 @@ are computed from have converged</p></div>
 <span class="r-in"><span>                 verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit2</span>, level <span class="op">=</span> <span class="fl">.8</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = log(days) ~ . - death, data = rhc, family = gaussian(), </span>
@@ -194,27 +194,27 @@ are computed from have converged</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Nuisance parameters</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        mean    sd lower upper</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> sigma 1.542 0.025 1.506 1.569</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Nuisance parameters</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       mean    sd lower upper</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> sigma 1.53 0.025   1.5 1.558</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Predictor usage</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Predictor usage</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        mean    sd lower upper prop_used</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rhc    1.80 1.161     1   3.1      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> aps    2.56 1.343     1   4.0      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> surv2m 6.48 2.358     4  10.0      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> age    0.92 1.175     0   2.0      0.54</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> crea   0.78 0.910     0   2.0      0.54</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> meanbp 0.72 0.970     0   2.0      0.42</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> resp   0.82 1.438     0   3.0      0.28</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> edu    0.16 0.370     0   1.0      0.16</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> paco2  0.10 0.303     0   0.1      0.10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> hema   0.06 0.314     0   0.0      0.04</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> pafi   0.02 0.141     0   0.0      0.02</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> card   0.02 0.141     0   0.0      0.02</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> sex    0.00 0.000     0   0.0      0.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> race   0.00 0.000     0   0.0      0.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rhc    2.08 1.066   1.0   4.0      1.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> race   4.52 0.953   4.0   6.0      1.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> aps    3.44 1.296   1.9   5.0      1.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> surv2m 4.44 1.128   3.0   6.0      1.00</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> age    0.84 1.037   0.0   2.1      0.52</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> meanbp 0.38 0.667   0.0   1.0      0.30</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> paco2  0.46 0.930   0.0   1.1      0.28</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> hema   0.34 0.772   0.0   2.0      0.18</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> pafi   0.20 0.452   0.0   1.0      0.18</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> resp   0.20 0.571   0.0   1.0      0.14</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> crea   0.10 0.303   0.0   0.1      0.10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> edu    0.02 0.141   0.0   0.0      0.02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> card   0.02 0.141   0.0   0.0      0.02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> sex    0.00 0.000   0.0   0.0      0.00</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

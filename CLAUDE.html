@@ -27,8 +27,8 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -75,6 +75,13 @@
 <p>Run the check from that section before finishing any documentation change:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">grep</span> <span class="at">-n</span> <span class="st">'\\[A-Za-z]\+{'</span> NEWS.md README.md vignettes/<span class="pp">*</span>.Rmd</span></code></pre></div>
 <p>Every hit is either a violation or LaTeX inside <code>$...$</code>; there is no third case. Roxygen blocks in <code>R/</code> are the only place Rd markup belongs.</p>
+</div>
+<div class="section level2">
+<h2 id="knit-the-vignettes-against-an-installed-package-not-under-load_all">Knit the vignettes against an installed package, not under <code>load_all()</code>
+<a class="anchor" aria-label="anchor" href="#knit-the-vignettes-against-an-installed-package-not-under-load_all"></a></h2>
+<p><code>kfold()</code> sends its K refits to workers with <code>future.packages = "bartisan"</code>, and the thing it sends is the <code>bartisan</code> function object itself, since <code>kfold_call()</code> rebuilds the original call. Serializing a closure whose environment is a namespace writes a <em>reference</em> to that namespace rather than its contents, so the worker resolves it by loading the package by name, which is the <strong>installed</strong> one. Under <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code> with an install that predates the change in hand, any internal function added since is missing there, and <code><a href="articles/comparison.html">vignette("comparison")</a></code> comes back with</p>
+<pre><code><span><span class="co">#&gt; Error in `prior_record()`: could not find function "prior_record"</span></span></code></pre>
+<p>on every <code>kfold()</code> chunk. Nothing is wrong with the code; <code>R CMD INSTALL .</code> first and the same knit is clean. This looks exactly like the real <code>diagnosis_block</code> bug (an unexported function a worker could not find), which was <em>not</em> an install artifact, so the two have to be told apart by installing rather than by inspection.</p>
 </div>
 <div class="section level2">
 <h2 id="package-specifics">Package specifics<a class="anchor" aria-label="anchor" href="#package-specifics"></a></h2>

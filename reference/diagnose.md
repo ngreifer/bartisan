@@ -8,15 +8,26 @@ package is needed.
 ## Usage
 
 ``` r
-diagnose(object, rhat_max = 1.01, ess_min = 400)
+diagnose(object, rhat_max = 1.01, ess_min = 400, ...)
+
+# Default S3 method
+diagnose(object, rhat_max = 1.01, ess_min = 400, ...)
+
+# S3 method for class 'bartisan_fit'
+diagnose(object, rhat_max = 1.01, ess_min = 400, ...)
+
+# S3 method for class 'bartisan_effect'
+diagnose(object, rhat_max = 1.01, ess_min = 400, ...)
 ```
 
 ## Arguments
 
 - object:
 
-  a `<bartisan_fit>` object; the output of a call to
-  [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md).
+  a `<bartisan_fit>` object, the output of a call to
+  [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md),
+  or a `<bartisan_effect>` object, the output of a call to
+  [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md).
 
 - rhat_max:
 
@@ -31,6 +42,10 @@ diagnose(object, rhat_max = 1.01, ess_min = 400)
   recommendation of 100 per chain at four chains, which is about what it
   takes for the Monte Carlo error of an interval endpoint to be small
   next to the posterior's own width.
+
+- ...:
+
+  ignored.
 
 ## Value
 
@@ -58,6 +73,28 @@ table, the checks and the advice. Its components are
 - `chains`,`draws`:
 
   how many chains, and how many draws were kept in total.
+
+### Diagnosing an Estimand
+
+Called on the output of
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md),
+the table has one row per reported quantity rather than one per sampled
+parameter, and everything else reads the same way.
+
+It is worth doing rather than inferred from the fit's own table, because
+the two can disagree. An estimand is a contrast, and a contrast can mix
+badly where the function it is a contrast of mixes well: under the
+default splitting prior a draw that gives the treatment no rule puts the
+contrast at exactly zero, and the sampler can stay there for a long run
+while the other predictors keep the fitted function moving. Nothing in
+the fit's table shows that, since no parameter the sampler draws is
+stuck. The check reports the share of draws sitting at the atom when
+there is one.
+
+This complements the fit's diagnosis rather than replacing it. Chains
+that have settled on different fitted functions can still agree about an
+average over them, so an estimand that looks converged is not on its own
+evidence that the sampler did its job.
 
 ## Details
 
@@ -249,40 +286,41 @@ diagnose(fit)
 #>   eta.eta (worst 5% of observations) 1.488     1.728        4       16
 #> 
 #> ✔ 2 chains, 100 draws kept in total
-#> ✖ above 1.01 for loglik
-#> ✖ that R-hat rests on 6 effective draws, where 2 chains average 1.346 even when
-#>   they agree
-#> ℹ not the fix: R-hat stays high on the second half of the draws alone as well,
-#>   so a longer warmup is not what is missing
-#> ✔ the chains agree about the size of the forest
-#> ✖ 4 for eta.eta (worst 5% of observations), below 400
-#> ✖ 16 for eta.eta (worst 5% of observations), below 400
-#> ℹ the chains disagree about individual observations and agree about their
+#> ✖ R-hat is above 1.01 for loglik
+#> ✖ That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even
+#>   when they agree
+#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
+#>   draws alone as well
+#> ✔ The chains agree about the size of the forest
+#> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400
+#> ✖ Tail ESS is 16 for eta.eta (worst 5% of observations), below 400
+#> ℹ The chains disagree about individual observations and agree about their
 #>   average (R-hat 1.00, 77 effective draws)
-#> ℹ eta.eta (worst 5% of observations) carries 4.3 effective draws per hundred
-#>   kept
+#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
+#>   carries 4.3 effective draws per hundred kept
 #> 
 #> What to do
 #> 
-#> Raise `num_draws`, which was `50`. R-hat is above the threshold for a quantity
-#> that carries too few effective draws for the threshold to mean anything: with
-#> this many chains it would sit about where it does even if the chains agreed
-#> exactly, as the check above reports. Effective sample size is what makes it
-#> readable, and that grows with the total number of draws; using fewer chains
-#> lowers the bar as well, since R-hat's null rises with the number of chains
-#> being compared.
-#> If that does not settle it, reduce `num_trees`, which was `10`. A smaller
-#> forest has fewer ways to represent the same fit, so the sampler has less room
-#> to move between them.
-#> Then check the family. A likelihood that fits the data badly can give a
-#> posterior with no single place to be; `bayesplot::pp_check()` is the
-#> diagnostic.
-#> Note that the chains disagree about the fitted values of individual
-#> observations and not about their average, which is the usual shape of this in a
-#> forest. An estimand averaged over observations therefore carries far more
-#> effective draws than the table's worst row does, and R-hat for that estimand is
-#> worth computing rather than inferring; `posterior::as_draws()` hands the draws
-#> over for it.
+#> • Raise `num_draws`, which was `50`. R-hat is above the threshold for a
+#>   quantity that carries too few effective draws for the threshold to mean
+#>   anything: with this many chains it would sit about where it does even if the
+#>   chains agreed exactly, as the check above reports. Effective sample size is
+#>   what makes it readable, and that grows with the total number of draws; using
+#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
+#>   of chains being compared.
+#> • If that does not settle it, reduce `num_trees`, which was `10`. A smaller
+#>   forest has fewer ways to represent the same fit, so the sampler has less room
+#>   to move between them.
+#> • Then check the family. A likelihood that fits the data badly can give a
+#>   posterior with no single place to be; `bayesplot::pp_check()` is the
+#>   diagnostic.
+#> • Note that the chains disagree about the fitted values of individual
+#>   observations and not about their average, which is the usual shape of this in
+#>   a forest. What that means for an estimand cannot be read off this table
+#>   either way, since an estimand is a contrast and a contrast can mix badly
+#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
+#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
+#>   draws to `posterior::summarise_draws()` for anything else.
 
 # A stricter effective sample size, which is what an interval endpoint needs
 # and a posterior mean does not
@@ -296,38 +334,39 @@ diagnose(fit, ess_min = 1000)
 #>   eta.eta (worst 5% of observations) 1.488     1.728        4       16
 #> 
 #> ✔ 2 chains, 100 draws kept in total
-#> ✖ above 1.01 for loglik
-#> ✖ that R-hat rests on 6 effective draws, where 2 chains average 1.346 even when
-#>   they agree
-#> ℹ not the fix: R-hat stays high on the second half of the draws alone as well,
-#>   so a longer warmup is not what is missing
-#> ✔ the chains agree about the size of the forest
-#> ✖ 4 for eta.eta (worst 5% of observations), below 1000
-#> ✖ 16 for eta.eta (worst 5% of observations), below 1000
-#> ℹ the chains disagree about individual observations and agree about their
+#> ✖ R-hat is above 1.01 for loglik
+#> ✖ That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even
+#>   when they agree
+#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
+#>   draws alone as well
+#> ✔ The chains agree about the size of the forest
+#> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000
+#> ✖ Tail ESS is 16 for eta.eta (worst 5% of observations), below 1000
+#> ℹ The chains disagree about individual observations and agree about their
 #>   average (R-hat 1.00, 77 effective draws)
-#> ℹ eta.eta (worst 5% of observations) carries 4.3 effective draws per hundred
-#>   kept
+#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
+#>   carries 4.3 effective draws per hundred kept
 #> 
 #> What to do
 #> 
-#> Raise `num_draws`, which was `50`. R-hat is above the threshold for a quantity
-#> that carries too few effective draws for the threshold to mean anything: with
-#> this many chains it would sit about where it does even if the chains agreed
-#> exactly, as the check above reports. Effective sample size is what makes it
-#> readable, and that grows with the total number of draws; using fewer chains
-#> lowers the bar as well, since R-hat's null rises with the number of chains
-#> being compared.
-#> If that does not settle it, reduce `num_trees`, which was `10`. A smaller
-#> forest has fewer ways to represent the same fit, so the sampler has less room
-#> to move between them.
-#> Then check the family. A likelihood that fits the data badly can give a
-#> posterior with no single place to be; `bayesplot::pp_check()` is the
-#> diagnostic.
-#> Note that the chains disagree about the fitted values of individual
-#> observations and not about their average, which is the usual shape of this in a
-#> forest. An estimand averaged over observations therefore carries far more
-#> effective draws than the table's worst row does, and R-hat for that estimand is
-#> worth computing rather than inferring; `posterior::as_draws()` hands the draws
-#> over for it.
+#> • Raise `num_draws`, which was `50`. R-hat is above the threshold for a
+#>   quantity that carries too few effective draws for the threshold to mean
+#>   anything: with this many chains it would sit about where it does even if the
+#>   chains agreed exactly, as the check above reports. Effective sample size is
+#>   what makes it readable, and that grows with the total number of draws; using
+#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
+#>   of chains being compared.
+#> • If that does not settle it, reduce `num_trees`, which was `10`. A smaller
+#>   forest has fewer ways to represent the same fit, so the sampler has less room
+#>   to move between them.
+#> • Then check the family. A likelihood that fits the data badly can give a
+#>   posterior with no single place to be; `bayesplot::pp_check()` is the
+#>   diagnostic.
+#> • Note that the chains disagree about the fitted values of individual
+#>   observations and not about their average, which is the usual shape of this in
+#>   a forest. What that means for an estimand cannot be read off this table
+#>   either way, since an estimand is a contrast and a contrast can mix badly
+#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
+#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
+#>   draws to `posterior::summarise_draws()` for anything else.
 ```

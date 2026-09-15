@@ -42,8 +42,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -82,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-13</h4>
+            <h4 data-toc-skip class="date">2026-09-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -171,7 +171,7 @@ surviving two months. All were recorded before catheterization.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Generalized BART</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
 <span><span class="co">#&gt; bartisan(formula = death ~ rhc + age + sex + race + edu + aps + </span></span>
@@ -208,7 +208,7 @@ statistics, applies the conventional thresholds, and says what to change
 about whichever of them fall short.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Convergence and mixing</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity  rhat rhat_late ess_bulk ess_tail</span></span>
 <span><span class="co">#&gt;                               loglik 1.125     1.036       23      234</span></span>
@@ -217,39 +217,42 @@ about whichever of them fall short.</p>
 <span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.045     1.073       80      305</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> that R-hat rests on 23 effective draws, where 4 chains average 1.171 even</span></span>
-<span><span class="co">#&gt;   when they agree</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> not the fix: R-hat stays high on the second half of the draws alone as well,</span></span>
-<span><span class="co">#&gt;   so a longer warmup is not what is missing</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> the chains disagree about how many splitting rules the forest has (R-hat</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 23 effective draws, where 4 chains average 1.171</span></span>
+<span><span class="co">#&gt;   even when they agree</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
+<span><span class="co">#&gt;   draws alone as well</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span></span>
 <span><span class="co">#&gt;   1.01)</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> 23 for loglik, below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> 234 for loglik, below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> the chains disagree about individual observations and agree about their</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 23 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 234 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span></span>
 <span><span class="co">#&gt;   average (R-hat 1.00, 1610 effective draws)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> loglik carries 0.7 effective draws per hundred kept</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 0.7 effective draws</span></span>
+<span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">What to do</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Raise `num_draws`, which was `800`. R-hat is above the threshold for a quantity</span></span>
-<span><span class="co">#&gt; that carries too few effective draws for the threshold to mean anything: with</span></span>
-<span><span class="co">#&gt; this many chains it would sit about where it does even if the chains agreed</span></span>
-<span><span class="co">#&gt; exactly, as the check above reports. Effective sample size is what makes it</span></span>
-<span><span class="co">#&gt; readable, and that grows with the total number of draws; using fewer chains</span></span>
-<span><span class="co">#&gt; lowers the bar as well, since R-hat's null rises with the number of chains</span></span>
-<span><span class="co">#&gt; being compared.</span></span>
-<span><span class="co">#&gt; If that does not settle it, reduce `num_trees`. A smaller forest has fewer ways</span></span>
-<span><span class="co">#&gt; to represent the same fit, so the sampler has less room to move between them.</span></span>
-<span><span class="co">#&gt; Then check the family. A likelihood that fits the data badly can give a</span></span>
-<span><span class="co">#&gt; posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
-<span><span class="co">#&gt; diagnostic.</span></span>
-<span><span class="co">#&gt; Note that the chains disagree about the fitted values of individual</span></span>
-<span><span class="co">#&gt; observations and not about their average, which is the usual shape of this in a</span></span>
-<span><span class="co">#&gt; forest. An estimand averaged over observations therefore carries far more</span></span>
-<span><span class="co">#&gt; effective draws than the table's worst row does, and R-hat for that estimand is</span></span>
-<span><span class="co">#&gt; worth computing rather than inferring; `posterior::as_draws()` hands the draws</span></span>
-<span><span class="co">#&gt; over for it.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `800`. R-hat is above the threshold for a</span></span>
+<span><span class="co">#&gt;   quantity that carries too few effective draws for the threshold to mean</span></span>
+<span><span class="co">#&gt;   anything: with this many chains it would sit about where it does even if the</span></span>
+<span><span class="co">#&gt;   chains agreed exactly, as the check above reports. Effective sample size is</span></span>
+<span><span class="co">#&gt;   what makes it readable, and that grows with the total number of draws; using</span></span>
+<span><span class="co">#&gt;   fewer chains lowers the bar as well, since R-hat's null rises with the number</span></span>
+<span><span class="co">#&gt;   of chains being compared.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`. A smaller forest has fewer</span></span>
+<span><span class="co">#&gt;   ways to represent the same fit, so the sampler has less room to move between</span></span>
+<span><span class="co">#&gt;   them.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span></span>
+<span><span class="co">#&gt;   posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
+<span><span class="co">#&gt;   diagnostic.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span></span>
+<span><span class="co">#&gt;   observations and not about their average, which is the usual shape of this in</span></span>
+<span><span class="co">#&gt;   a forest. What that means for an estimand cannot be read off this table</span></span>
+<span><span class="co">#&gt;   either way, since an estimand is a contrast and a contrast can mix badly</span></span>
+<span><span class="co">#&gt;   where the function it contrasts mixes well. Compute it: `diagnose()` takes</span></span>
+<span><span class="co">#&gt;   the output of `estimate_effect()`, and `posterior::as_draws()` hands the</span></span>
+<span><span class="co">#&gt;   draws to `posterior::summarise_draws()` for anything else.</span></span></code></pre></div>
 <p><code>rhat</code> compares variation between chains to variation
 within them; values near 1 indicate the chains have settled on the same
 answer. <code>rhat_late</code> is the same statistic on the second half
@@ -260,12 +263,67 @@ sizes, and count how many independent draws the correlated ones are
 worth, in the middle of the distribution and in the tails.</p>
 <p>Read the rows that correspond to quantities you will report.
 <code>eta.eta</code> is the fitted function and appears twice, once
-averaged over the observations and once over the worst 5% of them: the
-average row governs an average effect and the worst-5% row governs a
-prediction for one observation. Forests mix slowly on their fitted
-values, so a figure above 1.01 on the worst-5% row is ordinary rather
-than alarming; <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> explains what to do
-about it and when to worry.</p>
+averaged over the observations and once over the worst 5% of them; the
+second is what governs a prediction for one observation. Forests mix
+slowly on their fitted values, so a figure above 1.01 on the worst-5%
+row is ordinary rather than alarming;
+<code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> explains what to do about it and
+when to worry.</p>
+<p>No row here governs an effect, though, and the average row in
+particular should not be read as if it did. An effect is a contrast, and
+a contrast can mix badly where the function it is a contrast of mixes
+well. <code><a href="../reference/diagnose.html">diagnose()</a></code> takes the estimand itself when there is
+one to take:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     quantity  rhat rhat_late ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0] 1.035     1.105      117       64</span></span>
+<span><span class="co">#&gt;         Y[0] 1.019     1.059      190      388</span></span>
+<span><span class="co">#&gt;         Y[1] 1.028     1.083      148      221</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for Y[1] - Y[0]</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 117 effective draws, where 4 chains average 1.034</span></span>
+<span><span class="co">#&gt;   even when they agree</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
+<span><span class="co">#&gt;   draws alone as well</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 117 for Y[1] - Y[0], below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 64 for Y[1] - Y[0], below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for Y[1] - Y[0], which carries 3.7 effective</span></span>
+<span><span class="co">#&gt;   draws per hundred kept</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> 10% of draws put the contrast at exactly zero, which is the splitting prior</span></span>
+<span><span class="co">#&gt;   dropping the treatment</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `800`. R-hat is above the threshold for a</span></span>
+<span><span class="co">#&gt;   quantity that carries too few effective draws for the threshold to mean</span></span>
+<span><span class="co">#&gt;   anything: with this many chains it would sit about where it does even if the</span></span>
+<span><span class="co">#&gt;   chains agreed exactly, as the check above reports. Effective sample size is</span></span>
+<span><span class="co">#&gt;   what makes it readable, and that grows with the total number of draws; using</span></span>
+<span><span class="co">#&gt;   fewer chains lowers the bar as well, since R-hat's null rises with the number</span></span>
+<span><span class="co">#&gt;   of chains being compared.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`. A smaller forest has fewer</span></span>
+<span><span class="co">#&gt;   ways to represent the same fit, so the sampler has less room to move between</span></span>
+<span><span class="co">#&gt;   them.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span></span>
+<span><span class="co">#&gt;   posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
+<span><span class="co">#&gt;   diagnostic.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Note the atom at zero. The splitting prior drops the treatment in some draws,</span></span>
+<span><span class="co">#&gt;   and the sampler can stay there for a long run, which costs effective draws</span></span>
+<span><span class="co">#&gt;   here without costing them in the fit. If the effect is the quantity being</span></span>
+<span><span class="co">#&gt;   reported, `sparsity = FALSE` removes the atom, and `bcf()` gives the</span></span>
+<span><span class="co">#&gt;   treatment a forest the prior cannot take it out of; `vignette("causal")`</span></span>
+<span><span class="co">#&gt;   covers both.</span></span></code></pre></div>
+<p>Far fewer effective draws than the table above would suggest, and the
+last check says why: the splitting prior gives <code>rhc</code> no rule
+in some draws, which puts the contrast at exactly zero and can hold it
+there for a long run. Nothing in the fit’s own table shows it, because
+the other predictors keep the fitted function moving the whole time.
+<code><a href="../articles/causal.html">vignette("causal")</a></code> covers the settings that remove the atom
+when an effect is what is being reported.</p>
 <p>The table is in <code>diagnose(fit)$table</code> if what you want is
 the numbers rather than the report.</p>
 </div>
@@ -276,7 +334,7 @@ the numbers rather than the report.</p>
 predicted probabilities mean what they say: among the patients the model
 gave a 30% chance of dying, did about 30% die? A calibration plot
 answers it.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">bayesplot</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/pp_check.html" class="external-link">pp_check</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"loo_calibration"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bartisan_files/figure-html/ppcheck-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The line should follow the diagonal, and here it does across the
@@ -292,9 +350,9 @@ a departure from the diagonal looks like and what else to check.</p>
 <div class="section level2">
 <h2 id="which-predictors-the-model-uses">Which predictors the model uses<a class="anchor" aria-label="anchor" href="#which-predictors-the-model-uses"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Variable importance</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
 <span><span class="co">#&gt;    surv2m     1.000       0.265   20.2</span></span>
@@ -339,11 +397,11 @@ asking the fitted model what it predicts when every patient receives it,
 asking again when none does, and taking the difference.
 <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> does this, and needs only to be told
 which predictor is the treatment:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">eff</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treatment <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">eff</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">eff</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average treatment effect (difference)</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average treatment effect (difference)</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"rhc"</span></span></span>
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
@@ -351,7 +409,7 @@ which predictor is the treatment:</p>
 <span><span class="co">#&gt;     contrast estimate lower upper    n</span></span>
 <span><span class="co">#&gt;  Y[1] - Y[0]   0.0568     0 0.111 1500</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average potential outcomes</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average potential outcomes</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
 <span><span class="co">#&gt;      Y[0]    0.633 0.601 0.666</span></span>
@@ -385,7 +443,7 @@ over the covariates as they actually occur in this sample.</p>
 <p>Effects averaged over the sample hide the shape of the relationship.
 To see the shape, plot the model’s predictions against one
 predictor.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"estimated probability of surviving two months"</span>,</span>
 <span>                y <span class="op">=</span> <span class="st">"fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
@@ -408,7 +466,7 @@ interactions.</p>
 <h2 id="predicting-new-observations">Predicting new observations<a class="anchor" aria-label="anchor" href="#predicting-new-observations"></a>
 </h2>
 <p><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns the posterior mean prediction.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">new_patient</span> <span class="op">&lt;-</span> <span class="va">rhc</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">new_patient</span><span class="op">$</span><span class="va">rhc</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span></span>
@@ -421,7 +479,7 @@ uses the posterior mean, so these values may differ slightly. Use
 &lt;code&gt;options("marginaleffects_posterior_center" = "mean")&lt;/code&gt; prior
 to running &lt;code&gt;predictions()&lt;/code&gt; to produce the posterior mean. We
 do this in &lt;code&gt;&lt;a href="../articles/causal.html"&gt;vignette("causal")&lt;/a&gt;&lt;/code&gt;.&lt;/p&gt;'><sup>1</sup></a>:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
@@ -433,17 +491,13 @@ characteristics dies. It is an interval for that probability, not a
 statement about which way any individual patient will go: the outcome
 itself is either 0 or 1, and a probability of 0.7 is entirely compatible
 with survival.</p>
-<p>For a continuous outcome, the distinction between an interval for the
-mean and an interval for a new observation matters a great deal, and
-<code><a href="../articles/effects.html">vignette("effects")</a></code> covers it. For a binary outcome, the
-second is rarely what anyone wants.</p>
 </div>
 <div class="section level2">
 <h2 id="comparing-models">Comparing models<a class="anchor" aria-label="anchor" href="#comparing-models"></a>
 </h2>
 <p>Approximate leave-one-out cross-validation estimates how well a model
 predicts data it has not seen.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/loo/" class="external-link">loo</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
@@ -468,7 +522,7 @@ good, meaning the approximation is trustworthy for this fit.</p>
 <p>Two models can be compared directly. Here we ask whether the
 physiological measurements earn their keep over knowing the patient’s
 demographics alone:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
 <span>                         family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>

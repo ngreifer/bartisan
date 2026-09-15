@@ -37,8 +37,8 @@ one."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -80,7 +80,7 @@ one.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">bcf</span><span class="op">(</span></span>
 <span>  <span class="va">formula</span>,</span>
-<span>  <span class="va">treatment</span>,</span>
+<span>  <span class="va">treat</span>,</span>
 <span>  <span class="va">data</span>,</span>
 <span>  family <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  moderators <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -96,11 +96,11 @@ one.</p>
 
 <dl><dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
 <dd><p>a model formula. The right-hand side lists the covariates; the
-treatment is named in <code>treatment</code> rather than here, and is removed from the
+treatment is named in <code>treat</code> rather than here, and is removed from the
 covariates if it appears among them.</p></dd>
 
 
-<dt id="arg-treatment">treatment<a class="anchor" aria-label="anchor" href="#arg-treatment"></a></dt>
+<dt id="arg-treat">treat<a class="anchor" aria-label="anchor" href="#arg-treat"></a></dt>
 <dd><p>a one-sided formula naming the treatment, as in <code>~ z</code>. The
 treatment may be binary, categorical, or continuous, and which it is decides
 what the propensity score is and how it is modeled; see Details.</p></dd>
@@ -286,7 +286,7 @@ general interface this is written in terms of, and <code><a href="../articles/ca
 <span class="r-in"><span><span class="co"># The effect of right heart catheterization on death, free to vary with</span></span></span>
 <span class="r-in"><span><span class="co"># every covariate, with the propensity score entering the control function</span></span></span>
 <span class="r-in"><span><span class="co"># alone</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">bcf</span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, treatment <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">bcf</span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, treat <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
 <span class="r-in"><span>           family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, num_trees <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">5</span><span class="op">)</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
 <span class="r-in"><span>           num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
 <span class="r-in"><span>           propensity_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
@@ -306,7 +306,7 @@ general interface this is written in terms of, and <code><a href="../articles/ca
 <span class="r-in"><span><span class="co"># The average effect over the sample, on the response scale, which for a</span></span></span>
 <span class="r-in"><span><span class="co"># binomial fit makes it a risk difference rather than a log odds ratio</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Average treatment effect (difference)</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Average treatment effect (difference)</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Treatment: <span style="color: #0000BB;">"rhc"</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over 1500 units</span>
@@ -314,7 +314,7 @@ general interface this is written in terms of, and <code><a href="../articles/ca
 <span class="r-out co"><span class="r-pr">#&gt;</span>     contrast estimate  lower upper    n</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] - Y[0]   0.0539 0.0048 0.119 1500</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Average potential outcomes</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Average potential outcomes</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  quantity estimate lower upper</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.632 0.607 0.659</span>
@@ -326,25 +326,24 @@ general interface this is written in terms of, and <code><a href="../articles/ca
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Or the whole picture at once</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bcf(formula = death ~ . - days, treatment = ~rhc, data = rhc, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     family = binomial(), propensity_args = list(num_trees = 10, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         num_burn = 50, num_draws = 50), num_trees = c(10, 5), </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     num_burn = 50, num_draws = 50)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> bcf(formula = death ~ . - days, treat = ~rhc, data = rhc, family = binomial(), </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     propensity_args = list(num_trees = 10, num_burn = 50, num_draws = 50), </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     num_trees = c(10, 5), num_burn = 50, num_draws = 50)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 2 forests of 10 and 5 trees, soft decision rules</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Nuisance parameters</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Nuisance parameters</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          mean    sd  lower upper</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> b.rhc.0 0.431 0.424 -0.595 0.965</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> b.rhc.1 1.148 0.327  0.732 1.690</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Predictor usage</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Predictor usage</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Predictor <span style="color: #0000BB;">"(Intercept)"</span>:</span>

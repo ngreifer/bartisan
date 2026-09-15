@@ -53,8 +53,8 @@ so that the checks using them can be read."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -581,6 +581,27 @@ than four in sequence, and chains running in parallel under <a href="https://CRA
 relay their progress back as it arrives. Convergence diagnostics are not
 included because they are not part of a fit; they run in <code><a href="diagnose.html">diagnose()</a></code>, which
 reports its own progress the same way. Progress does not touch the draws.</p>
+</div>
+
+<div class="section">
+<h3 id="what-else-runs-in-parallel-and-one-limit-on-it">What Else Runs in Parallel, and One Limit on It<a class="anchor" aria-label="anchor" href="#what-else-runs-in-parallel-and-one-limit-on-it"></a></h3>
+
+
+<p>A <code>future</code> plan is used by three things, and only the first is the sampler:
+the chains of a fit, the per-observation pass in <code><a href="diagnose.html">diagnose()</a></code>, and the
+repeated predictions in <code><a href="partial_dependence.html">partial_dependence()</a></code> and <code><a href="estimate_effect.html">estimate_effect()</a></code>. The
+sampler has no other axis, since a sweep conditions on the one before it.
+Measured on 1500 observations with a 25-point grid, the predictions run about
+three times faster on four workers.</p>
+<p>The limit worth knowing is <span class="pkg">future</span>'s, not this package's. Anything that
+predicts on a worker has to be sent the fit, and a fit is mostly its stored
+predictor and flattened forests, which grow with the draws and the sample: at
+1500 observations and 3200 draws one serializes to about 70 MB, so four
+workers move 280 MB. <code><a href="https://future.futureverse.org/reference/plan.html" class="external-link">future::plan()</a></code>
+ refuses a single export above
+<code>future.globals.maxSize</code>, 500 MB by default, and a fit large enough on both
+counts will trip it. The error names the option; raising it is the fix, and
+running sequentially is the alternative.</p>
 </div>
 
 <div class="section">

@@ -525,6 +525,30 @@ they are not part of a fit; they run in
 which reports its own progress the same way. Progress does not touch the
 draws.
 
+### What Else Runs in Parallel, and One Limit on It
+
+A `future` plan is used by three things, and only the first is the
+sampler: the chains of a fit, the per-observation pass in
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md),
+and the repeated predictions in
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+and
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md).
+The sampler has no other axis, since a sweep conditions on the one
+before it. Measured on 1500 observations with a 25-point grid, the
+predictions run about three times faster on four workers.
+
+The limit worth knowing is future's, not this package's. Anything that
+predicts on a worker has to be sent the fit, and a fit is mostly its
+stored predictor and flattened forests, which grow with the draws and
+the sample: at 1500 observations and 3200 draws one serializes to about
+70 MB, so four workers move 280 MB.
+[`future::plan()`](https://future.futureverse.org/reference/plan.html)
+refuses a single export above `future.globals.maxSize`, 500 MB by
+default, and a fit large enough on both counts will trip it. The error
+names the option; raising it is the fix, and running sequentially is the
+alternative.
+
 ### Soft Rules and the Cost of a Gate
 
 A soft rule is charged for in two places: every observation reaches more

@@ -692,7 +692,15 @@ when the zero mechanism is a process worth modeling in its own right,
 and let a comparison of fits, not a histogram, settle whether it is
 there.
 
-### 2. Is the count component overdispersed once the zeros are accounted for? A spike at zero inflates the sample variance and looks like dispersion. `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `zi_poisson()` is the better-conditioned fit.
+### 2. Is the count component overdispersed once the zeros are accounted for?
+
+A spike at zero inflates the sample variance and looks like dispersion.
+[`zi_negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+separates the two at the cost of a parameter; if `theta` comes back
+large with a tight posterior, the negative binomial is not buying
+anything and
+[`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+is the better-conditioned fit.
 
 Once again, the
 [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -958,7 +966,7 @@ free:
 
 | Family | Model | A contrast in the predictor is | Left free |
 |----|----|----|----|
-| [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | \\\log T = \eta + \sigma\epsilon\\, \\\epsilon\\ Gumbel | a log **time** ratio, and also a log **hazard** ratio | \\\sigma\\ |
+| [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | \\\log T = \eta + \sigma\epsilon\\, \\\epsilon\\ smallest extreme value | a log **time** ratio, and also a log **hazard** ratio | \\\sigma\\ |
 | [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | the same with \\\epsilon\\ logistic | a log **time** ratio | \\\sigma\\ |
 | [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | the same with \\\epsilon\\ normal | a log **time** ratio | \\\sigma\\ |
 | [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | \\\log T = \eta + W\\, \\W\\ a mixture | a log **time** ratio | the whole error density |
@@ -974,9 +982,10 @@ its own, since each pins its error’s location differently, and
 gives that per family.
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is the only one whose predictor also carries a log hazard ratio, of
-\\-\Delta\eta/\sigma\\, and that is a property of the Gumbel error
-rather than of the shared structure: it is the only error that makes an
-accelerated failure time model proportional hazards as well.
+\\-\Delta\eta/\sigma\\, and that is a property of the smallest extreme
+value error rather than of the shared structure: it is the only error
+that makes an accelerated failure time model proportional hazards as
+well.
 
 The three structured accelerated failure time families (i.e., the first
 three above) fix the shape of the error and so of the hazard, and are

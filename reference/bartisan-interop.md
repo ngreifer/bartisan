@@ -42,10 +42,19 @@ weights(object, ...)
 sigma(object, ...)
 
 # S3 method for class 'bartisan_fit'
-loo(x, ...)
+prior_summary(object, ...)
+
+# S3 method for class 'bartisan_prior_summary'
+print(x, digits = 3L, ...)
 
 # S3 method for class 'bartisan_fit'
-waic(x, ...)
+loo(x, scale = NULL, ...)
+
+# S3 method for class 'bartisan_fit'
+waic(x, scale = NULL, ...)
+
+# S3 method for class 'bartisan_fit'
+kfold(x, K = 10, folds = NULL, scale = NULL, save_fits = FALSE, ...)
 
 # S3 method for class 'bartisan_fit'
 pp_check(object, type = "dens_overlay", ndraws = 10, ...)
@@ -142,6 +151,43 @@ model_performance(model, metrics = "all", verbose = TRUE, ...)
   [`bayesplot::available_ppc()`](https://mc-stan.org/bayesplot/reference/available_ppc.html)
   lists them.
 
+- digits:
+
+  `integer`; for [`print()`](https://rdrr.io/r/base/print.html) on the
+  output of `prior_summary()`, how many digits to round the prior's
+  scales to. Default is 3.
+
+- scale:
+
+  `string`; for `loo()`, `waic()` and `kfold()` on a survival fit, the
+  measure to report the pointwise densities with respect to: `"time"`
+  for the density of \\T\\ and `"log_time"` for the density of \\\log
+  T\\. Default is `NULL` to use the family's own, which is \\\log T\\
+  for the accelerated failure time families and \\T\\ for
+  [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
+  A fit already on the scale named is left alone, so naming one scale
+  for every model in a comparison is enough. See Details.
+
+- K:
+
+  `numeric`; for `kfold()`, how many folds to split the sample into.
+  Default is 10. Ignored when `folds` is given.
+
+- folds:
+
+  optional; for `kfold()`, an integer vector of one fold number per
+  observation, as
+  [`loo::kfold_split_random()`](https://mc-stan.org/loo/reference/kfold-helpers.html)
+  and its relatives return. Default is `NULL` to draw them at random.
+  Supply them to stratify, to group, or to score two models on the same
+  split.
+
+- save_fits:
+
+  `logical`; for `kfold()`, whether to keep the \\K\\ refits in the
+  result's `fits` element. Default is `FALSE`, since each is a whole
+  fit.
+
 - eta:
 
   for `as_draws()`, which columns of the additive predictor to carry
@@ -173,6 +219,11 @@ model_performance(model, metrics = "all", verbose = TRUE, ...)
 
 ## Value
 
+`kfold()` returns a `<kfold>` object, a list whose `estimates` holds
+`elpd_kfold`, `p_kfold` and `kfoldic` with their standard errors, whose
+`pointwise` holds the same three per observation, and whose `folds`
+records the split; `save_fits = TRUE` adds the \\K\\ refits in `fits`.
+
 `posterior_predict()`, `posterior_epred()`, `posterior_linpred()` and
 `log_lik()` return a matrix of draws by observations.
 [`simulate()`](https://rdrr.io/r/stats/simulate.html) returns a data
@@ -180,8 +231,17 @@ frame of one column per replicate. `loo()` and `waic()` return the
 `<loo>` and `<waic>` objects those functions produce, and
 `model_performance()` a one-row data frame of class
 `<performance_model>`. `as_draws()` returns a `<draws_array>` of
-iterations by chains by parameters. The accessors return what their
-names suggest.
+iterations by chains by parameters.
+
+`prior_summary()` returns a `<bartisan_prior_summary>` object, a list
+whose `forests` is a data frame of one row per additive predictor and
+one column per setting the prior is made of, whose `estimated` says in
+the same shape which of them were drawn rather than held, and whose
+`family` holds the family's own parameters with the prior each was
+given. `random` and `response` record the group-intercept scale and what
+was read off the response.
+
+The accessors return what their names suggest.
 
 ## Details
 
@@ -213,7 +273,13 @@ gives the Bayesian \\R^2\\, and
 [`posterior::as_draws()`](https://mc-stan.org/posterior/reference/draws.html)
 hands the scalar parameters to
 [`posterior::summarise_draws()`](https://mc-stan.org/posterior/reference/draws_summary.html)
-or to the bayesplot MCMC diagnostics. **Basic accessors.**
+or to the bayesplot MCMC diagnostics. **The prior.**
+[`rstantools::prior_summary()`](https://mc-stan.org/rstantools/reference/prior_summary.html)
+writes out every prior the fit was given, on the scale it was given on,
+which is the companion to `prior_only = TRUE` in
+[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md):
+one says what the prior is and the other says what it implies about the
+outcome. **Basic accessors.**
 [`stats::fitted()`](https://rdrr.io/r/stats/fitted.values.html),
 [`stats::residuals()`](https://rdrr.io/r/stats/residuals.html),
 [`stats::weights()`](https://rdrr.io/r/stats/weights.html) and
@@ -258,6 +324,67 @@ and refitting without them is what shows how badly they are predicted. A
 log score on data the model has not seen is available directly:
 
     predict(fit, newdata = held_out, type = "density", log = TRUE)
+
+### Cross-Validation Without the Approximation
+
+`loo()` estimates the leave-one-out density by importance sampling from
+one fit. `kfold()` does not estimate it: it splits the sample, refits
+\\K\\ times, and scores each part under a fit that never saw it. That
+costs \\K\\ fits and owes nothing to an approximation, which makes it
+the thing to reach for when the Pareto diagnostics say the weights
+cannot be trusted.
+
+It returns a `<kfold>` object that
+[`loo::loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+accepts beside a `<loo>` one, so two models can be compared on one split
+by passing the folds from the first to the second:
+
+    folds <- loo::kfold_split_random(K = 10, N = nobs(fit))
+
+    loo_compare(list(full = kfold(fit, folds = folds),
+                     small = kfold(other, folds = folds)))
+
+The refits run under a `future` plan when one is set, and one
+[`set.seed()`](https://rdrr.io/r/base/Random.html) reproduces them
+either way. Each is refitted from the original call, so a fit whose
+`data` argument no longer names the data it was made from is an error
+rather than a wrong answer; prior weights and an offset are carried into
+both the refits and the held-out scores, since a score taken without
+them is wrong rather than approximate.
+
+`p_kfold` is the gap between what the model predicts for an observation
+it was fitted to and what it predicts for the same one held out, which
+is the price of having used it.
+[`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
+reads an example.
+
+### Comparing Survival Families
+
+The accelerated failure time families report the density of \\\log T\\
+and
+[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+the density of \\T\\. Both are correct for the model that produced them,
+and neither is comparable with the other: they differ by the Jacobian of
+the change of variable, so a log score taken across that boundary is off
+by \\\sum \log t\\ over the events, which runs to thousands of points on
+a sample of any size and can reverse which family looks better.
+
+`scale` puts them on one measure. It is not applied on its own
+initiative, because `loo()` would then stop reporting the model's own
+predictive density, would no longer agree with `log_lik()`, and would
+silently carry the same error into a comparison against a proportional
+hazards fit from another package. It reads the same from either side,
+since a fit already on the scale named is returned untouched:
+
+    loo_compare(list(aft = loo(aft_fit, scale = "time"),
+                     ph = loo(ph_fit, scale = "time")))
+
+Censored observations are not adjusted, since a survival probability is
+a probability on either scale.
+[`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
+works through the comparison and
+[`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
+through the families.
 
 The seven `ppc_loo_*` checks reweight the replicates towards the
 leave-one-out predictive instead of comparing them with the response
@@ -383,6 +510,37 @@ loo::waic(rstantools::log_lik(fit))
 #> elpd_waic   -849.2 17.1
 #> p_waic        24.7  0.7
 #> waic        1698.5 34.1
+
+# Every prior the fit was given, on the scale it was given on
+rstantools::prior_summary(fit)
+#> Priors
+#> 
+#> Trees
+#> • 10 trees per additive predictor, summed. A node at depth d branches with
+#>   probability 0.95 * (1 + d)^-2, so the root splits with probability 0.95 and a
+#>   node at depth 3 with 0.059.
+#> 
+#> Leaves
+#> • Each leaf value is Normal(0, 0.474^2), that scale being 3 * s / (2 *
+#>   sqrt(10)) with s the response's scale on the link scale. The scale is itself
+#>   given a half-Cauchy prior centred there and is estimated.
+#> 
+#> Splitting variables
+#> • The share of the rules each of the 14 predictors receives is Dirichlet(1 /
+#>   14), whose concentration enters as a / (a + 14) ~ Beta(0.5, 1). Both are
+#>   estimated.
+#> 
+#> Decision rules
+#> • Soft, with "smoothstep" gates. Each tree's bandwidth is drawn from an
+#>   exponential with mean 0.1, on predictors mapped to [0, 1], and is estimated.
+#> 
+#> Family: binomial, logit link
+#> • No parameters of its own beyond the additive predictors above.
+#> 
+#> ℹ The leaf scale, and any number above read off the response, are calibrated
+#>   rather than fitted; that is how a BART prior is specified.
+#> ℹ `prior_only = TRUE` in `bartisan()` draws from all of this, so that what it
+#>   implies can be read on the outcome's own scale.
 
 # Whether replicate outcomes look like the observed ones
 if (rlang::is_installed("bayesplot")) {

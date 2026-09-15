@@ -31,8 +31,8 @@ function on the fit."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -104,10 +104,19 @@ function on the fit.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma</a></span><span class="op">(</span><span class="va">object</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
-<span><span class="fu">loo</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">prior_summary</span><span class="op">(</span><span class="va">object</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bartisan_prior_summary'</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">x</span>, digits <span class="op">=</span> <span class="fl">3L</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
-<span><span class="fu">waic</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">loo</span><span class="op">(</span><span class="va">x</span>, scale <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
+<span><span class="fu">waic</span><span class="op">(</span><span class="va">x</span>, scale <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
+<span><span class="fu">kfold</span><span class="op">(</span><span class="va">x</span>, K <span class="op">=</span> <span class="fl">10</span>, folds <span class="op">=</span> <span class="cn">NULL</span>, scale <span class="op">=</span> <span class="cn">NULL</span>, save_fits <span class="op">=</span> <span class="cn">FALSE</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
 <span><span class="fu">pp_check</span><span class="op">(</span><span class="va">object</span>, type <span class="op">=</span> <span class="st">"dens_overlay"</span>, ndraws <span class="op">=</span> <span class="fl">10</span>, <span class="va">...</span><span class="op">)</span></span>
@@ -198,6 +207,41 @@ name of the <span class="pkg">bayesplot</span> check to run without its <code>pp
 lists them.</p></dd>
 
 
+<dt id="arg-digits">digits<a class="anchor" aria-label="anchor" href="#arg-digits"></a></dt>
+<dd><p><code>integer</code>; for <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> on the output of <code>prior_summary()</code>,
+how many digits to round the prior's scales to. Default is 3.</p></dd>
+
+
+<dt id="arg-scale">scale<a class="anchor" aria-label="anchor" href="#arg-scale"></a></dt>
+<dd><p><code>string</code>; for <code>loo()</code>, <code>waic()</code> and <code>kfold()</code> on a survival fit,
+the
+measure to report the pointwise densities with respect to: <code>"time"</code> for the
+density of \(T\) and <code>"log_time"</code> for the density of \(\log T\).
+Default is <code>NULL</code> to use the family's own, which is \(\log T\) for the
+accelerated failure time families and \(T\) for <code><a href="bartisan-families.html">ph()</a></code>. A fit already on
+the scale named is left alone, so naming one scale for every model in a
+comparison is enough. See Details.</p></dd>
+
+
+<dt id="arg-k">K<a class="anchor" aria-label="anchor" href="#arg-k"></a></dt>
+<dd><p><code>numeric</code>; for <code>kfold()</code>, how many folds to split the sample into.
+Default is 10. Ignored when <code>folds</code> is given.</p></dd>
+
+
+<dt id="arg-folds">folds<a class="anchor" aria-label="anchor" href="#arg-folds"></a></dt>
+<dd><p>optional; for <code>kfold()</code>, an integer vector of one fold number
+per observation, as <code><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">loo::kfold_split_random()</a></code>
+ and its relatives
+return. Default is <code>NULL</code> to draw them at random. Supply them to stratify,
+to group, or to score two models on the same split.</p></dd>
+
+
+<dt id="arg-save-fits">save_fits<a class="anchor" aria-label="anchor" href="#arg-save-fits"></a></dt>
+<dd><p><code>logical</code>; for <code>kfold()</code>, whether to keep the \(K\) refits
+in the result's <code>fits</code> element. Default is <code>FALSE</code>, since each is a whole
+fit.</p></dd>
+
+
 <dt id="arg-eta">eta<a class="anchor" aria-label="anchor" href="#arg-eta"></a></dt>
 <dd><p>for <code>as_draws()</code>, which columns of the additive predictor to carry
 into the draws array alongside the scalar parameters, given as either a
@@ -227,13 +271,23 @@ selects several.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code>posterior_predict()</code>, <code>posterior_epred()</code>, <code>posterior_linpred()</code> and
+    <p><code>kfold()</code> returns a <code>&lt;kfold&gt;</code> object, a list whose <code>estimates</code> holds
+<code>elpd_kfold</code>, <code>p_kfold</code> and <code>kfoldic</code> with their standard errors, whose
+<code>pointwise</code> holds the same three per observation, and whose <code>folds</code> records
+the split; <code>save_fits = TRUE</code> adds the \(K\) refits in <code>fits</code>.</p>
+<p><code>posterior_predict()</code>, <code>posterior_epred()</code>, <code>posterior_linpred()</code> and
 <code>log_lik()</code> return a matrix of draws by observations. <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> returns a
 data frame of one column per replicate. <code>loo()</code> and <code>waic()</code> return the
 <code>&lt;loo&gt;</code> and <code>&lt;waic&gt;</code> objects those functions produce, and
 <code>model_performance()</code> a one-row data frame of class <code>&lt;performance_model&gt;</code>.
-<code>as_draws()</code> returns a <code>&lt;draws_array&gt;</code> of iterations by chains by parameters.
-The accessors return what their names suggest.</p>
+<code>as_draws()</code> returns a <code>&lt;draws_array&gt;</code> of iterations by chains by parameters.</p>
+<p><code>prior_summary()</code> returns a <code>&lt;bartisan_prior_summary&gt;</code> object, a list whose
+<code>forests</code> is a data frame of one row per additive predictor and one column per
+setting the prior is made of, whose <code>estimated</code> says in the same shape which
+of them were drawn rather than held, and whose <code>family</code> holds the family's own
+parameters with the prior each was given. <code>random</code> and <code>response</code> record the
+group-intercept scale and what was read off the response.</p>
+<p>The accessors return what their names suggest.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -267,7 +321,11 @@ table, <code><a href="https://easystats.github.io/performance/reference/r2.html"
  hands the scalar parameters to
 <code><a href="https://mc-stan.org/posterior/reference/draws_summary.html" class="external-link">posterior::summarise_draws()</a></code>
  or to the <span class="pkg">bayesplot</span> MCMC
-diagnostics. <strong>Basic accessors.</strong> <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">stats::fitted()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">stats::residuals()</a></code>,
+diagnostics. <strong>The prior.</strong> <code><a href="https://mc-stan.org/rstantools/reference/prior_summary.html" class="external-link">rstantools::prior_summary()</a></code>
+ writes out
+every prior the fit was given, on the scale it was given on, which is the
+companion to <code>prior_only = TRUE</code> in <code><a href="bartisan.html">bartisan()</a></code>: one says what the prior is
+and the other says what it implies about the outcome. <strong>Basic accessors.</strong> <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">stats::fitted()</a></code>, <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">stats::residuals()</a></code>,
 <code><a href="https://rdrr.io/r/stats/weights.html" class="external-link">stats::weights()</a></code> and <code><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">stats::sigma()</a></code> do what they do for a <code>glm</code>, which is
 also most of what <span class="pkg">insight</span> needs to make the fit legible to the
 <span class="pkg">easystats</span> packages.</p>
@@ -300,6 +358,57 @@ When it names a handful of observations, those are the influential ones, and
 refitting without them is what shows how badly they are predicted. A log
 score on data the model has not seen is available directly:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">held_out</span>, type <span class="op">=</span> <span class="st">"density"</span>, log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre><p></p></div>
+</div>
+
+<div class="section">
+<h3 id="cross-validation-without-the-approximation">Cross-Validation Without the Approximation<a class="anchor" aria-label="anchor" href="#cross-validation-without-the-approximation"></a></h3>
+
+
+<p><code>loo()</code> estimates the leave-one-out density by importance sampling from one
+fit. <code>kfold()</code> does not estimate it: it splits the sample, refits \(K\)
+times, and scores each part under a fit that never saw it. That costs \(K\)
+fits and owes nothing to an approximation, which makes it the thing to reach
+for when the Pareto diagnostics say the weights cannot be trusted.</p>
+<p>It returns a <code>&lt;kfold&gt;</code> object that <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code>
+ accepts beside a
+<code>&lt;loo&gt;</code> one, so two models can be compared on one split by passing the folds
+from the first to the second:</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="va">folds</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">kfold_split_random</a></span><span class="op">(</span>K <span class="op">=</span> <span class="fl">10</span>, N <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/nobs.html" class="external-link">nobs</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">loo_compare</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="fu">kfold</span><span class="op">(</span><span class="va">fit</span>, folds <span class="op">=</span> <span class="va">folds</span><span class="op">)</span>,</span>
+<span>                 small <span class="op">=</span> <span class="fu">kfold</span><span class="op">(</span><span class="va">other</span>, folds <span class="op">=</span> <span class="va">folds</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>The refits run under a <code>future</code> plan when one is set, and one <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code>
+reproduces them either way. Each is refitted from the original call, so a fit
+whose <code>data</code> argument no longer names the data it was made from is an error
+rather than a wrong answer; prior weights and an offset are carried into both
+the refits and the held-out scores, since a score taken without them is wrong
+rather than approximate.</p>
+<p><code>p_kfold</code> is the gap between what the model predicts for an observation it was
+fitted to and what it predicts for the same one held out, which is the price
+of having used it. <code><a href="../articles/comparison.html">vignette("comparison")</a></code> reads an example.</p>
+</div>
+
+<div class="section">
+<h3 id="comparing-survival-families">Comparing Survival Families<a class="anchor" aria-label="anchor" href="#comparing-survival-families"></a></h3>
+
+
+<p>The accelerated failure time families report the density of \(\log T\) and
+<code><a href="bartisan-families.html">ph()</a></code> the density of \(T\). Both are correct for the model that produced
+them, and neither is comparable with the other: they differ by the Jacobian of
+the change of variable, so a log score taken across that boundary is off by
+\(\sum \log t\) over the events, which runs to thousands of points on a
+sample of any size and can reverse which family looks better.</p>
+<p><code>scale</code> puts them on one measure. It is not applied on its own initiative,
+because <code>loo()</code> would then stop reporting the model's own predictive density,
+would no longer agree with <code>log_lik()</code>, and would silently carry the same
+error into a comparison against a proportional hazards fit from another
+package. It reads the same from either side, since a fit already on the scale
+named is returned untouched:</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu">loo_compare</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu">loo</span><span class="op">(</span><span class="va">aft_fit</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span>,</span>
+<span>                 ph <span class="op">=</span> <span class="fu">loo</span><span class="op">(</span><span class="va">ph_fit</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>Censored observations are not adjusted, since a survival probability is a
+probability on either scale. <code><a href="../articles/comparison.html">vignette("comparison")</a></code> works through the
+comparison and <code><a href="../articles/survival.html">vignette("survival")</a></code> through the families.</p>
 <p>The seven <code>ppc_loo_*</code> checks reweight the replicates towards the
 leave-one-out predictive instead of comparing them with the response
 directly, so they need those same weights. <code>pp_check()</code> computes them from
@@ -417,6 +526,37 @@ Computing</em>, 27(5), 1413–1432.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> elpd_waic   -849.2 17.1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> p_waic        24.7  0.7</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> waic        1698.5 34.1</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Every prior the fit was given, on the scale it was given on</span></span></span>
+<span class="r-in"><span><span class="fu">rstantools</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstantools/reference/prior_summary.html" class="external-link">prior_summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Priors</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Trees</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> 10 trees per additive predictor, summed. A node at depth <span style="font-style: italic;">d</span> branches with</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   probability 0.95 * (1 + <span style="font-style: italic;">d</span>)^-2, so the root splits with probability 0.95 and a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   node at depth 3 with 0.059.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Leaves</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Each leaf value is Normal(0, 0.474^2), that scale being 3 * <span style="font-style: italic;">s</span> / (2 *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   sqrt(10)) with <span style="font-style: italic;">s</span> the response's scale on the link scale. The scale is itself</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   given a half-Cauchy prior centred there and is estimated.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Splitting variables</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> The share of the rules each of the 14 predictors receives is Dirichlet(1 /</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   14), whose concentration enters as a / (a + 14) ~ Beta(0.5, 1). Both are</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   estimated.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Decision rules</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Soft, with <span style="color: #0000BB;">"smoothstep"</span> gates. Each tree's bandwidth is drawn from an</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   exponential with mean 0.1, on predictors mapped to [0, 1], and is estimated.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Family</span>: binomial, logit link</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> No parameters of its own beyond the additive predictors above.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The leaf scale, and any number above read off the response, are calibrated</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   rather than fitted; that is how a BART prior is specified.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `prior_only = TRUE` in `bartisan()` draws from all of this, so that what it</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   implies can be read on the outcome's own scale.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Whether replicate outcomes look like the observed ones</span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"bayesplot"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>

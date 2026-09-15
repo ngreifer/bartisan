@@ -33,8 +33,8 @@ needed."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -72,7 +72,16 @@ needed.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">object</span>, rhat_max <span class="op">=</span> <span class="fl">1.01</span>, ess_min <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">object</span>, rhat_max <span class="op">=</span> <span class="fl">1.01</span>, ess_min <span class="op">=</span> <span class="fl">400</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Default S3 method</span></span>
+<span><span class="fu">diagnose</span><span class="op">(</span><span class="va">object</span>, rhat_max <span class="op">=</span> <span class="fl">1.01</span>, ess_min <span class="op">=</span> <span class="fl">400</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bartisan_fit'</span></span>
+<span><span class="fu">diagnose</span><span class="op">(</span><span class="va">object</span>, rhat_max <span class="op">=</span> <span class="fl">1.01</span>, ess_min <span class="op">=</span> <span class="fl">400</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'bartisan_effect'</span></span>
+<span><span class="fu">diagnose</span><span class="op">(</span><span class="va">object</span>, rhat_max <span class="op">=</span> <span class="fl">1.01</span>, ess_min <span class="op">=</span> <span class="fl">400</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -80,7 +89,9 @@ needed.</p>
 
 
 <dl><dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
-<dd><p>a <code>&lt;bartisan_fit&gt;</code> object; the output of a call to <code><a href="bartisan.html">bartisan()</a></code>.</p></dd>
+<dd><p>a <code>&lt;bartisan_fit&gt;</code> object, the output of a call to <code><a href="bartisan.html">bartisan()</a></code>,
+or a <code>&lt;bartisan_effect&gt;</code> object, the output of a call to
+<code><a href="estimate_effect.html">estimate_effect()</a></code>.</p></dd>
 
 
 <dt id="arg-rhat-max">rhat_max<a class="anchor" aria-label="anchor" href="#arg-rhat-max"></a></dt>
@@ -95,6 +106,10 @@ acceptable, for the bulk and the tail alike. Default is 400, Vehtari et
 al.'s recommendation of 100 per chain at four chains, which is about what it
 takes for the Monte Carlo error of an interval endpoint to be small next to
 the posterior's own width.</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>ignored.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -119,7 +134,28 @@ everything passed.</p></dd>
 total.</p></dd>
 
 
-</dl></div>
+</dl><div class="section">
+<h3 id="diagnosing-an-estimand">Diagnosing an Estimand<a class="anchor" aria-label="anchor" href="#diagnosing-an-estimand"></a></h3>
+
+
+<p>Called on the output of <code><a href="estimate_effect.html">estimate_effect()</a></code>, the table has one row per
+reported quantity rather than one per sampled parameter, and everything else
+reads the same way.</p>
+<p>It is worth doing rather than inferred from the fit's own table, because the
+two can disagree. An estimand is a contrast, and a contrast can mix badly
+where the function it is a contrast of mixes well: under the default
+splitting prior a draw that gives the treatment no rule puts the contrast at
+exactly zero, and the sampler can stay there for a long run while the other
+predictors keep the fitted function moving. Nothing in the fit's table shows
+that, since no parameter the sampler draws is stuck. The check reports the
+share of draws sitting at the atom when there is one.</p>
+<p>This complements the fit's diagnosis rather than replacing it. Chains that
+have settled on different fitted functions can still agree about an average
+over them, so an estimand that looks converged is not on its own evidence
+that the sampler did its job.</p>
+</div>
+
+    </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>This is where the diagnostics are computed, and the only place: <code><a href="bartisan.html">bartisan()</a></code>
@@ -281,7 +317,7 @@ including posterior predictive checks</p></div>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The table, the checks, and what to do about whichever of them failed</span></span></span>
 <span class="r-in"><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Convergence and mixing</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.281     1.791        6       45</span>
@@ -290,45 +326,46 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.488     1.728        4       16</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> above 1.01 for loglik</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> that R-hat rests on 6 effective draws, where 2 chains average 1.346 even when</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   they agree</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> not the fix: R-hat stays high on the second half of the draws alone as well,</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   so a longer warmup is not what is missing</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> the chains agree about the size of the forest</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 4 for eta.eta (worst 5% of observations), below 400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 16 for eta.eta (worst 5% of observations), below 400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> the chains disagree about individual observations and agree about their</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   when they agree</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 16 for eta.eta (worst 5% of observations), below 400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 77 effective draws)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> eta.eta (worst 5% of observations) carries 4.3 effective draws per hundred</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   kept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   carries 4.3 effective draws per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">What to do</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a quantity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> that carries too few effective draws for the threshold to mean anything: with</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> this many chains it would sit about where it does even if the chains agreed</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> exactly, as the check above reports. Effective sample size is what makes it</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> readable, and that grows with the total number of draws; using fewer chains</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lowers the bar as well, since R-hat's null rises with the number of chains</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> being compared.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> forest has fewer ways to represent the same fit, so the sampler has less room</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> to move between them.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Then check the family. A likelihood that fits the data badly can give a</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> posterior with no single place to be; `bayesplot::pp_check()` is the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> diagnostic.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Note that the chains disagree about the fitted values of individual</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> observations and not about their average, which is the usual shape of this in a</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> forest. An estimand averaged over observations therefore carries far more</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> effective draws than the table's worst row does, and R-hat for that estimand is</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> worth computing rather than inferring; `posterior::as_draws()` hands the draws</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> over for it.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   quantity that carries too few effective draws for the threshold to mean</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   anything: with this many chains it would sit about where it does even if the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. Effective sample size is</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   what makes it readable, and that grows with the total number of draws; using</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   fewer chains lowers the bar as well, since R-hat's null rises with the number</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   of chains being compared.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   forest has fewer ways to represent the same fit, so the sampler has less room</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   to move between them.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   posterior with no single place to be; `bayesplot::pp_check()` is the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   diagnostic.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   observations and not about their average, which is the usual shape of this in</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   a forest. What that means for an estimand cannot be read off this table</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   either way, since an estimand is a contrast and a contrast can mix badly</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   where the function it contrasts mixes well. Compute it: `diagnose()` takes</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   draws to `posterior::summarise_draws()` for anything else.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># A stricter effective sample size, which is what an interval endpoint needs</span></span></span>
 <span class="r-in"><span><span class="co"># and a posterior mean does not</span></span></span>
 <span class="r-in"><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">fit</span>, ess_min <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Convergence and mixing</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.281     1.791        6       45</span>
@@ -337,40 +374,41 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.488     1.728        4       16</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> above 1.01 for loglik</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> that R-hat rests on 6 effective draws, where 2 chains average 1.346 even when</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   they agree</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> not the fix: R-hat stays high on the second half of the draws alone as well,</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   so a longer warmup is not what is missing</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> the chains agree about the size of the forest</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 4 for eta.eta (worst 5% of observations), below 1000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> 16 for eta.eta (worst 5% of observations), below 1000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> the chains disagree about individual observations and agree about their</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   when they agree</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 16 for eta.eta (worst 5% of observations), below 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 77 effective draws)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> eta.eta (worst 5% of observations) carries 4.3 effective draws per hundred</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   kept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   carries 4.3 effective draws per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">What to do</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a quantity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> that carries too few effective draws for the threshold to mean anything: with</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> this many chains it would sit about where it does even if the chains agreed</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> exactly, as the check above reports. Effective sample size is what makes it</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> readable, and that grows with the total number of draws; using fewer chains</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> lowers the bar as well, since R-hat's null rises with the number of chains</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> being compared.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> forest has fewer ways to represent the same fit, so the sampler has less room</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> to move between them.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Then check the family. A likelihood that fits the data badly can give a</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> posterior with no single place to be; `bayesplot::pp_check()` is the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> diagnostic.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Note that the chains disagree about the fitted values of individual</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> observations and not about their average, which is the usual shape of this in a</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> forest. An estimand averaged over observations therefore carries far more</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> effective draws than the table's worst row does, and R-hat for that estimand is</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> worth computing rather than inferring; `posterior::as_draws()` hands the draws</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> over for it.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   quantity that carries too few effective draws for the threshold to mean</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   anything: with this many chains it would sit about where it does even if the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. Effective sample size is</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   what makes it readable, and that grows with the total number of draws; using</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   fewer chains lowers the bar as well, since R-hat's null rises with the number</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   of chains being compared.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   forest has fewer ways to represent the same fit, so the sampler has less room</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   to move between them.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   posterior with no single place to be; `bayesplot::pp_check()` is the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   diagnostic.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   observations and not about their average, which is the usual shape of this in</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   a forest. What that means for an estimand cannot be read off this table</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   either way, since an estimand is a contrast and a contrast can mix badly</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   where the function it contrasts mixes well. Compute it: `diagnose()` takes</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   draws to `posterior::summarise_draws()` for anything else.</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

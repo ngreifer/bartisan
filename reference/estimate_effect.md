@@ -11,7 +11,7 @@ for.
 ``` r
 estimate_effect(
   object,
-  treatment = NULL,
+  treat = NULL,
   estimand = "ATE",
   comparison = "difference",
   by = NULL,
@@ -38,7 +38,7 @@ plot(x, ...)
   [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) or
   [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md).
 
-- treatment:
+- treat:
 
   `string`; the name of the treatment variable. A fit from
   [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md)
@@ -124,6 +124,13 @@ plot(x, ...)
   only the contrasts involving it, `"all"` shows every pairwise
   contrast, and a character vector of contrast labels shows those. All
   of them are computed either way; this only decides what is printed.
+
+- potential_outcomes:
+
+  `logical`; whether to print the average response under each treatment
+  level below the contrasts, those being what the contrasts were
+  computed from. Default is `TRUE`. They are in the result's
+  `"potential_outcomes"` attribute either way.
 
 - ...:
 
@@ -234,7 +241,7 @@ ones not offered here
 data("rhc")
 set.seed(123)
 
-fit <- bcf(death ~ age + sex + meanbp + aps, treatment = ~ rhc,
+fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.

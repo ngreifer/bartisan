@@ -77,6 +77,12 @@ plot(x, y, ...)
   a `<bartisan_partial>` object; the output of a call to
   `partial_dependence()`. For `plot.bartisan_fit()`, a `<bartisan_fit>`.
 
+- digits:
+
+  `integer`; for [`print()`](https://rdrr.io/r/base/print.html), the
+  number of significant digits to print the estimates and their interval
+  to. Default is 3.
+
 - ...:
 
   for `plot.bartisan_fit()`, further arguments passed to
@@ -181,4 +187,5 @@ plot(fit, ~ meanbp)
 
 # Two predictors, one of them a factor, which gives a curve per level
 plot(fit, ~ meanbp + sex)
+
 ```

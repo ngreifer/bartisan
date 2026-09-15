@@ -31,8 +31,8 @@ partial_dependence() returns the values and plot() draws them."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -138,6 +138,11 @@ argument and the method cannot disagree.</p></dd>
 <code>partial_dependence()</code>. For <code>plot.bartisan_fit()</code>, a <code>&lt;bartisan_fit&gt;</code>.</p></dd>
 
 
+<dt id="arg-digits">digits<a class="anchor" aria-label="anchor" href="#arg-digits"></a></dt>
+<dd><p><code>integer</code>; for <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>, the number of significant digits to
+print the estimates and their interval to. Default is 3.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>for <code>plot.bartisan_fit()</code>, further arguments passed to
 <code>partial_dependence()</code>; otherwise ignored.</p></dd>
@@ -192,7 +197,7 @@ control over the grid</p></div>
 <span class="r-in"><span><span class="co"># How the fitted risk moves with mean blood pressure</span></span></span>
 <span class="r-in"><span><span class="va">pd</span> <span class="op">&lt;-</span> <span class="fu">partial_dependence</span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">pd</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Partial dependence</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Partial dependence</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Predictor: <span style="color: #0000BB;">"meanbp"</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over 1500 units, on the</span>
@@ -238,6 +243,7 @@ control over the grid</p></div>
 <span class="r-in"><span><span class="co"># Two predictors, one of them a factor, which gives a curve per level</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">sex</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="partial_dependence-3.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

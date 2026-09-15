@@ -42,8 +42,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -82,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-13</h4>
+            <h4 data-toc-skip class="date">2026-09-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/causal.Rmd" class="external-link"><code>vignettes/causal.Rmd</code></a></small>
       <div class="d-none name"><code>causal.Rmd</code></div>
@@ -302,10 +302,10 @@ them on the way to the effect and prints them beneath it. On a fit from
 <code><a href="../reference/bartisan.html">bartisan()</a></code> the treatment has to be named, since nothing in
 the formula marks one predictor as the treatment:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treatment <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">ate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ate</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average treatment effect (difference)</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average treatment effect (difference)</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"rhc"</span></span></span>
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
@@ -313,7 +313,7 @@ the formula marks one predictor as the treatment:</p>
 <span><span class="co">#&gt;     contrast estimate  lower upper    n</span></span>
 <span><span class="co">#&gt;  Y[1] - Y[0]   0.0626 0.0158  0.11 1500</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average potential outcomes</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average potential outcomes</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
 <span><span class="co">#&gt;      Y[0]    0.631 0.602 0.660</span></span>
@@ -355,8 +355,8 @@ two can differ by a good deal. <code>comparison</code> asks for the
 contrast rather than the scale, so a risk ratio or an odds ratio is
 available without leaving the response scale:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treatment <span class="op">=</span> <span class="st">"rhc"</span>, comparison <span class="op">=</span> <span class="st">"lnor"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average treatment effect (log odds ratio)</span></span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span>, comparison <span class="op">=</span> <span class="st">"lnor"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average treatment effect (log odds ratio)</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"rhc"</span></span></span>
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
@@ -364,7 +364,7 @@ available without leaving the response scale:</p>
 <span><span class="co">#&gt;                contrast estimate lower upper    n</span></span>
 <span><span class="co">#&gt;  log(O(Y[1]) / O(Y[0]))    0.282  0.07 0.497 1500</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average potential outcomes</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average potential outcomes</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
 <span><span class="co">#&gt;      Y[0]    0.631 0.602 0.660</span></span>
@@ -420,7 +420,7 @@ prior, so that shrinking the confounding part does not shrink the
 effect. This is the Bayesian causal forest (BCF) model, a special case
 of the varying coefficients BART model. <code><a href="../reference/bcf.html">bcf()</a></code> fits it.</p>
 <p>One specifies the control function in the model formula and
-identifies the treatment in the <code>treatment</code> argument.
+identifies the treatment in the <code>treat</code> argument.
 <code><a href="../reference/bcf.html">bcf()</a></code> then fits a varying coefficient BART model, the BCF.
 By default, <code><a href="../reference/bcf.html">bcf()</a></code> estimates a propensity score using a
 logistic BART model and includes that as a covariate in the control
@@ -428,15 +428,15 @@ function, as recommended by <span class="citation">Hahn et al. (<a href="#ref-ha
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_bcf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bcf.html">bcf</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span></span>
 <span>                 <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span>
-<span>               treatment <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
+<span>               treat <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
 <span>               family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit_bcf</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Generalized BART</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
 <span><span class="co">#&gt; bcf(formula = death ~ age + sex + race + edu + aps + meanbp + </span></span>
-<span><span class="co">#&gt;     resp + hema + pafi + paco2 + crea + surv2m + card, treatment = ~rhc, </span></span>
+<span><span class="co">#&gt;     resp + hema + pafi + paco2 + crea + surv2m + card, treat = ~rhc, </span></span>
 <span><span class="co">#&gt;     data = rhc, family = binomial(), chains = 4)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span></span>
@@ -444,7 +444,7 @@ function, as recommended by <span class="citation">Hahn et al. (<a href="#ref-ha
 <span><span class="co">#&gt; Structure: 2 forests of 50 and 25 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 3200 kept across 4 chains after 200 warmup</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Posterior means: b.rhc.0 = 0.00328, b.rhc.1 = -0.142</span></span>
+<span><span class="co">#&gt; Posterior means: b.rhc.0 = -0.0781, b.rhc.1 = 0.0482</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"rhc"</span></span></span>
 <span><span class="co">#&gt; Effect moderators: <span style="color: #0000BB;">"age"</span>, <span style="color: #0000BB;">"sex"</span>, <span style="color: #0000BB;">"race"</span>, <span style="color: #0000BB;">"edu"</span>, <span style="color: #0000BB;">"aps"</span>, <span style="color: #0000BB;">"meanbp"</span>, <span style="color: #0000BB;">"resp"</span>, <span style="color: #0000BB;">"hema"</span>, <span style="color: #0000BB;">"pafi"</span>, <span style="color: #0000BB;">"paco2"</span>, <span style="color: #0000BB;">"crea"</span>, <span style="color: #0000BB;">"surv2m"</span>, and <span style="color: #0000BB;">"card"</span></span></span>
@@ -469,19 +469,19 @@ than a predictor the forest splits on, so nothing can drop it.</p>
 <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> needs nothing else:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit_bcf</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average treatment effect (difference)</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average treatment effect (difference)</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"rhc"</span></span></span>
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     contrast estimate    lower upper    n</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0]   0.0488 -0.00118 0.105 1500</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0]   0.0476 -0.00226 0.105 1500</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average potential outcomes</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average potential outcomes</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
-<span><span class="co">#&gt;      Y[0]    0.636 0.604 0.665</span></span>
-<span><span class="co">#&gt;      Y[1]    0.685 0.644 0.725</span></span>
+<span><span class="co">#&gt;      Y[0]    0.637 0.605 0.666</span></span>
+<span><span class="co">#&gt;      Y[1]    0.684 0.645 0.725</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
 <span><span class="co">#&gt;   credible interval.</span></span>
@@ -511,7 +511,7 @@ which for a conditional effect is a conditional odds ratio:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">cate</span><span class="op">$</span><span class="va">estimate</span>, probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    0%   25%   50%   75%  100% </span></span>
-<span><span class="co">#&gt; 1.141 1.285 1.335 1.385 1.514</span></span></code></pre></div>
+<span><span class="co">#&gt; 1.131 1.282 1.329 1.375 1.501</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws them: patients ordered by their estimate,
 with a credible interval each, and the marginal effect as a single
 interval past the right edge in its own color. Ordering is what makes
@@ -567,25 +567,25 @@ outcome. See <code><a href="../articles/families.html">vignette("families")</a><
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_earn_bcf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bcf.html">bcf</a></span><span class="op">(</span></span>
 <span>  <span class="va">re78</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">educ</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span> <span class="va">nodegree</span> <span class="op">+</span> <span class="va">re74</span> <span class="op">+</span> <span class="va">re75</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="op">~</span> <span class="va">treat</span>,</span>
+<span>  treat <span class="op">=</span> <span class="op">~</span> <span class="va">treat</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">lalonde</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">dpm</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  chains <span class="op">=</span> <span class="fl">4</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit_earn_bcf</span>, estimand <span class="op">=</span> <span class="st">"ATT"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average treatment effect on the treated (difference)</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average treatment effect on the treated (difference)</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"treat"</span></span></span>
 <span><span class="co">#&gt; Averaged over the 185 units in group <span style="color: #0000BB;">"1"</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     contrast estimate lower upper   n</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0]      110  -299   657 185</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0]      175  -275   886 185</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Average potential outcomes</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Average potential outcomes</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
-<span><span class="co">#&gt;      Y[0]     5590  2980  7700</span></span>
-<span><span class="co">#&gt;      Y[1]     5700  3080  7860</span></span>
+<span><span class="co">#&gt;      Y[0]     5760  3390  9090</span></span>
+<span><span class="co">#&gt;      Y[1]     5940  3420  9440</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
 <span><span class="co">#&gt;   credible interval.</span></span>
@@ -613,7 +613,7 @@ to see that the two agree:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>ATT <span class="op">=</span> <span class="va">att</span><span class="op">$</span><span class="va">estimate</span>, mean_CATE <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">cate_att</span><span class="op">$</span><span class="va">estimate</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       ATT mean_CATE </span></span>
-<span><span class="co">#&gt;     110.3     110.3</span></span></code></pre></div>
+<span><span class="co">#&gt;     175.4     175.4</span></span></code></pre></div>
 <p>And the conditional effects, drawn:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">cate_att</span><span class="op">)</span></span></code></pre></div>

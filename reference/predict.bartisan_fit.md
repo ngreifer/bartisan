@@ -264,9 +264,9 @@ quantity is for, are unaffected.
 undefined at any of the draws, which happens when a link the package
 does not compile has been composed onto the family's own scale and its
 inverse does not cover the whole additive predictor (e.g.,
-`Gamma("inverse")`, which gives a positive mean only where the predictor
-is positive). A saved draw can imply a parameter outside the family's
-support at a predictor the forest extrapolates to, even though
+`poisson("identity")`, which gives a positive mean only where the
+predictor is positive). A saved draw can imply a parameter outside the
+family's support at a predictor the forest extrapolates to, even though
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 warns about such a link at fit time and rejects such proposals while
 sampling. The value stays `NaN` rather than becoming zero, which would

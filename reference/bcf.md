@@ -12,7 +12,7 @@ Hahn and Murray (2020) for a continuous one.
 ``` r
 bcf(
   formula,
-  treatment,
+  treat,
   data,
   family = NULL,
   moderators = NULL,
@@ -27,10 +27,10 @@ bcf(
 - formula:
 
   a model formula. The right-hand side lists the covariates; the
-  treatment is named in `treatment` rather than here, and is removed
-  from the covariates if it appears among them.
+  treatment is named in `treat` rather than here, and is removed from
+  the covariates if it appears among them.
 
-- treatment:
+- treat:
 
   a one-sided formula naming the treatment, as in `~ z`. The treatment
   may be binary, categorical, or continuous, and which it is decides
@@ -257,7 +257,7 @@ set.seed(123)
 # The effect of right heart catheterization on death, free to vary with
 # every covariate, with the propensity score entering the control function
 # alone
-fit <- bcf(death ~ . - days, treatment = ~ rhc, data = rhc,
+fit <- bcf(death ~ . - days, treat = ~ rhc, data = rhc,
            family = binomial(), num_trees = c(10, 5), num_burn = 50,
            num_draws = 50,
            propensity_args = list(num_trees = 10, num_burn = 50,
@@ -300,10 +300,9 @@ summary(fit)
 #> Generalized BART
 #> 
 #> Call:
-#> bcf(formula = death ~ . - days, treatment = ~rhc, data = rhc, 
-#>     family = binomial(), propensity_args = list(num_trees = 10, 
-#>         num_burn = 50, num_draws = 50), num_trees = c(10, 5), 
-#>     num_burn = 50, num_draws = 50)
+#> bcf(formula = death ~ . - days, treat = ~rhc, data = rhc, family = binomial(), 
+#>     propensity_args = list(num_trees = 10, num_burn = 50, num_draws = 50), 
+#>     num_trees = c(10, 5), num_burn = 50, num_draws = 50)
 #> 
 #> Family: "binomial" with the "logit" link
 #> Observations: 1500

@@ -42,8 +42,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -82,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-13</h4>
+            <h4 data-toc-skip class="date">2026-09-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/importance.Rmd" class="external-link"><code>vignettes/importance.Rmd</code></a></small>
       <div class="d-none name"><code>importance.Rmd</code></div>
@@ -135,7 +135,7 @@ variables.</p>
 <span><span class="va">imp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">imp</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Variable importance</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
 <span><span class="co">#&gt;    surv2m     1.000       0.265   20.2</span></span>
@@ -222,7 +222,7 @@ means adding a few.</p>
 <span>                      data <span class="op">=</span> <span class="va">rhc_noise</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_noise</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Variable importance</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
 <span><span class="co">#&gt;    surv2m     1.000       0.218   16.6</span></span>
@@ -279,7 +279,7 @@ Below we use the Friedman function, in which <code>x1</code> through
 <span><span class="va">fit_fr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="fu">friedman</span><span class="op">(</span><span class="fl">500</span><span class="op">)</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_fr</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Variable importance</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
 <span><span class="co">#&gt;        x2     1.000       0.365   29.4</span></span>
@@ -321,7 +321,7 @@ a confident and wrong answer rather than an uninformative one.</p>
 <span><span class="va">fit_corr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">cd</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_corr</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Variable importance</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
 <span><span class="co">#&gt;   x1_copy     1.000       0.729   55.3</span></span>

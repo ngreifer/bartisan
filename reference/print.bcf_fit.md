@@ -78,7 +78,7 @@ model
 data("rhc")
 set.seed(123)
 
-fit <- bcf(death ~ age + sex + meanbp + aps, treatment = ~ rhc,
+fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.
@@ -88,7 +88,7 @@ fit
 #> Generalized BART
 #> 
 #> Call:
-#> bcf(formula = death ~ age + sex + meanbp + aps, treatment = ~rhc, 
+#> bcf(formula = death ~ age + sex + meanbp + aps, treat = ~rhc, 
 #>     data = rhc, num_trees = 10, num_burn = 50, num_draws = 50, 
 #>     verbose = FALSE)
 #> 
@@ -126,4 +126,5 @@ estimate_effect(fit)
 
 # The conditional effects, ordered, with the average beside them
 plot(fit)
+
 ```

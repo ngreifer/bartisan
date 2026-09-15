@@ -81,7 +81,7 @@ below relaxes it.
 
 | Family | Model | A contrast in the forest gives | Drawn nuisance |
 |:---|:---|:---|:---|
-| [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | \\\log T = \eta + \sigma\epsilon\\, \\\epsilon\\ standard Gumbel | a log time ratio (and a log hazard ratio) | \\\sigma\\ |
+| [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | \\\log T = \eta + \sigma\epsilon\\, \\\epsilon\\ smallest extreme value | a log time ratio (and a log hazard ratio) | \\\sigma\\ |
 | [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | the same with \\\epsilon\\ standard logistic | a log time ratio | \\\sigma\\ |
 | [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | the same with \\\epsilon\\ standard normal | a log time ratio | \\\sigma\\ |
 | [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | \\\lambda(t \mid x) = \lambda_0(t)\\e^{r(x)}\\ | a log hazard ratio | \\\lambda_0\\ on a grid |
@@ -616,13 +616,13 @@ passing over.
 is the *worst* family in the panel with no censoring at all, at .097,
 and it gets **better** as censoring increases, reaching .072 at 70%.
 Everything else degrades monotonically. The likely reason is that this
-truth has a heavy, polynomial tail, which a Gumbel error in log time
-cannot represent; with no censoring the fit is dragged by observed times
-far out in that tail, and censoring truncates exactly the observations
-it cannot accommodate. Censoring is protecting a misspecified model from
-the part of the distribution it gets wrong. That is a caution about
-reading a fit’s apparent quality off a heavily censored sample, not a
-reason to want censoring.
+truth has a heavy, polynomial tail, which a smallest extreme value error
+in log time cannot represent; with no censoring the fit is dragged by
+observed times far out in that tail, and censoring truncates exactly the
+observations it cannot accommodate. Censoring is protecting a
+misspecified model from the part of the distribution it gets wrong. That
+is a caution about reading a fit’s apparent quality off a heavily
+censored sample, not a reason to want censoring.
 
 One expectation the sweep did not bear out: we might have expected
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)

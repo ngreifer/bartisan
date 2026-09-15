@@ -144,39 +144,42 @@ diagnose(fit)
 #>   eta.eta (worst 5% of observations) 1.045     1.073       80      305
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
-#> ✖ above 1.01 for loglik
-#> ✖ that R-hat rests on 23 effective draws, where 4 chains average 1.171 even
-#>   when they agree
-#> ℹ not the fix: R-hat stays high on the second half of the draws alone as well,
-#>   so a longer warmup is not what is missing
-#> ✖ the chains disagree about how many splitting rules the forest has (R-hat
+#> ✖ R-hat is above 1.01 for loglik
+#> ✖ That R-hat rests on only 23 effective draws, where 4 chains average 1.171
+#>   even when they agree
+#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
+#>   draws alone as well
+#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.01)
-#> ✖ 23 for loglik, below 400
-#> ✖ 234 for loglik, below 400
-#> ℹ the chains disagree about individual observations and agree about their
+#> ✖ Bulk ESS is 23 for loglik, below 400
+#> ✖ Tail ESS is 234 for loglik, below 400
+#> ℹ The chains disagree about individual observations and agree about their
 #>   average (R-hat 1.00, 1610 effective draws)
-#> ℹ loglik carries 0.7 effective draws per hundred kept
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.7 effective draws
+#>   per hundred kept
 #> 
 #> What to do
 #> 
-#> Raise `num_draws`, which was `800`. R-hat is above the threshold for a quantity
-#> that carries too few effective draws for the threshold to mean anything: with
-#> this many chains it would sit about where it does even if the chains agreed
-#> exactly, as the check above reports. Effective sample size is what makes it
-#> readable, and that grows with the total number of draws; using fewer chains
-#> lowers the bar as well, since R-hat's null rises with the number of chains
-#> being compared.
-#> If that does not settle it, reduce `num_trees`. A smaller forest has fewer ways
-#> to represent the same fit, so the sampler has less room to move between them.
-#> Then check the family. A likelihood that fits the data badly can give a
-#> posterior with no single place to be; `bayesplot::pp_check()` is the
-#> diagnostic.
-#> Note that the chains disagree about the fitted values of individual
-#> observations and not about their average, which is the usual shape of this in a
-#> forest. An estimand averaged over observations therefore carries far more
-#> effective draws than the table's worst row does, and R-hat for that estimand is
-#> worth computing rather than inferring; `posterior::as_draws()` hands the draws
-#> over for it.
+#> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
+#>   quantity that carries too few effective draws for the threshold to mean
+#>   anything: with this many chains it would sit about where it does even if the
+#>   chains agreed exactly, as the check above reports. Effective sample size is
+#>   what makes it readable, and that grows with the total number of draws; using
+#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
+#>   of chains being compared.
+#> • If that does not settle it, reduce `num_trees`. A smaller forest has fewer
+#>   ways to represent the same fit, so the sampler has less room to move between
+#>   them.
+#> • Then check the family. A likelihood that fits the data badly can give a
+#>   posterior with no single place to be; `bayesplot::pp_check()` is the
+#>   diagnostic.
+#> • Note that the chains disagree about the fitted values of individual
+#>   observations and not about their average, which is the usual shape of this in
+#>   a forest. What that means for an estimand cannot be read off this table
+#>   either way, since an estimand is a contrast and a contrast can mix badly
+#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
+#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
+#>   draws to `posterior::summarise_draws()` for anything else.
 ```
 
 `rhat` compares variation between chains to variation within them;
@@ -190,12 +193,73 @@ tails.
 
 Read the rows that correspond to quantities you will report. `eta.eta`
 is the fitted function and appears twice, once averaged over the
-observations and once over the worst 5% of them: the average row governs
-an average effect and the worst-5% row governs a prediction for one
-observation. Forests mix slowly on their fitted values, so a figure
-above 1.01 on the worst-5% row is ordinary rather than alarming;
+observations and once over the worst 5% of them; the second is what
+governs a prediction for one observation. Forests mix slowly on their
+fitted values, so a figure above 1.01 on the worst-5% row is ordinary
+rather than alarming;
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 explains what to do about it and when to worry.
+
+No row here governs an effect, though, and the average row in particular
+should not be read as if it did. An effect is a contrast, and a contrast
+can mix badly where the function it is a contrast of mixes well.
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
+takes the estimand itself when there is one to take:
+
+``` r
+
+diagnose(estimate_effect(fit, treat = "rhc"))
+#> Convergence and mixing
+#> 
+#>     quantity  rhat rhat_late ess_bulk ess_tail
+#>  Y[1] - Y[0] 1.035     1.105      117       64
+#>         Y[0] 1.019     1.059      190      388
+#>         Y[1] 1.028     1.083      148      221
+#> 
+#> ✔ 4 chains, 3200 draws kept in total
+#> ✖ R-hat is above 1.01 for Y[1] - Y[0]
+#> ✖ That R-hat rests on only 117 effective draws, where 4 chains average 1.034
+#>   even when they agree
+#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
+#>   draws alone as well
+#> ✖ Bulk ESS is 117 for Y[1] - Y[0], below 400
+#> ✖ Tail ESS is 64 for Y[1] - Y[0], below 400
+#> ℹ Per-draw efficiency is lowest for Y[1] - Y[0], which carries 3.7 effective
+#>   draws per hundred kept
+#> ℹ 10% of draws put the contrast at exactly zero, which is the splitting prior
+#>   dropping the treatment
+#> 
+#> What to do
+#> 
+#> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
+#>   quantity that carries too few effective draws for the threshold to mean
+#>   anything: with this many chains it would sit about where it does even if the
+#>   chains agreed exactly, as the check above reports. Effective sample size is
+#>   what makes it readable, and that grows with the total number of draws; using
+#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
+#>   of chains being compared.
+#> • If that does not settle it, reduce `num_trees`. A smaller forest has fewer
+#>   ways to represent the same fit, so the sampler has less room to move between
+#>   them.
+#> • Then check the family. A likelihood that fits the data badly can give a
+#>   posterior with no single place to be; `bayesplot::pp_check()` is the
+#>   diagnostic.
+#> • Note the atom at zero. The splitting prior drops the treatment in some draws,
+#>   and the sampler can stay there for a long run, which costs effective draws
+#>   here without costing them in the fit. If the effect is the quantity being
+#>   reported, `sparsity = FALSE` removes the atom, and `bcf()` gives the
+#>   treatment a forest the prior cannot take it out of; `vignette("causal")`
+#>   covers both.
+```
+
+Far fewer effective draws than the table above would suggest, and the
+last check says why: the splitting prior gives `rhc` no rule in some
+draws, which puts the contrast at exactly zero and can hold it there for
+a long run. Nothing in the fit’s own table shows it, because the other
+predictors keep the fitted function moving the whole time.
+[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
+covers the settings that remove the atom when an effect is what is being
+reported.
 
 The table is in `diagnose(fit)$table` if what you want is the numbers
 rather than the report.
@@ -282,7 +346,7 @@ does this, and needs only to be told which predictor is the treatment:
 
 ``` r
 
-eff <- estimate_effect(fit, treatment = "rhc")
+eff <- estimate_effect(fit, treat = "rhc")
 
 eff
 #> Average treatment effect (difference)
@@ -390,11 +454,6 @@ This describes the probability that a patient with these characteristics
 dies. It is an interval for that probability, not a statement about
 which way any individual patient will go: the outcome itself is either 0
 or 1, and a probability of 0.7 is entirely compatible with survival.
-
-For a continuous outcome, the distinction between an interval for the
-mean and an interval for a new observation matters a great deal, and
-[`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
-covers it. For a binary outcome, the second is rarely what anyone wants.
 
 ## Comparing models
 

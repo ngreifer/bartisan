@@ -42,8 +42,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -82,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-13</h4>
+            <h4 data-toc-skip class="date">2026-09-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/faq.Rmd" class="external-link"><code>vignettes/faq.Rmd</code></a></small>
       <div class="d-none name"><code>faq.Rmd</code></div>
@@ -284,22 +284,23 @@ forests (GRF), which serve a similar function.</p>
 <div class="section level2">
 <h2 id="how-do-i-get-a-treatment-effect">How do I get a treatment effect?<a class="anchor" aria-label="anchor" href="#how-do-i-get-a-treatment-effect"></a>
 </h2>
-<p><code><a href="../reference/bcf.html">bcf()</a></code> fits the model and <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on the
-result reports the effect, with the two average potential outcomes
-beside it and the spread of the per-unit effects below. Nothing else has
-to be named, because the treatment was named in the call:</p>
+<p><code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> reports it, with the two average
+potential outcomes printed beneath. A fit from <code><a href="../reference/bcf.html">bcf()</a></code>
+carries its own treatment, so nothing else has to be named:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bcf.html">bcf</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, treatment <span class="op">=</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bcf.html">bcf</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, treat <span class="op">=</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
-<p><code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> is the same computation with the
-estimand exposed, so <code>estimand = "ATT"</code> averages over the
-treated instead of over everyone, <code>estimand = "CATE"</code> returns
-one effect per unit, <code>by = ~ g</code> gives subgroup effects, and
+<span><span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<p>The estimand is an argument, so <code>estimand = "ATT"</code>
+averages over the treated instead of over everyone,
+<code>estimand = "CATE"</code> returns one effect per unit,
+<code>by = ~ g</code> gives subgroup effects, and
 <code>comparison = "ratio"</code> reports a ratio rather than a
 difference. On a fit from <code><a href="../reference/bartisan.html">bartisan()</a></code> rather than
-<code><a href="../reference/bcf.html">bcf()</a></code> it works the same way once <code>treatment</code>
-names the column. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws whatever was asked for.</p>
+<code><a href="../reference/bcf.html">bcf()</a></code> it works the same way once <code>treat</code> names
+the column. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws whatever was asked for, and
+<code><a href="../reference/diagnose.html">diagnose()</a></code> on the result says whether the estimand itself
+has mixed, which is not implied by the fit’s own diagnostics.</p>
 <p><code><a href="../articles/causal.html">vignette("causal")</a></code> is the worked version, including the
 assumptions that turn the estimate into a causal effect, which no model
 supplies.</p>

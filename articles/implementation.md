@@ -99,7 +99,10 @@ fit is regularized without being tuned ([Chipman et al.
 **Tree structure.** A node at depth \\d\\ is split rather than left as a
 leaf with probability
 
-\\\alpha (1 + d)^{-\beta}, \qquad \alpha = 0.95, \\ \beta = 2.\\
+\\\gamma (1 + d)^{-\beta}, \qquad \gamma = 0.95, \\ \beta = 2,\\
+
+which are the `gamma` and `beta` arguments of
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md).
 
 This falls off quickly, so trees are shallow: most have two or three
 leaves. It is the main reason a forest of 50 trees does not overfit.
@@ -132,18 +135,28 @@ An observation goes left with weight
 \\\psi\left(\frac{x_j - c}{\tau}\right),\\
 
 where \\\psi\\ is a cumulative distribution function and \\\tau\\ is a
-bandwidth, and right with the remaining weight. Every observation
-reaches every leaf with some weight, and the fitted function is smooth.
-As \\\tau \to 0\\ the gate becomes a step and the hard rule is
-recovered.
+bandwidth, and right with the remaining weight. An observation near a
+cutpoint reaches both of that node’s children, so the fitted function is
+smooth rather than a step. As \\\tau \to 0\\ the gate becomes a step and
+the hard rule is recovered.
 
 The `gate` argument chooses \\\psi\\: `"smoothstep"` (the default),
-`"smootherstep"`, `"logistic"`, or `"hard"`. The first two are
-polynomial and reach exactly zero and one outside a finite window, which
-is faster than the logistic and usually just as good. `bandwidth` sets
-the prior mean of \\\tau\\, which is drawn rather than fixed.
+`"smootherstep"`, `"logistic"`, or `"hard"`. How far the smoothing
+reaches is what separates them. The logistic has unbounded support, so
+under it every observation really does reach every leaf with some
+weight. The two polynomial gates are the cumulative distribution
+functions of symmetric Beta kernels and reach exactly zero and one
+outside a finite window, so an observation far enough from a cutpoint
+takes one side only and the subtree on the other side is never visited.
+That skipped work turns out to be worth less than it sounds; what makes
+them faster is that a polynomial needs no
+[`exp()`](https://rdrr.io/r/base/Log.html), and they keep that advantage
+even at a bandwidth wide enough to truncate nothing at all. `bandwidth`
+sets the prior mean of \\\tau\\, which is drawn rather than fixed, and
+it means the same amount of smoothing under every gate, the kernels
+being matched on their standard deviation rather than on their width.
 
-Soft rules cost about three times as much per iteration and are usually
+Soft rules cost about three times as much per iteration but are usually
 worth it:
 
 ``` r
@@ -172,7 +185,7 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.434     1.4
+#> 1 smoothstep     0.434     1.3
 #> 2       hard     1.025     0.4
 ```
 
@@ -287,28 +300,41 @@ the cheapest machinery each admits:
 | Exponential | of the form \\a\eta + b e^{r\eta}\\, as for a count or a Weibull | one mode-solve |
 | General | anything else | Newton iteration |
 
-A family that reaches the quadratic shape is several times faster than
+A family that lands higher in this table is several times faster than
 one that does not. This is what data augmentation is for.
 
 ### Data Augmentation (`augment`)
 
-Some likelihoods are not Gaussian but become Gaussian once an extra
-latent variable is imagined and drawn alongside everything else. Three
-such schemes are in use here.
+Some likelihoods move up the table once an extra latent variable is
+imagined and drawn alongside everything else. The variable is not part
+of the model; it is machinery, and the posterior over everything else is
+unchanged.
 
-**A probit model** is a Gaussian one on a latent scale that is truncated
-by the observed category ([Albert and Chib 1993](#ref-albert1993)), so
-drawing the latent value makes the target exactly quadratic. **A
-logistic model** becomes Gaussian conditional on a Pólya-Gamma variable
-([Polson et al. 2013](#ref-polson2013)), which acts as a per-observation
-precision. And **a censored outcome** becomes an ordinary one once the
-unobserved value is imputed from its truncated distribution.
+Several such rewritings are in use here, and they do not all arrive at
+the same shape. **A probit model** is a Gaussian one on a latent scale
+truncated by the observed category ([Albert and Chib
+1993](#ref-albert1993)), so drawing the latent value makes the target
+exactly quadratic. **A logistic model** is Gaussian conditional on a
+Pólya-Gamma variable ([Polson et al. 2013](#ref-polson2013)), which acts
+as a per-observation precision, and an ordinal complementary log-log
+model is Gaussian conditional on an exponential waiting time. **A
+censored outcome** becomes an uncensored one once the unobserved value
+is imputed from its truncated distribution, which for the log-normal and
+log-logistic survival families leaves a quadratic target. **A negative
+binomial** is a Poisson whose rate carries a gamma prior, so drawing the
+rate leaves the *exponential* shape rather than the quadratic one, which
+is a smaller gain. And **a zero-inflated count** is blocked by a mixture
+rather than by a link, so what is drawn there is the indicator of which
+component produced each observation; that separates the two forests, and
+for a zero-inflated negative binomial a second rewriting goes on top of
+the first.
 
-`augment = TRUE`, which is the default wherever a scheme exists, turns
-these on. Note that they change the sampler and not the model: the
-posterior is the same, reached faster.
+`augment = TRUE`, which is the default wherever a rewriting exists,
+turns these on. They change the sampler and not the model: the posterior
+is the same, reached faster.
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
-says which families have one.
+says which families have one, and the section on speed below measures
+what each is worth.
 
 ### Nuisance Parameters
 
@@ -419,11 +445,18 @@ Adding draws does not reliably bring it down. Values above 1.05 on this
 row are ordinary for a BART fit, and are characteristic of the method
 rather than of this implementation.
 
-What to check instead is that the quantities to be reported are stable.
-If `sigma` and the log likelihood have converged and an
-[`avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-estimate is the same across chains, the fit is usable whatever the `eta`
-row says.
+What to check instead is the quantity that will be reported, on its own
+draws.
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
+takes the output of
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+for exactly this, and
+[`posterior::summarise_draws()`](https://mc-stan.org/posterior/reference/draws_summary.html)
+takes anything else that can be arranged as draws by chains. A high
+`eta` row is not on its own a reason to discard a fit, but neither is a
+low one a reason to trust an effect read off it: a contrast can mix
+badly where the function it contrasts mixes well, so it has to be
+diagnosed rather than inferred.
 
 Chains run sequentially unless a `future` plan is set, in which case
 they run in parallel:
@@ -436,18 +469,27 @@ fit <- bartisan(y ~ ., data = d, chains = 4)
 diagnose(fit)
 ```
 
-The chain is the only parallel axis this sampler has, since a sweep
+The chain is the only parallel axis the *sampler* has, since a sweep
 conditions on the one before it, and it is also what makes a convergence
-diagnostic possible. Any *future* backend works, including *mirai*’s,
-and one [`set.seed()`](https://rdrr.io/r/base/Random.html) reproduces
-the whole run whatever the backend.
+diagnostic possible. Two things outside the sampler use a plan when one
+is set: the convergence pass splits its per-observation columns across
+workers, and
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+predicts the treatment levels in parallel. Any *future* backend works,
+including *mirai*’s, and one
+[`set.seed()`](https://rdrr.io/r/base/Random.html) reproduces the whole
+run whatever the backend.
 
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
 is the one call for whether the fit can be reported. It computes
 split-R-hat and the bulk and tail effective sample sizes for every
-scalar the sampler draws, for the fitted function over its worst 5% of
-observations, and for the size of the forest itself, then says which of
-them fall short and what to change. Two of its choices are worth knowing
+scalar the sampler draws, for the fitted function twice over, once
+averaged across observations and once over its worst 5% of them, and for
+the size of the forest itself, then says which of them fall short and
+what to change. Handed the output of
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+instead of a fit, it reports on the contrast and on the two potential
+outcomes it is a contrast of. Two of its choices are worth knowing
 about. It repeats R-hat on the second half of the draws alone, which is
 what distinguishes a warmup that ended too early from chains that have
 each settled somewhere different: discarding the early draws is what
@@ -510,14 +552,17 @@ takes eight on the same data.
 
 ### What Data Augmentation Buys (`augment`)
 
-A major contributor to *bartisan*’s speed is a data augmentation that
-makes the conditional Gaussian, since then the Laplace approximation is
-exact rather than approximate. `augment` does this, using Albert and
-Chib ([1993](#ref-albert1993)) for a probit link and for an ordinal
-probit; Pólya-Gamma augmentation ([Polson et al. 2013](#ref-polson2013))
-for a logit link, an ordinal logit, or a multinomial; and imputation of
-the censored failure times for the log-normal and log-logistic survival
-models.
+A major contributor to *bartisan*’s speed is data augmentation. Where
+the rewriting reaches a Gaussian conditional the Laplace approximation
+stops being an approximation at all, which is the largest of the gains:
+`augment` uses Albert and Chib ([1993](#ref-albert1993)) for a probit
+link and for an ordinal probit, Pólya-Gamma augmentation ([Polson et al.
+2013](#ref-polson2013)) for a logit link, an ordinal logit, or a
+multinomial, and imputation of the censored failure times for the
+log-normal and log-logistic survival models. The negative binomial and
+the zero-inflated families are rewritten too, but to a Poisson rather
+than to a Gaussian, and the two paragraphs after the table say what that
+costs them.
 
 Each of them is faster, from 1.2 times for the negative binomial under
 soft rules to 31 for an ordinal probit with hard rules, with a median of
@@ -777,10 +822,13 @@ models only, and *bartCause* wraps *dbarts* for causal estimands.
 
 ## Notes and Limitations
 
-Soft rules cost more per iteration than hard ones, because a leaf
-touches every observation rather than only those in its cell. Negligible
-weights are pruned, which holds the gap to roughly a factor of three
-rather than the factor of \\B\\ it would otherwise be.
+Soft rules cost more per iteration than hard ones, because an
+observation near a cutpoint has to be followed down both sides of it
+rather than into one cell, so a leaf that a hard rule would skip still
+has to be evaluated. The gap is about a factor of \\B\\, the number of
+leaves, and the reason it comes out near three rather than near a
+hundred is the tree prior: it keeps trees to about two and a half leaves
+on average, so there is not much for the softening to multiply.
 
 Absolute timings are machine- and load-dependent, so these are
 indicative rather than exact; repeated runs on the same laptop varied by

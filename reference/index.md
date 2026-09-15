@@ -30,8 +30,11 @@
   [`residuals(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
   [`weights(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
   [`sigma(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+  [`prior_summary(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+  [`print(`*`<bartisan_prior_summary>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
   [`loo(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
   [`waic(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+  [`kfold(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
   [`pp_check(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
   [`as_draws(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
   [`r2_posterior(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
@@ -96,6 +99,9 @@
 - [`print(`*`<bcf_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/print.bcf_fit.md)
   [`plot(`*`<bcf_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/print.bcf_fit.md)
   : Methods for Bayesian causal forest fits
+
+- [`ranef(`*`<bartisan_fit>`*`)`](https://ngreifer.github.io/bartisan/reference/ranef.bartisan_fit.md)
+  : Group intercepts from a random-effect term
 
 - [`rhc`](https://ngreifer.github.io/bartisan/reference/rhc.md) : Right
   heart catheterization in critically ill patients

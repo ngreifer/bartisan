@@ -42,8 +42,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -82,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-13</h4>
+            <h4 data-toc-skip class="date">2026-09-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/survival.Rmd" class="external-link"><code>vignettes/survival.Rmd</code></a></small>
       <div class="d-none name"><code>survival.Rmd</code></div>
@@ -166,9 +166,9 @@ not about the family, so no choice below relaxes it.</p>
 <table class="table">
 <colgroup>
 <col width="13%">
-<col width="42%">
-<col width="28%">
-<col width="15%">
+<col width="44%">
+<col width="27%">
+<col width="14%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">Family</th>
@@ -182,7 +182,7 @@ not about the family, so no choice below relaxes it.</p>
 <td align="left">
 <span class="math inline">\(\log T = \eta +
 \sigma\epsilon\)</span>, <span class="math inline">\(\epsilon\)</span>
-standard Gumbel</td>
+smallest extreme value</td>
 <td align="left">a log time ratio (and a log hazard ratio)</td>
 <td align="left"><span class="math inline">\(\sigma\)</span></td>
 </tr>
@@ -843,13 +843,13 @@ understanding rather than passing over. <code><a href="../reference/bartisan-fam
 the <em>worst</em> family in the panel with no censoring at all, at
 .097, and it gets <strong>better</strong> as censoring increases,
 reaching .072 at 70%. Everything else degrades monotonically. The likely
-reason is that this truth has a heavy, polynomial tail, which a Gumbel
-error in log time cannot represent; with no censoring the fit is dragged
-by observed times far out in that tail, and censoring truncates exactly
-the observations it cannot accommodate. Censoring is protecting a
-misspecified model from the part of the distribution it gets wrong. That
-is a caution about reading a fit’s apparent quality off a heavily
-censored sample, not a reason to want censoring.</p>
+reason is that this truth has a heavy, polynomial tail, which a smallest
+extreme value error in log time cannot represent; with no censoring the
+fit is dragged by observed times far out in that tail, and censoring
+truncates exactly the observations it cannot accommodate. Censoring is
+protecting a misspecified model from the part of the distribution it
+gets wrong. That is a caution about reading a fit’s apparent quality off
+a heavily censored sample, not a reason to want censoring.</p>
 <p>One expectation the sweep did not bear out: we might have expected
 <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> to suffer most under heavy censoring, since it
 estimates a whole density from log-times that are increasingly imputed

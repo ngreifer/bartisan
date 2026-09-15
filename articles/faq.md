@@ -194,31 +194,31 @@ generalized random forests (GRF), which serve a similar function.
 
 ## How do I get a treatment effect?
 
-[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) fits the
-model and [`summary()`](https://rdrr.io/r/base/summary.html) on the
-result reports the effect, with the two average potential outcomes
-beside it and the spread of the per-unit effects below. Nothing else has
-to be named, because the treatment was named in the call:
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+reports it, with the two average potential outcomes printed beneath. A
+fit from [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md)
+carries its own treatment, so nothing else has to be named:
 
 ``` r
 
-fit <- bcf(y ~ x1 + x2, treatment = ~ z, data = d)
+fit <- bcf(y ~ x1 + x2, treat = ~ z, data = d)
 
-summary(fit)
+estimate_effect(fit)
 ```
 
-[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
-is the same computation with the estimand exposed, so `estimand = "ATT"`
-averages over the treated instead of over everyone, `estimand = "CATE"`
-returns one effect per unit, `by = ~ g` gives subgroup effects, and
-`comparison = "ratio"` reports a ratio rather than a difference. On a
-fit from
+The estimand is an argument, so `estimand = "ATT"` averages over the
+treated instead of over everyone, `estimand = "CATE"` returns one effect
+per unit, `by = ~ g` gives subgroup effects, and `comparison = "ratio"`
+reports a ratio rather than a difference. On a fit from
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 rather than
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) it works
-the same way once `treatment` names the column.
+the same way once `treat` names the column.
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws whatever
-was asked for.
+was asked for, and
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
+on the result says whether the estimand itself has mixed, which is not
+implied by the fit’s own diagnostics.
 
 [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
 is the worked version, including the assumptions that turn the estimate

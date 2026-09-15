@@ -1,4 +1,4 @@
-# Effects, curves and interactions
+# Effects, curves, and interactions
 
 ## Introduction
 
@@ -169,8 +169,8 @@ avg_comparisons(fit, variables = "rhc", by = "card")
 ```
 
 The two subgroup estimates are close, and both intervals reach zero.
-`estimate_effect(fit, treatment = "rhc", by = ~ card)` gives the same
-two numbers natively.
+`estimate_effect(fit, treat = "rhc", by = ~ card)` gives the same two
+numbers natively.
 
 A common mistake is to stop here and conclude that the effect differs
 between groups; that comparison is not a test. The question is whether
@@ -350,12 +350,12 @@ fit_vc <- bartisan(death ~ age + sex + race + edu + aps + meanbp + resp +
 
 head(coef(fit_vc))
 #>         rhc
-#> [1,] 0.4305
-#> [2,] 0.2133
-#> [3,] 0.2268
-#> [4,] 0.3200
-#> [5,] 0.2755
-#> [6,] 0.2717
+#> [1,] 0.4676
+#> [2,] 0.2003
+#> [3,] 0.2111
+#> [4,] 0.3168
+#> [5,] 0.2789
+#> [6,] 0.2618
 ```
 
 [`coef()`](https://rdrr.io/r/stats/coef.html) returns one value per
@@ -406,7 +406,8 @@ a covariate can have a coefficient on more than one of them:
 ``` r
 
 # The effect of `z` on the mean, and separately on the spread.
-bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2 + vc(z)),
+bartisan(list(mean = y ~ x1 + x2 + vc(z),
+              log_sd = ~ x1 + x2 + vc(z)),
          data = d, family = gaussian_ls())
 ```
 

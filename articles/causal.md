@@ -250,7 +250,7 @@ predictor as the treatment:
 
 ``` r
 
-ate <- estimate_effect(fit, treatment = "rhc")
+ate <- estimate_effect(fit, treat = "rhc")
 
 ate
 #> Average treatment effect (difference)
@@ -311,7 +311,7 @@ scale:
 
 ``` r
 
-estimate_effect(fit, treatment = "rhc", comparison = "lnor")
+estimate_effect(fit, treat = "rhc", comparison = "lnor")
 #> Average treatment effect (log odds ratio)
 #> 
 #> Treatment: "rhc"
@@ -385,7 +385,7 @@ of the varying coefficients BART model.
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) fits it.
 
 One specifies the control function in the model formula and identifies
-the treatment in the `treatment` argument.
+the treatment in the `treat` argument.
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) then
 fits a varying coefficient BART model, the BCF. By default,
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md)
@@ -397,7 +397,7 @@ al. ([2020](#ref-hahn2020)).
 
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
                  pafi + paco2 + crea + surv2m + card,
-               treatment = ~ rhc, data = rhc,
+               treat = ~ rhc, data = rhc,
                family = binomial(), chains = 4)
 
 fit_bcf
@@ -405,7 +405,7 @@ fit_bcf
 #> 
 #> Call:
 #> bcf(formula = death ~ age + sex + race + edu + aps + meanbp + 
-#>     resp + hema + pafi + paco2 + crea + surv2m + card, treatment = ~rhc, 
+#>     resp + hema + pafi + paco2 + crea + surv2m + card, treat = ~rhc, 
 #>     data = rhc, family = binomial(), chains = 4)
 #> 
 #> Family: "binomial" with the "logit" link
@@ -413,7 +413,7 @@ fit_bcf
 #> Structure: 2 forests of 50 and 25 trees, soft decision rules
 #> Draws: 3200 kept across 4 chains after 200 warmup
 #> 
-#> Posterior means: b.rhc.0 = 0.00328, b.rhc.1 = -0.142
+#> Posterior means: b.rhc.0 = -0.0781, b.rhc.1 = 0.0482
 #> 
 #> Treatment: "rhc"
 #> Effect moderators: "age", "sex", "race", "edu", "aps", "meanbp", "resp", "hema", "pafi", "paco2", "crea", "surv2m", and "card"
@@ -451,13 +451,13 @@ estimate_effect(fit_bcf)
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate    lower upper    n
-#>  Y[1] - Y[0]   0.0488 -0.00118 0.105 1500
+#>  Y[1] - Y[0]   0.0476 -0.00226 0.105 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.636 0.604 0.665
-#>      Y[1]    0.685 0.644 0.725
+#>      Y[0]    0.637 0.605 0.666
+#>      Y[1]    0.684 0.645 0.725
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -493,7 +493,7 @@ cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 #>    0%   25%   50%   75%  100% 
-#> 1.141 1.285 1.335 1.385 1.514
+#> 1.131 1.282 1.329 1.375 1.501
 ```
 
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws them:
@@ -564,7 +564,7 @@ outcome. See
 
 fit_earn_bcf <- bcf(
   re78 ~ age + educ + race + married + nodegree + re74 + re75,
-  treatment = ~ treat,
+  treat = ~ treat,
   data = lalonde, family = dpm(),
   chains = 4
 )
@@ -576,13 +576,13 @@ estimate_effect(fit_earn_bcf, estimand = "ATT")
 #> Averaged over the 185 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
-#>  Y[1] - Y[0]      110  -299   657 185
+#>  Y[1] - Y[0]      175  -275   886 185
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]     5590  2980  7700
-#>      Y[1]     5700  3080  7860
+#>      Y[0]     5760  3390  9090
+#>      Y[1]     5940  3420  9440
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -615,7 +615,7 @@ cate_att <- estimate_effect(fit_earn_bcf, estimand = "CATE",
 
 c(ATT = att$estimate, mean_CATE = mean(cate_att$estimate))
 #>       ATT mean_CATE 
-#>     110.3     110.3
+#>     175.4     175.4
 ```
 
 And the conditional effects, drawn:

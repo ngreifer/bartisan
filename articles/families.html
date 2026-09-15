@@ -42,8 +42,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Has it converged, and does it fit?</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves and interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
@@ -82,7 +82,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-13</h4>
+            <h4 data-toc-skip class="date">2026-09-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/families.Rmd" class="external-link"><code>vignettes/families.Rmd</code></a></small>
       <div class="d-none name"><code>families.Rmd</code></div>
@@ -450,7 +450,7 @@ suppressing the notice.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span></span>
 <span></span>
 <span><span class="va">fit</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Generalized BART</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
 <span><span class="co">#&gt; bartisan(formula = binary ~ x1 + x2, data = d, control = ctrl)</span></span>
@@ -616,7 +616,7 @@ or fewer:</p>
 <span>                    sparsity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="cn">TRUE</span>, log_sd <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_sub</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Generalized BART</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
 <span><span class="co">#&gt; bartisan(formula = list(mean = het ~ x1 + x2, log_sd = ~x2), </span></span>
@@ -628,7 +628,7 @@ or fewer:</p>
 <span><span class="co">#&gt; Structure: 2 forests of 10 and 5 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 150</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-weight: bold;">Predictor usage</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Predictor usage</span></span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"mean"</span>:</span></span>
@@ -995,13 +995,14 @@ right, and let a comparison of fits, not a histogram, settle whether it
 is there.</p>
 </div>
 <div class="section level3">
-<h3 id="is-the-count-component-overdispersed-once-the-zeros-are-accounted-for-a-spike-at-zero-inflates-the-sample-variance-and-looks-like-dispersion--zi_negbin-separates-the-two-at-the-cost-of-a-parameter-if-theta-comes-back-large-with-a-tight-posterior-the-negative-binomial-is-not-buying-anything-and-zi_poisson-is-the-better-conditioned-fit-">2. Is the count component overdispersed once the zeros are accounted
-for? A spike at zero inflates the sample variance and looks like
-dispersion. <code>zi_negbin()</code> separates the two at the cost of a
+<h3 id="is-the-count-component-overdispersed-once-the-zeros-are-accounted-for">2. Is the count component overdispersed once the zeros are accounted
+for?<a class="anchor" aria-label="anchor" href="#is-the-count-component-overdispersed-once-the-zeros-are-accounted-for"></a>
+</h3>
+<p>A spike at zero inflates the sample variance and looks like
+dispersion. <code><a href="../reference/bartisan-families.html">zi_negbin()</a></code> separates the two at the cost of a
 parameter; if <code>theta</code> comes back large with a tight
 posterior, the negative binomial is not buying anything and
-<code>zi_poisson()</code> is the better-conditioned fit.<a class="anchor" aria-label="anchor" href="#is-the-count-component-overdispersed-once-the-zeros-are-accounted-for-a-spike-at-zero-inflates-the-sample-variance-and-looks-like-dispersion--zi_negbin-separates-the-two-at-the-cost-of-a-parameter-if-theta-comes-back-large-with-a-tight-posterior-the-negative-binomial-is-not-buying-anything-and-zi_poisson-is-the-better-conditioned-fit-"></a>
-</h3>
+<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code> is the better-conditioned fit.</p>
 <p>Once again, the <code><a href="../reference/bartisan-families.html">ordinal()</a></code> family is another option worth
 knowing about for counts. A count is ordered and takes few distinct
 values, which is exactly what the cutpoint structure is for: it makes no
@@ -1250,7 +1251,8 @@ the predictor means and in what the model leaves free:</p>
 <td><code><a href="../reference/bartisan-families.html">weibull_aft()</a></code></td>
 <td>
 <span class="math inline">\(\log T = \eta + \sigma\epsilon\)</span>,
-<span class="math inline">\(\epsilon\)</span> Gumbel</td>
+<span class="math inline">\(\epsilon\)</span> smallest extreme
+value</td>
 <td>a log <strong>time</strong> ratio, and also a log
 <strong>hazard</strong> ratio</td>
 <td><span class="math inline">\(\sigma\)</span></td>
@@ -1295,9 +1297,9 @@ own, since each pins its error’s location differently, and
 <code><a href="../articles/survival.html">vignette("survival")</a></code> gives that per family.
 <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> is the only one whose predictor also carries
 a log hazard ratio, of <span class="math inline">\(-\Delta\eta/\sigma\)</span>, and that is a
-property of the Gumbel error rather than of the shared structure: it is
-the only error that makes an accelerated failure time model proportional
-hazards as well.</p>
+property of the smallest extreme value error rather than of the shared
+structure: it is the only error that makes an accelerated failure time
+model proportional hazards as well.</p>
 <p>The three structured accelerated failure time families (i.e., the
 first three above) fix the shape of the error and so of the hazard, and
 are quick to fit. <code><a href="../reference/bartisan-families.html">ph()</a></code> frees the baseline hazard instead,
