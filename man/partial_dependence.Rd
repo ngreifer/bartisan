@@ -51,6 +51,9 @@ argument and the method cannot disagree.}
 \item{x}{a \verb{<bartisan_partial>} object; the output of a call to
 \code{partial_dependence()}. For \code{plot.bartisan_fit()}, a \verb{<bartisan_fit>}.}
 
+\item{digits}{\code{integer}; for \code{print()}, the number of significant digits to
+print the estimates and their interval to. Default is 3.}
+
 \item{...}{for \code{plot.bartisan_fit()}, further arguments passed to
 \code{partial_dependence()}; otherwise ignored.}
 

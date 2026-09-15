@@ -275,11 +275,6 @@ is an interval for that probability, not a statement about which way any
 individual patient will go: the outcome itself is either 0 or 1, and a
 probability of 0.7 is entirely compatible with survival.
 
-For a continuous outcome, the distinction between an interval for the mean and an
-interval for a new observation matters a great deal, and
-`vignette("effects")` covers it. For a binary outcome, the second is rarely what
-anyone wants.
-
 ## Comparing models
 
 Approximate leave-one-out cross-validation estimates how well a model predicts

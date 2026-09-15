@@ -293,26 +293,38 @@ test_that("a unit map carries only the numbers it uses", {
 })
 
 # An S3 method registered on another package's generic is only reachable if
-# `NAMESPACE` says so, and `NAMESPACE` is generated from a roxygen tag whose
-# attachment is positional. Inserting a helper between the tag and the function
-# silently moves the registration onto the helper, and nothing in a normal test
-# run notices: `testthat::test_local()` loads the package with
-# `pkgload::load_all()`, which registers methods from the source regardless. The
-# failure only appears against an installed package, which is how every user has
-# it. So the registrations are asserted against the file itself.
+# A method on another package's generic is reached only if it is registered, and
+# the registration comes from a roxygen tag whose attachment is positional:
+# inserting a helper between `@exportS3Method` and the function moves the
+# registration onto the helper, and the method is then never called.
+#
+# Asserted against the method registry rather than against `NAMESPACE`, which is
+# what an earlier version of this test read. The registry is what actually
+# governs dispatch, it exists in every context the tests run in, and it records
+# the package each generic belongs to, so it can tell a method on
+# `bayesplot::pp_check` from one on a local generic of the same name. Reading
+# the file could do none of those: `../../NAMESPACE` resolves in
+# `tests/testthat/` and not under `R CMD check`, where the tests run from
+# `bartisan.Rcheck/tests/`, so the test written to catch what only breaks in an
+# installed package was the one thing that broke against an installed package.
 test_that("every S3 method on a foreign generic is registered", {
-  ns <- readLines("../../NAMESPACE", warn = FALSE)
-  registered <- grep("^S3method\\(", ns, value = TRUE)
+  methods <- getNamespaceInfo("bartisan", "S3methods")
 
-  foreign <- c("bayesplot::pp_check", "loo::loo", "loo::waic",
+  foreign <- c("bayesplot::pp_check", "loo::loo", "loo::waic", "loo::kfold",
                "posterior::as_draws", "performance::model_performance",
                "insight::get_data", "marginaleffects::get_predict",
-               "rstantools::posterior_predict", "rstantools::log_lik")
+               "rstantools::posterior_predict", "rstantools::log_lik",
+               "rstantools::prior_summary")
 
   for (generic in foreign) {
-    want <- sprintf("S3method(%s,bartisan_fit)", generic)
-    expect_true(want %in% registered,
-                info = paste(generic, "is not registered in NAMESPACE"))
+    parts <- strsplit(generic, "::", fixed = TRUE)[[1L]]
+
+    found <- methods[, 1L] == parts[[2L]] &
+      methods[, 2L] == "bartisan_fit" &
+      !is.na(methods[, 4L]) & methods[, 4L] == parts[[1L]]
+
+    expect_true(any(found),
+                info = paste(generic, "has no registered bartisan_fit method"))
   }
 })
 

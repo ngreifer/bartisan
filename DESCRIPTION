@@ -50,6 +50,7 @@ Suggests:
     loo,
     MASS,
     marginaleffects,
+    nlme,
     performance,
     posterior,
     progressr,

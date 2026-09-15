@@ -381,3 +381,114 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
     matrix(ncol = length(slopes),
            dimnames = list(NULL, names(slopes)))
 }
+
+#' Group intercepts from a random-effect term
+#'
+#' Extracts the intercept each level of a grouping factor was given by a
+#' `(1 | group)` term in the formula, as a posterior mean or as every draw.
+#'
+#' @param object a `<bartisan_fit>` object; the output of a call to [bartisan()],
+#'   fitted with at least one `(1 | group)` term.
+#' @param draws `logical`; whether to return every posterior draw of each
+#'   intercept rather than its posterior mean. Default is `FALSE`.
+#' @param ... not used.
+#'
+#' @returns
+#' With `draws = FALSE`, a named list with one entry per grouping factor, each a
+#' data frame of one row per level of that factor and one column per additive
+#' predictor that has a group intercept, with the levels as row names. This is
+#' the shape \pkgfun{lme4}{ranef} returns, so anything that reads that reads
+#' this.
+#'
+#' With `draws = TRUE`, a named list with one entry per grouping factor, each
+#' itself a named list of draws-by-levels matrices, one per additive predictor.
+#'
+#' @details
+#' The column is named `(Intercept)`, as in \pkg{lme4}, when the family has a
+#' single additive predictor. A family with more than one gets a group intercept
+#' on each, independent of the others, and the columns are named for the
+#' predictors instead; `vignette("families")` lists them per family.
+#'
+#' Only the intercepts are returned. The standard deviation each grouping factor
+#' was drawn under is in `object$tau`, one column per factor and one matrix per
+#' additive predictor, and [prior_summary()][bartisan-interop] reports the prior
+#' it was drawn from.
+#'
+#' A posterior mean is the wrong summary for a level with few observations, which
+#' is the case a group intercept exists for. `draws = TRUE` is what gives an
+#' interval, and a level whose interval covers zero is one the data had little to
+#' say about.
+#'
+#' The intercepts are shrunk towards zero by their prior and are deviations from
+#' the additive predictor, so they come out approximately centered without being
+#' constrained to sum to zero exactly. Nothing is lost by that: the level of the
+#' fitted function is the additive predictor's, and a shift common to every
+#' intercept is one the forest did not take.
+#'
+#' @seealso
+#' [bartisan()] for the `(1 | group)` syntax and what it fits;
+#' [prior_summary()][bartisan-interop] for the prior on these
+#'
+#' @examplesIf rlang::is_installed("nlme")
+#' set.seed(123)
+#' d <- data.frame(x = runif(200),
+#'                 site = factor(sample(letters[1:5], 200, TRUE)))
+#' d$y <- rnorm(200, d$x + as.numeric(d$site) / 3)
+#'
+#' fit <- bartisan(y ~ x + (1 | site), data = d, num_trees = 10,
+#'                 num_burn = 50, num_draws = 50, verbose = FALSE)
+#'
+#' # One intercept per site, as posterior means. The generic is \pkg{nlme}'s,
+#' # which \pkg{lme4} re-exports, so either qualification reaches this.
+#' nlme::ranef(fit)
+#'
+#' # With the draws, so the intercepts come with intervals
+#' apply(nlme::ranef(fit, draws = TRUE)$site[["(Intercept)"]], 2L, quantile,
+#'       c(.025, .975))
+#'
+#' @exportS3Method nlme::ranef
+ranef.bartisan_fit <- function(object, draws = FALSE, ...) {
+
+  arg::arg_is(object, "bartisan_fit")
+  arg::arg_flag(draws)
+
+  random <- object[["random"]]
+
+  if (is_null(random)) {
+    arg::err(c("this model has no group intercepts, so there is nothing to
+                extract",
+               i = "A {.code (1 | group)} term in the formula is what adds
+                    them; see {.fn bartisan}."))
+  }
+
+  stored <- object[["ranef"]]
+
+  # One additive predictor means one intercept with nothing to distinguish it,
+  # so the column takes the name lme4 gives a random intercept. Several means
+  # one per predictor, and then the predictor's name is the informative one.
+  labels <- if (length(stored) == 1L) "(Intercept)" else names(stored)
+
+  out <- lapply(random, function(term) {
+    # The stored columns are `label:level`, so they are rebuilt from the term
+    # rather than parsed out of the names: a level whose own value contains a
+    # colon would otherwise split in the wrong place.
+    want <- paste0(term[["label"]], ":", term[["levels"]])
+    columns <- lapply(stored, function(m) m[, want, drop = FALSE])
+
+    if (draws) {
+      columns <- lapply(columns, function(m) {
+        colnames(m) <- term[["levels"]]
+        m
+      })
+
+      return(setNames(columns, labels))
+    }
+
+    means <- lapply(columns, colMeans)
+
+    data.frame(means, row.names = term[["levels"]], check.names = FALSE) |>
+      setNames(labels)
+  })
+
+  setNames(out, vapply(random, `[[`, character(1L), "label"))
+}

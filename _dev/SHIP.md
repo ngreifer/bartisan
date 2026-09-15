@@ -8,31 +8,36 @@ The standard applied throughout: **does this seriously affect a workflow the
 package claims to support?** Speedups, polish and features that another package
 already covers are excluded, however tempting.
 
-## Where we stand (2026-09-14)
+## Where we stand (2026-09-15)
 
 Everything the original list called blocking has landed except one item, and that
 one has an argument for reclassifying rather than doing. The vignette series is
 written: ten vignettes, all knitting clean. The suite is 38 files, 456 tests and
 2275 assertions, green under `testthat::test_local()`.
 
-`R CMD check` is **1 ERROR, 1 WARNING, 1 NOTE**, which is the finding of this
-round: the suite and the knit were not standing in for a check. All three are
-small and none is about the model. Part 4 has them.
+`R CMD check` was **1 ERROR, 1 WARNING, 1 NOTE**, which was the finding of the
+previous round: the suite and the knit were not standing in for a check. All
+three are fixed and `ranef()` is added, but the re-check has **not** been run to
+a clean bill: `clang++` on this machine now stops at "You have not agreed to the
+Xcode license agreements", so nothing compiles and `R CMD check` cannot install
+the package. The fix is `sudo xcodebuild -license`, which wants a password.
+Part 4 has what the three findings were.
 
 | | |
 | --- | --- |
 | Blocking, done | the rename, `variable_importance()`, `as_draws(eta = )`, the `predict(type = "density")` warning |
 | Blocking, open | `custom_family()` has no posterior predictive draws (item 4); already documented elsewhere, needs one cross-reference to stop being a blocker |
-| Landed since, unplanned | `estimate_effect()`, `bcf()`, `diagnose()`, `partial_dependence()`, `kfold()`, `prior_only`, `prior_summary()` |
-| Blocked on packaging, not code | one test reads a path that only exists in a checkout; two arguments undocumented; a leftover `knitr` directory in the tarball (Part 4) |
-| New gaps found while surveying | no `ranef()` or `VarCorr()` accessor, a milder version of item 2 since `?bartisan` already names the components; and a cross-reference in `vignette("bartisan")` promising a prediction interval that `vignette("effects")` does not deliver (Part 3) |
+| Landed since, unplanned | `estimate_effect()`, `bcf()`, `diagnose()`, `partial_dependence()`, `kfold()`, `prior_only`, `prior_summary()`, `ranef()` |
+| Check findings, fixed but unverified | the invariants test asserts against `getNamespaceInfo()` rather than a path only a checkout has; `potential_outcomes` and `digits` documented; `^vignettes/figure$` added to `.Rbuildignore`. The re-check is blocked on the Xcode license, not on the package (Part 4) |
+| Declined | `predictive_interval()` and `predictive_error()`, and with them the cross-reference in `vignette("bartisan")` that promised a section `vignette("effects")` never had (Part 3) |
+| Still open | `VarCorr()`, a `NEWS.md`, and a version that is not `0.0.0.9000` |
 
-The judgment: **the feature work is done, and the packaging is not.** Part 3 is
-the survey that says the first half, and it replaces guessing about parity with
-reading an export list. Part 4 is the second half. What is left is none of it a
-feature: three check findings, one accessor a mixed-model user will look for, one
-cross-reference that promises a section that does not exist, and a `NEWS.md` with
-a version that is not `0.0.0.9000`. "What to do next" at the bottom has them in
+The judgment: **the feature work is done, and the check is fixed but unverified.**
+Part 3 is the survey that says the first, done by reading an export list rather
+than guessing at parity, and Part 4 is the record of what the check found. What
+is left is neither a feature nor a fix: a `NEWS.md`, a version that is not
+`0.0.0.9000`, one cross-reference on the `custom_family()` page, and a check run
+on a machine whose compiler works. "What to do next" at the bottom has them in
 order.
 
 ## Part 1: what is actually missing
@@ -185,7 +190,7 @@ does not have, and `pairs_*` is a geometry diagnostic for a Hamiltonian sampler.
 | `get_y`, `get_x`, `get_z` | `insight::get_data()`, `fit$model` |
 | `Surv`, `invlogit`, `logit` | re-exports and one-liners; use the originals |
 | **`ranef`, `VarCorr`, `fixef`, `ngrps`** | **absent.** See below |
-| `predictive_interval`, `predictive_error` | absent; both are one line over `posterior_predict()` |
+| `predictive_interval`, `predictive_error` | absent, and deliberately so; both are one line over `posterior_predict()` |
 | `loo_predict`, `loo_linpred`, `loo_predictive_interval`, `loo_R2` | absent; the PSIS machinery is there, the four wrappers are not |
 | `posterior_vs_prior` | absent, and newly *possible*: `prior_only = TRUE` gives the other half |
 | `pp_validate` | absent as an export; the simulation-based calibration it does is in `_dev/sbc.R` and was run |
@@ -218,23 +223,17 @@ group count is `length(levels(...))`.
 
 ### The rest is convenience, and one is newly cheap
 
-`predictive_interval()` and `predictive_error()` are a quantile and a
-subtraction over `posterior_predict()`. No vignette does either, and looking for
-one turned up a dangling cross-reference. `vignette("bartisan")` raises the
-distinction between an interval on the mean and an interval on a new observation,
-says it "matters a great deal" for a continuous outcome, and sends the reader to
-`vignette("effects")` for it:
+**`predictive_interval()` and `predictive_error()` are not being added**, decided
+2026-09-15. They are a quantile and a subtraction over `posterior_predict()`,
+which is exported and documented, and nothing here is unreachable without them.
+Recorded so the question is not reopened as though it had never been asked.
 
-> For a continuous outcome, the distinction between an interval for the mean and
-> an interval for a new observation matters a great deal, and
-> `vignette("effects")` covers it.
-
-`vignette("effects")` does not cover it. It has no section on it and does not use
-the words, and `posterior_predict()` appears in only two vignettes,
-`comparison` (for a zero-share statistic) and `faq` (in prose). So the one place
-a reader is told to go for a prediction interval is the one place that does not
-have one, which makes this the strongest of the parity items rather than the
-weakest: it is a promise already made.
+Looking for somewhere they were being done by hand turned up a dangling
+cross-reference rather than a workaround: `vignette("bartisan")` told the reader
+that the distinction between an interval on the mean and one on a new observation
+"matters a great deal" and sent them to `vignette("effects")` for it, which has
+no section on it and never uses the words. With the wrappers declined, the
+pointer went instead, which is the half of that choice that costs nothing.
 
 `posterior_vs_prior()` is the interesting one. It was impossible here until
 `prior_only` landed and is now two fits and a comparison, which is what
@@ -432,7 +431,9 @@ premise of doing the two halves together and is the strongest evidence for it.
 
 Run with `_dev/check.sh` on 2026-09-14, against the built tarball rather than the
 source tree. `Status: 1 ERROR, 1 WARNING, 1 NOTE`. None of the three had shown up
-in `testthat::test_local()` or in a knit, because none of them can.
+in `testthat::test_local()` or in a knit, because none of them can. **All three
+are fixed**; kept here because what each one was is more useful than the fact
+that it is gone.
 
 ### ERROR: a test that only passes in a checkout
 
@@ -487,14 +488,11 @@ worth remembering: `.gitignore` keeps it out of the repository and
 
 ## What to do next, in order
 
-0. **The three check findings.** Part 4. Smallest and most certain work on the
-   list, and the only items that are outright errors rather than judgments: the
-   invariants test asserts against the wrong thing, two `@param` tags are
-   missing, and `.Rbuildignore` needs one line.
-1. **`ranef()` and `VarCorr()` methods.** Part 3. Small, and the two names a
-   mixed-model user reaches for first. Weaker than it looks, since `?bartisan`
-   already names `fit$ranef` and `fit$tau`; do it, but do not hold the release
-   for it alone.
+0. ~~**The three check findings.**~~ Done. Part 4 says what they were.
+1. ~~**`ranef()` and `VarCorr()` methods.**~~ `ranef()` is done, registered on
+   `nlme::ranef`, which *lme4* re-exports as the same function object so
+   both qualifications reach it. `VarCorr()` is not, and is post-1.0: `tau` is
+   the only thing it would return and `?bartisan` names it.
 2. **Move the `custom_family()` limitation onto its own help page.** It is
    already stated on `?bartisan-interop` ("no posterior predictive distribution
    at all, because a log density supplies no way to draw from it") and in
@@ -502,17 +500,16 @@ worth remembering: `.gitignore` keeps it out of the repository and
    `?bartisan-families` is where `custom_family()` is documented and where a
    reader meets it, and the caveat is not there. That placement is what makes
    item 4 non-blocking rather than merely unfinished.
-3. **Settle the prediction-interval cross-reference**, which is a promise to a
-   reader rather than a parity item. Either `vignette("effects")` gains the
-   section `vignette("bartisan")` says it has, or the pointer goes. The first is
-   better and wants `predictive_interval()` to exist so the section is three
-   lines instead of a digression about `posterior_predict()`'s shape.
-4. **`NEWS.md` does not exist.** Nothing requires one before a first release, but
+3. **`NEWS.md` does not exist.** Nothing requires one before a first release, but
    the version is still `0.0.0.9000` and something has to say what 0.1.0 is.
-5. **Re-run `_dev/check.sh` to a clean bill** once 0 is done, since one of its
-   three findings is a test and a green check is the only thing that shows the
-   test now passes where it has to.
-6. Post-1.0, in no order: `predictive_error()`, the
-   `loo_*` prediction wrappers, `posterior_vs_prior()`, an `rng` for
-   `custom_family()`, and the DART inclusion probability as a stored quantity
-   (`TASKS.md` has why it is a C++ change).
+4. **Re-run `_dev/check.sh` to a clean bill**, since one of its three findings
+   was a test and a green check is the only thing that shows the test now passes
+   where it has to. Blocked as of 2026-09-15 on the Xcode license
+   (`sudo xcodebuild -license`); until that is accepted nothing on this machine
+   compiles, so the check cannot install the package to check it. The suite
+   still passes because `load_all()` reuses the `.so` built before the licence
+   lapsed, and no C++ changed in the meantime.
+5. Post-1.0, in no order: `VarCorr()`, the `loo_*` prediction wrappers,
+   `posterior_vs_prior()`, an `rng` for `custom_family()`, and the DART
+   inclusion probability as a stored quantity (`TASKS.md` has why it is a C++
+   change).

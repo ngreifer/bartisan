@@ -21,6 +21,7 @@
 ^CLAUDE\.md$
 ^Rplots\.pdf$
 ^figure$
+^vignettes/figure$
 ^\.progress-runs$
 ^\.run-.*\.sh$
 ^justfile$

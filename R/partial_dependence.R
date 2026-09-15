@@ -21,6 +21,8 @@
 #'   argument and the method cannot disagree.
 #' @param x a `<bartisan_partial>` object; the output of a call to
 #'   `partial_dependence()`. For `plot.bartisan_fit()`, a `<bartisan_fit>`.
+#' @param digits `integer`; for `print()`, the number of significant digits to
+#'   print the estimates and their interval to. Default is 3.
 #' @param y for `plot.bartisan_fit()`, the predictors to plot, as `variables`
 #'   above.
 #' @param ... for `plot.bartisan_fit()`, further arguments passed to

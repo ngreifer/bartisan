@@ -52,6 +52,10 @@
 #'   shows only the contrasts involving it, `"all"` shows every pairwise
 #'   contrast, and a character vector of contrast labels shows those. All of
 #'   them are computed either way; this only decides what is printed.
+#' @param potential_outcomes `logical`; whether to print the average response
+#'   under each treatment level below the contrasts, those being what the
+#'   contrasts were computed from. Default is `TRUE`. They are in the result's
+#'   `"potential_outcomes"` attribute either way.
 #' @param ... ignored.
 #'
 #' @returns

@@ -86,6 +86,11 @@ shows only the contrasts involving it, \code{"all"} shows every pairwise
 contrast, and a character vector of contrast labels shows those. All of
 them are computed either way; this only decides what is printed.}
 
+\item{potential_outcomes}{\code{logical}; whether to print the average response
+under each treatment level below the contrasts, those being what the
+contrasts were computed from. Default is \code{TRUE}. They are in the result's
+\code{"potential_outcomes"} attribute either way.}
+
 \item{...}{ignored.}
 }
 \value{
