@@ -85,7 +85,6 @@ rather than a causal claim; for a contrast that is meant causally, see
 \code{\link[=estimate_effect]{estimate_effect()}}.
 }
 \examples{
-\dontshow{if (rlang::is_installed("ggplot2")) withAutoprint(\{ # examplesIf}
 data("rhc")
 set.seed(123)
 
@@ -104,7 +103,7 @@ plot(fit, ~ meanbp)
 
 # Two predictors, one of them a factor, which gives a curve per level
 plot(fit, ~ meanbp + sex)
-\dontshow{\}) # examplesIf}
+
 }
 \seealso{
 \code{\link[=estimate_effect]{estimate_effect()}} for treatment effects rather than fitted

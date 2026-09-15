@@ -53,7 +53,7 @@
 #'   \pkgfun{marginaleffects}{plot_predictions} draws the same thing with more
 #'   control over the grid
 #'
-#' @examplesIf rlang::is_installed("ggplot2")
+#' @examples
 #' data("rhc")
 #' set.seed(123)
 #'
@@ -102,7 +102,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
 
   missing <- setdiff(vars, names(newdata))
 
-  if (length(missing) > 0L) {
+  if (!is_null(missing)) {
     arg::err("{.arg variables} names {length(missing)} column{?s} the data does
               not have: {.val {missing}}")
   }
@@ -141,7 +141,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
   # otherwise give different draws depending on whether a plan was set.
   seeds <- parallel_streams(nrow(combos))
 
-  if (rlang::is_installed("future.apply")) {
+  if (use_future()) {
     rows <- future.apply::future_lapply(seq_len(nrow(combos)), at_grid_point,
                                         future.seed = seeds,
                                         future.packages = "bartisan")
@@ -173,19 +173,16 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
 }
 
 pd_variables <- function(variables) {
+  arg::arg_or(variables,
+              arg::arg_formula(one_sided = TRUE),
+              arg::arg_character)
   vars <- {
-    if (rlang::is_formula(variables)) {
-      arg::arg_formula(variables, one_sided = TRUE)
-      all.vars(variables)
-    }
-    else {
-      arg::arg_character(variables)
-      variables
-    }
+    if (rlang::is_formula(variables)) all.vars(variables)
+    else variables
   }
 
-  if (length(vars) < 1L || length(vars) > 2L) {
-    arg::err(c("{.arg variables} must name one or two predictors",
+  if (is_null(vars) || length(vars) > 2L) {
+    arg::err(c("{.arg variables} must name one or two predictors.",
                i = "Three dimensions of dependence is a table rather than a
                     plot; call this twice, or use
                     {.fn marginaleffects::predictions} with a grid of your
@@ -263,8 +260,6 @@ print.bartisan_partial <- function(x, digits = 3L, ...) {
 #' @rdname partial_dependence
 #' @export
 plot.bartisan_partial <- function(x, ...) {
-  require_ggplot2("partial dependence")
-
   vars <- attr(x, "variables")
   d <- as.data.frame(x)
   first <- vars[[1L]]
@@ -325,7 +320,7 @@ plot.bartisan_partial <- function(x, ...) {
 plot.bartisan_fit <- function(x, y, ...) {
   if (missing(y)) {
     arg::err(c("{.fn plot} on a fit draws partial dependence and needs to be
-                told which predictors to draw it on",
+                told which predictors to draw it on.",
                i = "For example {.code plot(fit, ~ age)}.",
                i = "{.fn variable_importance} is where to look for which
                     predictors are worth asking about."))

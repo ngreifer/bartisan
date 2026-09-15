@@ -177,7 +177,6 @@ levels. See the \CRANpkg{adrftools} package for tools to visualize and summarize
 }
 }
 \examples{
-\dontshow{if (rlang::is_installed("ggplot2")) withAutoprint(\{ # examplesIf}
 data("rhc")
 set.seed(123)
 
@@ -197,7 +196,7 @@ plot(cate)
 
 # By a subgroup, which is where a forest plot earns its keep
 estimate_effect(fit, by = ~ sex)
-\dontshow{\}) # examplesIf}
+
 }
 \seealso{
 \code{\link[=bcf]{bcf()}}, which fits the model this is usually called on;

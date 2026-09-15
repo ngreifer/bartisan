@@ -1390,9 +1390,7 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' head(error_density(fit, at = c(-2, 0, 2)))
 #'
 #' # The same thing drawn, with the pointwise interval as a ribbon
-#' if (rlang::is_installed("ggplot2")) {
-#'   plot(error_density(fit))
-#' }
+#' plot(error_density(fit))
 #'
 #' @export
 error_density <- function(object, at = NULL, level = 0.95, plot = FALSE,
@@ -1455,8 +1453,6 @@ error_density <- function(object, at = NULL, level = 0.95, plot = FALSE,
 #' @param y not used.
 #' @export
 plot.bartisan_error_density <- function(x, y, ...) {
-  require_ggplot2("the error density")
-
   ggplot2::ggplot(x, ggplot2::aes(x = .data$at, y = .data$mean)) +
     ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
                          fill = "grey85") +

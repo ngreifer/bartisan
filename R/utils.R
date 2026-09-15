@@ -284,7 +284,7 @@ make_group_probs <- function(assign, term_labels) {
 # produced a matrix the caller never asked for, and the engine read any matrix as
 # fixed weights. That is how `bcf()` with a propensity score lost its sparsity
 # prior on both forests at once.
-resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
+resolve_split_matrix <- function(split_prior, groups, labels, masks,
                                  n_forest) {
   restricted <- !all(masks)
 
@@ -292,18 +292,14 @@ resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
     return(list(prior = NULL, mask = NULL))
   }
 
-  # `split_prior`'s own names are predictors, so a bare named vector cannot also
-  # be read as keyed by forest: `c(x3 = 0)` is a weight on `x3` for every forest.
-  # A list is what says per-forest, and its names are forest names.
-  per_forest <- {
-    if (is.list(split_prior)) {
-      resolve_per_forest(split_prior, labels, "split_prior", default = NULL,
-                         joint = joint)
-    }
-    else {
-      rep(list(split_prior), ncol(masks))
-    }
-  }
+  # `split_prior` is one set of weights for every forest, unlike the other
+  # per-forest settings. Its own names are predictors, so a named vector cannot
+  # also be read as keyed by forest: `c(x3 = 0)` is a weight on `x3` everywhere,
+  # and there is no spelling that would mean it for one forest only. A list was
+  # once accepted here and never reachable, `bartisan_control()` having checked
+  # `split_prior` with `arg_numeric` the whole time. A forest is held to its own
+  # predictors by `masks` below rather than by a weight of the caller's.
+  per_forest <- rep(list(split_prior), ncol(masks))
 
   uniform <- rep.int(1 / length(groups), length(groups))
   allow_all <- rep.int(1, length(groups))
@@ -312,32 +308,29 @@ resolve_split_matrix <- function(split_prior, groups, labels, joint, masks,
   # all-allowed mask keeps the arithmetic on the engine's side away from a
   # support of no groups, exactly as for the trailing pinned forests below.
   mask <- vapply(seq_len(ncol(masks)), function(h) {
-    if (!any(masks[, h])) allow_all else as.numeric(masks[, h])
+    if (any(masks[, h])) as.numeric(masks[, h]) else allow_all
   }, numeric(length(groups)))
 
-  prior <- {
-    if (is_null(split_prior)) NULL
-    else {
-      vapply(seq_len(ncol(masks)), function(h) {
-        if (!any(masks[, h])) {
-          return(uniform)
-        }
+  prior <- if (!is_null(split_prior)) {
+    vapply(seq_len(ncol(masks)), function(h) {
+      if (!any(masks[, h])) {
+        return(uniform)
+      }
 
-        weights <- resolve_split_weights(per_forest[[h]], groups) %or% uniform
+      weights <- resolve_split_weights(per_forest[[h]], groups) %or% uniform
 
-        # A term this forest's formula does not name is not a term it may split
-        # on, so the caller's weight on it is not one the engine should see.
-        weights[!masks[, h]] <- 0
+      # A term this forest's formula does not name is not a term it may split
+      # on, so the caller's weight on it is not one the engine should see.
+      weights[!masks[, h]] <- 0
 
-        if (sum(weights) == 0) {
-          arg::err(c("The {.val {labels[h]}} forest has no predictor left to split on.",
-                     i = "Its formula names only predictors its {.arg split_prior}
+      if (sum(weights) == 0) {
+        arg::err(c("The {.val {labels[h]}} forest has no predictor left to split on.",
+                   i = "Its formula names only predictors its {.arg split_prior}
                           gives a weight of zero."))
-        }
+      }
 
-        weights / sum(weights)
-      }, numeric(length(groups)))
-    }
+      weights / sum(weights)
+    }, numeric(length(groups)))
   }
 
   # The trailing pinned forests are one leaf that never splits, so their columns
@@ -656,29 +649,23 @@ per_forest_vector <- function(value, labels, arg, default, joint = FALSE) {
     return(NULL)
   }
 
-  bad <- vapply(out, function(z) length(z) != 1L, logical(1L))
-
-  if (any(bad)) {
+  if (!all(lengths(out) == 1L)) {
     arg::err("{.arg {arg}} must be one value per forest")
   }
 
   unlist(out, use.names = FALSE)
 }
 
-# Posterior summaries used by the print and summary methods.
-# The one place that says ggplot2 is needed. Two plot methods and the two `plot`
-# arguments that delegate to them would otherwise say it four times, in four
-# wordings, and the wordings would drift.
-require_ggplot2 <- function(what) {
-  rlang::check_installed("ggplot2", sprintf("to plot %s.", what))
-
-  # if (rlang::is_installed("ggplot2")) {
-  #   return(invisible())
-  # }
-  #
-  # arg::err(c("{.pkg ggplot2} must be installed to plot {what}.",
-  #            i = "Without it the values are returned as a data frame, to draw
-  #                 however you like."))
+# One named field from every element of a list, as a vector of a known type.
+#
+# Replaces a bare `vapply()` over the extraction operator, which had drifted
+# into two spellings, one of them wrapping an anonymous function around what the
+# operator already does. `type` is the prototype `vapply()` checks each field
+# against, so a field that is missing or of the wrong type is an error here
+# rather than a surprise downstream. Where the fields are not all one type, or
+# are not scalars, `lapply()` over the operator is still the way.
+pluck <- function(x, field, type = character(1L)) {
+  vapply(x, `[[`, type, field)
 }
 
 post_summary <- function(x, level = 0.95) {
@@ -689,4 +676,11 @@ post_summary <- function(x, level = 0.95) {
     sd = stats::sd(x, na.rm = TRUE),
     lower = q[1L],
     upper = q[2L])
+}
+
+# Check if future and future.apply are installed and more than one
+# worker is requested in the future plan.
+use_future <- function() {
+  rlang::is_installed(c("future", "future.apply")) &&
+    future::nbrOfWorkers() > 1L
 }

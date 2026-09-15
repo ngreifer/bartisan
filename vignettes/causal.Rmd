@@ -21,7 +21,6 @@ options(digits = 4, marginaleffects_safe = FALSE)
 
 has_me <- rlang::is_installed("marginaleffects")
 has_cobalt <- rlang::is_installed("cobalt")
-has_ggplot2 <- rlang::is_installed("ggplot2")
 run <- TRUE
 
 if (rlang::is_installed("future")) {
@@ -54,7 +53,7 @@ set.seed(2026)
 ```{r libs2, eval = run, echo = FALSE}
 if (has_cobalt) library(cobalt)
 if (has_me) library(marginaleffects)
-if (has_ggplot2) library(ggplot2)
+library(ggplot2)
 ```
 
 ## Confounding
@@ -232,7 +231,7 @@ quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 
 `plot()` draws them: patients ordered by their estimate, with a credible interval each, and the marginal effect as a single interval past the right edge in its own color. Ordering is what makes the spread readable as heterogeneity rather than as a list of numbers, and keeping the average off to the side is what makes it comparable against any of them.
 
-```{r bcfplot, eval = run && has_ggplot2, fig.height = 3.4}
+```{r bcfplot, eval = run, fig.height = 3.4}
 plot(fit_bcf)
 ```
 
@@ -284,7 +283,7 @@ c(ATT = att$estimate, mean_CATE = mean(cate_att$estimate))
 
 And the conditional effects, drawn:
 
-```{r lalondeplot, eval = run && has_cobalt && has_ggplot2, fig.height = 3.4}
+```{r lalondeplot, eval = run && has_cobalt, fig.height = 3.4}
 plot(cate_att)
 ```
 

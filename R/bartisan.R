@@ -658,7 +658,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   vc <- resolve_vc(forest_vc, mf, design,
                    forest_masks(forest_fixed, colnames(group_probs),
                                 if (!missing(data) &&
-                                      is.data.frame(data)) data,
+                                    is.data.frame(data)) data,
                                 response_of(forest_fixed)),
                    response[["n_aux"]],
                    if (n_param > 1L) param_labels)
@@ -717,7 +717,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # each forest's own formula lets it split on. Separate, because the first says
   # nothing may be drawn and the second only says over what.
   split <- resolve_split_matrix(control[["split_prior"]], colnames(group_probs),
-                                labels, joint, vc[["masks"]],
+                                labels, vc[["masks"]],
                                 response[["n_forest"]])
 
   engine_control[["split_prior"]] <- split[["prior"]]
@@ -914,7 +914,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
     names(out[["tau"]]) <- predictor_names(out)
 
     labels <- names(random)
-    levels_per <- vapply(random, function(z) z[["num_levels"]], integer(1L))
+    levels_per <- pluck(random, "num_levels", integer(1L))
 
     for (h in seq_along(out[["ranef"]])) {
       colnames(out[["ranef"]][[h]]) <- unlist(lapply(random, function(z) {
@@ -997,7 +997,7 @@ run_chains <- function(engine, chains) {
   # installed, which is a worse failure than being slow.
   seeds <- parallel_streams(chains)
 
-  if (rlang::is_installed("future.apply")) {
+  if (use_future()) {
     return(future.apply::future_lapply(seq_len(chains), engine,
                                        future.seed = seeds,
                                        future.packages = "bartisan"))
@@ -1138,13 +1138,16 @@ restore_stream <- function() {
 
   if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
     seed <- get(".Random.seed", envir = globalenv())
-    return(function() {
+    function() {
       RNGkind(kind[1L], kind[2L], kind[3L])
       assign(".Random.seed", seed, envir = globalenv())
-    })
+    }
   }
-
-  function() RNGkind(kind[1L], kind[2L], kind[3L])
+  else {
+    function() {
+      RNGkind(kind[1L], kind[2L], kind[3L])
+    }
+  }
 }
 
 # Stack the chains into one set of draws, in chain order. The stored forests are
@@ -1548,7 +1551,7 @@ forest_labels <- function(family, opts, levels, n_report, vc = NULL) {
     drop <- length(base) == 1L && identical(base, "eta")
 
     return(unlist(lapply(seq_along(base), function(h) {
-      keep <- which(vapply(vc[["specs"]], `[[`, integer(1L), "param") == h)
+      keep <- which(pluck(vc[["specs"]], "param", integer(1L)) == h)
       vc_forest_labels(base[h], vc[["specs"]][keep], vc[["parts"]][keep], drop)
     }), use.names = FALSE))
   }

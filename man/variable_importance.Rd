@@ -161,9 +161,7 @@ counts <- variable_importance(fit, draws = TRUE)
 mean(counts[, "aps"] > counts[, "meanbp"])
 
 # The ranking, drawn. Subsetting first is what keeps a wide model readable.
-if (rlang::is_installed("ggplot2")) {
-  plot(head(imp, 8))
-}
+plot(head(imp, 8))
 
 }
 \references{

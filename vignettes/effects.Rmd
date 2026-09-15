@@ -1,12 +1,12 @@
 ---
-title: "Effects, curves and interactions"
+title: "Effects, curves, and interactions"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Effects, curves and interactions}
+  %\VignetteIndexEntry{Effects, curves, and interactions}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
@@ -27,7 +27,6 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
 options(digits = 4, marginaleffects_safe = FALSE)
 
 has_me <- rlang::is_installed("marginaleffects")
-has_gg <- rlang::is_installed("ggplot2")
 run <- has_me
 ```
 
@@ -196,7 +195,7 @@ natively, and `plot(fit, ~ x)` is the short way to it; the section uses
 grid and over what is held fixed, which is what the hand-built *ggplot2* calls
 below are for:
 
-```{r pdp, eval = run && has_gg, fig.height = 3.0}
+```{r pdp, eval = run, fig.height = 3.0}
 library(ggplot2)
 
 curve <- plot_predictions(fit, condition = "aps", draw = FALSE)
@@ -219,7 +218,7 @@ mean, which flattens the curve at both edges of the predictor's range.
 
 Adding a second variable shows how the shape differs across groups.
 
-```{r pdp2, eval = run && has_gg, fig.height = 3.0}
+```{r pdp2, eval = run, fig.height = 3.0}
 curve2 <- plot_predictions(fit, condition = c("aps", "rhc"), draw = FALSE)
 
 ggplot(curve2, aes(aps, estimate, colour = factor(rhc))) +
@@ -328,7 +327,8 @@ them:
 
 ```{r vcmulti, eval = FALSE}
 # The effect of `z` on the mean, and separately on the spread.
-bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2 + vc(z)),
+bartisan(list(mean = y ~ x1 + x2 + vc(z),
+              log_sd = ~ x1 + x2 + vc(z)),
          data = d, family = gaussian_ls())
 ```
 

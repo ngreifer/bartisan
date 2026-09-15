@@ -136,7 +136,7 @@
 #'   same estimands through
 #'   \pkg{marginaleffects}, which also covers the ones not offered here
 #'
-#' @examplesIf rlang::is_installed("ggplot2")
+#' @examples
 #' data("rhc")
 #' set.seed(123)
 #'
@@ -240,7 +240,7 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
   # different draws depending on whether a plan happened to be set.
   seeds <- parallel_streams(length(levs))
 
-  if (rlang::is_installed("future.apply")) {
+  if (use_future()) {
     po <- future.apply::future_lapply(levs, predict_at, future.seed = seeds,
                                       future.packages = "bartisan")
   }
@@ -967,8 +967,6 @@ effect_round <- function(show, digits) {
 #' @rdname estimate_effect
 #' @export
 plot.bartisan_effect <- function(x, ...) {
-  require_ggplot2("treatment effects")
-
   estimand <- attr(x, "estimand")
   comparison <- attr(x, "comparison")
   by <- attr(x, "by")

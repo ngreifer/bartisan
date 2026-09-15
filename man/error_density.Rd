@@ -69,9 +69,7 @@ fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
 head(error_density(fit, at = c(-2, 0, 2)))
 
 # The same thing drawn, with the pointwise interval as a ribbon
-if (rlang::is_installed("ggplot2")) {
-  plot(error_density(fit))
-}
+plot(error_density(fit))
 
 }
 \seealso{

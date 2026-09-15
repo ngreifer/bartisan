@@ -25,7 +25,7 @@
 #' @seealso [estimate_effect()] for the effect and its estimands; [bcf()] for the
 #'   model
 #'
-#' @examplesIf rlang::is_installed("ggplot2")
+#' @examples
 #' data("rhc")
 #' set.seed(123)
 #'

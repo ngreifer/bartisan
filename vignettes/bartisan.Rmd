@@ -20,7 +20,6 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
 options(digits = 4, marginaleffects_safe = FALSE)
 
 has_me <- rlang::is_installed("marginaleffects")
-has_gg <- rlang::is_installed("ggplot2")
 has_loo <- rlang::is_installed("loo")
 has_bp <- rlang::is_installed("bayesplot")
 ```
@@ -234,7 +233,7 @@ actually occur in this sample.
 Effects averaged over the sample hide the shape of the relationship. To see the
 shape, plot the model's predictions against one predictor.
 
-```{r pdp, eval = has_gg, fig.height = 3.0}
+```{r pdp, fig.height = 3.0}
 plot(fit, ~ surv2m) +
   ggplot2::labs(x = "estimated probability of surviving two months",
                 y = "fitted probability of death")

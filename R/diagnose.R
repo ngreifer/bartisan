@@ -560,8 +560,7 @@ diagnosis_columns <- function(wide, chains, budget) {
     workers <- 1L
   }
 
-  if (columns < 100L || !isTRUE(workers > 1L) ||
-        !rlang::is_installed("future.apply")) {
+  if (columns < 100L || !use_future()) {
     return(diagnosis_block(wide, chains, budget(columns)))
   }
 
@@ -931,8 +930,7 @@ diagnosis_advice <- function(checks, control = NULL) {
     # The length check covers a missing `control` as well as a setting that is
     # not one number: subsetting `NULL` gives back nothing rather than a list of
     # nothings, and the clause would otherwise come out as "which was ."
-    if (length(got) != length(nms) ||
-          !all(vapply(got, function(v) length(v) == 1L, logical(1L)))) {
+    if (length(got) != length(nms) || !all(lengths(got) == 1L)) {
       return("")
     }
 

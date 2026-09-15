@@ -23,7 +23,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
   out <- list(family = name, link = link, n_forest = 1L, n_aux = 0L,
               num_cat = NULL, levels = NULL, opts = list())
 
-  if (is_null(weights)) {
+  if (missing(weights) || is_null(weights)) {
     weights <- rep.int(1, n)
   }
   else {
@@ -57,7 +57,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
              arg::err(c("{.fn dpm_aft} does not take prior weights, because a
                          weight would have to be a multiplicity in the Dirichlet
-                         process, which is not what a fractional weight means",
+                         process, which is not what a fractional weight means.",
                         i = "the other survival families take them"))
            }
 
@@ -81,7 +81,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
              arg::err(c("{.fn dpm} does not take prior weights, because a weight
                          would have to be a multiplicity in the Dirichlet
-                         process, which is not what a fractional weight means",
+                         process, which is not what a fractional weight means.",
                         i = "{.fn gaussian}, {.fn ordinal} and {.fn gaussian_ls}
                              all take them"))
            }
@@ -420,7 +420,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
 
            if (!any(interior)) {
              arg::err("the {.val ordbeta} family needs some responses strictly
-                  between 0 and 1; with only 0 and 1 use {.fn binomial}")
+                       between 0 and 1; with only 0 and 1 use {.fn binomial}")
            }
 
            out$y <- y
@@ -580,10 +580,10 @@ expand_for_vc <- function(out, vc, y, intercept) {
 
     spread <- part[["scale"]]
 
-    if (!isTRUE(spread > 0)) 1 else 1 / spread
+    if (isTRUE(spread > 0)) 1 / spread else 1
   }
 
-  params <- vapply(vc[["specs"]], `[[`, integer(1L), "param")
+  params <- pluck(vc[["specs"]], "param", integer(1L))
 
   # Each additive predictor keeps its own prior scale and its own starting
   # value, and its coefficients are scaled relative to it: a coefficient of the
@@ -630,8 +630,8 @@ expand_for_vc <- function(out, vc, y, intercept) {
 # The offset is stored with one row per additive predictor, matching the layout
 # the engine uses.
 build_offset <- function(intercept, offset, n_forest, n) {
-  out <- matrix(rep(intercept, length.out = n_forest), nrow = n_forest,
-                ncol = n)
+  out <- matrix(rep(intercept, length.out = n_forest),
+                nrow = n_forest, ncol = n)
 
   if (is_null(offset)) {
     return(out)

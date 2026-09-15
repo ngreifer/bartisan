@@ -151,9 +151,7 @@
 #' mean(counts[, "aps"] > counts[, "meanbp"])
 #'
 #' # The ranking, drawn. Subsetting first is what keeps a wide model readable.
-#' if (rlang::is_installed("ggplot2")) {
-#'   plot(head(imp, 8))
-#' }
+#' plot(head(imp, 8))
 #'
 #' @export
 variable_importance <- function(object, level = 0.95, draws = FALSE,
@@ -252,7 +250,6 @@ plot.bartisan_importance <- function(x, y, ...) {
 # a different picture has the data frame to draw it from, which is the same
 # split `error_density()` makes.
 importance_plot <- function(x) {
-  require_ggplot2("variable importance")
 
   x[["variable"]] <- factor(x[["variable"]],
                             levels = rev(unique(x[["variable"]])))

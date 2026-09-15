@@ -410,6 +410,15 @@ bcf_newdata_score <- function(object, newdata) {
 # The propensity score, or nothing. The model follows the treatment's type,
 # because what the score *is* follows the treatment's type.
 bcf_propensity <- function(propensity, name, covariates, data, args) {
+  # Checked as one alternation rather than in the branches below, which read the
+  # value rather than validating it: anything that is none of these used to fall
+  # through to the last branch and be fitted with the outcome's covariates, so a
+  # misspelled argument silently got the default behaviour.
+  arg::when_not_null(propensity,
+                     arg::arg_or(arg::arg_flag,
+                                 arg::arg_numeric,
+                                 arg::arg_formula(one_sided = TRUE)))
+
   if (isFALSE(propensity) || is_null(propensity)) {
     return(list(score = NULL, model = NULL))
   }

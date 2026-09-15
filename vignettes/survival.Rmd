@@ -26,7 +26,6 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7,
                       warning = FALSE, message = FALSE)
 options(digits = 3)
 
-has_gg <- rlang::is_installed("ggplot2")
 has_surv <- rlang::is_installed("survival")
 
 # Precomputed by _dev/survival-sim.R and friends, so that this vignette builds
@@ -54,18 +53,18 @@ pivot <- function(value, families = fam_levels) {
   wide
 }
 
-if (has_gg) {
-  library(ggplot2)
-  theme_set(theme_bw(base_size = 9) +
-              theme(panel.grid.minor = element_blank(),
-                    strip.background = element_rect(fill = "grey93",
-                                                    colour = NA),
-                    legend.position = "bottom",
-                    legend.title = element_blank()))
-  fam_colours <- setNames(
-    c("#B2182B", "#EF8A62", "#F4A582", "#4393C3", "#2166AC", "#1B7837"),
-    fam_levels)
-}
+library(ggplot2)
+
+theme_set(theme_bw(base_size = 9) +
+            theme(panel.grid.minor = element_blank(),
+                  strip.background = element_rect(fill = "grey93",
+                                                  colour = NA),
+                  legend.position = "bottom",
+                  legend.title = element_blank()))
+
+fam_colours <- setNames(
+  c("#B2182B", "#EF8A62", "#F4A582", "#4393C3", "#2166AC", "#1B7837"),
+  fam_levels)
 ```
 
 ```{r libs}
@@ -172,7 +171,7 @@ round(colMeans(fit_dpm$aux), 3)
 
 `error_density()` reports what the error distribution came out looking like, which is the diagnostic the model exists to provide:
 
-```{r errdens, fig.height = 2.6, eval = has_gg}
+```{r errdens, fig.height = 2.6}
 ed <- error_density(fit_dpm)
 
 # The normal a lognormal_aft() fit would have assumed, given the same spread.
@@ -260,7 +259,7 @@ This works identically for all five families. It is the reason `type = "survival
 
 Most of the differences in what follows come down to one picture. The parametric families constrain the hazard's shape; `ph()` does not.
 
-```{r hazshapes, echo = FALSE, fig.height = 3.1, eval = has_gg}
+```{r hazshapes, echo = FALSE, fig.height = 3.1}
 tt <- seq(0.05, 3, length.out = 200)
 
 haz <- rbind(
@@ -319,7 +318,7 @@ knitr::kable(data.frame(
 
 We take as the primary metric the RMSE of the fitted survival function $S(t \mid x)$ against the true one, on held-out subjects and over twenty times spanning the 5th to 95th percentile of the event-time distribution, because it is on the same scale for every family, which the predictors are not.
 
-```{r rmsefig, echo = FALSE, fig.height = 4.4, eval = has_gg}
+```{r rmsefig, echo = FALSE, fig.height = 4.4}
 ggplot(agg, aes(s_rmse, family, colour = family)) +
   geom_point(size = 1.9) +
   geom_linerange(aes(xmin = s_rmse - s_rmse_se, xmax = s_rmse + s_rmse_se),
@@ -353,7 +352,7 @@ Five things to read off it.
 
 The aggregate numbers hide *how* the misspecified fits are wrong. Below are the fitted survival curves for three held-out subjects under the two truths where the families disagree most, with the truth in the first column.
 
-```{r curvefig, echo = FALSE, fig.height = 4.8, eval = has_gg}
+```{r curvefig, echo = FALSE, fig.height = 4.8}
 keep <- c("truth", "weibull_aft()", "dpm_aft()", "ph()",
           "discrete-time probit")
 cv <- res$curves[res$curves$truth %in% c("hazard turns over",
@@ -391,7 +390,7 @@ Two cautions on reading this panel. It shows three subjects, not the sample: the
 
 A weaker question than the curve itself is whether the model gets the *ordering* of subjects right at each time. Misspecification costs much less here.
 
-```{r rankfig, echo = FALSE, fig.height = 3.4, eval = has_gg}
+```{r rankfig, echo = FALSE, fig.height = 3.4}
 ggplot(agg, aes(rank, family, colour = family)) +
   geom_point(size = 1.9) +
   facet_wrap(~ truth, ncol = 3) +
@@ -412,7 +411,7 @@ The practical reading: **if the only question is who is at higher risk, and the 
 
 On the bimodal truth `dpm_aft()`'s advantage is not a tuning gain; it is that it can see the shape the other families are assuming away.
 
-```{r densfig, echo = FALSE, fig.height = 2.9, eval = has_gg}
+```{r densfig, echo = FALSE, fig.height = 2.9}
 dn <- res$dens[res$dens$truth %in% c("bimodal errors", "log-normal errors"), ]
 truthdens <- do.call(rbind, lapply(split(dn, dn$truth), function(z) {
   at <- z$at
@@ -453,7 +452,7 @@ That the correction works at all is worth one check. On the Weibull truth, where
 
 More censoring means less information, so every family gets worse. The question is whether it changes which family to prefer.
 
-```{r censfig, echo = FALSE, fig.height = 3.2, eval = has_gg}
+```{r censfig, echo = FALSE, fig.height = 3.2}
 sw <- res$sweep_agg
 sw$family <- factor(sw$family, levels = fam_levels)
 
@@ -583,7 +582,7 @@ This is also the answer to a question that comes up: why not fit Cox's *partial*
 
 ## Speed {#speed}
 
-```{r timefig, echo = FALSE, fig.height = 2.6, eval = has_gg}
+```{r timefig, echo = FALSE, fig.height = 2.6}
 tm <- res$timing
 tm$family <- factor(tm$family, levels = fam_levels)
 

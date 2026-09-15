@@ -92,8 +92,8 @@ reporter_for <- function(p) {
 # know when the bar is over, so `bcf()` sets `the$claimed_progress` and drops
 # it again in its own `on.exit()`.
 shared_reporter <- function(specs, envir = parent.frame()) {
-  chains <- sum(vapply(specs, `[[`, numeric(1L), "chains"))
-  ticks <- min(vapply(specs, `[[`, numeric(1L), "ticks"))
+  chains <- sum(pluck(specs, "chains", numeric(1L)))
+  ticks <- min(pluck(specs, "ticks", numeric(1L)))
 
   if (!isTRUE(chains > 0) || !isTRUE(ticks > 0) ||
         !rlang::is_installed("progressr")) {

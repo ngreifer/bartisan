@@ -7377,3 +7377,33 @@ That is a gap in the model rather than in the mechanism. It closes the moment a
 prior over ordered cutpoints is specified, which would change every ordinal
 posterior and so was not slipped in. `multinomial()` is the substitute offered
 for an ordered outcome with few enough categories.
+
+## `Matrix` is one call and stays, because the sparsity is the point
+
+Asked whether the dependency earns its place, `Matrix` being in Imports for a
+single call: `Matrix::sparseMatrix()` in `make_group_probs()`, which maps
+design-matrix columns to formula terms. It earns it twice.
+
+The matrix is columns by terms with exactly one nonzero per row, each design
+column belonging to exactly one term, so dense storage is quadratic in the
+predictor count:
+
+| p | sparse | dense |
+| --- | --- | --- |
+| 10 | 2.4 KB | 1.9 KB |
+| 100 | 9.3 KB | 84.8 KB |
+| 1000 | 79.6 KB | 7.7 MB |
+
+Dense wins only up to about ten predictors, which is to say only on models
+small enough not to care.
+
+The second reason is the hotter one. `sample_class_col()` in `src/utils.cpp`
+picks a design column within a chosen term by walking that column's nonzeros
+with an `sp_mat::const_col_iterator`, which is one step for a scalar predictor.
+Dense would scan every row of the column instead, turning a constant into
+O(p) on every split proposal.
+
+Removing it would mean changing `bartisan_fit()`'s signature from
+`arma::sp_mat` to `arma::mat`, recompiling, and accepting both regressions, in
+order to drop a package that has `Priority: recommended` and therefore ships
+with every R installation. Not a saving.

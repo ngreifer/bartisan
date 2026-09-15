@@ -73,7 +73,7 @@ random_terms <- function(bars, mf) {
          codes = as.integer(f) - 1L)
   })
 
-  labels <- vapply(out, function(z) z[["label"]], character(1L))
+  labels <- pluck(out, "label")
 
   if (anyDuplicated(labels) > 0L) {
     arg::err("the same grouping variable appears twice in the formula:

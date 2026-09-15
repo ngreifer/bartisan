@@ -260,7 +260,7 @@ sketches below are keyed to the files that came of them:
 | 1 `workflow` | `bartisan.Rmd` | Getting started with bartisan |
 | 2 `diagnostics` | `diagnostics.Rmd` | Checking convergence and fit |
 | 3 `importance` | `importance.Rmd` | Which variables matter |
-| 4 `effects` | `effects.Rmd` | Effects, curves and interactions |
+| 4 `effects` | `effects.Rmd` | Effects, curves, and interactions |
 | 5 `comparison` | `comparison.Rmd` | Choosing between models |
 | 6 `causal` | `causal.Rmd` | Causal Inference with BART |
 | -- | `implementation.Rmd` | Generalized BART with bartisan |

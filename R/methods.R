@@ -468,7 +468,7 @@ ranef.bartisan_fit <- function(object, draws = FALSE, ...) {
   # one per predictor, and then the predictor's name is the informative one.
   labels <- if (length(stored) == 1L) "(Intercept)" else names(stored)
 
-  out <- lapply(random, function(term) {
+  lapply(random, function(term) {
     # The stored columns are `label:level`, so they are rebuilt from the term
     # rather than parsed out of the names: a level whose own value contains a
     # colon would otherwise split in the wrong place.
@@ -488,7 +488,6 @@ ranef.bartisan_fit <- function(object, draws = FALSE, ...) {
 
     data.frame(means, row.names = term[["levels"]], check.names = FALSE) |>
       setNames(labels)
-  })
-
-  setNames(out, vapply(random, `[[`, character(1L), "label"))
+  }) |>
+    setNames(pluck(random, "label"))
 }

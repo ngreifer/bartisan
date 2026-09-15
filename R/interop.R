@@ -455,47 +455,47 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
   mu <- response_scale(object, eta, aux, draws = TRUE)
 
   switch(family,
-    gaussian = square(stats::rnorm(cells, mu, spread("sigma"))),
-    gaussian_ls = square(stats::rnorm(cells, mu, exp(eta[[2L]]))),
-    poisson = square(stats::rpois(cells, mu)),
-    negbin = square(stats::rnbinom(cells, size = spread("theta"), mu = mu)),
-    Gamma_ls = {
-      shape <- exp(-eta[[2L]])
-      square(stats::rgamma(cells, shape = shape, rate = shape / mu))
-    },
-    Gamma = {
-      shape <- spread("shape")
-      square(stats::rgamma(cells, shape = shape, rate = shape / mu))
-    },
-    # Drawn from the representation rather than the density: a Poisson count of
-    # gamma claims, which is what the family is, and which gives the point mass
-    # at zero for free whenever the count comes out zero.
-    tweedie = {
-      p <- spread("power")
-      ph <- spread("phi")
-      lambda <- mu^(2 - p) / (ph * (2 - p))
-      shape <- (2 - p) / (p - 1)
-      scale <- ph * (p - 1) * mu^(p - 1)
-      # `spread()` gives one value per cell, so every one of these is a matrix
-      # of the same shape and the subsetting has to reach all of them.
-      n_claims <- stats::rpois(cells, lambda)
-      out <- numeric(cells)
-      hit <- n_claims > 0L
-      out[hit] <- stats::rgamma(sum(hit), shape = n_claims[hit] * shape[hit],
-                                scale = scale[hit])
-      square(out)
-    },
-    binomial = {
-      trials <- matrix(weights, nrow = ns, ncol = n, byrow = TRUE)
+         gaussian = square(stats::rnorm(cells, mu, spread("sigma"))),
+         gaussian_ls = square(stats::rnorm(cells, mu, exp(eta[[2L]]))),
+         poisson = square(stats::rpois(cells, mu)),
+         negbin = square(stats::rnbinom(cells, size = spread("theta"), mu = mu)),
+         Gamma_ls = {
+           shape <- exp(-eta[[2L]])
+           square(stats::rgamma(cells, shape = shape, rate = shape / mu))
+         },
+         Gamma = {
+           shape <- spread("shape")
+           square(stats::rgamma(cells, shape = shape, rate = shape / mu))
+         },
+         # Drawn from the representation rather than the density: a Poisson count of
+         # gamma claims, which is what the family is, and which gives the point mass
+         # at zero for free whenever the count comes out zero.
+         tweedie = {
+           p <- spread("power")
+           ph <- spread("phi")
+           lambda <- mu^(2 - p) / (ph * (2 - p))
+           shape <- (2 - p) / (p - 1)
+           scale <- ph * (p - 1) * mu^(p - 1)
+           # `spread()` gives one value per cell, so every one of these is a matrix
+           # of the same shape and the subsetting has to reach all of them.
+           n_claims <- stats::rpois(cells, lambda)
+           out <- numeric(cells)
+           hit <- n_claims > 0L
+           out[hit] <- stats::rgamma(sum(hit), shape = n_claims[hit] * shape[hit],
+                                     scale = scale[hit])
+           square(out)
+         },
+         binomial = {
+           trials <- matrix(weights, nrow = ns, ncol = n, byrow = TRUE)
 
-      if (any(abs(trials - round(trials)) > 1e-8)) {
-        arg::err("a replicate binomial outcome needs whole numbers of trials,
+           if (any(abs(trials - round(trials)) > 1e-8)) {
+             arg::err("a replicate binomial outcome needs whole numbers of trials,
                   and the prior weights are not whole numbers")
-      }
+           }
 
-      square(stats::rbinom(cells, size = round(trials), prob = mu)) / trials
-    },
-    arg::err("the {.val {family}} family has no posterior predictive sampler"))
+           square(stats::rbinom(cells, size = round(trials), prob = mu)) / trials
+         },
+         arg::err("the {.val {family}} family has no posterior predictive sampler"))
 }
 
 # The response as the likelihood saw it, which is the scale a replicate outcome
@@ -519,7 +519,7 @@ observed_response <- function(object) {
 #' @rdname bartisan-interop
 #' @exportS3Method rstantools::posterior_predict
 posterior_predict.bartisan_fit <- function(object, newdata = NULL, iterations = NULL,
-                                      offset = NULL, weights = NULL, ...) {
+                                           offset = NULL, weights = NULL, ...) {
 
   parts <- predict_parts(object, newdata, offset, iterations)
 
@@ -529,8 +529,8 @@ posterior_predict.bartisan_fit <- function(object, newdata = NULL, iterations = 
   # offset is in. Defaulting silently to one trial would return a plausible 0/1
   # answer to a question about counts, so it is an error instead.
   if (is_null(weights) && !is_null(newdata) &&
-        identical(object[["family"]][["family"]], "binomial") &&
-        any(object[["prior_weights"]] != 1)) {
+      identical(object[["family"]][["family"]], "binomial") &&
+      any(object[["prior_weights"]] != 1)) {
     arg::err("the model was fit to a binomial response with more than one trial,
               so {.arg weights} must give the number of trials for each row of
               {.arg newdata}")
@@ -556,7 +556,7 @@ posterior_epred.bartisan_fit <- function(object, newdata = NULL, ...) {
 #' @rdname bartisan-interop
 #' @exportS3Method rstantools::posterior_linpred
 posterior_linpred.bartisan_fit <- function(object, transform = FALSE, newdata = NULL,
-                                      ...) {
+                                           ...) {
   arg::arg_flag(transform)
 
   type <- if (transform) "response" else "link"
@@ -762,8 +762,8 @@ random_prior <- function(object, prior) {
     return(NULL)
   }
 
-  list(terms = vapply(random, `[[`, character(1L), "label"),
-       levels = vapply(random, `[[`, integer(1L), "num_levels"),
+  list(terms = pluck(random, "label"),
+       levels = pluck(random, "num_levels", integer(1L)),
        scale = prior[["sigma_mu"]][[1L]],
        estimated = isTRUE(prior[["update_tau"]]))
 }
@@ -820,10 +820,11 @@ family_prior <- function(object) {
 
     # The proportional hazards baseline is one rate per time bin under the same
     # prior, which is worth saying since the others are single numbers.
-    each <- if (stem == "lambda" && !is_null(opts[["edges"]]))
-      sprintf(", one for each of %s time bins",
-              length(opts[["edges"]]) - 1L)
-    else ""
+    each <- {
+      if (stem == "lambda" && !is_null(opts[["edges"]]))
+        sprintf(", one for each of %s time bins", length(opts[["edges"]]) - 1L)
+      else ""
+    }
 
     add(stem, sprintf("Gamma(shape = %s, rate = %s)%s", value(nm), value(rate),
                       each),
@@ -875,7 +876,7 @@ family_prior <- function(object) {
         family != "ordinal" || drawn("cuts"))
   }
 
-  if (length(rows) == 0L) {
+  if (is_null(rows)) {
     return(NULL)
   }
 
@@ -927,7 +928,7 @@ print.bartisan_prior_summary <- function(x, digits = 3L, ...) {
   }
 
   varies <- function(...) {
-    any(vapply(c(...), function(nm) length(unique(table[[nm]])) > 1L, TRUE))
+    any(vapply(c(...), function(nm) length(unique(table[[nm]])) > 1L, logical(1L)))
   }
 
   cli_cat("{.underline Priors}")
@@ -938,7 +939,7 @@ print.bartisan_prior_summary <- function(x, digits = 3L, ...) {
   # in it appears in the prose below, and printing both says it twice.
   if (nrow(table) > 1L && varies(setdiff(names(table), "forest"))) {
     show <- table[c(TRUE, vapply(table[-1L], function(z) length(unique(z)) > 1L,
-                                 TRUE))]
+                                 logical(1L)))]
 
     for (nm in setdiff(names(show), "forest")) {
       show[[nm]] <- round(show[[nm]], digits)
@@ -1036,7 +1037,7 @@ print.bartisan_prior_summary <- function(x, digits = 3L, ...) {
     random <- x[["random"]]
 
     tau_drawn <- if (random[["estimated"]]) "it is drawn"
-      else "it is held at that prior's median"
+    else "it is held at that prior's median"
 
     cli::cat_line()
     cli_cat("{.underline Group intercepts}")
@@ -1183,15 +1184,15 @@ kfold.bartisan_fit <- function(x, K = 10, folds = NULL, scale = NULL,
   # any, with the streams drawn here for the reason `estimate_effect()` gives.
   seeds <- parallel_streams(K)
 
-  done <- if (rlang::is_installed("future.apply")) {
-    future.apply::future_lapply(seq_len(K), one_fold, future.seed = seeds,
-                                future.packages = "bartisan")
+  if (use_future()) {
+    done <- future.apply::future_lapply(seq_len(K), one_fold, future.seed = seeds,
+                                        future.packages = "bartisan")
   }
   else {
     restore <- restore_stream()
     on.exit(restore(), add = TRUE)
 
-    lapply(seq_len(K), function(k) {
+    done <- lapply(seq_len(K), function(k) {
       assign(".Random.seed", seeds[[k]], envir = globalenv())
       one_fold(k)
     })
@@ -1239,7 +1240,7 @@ kfold_data <- function(x) {
 
   missing <- setdiff(rownames(x[["model"]]), rownames(out))
 
-  if (length(missing) > 0L) {
+  if (!is_null(missing)) {
     arg::err(c("The data this fit was made from is not the data that name now
                 reaches: {length(missing)} of its rows are gone.",
                i = "K-fold refits from the original call, so the data has to be
@@ -1680,7 +1681,7 @@ r2.bartisan_fit <- function(model, ...) {
 #' @rdname bartisan-interop
 #' @exportS3Method performance::model_performance
 model_performance.bartisan_fit <- function(model, metrics = "all", verbose = TRUE,
-                                      ...) {
+                                           ...) {
 
   all_metrics <- c("ELPD", "LOOIC", "WAIC", "R2", "RMSE", "SIGMA")
 
@@ -1708,7 +1709,7 @@ model_performance.bartisan_fit <- function(model, metrics = "all", verbose = TRU
   if (isTRUE(model[["prior_only"]])) {
     dropped <- intersect(c("ELPD", "LOOIC", "WAIC"), metrics)
 
-    if (verbose && length(dropped) > 0L) {
+    if (verbose && !is_null(dropped)) {
       arg::msg(c(i = "Leaving out {.val {dropped}}: this fit was made with
                       {.code prior_only = TRUE}, so there is no likelihood to
                       score."))

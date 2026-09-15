@@ -38,7 +38,6 @@ line at the end saying so. That way the same call prints the same thing
 whether the model came from \code{\link[=bcf]{bcf()}} or from \code{\link[=bartisan]{bartisan()}} with a \code{\link[=vc]{vc()}} term.
 }
 \examples{
-\dontshow{if (rlang::is_installed("ggplot2")) withAutoprint(\{ # examplesIf}
 data("rhc")
 set.seed(123)
 
@@ -53,7 +52,7 @@ estimate_effect(fit)
 
 # The conditional effects, ordered, with the average beside them
 plot(fit)
-\dontshow{\}) # examplesIf}
+
 }
 \seealso{
 \code{\link[=estimate_effect]{estimate_effect()}} for the effect and its estimands; \code{\link[=bcf]{bcf()}} for the

@@ -317,7 +317,7 @@ split_vc_terms <- function(formula, unique_covariates = TRUE) {
          center = center)
   })
 
-  names(specs) <- vapply(specs, `[[`, character(1L), "covariate")
+  names(specs) <- pluck(specs, "covariate")
 
   duplicated_at <- duplicated(names(specs))
 
@@ -422,7 +422,7 @@ vc_modifiers <- function(specs, groups, dot, categorical, where = NULL) {
   # since an interpolated value is inserted rather than parsed.
   which <- sprintf("the %s formula", where %or% "model")
 
-  covariates <- vapply(specs, `[[`, character(1L), "covariate")
+  covariates <- pluck(specs, "covariate")
   present <- intersect(covariates, groups)
 
   control <- setdiff(groups, present)
@@ -636,7 +636,7 @@ vc_basis_factor <- function(x, spec) {
 
   if (is.numeric(center) || !center %in% c("mean", levels)) {
     arg::err(c("the center of {.code {spec[['label']]}} must be {.val mean},
-                {.val estimate} or one of {.val {levels}}",
+                {.val estimate} or one of {.val {levels}}.",
                i = "{.val {spec[['covariate']]}} is categorical, so
                   {.val zero}, {.val mid} and a number do not name a value it
                   can take."))
@@ -684,7 +684,7 @@ vc_to_names <- function(expr) {
 }
 
 missing_arg_at <- function(expr, i) {
-  identical(expr[[i]], quote(expr = ))
+  identical(expr[[i]], rlang::missing_arg())
 }
 
 # The label of every forest, in the order they are built: the control function
@@ -758,7 +758,7 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
 
   missing_from_frame <- setdiff(
     unlist(lapply(forest_vc, function(f) {
-      vapply(f[["specs"]], `[[`, character(1L), "covariate")
+      pluck(f[["specs"]], "covariate")
     }), use.names = FALSE),
     names(mf))
 
@@ -801,7 +801,7 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
     categorical <- vapply(basis[["parts"]],
                           function(p) identical(p[["kind"]], "factor"),
                           logical(1L))
-    names(categorical) <- vapply(specs, `[[`, character(1L), "covariate")
+    names(categorical) <- pluck(specs, "covariate")
 
     modifiers <- vc_modifiers(specs, allowed, forest_vc[[h]][["dot"]],
                               categorical, labels[h])
