@@ -23,7 +23,9 @@ implementations cannot reach. The primary function is `bartisan()`, and its
 interface follows that of `glm()`: a model is specified with a formula, a data
 frame, and a family, with the forest taking the place of the linear predictor, so
 nothing has to be said about which terms enter the model, which are curved, or
-which interact. Ordinary `family` objects are used unchanged, including their
+which interact.
+
+Ordinary `family` objects are used unchanged, including their
 links, so moving a model from `glm()` to `bartisan()` is a one-word change.
 Supported families include binomial, Poisson, negative binomial, gamma, ordinal,
 multinomial, zero-inflated counts, beta and ordered beta, a Tweedie compound
@@ -68,11 +70,7 @@ admission to an intensive care unit, whether they died during follow-up, how lon
 that took, and thirteen physiological covariates recorded before catheterization
 (Connors et al., 1996). Catheterization was not randomized, so the comparison is
 confounded by how sick each patient was on admission, and the covariates are what
-adjustment has to work with. Two features make the data a useful illustration:
-the covariates enter through a forest, so no functional form has to be committed
-to, and the same event is available both as a binary indicator and as a
-right-censored survival time, so it supports two families without changing the
-call's shape.
+adjustment has to work with.
 
 ```{r}
 library(bartisan)
@@ -80,10 +78,8 @@ library(bartisan)
 data("rhc")
 set.seed(123)
 
-# `days` is the timing of the same event as `death`, so it is excluded
-# rather than conditioned on. The family is read off the response
 fit <- bartisan(death ~ . - days, data = rhc,
-                num_trees = 20, num_burn = 200, num_draws = 200)
+                family = binomial("probit"))
 
 fit
 ```

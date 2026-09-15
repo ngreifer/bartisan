@@ -8,37 +8,36 @@ The standard applied throughout: **does this seriously affect a workflow the
 package claims to support?** Speedups, polish and features that another package
 already covers are excluded, however tempting.
 
-## Where we stand (2026-09-15)
+## Where we stand (2026-09-15, after a clean check)
 
 Everything the original list called blocking has landed except one item, and that
 one has an argument for reclassifying rather than doing. The vignette series is
-written: ten vignettes, all knitting clean. The suite is 38 files, 456 tests and
-2275 assertions, green under `testthat::test_local()`.
+written. The counts are in the table below rather than here, so that there is
+one place to correct them.
 
-`R CMD check` was **1 ERROR, 1 WARNING, 1 NOTE**, which was the finding of the
-previous round: the suite and the knit were not standing in for a check. All
-three are fixed and `ranef()` is added, but the re-check has **not** been run to
-a clean bill: `clang++` on this machine now stops at "You have not agreed to the
-Xcode license agreements", so nothing compiles and `R CMD check` cannot install
-the package. The fix is `sudo xcodebuild -license`, which wants a password.
-Part 4 has what the three findings were.
+`R CMD check` is **`Status: OK`** on the built tarball, with no ERROR, WARNING or
+NOTE. It was 1 ERROR, 1 WARNING and 1 NOTE a round earlier, which was the
+finding then: the suite and the knit had not been standing in for a check. All
+three are fixed and the fixes are confirmed against a real build, which for one
+of them is the only demonstration available, the finding having been a test that
+could only fail under `R CMD check`. Part 4 records what they were.
 
 | | |
 | --- | --- |
 | Blocking, done | the rename, `variable_importance()`, `as_draws(eta = )`, the `predict(type = "density")` warning |
 | Blocking, open | `custom_family()` has no posterior predictive draws (item 4); already documented elsewhere, needs one cross-reference to stop being a blocker |
 | Landed since, unplanned | `estimate_effect()`, `bcf()`, `diagnose()`, `partial_dependence()`, `kfold()`, `prior_only`, `prior_summary()`, `ranef()` |
-| Check findings, fixed but unverified | the invariants test asserts against `getNamespaceInfo()` rather than a path only a checkout has; `potential_outcomes` and `digits` documented; `^vignettes/figure$` added to `.Rbuildignore`. The re-check is blocked on the Xcode license, not on the package (Part 4) |
+| Check findings, fixed and verified | the invariants test asserts against `getNamespaceInfo()` rather than a path only a checkout has; `potential_outcomes` and `digits` documented; `^vignettes/figure$` added to `.Rbuildignore` (Part 4) |
 | Declined | `predictive_interval()` and `predictive_error()`, and with them the cross-reference in `vignette("bartisan")` that promised a section `vignette("effects")` never had (Part 3) |
 | Still open | `VarCorr()`, a `NEWS.md`, and a version that is not `0.0.0.9000` |
+| Verification | suite 39 files / 2300 assertions, ten vignettes knitting with no chunk errors, and `R CMD check` `Status: OK` |
 
-The judgment: **the feature work is done, and the check is fixed but unverified.**
-Part 3 is the survey that says the first, done by reading an export list rather
-than guessing at parity, and Part 4 is the record of what the check found. What
-is left is neither a feature nor a fix: a `NEWS.md`, a version that is not
-`0.0.0.9000`, one cross-reference on the `custom_family()` page, and a check run
-on a machine whose compiler works. "What to do next" at the bottom has them in
-order.
+The judgment: **the code is submittable and the paperwork is not.** Part 3 is the
+survey that says the first, done by reading an export list rather than guessing
+at parity, and Part 4 is the record of what the check found before it went
+green. What is left is neither a feature nor a fix: a `NEWS.md`, a version that
+is not `0.0.0.9000`, and one cross-reference on the `custom_family()` page.
+"What to do next" at the bottom has them in order.
 
 ## Part 1: what is actually missing
 
@@ -432,8 +431,9 @@ premise of doing the two halves together and is the strongest evidence for it.
 Run with `_dev/check.sh` on 2026-09-14, against the built tarball rather than the
 source tree. `Status: 1 ERROR, 1 WARNING, 1 NOTE`. None of the three had shown up
 in `testthat::test_local()` or in a knit, because none of them can. **All three
-are fixed**; kept here because what each one was is more useful than the fact
-that it is gone.
+are fixed and the check is `Status: OK` as of 2026-09-15**; kept here because
+what each one was is more useful than the fact that it is gone, and because the
+first is the standing argument for running the check at all.
 
 ### ERROR: a test that only passes in a checkout
 
@@ -502,13 +502,9 @@ worth remembering: `.gitignore` keeps it out of the repository and
    item 4 non-blocking rather than merely unfinished.
 3. **`NEWS.md` does not exist.** Nothing requires one before a first release, but
    the version is still `0.0.0.9000` and something has to say what 0.1.0 is.
-4. **Re-run `_dev/check.sh` to a clean bill**, since one of its three findings
-   was a test and a green check is the only thing that shows the test now passes
-   where it has to. Blocked as of 2026-09-15 on the Xcode license
-   (`sudo xcodebuild -license`); until that is accepted nothing on this machine
-   compiles, so the check cannot install the package to check it. The suite
-   still passes because `load_all()` reuses the `.so` built before the licence
-   lapsed, and no C++ changed in the meantime.
+4. ~~**Re-run `_dev/check.sh` to a clean bill.**~~ Done: `Status: OK`. Worth
+   re-running before submission itself, since the last three findings all
+   arrived from a source the suite and the knit cannot see.
 5. Post-1.0, in no order: `VarCorr()`, the `loo_*` prediction wrappers,
    `posterior_vs_prior()`, an `rng` for `custom_family()`, and the DART
    inclusion probability as a stored quantity (`TASKS.md` has why it is a C++
