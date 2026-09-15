@@ -67,6 +67,9 @@
 #'   the scale its family works on. Default is `NULL`, in which case the family
 #'   is read off the response and a message reports the choice; see Details for
 #'   the rules.
+#' @param prior_only `logical`; whether to draw from the prior rather than the
+#'   posterior, which is what a prior predictive check reads. Default is `FALSE`.
+#'   Not available for every family; see Details.
 #' @param weights optional; prior weights, one per observation. For a binomial
 #'   response given as proportions, these are the numbers of trials, as in
 #'   `glm()`.
@@ -294,6 +297,58 @@
 #' coping with missing data in decision trees. *Pattern Recognition Letters*,
 #' 29(7), 950--956. \doi{10.1016/j.patrec.2008.01.010}
 #'
+#' ## Drawing From the Prior (`prior_only`)
+#'
+#' `prior_only = TRUE` fits the same model to no data. Every observation is given
+#' a weight of zero, and since the weight multiplies that observation's log
+#' density, its gradient and its curvature, the likelihood is flat: each tree
+#' move is accepted or rejected on the prior alone and each leaf is drawn from
+#' its prior. A family that draws an auxiliary parameter from the response
+#' directly rather than through the weighted density (the mixture atoms under
+#' `dpm()`, the latent utilities under `multinomial(link = "probit")`) is told
+#' separately that a weightless observation carries no information, and draws
+#' that parameter from its own prior instead. The sampler is otherwise untouched,
+#' so what comes back is an ordinary fit whose draws are prior draws, and
+#' \pkgfun{rstantools}{posterior_predict} on it gives the prior predictive
+#' distribution.
+#'
+#' It answers a question the priors themselves cannot. `k`, `gamma` and `beta`
+#' are statements about trees and leaves, and nobody has intuition for what they
+#' imply about an outcome. The replicates put that on the response's own scale,
+#' where it can be judged: a prior predictive that puts its mass where the
+#' outcome cannot go, or spread over an implausible range, is a prior worth
+#' changing before the data are seen and before any of their information is
+#' spent.
+#'
+#' **What the prior is still conditioned on.** The additive predictor is anchored
+#' at an intercept-only fit on the link scale, and the leaf scale is calibrated
+#' from the response, which is how a BART prior is specified and not a leak.
+#' So the replicates take their *location and scale* from the response and
+#' everything else from the prior: which predictors are split on, how deep, how
+#' much the fitted function departs from that anchor. Read them for shape and
+#' spread rather than for level.
+#'
+#' **The one family that refuses it.** `ordinal()` draws its cutpoints from the
+#' likelihood alone, with no prior term to fall back on, so at zero weight the
+#' target is not flattened but empty and the cutpoints wander out to the bound.
+#' Every replicate would land in one category with nothing in the fit to say so,
+#' which is why this is an error rather than a warning. The gap is in the model
+#' and not in the mechanism; it would close if a prior over ordered cutpoints
+#' were specified. For an ordered outcome with few enough categories,
+#' `multinomial()` allows `prior_only = TRUE` and is the nearest substitute.
+#'
+#' Note that the wider a prior is, the wider its replicates, and that is a
+#' finding rather than a fault. `gaussian_ls()` and `Gamma_ls()` put a log scale
+#' in a second forest, and a scale drawn from the leaf prior sends their
+#' replicates far wider than the response ever runs. That is the prior the
+#' defaults specify, shown on the scale where it can be judged, which is what
+#' the check is for.
+#'
+#' Nothing that scores a fit against data will run on one. `loo()`, `waic()` and
+#' `kfold()` refuse, and
+#' \pkgfun{performance}{model_performance} leaves out the three columns built on
+#' them.
+#'
 #' @seealso
 #' [bartisan_control()] for the sampler and prior settings;
 #' [predict.bartisan_fit()] for prediction; [bartisan-families] for the
@@ -325,9 +380,11 @@
 bartisan <- function(formula, data, family = NULL, weights = NULL,
                      offset = NULL, subset = NULL,
                      na.action = stats::na.pass,
-                     control = bartisan_control(), ...) {
+                     control = bartisan_control(), prior_only = FALSE, ...) {
 
   cl <- match.call()
+
+  arg::arg_flag(prior_only)
 
   warn_unoptimized()
 
@@ -729,11 +786,25 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   # Everything above is a deterministic function of the data and is done once;
   # only the sampler itself is repeated per chain.
+  # A prior-only fit hands the engine a zero weight for every observation. The
+  # weight multiplies that observation's log density, its gradient and its
+  # curvature in one place (`src/family.h`), so zeroing it flattens the
+  # likelihood exactly: every tree move is then accepted on the prior alone and
+  # every leaf is drawn from its prior. The sampler is not otherwise touched.
+  engine_weights <- if (prior_only) {
+    prior_only_check(response[["family"]])
+
+    rep.int(0, length(response[["weights"]]))
+  }
+  else {
+    response[["weights"]]
+  }
+
   engine <- function(ignored) {
     .bartisan_fit(X = unit$x,
                   has_na = as.integer(has_na),
                   y = response[["y"]],
-                  weights = response[["weights"]],
+                  weights = engine_weights,
                   offset = response[["offset"]],
                   group_probs = group_probs,
                   family_name = response[["family"]],
@@ -793,6 +864,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
               # Kept so that the conditional density of the training data can be
               # evaluated without asking the caller to hand the outcome back.
               y = response[["y"]],
+              prior_only = prior_only,
               prior_weights = response[["weights"]],
               family_opts = response[["opts"]],
               levels = response[["levels"]],
@@ -925,6 +997,55 @@ run_chains <- function(engine, chains) {
     assign(".Random.seed", seeds[[i]], envir = globalenv())
     engine(i)
   })
+}
+
+# Which families a flattened likelihood actually leaves at the prior.
+#
+# Zeroing the weights switches off everything that reaches the likelihood
+# through `Family::logdens()`, which is the additive predictor and the leaves.
+# It does not switch off an update written against the response directly, and
+# the weight is a convenience rather than the only way to flatten one: an
+# update that reads the data can be told to read zeros instead. Two were, in
+# `src/family.cpp`, by having them ask whether the observation carries any
+# weight at all:
+#
+#   `dpm()` and `dpm_aft()` assign each observation to a mixture atom from the
+#   residual `y - eta` and redraw the atoms from those residuals. At zero weight
+#   the residual now drops out of both, so the label comes from the Chinese
+#   restaurant prior and the atom from the base measure, which is the
+#   conditional an observation contributing no likelihood leaves behind.
+#
+#   `multinomial(link = "probit")` drew each latent utility with variance
+#   `1 / (w * prec)`, infinite at zero weight, and the covariance drawn from
+#   those utilities was no longer symmetric. A weightless observation's
+#   utilities now sit on the predictor, leaving the covariance at its prior.
+#
+# What is left is the one case where the weight is not the obstacle.
+# `ordinal()` draws its cutpoints from a target that is the weighted log
+# probability *with no prior term at all*, so at zero weight the target is not
+# flattened but empty: the slice sampler walks a flat improper density out to
+# the bound the code puts on the top cutpoint, which is 1e4. There is nothing
+# to fall back on until the model specifies a prior over ordered cutpoints,
+# which is a modeling decision and not a switch.
+#
+# Refused rather than warned about, because the failure is silent: a fit comes
+# back and the replicates look like replicates, all of them in one category.
+PRIOR_ONLY_REFUSED <- c(
+  ordinal = "its cutpoints are drawn from the likelihood alone, with no prior
+             term to fall back on when the likelihood goes flat")
+
+prior_only_check <- function(family) {
+  if (!family %in% names(PRIOR_ONLY_REFUSED)) {
+    return(invisible(TRUE))
+  }
+
+  arg::err(c("{.code prior_only = TRUE} is not available for
+              {.code {family}()}, because {PRIOR_ONLY_REFUSED[[family]]}.",
+             i = "The cutpoints would walk out to the bound and every replicate
+                  would land in one category, with nothing in them to say so.",
+             i = "Every other family supports it, {.fn multinomial} included.
+                  For an ordered outcome with a modest number of categories,
+                  {.fn multinomial} is the nearest thing that does."))
 }
 
 # One L'Ecuyer stream per chain, advanced from the current seed, which is what

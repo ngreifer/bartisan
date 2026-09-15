@@ -7082,7 +7082,7 @@ the 100-column floor, and the package loaded with `pkgload::load_all()`.
 
 The convergence pass splits its columns with
 `future::future(diagnosis_block(part, chains, step), packages = "bartisan")`.
-Written as a bare call, \pkg{future} reads `diagnosis_block` as belonging to this
+Written as a bare call, *future* reads `diagnosis_block` as belonging to this
 package and drops it from the globals it ships, naming the package in `packages`
 instead. Checked directly: `getGlobalsAndPackages()` returns no globals and
 infers `packages: bartisan`. The worker then attaches the package, which puts
@@ -7092,7 +7092,7 @@ which makes that misreading certain; installed, the lookup resolved anyway. So
 the code was relying on a heuristic being right and it was right by luck.
 
 Fixed by naming it in `globals`. Verified under `load_all()` and installed, with
-and without a \pkg{progressr} handler, on the fit and the `CATE` path, and the
+and without a *progressr* handler, on the fit and the `CATE` path, and the
 parallel table is `all.equal` to the sequential one. The regression test runs two
 real workers and skips where a second cannot be started.
 
@@ -7146,7 +7146,7 @@ fit with many draws showed it most. At 200 ticks the largest gap between reports
 falls from 2.8% of the run to 1.3% and the pass costs the same.
 
 Note on method: every "zero progress events" measurement in the previous entry
-was worthless, because \pkg{progressr} handlers are disabled in non-interactive
+was worthless, because *progressr* handlers are disabled in non-interactive
 R. Those harnesses were measuring a switched-off system. Second time in this
 session a conclusion came from a broken harness rather than from checking the
 harness first.
@@ -7297,3 +7297,83 @@ prediction loops. It was documented nowhere. `?bartisan_control` now names all
 three axes, the measured speedup, and the limit with its remedy. A user meets
 this exactly when the parallelism starts to matter, which is the wrong moment to
 meet an undocumented error.
+
+## Weights were one way to flatten a likelihood, and I had mistaken them for the only one
+
+`prior_only = TRUE` zeroes every observation's weight, and the weight multiplies
+the log density, the gradient and the curvature at `src/family.h:68`. That
+reaches the forests and the leaves. It does not reach an update written against
+the response directly, so five families were refused outright. Challenged on
+whether that was a mathematical limit or a technical one, and it was mostly
+technical.
+
+### The permutation test
+
+The intercept anchor takes the mean and the sd of the response, both of which a
+permutation preserves, so under a genuine prior-only fit permuting the response
+must leave the draws where they were. Fit twice, once permuted, and read the
+largest difference in the `eta` draws:
+
+| family | max abs diff |
+| --- | --- |
+| `gaussian()` | 7.1e-15 |
+| `binomial()`, probit | 0 |
+| `gaussian_ls()` | 1.8e-15 |
+| `ordinal()` | 0 |
+| `multinomial()`, both links | 0 |
+| `dpm()` | 4.17 |
+
+Three of the five refusals were wrong. `gaussian_ls()` and `Gamma_ls()` never
+leaked; the refusal was a judgment that wide replicates are useless, written as
+if it were a correctness claim. Wide replicates are the check working. Measured
+at 10 trees, the prior replicates came back at sd 8.1 against the response's
+0.84, entirely finite. `ordinal()` does not leak either: its `eta` draws are
+identical under permutation and only the cutpoints misbehave.
+
+### What the fix turned out to be
+
+`draw_atom(0, 0, 0, ...)` already reduces to a draw from the
+normal-inverse-chi-squared base measure, so the DPM needed no new machinery,
+only a question: `bool informative = w(i) > 0.0`. At zero weight the label comes
+from the Chinese restaurant prior, the atom from the base measure, and a
+weightless observation contributes nothing to the sufficient statistics of the
+atom it sits in.
+
+Preferred over threading a `prior_only` flag into the engine, for three reasons.
+No plumbing through every family. No second source of truth that can disagree
+with the weights. And it fixes a bug that had nothing to do with `prior_only`: a
+user passing `weights` containing zeros was having those rows contaminate the
+mixture atoms. With unit weights the path is bit-identical to before.
+
+`multinomial(link = "probit")` was never on the refused list and should have
+been looked at: `draw_latent()` computed a variance of `1 / (w * prec)`, which
+at zero weight is infinite, and the covariance drawn from those utilities was no
+longer symmetric. 240 `inv_sympd()` warnings per fit, now none.
+
+### The residue is the RNG stream, not the data
+
+After the fix `dpm()` is not bitwise identical under permutation. It is not a
+leak:
+
+| comparison | max abs diff |
+| --- | --- |
+| two responses, same seed | 0.12 to 0.45 |
+| two seeds, same response | 5.3 to 126 |
+
+KS on the two `eta` samples gives p = 0.98. The mixture consumes random numbers
+as it goes and the two streams drift apart by a hair. The test asserts the drift
+is under a quarter of the prior's own standard deviation, which it clears by an
+order of magnitude and which the pre-fix code failed outright.
+
+### `ordinal()` is the one that stays refused
+
+Its cutpoint target is `sum_i w(i) * ordinal_log_prob(...)` at
+`src/family.cpp:549`, with no prior term. At zero weight the target is not
+flattened but empty, and the slice sampler walks a flat improper density toward
+the 1e4 clamp the code puts on the top cutpoint: `cut2` reached 311.6 in 100
+draws, and every replicate lands in one category.
+
+That is a gap in the model rather than in the mechanism. It closes the moment a
+prior over ordered cutpoints is specified, which would change every ordinal
+posterior and so was not slipped in. `multinomial()` is the substitute offered
+for an ordered outcome with few enough categories.

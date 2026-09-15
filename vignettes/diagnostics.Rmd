@@ -441,6 +441,57 @@ the list above is the order to try them in.
 Convergence says the sampler did its job; it says nothing at all about whether
 the model is right. The checks below assess the fit of the model to the data.
 
+### Before the Data: The Prior Predictive (`prior_only`)
+
+Everything else in this section compares the model to the data it was fitted to.
+One check is worth running before any of that information has been spent. The
+settings in `bartisan_control()` are statements about trees and leaves, and
+nobody has intuition for what `k = 2` implies about a patient's chance of dying.
+A prior predictive check puts the prior on the outcome's own scale, where it can
+be judged.
+
+`prior_only = TRUE` fits the same model to no data. Every observation is given a
+weight of zero, and since the weight multiplies that observation's contribution
+to the likelihood, the likelihood goes flat and the sampler draws from the prior.
+
+```{r prioronly, eval = run}
+set.seed(2026)
+
+prior <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+                    hema + pafi + paco2 + crea + surv2m + card,
+                  data = rhc, family = binomial(), prior_only = TRUE)
+```
+
+What comes back is an ordinary fit whose draws are prior draws, so everything
+that reads a fit reads this one. The question to put to it is whether the risks
+the prior considers plausible are ones a critically ill patient could actually
+have.
+
+```{r priorquant, eval = run}
+p <- c(.01, .1, .5, .9, .99)
+
+quantile(predict(prior, type = "response", draws = TRUE), p)
+
+quantile(predict(fit, type = "response", draws = TRUE), p)
+```
+
+The prior runs from about .01 to about .99, which is what we want of a prior on a
+probability: it rules almost nothing out and asserts almost nothing. The fitted
+model runs from about .19 to about .95 over the same quantiles, so the data have
+brought it a long way in from where it started. A prior that had come back
+concentrated near zero and one, or confined to a narrow band in the middle, would
+be worth changing before going any further.
+
+There is one thing not to read into this. The median sits close to the observed
+death rate because the additive predictor is anchored at an intercept-only fit,
+which is how a BART prior is specified and not a leak. The replicates take their
+location and scale from the response and everything else from the prior, so read
+them for shape and spread rather than for level.
+
+Every family supports this except `ordinal()`, whose cutpoints are drawn from the
+likelihood alone and so have nothing to fall back on when the likelihood goes
+flat; `?bartisan` has the details.
+
 ### Posterior Predictive Checks (`pp_check()`)
 
 A posterior predictive check simulates outcomes from the fitted model and
@@ -555,7 +606,11 @@ is best read as a relative measure rather than against any absolute standard.
 
 ## A Checklist
 
-Before reporting anything from a fit, we run it with `chains = 4` and pass it to
+Before fitting in earnest we run the model once with `prior_only = TRUE` and
+check that the replicates fall where the outcome can actually go, since a prior
+worth changing is cheapest to change before any of the data's information has
+been spent. Then, before reporting anything from a fit, we run it with
+`chains = 4` and pass it to
 `diagnose()`, reading what that says to change: it applies the thresholds, names
 the rows that are exempt from them, and separates a warmup that ended too early
 from chains that have each genuinely settled somewhere different. We then run

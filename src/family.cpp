@@ -4110,17 +4110,31 @@ struct DPMFamily : Concrete<DPMFamily> {
       weight_buffer.resize(atoms + 1);
       double largest = R_NegInf;
 
+      // An observation carrying no weight contributes no likelihood, so its
+      // label is drawn from the Chinese restaurant prior alone and the residual
+      // drops out of every term. This is what lets `prior_only = TRUE` reach
+      // the mixture: the weight multiplies the log density everywhere else, but
+      // the mixture update reads the residuals directly, and without this it
+      // would go on fitting the error distribution to data the rest of the
+      // sampler has been told to ignore.
+      bool informative = w(i) > 0.0;
+
       for (int k = 0; k < atoms; k++) {
-        double resid = r - atom_mu[k];
-        weight_buffer[k] = std::log(static_cast<double>(atom_count[k])) -
-          0.5 * (LN_2PI + std::log(atom_s2[k]) + resid * resid / atom_s2[k]);
+        weight_buffer[k] = std::log(static_cast<double>(atom_count[k]));
+
+        if (informative) {
+          double resid = r - atom_mu[k];
+          weight_buffer[k] -= 0.5 * (LN_2PI + std::log(atom_s2[k]) +
+                                     resid * resid / atom_s2[k]);
+        }
 
         if (weight_buffer[k] > largest) {
           largest = weight_buffer[k];
         }
       }
 
-      weight_buffer[atoms] = std::log(alpha) + log_marginal(r);
+      weight_buffer[atoms] = std::log(alpha) +
+        (informative ? log_marginal(r) : 0.0);
 
       if (weight_buffer[atoms] > largest) {
         largest = weight_buffer[atoms];
@@ -4149,7 +4163,17 @@ struct DPMFamily : Concrete<DPMFamily> {
       if (chosen == atoms) {
         double fresh_mu;
         double fresh_s2;
-        draw_atom(1.0, r, r * r, &fresh_mu, &fresh_s2);
+
+        // Zero sufficient statistics reduce draw_atom() to a draw from the
+        // normal-inverse-chi-squared base measure, which is what a weightless
+        // observation leaves behind when it opens an atom of its own.
+        if (informative) {
+          draw_atom(1.0, r, r * r, &fresh_mu, &fresh_s2);
+        }
+        else {
+          draw_atom(0.0, 0.0, 0.0, &fresh_mu, &fresh_s2);
+        }
+
         atom_mu.push_back(fresh_mu);
         atom_s2.push_back(fresh_s2);
         atom_count.push_back(1);
@@ -4168,6 +4192,10 @@ struct DPMFamily : Concrete<DPMFamily> {
     std::vector<double> count(atoms, 0.0);
 
     for (int i = 0; i < N; i++) {
+      if (!(w(i) > 0.0)) {
+        continue;
+      }
+
       double r = y(i) - e(i);
       int k = label[i];
       count[k] += 1.0;
@@ -4598,6 +4626,18 @@ struct MultinomProbitFamily : Concrete<MultinomProbitFamily> {
   void draw_latent(const arma::mat& eta) {
     for (int i = 0; i < N; i++) {
       int winner = static_cast<int>(category(i)) - 1;   // -1 for the reference
+
+      // A weightless observation has no likelihood to truncate against, and its
+      // conditional variance would be infinite. Parking its utilities on the
+      // predictor leaves a zero residual, so the covariance below is drawn from
+      // its inverse Wishart prior rather than from arithmetic on infinities.
+      if (!(w(i) > 0.0)) {
+        for (int l = 0; l < H; l++) {
+          latent(l, i) = eta(l, i);
+        }
+
+        continue;
+      }
 
       for (int l = 0; l < H; l++) {
         double variance = 1.0 / (w(i) * prec(l, l));

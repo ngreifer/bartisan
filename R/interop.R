@@ -690,6 +690,8 @@ chain_ids <- function(object) {
 #' @rdname bartisan-interop
 #' @exportS3Method loo::loo
 loo.bartisan_fit <- function(x, scale = NULL, ...) {
+  prior_only_refuse(x, "loo")
+
   ll <- survival_measure(x, log_lik.bartisan_fit(x), scale)
   r_eff <- loo::relative_eff(exp(ll), chain_id = chain_ids(x))
 
@@ -699,6 +701,8 @@ loo.bartisan_fit <- function(x, scale = NULL, ...) {
 #' @rdname bartisan-interop
 #' @exportS3Method loo::waic
 waic.bartisan_fit <- function(x, scale = NULL, ...) {
+  prior_only_refuse(x, "waic")
+
   survival_measure(x, log_lik.bartisan_fit(x), scale) |>
     loo::waic.matrix(...)
 }
@@ -707,6 +711,8 @@ waic.bartisan_fit <- function(x, scale = NULL, ...) {
 #' @exportS3Method loo::kfold
 kfold.bartisan_fit <- function(x, K = 10, folds = NULL, scale = NULL,
                                save_fits = FALSE, ...) {
+
+  prior_only_refuse(x, "kfold")
 
   rlang::check_installed("loo", "for K-fold cross-validation.")
 
@@ -918,6 +924,20 @@ kfold_object <- function(elpd, lpd, folds, K, draws, fits = NULL) {
 
   class(out) <- c("kfold", "loo")
   out
+}
+
+# A prior-only fit has no likelihood to score, so everything built on one has to
+# say so rather than return a number. `model_performance()` is included because
+# it reaches `loo()` on its own and the refusal would otherwise surface from a
+# call that never mentioned it.
+prior_only_refuse <- function(object, what) {
+  if (!isTRUE(object[["prior_only"]])) {
+    return(invisible(TRUE))
+  }
+
+  arg::err(c("{.fn {what}} scores a fit against the data, and this fit was made
+              with {.code prior_only = TRUE}, so it was never shown any.",
+             i = "Refit without {.arg prior_only} to score it."))
 }
 
 # The survival families do not all write their likelihood with respect to the
@@ -1267,6 +1287,21 @@ model_performance.bartisan_fit <- function(model, metrics = "all", verbose = TRU
   # package's generic.
   if (any(c("ELPD", "LOOIC", "WAIC") %in% metrics)) {
     rlang::check_installed("loo", "to report the ELPD, LOOIC or WAIC.")
+  }
+
+  # A prior-only fit has no likelihood, so the three scores built on one are
+  # dropped rather than erroring: the rest of the table is computable and the
+  # caller asked for the table, not for the ELPD.
+  if (isTRUE(model[["prior_only"]])) {
+    dropped <- intersect(c("ELPD", "LOOIC", "WAIC"), metrics)
+
+    if (verbose && length(dropped) > 0L) {
+      arg::msg(c(i = "Leaving out {.val {dropped}}: this fit was made with
+                      {.code prior_only = TRUE}, so there is no likelihood to
+                      score."))
+    }
+
+    metrics <- setdiff(metrics, c("ELPD", "LOOIC", "WAIC"))
   }
 
   if (any(c("ELPD", "LOOIC") %in% metrics)) {

@@ -13,6 +13,7 @@ bartisan(
   subset = NULL,
   na.action = stats::na.pass,
   control = bartisan_control(),
+  prior_only = FALSE,
   ...
 )
 }
@@ -95,6 +96,10 @@ nothing to fit them to.}
 
 \item{control}{a \verb{<bartisan_control>} object; the output of a call to
 \code{\link[=bartisan_control]{bartisan_control()}}, containing the sampler and prior settings.}
+
+\item{prior_only}{\code{logical}; whether to draw from the prior rather than the
+posterior, which is what a prior predictive check reads. Default is \code{FALSE}.
+Not available for every family; see Details.}
 
 \item{...}{further arguments to \code{\link[=bartisan_control]{bartisan_control()}}, which are merged into
 \code{control} and override any value given there, so that
@@ -343,6 +348,58 @@ for assessing convergence of MCMC. \emph{Bayesian Analysis}, 16(2), 667--718.
 Twala, B. E. T. H., Jones, M. C., & Hand, D. J. (2008). Good methods for
 coping with missing data in decision trees. \emph{Pattern Recognition Letters},
 29(7), 950--956. \doi{10.1016/j.patrec.2008.01.010}
+\subsection{Drawing From the Prior (\code{prior_only})}{
+
+\code{prior_only = TRUE} fits the same model to no data. Every observation is given
+a weight of zero, and since the weight multiplies that observation's log
+density, its gradient and its curvature, the likelihood is flat: each tree
+move is accepted or rejected on the prior alone and each leaf is drawn from
+its prior. A family that draws an auxiliary parameter from the response
+directly rather than through the weighted density (the mixture atoms under
+\code{dpm()}, the latent utilities under \code{multinomial(link = "probit")}) is told
+separately that a weightless observation carries no information, and draws
+that parameter from its own prior instead. The sampler is otherwise untouched,
+so what comes back is an ordinary fit whose draws are prior draws, and
+\pkgfun{rstantools}{posterior_predict} on it gives the prior predictive
+distribution.
+
+It answers a question the priors themselves cannot. \code{k}, \code{gamma} and \code{beta}
+are statements about trees and leaves, and nobody has intuition for what they
+imply about an outcome. The replicates put that on the response's own scale,
+where it can be judged: a prior predictive that puts its mass where the
+outcome cannot go, or spread over an implausible range, is a prior worth
+changing before the data are seen and before any of their information is
+spent.
+
+\strong{What the prior is still conditioned on.} The additive predictor is anchored
+at an intercept-only fit on the link scale, and the leaf scale is calibrated
+from the response, which is how a BART prior is specified and not a leak.
+So the replicates take their \emph{location and scale} from the response and
+everything else from the prior: which predictors are split on, how deep, how
+much the fitted function departs from that anchor. Read them for shape and
+spread rather than for level.
+
+\strong{The one family that refuses it.} \code{ordinal()} draws its cutpoints from the
+likelihood alone, with no prior term to fall back on, so at zero weight the
+target is not flattened but empty and the cutpoints wander out to the bound.
+Every replicate would land in one category with nothing in the fit to say so,
+which is why this is an error rather than a warning. The gap is in the model
+and not in the mechanism; it would close if a prior over ordered cutpoints
+were specified. For an ordered outcome with few enough categories,
+\code{multinomial()} allows \code{prior_only = TRUE} and is the nearest substitute.
+
+Note that the wider a prior is, the wider its replicates, and that is a
+finding rather than a fault. \code{gaussian_ls()} and \code{Gamma_ls()} put a log scale
+in a second forest, and a scale drawn from the leaf prior sends their
+replicates far wider than the response ever runs. That is the prior the
+defaults specify, shown on the scale where it can be judged, which is what
+the check is for.
+
+Nothing that scores a fit against data will run on one. \code{loo()}, \code{waic()} and
+\code{kfold()} refuse, and
+\pkgfun{performance}{model_performance} leaves out the three columns built on
+them.
+}
 }
 \seealso{
 \code{\link[=bartisan_control]{bartisan_control()}} for the sampler and prior settings;

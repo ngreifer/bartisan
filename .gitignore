@@ -95,5 +95,8 @@ docs
 !_dev/varsel-check.R
 !_dev/plot-methods.md
 
-# Figures from knitting a vignette outside the package build.
+# Figures from knitting a vignette outside the package build. `fig.path` is
+# relative to the working directory, so knitting from the package root rather
+# than from `vignettes/` puts them one level up.
 vignettes/figure/
+figure/
