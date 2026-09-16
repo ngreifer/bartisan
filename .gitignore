@@ -39,6 +39,10 @@ _dev/*
 !_dev/survival-bins.R
 !_dev/survival-timing.R
 !_dev/survival-results.R
+!_dev/xtransform-sim.R
+!_dev/xtransform-results.R
+!_dev/xtransform-candidates.R
+!_dev/xtransform-candidates-results.R
 !_dev/bcf-interfaces.md
 !_dev/bcf-proof.R
 !_dev/bcf-mixing.R

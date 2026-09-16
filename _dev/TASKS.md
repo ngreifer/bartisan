@@ -7656,3 +7656,203 @@ it reads what it needs by name: `offset`, `iterations`, `weights`, `values`,
 match, hands the whole grid back to `predict()`. The alternative was to accept
 the argument and not apply it, which would have been wrong in silence; this is
 slower on those calls and cannot be.
+
+## `x_transform`: neither default is dominant, and `range` has the worse tail
+
+Asked whether `range` would do as a default, since it is the option that leaves
+a soft-rule fit differentiable and so makes `avg_slopes()` mean something.
+Measured rather than argued: `_dev/xtransform-sim.R` fits both transforms to
+eight data-generating processes at n = 500 and 2000, 20 replicates each, and
+scores the posterior mean of the regression function against the **true** function
+on 1000 held-out points. `_dev/xtransform-results.R` prints the tables. RMSE
+below is a fraction of the signal's own standard deviation, so it is comparable
+across scenarios.
+
+| scenario | n | quantile | range | ratio | range better in |
+|---|---|---|---|---|---|
+| uniform | 500 | .0593 | .0544 | .92 | 17/20 |
+| uniform | 2000 | .0322 | .0310 | .96 | 13/20 |
+| lognormal | 500 | .0627 | .0573 | .91 | 16/20 |
+| lognormal | 2000 | .0329 | .0314 | .96 | 13/20 |
+| outliers | 500 | .0695 | .0520 | .75 | 20/20 |
+| outliers | 2000 | .0365 | .0310 | .85 | 18/20 |
+| pareto | 500 | .0652 | .0567 | .87 | 19/20 |
+| pareto | 2000 | .0340 | .0327 | .96 | 12/20 |
+| **outliers_fine** | 500 | .1788 | **.7116** | **3.98** | 2/20 |
+| **outliers_fine** | 2000 | .1423 | **.8753** | **6.15** | 0/20 |
+| sparse_tail | 500 | .0723 | .0551 | .76 | 20/20 |
+| sparse_tail | 2000 | .0343 | .0304 | .89 | 14/20 |
+| bimodal_linear | 500 | .0922 | .0331 | .36 | 20/20 |
+| bimodal_linear | 2000 | .0496 | .0187 | .38 | 20/20 |
+| mixed | 500 | .2091 | .1303 | .62 | 20/20 |
+| mixed | 2000 | .1028 | .0639 | .62 | 20/20 |
+
+**`range` is better in seven of the eight**, by 4% to 64%, and the two scenarios
+built to punish `quantile` behave as predicted: with two tight clusters and a
+truth linear in $x$, the empirical distribution function jumps .5 across the gap,
+linear in $x$ becomes a step in $u$, and `range` is nearly three times more
+accurate.
+
+**And in the eighth it fails outright.** On `outliers_fine` it is four times
+worse at n = 500 and six times worse at n = 2000, with an RMSE near 1.0, which
+against a signal standardized to 1 means it is fitting nothing at all. Coverage
+of the 95% interval goes .392 and then **.217** against a nominal .95, so the
+failure is not visible as extra uncertainty; the intervals are nearly three times
+wider than `quantile`'s and still miss.
+
+**It is the cutpoint prior, not the bandwidth.** The first guess was that the
+gate width, being a fixed fraction of the transformed scale, over-smooths the
+bulk. It is not: fixing the bandwidth, and setting it to .01, leave the failure
+untouched (1.006, 1.005, 1.005). What does it is `Node::draw_rule()`, which draws
+a cutpoint uniformly on the node's live range. With 1% of the data at 300 times
+the scale, the central 98% of $x$ spans **1.34%** of the range at n = 500 and
+**.42%** at n = 2000, so a proposal almost never lands where the structure is and
+the forest cannot resolve `sin(3x)` there.
+
+That also explains the direction with $n$, which is the tell. The maximum of $n$
+draws from a wide component grows with $n$, so the bulk occupies an ever smaller
+share of the range and `range` gets **worse** as the sample grows. Every other
+scenario improves with $n$ for both transforms.
+
+**Outliers alone are not the condition.** `outliers` and `pareto` are heavy-tailed
+too and `range` wins both. The difference is what the truth asks for: those use a
+saturating logistic that needs one or two cutpoints across the whole bulk, where
+`outliers_fine` oscillates and needs many. The failure needs a compressed bulk
+**and** fine structure inside it.
+
+**Conclusion: keep `quantile`.** Not because it is more accurate, since it
+usually is not, but because the two have different worst cases. Across these
+eight, `quantile` is at worst 2.8 times off the better option with coverage
+intact; `range` is at worst 6 times off with coverage at .217, and that case
+deteriorates with more data rather than improving. A default is a bet on the
+unseen dataset, and bounded downside is the right bet. It also keeps the package
+on the same footing as `SoftBart:::trank()`, which is the same rank transform.
+
+`range` remains the right choice when the predictors are known to be free of
+extreme outliers, and it is the only one of the two that supports a derivative.
+Worth saying in `?bartisan_control` that the choice has a failure mode in each
+direction rather than being a matter of taste.
+
+## A smoothed CDF beats both current `x_transform` options on the tail
+
+The entry above left `quantile` as the default because `range` fails badly on
+one scenario. The obvious next question is whether the two failures can be
+avoided at once, since they have opposite causes: `range` puts the cutpoint
+prior in the wrong place, `quantile` puts the coordinate on a step. Those are
+separable, and separating them is what the candidates below do.
+
+`_dev/xtransform-candidates.R` runs five arms over the same eight processes, 12
+replicates, n = 500 and 2000. `robust` is a logistic squash on a median/MAD
+scale, `smoothcdf` a kernel-smoothed empirical distribution function with the
+bandwidth at Azzalini's (1981) $n^{-1/3}$ rate for a distribution function
+rather than the $n^{-1/5}$ rate for a density, and `winsor` caps at the 1st and
+99th percentiles. All three are monotone maps to a bounded interval, which is
+what `make_unit_map()` already returns, so each was prototyped by transforming
+the column and fitting with `x_transform = "range"`: `range` on a monotone image
+is an affine rescale and a cutpoint uniform on a node's live range is affine
+equivariant, so the prototype is the model rather than an approximation of it.
+
+The decision-relevant table is not the per-scenario accuracy but how bad each
+arm gets, as a ratio to whichever arm won that cell:
+
+| arm | median ratio | worst ratio | mean coverage | where it is worst |
+|---|---|---|---|---|
+| quantile | 1.18 | 3.01 | .951 | bimodal_linear, n = 500 |
+| range | **1.00** | **6.65** | .873 | outliers_fine, n = 2000 |
+| robust | 1.13 | 4.23 | .953 | mixed, n = 2000 |
+| **smoothcdf** | 1.12 | **1.42** | **.960** | mixed, n = 500 |
+| winsor | 1.05 | 4.04 | .956 | mixed, n = 2000 |
+
+**`smoothcdf` dominates the current default on every summary**: better typical
+accuracy (1.12 against 1.18), a worst case less than half as bad (1.42 against
+3.01), and better coverage (.960 against .951), with no cell below .922. Against
+`range` it trades 12% of typical accuracy for a worst case that is 4.7 times
+less bad and coverage that never collapses.
+
+**Capping and saturating are the wrong fix, and the reason is instructive.**
+Both `robust` and `winsor` repair `outliers_fine`, and both then break on
+`mixed`, at .30 against `range`'s .07. `mixed` has a truth containing
+$0.1 x_2$ where $x_2$ carries the outlier component, so the extreme values hold
+real signal; winsorizing discards it and a logistic squash saturates it away.
+`robust` additionally fails on `pareto` (.061 against .032), because a
+median/MAD logistic is symmetric and a long one-sided tail is not. A strictly
+increasing smooth map compresses the tail without destroying what is in it,
+which is the property that separates `smoothcdf` from the other two.
+
+**It also reaches what a cutpoint-side change would reach.** Drawing a cutpoint
+uniformly in a coordinate $v = F(x)$ and mapping back gives $c = F^{-1}(u)$, a
+quantile-spaced cutpoint in $x$. So a smooth invertible CDF coordinate places
+cutpoints where "uniform on the quantile scale, coordinate on the range scale"
+would, and differs only in the metric the soft gate measures width in. That
+version needs `Node::draw_rule()` rewritten in C++; this one is about fifteen
+lines in `make_unit_map()`.
+
+**Cost is not an obstacle.** Naive evaluation is $O(n)$ per point, which at
+n = 10000 is .27 s per predictor per call. Tabulating on a 512-point grid and
+interpolating, which is how `ecdf_map()` already works, costs 3 to 44 ms once at
+fit time and is then free, with an interpolation error of about `1e-3` in the
+unit coordinate. A finer grid buys more if that matters.
+
+Not implemented. Adding a third option to a public argument, and any move of the
+default, is a decision rather than a measurement. Two things to weigh first: the
+arm is never the best in a single cell, only the best worst case, which is the
+right property for a default but worth saying out loud; and while a smoothed CDF
+restores a usable derivative, the chain rule then multiplies by the density
+estimate, so `range` remains the better transform when a derivative is the point.
+
+## `smoothcdf` implemented and made the default
+
+`make_unit_map()` gained a third type and `bartisan_control()`'s `x_transform`
+now defaults to it, on the evidence in the two entries above: it dominates the
+old default on typical accuracy, worst case and coverage at once, and bounds the
+failure that kept `"range"` from being the default instead.
+
+`smooth_cdf_map()` convolves the empirical distribution function with a normal at
+the bandwidth rate Azzalini (1981) gives for a distribution function, which is
+`n^(-1/3)` rather than the `n^(-1/5)` that is right for a density. The scale is
+the smaller of the standard deviation and the interquartile range over 1.349, so
+a long tail sets the bandwidth from the bulk rather than from itself. The result
+is tabulated on a 1024-point grid over the observed range and read back through
+`approxfun()`: evaluating the sum directly costs `O(n)` a point, which is .27 s
+per predictor per call at n = 10000, where the table costs 3 to 44 ms once and is
+then free. Linear interpolation of an increasing function is increasing, so the
+one property everything rests on survives the tabulation.
+
+Normalized on the observed range rather than on the grid, which was the first
+version: the kernel puts mass below the smallest observation and above the
+largest, so normalizing on the smoothed values left about 3% of the coordinate
+where no cutpoint could ever be useful. With outliers at 300 times the scale the
+central 98% of a predictor now occupies 98% of the coordinate, against 1.3%
+under `"range"`, which is the whole of the fix.
+
+**What a slope costs under it.** Writing the fit as `f(T(x))`, a slope is
+`f'(T(x))` times `T'(x)`, and the three transforms differ in what is estimated
+there. Measured on a surface whose average slope over the sample is .5485, as the
+numerical step shrinks from 1e-1 to 1e-5:
+
+| step | smoothcdf | quantile | range |
+|---|---|---|---|
+| 1e-1 | .553 | .577 | .544 |
+| 1e-2 | .559 | .882 | .543 |
+| 1e-3 | .560 | 3.73 | .543 |
+| 1e-4 | .561 | 31.8 | .543 |
+| 1e-5 | .561 | 311. | .543 |
+
+`"quantile"` diverges because there is no derivative to find: a step function's
+difference quotient grows like one over the step. The other two settle, and
+`"range"` settles closer, because an affine map has a known constant derivative
+where a smoothed distribution function contributes an estimated density. That
+density is off by a median of 6% and by as much as 40% in the sparse upper tail
+of the fit measured, and it is undersmoothed for the purpose besides, the
+bandwidth having been chosen for the distribution function rather than for its
+derivative. So `"range"` stays the recommendation when a slope is the quantity
+being reported, and that is now what `?bartisan-marginaleffects` says.
+
+**One test had to change, and not because anything broke.** `test-control.R`'s
+ramp test read `|log(late/early)|` off a single chain against a threshold of
+`log(1.5)`. Across eight seeds that ratio runs from .02 to .76 under either
+transform, exceeding the threshold in two of eight both ways, and `smoothcdf`'s
+median is lower than `quantile`'s (.12 against .30). The threshold was tighter
+than the noise and had been passing on its seed by luck. It now averages four
+seeds, which the noise allows and which still leaves the factor of four the bug
+produced far above the bar.

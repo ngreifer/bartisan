@@ -18,7 +18,7 @@ bartisan_control(
   share_sparsity = FALSE,
   categorical = "subset",
   augment = TRUE,
-  x_transform = "quantile",
+  x_transform = "smoothcdf",
   gamma = 0.95,
   beta = 2,
   sigma_mu = NULL,
@@ -141,10 +141,27 @@ been measured to mix worse per second, so the default is rarely worth
 changing; see \code{vignette("implementation")}.}
 
 \item{x_transform}{string; how numeric predictors are mapped to \verb{[0, 1]}.
-Allowable options include \code{"quantile"} (the default), which uses each
-predictor's empirical distribution function and so makes the cutpoint prior
-invariant to monotone reparameterization, and \code{"range"}, which rescales
-linearly and preserves the original spacing.}
+Allowable options include \code{"smoothcdf"} (the default), \code{"quantile"}, and
+\code{"range"}. The choice places the cutpoint prior and, for soft rules, sets
+the scale the gate's width is measured on, and each has a failure it is
+worth knowing about; see Details.
+
+\code{"smoothcdf"} uses a kernel-smoothed estimate of each predictor's
+distribution function, at the bandwidth rate Azzalini (1981) gives for a
+distribution function. Cutpoints land where the data are, as under
+\code{"quantile"}, and the map is strictly increasing and differentiable, as
+under \code{"range"}.
+
+\code{"quantile"} uses the empirical distribution function, which is what
+\pkgfun{SoftBart}{softbart} does. It is a step function, so the fit is a
+step function of the predictor: it has no derivative, and a relationship
+that is straight in the predictor becomes a jump wherever the data are
+gappy.
+
+\code{"range"} rescales linearly and preserves the original spacing. It is the
+most accurate of the three on well-behaved predictors and the right choice
+when a derivative is the quantity of interest, and it fails where a few
+extreme values leave the bulk of a predictor inside a sliver of its range.}
 
 \item{gamma, beta}{\emph{Advanced.} \code{numeric}; the branching probability at depth
 \code{d} is \code{gamma * (1 + d)^(-beta)}. Defaults are .95 and 2.}
@@ -348,6 +365,41 @@ The multinomial families are the exception, for the reason given in
 single value.
 }
 
+\subsection{The Predictor Transform (\code{x_transform})}{
+
+Numeric predictors are mapped to \verb{[0, 1]} before any rule sees them, and the
+map does two jobs at once: cutpoints are uniform on a node's live range in
+that coordinate, and for soft rules the gate's bandwidth is measured there
+too. The three options fail in different places, which is the whole of the
+choice between them.
+
+\code{"range"} is the most accurate on well-behaved predictors and the only one
+that supports a derivative, since it is the only affine map of the three. Its
+failure is a predictor whose bulk sits inside a sliver of its range, which a
+few extreme values are enough to produce: a cutpoint drawn uniformly on a
+node's live range then almost never lands where the structure is. Measured
+over a simulation with 1\% of a predictor at 300 times the scale and a truth
+that oscillates within the bulk, it was 4 times worse than the alternatives
+at \code{n = 500} and 6 times worse at \code{n = 2000}, with 95\% intervals covering .24
+rather than .95. The deterioration with \code{n} is the signature: the extremes
+grow with the sample, so the bulk occupies an ever smaller share.
+
+\code{"quantile"} cannot fail that way, since it places cutpoints by rank. It
+fails instead by being a step function, so the fit is a step function of the
+predictor: there is no derivative to take, and a relationship that is
+straight in the predictor becomes a jump wherever the data are gappy. On two
+tight clusters with a linear truth it was nearly three times worse than the
+alternatives.
+
+\code{"smoothcdf"}, the default, smooths the same distribution function and so
+does neither. Across eight data-generating processes it was never the most
+accurate and never far from it, where each of the other two was badly wrong
+somewhere. It is not a free lunch: a derivative taken through it is the
+derivative of the fitted function times an estimated density, so \code{"range"}
+remains the better choice when a slope is the quantity of interest rather
+than a prediction.
+}
+
 \subsection{Splitting a Factor}{
 
 What \code{"onehot"} costs is partial pooling. A rule on one indicator column can
@@ -497,6 +549,10 @@ bartisan_control(split_prior = c(rhc = 10))
 
 }
 \references{
+Azzalini, A. (1981). A note on the estimation of a distribution function and
+quantiles by a kernel method. \emph{Biometrika}, 68(1), 326--328.
+\doi{10.1093/biomet/68.1.326}
+
 Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 prediction and variable selection. \emph{Journal of the American Statistical
 Association}, 113(522), 626--636. \doi{10.1080/01621459.2016.1264957}

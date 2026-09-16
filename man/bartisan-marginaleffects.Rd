@@ -154,28 +154,57 @@ to 200 with the prior on; with \code{sparsity = FALSE} and 50 trees they agreed 
 within 9\%. A single chain can look much more settled than the posterior is.
 }
 
-\subsection{Slopes Need a Linear Predictor Transform}{
+\subsection{Slopes and the Predictor Transform}{
 
 A slope is a numerical derivative, and taking one requires the fitted function
-to be differentiable in the predictor \emph{as the caller supplies it}. The default
-\code{x_transform = "quantile"} maps each predictor through its empirical
-distribution function before any rule sees it, and an empirical distribution
-function is a step function; the fit is therefore a step function of the
-original predictor whatever the decision rules are, and its difference
-quotient grows without bound as the step shrinks: on a smooth surface whose
-average derivative is zero, the estimate goes from -0.29 at a step of 5e-2 to
--4.79 at 1e-4 under the quantile transform, where under \code{"range"} it stays
-near -0.28 throughout.
+to be differentiable in the predictor \emph{as the caller supplies it}. Whether it
+is depends on \code{x_transform} in \code{\link[=bartisan_control]{bartisan_control()}}, because the fit is a
+smooth function of the transformed predictor rather than of the original one.
 
-So \strong{\code{x_transform = "range"} is what slopes want}, since it maps each
-predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a
-piecewise-constant fit under either transform, and a derivative of one is not
-a meaningful quantity however it is computed.
+The three options behave differently, and the way to see it is to shrink the
+step. On a smooth surface whose average slope over the sample is .5485:\tabular{llll}{
+   step \tab \code{"smoothcdf"} \tab \code{"quantile"} \tab \code{"range"} \cr
+   1e-1 \tab .553 \tab .577 \tab .544 \cr
+   1e-2 \tab .559 \tab .882 \tab .543 \cr
+   1e-3 \tab .560 \tab 3.73 \tab .543 \cr
+   1e-4 \tab .561 \tab 31.8 \tab .543 \cr
+   1e-5 \tab .561 \tab 311. \tab .543 \cr
+}
+
+
+\code{"quantile"} has no derivative at all. It maps each predictor through its
+empirical distribution function, which is a step, so the fit is a step
+function of the original predictor whatever the decision rules are, and the
+difference quotient grows without bound as the step shrinks. The number it
+returns at any particular step is an artifact of that step.
+
+The other two converge, and \code{"range"} converges closer. That is not an
+accident of this example. Writing the fit as \code{f(T(x))}, a slope is
+\verb{f'(T(x))} times \verb{T'(x)}. Under \code{"range"} the map is affine, so \verb{T'} is a known
+constant and the only estimated quantity is \verb{f'}. Under \code{"smoothcdf"} the map
+is an estimated distribution function, so \verb{T'} is an estimated \emph{density} and
+the slope is a product of two estimates whose relative errors add. On the fit
+above that density factor is off by a median of 6\% and by as much as 40\% in
+the sparse upper tail, which is most of the gap between the two columns.
+
+Two details make that worse rather than better. The bandwidth is chosen at the
+rate that is right for a distribution function, which is smaller than the rate
+that is right for a density, so the density implied by the map is
+undersmoothed for the purpose a slope puts it to. And the leaf prior acts on
+\code{f} in the transformed coordinate, where a constant slope in \code{x} requires
+\verb{f'} to grow like one over the density; the prior shrinks that, which pulls
+slopes in sparse regions toward zero on top of the estimation error.
+
+So \strong{\code{x_transform = "range"} is what slopes want}, and refitting with it is
+worthwhile when a derivative is the quantity being reported rather than a
+prediction. The default is \code{"smoothcdf"} because it is the better bet for
+everything else; see \code{\link[=bartisan_control]{bartisan_control()}}. Hard rules give a
+piecewise-constant fit under any transform, and a derivative of one is not a
+meaningful quantity however it is computed.
 
 None of this affects \pkgfun{marginaleffects}{predictions} or
 \pkgfun{marginaleffects}{comparisons}, which evaluate the fit at two points a
-substantive distance apart rather than dividing by a vanishing one. Those are
-the estimands to reach for with the default transform.
+substantive distance apart rather than dividing by a vanishing one.
 }
 
 \subsection{The Usual Survival Estimand}{

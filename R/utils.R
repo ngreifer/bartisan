@@ -85,7 +85,72 @@ make_unit_map <- function(x, type = "quantile") {
     return(range_map(min(x, na.rm = TRUE), max(x, na.rm = TRUE)))
   }
 
+  if (identical(type, "smoothcdf")) {
+    return(smooth_cdf_map(x))
+  }
+
   ecdf_map(stats::ecdf(x))
+}
+
+# The distribution function, estimated smoothly rather than empirically.
+#
+# This is the default because the two obvious maps each fail, and for opposite
+# reasons. `"range"` rescales linearly, so a handful of outliers leaves the bulk
+# of the data inside a sliver of `[0, 1]`; a cutpoint drawn uniformly on a node's
+# live range then almost never lands where the structure is, and the failure
+# deepens as the sample grows, because the extremes grow with it. `"quantile"`
+# uses the empirical distribution function, which is a step, so the fitted
+# function is a step in the predictor: it cannot be differentiated, and a
+# relationship that is straight in `x` becomes a jump wherever the data are
+# gappy. Smoothing the same distribution function keeps the cutpoints where the
+# data are and leaves the coordinate strictly increasing and differentiable.
+#
+# Convolving with a normal is what does the smoothing, at the bandwidth rate
+# Azzalini (1981) gives for a distribution function, which is `n^(-1/3)` rather
+# than the `n^(-1/5)` that is right for a density. Tabulating on a grid and
+# interpolating is what keeps it affordable: evaluating the sum costs `O(n)` a
+# point, which is seconds per predictor on a large fit, where the table is built
+# once and read in constant time. Linear interpolation of an increasing function
+# is increasing, so the map keeps the one property everything here rests on.
+#
+# The scale is the smaller of the standard deviation and the interquartile range
+# over 1.349, so that a long tail sets the bandwidth from the bulk rather than
+# from itself.
+smooth_cdf_map <- function(x, n_grid = 1024L) {
+  x <- sort(x[!is.na(x)])
+  n <- length(x)
+
+  scale <- min(stats::sd(x), stats::IQR(x) / 1.349)
+
+  if (!is.finite(scale) || scale <= 0) {
+    scale <- stats::sd(x)
+  }
+
+  # No spread to smooth over, so the linear map is the honest answer.
+  if (!is.finite(scale) || scale <= 0) {
+    return(range_map(min(x), max(x)))
+  }
+
+  h <- scale * n^(-1 / 3)
+  grid <- seq(x[1L], x[n], length.out = n_grid)
+  at <- vapply(grid, function(v) mean(stats::pnorm((v - x) / h)), 0)
+
+  # Stretched so that the observed range covers `[0, 1]` exactly, as the other
+  # maps do. Normalizing on the smoothed values instead would leave a few
+  # percent of the coordinate below the smallest observation and above the
+  # largest, where the kernel puts mass and no cutpoint can ever be useful.
+  lo <- at[1L]
+  hi <- at[n_grid]
+
+  if (!(hi > lo)) {
+    return(range_map(min(x), max(x)))
+  }
+
+  f <- stats::approxfun(grid, (at - lo) / (hi - lo), rule = 2L)
+
+  function(z) {
+    pmin(pmax(f(z), 0), 1)
+  }
 }
 
 # The four maps. The constant one needs nothing and so is the map itself; the

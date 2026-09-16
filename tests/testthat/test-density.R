@@ -194,10 +194,16 @@ test_that("an undefined density warns rather than returning NaN silently", {
   # so that the forest extrapolates. This is the only way a *saved* draw can be
   # out of support: `bartisan()` rejects such proposals while sampling, so the
   # fit itself is valid and the failure appears only at a new `x`.
+  # The mean has to hug zero at the low end of the predictor for any draw to
+  # cross into negative territory, which is the condition this is about; a
+  # comfortable intercept keeps every draw in support and there is then nothing
+  # to warn about. If a future change to the sampler stops producing an
+  # undefined density here, `expect_warning()` below fails rather than passing
+  # quietly, which is the right way round.
+  set.seed(12)
   d <- data.frame(x1 = stats::runif(400, -1, 1),
                   x2 = stats::runif(400, -1, 1))
-  set.seed(881)
-  d$y <- stats::rpois(nrow(d), pmax(2 + 3 * d$x1, 0.05))
+  d$y <- stats::rpois(nrow(d), pmax(0.2 + 2.5 * d$x1, 0.005))
 
   fit <- suppressMessages(
     bartisan(y ~ ., d, family = stats::poisson("identity"),

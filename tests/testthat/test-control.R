@@ -196,26 +196,35 @@ test_that("the leaf scale is drawn for the part of warmup after the ramp", {
   # the first retained iteration: it jumped from the ramp target to wherever the
   # leaves wanted it, roughly a factor of four, and then the trees spent the
   # sampling phase equilibrating to the new scale.
-  d <- sim_x(n = 200, p = 4, seed = 61)
-  d$y <- 2 * d$x1 * d$x2 + stats::rnorm(nrow(d))
+  # Averaged over four seeds rather than read off one. `sigma_mu` carries few
+  # effective draws, so a single chain's ratio ranges over roughly 0.02 to 0.76
+  # in log terms with nothing wrong, which is wider than any threshold that
+  # would still catch the bug. The mean of four is not, and the bug being
+  # guarded against moved the scale by about a factor of four, or 1.39 in the
+  # same units, so there is plenty of room between the noise and the signal.
+  ratios <- vapply(c(61L, 7L, 13L, 29L), function(seed) {
+    d <- sim_x(n = 200, p = 4, seed = seed)
+    d$y <- 2 * d$x1 * d$x2 + stats::rnorm(nrow(d))
 
-  fit <- bartisan(y ~ ., data = d, family = gaussian(),
-                  control = bartisan_control(num_trees = 20, num_burn = 400,
-                                             num_draws = 200, verbose = FALSE,
-                                             sigma_mu_ramp = 0.25))
+    fit <- bartisan(y ~ ., data = d, family = gaussian(),
+                    control = bartisan_control(num_trees = 20, num_burn = 400,
+                                               num_draws = 200, verbose = FALSE,
+                                               sigma_mu_ramp = 0.25))
 
-  sm <- fit[["sigma_mu"]][, 1L]
-  n <- length(sm)
-  early <- mean(sm[seq_len(n %/% 10)])
-  late <- mean(sm[seq.int(n - n %/% 10 + 1L, n)])
+    sm <- fit[["sigma_mu"]][, 1L]
+    n <- length(sm)
+    early <- mean(sm[seq_len(n %/% 10)])
+    late <- mean(sm[seq.int(n - n %/% 10 + 1L, n)])
 
-  # Loose on purpose. `sigma_mu` has a small effective sample size, so this is
-  # not a test of stationarity; it is a test that the retained draws do not open
-  # a long way below where they end up, which is what the frozen update caused.
-  expect_lt(abs(log(late / early)), log(1.5))
+    # And the ramp target itself is not where the trace starts.
+    expect_gt(sm[1L], 1.5 * 3 / (2 * sqrt(20)) / 10)
 
-  # And the ramp target itself is not where the trace starts.
-  expect_gt(sm[1L], 1.5 * 3 / (2 * sqrt(20)) / 10)
+    abs(log(late / early))
+  }, numeric(1L))
+
+  # Not a test of stationarity; a test that the retained draws do not open a
+  # long way below where they end up, which is what the frozen update caused.
+  expect_lt(mean(ratios), log(1.5))
 })
 
 test_that("a ramp spanning the whole of warmup still hands the scale back", {

@@ -273,12 +273,18 @@ test_that("the estimand path and the coefficient path agree", {
                mean(colMeans(fit[["eta"]][["z"]])), tolerance = 1e-10)
 
   # And marginaleffects gets the same answer through its own grid, which builds
-  # and averages the counterfactuals its own way, so it agrees to its own
-  # precision rather than to the last bit.
+  # and averages the counterfactuals its own way. Centered on the mean rather
+  # than on its default median, so that the comparison is with the same summary
+  # the coefficient is reported as; left on the median the two differ by the
+  # gap between those summaries, which is about 2e-3 here and is not an error in
+  # either.
+  op <- options(marginaleffects_posterior_center = mean)
+  on.exit(options(op), add = TRUE)
+
   ate <- marginaleffects::avg_comparisons(fit, variables = "z")
 
   expect_equal(ate[["estimate"]], mean(colMeans(fit[["eta"]][["z"]])),
-               tolerance = 1e-3)
+               tolerance = 1e-6)
 })
 
 test_that("predict rebuilds the basis and agrees with the fit", {
@@ -497,12 +503,23 @@ test_that("a drawn coding does not depend on which level was written as 1", {
   # the same size with the sign flipped and the two should sum to zero. The
   # drawn coding is closer to that than a fixed one, which is the whole point of
   # the parameter expansion.
-  drawn <- effect(y ~ x1 + x2 + vc(z, center = "estimate"), d) +
-    effect(y ~ x1 + x2 + vc(z, center = "estimate"), flipped)
-  fixed <- effect(y ~ x1 + x2 + vc(z, center = "zero"), d) +
-    effect(y ~ x1 + x2 + vc(z, center = "zero"), flipped)
+  # Averaged over four datasets rather than read off one. Both sums are near
+  # zero and their difference is a few thousandths, so a single pair orders the
+  # wrong way about one time in five with nothing wrong; the mean of four does
+  # not. Seed 19 is kept in deliberately, being one that orders the wrong way
+  # on its own.
+  pair <- function(seed) {
+    d <- sim_vc(n = 300, seed = seed)
+    flipped <- transform(d, z = 1L - z)
+    c(drawn = abs(effect(y ~ x1 + x2 + vc(z, center = "estimate"), d) +
+                    effect(y ~ x1 + x2 + vc(z, center = "estimate"), flipped)),
+      fixed = abs(effect(y ~ x1 + x2 + vc(z, center = "zero"), d) +
+                    effect(y ~ x1 + x2 + vc(z, center = "zero"), flipped)))
+  }
 
-  expect_lt(abs(drawn), abs(fixed))
+  both <- vapply(c(19L, 3L, 8L, 24L), pair, c(drawn = 0, fixed = 0))
+
+  expect_lt(mean(both["drawn", ]), mean(both["fixed", ]))
 })
 
 test_that("a factor's drawn coding shares one forest across levels", {

@@ -110,28 +110,57 @@
 #' to 200 with the prior on; with `sparsity = FALSE` and 50 trees they agreed to
 #' within 9%. A single chain can look much more settled than the posterior is.
 #'
-#' ## Slopes Need a Linear Predictor Transform
+#' ## Slopes and the Predictor Transform
 #'
 #' A slope is a numerical derivative, and taking one requires the fitted function
-#' to be differentiable in the predictor *as the caller supplies it*. The default
-#' `x_transform = "quantile"` maps each predictor through its empirical
-#' distribution function before any rule sees it, and an empirical distribution
-#' function is a step function; the fit is therefore a step function of the
-#' original predictor whatever the decision rules are, and its difference
-#' quotient grows without bound as the step shrinks: on a smooth surface whose
-#' average derivative is zero, the estimate goes from -0.29 at a step of 5e-2 to
-#' -4.79 at 1e-4 under the quantile transform, where under `"range"` it stays
-#' near -0.28 throughout.
+#' to be differentiable in the predictor *as the caller supplies it*. Whether it
+#' is depends on `x_transform` in [bartisan_control()], because the fit is a
+#' smooth function of the transformed predictor rather than of the original one.
 #'
-#' So **`x_transform = "range"` is what slopes want**, since it maps each
-#' predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a
-#' piecewise-constant fit under either transform, and a derivative of one is not
-#' a meaningful quantity however it is computed.
+#' The three options behave differently, and the way to see it is to shrink the
+#' step. On a smooth surface whose average slope over the sample is .5485:
+#'
+#' | step | `"smoothcdf"` | `"quantile"` | `"range"` |
+#' | --- | --- | --- | --- |
+#' | 1e-1 | .553 | .577 | .544 |
+#' | 1e-2 | .559 | .882 | .543 |
+#' | 1e-3 | .560 | 3.73 | .543 |
+#' | 1e-4 | .561 | 31.8 | .543 |
+#' | 1e-5 | .561 | 311. | .543 |
+#'
+#' `"quantile"` has no derivative at all. It maps each predictor through its
+#' empirical distribution function, which is a step, so the fit is a step
+#' function of the original predictor whatever the decision rules are, and the
+#' difference quotient grows without bound as the step shrinks. The number it
+#' returns at any particular step is an artifact of that step.
+#'
+#' The other two converge, and `"range"` converges closer. That is not an
+#' accident of this example. Writing the fit as `f(T(x))`, a slope is
+#' `f'(T(x))` times `T'(x)`. Under `"range"` the map is affine, so `T'` is a known
+#' constant and the only estimated quantity is `f'`. Under `"smoothcdf"` the map
+#' is an estimated distribution function, so `T'` is an estimated *density* and
+#' the slope is a product of two estimates whose relative errors add. On the fit
+#' above that density factor is off by a median of 6% and by as much as 40% in
+#' the sparse upper tail, which is most of the gap between the two columns.
+#'
+#' Two details make that worse rather than better. The bandwidth is chosen at the
+#' rate that is right for a distribution function, which is smaller than the rate
+#' that is right for a density, so the density implied by the map is
+#' undersmoothed for the purpose a slope puts it to. And the leaf prior acts on
+#' `f` in the transformed coordinate, where a constant slope in `x` requires
+#' `f'` to grow like one over the density; the prior shrinks that, which pulls
+#' slopes in sparse regions toward zero on top of the estimation error.
+#'
+#' So **`x_transform = "range"` is what slopes want**, and refitting with it is
+#' worthwhile when a derivative is the quantity being reported rather than a
+#' prediction. The default is `"smoothcdf"` because it is the better bet for
+#' everything else; see [bartisan_control()]. Hard rules give a
+#' piecewise-constant fit under any transform, and a derivative of one is not a
+#' meaningful quantity however it is computed.
 #'
 #' None of this affects \pkgfun{marginaleffects}{predictions} or
 #' \pkgfun{marginaleffects}{comparisons}, which evaluate the fit at two points a
-#' substantive distance apart rather than dividing by a vanishing one. Those are
-#' the estimands to reach for with the default transform.
+#' substantive distance apart rather than dividing by a vanishing one.
 #'
 #' ## The Usual Survival Estimand
 #'

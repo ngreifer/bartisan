@@ -260,25 +260,38 @@ means anything.
 For survival families, `type = "survival"` with a `times` argument gives a
 difference in survival probability at a horizon. See `vignette("survival")`.
 
-## Unreliable Slopes (`avg_slopes()`)
+## Slopes and the Predictor Transform (`avg_slopes()`)
 
-`avg_slopes()` reports a derivative; it is available and it will return a
-number, but that number should not be trusted for a fit made with the default
-settings.
+`avg_slopes()` reports a derivative, and whether that derivative means anything
+depends on `x_transform` in `bartisan_control()`. The fit is a smooth function
+of the *transformed* predictor, so the question is what the transform does to
+the original one.
 
-The reason is the predictor transform: by default numeric predictors are mapped
-through their empirical distribution function before the trees see them, which
-makes the fitted function a step function of the original predictor. Between two
-observed values the prediction does not change at all, so the difference quotient
-is either exactly zero or a whole step divided by a very small number, depending
-on where the step lands.
+The default, `"smoothcdf"`, is differentiable, so `avg_slopes()` works. The way
+to check such a thing is to shrink the numerical step and see whether the answer
+settles. On a surface whose average slope over the sample is .5485, the default
+gives .553, .559, .560, .561, .561 as the step runs from 1e-1 down to 1e-5. It
+settles.
 
-Instead we use `comparisons()` with a step we can interpret, as with `aps = 10`
-above. If a genuine derivative is needed, we refit with `x_transform = "range"`
-in `bartisan_control()`, which maps each predictor linearly and so leaves a
-soft-rule fit differentiable; with `gate = "hard"` the fit is a step function
-under either transform and has no derivative worth taking. This is
-documented at `?bartisan-marginaleffects`.
+Under `"quantile"` the same sequence is .577, .882, 3.73, 31.8, 311. That
+transform maps each predictor through its empirical distribution function, which
+is a step, so the fitted function is a step function of the original predictor
+and the difference quotient grows without bound as the step shrinks. There is no
+derivative there to estimate, and the number `avg_slopes()` returns is a property
+of the step size rather than of the fit.
+
+Under `"range"` the sequence is .544, .543, .543, .543, .543, which settles
+closest to the truth. Writing the fit as $f(T(x))$, a slope is $f'(T(x))\,T'(x)$:
+an affine $T$ has a known constant derivative, so only $f'$ is estimated, where a
+smoothed distribution function contributes an estimated density and the two
+errors multiply. So **we refit with `x_transform = "range"` when a slope is the
+quantity being reported**, and leave the default alone when it is not.
+
+For everything else we use `comparisons()` with a step we can interpret, as with
+`aps = 10` above, which evaluates the fit at two points a substantive distance
+apart rather than dividing by a vanishing one. With `gate = "hard"` the fit is
+piecewise constant under any transform and has no derivative worth taking. This
+is documented at `?bartisan-marginaleffects`.
 
 ## Varying Coefficients (`vc()`)
 

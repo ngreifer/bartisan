@@ -104,10 +104,27 @@
 #'   been measured to mix worse per second, so the default is rarely worth
 #'   changing; see `vignette("implementation")`.
 #' @param x_transform string; how numeric predictors are mapped to `[0, 1]`.
-#'   Allowable options include `"quantile"` (the default), which uses each
-#'   predictor's empirical distribution function and so makes the cutpoint prior
-#'   invariant to monotone reparameterization, and `"range"`, which rescales
-#'   linearly and preserves the original spacing.
+#'   Allowable options include `"smoothcdf"` (the default), `"quantile"`, and
+#'   `"range"`. The choice places the cutpoint prior and, for soft rules, sets
+#'   the scale the gate's width is measured on, and each has a failure it is
+#'   worth knowing about; see Details.
+#'
+#'   `"smoothcdf"` uses a kernel-smoothed estimate of each predictor's
+#'   distribution function, at the bandwidth rate Azzalini (1981) gives for a
+#'   distribution function. Cutpoints land where the data are, as under
+#'   `"quantile"`, and the map is strictly increasing and differentiable, as
+#'   under `"range"`.
+#'
+#'   `"quantile"` uses the empirical distribution function, which is what
+#'   \pkgfun{SoftBart}{softbart} does. It is a step function, so the fit is a
+#'   step function of the predictor: it has no derivative, and a relationship
+#'   that is straight in the predictor becomes a jump wherever the data are
+#'   gappy.
+#'
+#'   `"range"` rescales linearly and preserves the original spacing. It is the
+#'   most accurate of the three on well-behaved predictors and the right choice
+#'   when a derivative is the quantity of interest, and it fails where a few
+#'   extreme values leave the bulk of a predictor inside a sliver of its range.
 #' @param gamma,beta *Advanced.* `numeric`; the branching probability at depth
 #'   `d` is `gamma * (1 + d)^(-beta)`. Defaults are .95 and 2.
 #' @param sigma_mu *Advanced.* `numeric`; the prior median of the leaf standard
@@ -270,6 +287,40 @@
 #' The multinomial families are the exception, for the reason given in
 #' [bartisan-families]: their forests act as one, so these arguments take a
 #' single value.
+#' ## The Predictor Transform (`x_transform`)
+#'
+#' Numeric predictors are mapped to `[0, 1]` before any rule sees them, and the
+#' map does two jobs at once: cutpoints are uniform on a node's live range in
+#' that coordinate, and for soft rules the gate's bandwidth is measured there
+#' too. The three options fail in different places, which is the whole of the
+#' choice between them.
+#'
+#' `"range"` is the most accurate on well-behaved predictors and the only one
+#' that supports a derivative, since it is the only affine map of the three. Its
+#' failure is a predictor whose bulk sits inside a sliver of its range, which a
+#' few extreme values are enough to produce: a cutpoint drawn uniformly on a
+#' node's live range then almost never lands where the structure is. Measured
+#' over a simulation with 1% of a predictor at 300 times the scale and a truth
+#' that oscillates within the bulk, it was 4 times worse than the alternatives
+#' at `n = 500` and 6 times worse at `n = 2000`, with 95% intervals covering .24
+#' rather than .95. The deterioration with `n` is the signature: the extremes
+#' grow with the sample, so the bulk occupies an ever smaller share.
+#'
+#' `"quantile"` cannot fail that way, since it places cutpoints by rank. It
+#' fails instead by being a step function, so the fit is a step function of the
+#' predictor: there is no derivative to take, and a relationship that is
+#' straight in the predictor becomes a jump wherever the data are gappy. On two
+#' tight clusters with a linear truth it was nearly three times worse than the
+#' alternatives.
+#'
+#' `"smoothcdf"`, the default, smooths the same distribution function and so
+#' does neither. Across eight data-generating processes it was never the most
+#' accurate and never far from it, where each of the other two was badly wrong
+#' somewhere. It is not a free lunch: a derivative taken through it is the
+#' derivative of the fitted function times an estimated density, so `"range"`
+#' remains the better choice when a slope is the quantity of interest rather
+#' than a prediction.
+#'
 #' ## Splitting a Factor
 #'
 #' What `"onehot"` costs is partial pooling. A rule on one indicator column can
@@ -384,6 +435,10 @@
 #' some speed while keeping soft rules, at a real cost in mixing and a small one
 #' in accuracy where the mean function jumps.
 #' @references
+#' Azzalini, A. (1981). A note on the estimation of a distribution function and
+#' quantiles by a kernel method. *Biometrika*, 68(1), 326--328.
+#' \doi{10.1093/biomet/68.1.326}
+#'
 #' Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 #' prediction and variable selection. *Journal of the American Statistical
 #' Association*, 113(522), 626--636. \doi{10.1080/01621459.2016.1264957}
@@ -438,7 +493,7 @@ bartisan_control <- function(chains = 1L,
                              share_sparsity = FALSE,
                              categorical = "subset",
                              augment = TRUE,
-                             x_transform = "quantile",
+                             x_transform = "smoothcdf",
                              gamma = 0.95, beta = 2,
                              sigma_mu = NULL, update_sigma_mu = TRUE,
                              sigma_mu_ramp = 0.25,
@@ -534,7 +589,7 @@ bartisan_control <- function(chains = 1L,
     )
   )
 
-  x_transform <- arg::match_arg(x_transform, c("quantile", "range"))
+  x_transform <- arg::match_arg(x_transform, c("smoothcdf", "quantile", "range"))
 
   # One argument for both the shape of a soft rule's gate and the choice between
   # soft and hard rules, because they are one decision: a hard rule is the
