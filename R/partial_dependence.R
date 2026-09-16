@@ -10,7 +10,7 @@
 #' @param newdata optional; a data frame to average over. Default is the data
 #'   the model was fit to.
 #' @param grid `integer`; how many values of a numeric predictor to evaluate.
-#'   Default is 25. A factor is evaluated at each of its levels whatever this is.
+#'   Default is 51. A factor is evaluated at each of its levels whatever this is.
 #' @param values optional; a named list giving the values to evaluate a
 #'   predictor at, which overrides `grid` for the predictors it names.
 #' @param level `numeric`; the level of the credible interval. Default is `.95`.
@@ -74,7 +74,7 @@
 #' plot(fit, ~ meanbp + sex)
 #'
 #' @export
-partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
+partial_dependence <- function(object, variables, newdata = NULL, grid = 51L,
                                values = NULL, level = 0.95, type = "response",
                                plot = FALSE, ...) {
 
@@ -358,6 +358,19 @@ pd_predictor <- function(object, newdata, vars, type, dots) {
     return(ordinary)
   }
 
+  # The fast path reads what it needs out of `...` by name and assembles the
+  # predictor itself, so an argument it does not know about would be accepted
+  # and then quietly not applied. `predict()` is the thing that knows what to do
+  # with one, so an unrecognized name, or a positional argument there is no name
+  # to match, is a reason to hand the whole grid back to it. Slower on those
+  # calls and never silently wrong.
+  handled <- c("offset", "iterations", "weights", "values", "log", "times")
+  supplied <- names(dots) %or% character(length(dots))
+
+  if (!is_null(dots) && !all(supplied %in% handled)) {
+    return(ordinary)
+  }
+
   uses <- pd_tree_mask(object, vars)
 
   # Nothing to save when every tree moves, since the base would then be empty
@@ -439,7 +452,7 @@ pd_tree_mask <- function(object, vars) {
   score <- object[["bcf"]][["propensity"]]
 
   if (!is_null(score)) {
-    moves <- moves | labels %in% colnames(score)
+    moves[labels %in% colnames(score)] <- TRUE
   }
 
   groups <- sort(unique(assign))

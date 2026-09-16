@@ -90,8 +90,8 @@ months:
 
 ``` r
 plot(fit, ~ surv2m) +
-  ggplot2::labs(x = "estimated probability of surviving two months",
-                y = "fitted probability of death")
+  ggplot2::labs(x = "Estimated probability of surviving two months",
+                y = "Fitted probability of death")
 ```
 
 <img src="man/figures/README-pdp-1.png" alt="Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .48, inside a credible band that widens at both ends." width="90%" style="display: block; margin: auto;" />

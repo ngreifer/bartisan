@@ -11,7 +11,7 @@ partial_dependence(
   object,
   variables,
   newdata = NULL,
-  grid = 25L,
+  grid = 51L,
   values = NULL,
   level = 0.95,
   type = "response",
@@ -35,7 +35,7 @@ partial_dependence(
 the model was fit to.}
 
 \item{grid}{\code{integer}; how many values of a numeric predictor to evaluate.
-Default is 25. A factor is evaluated at each of its levels whatever this is.}
+Default is 51. A factor is evaluated at each of its levels whatever this is.}
 
 \item{values}{optional; a named list giving the values to evaluate a
 predictor at, which overrides \code{grid} for the predictors it names.}

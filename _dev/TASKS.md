@@ -7648,3 +7648,11 @@ A term is matched to a variable through `get_varnames()` on the label rather
 than by string equality, so `log(x1 + 1)` is correctly marked as moving when the
 grid is over `x1`. Keying on the label alone would have held that curve flat with
 nothing to show it had.
+
+**What `...` reaches.** `partial_dependence()` forwards `...` to `predict()`, and
+the fast path assembles the predictor itself rather than calling `predict()`, so
+it reads what it needs by name: `offset`, `iterations`, `weights`, `values`,
+`log` and `times`. Any other name, or a positional argument there is no name to
+match, hands the whole grid back to `predict()`. The alternative was to accept
+the argument and not apply it, which would have been wrong in silence; this is
+slower on those calls and cannot be.

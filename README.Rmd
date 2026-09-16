@@ -87,8 +87,8 @@ estimate of each patient's chance of surviving two months:
 
 ```{r pdp, fig.alt = "Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .48, inside a credible band that widens at both ends."}
 plot(fit, ~ surv2m) +
-  ggplot2::labs(x = "estimated probability of surviving two months",
-                y = "fitted probability of death")
+  ggplot2::labs(x = "Estimated probability of surviving two months",
+                y = "Fitted probability of death")
 ```
 
 A forest has no coefficients, so an effect is a contrast between what the model

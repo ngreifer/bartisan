@@ -327,3 +327,33 @@ test_that("a variable no tree splits on gives a flat curve at no cost", {
   expect_identical(diff(range(pd[["estimate"]])), 0)
   expect_same_as_unmasked(fit, ~ x1, grid = 6L)
 })
+
+test_that("an argument the fast path does not know hands the grid to predict()", {
+  d <- sim_x(n = 120L, p = 3L)
+  d$y <- 4 * d$x1 + stats::rnorm(nrow(d))
+
+  fit <- suppressMessages(suppressWarnings(
+    bartisan(y ~ ., d, family = stats::gaussian(),
+             control = quick_control(num_trees = 20L, num_draws = 60L))))
+
+  taken <- function(...) {
+    !identical(body(pd_predictor(fit, d, "x1", "response", list(...))),
+               body(pd_predictor(fit, d, "x1", "nonesuch", list())))
+  }
+
+  # The names it reads itself keep the fast path.
+  expect_true(taken(iterations = 1:10))
+  expect_true(taken(offset = NULL, log = FALSE))
+  expect_true(taken())
+
+  # Anything else, and anything positional, goes back to `predict()`, which is
+  # what knows where such an argument belongs.
+  expect_false(taken(nonesuch = 1))
+  expect_false(taken(iterations = 1:10, nonesuch = 1))
+  expect_false(taken(1))
+
+  # And the fallback still gives the same curve, which is the point of taking it.
+  expect_equal(partial_dependence(fit, ~ x1, grid = 5L, iterations = 1:20)$estimate,
+               partial_dependence(fit, ~ x1, grid = 5L, iterations = 1:20,
+                                  nonesuch = 1)$estimate)
+})
