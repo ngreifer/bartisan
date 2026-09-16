@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Getting started with bartisan • bartisan</title>
+<title>Getting Started with bartisan • bartisan</title>
 <!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
   window.MathJax = {
     chtml: {
@@ -16,7 +16,7 @@
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Getting started with bartisan">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Getting Started with bartisan">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -37,20 +37,7 @@
       <ul class="navbar-nav me-auto">
 <li class="active nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
-    <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
-    <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
-  </ul>
-</li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -78,11 +65,11 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Getting started with bartisan</h1>
+      <h1>Getting Started with bartisan</h1>
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-15</h4>
+            <h4 data-toc-skip class="date">2026-09-16</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -94,30 +81,32 @@ Greifer</h4>
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
 <p><em>bartisan</em> fits Bayesian additive regression trees (BART)
-using the same interface as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>. You supply a formula, a
+using the same interface as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>. We supply a formula, a
 data frame, and a family, and the model estimates the relationship
-between the predictors and the outcome without you having to say what
-shape that relationship takes. Nonlinearity and interactions are found
-rather than specified.</p>
-<p>This vignette walks through a complete analysis: fitting a model,
-checking that it worked, seeing which predictors it uses, reading off
-the effects, predicting for new observations, and comparing models. It
-assumes you are comfortable with regression but does not assume
-familiarity with machine learning or Bayesian methods.</p>
+between the predictors and the outcome without anything being said about
+what shape that relationship takes. Nonlinearity and interactions are
+found rather than specified.</p>
+<p>In this guide we will work through a complete analysis. First we’ll
+fit a model and check both that the sampler converged and that the fit
+describes the data. Next we’ll see which predictors the forest uses,
+read the effects off it, and predict for new observations. Finally we’ll
+compare two models and set out what the fit does not do. The guide
+assumes a reader comfortable with regression and assumes nothing about
+machine learning or Bayesian methods.</p>
 <p>The main thing to take from it is that the defaults are meant to be
 used. The priors, the number of trees, and the sampler settings are
 chosen to work across a wide range of problems, and tuning them is
 rarely where the gains are. Almost everything below is a single function
 call with no arguments beyond the formula and the data.</p>
-<p>Each section ends with a pointer to a vignette that covers the same
-ground in more depth.</p>
+<p>Most sections point to a vignette that covers the same ground in more
+depth.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="the-data">The data<a class="anchor" aria-label="anchor" href="#the-data"></a>
+<h2 id="the-data">The Data<a class="anchor" aria-label="anchor" href="#the-data"></a>
 </h2>
-<p><code>rhc</code> records 1500 critically ill patients from the
+<p><code>rhc</code> records a random 1500 of the 5735 patients in the
 SUPPORT study and whether each received right heart catheterization, a
 monitoring procedure, within a day of arriving in intensive care <span class="citation">(<a href="#ref-connors1996">Connors et al.
 1996</a>)</span>. The question the study asked is whether the procedure
@@ -154,13 +143,13 @@ whether cardiovascular disease was among the diagnoses, and
 surviving two months. All were recorded before catheterization.</p>
 </div>
 <div class="section level2">
-<h2 id="fitting-the-model">Fitting the model<a class="anchor" aria-label="anchor" href="#fitting-the-model"></a>
+<h2 id="fitting-the-model">Fitting the Model<a class="anchor" aria-label="anchor" href="#fitting-the-model"></a>
 </h2>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># For parallelization; optional</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"future"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"future"</span>, <span class="st">"future.apply"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu">future</span><span class="fu">::</span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="fu">future</span><span class="fu">::</span><span class="va"><a href="https://future.futureverse.org/reference/multisession.html" class="external-link">multisession</a></span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
@@ -187,16 +176,17 @@ outcome is binary, exactly as in <code><a href="https://rdrr.io/r/stats/glm.html
 omitted, in which case it is read off the outcome and reported; naming
 it is clearer and silences the message.</p>
 <p><code>chains = 4</code> runs the sampler four times from different
-starting points. The default is one chain, which is enough to get
-estimates, but running several is what makes the convergence diagnostics
-in the next section available.</p>
+starting points. The default is one chain, and the diagnostics in the
+next section are still computed for it, with R-hat taken by splitting
+that single chain into segments; running several is what lets them
+detect chains that have settled in different places.</p>
 <p>Choosing a family is the one modeling decision that usually matters
 more than any sampler setting. <code><a href="../articles/families.html">vignette("families")</a></code> covers
 the choice, and <code><a href="../articles/survival.html">vignette("survival")</a></code> covers censored
 outcomes such as this one’s <code>days</code>.</p>
 </div>
 <div class="section level2">
-<h2 id="checking-the-model">Checking the model<a class="anchor" aria-label="anchor" href="#checking-the-model"></a>
+<h2 id="checking-the-model">Checking the Model<a class="anchor" aria-label="anchor" href="#checking-the-model"></a>
 </h2>
 <p>Two questions are worth separating: whether the sampler converged,
 and whether the model fits.</p>
@@ -261,7 +251,7 @@ early from chains that have each settled somewhere different.
 <code>ess_bulk</code> and <code>ess_tail</code> are effective sample
 sizes, and count how many independent draws the correlated ones are
 worth, in the middle of the distribution and in the tails.</p>
-<p>Read the rows that correspond to quantities you will report.
+<p>Read the rows that correspond to the quantities being reported.
 <code>eta.eta</code> is the fitted function and appears twice, once
 averaged over the observations and once over the worst 5% of them; the
 second is what governs a prediction for one observation. Forests mix
@@ -324,8 +314,8 @@ there for a long run. Nothing in the fit’s own table shows it, because
 the other predictors keep the fitted function moving the whole time.
 <code><a href="../articles/causal.html">vignette("causal")</a></code> covers the settings that remove the atom
 when an effect is what is being reported.</p>
-<p>The table is in <code>diagnose(fit)$table</code> if what you want is
-the numbers rather than the report.</p>
+<p>The table is in <code>diagnose(fit)$table</code> when the numbers are
+wanted rather than the report.</p>
 </div>
 <div class="section level3">
 <h3 id="fit">Fit<a class="anchor" aria-label="anchor" href="#fit"></a>
@@ -348,7 +338,7 @@ a departure from the diagonal looks like and what else to check.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="which-predictors-the-model-uses">Which predictors the model uses<a class="anchor" aria-label="anchor" href="#which-predictors-the-model-uses"></a>
+<h2 id="which-predictors-the-model-uses">Which Predictors the Model Uses<a class="anchor" aria-label="anchor" href="#which-predictors-the-model-uses"></a>
 </h2>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
@@ -377,8 +367,9 @@ the proportion of draws in which the predictor received any rule at
 all.</p>
 <p><code>surv2m</code> takes the most rules, which is unsurprising: it
 is a prognostic score built to predict survival. Age follows. At the
-bottom, race and sex are used in about half the draws, which says the
-model can often do without them.</p>
+bottom, <code>sex</code> and <code>race</code> are used in fewer than
+half the draws, as are several of the physiological measurements, which
+says the model can often do without them.</p>
 <p>Two cautions. Usage is not effect size: a predictor can be split on
 constantly and still move the prediction very little, and
 <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> in the next section is the better guide
@@ -389,7 +380,7 @@ selection, including how to tell whether a difference in this table
 means anything.</p>
 </div>
 <div class="section level2">
-<h2 id="interpreting-the-fit">Interpreting the fit<a class="anchor" aria-label="anchor" href="#interpreting-the-fit"></a>
+<h2 id="interpreting-the-fit">Interpreting the Fit<a class="anchor" aria-label="anchor" href="#interpreting-the-fit"></a>
 </h2>
 <p>A forest has no coefficients, so there is no table of slopes to read.
 The question “what is the effect of catheterization” is answered by
@@ -427,9 +418,9 @@ that is worth knowing about. The default splitting prior can drop a
 predictor from the forest entirely, and in a draw where it drops
 <code>rhc</code> the contrast is exactly zero, so the posterior has a
 point mass there. The default settings are not necessarily the best ones
-to use for causal effect estimation; more specialized methods, like
-Bayesian causal forests (BCF) and BART without sparsity-inducing priors,
-are described at <code><a href="../articles/causal.html">vignette("causal")</a></code>.</p>
+for estimating a causal effect; more specialized methods, such as
+Bayesian causal forests (BCF) and BART without a sparsity-inducing
+prior, are described in <code><a href="../articles/causal.html">vignette("causal")</a></code>.</p>
 <p>Because the outcome is binary, this is a difference in probability,
 which is interpretable without reference to the model. That is usually
 the number to report.</p>
@@ -438,7 +429,7 @@ since the difference was computed from them: about 63% of patients would
 be expected to die without catheterization and 69% with it, averaging
 over the covariates as they actually occur in this sample.</p>
 <div class="section level3">
-<h3 id="looking-at-a-relationship">Looking at a relationship<a class="anchor" aria-label="anchor" href="#looking-at-a-relationship"></a>
+<h3 id="looking-at-a-relationship">Looking at a Relationship<a class="anchor" aria-label="anchor" href="#looking-at-a-relationship"></a>
 </h3>
 <p>Effects averaged over the sample hide the shape of the relationship.
 To see the shape, plot the model’s predictions against one
@@ -448,8 +439,8 @@ predictor.</p>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"estimated probability of surviving two months"</span>,</span>
 <span>                y <span class="op">=</span> <span class="st">"fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bartisan_files/figure-html/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
-<p>The fitted probability of death falls from about 0.88 to about 0.45
-as the prognostic score rises, and the fall is not a straight line. A
+<p>The fitted probability of death falls from close to .9 to about .5 as
+the prognostic score rises, and the fall is not a straight line. A
 logistic regression reports one slope on the log-odds scale for the
 whole range. Nothing had to be specified to find the shape.</p>
 <p>The band is a credible interval on the <em>average</em> prediction at
@@ -463,7 +454,7 @@ interactions.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="predicting-new-observations">Predicting new observations<a class="anchor" aria-label="anchor" href="#predicting-new-observations"></a>
+<h2 id="predicting-new-observations">Predicting New Observations<a class="anchor" aria-label="anchor" href="#predicting-new-observations"></a>
 </h2>
 <p><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns the posterior mean prediction.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
@@ -476,9 +467,9 @@ interactions.</p>
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::predictions()</a></code><a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content='&lt;p&gt;Note that by default, &lt;em&gt;marginaleffects&lt;/em&gt; uses the
 posterior median as the point estimate, whereas &lt;code&gt;&lt;a href="https://rdrr.io/r/stats/predict.html" class="external-link"&gt;predict()&lt;/a&gt;&lt;/code&gt;
 uses the posterior mean, so these values may differ slightly. Use
-&lt;code&gt;options("marginaleffects_posterior_center" = "mean")&lt;/code&gt; prior
-to running &lt;code&gt;predictions()&lt;/code&gt; to produce the posterior mean. We
-do this in &lt;code&gt;&lt;a href="../articles/causal.html"&gt;vignette("causal")&lt;/a&gt;&lt;/code&gt;.&lt;/p&gt;'><sup>1</sup></a>:</p>
+&lt;code&gt;options(marginaleffects_posterior_center = mean)&lt;/code&gt; prior to
+running &lt;code&gt;predictions()&lt;/code&gt; to produce the posterior mean. We do
+this in &lt;code&gt;&lt;a href="../articles/causal.html"&gt;vignette("causal")&lt;/a&gt;&lt;/code&gt;.&lt;/p&gt;'><sup>1</sup></a>:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -489,11 +480,11 @@ do this in &lt;code&gt;&lt;a href="../articles/causal.html"&gt;vignette("causal"
 <p>This describes the probability that a patient with these
 characteristics dies. It is an interval for that probability, not a
 statement about which way any individual patient will go: the outcome
-itself is either 0 or 1, and a probability of 0.7 is entirely compatible
+itself is either 0 or 1, and a probability of .7 is entirely compatible
 with survival.</p>
 </div>
 <div class="section level2">
-<h2 id="comparing-models">Comparing models<a class="anchor" aria-label="anchor" href="#comparing-models"></a>
+<h2 id="comparing-models">Comparing Models<a class="anchor" aria-label="anchor" href="#comparing-models"></a>
 </h2>
 <p>Approximate leave-one-out cross-validation estimates how well a model
 predicts data it has not seen.</p>
@@ -519,9 +510,10 @@ held-out data, where higher is better. <code>p_loo</code> is the
 effective number of parameters, which is a measure of how much of the
 data the forest is actually using. The Pareto k diagnostics are all
 good, meaning the approximation is trustworthy for this fit.</p>
-<p>Two models can be compared directly. Here we ask whether the
-physiological measurements earn their keep over knowing the patient’s
-demographics alone:</p>
+<p>Two models can be compared directly. Here we ask whether everything
+recorded about how sick the patient was on arrival, the seven
+physiological measurements and the prognostic score among them, earns
+its keep over the demographics alone:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
@@ -533,13 +525,13 @@ demographics alone:</p>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
 <span><span class="co">#&gt;  demographics     -68.2    11.2    1.00</span></span></code></pre></div>
 <p>The full model predicts better by around six times the standard error
-of the difference, which is what you would expect: how sick a patient is
+of the difference, which is what we would expect: how sick a patient is
 on arrival is the main thing that predicts whether they die.</p>
 <p><code><a href="../articles/comparison.html">vignette("comparison")</a></code> covers model comparison, and the
 cases where leave-one-out fails.</p>
 </div>
 <div class="section level2">
-<h2 id="what-to-be-careful-about">What to be careful about<a class="anchor" aria-label="anchor" href="#what-to-be-careful-about"></a>
+<h2 id="what-to-be-careful-about">What to Be Careful About<a class="anchor" aria-label="anchor" href="#what-to-be-careful-about"></a>
 </h2>
 <p>The model is flexible about the shape of the relationship and nothing
 else.</p>
@@ -551,14 +543,15 @@ procedure depends on whether the covariates account for that selection,
 which is a question about the study and not about the fit.
 <code><a href="../articles/causal.html">vignette("causal")</a></code> covers what is required, using this same
 data.</p>
-<p>It does not extrapolate reliably. Predictions for predictor values
-outside the range of the training data are shrunk toward the overall
-mean rather than continuing any trend.</p>
+<p>It does not extrapolate reliably. A predictor value outside the range
+of the training data is mapped to the edge of that range, so the
+prediction is held flat at whatever the fitted function is at the edge
+rather than continuing any trend.</p>
 <p>It does not fix a badly chosen family. Getting the outcome
 distribution wrong matters more than any sampler setting.</p>
 </div>
 <div class="section level2">
-<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+<h2 id="where-to-go-next">Where to Go Next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
 </h2>
 <table class="table">
 <thead><tr class="header">
@@ -583,7 +576,7 @@ distribution wrong matters more than any sampler setting.</p>
 <td><code><a href="../articles/importance.html">vignette("importance")</a></code></td>
 </tr>
 <tr class="odd">
-<td>Effects, curves, and interactions</td>
+<td>Effects, Curves, and Interactions</td>
 <td><code><a href="../articles/effects.html">vignette("effects")</a></code></td>
 </tr>
 <tr class="even">
@@ -604,8 +597,8 @@ distribution wrong matters more than any sampler setting.</p>
 </tr>
 </tbody>
 </table>
-<p><code>?bartisan-package</code> has a shorter version of the same map,
-organized by task.</p>
+<p><code>?bartisan-package</code> has a longer map, organized by task
+and pointing at functions rather than vignettes.</p>
 </div>
 <div class="section level2 unnumbered">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

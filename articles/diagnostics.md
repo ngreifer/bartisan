@@ -1,4 +1,4 @@
-# Checking convergence and fit
+# Checking Convergence and Fit
 
 ## Introduction
 
@@ -112,7 +112,7 @@ R-hat compares chains to each other; with one chain it is computed by
 splitting that chain, which catches drift but cannot catch two chains
 settling in different places. Running four costs four times as much
 sampling, which for most fits is a few seconds, and less than that under
-a `future` plan.
+a *future* plan.
 
 More chains is not, however, a way to improve `rhat`, and it is worth
 knowing which way it cuts before reaching for it. Effective sample size
@@ -124,59 +124,6 @@ each other, its value under a sampler with nothing wrong is about
 and sixteen chains at 1.040. Adding chains raises the bar it has to
 clear. When a fit fails on `rhat`, longer chains are the fix; when it
 fails only on effective sample size, either will do.
-
-[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-is where the diagnostics are computed.
-
-``` r
-
-diagnose(fit)
-#> Convergence and mixing
-#> 
-#>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.12     1.036       23      234
-#>                           splits.eta 1.01     1.039      264      731
-#>  eta.eta (average over observations) 1.00     0.999     1610     2278
-#>   eta.eta (worst 5% of observations) 1.04     1.073       80      305
-#> 
-#> ✔ 4 chains, 3200 draws kept in total
-#> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 23 effective draws, where 4 chains average 1.171
-#>   even when they agree
-#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
-#>   draws alone as well
-#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
-#>   1.01)
-#> ✖ Bulk ESS is 23 for loglik, below 400
-#> ✖ Tail ESS is 234 for loglik, below 400
-#> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 1610 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.7 effective draws
-#>   per hundred kept
-#> 
-#> What to do
-#> 
-#> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
-#>   quantity that carries too few effective draws for the threshold to mean
-#>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. Effective sample size is
-#>   what makes it readable, and that grows with the total number of draws; using
-#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
-#>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`. A smaller forest has fewer
-#>   ways to represent the same fit, so the sampler has less room to move between
-#>   them.
-#> • Then check the family. A likelihood that fits the data badly can give a
-#>   posterior with no single place to be; `bayesplot::pp_check()` is the
-#>   diagnostic.
-#> • Note that the chains disagree about the fitted values of individual
-#>   observations and not about their average, which is the usual shape of this in
-#>   a forest. What that means for an estimand cannot be read off this table
-#>   either way, since an estimand is a contrast and a contrast can mix badly
-#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
-#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
-#>   draws to `posterior::summarise_draws()` for anything else.
-```
 
 The table is in `diagnose(fit)$table` when it is wanted as a data frame,
 and the checks and the advice are in `$checks` and `$advice`.
@@ -209,13 +156,19 @@ to look at.
 ### The Rows of the Table
 
 `loglik` is the log likelihood of the whole dataset at each draw. It is
-a useful scalar summary of the fit and mixes reasonably.
+a useful scalar summary of the fit, and usually the slowest-mixing row
+in the table, since it moves with every observation’s fitted value at
+once.
 
 `aux.*` are the nuisance parameters of the family (i.e., the parameters
 that are not part of the additive predictor), and are usually the best
-behaved rows in the table. A binomial likelihood has none, so they do
-not appear here; a Gaussian fit would show `aux.sigma`, and a survival
-fit its scale or baseline hazard.
+behaved rows in the table. The binomial likelihood has none of its own,
+so none appear here, though a
+[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) coding
+contributes its coefficients to `aux`, which is where the `aux.b.*` rows
+in the [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md)
+table below come from; a Gaussian fit would show `aux.sigma`, and a
+survival fit its scale or baseline hazard.
 
 `eta.*` is the additive predictor, and it gets two rows. One summarizes
 the worst 5% of observations rather than the single worst, because the
@@ -227,7 +180,7 @@ function within a sweep or two and takes far longer to settle which
 observation gets which share of it. A prediction for one observation is
 governed by the worst-5% row.
 
-Neither row governs an effect, and the average row in particular should
+Neither row settles an effect, and the average row in particular should
 not be read as though it did. An effect is a *contrast*, and a contrast
 can mix badly where the function it is a contrast of mixes well, so what
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
@@ -238,14 +191,15 @@ this table. The section below does that.
 
 One quantity is deliberately not in the table. The leaf prior scale, in
 `fit$sigma_mu`, mixes badly in every BART implementation: on one dataset
-its counterparts in *dbarts* and in *stochtree* come out at `rhat` 1.12
-and 1.16 with effective sample sizes of 22 and 17 out of 3000 draws, and
-*stochtree* draws it exactly from its full conditional, so no sampler
-can do better. It is a hyperparameter whose disagreement between chains
-does not reach the fitted function, which on those same fits has `rhat`
-1.00 and thousands of effective draws, so reporting it beside `eta` only
-produces an alarming row with nothing to act on. It is out of this table
-and only out of this table: the draws are in `fit$sigma_mu` and reach
+its counterparts in *dbarts* and in *stochtree* both come out above
+`rhat` 1.1 with effective sample sizes in the tens out of 3000 draws,
+and *stochtree* draws it exactly from its full conditional, so no
+sampler can do better. It is a hyperparameter whose disagreement between
+chains does not reach the fitted function, which on those same fits has
+`rhat` 1.00 and thousands of effective draws, so reporting it beside
+`eta` only produces an alarming row with nothing to act on. It is out of
+this table and only out of this table: the draws are in `fit$sigma_mu`
+and reach
 [`as_draws()`](https://mc-stan.org/posterior/reference/draws.html), so
 it can still be diagnosed by anyone who wants to.
 
@@ -253,11 +207,13 @@ it can still be diagnosed by anyone who wants to.
 
 The `eta` row is a high percentile over every observation, so it is
 conservative by construction, and forests mix slowly on their fitted
-values. Two chains can visit quite different collections of trees that
-imply nearly identical predictions, which inflates a between-chain
-statistic without meaning the two chains disagree about anything we
-would report, so whether two chains found the same trees is not a
-question worth asking of a forest.
+values. Two chains can visit quite different collections of trees, and a
+forest settles the level of the fitted function in a sweep or two while
+taking far longer to settle which observation gets which share of it,
+which is why the per-observation R-hats run high without meaning the two
+chains disagree about anything we would report, so whether two chains
+found the same trees is not a question the `eta` rows can answer;
+`splits.*` is the row that asks it.
 
 On harder problems this shows up clearly. Below we fit the Friedman
 function, first with a chain far too short and then at the defaults.
@@ -289,13 +245,14 @@ diagnose(too_short)$table
 #> 5    0.998        1
 ```
 
-Everything is bad. Every `rhat` is far above the 1.01 threshold, and the
-effective sample sizes are all under 30 out of the 200 draws kept (4
-chains x 50 kept draws per chain). `rhat_late` is no better than `rhat`
-on any row, which is the informative part: discarding the early draws
-does not fix it, so this is not a warmup that ended too soon but chains
-that have each settled somewhere different. Nothing from this fit should
-be used.
+Almost everything is bad. Every `rhat` but the average over observations
+is far above the 1.01 threshold, and the effective sample sizes are a
+fraction of the 200 draws kept (4 chains x 50 kept draws per chain) on
+every row but that one. `rhat_late` is no better than `rhat` on any row
+but the residual standard deviation, which is the informative part:
+discarding the early draws does not fix it, so this is not a warmup that
+ended too soon but chains that have each settled somewhere different.
+Nothing from this fit should be used.
 
 ``` r
 
@@ -343,7 +300,7 @@ round(quantile(per_observation_rhat(fit), c(0.5, 0.9, 0.99, 1)), 3)
 ```
 
 The median is a little above 1 and so is most of the distribution, so
-the maximum in the table is not one badly behaved observation: the
+the worst-5% row in the table is not one badly behaved observation: the
 fitted function as a whole mixes slowly here. That is the phenomenon
 described above rather than a broken chain, and the two are told apart
 by what happens to the quantities we report. If the log likelihood has
@@ -507,9 +464,10 @@ that wandering and not all of it.
 
 So the estimand’s diagnosis cannot be deduced from the fit’s in either
 direction. Read only the `eta` rows here and the fit looks unusable;
-read only the averaged row and it looks settled; the effect is neither.
-Both are worth running, and it is the second that decides whether the
-number being reported can be reported.
+read only the effect’s own table and the sampler looks merely short of
+the thresholds; neither reading gives the other. Both are worth running,
+and it is the second that decides whether the number being reported can
+be reported.
 
 ### Diagnosing Anything Else (`summarise_draws()`)
 
@@ -550,11 +508,12 @@ folded |>
 #> 1 ATE      0.0568  1.04     117.     63.8
 ```
 
-The same numbers
+The same statistics
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-gave for the same estimand, by a different route, which is the point:
-any posterior quantity can be diagnosed this way, including ones neither
-package knows about. Draw it, fold it, summarize it.
+reports, computed by a different route on a quantity it has no method
+for, which is the point: any posterior quantity can be diagnosed this
+way, including ones neither package knows about. Draw it, fold it,
+summarize it.
 
 Two things to get right. The fold has to match the order the draws are
 stored in, which here is all of chain one, then all of chain two, and so
@@ -566,18 +525,15 @@ of two predictions, for the reason the section above gives.
 ### Remedies for a Chain That Has Not Converged
 
 Three things are worth trying, in the order in which they usually help.
-
-- **More draws.** Increasing `num_burn` and `num_draws` is the first
-  thing to try, and it fixes most cases.
-
-- **A smaller forest.** Reducing `num_trees` leaves fewer ways to
-  represent the same function, so the sampler mixes faster.
-
-- **A different family.** A likelihood that fits the data badly can
-  produce a posterior that is hard to explore, so the family is worth
-  checking when more draws and a smaller forest have not helped;
-  [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
-  covers the alternatives.
+**More draws** is the first: increasing `num_burn` and `num_draws` fixes
+most cases. **A smaller forest** is the second, since reducing
+`num_trees` leaves fewer ways to represent the same function, so the
+sampler mixes faster. **A different family** is the third, because a
+likelihood that fits the data badly can produce a posterior that is hard
+to explore, so the family is worth checking when more draws and a
+smaller forest have not helped;
+[`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
+covers the alternatives.
 
 Note these latter two options change the model itself, so only use them
 when required, not as a routine fix.
@@ -692,10 +648,11 @@ diagnose(longer)
 #> ✔ Nothing to change.
 ```
 
-Nothing is flagged. R-hat is under 1.01 on every row, both effective
-sample sizes clear 400 with room, and the largest R-hat has moved onto
-the worst-5% row, which is where a forest’s usually sits. This fit can
-be reported from.
+Nothing is flagged. The checks report R-hat below 1.01 throughout,
+though the table rounds too coarsely to show it, and both effective
+sample sizes clear 400 with room. What is left of it sits on the log
+likelihood and the worst-5% row, which is where a forest’s largest R-hat
+usually sits. This fit can be reported from.
 
 Two things about the arithmetic are worth taking from it. The first is
 that effective sample size grows roughly in proportion to the draws, so
@@ -714,10 +671,11 @@ factor is what to read.
 
 Increasing draws does not always suffice. Doing so sufficed here because
 the flagged R-hat was the unreadable kind, resting on too few effective
-draws. Where R-hat instead stays put as the draws grow, as it does for
-the Friedman fit above, the chains genuinely disagree and more of them
-will not help. That is when the remedies that change the model come up,
-and the order in the list above is the order to try them in.
+draws. Where R-hat instead stays above the threshold however many draws
+are added, as it does for the Friedman fit above, the chains genuinely
+disagree and more of them will not help. That is when the remedies that
+change the model come up, and the order in the list above is the order
+to try them in.
 
 ## Fit
 
@@ -952,7 +910,7 @@ probabilities themselves, for binning them some other way.
 
 For a continuous outcome, residuals plotted against fitted values read
 the way they would for a linear model, with one difference. A forest
-shrinks its predictions toward the overall mean, so a mild negative
+shrinks its predictions toward the overall mean, so a mild positive
 trend is expected even when the model is correct: the highest fitted
 values are pulled down and the lowest pulled up. A strong slope is not
 expected, and a fan shape means the spread of the outcome depends on the
@@ -990,9 +948,10 @@ been spent. Then, before reporting anything from a fit, we run it with
 `chains = 4` and pass it to
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md),
 reading what that says to change: it applies the thresholds, names the
-rows that are exempt from them, and separates a warmup that ended too
-early from chains that have each genuinely settled somewhere different.
-We then run
+rows that fall short, says when an R-hat rests on too few effective
+draws to be read at all, and separates a warmup that ended too early
+from chains that have each genuinely settled somewhere different. We
+then run
 [`pp_check()`](https://mc-stan.org/bayesplot/reference/pp_check.html)
 and look for systematic differences, checking in particular that the
 replicates respect any bound the outcome has (e.g., a count that cannot

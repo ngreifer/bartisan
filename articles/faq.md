@@ -1,4 +1,11 @@
-# bartisan Frequently Asked Questions
+# Frequently Asked Questions
+
+## Introduction
+
+These are the questions that come up most often about BART and about
+*bartisan*. Each answer stands on its own, so they can be read in any
+order, and each one points at the vignette or help page that works its
+topic through in full.
 
 ## What is BART?
 
@@ -68,11 +75,14 @@ what the model is using but not a test of anything.
 
 For the quantities those do not cover,
 [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-and its relatives work on a fit directly, including slopes, arbitrary
-contrasts between covariate values, and hypotheses comparing one
-estimate to another. Because every draw goes through the same machinery
-either way, the result carries a posterior rather than a point estimate
-with a delta-method standard error. See
+and its relatives work on a fit directly, including arbitrary contrasts
+between covariate values, hypotheses comparing one estimate to another,
+and slopes, which want `x_transform = "range"` in
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
+since the default quantile transform leaves the fit a step function of
+the original predictor. Because every draw goes through the same
+machinery either way, the result carries a posterior rather than a point
+estimate with a delta-method standard error. See
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
 for the worked versions and
 [`?estimate_effect`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
@@ -81,29 +91,34 @@ for the estimands.
 ## What if I have missing data?
 
 Missing values in the predictors are fine and nothing is dropped for
-them. Each splitting rule carries its own answer for what to do with a
-missing value, drawn from the prior alongside the variable and the
-cutpoint, so the missingness is part of the model rather than something
-to impute first. This is missingness incorporated in attributes, and it
-means a covariate can be informative through whether it is observed as
-well as through its value. A missing *outcome* is different: those rows
-are dropped, with a warning saying how many.
+them, though [`predict()`](https://rdrr.io/r/stats/predict.html) accepts
+a missing value only in a column that had one at fitting time, since
+only those columns’ rules carry an answer for it. Each splitting rule
+carries its own answer for what to do with a missing value, drawn from
+the prior alongside the variable and the cutpoint, so the missingness is
+part of the model rather than something to impute first. This is
+missingness incorporated in attributes, and it means a covariate can be
+informative through whether it is observed as well as through its value.
+A missing *outcome* is different: those rows are dropped, with a warning
+saying how many.
 
 ## Can I supply my own likelihood?
 
 Yes, through
 [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-which is the feature the package is named for. You give it a function
-returning the log density of one observation given the additive
-predictor, and the sampler does the rest; you do not have to derive a
-conjugate update or write any C++. The trade-off is that a log density
-says nothing about how to draw from the distribution it describes, so a
-custom family has no posterior predictive draws, and everything built on
-them, including
+which is the feature the package is named for. You give it a function of
+the response and the additive predictors, `function(y, eta)`, returning
+one log density per observation, and the sampler does the rest; you do
+not have to derive a conjugate update or write any C++. The trade-off is
+that a log density says nothing about how to draw from the distribution
+it describes, so a custom family has no posterior predictive draws, and
+everything built on them, including
 [`pp_check()`](https://mc-stan.org/bayesplot/reference/pp_check.html)
 and `posterior_predict()`, is unavailable. Fitting, prediction on the
-link and response scales, and
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) all work.
+link scale, and [`loo()`](https://mc-stan.org/loo/reference/loo.html)
+all work, though `predict(type = "response")` hands back the additive
+predictors rather than a fitted mean, since the package cannot know
+where the mean of a supplied density sits.
 
 ## Why is my model slow, and what should I change first?
 
@@ -169,7 +184,7 @@ under each treatment for each unit. See
 for a walkthrough with *bartisan*. BART can also be used to estimate
 propensity scores ([Hill et al.
 2011](#ref-hillChallengesPropensityScore2011)), which, together with a
-BART outcome model, can be used in doubly-robust estimators like DML and
+BART outcome model, can be used in doubly robust estimators like DML and
 TMLE. BART can also be used in instrumental variables analysis
 ([McCulloch et al.,
 n.d.](#ref-mccullochCausalInferenceInstrumental2021)), regression
@@ -226,7 +241,7 @@ into a causal effect, which no model supplies.
 
 ## What papers should I read to better understand BART?
 
-BART has a growing literature spread across multiple fields. I would
+BART has a growing literature spread across multiple fields. We
 recommend reading the original BART paper by Chipman et al.
 ([2010](#ref-chipmanBARTBayesianAdditive2010)), the paper introducing
 BART for causal inference by Hill ([2011](#ref-hill2011)), an accessible
@@ -260,18 +275,17 @@ soft decision trees,
 [*VCBART*](https://cran.r-project.org/package=VCBART) implements the
 varying coefficient model,
 [*dbarts*](https://cran.r-project.org/package=dbarts) implements Normal
-and probit BART regression with optional random intercepts. The package
-README has a feature-by-feature comparison against the most popular BART
-packages, and
+and probit BART regression with optional random intercepts.
 [`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md)
-adds the relative cost of each family. *bartisan* was designed to
-incorporate as many recent advancements in BART theory and practice as
-possible, including models for different outcome types (e.g.,
-multinomial, ordinal, \\\left\[ 0, 1 \right\]\\-bounded, zero-inflated),
-soft trees, sparsity priors, varying coefficients, random effects, and
-more, all in a single package[^1]. There are ways in which *bartisan* is
-inferior to these more specialized packages, but as a general-purpose
-tool, I hope you’ll find it effective.
+has a feature-by-feature comparison against the most popular BART
+packages, along with the relative cost of each family. *bartisan* was
+designed to incorporate as many recent advancements in BART theory and
+practice as possible, including models for different outcome types
+(e.g., multinomial, ordinal, \\\left\[ 0, 1 \right\]\\-bounded,
+zero-inflated), soft trees, sparsity priors, varying coefficients,
+random effects, and more, all in a single package[^1]. There are ways in
+which *bartisan* is inferior to these more specialized packages, but as
+a general-purpose tool, I hope you’ll find it effective.
 
 ## What model family should I use?
 
@@ -327,9 +341,11 @@ near \\1 + m/S\\ for \\m\\ chains and effective sample size \\S\\.
 Splitting a fixed budget into more chains therefore raises the bar R-hat
 has to clear without buying any more information, and a fit that passes
 at four chains can warn at twelve. Two to four chains is a good default,
-and
-[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-reports R-hat against the right null rather than against 1.01. See
+and when a quantity fails
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)’s
+R-hat threshold on too few effective draws for the comparison to mean
+anything, the report adds a line saying the number cannot be read yet
+rather than letting it stand on its own. See
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 for more information on diagnosing and fixing poor mixing.
 

@@ -37,20 +37,7 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
-    <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
-    <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
-  </ul>
-</li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -82,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-15</h4>
+            <h4 data-toc-skip class="date">2026-09-16</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/causal.Rmd" class="external-link"><code>vignettes/causal.Rmd</code></a></small>
       <div class="d-none name"><code>causal.Rmd</code></div>
@@ -159,15 +146,15 @@ to see how the patients differ between groups:</p>
 <span><span class="co">#&gt;     Control Treated</span></span>
 <span><span class="co">#&gt; All     935     565</span></span></code></pre></div>
 <p>The <code>M.0.Un</code> column indicates the mean for each variable
-in control group and the <code>M.1.Un</code> column indicates the mean
-for each variable in treated group. <code>Diff.Un</code> and
+in the control group and the <code>M.1.Un</code> column indicates the
+mean for each variable in the treated group. <code>Diff.Un</code> and
 <code>OVL.Un</code> are measures of the distributional difference
 between the groups for each covariate; values far from 0 indicate
 imbalance due to differential selection into treatment. In particular,
 we can see that patients with higher values of <code>aps</code> and
-<code>crea</code> and lower values of <code>meanbp, hema</code>,
-<code>pafi</code>, <code>paco2</code>, and <code>surv2m</code> are
-overrepresented among treated units.</p>
+<code>crea</code> and lower values of <code>meanbp</code>,
+<code>hema</code>, <code>pafi</code>, <code>paco2</code>, and
+<code>surv2m</code> are overrepresented among treated units.</p>
 <p>Given that sicker patients are both more likely to die and more
 likely to receive RHC, it would not be unexpected to see that patients
 who receive RHC are more likely to die, and we do see that:</p>
@@ -203,7 +190,7 @@ not affect another’s outcome.</p></li>
 about. State it as an assumption in what you write, rather than letting
 the interval imply it has been handled.</p>
 <div class="section level3">
-<h3 id="checking-positivity">Checking positivity<a class="anchor" aria-label="anchor" href="#checking-positivity"></a>
+<h3 id="checking-positivity">Checking Positivity<a class="anchor" aria-label="anchor" href="#checking-positivity"></a>
 </h3>
 <p>Positivity fails when some combination of covariates makes the
 treatment nearly certain. To look for that, model the treatment and
@@ -235,7 +222,7 @@ and the interval will not tell you that is what happened.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="the-estimator-g-computation">The Estimator: G-computation<a class="anchor" aria-label="anchor" href="#the-estimator-g-computation"></a>
+<h2 id="the-estimator-g-computation">The Estimator: G-Computation<a class="anchor" aria-label="anchor" href="#the-estimator-g-computation"></a>
 </h2>
 <p>To estimate the average treatment effect <span class="math inline">\(\tau_{\text{ATE}} = E[Y(1)] - E[Y(0)]\)</span>,
 which is a function of the unobserved potential outcomes <span class="math inline">\(Y(1)\)</span> and <span class="math inline">\(Y(0)\)</span>, we can use the assumptions above to
@@ -260,9 +247,10 @@ make traditional BART suitable for estimating the ATE. The default
 splitting prior is a variable-selection prior. It can drop a predictor
 from every tree in the forest at once, which is what makes it worth
 having when the goal is prediction, and exactly what you do not want
-when the estimand is a contrast on one particular predictor. Every
-outcome model below is fitted with <code>sparsity = FALSE</code>, which
-weights the predictors equally and cannot drop any of them.</p>
+when the estimand is a contrast on one particular predictor. The
+traditional BART outcome model below is fitted with
+<code>sparsity = FALSE</code>, which weights the predictors equally and
+cannot drop any of them.</p>
 <p>The propensity score model above keeps the default, and should:
 predicting who was treated is a prediction problem, and no contrast is
 read off it. <code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> explains both halves of
@@ -271,7 +259,7 @@ enough covariates that weighting them all alike is wasteful.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="the-outcome-model">The outcome model<a class="anchor" aria-label="anchor" href="#the-outcome-model"></a>
+<h2 id="the-outcome-model">The Outcome Model<a class="anchor" aria-label="anchor" href="#the-outcome-model"></a>
 </h2>
 <p>We can fit the outcome model as a simple binary BART regression of
 the outcome on the treatment and covariates, as in <span class="citation">Hill (<a href="#ref-hill2011">2011</a>)</span>:</p>
@@ -280,7 +268,7 @@ the outcome on the treatment and covariates, as in <span class="citation">Hill (
 <span>                  <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span>
 <span>                data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>                chains <span class="op">=</span> <span class="fl">4</span>, sparsity <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p>We include both the treatment and covariate in the formula’s
+<p>We include both the treatment and the covariates in the formula’s
 right-hand side, set <code>family = binomial()</code> to model the
 binary outcome with logistic regression, and
 <code>sparsity = FALSE</code> to remove the sparsity-inducing prior. We
@@ -293,7 +281,7 @@ was fit correctly; see <code><a href="../articles/diagnostics.html">vignette("di
 information on how to do that.</p>
 </div>
 <div class="section level2">
-<h2 id="potential-outcomes">Potential outcomes<a class="anchor" aria-label="anchor" href="#potential-outcomes"></a>
+<h2 id="potential-outcomes">Potential Outcomes<a class="anchor" aria-label="anchor" href="#potential-outcomes"></a>
 </h2>
 <p>The quantities underlying the effect estimate are the two average
 potential outcomes: the proportion who would die if every patient were
@@ -333,7 +321,7 @@ than it would against 5%. <code>potential_outcomes = FALSE</code> in the
 <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> call drops them where the difference is all that is
 wanted.</p>
 <div class="section level3">
-<h3 id="how-the-estimate-is-computed-and-on-which-scale">How the estimate is computed, and on which scale<a class="anchor" aria-label="anchor" href="#how-the-estimate-is-computed-and-on-which-scale"></a>
+<h3 id="how-the-estimate-is-computed-and-on-which-scale">How the Estimate Is Computed, and on Which Scale<a class="anchor" aria-label="anchor" href="#how-the-estimate-is-computed-and-on-which-scale"></a>
 </h3>
 <p><code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> performs the g-computation above
 literally. Every unit is predicted twice, once with the treatment set to
@@ -376,7 +364,7 @@ available without leaving the response scale:</p>
 <span><span class="co">#&gt;   `y/(1-y)`.</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="the-same-answer-through-marginaleffects">The same answer through <em>marginaleffects</em><a class="anchor" aria-label="anchor" href="#the-same-answer-through-marginaleffects"></a>
+<h3 id="the-same-answer-through-marginaleffects">The Same Answer Through <em>marginaleffects</em><a class="anchor" aria-label="anchor" href="#the-same-answer-through-marginaleffects"></a>
 </h3>
 <p>A fit also works with <em>marginaleffects</em>, and for the average
 effect the two routes compute the same thing from the same draws. The
@@ -385,7 +373,7 @@ reports the median by default and <code><a href="../reference/estimate_effect.ht
 the mean, so an unadjusted comparison shows a difference that is not
 there.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>marginaleffects_posterior_center <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>marginaleffects_posterior_center <span class="op">=</span> <span class="va">mean</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">avg_comparisons</span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -493,31 +481,34 @@ in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print
 quantity rather than leaving it to the heading, which matters once a
 ratio is asked for: <code>Y[1] - Y[0]</code> is a difference of average
 responses where <code>log(O(Y[1]) / O(Y[0]))</code> is a log odds ratio,
-and the note beneath the table says what <code>Y[a]</code> and
-<code>O(y)</code> are.</p>
+and the note beneath the table says what <code>Y[a]</code> is, adding
+what <code>O(y)</code> is once an odds ratio is asked for.</p>
 <p><code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on a <code><a href="../reference/bcf.html">bcf()</a></code> fit is the same
 summary of the forests it is on any other fit, and says at the end where
 the effect is reported. That way the same call means the same thing
 whichever way the model was written.</p>
 <div class="section level3">
-<h3 id="conditional-effects">Conditional effects<a class="anchor" aria-label="anchor" href="#conditional-effects"></a>
+<h3 id="conditional-effects">Conditional Effects<a class="anchor" aria-label="anchor" href="#conditional-effects"></a>
 </h3>
-<p>The effect forest gives one value per patient, and
-<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> returns them with
-<code>estimand = "CATE"</code>. Here we ask for them as odds ratios,
-which for a conditional effect is a conditional odds ratio:</p>
+<p>The effect forest gives one coefficient per patient, and
+<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> turns those coefficients into one effect
+per patient with <code>estimand = "CATE"</code>, reported on the
+response scale rather than on the forest’s own link scale. Here we ask
+for them as odds ratios, which for a conditional effect is a conditional
+odds ratio:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit_bcf</span>, estimand <span class="op">=</span> <span class="st">"CATE"</span>, comparison <span class="op">=</span> <span class="st">"or"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">cate</span><span class="op">$</span><span class="va">estimate</span>, probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    0%   25%   50%   75%  100% </span></span>
 <span><span class="co">#&gt; 1.131 1.282 1.329 1.375 1.501</span></span></code></pre></div>
-<p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws them: patients ordered by their estimate,
-with a credible interval each, and the marginal effect as a single
-interval past the right edge in its own color. Ordering is what makes
-the spread readable as heterogeneity rather than as a list of numbers,
-and keeping the average off to the side is what makes it comparable
-against any of them.</p>
+<p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws the conditional effects, as differences
+unless <code>comparison</code> says otherwise: patients ordered by their
+estimate, with a credible interval each, and the marginal effect as a
+single interval past the right edge in its own color. Ordering is what
+makes the spread readable as heterogeneity rather than as a list of
+numbers, and keeping the average off to the side is what makes it
+comparable against any of them.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_bcf</span><span class="op">)</span></span></code></pre></div>
 <p><img src="causal_files/figure-html/bcfplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
@@ -535,7 +526,7 @@ conditional effects.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="a-second-example-a-continuous-outcome-and-the-att">A second example: a continuous outcome, and the ATT<a class="anchor" aria-label="anchor" href="#a-second-example-a-continuous-outcome-and-the-att"></a>
+<h2 id="a-second-example-a-continuous-outcome-and-the-att">A Second Example: A Continuous Outcome, and the ATT<a class="anchor" aria-label="anchor" href="#a-second-example-a-continuous-outcome-and-the-att"></a>
 </h2>
 <p>The catheterization question is about a whole population, so the ATE
 is the estimand. Many questions are not. When a program is offered to a
@@ -624,7 +615,7 @@ effect is estimated from far less information than an average, so the
 intervals are wide even where the average is clear.</p>
 </div>
 <div class="section level2">
-<h2 id="what-the-credible-interval-means">What the credible interval means<a class="anchor" aria-label="anchor" href="#what-the-credible-interval-means"></a>
+<h2 id="what-the-credible-interval-means">What the Credible Interval Means<a class="anchor" aria-label="anchor" href="#what-the-credible-interval-means"></a>
 </h2>
 <p>The posterior interval is a credible interval for the estimand under
 the model and under the identification assumptions. It covers
@@ -638,7 +629,7 @@ result away, is a more informative addition than any refinement of the
 model.</p>
 </div>
 <div class="section level2">
-<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+<h2 id="where-to-go-next">Where to Go Next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
 </h2>
 <p><code><a href="../reference/estimate_effect.html">?estimate_effect</a></code> is the reference for the estimands used
 here, including the subgroup form and the contrast types.

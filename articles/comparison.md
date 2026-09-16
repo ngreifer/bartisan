@@ -1,4 +1,4 @@
-# Choosing between models
+# Choosing Between Models
 
 ## Introduction
 
@@ -72,21 +72,27 @@ not seen, with higher values being better. It is computed by importance
 sampling from the fitted posterior rather than by refitting, which is
 why it is fast ([Vehtari et al. 2017](#ref-vehtari2017)).
 
-`p_loo` is the effective number of parameters, about 32 here; for a
-forest with hundreds of leaves across its trees that number is small,
-because the prior shrinks most of them toward zero. It is a useful
-measure of how much of the data the model is actually using.
+`p_loo` is the effective number of parameters, a little over thirty
+here; for a forest with hundreds of leaves across its trees that number
+is small, because the prior shrinks most of them toward zero. It is a
+useful measure of how much of the data the model is actually using.
 
 The Pareto \\k\\ diagnostics are the thing to check: leave-one-out by
 importance sampling is trustworthy only when the importance weights are
-well behaved, and a \\k\\ above .7 says that for that observation they
-are not. Here they are all good.
+well behaved, and a \\k\\ above the threshold *loo* prints with them,
+which is at most .7 and a little lower for a fit with this many draws,
+says that for that observation they are not. Here they are all good.
 
 ### When the Approximation Fails
 
 A forest is a flexible function, so a single observation can have a good
-deal of influence on the leaves it falls into, and high \\k\\ values are
-therefore more common than they are for a parametric model. If many
+deal of influence on the leaves it falls into, and the worry is
+therefore that high \\k\\ values will be more common than they are for a
+parametric model. Measured, they usually are not: the leaf prior shrinks
+every leaf toward zero and the fit is a sum over many trees, so no
+single observation dominates the leaves it reaches. The exceptions that
+do turn up are usually about the likelihood rather than the trees, which
+makes the warning worth reading rather than expecting. If many
 observations are flagged, the estimate is unreliable, and the remedy is
 held-out data rather than a different diagnostic: fit to part of the
 sample and score the part the model was not shown.
@@ -125,9 +131,9 @@ rbind(loo     = c(total = elpd_total, n = nrow(rhc),     per_obs = elpd_total / 
 
 The totals differ by a factor of five because they sum different numbers
 of terms: [`loo()`](https://mc-stan.org/loo/reference/loo.html) scores
-every observation and the split scores only the ones held out. It is the
-per-observation column that the two can be read against each other, and
-there they nearly agree. The gap that remains is in the direction to
+every observation and the split scores only the ones held out. It is in
+the per-observation column that the two can be read against each other,
+and there they nearly agree. The gap that remains is in the direction to
 expect, since leave-one-out trains on 1499 observations and the split
 trains on 1200.
 
@@ -186,8 +192,9 @@ likelihood, so the difference between two models is a log likelihood
 ratio: the evidence the sample carries about which model predicts
 better, in nats. On that reading the total is the quantity with meaning,
 and it should grow with the sample, because more data is more evidence.
-It also puts `elpd` on the scale AIC, WAIC and DIC are quoted on, which
-are likewise totals.
+It also keeps `elpd` a total over observations, as AIC, WAIC and DIC
+are, though those three are quoted on the deviance scale, which is
+\\-2\\ times a log score.
 
 Nothing is lost by preferring the average, because the decision does not
 depend on the choice. The mean difference and the total differ by a
@@ -303,7 +310,7 @@ c(kfold = kfold_full$estimates["elpd_kfold", "Estimate"] / nrow(rhc),
 ```
 
 They agree, which is what a clean Pareto \\k\\ column was saying in less
-direct form. That is the division of labour between the three routes:
+direct form. That is the division of labor between the three routes:
 [`loo()`](https://mc-stan.org/loo/reference/loo.html) for one fit and a
 diagnostic, \\K\\-fold for \\K\\ fits and no approximation, and a single
 split when even that is too expensive. When the outcome is rare enough
@@ -323,7 +330,7 @@ demographics alone do not.
 The other choice is the likelihood. For a binary outcome the family is
 settled, and what remains is the link (i.e., the function that maps the
 forest’s output onto a probability). Below we compare probit and
-complimentary log-log BART models to our original logistic BART model.
+complementary log-log BART models to our original logistic BART model.
 
 ``` r
 
@@ -440,8 +447,8 @@ c(on_time = elpd(loo(prop_haz, scale = "time")) - elpd(loo(aft, scale = "time"))
 The everyday version of this mistake takes the same repair by hand. A
 model of `log(y)` reports \\\log f_Y(\log y)\\, so subtracting \\\log
 y\\ from each of its pointwise contributions, with
-`loo(sweep(log_lik(fit), 2, log(y), "-"))`, puts it on the scale of a
-model of `y`.
+`loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))`, puts it on the
+scale of a model of `y`.
 
 There is also a way to sidestep the correction rather than apply it.
 Survival at a horizon is a probability under every family, so comparing
@@ -504,14 +511,14 @@ within a couple of points of each other. Everything else is the atom.
 
 **The one case where the comparison is valid** is an outcome that is
 really recorded on a grid rather than being continuous: whole dollars,
-whole counts, tenths of a millimetre. Then neither model is reporting a
+whole counts, tenths of a millimeter. Then neither model is reporting a
 density at all, properly speaking, and both can be put on the
 probability of landing in one cell of that grid, after which the totals
 are comparable. Doing it means turning each density into a probability
 by multiplying it by the cell width, which is a constant per observation
 and so a correction of the same shape as the Jacobian above. The width
 has to come from knowing how the outcome was recorded; no fitted model
-can supply it, and choosing it to favour a model is choosing the answer.
+can supply it, and choosing it to favor a model is choosing the answer.
 
 When the zeros are exact rather than rounded, there is no width to use
 and no correction to make. In that case do not compare the two families
@@ -529,13 +536,15 @@ point. A posterior predictive check settles it in one line:
 
 ``` r
 
+set.seed(2026)
+
 zero_share <- function(y) mean(y == 0)
 
 c(observed = zero_share(lalonde$re78),
   gaussian = mean(apply(rstantools::posterior_predict(normal), 1, zero_share)),
   tweedie  = mean(apply(rstantools::posterior_predict(compound), 1, zero_share)))
 #> observed gaussian  tweedie 
-#>   0.2329   0.0000   0.2206
+#>   0.2329   0.0000   0.2185
 ```
 
 A gaussian fit never produces an exact zero and about a quarter of these

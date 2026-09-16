@@ -1,4 +1,4 @@
-# Effects, curves, and interactions
+# Effects, Curves, and Interactions
 
 ## Introduction
 
@@ -27,9 +27,10 @@ predictors. Neither needs a suggested package, and
 is the worked version of the first. Everything else in this vignette is
 *marginaleffects*: slopes, contrasts between arbitrary covariate values,
 a continuous treatment, hypotheses comparing one estimate to another,
-and any grid more particular than a predictor’s own range. That last
-class is the one to watch for, because it is where the native route
-stops rather than where it is merely less convenient.
+and any grid that fixes the other covariates at chosen values rather
+than averaging over them. That last class is the one to watch for,
+because it is where the native route stops rather than where it is
+merely less convenient.
 
 This vignette covers the questions worth asking and how to phrase them.
 [`vignette("bartisan")`](https://ngreifer.github.io/bartisan/articles/bartisan.md)
@@ -115,6 +116,12 @@ the forest altogether), so in a draw where it uses the predictor in no
 tree the prediction does not depend on it and the contrast is exactly
 zero; the posterior of the contrast is a mixture with a point mass
 there, holding whatever share of draws dropped the predictor.
+*marginaleffects* centers a posterior at its median, so once that point
+mass holds half of it the reported estimate is exactly zero however far
+the rest of the posterior sits from zero. Setting
+`options(marginaleffects_posterior_center = mean)` asks for the mean
+instead, which is the summary
+[`predict()`](https://rdrr.io/r/stats/predict.html) reports.
 
 It matters more than it sounds: on a weak signal the prior attenuates
 the estimate substantially and its interval covers the truth well below
@@ -169,8 +176,10 @@ avg_comparisons(fit, variables = "rhc", by = "card")
 ```
 
 The two subgroup estimates are close, and both intervals reach zero.
-`estimate_effect(fit, treat = "rhc", by = ~ card)` gives the same two
-numbers natively.
+`estimate_effect(fit, treat = "rhc", by = ~ card)` asks the same
+question natively and returns the same intervals; its point estimates
+differ a little, because it centers each posterior at its mean where
+*marginaleffects* centers at its median.
 
 A common mistake is to stop here and conclude that the effect differs
 between groups; that comparison is not a test. The question is whether
@@ -220,12 +229,14 @@ avg_predictions(fit, by = "card")
 ## The Shape of a Relationship (`plot_predictions()`)
 
 Averages hide shape. The fitted function is seen by plotting predictions
-against one predictor with everything else held fixed.
+against one predictor while the others are either averaged over or held
+fixed.
 [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
-draws this natively, and `plot(fit, ~ x)` is the short way to it; the
-section uses `plot_predictions(draw = FALSE)` instead because it gives
-more control over the grid and over what is held fixed, which is what
-the hand-built *ggplot2* calls below are for:
+averages them over the sample and draws the result natively, and
+`plot(fit, ~ x)` is the short way to it; the section uses
+`plot_predictions(draw = FALSE)` instead because it gives more control
+over the grid and over what is held fixed, which is what the hand-built
+*ggplot2* calls below are for:
 
 ``` r
 
@@ -258,12 +269,12 @@ Adding a second variable shows how the shape differs across groups.
 
 curve2 <- plot_predictions(fit, condition = c("aps", "rhc"), draw = FALSE)
 
-ggplot(curve2, aes(aps, estimate, colour = factor(rhc))) +
+ggplot(curve2, aes(aps, estimate, color = factor(rhc))) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = factor(rhc)),
-              alpha = 0.15, colour = NA) +
+              alpha = 0.15, color = NA) +
   geom_line() +
   labs(x = "APACHE III score on day 1", y = "fitted probability of death",
-       colour = "catheterized", fill = "catheterized") +
+       color = "catheterized", fill = "catheterized") +
   theme_bw(base_size = 9)
 ```
 
@@ -320,8 +331,10 @@ Instead we use
 with a step we can interpret, as with `aps = 10` above. If a genuine
 derivative is needed, we refit with `x_transform = "range"` in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
-which is linear and so does have one. This is documented at
-`?bartisan-marginaleffects`.
+which maps each predictor linearly and so leaves a soft-rule fit
+differentiable; with `gate = "hard"` the fit is a step function under
+either transform and has no derivative worth taking. This is documented
+at `?bartisan-marginaleffects`.
 
 ## Varying Coefficients (`vc()`)
 
@@ -386,7 +399,9 @@ the covariate’s own range:
 ``` r
 
 # The effect of `aps` may itself change across `aps`.
-y ~ age + vc(aps, ~ aps + age)
+# A modifier has to be a predictor of the model, so `aps` reaches the formula
+# through `.`, which also keeps it out of the control function.
+y ~ . + vc(aps, ~ aps + age)
 ```
 
 And a covariate whose coefficient varies should not also be a predictor
@@ -394,9 +409,11 @@ of the control function. With it in both, the two are not separately
 identified: any function of it can move between them. Writing the
 covariate only inside
 [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) is what
-keeps them apart, and
+keeps them apart. Named outright in the fixed part as well, the model is
+fitted as asked and
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-warns if the formula does otherwise.
+warns; reached through `.`, the covariate is dropped from the control
+function without comment, since `.` did not name it.
 
 For a family with several additive predictors, each parameter’s formula
 carries its own
@@ -415,7 +432,7 @@ bartisan(list(mean = y ~ x1 + x2 + vc(z),
 per coefficient, named `mean:z` and `log_sd:z` for the forests they come
 from, which is also how per-forest settings like `num_trees` are keyed.
 [`?vc`](https://ngreifer.github.io/bartisan/reference/vc.md) covers the
-rest, including the one family that refuses this.
+rest, including the two multinomial families that refuse this.
 
 ## Descriptions of the Fitted Model
 

@@ -1,19 +1,21 @@
-# Getting started with bartisan
+# Getting Started with bartisan
 
 ## Introduction
 
 *bartisan* fits Bayesian additive regression trees (BART) using the same
-interface as [`glm()`](https://rdrr.io/r/stats/glm.html). You supply a
+interface as [`glm()`](https://rdrr.io/r/stats/glm.html). We supply a
 formula, a data frame, and a family, and the model estimates the
-relationship between the predictors and the outcome without you having
-to say what shape that relationship takes. Nonlinearity and interactions
-are found rather than specified.
+relationship between the predictors and the outcome without anything
+being said about what shape that relationship takes. Nonlinearity and
+interactions are found rather than specified.
 
-This vignette walks through a complete analysis: fitting a model,
-checking that it worked, seeing which predictors it uses, reading off
-the effects, predicting for new observations, and comparing models. It
-assumes you are comfortable with regression but does not assume
-familiarity with machine learning or Bayesian methods.
+In this guide we will work through a complete analysis. First we’ll fit
+a model and check both that the sampler converged and that the fit
+describes the data. Next we’ll see which predictors the forest uses,
+read the effects off it, and predict for new observations. Finally we’ll
+compare two models and set out what the fit does not do. The guide
+assumes a reader comfortable with regression and assumes nothing about
+machine learning or Bayesian methods.
 
 The main thing to take from it is that the defaults are meant to be
 used. The priors, the number of trees, and the sampler settings are
@@ -21,18 +23,18 @@ chosen to work across a wide range of problems, and tuning them is
 rarely where the gains are. Almost everything below is a single function
 call with no arguments beyond the formula and the data.
 
-Each section ends with a pointer to a vignette that covers the same
-ground in more depth.
+Most sections point to a vignette that covers the same ground in more
+depth.
 
 ``` r
 
 library(bartisan)
 ```
 
-## The data
+## The Data
 
-`rhc` records 1500 critically ill patients from the SUPPORT study and
-whether each received right heart catheterization, a monitoring
+`rhc` records a random 1500 of the 5735 patients in the SUPPORT study
+and whether each received right heart catheterization, a monitoring
 procedure, within a day of arriving in intensive care ([Connors et al.
 1996](#ref-connors1996)). The question the study asked is whether the
 procedure helps or harms.
@@ -73,14 +75,14 @@ whether cardiovascular disease was among the diagnoses, and `surv2m`,
 the study’s own estimate of the patient’s chance of surviving two
 months. All were recorded before catheterization.
 
-## Fitting the model
+## Fitting the Model
 
 ``` r
 
 set.seed(2026)
 
 # For parallelization; optional
-if (rlang::is_installed("future")) {
+if (rlang::is_installed(c("future", "future.apply"))) {
   future::plan(future::multisession)
 }
 
@@ -110,9 +112,10 @@ family may be omitted, in which case it is read off the outcome and
 reported; naming it is clearer and silences the message.
 
 `chains = 4` runs the sampler four times from different starting points.
-The default is one chain, which is enough to get estimates, but running
-several is what makes the convergence diagnostics in the next section
-available.
+The default is one chain, and the diagnostics in the next section are
+still computed for it, with R-hat taken by splitting that single chain
+into segments; running several is what lets them detect chains that have
+settled in different places.
 
 Choosing a family is the one modeling decision that usually matters more
 than any sampler setting.
@@ -121,7 +124,7 @@ covers the choice, and
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
 covers censored outcomes such as this one’s `days`.
 
-## Checking the model
+## Checking the Model
 
 Two questions are worth separating: whether the sampler converged, and
 whether the model fits.
@@ -191,9 +194,9 @@ are effective sample sizes, and count how many independent draws the
 correlated ones are worth, in the middle of the distribution and in the
 tails.
 
-Read the rows that correspond to quantities you will report. `eta.eta`
-is the fitted function and appears twice, once averaged over the
-observations and once over the worst 5% of them; the second is what
+Read the rows that correspond to the quantities being reported.
+`eta.eta` is the fitted function and appears twice, once averaged over
+the observations and once over the worst 5% of them; the second is what
 governs a prediction for one observation. Forests mix slowly on their
 fitted values, so a figure above 1.01 on the worst-5% row is ordinary
 rather than alarming;
@@ -261,8 +264,8 @@ predictors keep the fitted function moving the whole time.
 covers the settings that remove the atom when an effect is what is being
 reported.
 
-The table is in `diagnose(fit)$table` if what you want is the numbers
-rather than the report.
+The table is in `diagnose(fit)$table` when the numbers are wanted rather
+than the report.
 
 ### Fit
 
@@ -289,7 +292,7 @@ here.
 covers what a departure from the diagonal looks like and what else to
 check.
 
-## Which predictors the model uses
+## Which Predictors the Model Uses
 
 ``` r
 
@@ -320,9 +323,10 @@ each predictor per draw, and `prop_used` is the proportion of draws in
 which the predictor received any rule at all.
 
 `surv2m` takes the most rules, which is unsurprising: it is a prognostic
-score built to predict survival. Age follows. At the bottom, race and
-sex are used in about half the draws, which says the model can often do
-without them.
+score built to predict survival. Age follows. At the bottom, `sex` and
+`race` are used in fewer than half the draws, as are several of the
+physiological measurements, which says the model can often do without
+them.
 
 Two cautions. Usage is not effect size: a predictor can be split on
 constantly and still move the prediction very little, and
@@ -335,7 +339,7 @@ arbitrarily.
 covers variable importance and selection, including how to tell whether
 a difference in this table means anything.
 
-## Interpreting the fit
+## Interpreting the Fit
 
 A forest has no coefficients, so there is no table of slopes to read.
 The question “what is the effect of catheterization” is answered by
@@ -377,10 +381,9 @@ The lower bound is exactly zero rather than merely close to it, and that
 is worth knowing about. The default splitting prior can drop a predictor
 from the forest entirely, and in a draw where it drops `rhc` the
 contrast is exactly zero, so the posterior has a point mass there. The
-default settings are not necessarily the best ones to use for causal
-effect estimation; more specialized methods, like Bayesian causal
-forests (BCF) and BART without sparsity-inducing priors, are described
-at
+default settings are not necessarily the best ones for estimating a
+causal effect; more specialized methods, such as Bayesian causal forests
+(BCF) and BART without a sparsity-inducing prior, are described in
 [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md).
 
 Because the outcome is binary, this is a difference in probability,
@@ -392,7 +395,7 @@ the difference was computed from them: about 63% of patients would be
 expected to die without catheterization and 69% with it, averaging over
 the covariates as they actually occur in this sample.
 
-### Looking at a relationship
+### Looking at a Relationship
 
 Effects averaged over the sample hide the shape of the relationship. To
 see the shape, plot the model’s predictions against one predictor.
@@ -406,7 +409,7 @@ plot(fit, ~ surv2m) +
 
 ![](bartisan_files/figure-html/pdp-1.png)
 
-The fitted probability of death falls from about 0.88 to about 0.45 as
+The fitted probability of death falls from close to .9 to about .5 as
 the prognostic score rises, and the fall is not a straight line. A
 logistic regression reports one slope on the log-odds scale for the
 whole range. Nothing had to be specified to find the shape.
@@ -423,7 +426,7 @@ more control.
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
 covers effects, curves, and interactions.
 
-## Predicting new observations
+## Predicting New Observations
 
 [`predict()`](https://rdrr.io/r/stats/predict.html) returns the
 posterior mean prediction.
@@ -453,9 +456,9 @@ marginaleffects::predictions(fit, newdata = new_patient)
 This describes the probability that a patient with these characteristics
 dies. It is an interval for that probability, not a statement about
 which way any individual patient will go: the outcome itself is either 0
-or 1, and a probability of 0.7 is entirely compatible with survival.
+or 1, and a probability of .7 is entirely compatible with survival.
 
-## Comparing models
+## Comparing Models
 
 Approximate leave-one-out cross-validation estimates how well a model
 predicts data it has not seen.
@@ -486,9 +489,10 @@ which is a measure of how much of the data the forest is actually using.
 The Pareto k diagnostics are all good, meaning the approximation is
 trustworthy for this fit.
 
-Two models can be compared directly. Here we ask whether the
-physiological measurements earn their keep over knowing the patient’s
-demographics alone:
+Two models can be compared directly. Here we ask whether everything
+recorded about how sick the patient was on arrival, the seven
+physiological measurements and the prognostic score among them, earns
+its keep over the demographics alone:
 
 ``` r
 
@@ -504,13 +508,13 @@ loo_compare(list(full = loo(fit),
 ```
 
 The full model predicts better by around six times the standard error of
-the difference, which is what you would expect: how sick a patient is on
+the difference, which is what we would expect: how sick a patient is on
 arrival is the main thing that predicts whether they die.
 
 [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
 covers model comparison, and the cases where leave-one-out fails.
 
-## What to be careful about
+## What to Be Careful About
 
 The model is flexible about the shape of the relationship and nothing
 else.
@@ -524,14 +528,15 @@ question about the study and not about the fit.
 [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
 covers what is required, using this same data.
 
-It does not extrapolate reliably. Predictions for predictor values
-outside the range of the training data are shrunk toward the overall
-mean rather than continuing any trend.
+It does not extrapolate reliably. A predictor value outside the range of
+the training data is mapped to the edge of that range, so the prediction
+is held flat at whatever the fitted function is at the edge rather than
+continuing any trend.
 
 It does not fix a badly chosen family. Getting the outcome distribution
 wrong matters more than any sampler setting.
 
-## Where to go next
+## Where to Go Next
 
 | Topic | Vignette |
 |----|----|
@@ -539,14 +544,14 @@ wrong matters more than any sampler setting.
 | Choosing a family | [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md) |
 | Convergence and fit | [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md) |
 | Variable importance and selection | [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md) |
-| Effects, curves, and interactions | [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md) |
+| Effects, Curves, and Interactions | [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md) |
 | Model comparison | [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md) |
 | Causal inference | [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md) |
 | Censored and survival outcomes | [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md) |
 | Frequently asked questions | [`vignette("faq")`](https://ngreifer.github.io/bartisan/articles/faq.md) |
 
-`?bartisan-package` has a shorter version of the same map, organized by
-task.
+`?bartisan-package` has a longer map, organized by task and pointing at
+functions rather than vignettes.
 
 ## References
 
@@ -559,6 +564,6 @@ Critically Ill Patients.” *JAMA* 276 (11): 889–97.
     as the point estimate, whereas
     [`predict()`](https://rdrr.io/r/stats/predict.html) uses the
     posterior mean, so these values may differ slightly. Use
-    `options("marginaleffects_posterior_center" = "mean")` prior to
-    running `predictions()` to produce the posterior mean. We do this in
+    `options(marginaleffects_posterior_center = mean)` prior to running
+    `predictions()` to produce the posterior mean. We do this in
     [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md).

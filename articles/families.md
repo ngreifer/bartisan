@@ -1,4 +1,4 @@
-# Response families in bartisan
+# Response Families in bartisan
 
 ``` r
 
@@ -121,9 +121,13 @@ fit:
 
 ``` r
 
+# The count response used here and through the rest of the vignette
 n <- 300
 d <- data.frame(x1 = runif(n), x2 = runif(n))
 d$count <- rpois(n, exp(1.2 * sin(pi * d$x1) + 0.4))
+```
+
+``` r
 
 loo::loo_compare(
   loo::loo(bartisan(count ~ ., d, family = poisson(), control = ctrl)),
@@ -151,7 +155,7 @@ in which case its default value is determined by the response variable:
 | an ordered factor | [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | logical, a factor or character with two levels, or numeric taking only the values 0 and 1 | [`binomial()`](https://rdrr.io/r/stats/family.html) |
 | any other factor or character | [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
-| a two-column numeric matrix | [`binomial()`](https://rdrr.io/r/stats/family.html), read as successes and failures, unless the columns look like strictly positive times and 0/1 events, which give [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
+| a two-column numeric matrix | [`binomial()`](https://rdrr.io/r/stats/family.html), read as successes and failures, unless the columns look like non-negative times and 0/1 events, which give [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | any other numeric | [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 
 The choice is reported when it is made, and naming `family` silences the
@@ -407,7 +411,11 @@ c(scale_splits = sum(flat$counts$log_sd),
 The scalar is drawn under the leaf prior rather than under the prior the
 corresponding built-in family puts on its nuisance parameter, so the two
 agree closely rather than exactly. The multinomial families are the
-exception, for the reason given at the end of this section.
+exception: their forests are the levels of one categorical parameter and
+act together rather than describing separate components of the response
+distribution, so every per-forest argument applies to all of them at
+once, and more than one value is an error rather than a silent
+recycling.
 
 The scale forest never splits on `x1`, because its formula does not name
 it. The predictor is still in the data, so nothing about
@@ -510,9 +518,9 @@ A few things to take from this:
 **[`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is the family to reach for when the dispersion might vary, and it costs
 almost nothing when it does not.** In the varying-dispersion column it
-cuts RMSE by 26% against `Gamma("log")` (0.461 against 0.620) and gains
-62 log points. In the constant-dispersion column, where `Gamma("log")`
-is exactly right, the two are indistinguishable: 0.378 against 0.395 on
+cuts RMSE by 26% against `Gamma("log")` (.461 against .620) and gains 62
+log points. In the constant-dispersion column, where `Gamma("log")` is
+exactly right, the two are indistinguishable: 0.378 against 0.395 on
 RMSE and two log points apart, well inside the replicate-to-replicate
 spread. That is the same property that makes
 [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -625,9 +633,9 @@ c(mean = mean(dz$count), zeros = mean(dz$count == 0),
 library(ggplot2)
 
 ggplot(dz, aes(count)) +
-  geom_histogram(binwidth = 1, fill = "grey70", colour = "white") +
+  geom_histogram(binwidth = 1, fill = "grey70", color = "white") +
   labs(x = "count", y = "observations",
-       subtitle = "Poisson, no zero inflation, marginal mean 1.8") +
+       subtitle = "Poisson, no zero inflation, marginal mean 1.9") +
   theme_bw()
 ```
 
@@ -676,11 +684,13 @@ do not sharply separate any of the four, and that is worth saying before
 anything else. What they certainly do not do is *prefer* a zero-inflated
 fit: both zero-inflated families come out nominally behind the plain
 Poisson rather than ahead of it, despite a response that is 46% zeros,
+and the two families that add a dispersion parameter,
+[`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`zi_negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-which adds inflation and overdispersion at once, is nominally last.
-Since the truth here has neither, “no better than the plain Poisson” is
-the right answer rather than a failure to detect something.
+sit at the bottom. Since the truth here has neither, “no better than the
+plain Poisson” is the right answer rather than a failure to detect
+something.
 
 What has happened is that the forest already accounts for the zeros by
 finding where the conditional mean is small, which is what a
@@ -988,8 +998,14 @@ that makes an accelerated failure time model proportional hazards as
 well.
 
 The three structured accelerated failure time families (i.e., the first
-three above) fix the shape of the error and so of the hazard, and are
-quick to fit.
+three above) fix the shape of the error and so of the hazard.
+[`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+and
+[`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+are the quickest of the five to fit, since imputing the censored times
+leaves the sampler a quadratic target;
+[`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+whose likelihood takes the exponential path instead, is the slowest.
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 frees the baseline hazard instead, so it fits a hazard of any shape, at
 the price of asserting proportionality and of reading the predictor on
@@ -1001,7 +1017,7 @@ when it was not.
 
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is the default for a `Surv` response, on the evidence in the survival
-vignette and because it is cheaper to fit than most of the alternatives.
+vignette and because it is one of the cheaper families to fit.
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is the one family that is both an accelerated failure time and a
 proportional hazards model, so it is the one to name when a hazard-ratio
@@ -1071,9 +1087,7 @@ and one trap in comparing their log scores.
 Links beyond those in the table are accepted for
 [`gaussian()`](https://rdrr.io/r/stats/family.html),
 [`binomial()`](https://rdrr.io/r/stats/family.html),
-[`poisson()`](https://rdrr.io/r/stats/family.html),
-[`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and
+[`poisson()`](https://rdrr.io/r/stats/family.html) and
 [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 and applied from R by composing the supplied inverse link with the
 family’s own. So `binomial("cauchit")` works, as does any link object of
@@ -1089,8 +1103,8 @@ reports that when the fit starts. The families with more than one
 predictor, or whose link enters somewhere other than a single mean, take
 only their listed links.
 
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)can
-be used to fit a BART model with a density of the user’s design. It
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+can be used to fit a BART model with a density of the user’s design. It
 takes the log density itself and fits the model that goes with it. The
 sampler needs only the first two derivatives with respect to each
 additive predictor, and central differences of the supplied function
@@ -1180,9 +1194,8 @@ returns the additive predictors instead, though `type = "density"`
 works.
 
 Custom likelihoods are why *bartisan* is named what it is; they support
-*artisanal* models augmented by BART. Anywhere you might otherwise
-include a linear predictor in a model, it can be estimated flexibly with
-BART instead.
+*artisanal* models augmented by BART. Anywhere a linear predictor might
+otherwise go in a model, it can be estimated flexibly with BART instead.
 
 ## References
 

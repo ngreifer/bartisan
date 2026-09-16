@@ -103,6 +103,8 @@ and
 [bartisan-interop](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 for the packages that read a fit;
 [`vignette("bartisan")`](https://ngreifer.github.io/bartisan/articles/bartisan.md)
+for a worked analysis and
+[`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md)
 for how the sampler works.
 
 ## Author

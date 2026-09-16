@@ -1,4 +1,4 @@
-# Which variables matter
+# Which Variables Matter
 
 ## Introduction
 
@@ -14,7 +14,7 @@ matters more than the first: variable importance is the most over-read
 output in machine learning, and the failure modes are specific and
 checkable.
 
-In this guide we will first read the three columns
+In this guide we will first read the three statistics
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
 returns, and then calibrate them by adding predictors we know to be pure
 noise. Next we’ll look at the two situations that most affect how the
@@ -135,7 +135,7 @@ and this is how to find out.
 
 ## Calibrating With Noise Predictors
 
-Is a `prop_used` of .53 low? The table alone cannot say. Before reading
+Is a middling `prop_used` low? The table cannot say. Before reading
 anything into the bottom of it, we should check what a predictor that
 certainly does not matter looks like on these data, which means adding a
 few.
@@ -229,11 +229,11 @@ variable_importance(fit_fr)
 ```
 
 The five real predictors sit at 1.00 and four of the five noise
-predictors below .13. The fifth, `x8`, comes in around .4, which is a
-useful reminder that even a clean separation has a straggler: a noise
-variable will occasionally be picked up, and a single moderate value is
-not evidence of anything. The gap that matters runs from about .4 to
-1.00, and it is wide.
+predictors near zero. The fifth sits above the other noise variables and
+still well below the real ones, which is a useful reminder that even a
+clean separation has a straggler: a noise variable will occasionally be
+picked up, and a single moderate value is not evidence of anything. The
+gap that matters runs from the top of the noise to 1.00, and it is wide.
 
 There is no threshold that is correct in general, so we look for the
 gap, cut inside it, and check that the conclusion does not depend on
@@ -268,14 +268,14 @@ variable_importance(fit_corr)
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
-The outcome depends on `x1`. The forest used `x1_copy` in every draw and
-`x1` in under 10% of them, so read as a selection result, this table
-says to keep the variable that is not in the truth and to drop the one
-that is.
+The outcome depends on `x1`. The forest spent most of its splitting
+rules on `x1_copy` and most of the rest on `x1`, so read as a ranking,
+this table puts the variable that is not in the truth above the one that
+is.
 
 Nothing has gone wrong with the fit: the two variables carry the same
 information, so a tree that splits on either fits equally well, and the
-forest settled on one arbitrarily. Predictions are unaffected; what is
+forest divided the rules unevenly. Predictions are unaffected; what is
 affected is any statement about which variable matters.
 
 The same thing happens to the effects:
@@ -294,8 +294,8 @@ avg_comparisons(fit_corr, variables = c("x1", "x1_copy"))
 #> Comparison: +1
 ```
 
-All of the association is attributed to the copy and none to the
-original. Moving both together, which is what a change in the underlying
+The copy takes most of the association; the original’s interval covers
+zero. Moving both together, which is what a change in the underlying
 quantity would mean, recovers the truth:
 
 ``` r
@@ -370,8 +370,8 @@ noise predictors are used in 95% of draws and cannot be told apart from
 the real ones. With the prior, which is on by default
 (`sparsity = TRUE`), they stay near zero at every tree count. The
 recommendation addresses the same problem the prior addresses, and there
-is little left for it to do; reducing the trees also costs predictive
-accuracy, so it is not free.
+is little left for it to do; a smaller forest also mixes worse, so it is
+not free.
 
 To check on a given dataset, we can fit at the default and again at 20
 trees and see whether the conclusion changes. It usually will not.

@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Effects, curves, and interactions • bartisan</title>
+<title>Effects, Curves, and Interactions • bartisan</title>
 <!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
   window.MathJax = {
     chtml: {
@@ -16,7 +16,7 @@
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Effects, curves, and interactions">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Effects, Curves, and Interactions">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -37,20 +37,7 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
-    <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
-    <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
-  </ul>
-</li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -78,11 +65,11 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Effects, curves, and interactions</h1>
+      <h1>Effects, Curves, and Interactions</h1>
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-15</h4>
+            <h4 data-toc-skip class="date">2026-09-16</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/effects.Rmd" class="external-link"><code>vignettes/effects.Rmd</code></a></small>
       <div class="d-none name"><code>effects.Rmd</code></div>
@@ -118,9 +105,10 @@ package, and <code><a href="../articles/causal.html">vignette("causal")</a></cod
 the first. Everything else in this vignette is <em>marginaleffects</em>:
 slopes, contrasts between arbitrary covariate values, a continuous
 treatment, hypotheses comparing one estimate to another, and any grid
-more particular than a predictor’s own range. That last class is the one
-to watch for, because it is where the native route stops rather than
-where it is merely less convenient.</p>
+that fixes the other covariates at chosen values rather than averaging
+over them. That last class is the one to watch for, because it is where
+the native route stops rather than where it is merely less
+convenient.</p>
 <p>This vignette covers the questions worth asking and how to phrase
 them. <code><a href="../articles/bartisan.html">vignette("bartisan")</a></code> is the shorter tour, and this
 expands its section on interpreting the fit.</p>
@@ -191,7 +179,13 @@ a variable-selection prior (i.e., one that can leave a predictor out of
 the forest altogether), so in a draw where it uses the predictor in no
 tree the prediction does not depend on it and the contrast is exactly
 zero; the posterior of the contrast is a mixture with a point mass
-there, holding whatever share of draws dropped the predictor.</p>
+there, holding whatever share of draws dropped the predictor.
+<em>marginaleffects</em> centers a posterior at its median, so once that
+point mass holds half of it the reported estimate is exactly zero
+however far the rest of the posterior sits from zero. Setting
+<code>options(marginaleffects_posterior_center = mean)</code> asks for
+the mean instead, which is the summary <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>
+reports.</p>
 <p>It matters more than it sounds: on a weak signal the prior attenuates
 the estimate substantially and its interval covers the truth well below
 its nominal rate. A strong effect is untouched, because the prior never
@@ -239,8 +233,10 @@ straight line.</p>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
 <p>The two subgroup estimates are close, and both intervals reach zero.
-<code>estimate_effect(fit, treat = "rhc", by = ~ card)</code> gives the
-same two numbers natively.</p>
+<code>estimate_effect(fit, treat = "rhc", by = ~ card)</code> asks the
+same question natively and returns the same intervals; its point
+estimates differ a little, because it centers each posterior at its mean
+where <em>marginaleffects</em> centers at its median.</p>
 <p>A common mistake is to stop here and conclude that the effect differs
 between groups; that comparison is not a test. The question is whether
 the two effects differ from each other, which needs the difference of
@@ -280,8 +276,9 @@ rather than differences, which is useful for describing groups:</p>
 <h2 id="the-shape-of-a-relationship-plot_predictions">The Shape of a Relationship (<code>plot_predictions()</code>)<a class="anchor" aria-label="anchor" href="#the-shape-of-a-relationship-plot_predictions"></a>
 </h2>
 <p>Averages hide shape. The fitted function is seen by plotting
-predictions against one predictor with everything else held fixed.
-<code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> draws this natively, and
+predictions against one predictor while the others are either averaged
+over or held fixed. <code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> averages them over
+the sample and draws the result natively, and
 <code>plot(fit, ~ x)</code> is the short way to it; the section uses
 <code>plot_predictions(draw = FALSE)</code> instead because it gives
 more control over the grid and over what is held fixed, which is what
@@ -310,12 +307,12 @@ groups.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">curve2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions</a></span><span class="op">(</span><span class="va">fit</span>, condition <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"aps"</span>, <span class="st">"rhc"</span><span class="op">)</span>, draw <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">curve2</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">aps</span>, <span class="va">estimate</span>, colour <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">curve2</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">aps</span>, <span class="va">estimate</span>, color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_ribbon.html" class="external-link">geom_ribbon</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">conf.low</span>, ymax <span class="op">=</span> <span class="va">conf.high</span>, fill <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>              alpha <span class="op">=</span> <span class="fl">0.15</span>, colour <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span> <span class="op">+</span></span>
+<span>              alpha <span class="op">=</span> <span class="fl">0.15</span>, color <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"fitted probability of death"</span>,</span>
-<span>       colour <span class="op">=</span> <span class="st">"catheterized"</span>, fill <span class="op">=</span> <span class="st">"catheterized"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>       color <span class="op">=</span> <span class="st">"catheterized"</span>, fill <span class="op">=</span> <span class="st">"catheterized"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
 <p><img src="effects_files/figure-html/pdp2-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The two curves run close together; if they diverged, that would be a
@@ -361,8 +358,11 @@ lands.</p>
 <p>Instead we use <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">comparisons()</a></code> with a step we can
 interpret, as with <code>aps = 10</code> above. If a genuine derivative
 is needed, we refit with <code>x_transform = "range"</code> in
-<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>, which is linear and so does have one.
-This is documented at <code>?bartisan-marginaleffects</code>.</p>
+<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>, which maps each predictor linearly and
+so leaves a soft-rule fit differentiable; with
+<code>gate = "hard"</code> the fit is a step function under either
+transform and has no derivative worth taking. This is documented at
+<code>?bartisan-marginaleffects</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="varying-coefficients-vc">Varying Coefficients (<code>vc()</code>)<a class="anchor" aria-label="anchor" href="#varying-coefficients-vc"></a>
@@ -414,12 +414,17 @@ coefficient’s forest split on the covariate itself removes it, and then
 the effect varies across the covariate’s own range:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># The effect of `aps` may itself change across `aps`.</span></span>
-<span><span class="va">y</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">aps</span>, <span class="op">~</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">age</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># A modifier has to be a predictor of the model, so `aps` reaches the formula</span></span>
+<span><span class="co"># through `.`, which also keeps it out of the control function.</span></span>
+<span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">aps</span>, <span class="op">~</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">age</span><span class="op">)</span></span></code></pre></div>
 <p>And a covariate whose coefficient varies should not also be a
 predictor of the control function. With it in both, the two are not
 separately identified: any function of it can move between them. Writing
-the covariate only inside <code><a href="../reference/vc.html">vc()</a></code> is what keeps them apart,
-and <code><a href="../reference/bartisan.html">bartisan()</a></code> warns if the formula does otherwise.</p>
+the covariate only inside <code><a href="../reference/vc.html">vc()</a></code> is what keeps them apart.
+Named outright in the fixed part as well, the model is fitted as asked
+and <code><a href="../reference/bartisan.html">bartisan()</a></code> warns; reached through <code>.</code>, the
+covariate is dropped from the control function without comment, since
+<code>.</code> did not name it.</p>
 <p>For a family with several additive predictors, each parameter’s
 formula carries its own <code><a href="../reference/vc.html">vc()</a></code> terms, so a covariate can have
 a coefficient on more than one of them:</p>
@@ -431,8 +436,8 @@ a coefficient on more than one of them:</p>
 <p><code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> then returns one column per coefficient, named
 <code>mean:z</code> and <code>log_sd:z</code> for the forests they come
 from, which is also how per-forest settings like <code>num_trees</code>
-are keyed. <code><a href="../reference/vc.html">?vc</a></code> covers the rest, including the one family
-that refuses this.</p>
+are keyed. <code><a href="../reference/vc.html">?vc</a></code> covers the rest, including the two
+multinomial families that refuse this.</p>
 </div>
 <div class="section level2">
 <h2 id="descriptions-of-the-fitted-model">Descriptions of the Fitted Model<a class="anchor" aria-label="anchor" href="#descriptions-of-the-fitted-model"></a>

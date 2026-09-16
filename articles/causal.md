@@ -78,14 +78,14 @@ bal.tab(rhc ~ age + sex + race + edu + aps + meanbp + resp +
 #> All     935     565
 ```
 
-The `M.0.Un` column indicates the mean for each variable in control
+The `M.0.Un` column indicates the mean for each variable in the control
 group and the `M.1.Un` column indicates the mean for each variable in
-treated group. `Diff.Un` and `OVL.Un` are measures of the distributional
-difference between the groups for each covariate; values far from 0
-indicate imbalance due to differential selection into treatment. In
-particular, we can see that patients with higher values of `aps` and
-`crea` and lower values of `meanbp, hema`, `pafi`, `paco2`, and `surv2m`
-are overrepresented among treated units.
+the treated group. `Diff.Un` and `OVL.Un` are measures of the
+distributional difference between the groups for each covariate; values
+far from 0 indicate imbalance due to differential selection into
+treatment. In particular, we can see that patients with higher values of
+`aps` and `crea` and lower values of `meanbp`, `hema`, `pafi`, `paco2`,
+and `surv2m` are overrepresented among treated units.
 
 Given that sicker patients are both more likely to die and more likely
 to receive RHC, it would not be unexpected to see that patients who
@@ -126,7 +126,7 @@ The first is the one that usually fails and the one to be explicit
 about. State it as an assumption in what you write, rather than letting
 the interval imply it has been handled.
 
-### Checking positivity
+### Checking Positivity
 
 Positivity fails when some combination of covariates makes the treatment
 nearly certain. To look for that, model the treatment and inspect the
@@ -168,7 +168,7 @@ This check belongs before the outcome model, not after. A flexible
 outcome model will happily produce an estimate in a region with no data,
 and the interval will not tell you that is what happened.
 
-## The Estimator: G-computation
+## The Estimator: G-Computation
 
 To estimate the average treatment effect \\\tau\_{\text{ATE}} =
 E\[Y(1)\] - E\[Y(0)\]\\, which is a function of the unobserved potential
@@ -198,9 +198,9 @@ traditional BART suitable for estimating the ATE. The default splitting
 prior is a variable-selection prior. It can drop a predictor from every
 tree in the forest at once, which is what makes it worth having when the
 goal is prediction, and exactly what you do not want when the estimand
-is a contrast on one particular predictor. Every outcome model below is
-fitted with `sparsity = FALSE`, which weights the predictors equally and
-cannot drop any of them.
+is a contrast on one particular predictor. The traditional BART outcome
+model below is fitted with `sparsity = FALSE`, which weights the
+predictors equally and cannot drop any of them.
 
 The propensity score model above keeps the default, and should:
 predicting who was treated is a prediction problem, and no contrast is
@@ -209,7 +209,7 @@ read off it.
 explains both halves of this, and `split_prior` is the alternative when
 there are enough covariates that weighting them all alike is wasteful.
 
-## The outcome model
+## The Outcome Model
 
 We can fit the outcome model as a simple binary BART regression of the
 outcome on the treatment and covariates, as in Hill
@@ -223,9 +223,9 @@ fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
                 chains = 4, sparsity = FALSE)
 ```
 
-We include both the treatment and covariate in the formula’s right-hand
-side, set `family = binomial()` to model the binary outcome with
-logistic regression, and `sparsity = FALSE` to remove the
+We include both the treatment and the covariates in the formula’s
+right-hand side, set `family = binomial()` to model the binary outcome
+with logistic regression, and `sparsity = FALSE` to remove the
 sparsity-inducing prior. We could also have included the propensity
 score as a covariate, which is recommended by Carnegie
 ([2019](#ref-carnegie2019)) to slightly improve performance (in this
@@ -236,7 +236,7 @@ fit correctly; see
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 for more information on how to do that.
 
-## Potential outcomes
+## Potential Outcomes
 
 The quantities underlying the effect estimate are the two average
 potential outcomes: the proportion who would die if every patient were
@@ -285,7 +285,7 @@ different against a baseline of 63% than it would against 5%.
 [`print()`](https://rdrr.io/r/base/print.html) call drops them where the
 difference is all that is wanted.
 
-### How the estimate is computed, and on which scale
+### How the Estimate Is Computed, and on Which Scale
 
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 performs the g-computation above literally. Every unit is predicted
@@ -332,7 +332,7 @@ estimate_effect(fit, treat = "rhc", comparison = "lnor")
 #>   `y/(1-y)`.
 ```
 
-### The same answer through *marginaleffects*
+### The Same Answer Through *marginaleffects*
 
 A fit also works with *marginaleffects*, and for the average effect the
 two routes compute the same thing from the same draws. The one thing to
@@ -344,7 +344,7 @@ not there.
 
 ``` r
 
-options(marginaleffects_posterior_center = "mean")
+options(marginaleffects_posterior_center = mean)
 
 avg_comparisons(fit, variables = "rhc")
 #> 
@@ -471,8 +471,8 @@ of 64% and another against 5%; `potential_outcomes = FALSE` in
 contrast’s label names the quantity rather than leaving it to the
 heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a
 difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log
-odds ratio, and the note beneath the table says what `Y[a]` and `O(y)`
-are.
+odds ratio, and the note beneath the table says what `Y[a]` is, adding
+what `O(y)` is once an odds ratio is asked for.
 
 [`summary()`](https://rdrr.io/r/base/summary.html) on a
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) fit is
@@ -480,12 +480,14 @@ the same summary of the forests it is on any other fit, and says at the
 end where the effect is reported. That way the same call means the same
 thing whichever way the model was written.
 
-### Conditional effects
+### Conditional Effects
 
-The effect forest gives one value per patient, and
+The effect forest gives one coefficient per patient, and
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
-returns them with `estimand = "CATE"`. Here we ask for them as odds
-ratios, which for a conditional effect is a conditional odds ratio:
+turns those coefficients into one effect per patient with
+`estimand = "CATE"`, reported on the response scale rather than on the
+forest’s own link scale. Here we ask for them as odds ratios, which for
+a conditional effect is a conditional odds ratio:
 
 ``` r
 
@@ -496,7 +498,8 @@ quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 #> 1.131 1.282 1.329 1.375 1.501
 ```
 
-[`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws them:
+[`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws the
+conditional effects, as differences unless `comparison` says otherwise:
 patients ordered by their estimate, with a credible interval each, and
 the marginal effect as a single interval past the right edge in its own
 color. Ordering is what makes the spread readable as heterogeneity
@@ -524,7 +527,7 @@ contrast only when the contrast is a difference. For an identity link,
 which the next example uses, the ATE *is* the average of the conditional
 effects.
 
-## A second example: a continuous outcome, and the ATT
+## A Second Example: A Continuous Outcome, and the ATT
 
 The catheterization question is about a whole population, so the ATE is
 the estimand. Many questions are not. When a program is offered to a
@@ -632,7 +635,7 @@ their intervals excludes zero. That is the usual picture: a per-unit
 effect is estimated from far less information than an average, so the
 intervals are wide even where the average is clear.
 
-## What the credible interval means
+## What the Credible Interval Means
 
 The posterior interval is a credible interval for the estimand under the
 model and under the identification assumptions. It covers uncertainty
@@ -646,7 +649,7 @@ analysis, asking how strong a confounder would have to be to explain the
 result away, is a more informative addition than any refinement of the
 model.
 
-## Where to go next
+## Where to Go Next
 
 [`?estimate_effect`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 is the reference for the estimands used here, including the subgroup

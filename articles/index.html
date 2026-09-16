@@ -23,18 +23,7 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing between models</a></li>
-    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking convergence and fit</a></li>
-    <li><a class="dropdown-item" href="../articles/effects.html">Effects, curves, and interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/families.html">Response families in bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/faq.html">bartisan Frequently Asked Questions</a></li>
-    <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which variables matter</a></li>
-    <li><a class="dropdown-item" href="../articles/survival.html">Survival analysis in bartisan</a></li>
-  </ul></li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -56,31 +45,52 @@
     </div>
 
     <div class="section ">
-      <h3>All vignettes</h3>
-      <div class="section-desc"></div>
+      <h3>Start Here</h3>
+      <div class="section-desc"><p>The tour: one analysis carried from the formula through to the estimates, with a pointer out of each section to the guide that takes it further.</p></div>
 
-      <dl><dt><a href="bartisan.html">Getting started with bartisan</a></dt>
+      <dl><dt><a href="bartisan.html">Getting Started with bartisan</a></dt>
+        <dd>
+      </dd></dl></div>
+    <div class="section ">
+      <h3>Fitting a Model</h3>
+      <div class="section-desc"><p>Choosing the likelihood, which is the modeling decision that matters more than any sampler setting, and the response type whose families need a guide of their own.</p></div>
+
+      <dl><dt><a href="families.html">Response Families in bartisan</a></dt>
+        <dd>
+        </dd><dt><a href="survival.html">Survival Analysis in bartisan</a></dt>
+        <dd>
+      </dd></dl></div>
+    <div class="section ">
+      <h3>Reading a Fit</h3>
+      <div class="section-desc"><p>Turning a fitted forest into the quantities an analysis reports: effects and the shape of a relationship, which predictors the model spends its splitting rules on, and what it takes to read an effect as causal.</p></div>
+
+      <dl><dt><a href="effects.html">Effects, Curves, and Interactions</a></dt>
+        <dd>
+        </dd><dt><a href="importance.html">Which Variables Matter</a></dt>
         <dd>
         </dd><dt><a href="causal.html">Causal Inference with BART</a></dt>
         <dd>
-        </dd><dt><a href="comparison.html">Choosing between models</a></dt>
+      </dd></dl></div>
+    <div class="section ">
+      <h3>Checking a Fit</h3>
+      <div class="section-desc"><p>Whether the sampler converged and whether the model describes the data, and how to choose between two models that both do.</p></div>
+
+      <dl><dt><a href="diagnostics.html">Checking Convergence and Fit</a></dt>
         <dd>
-        </dd><dt><a href="diagnostics.html">Checking convergence and fit</a></dt>
-        <dd>
-        </dd><dt><a href="effects.html">Effects, curves, and interactions</a></dt>
-        <dd>
-        </dd><dt><a href="families.html">Response families in bartisan</a></dt>
-        <dd>
-        </dd><dt><a href="faq.html">bartisan Frequently Asked Questions</a></dt>
-        <dd>
-        </dd><dt><a href="implementation.html">Generalized BART with bartisan</a></dt>
-        <dd>
-        </dd><dt><a href="importance.html">Which variables matter</a></dt>
-        <dd>
-        </dd><dt><a href="survival.html">Survival analysis in bartisan</a></dt>
+        </dd><dt><a href="comparison.html">Choosing Between Models</a></dt>
         <dd>
       </dd></dl></div>
-  </main></div>
+    <div class="section ">
+      <h3>Reference</h3>
+      <div class="section-desc"><p>What the model is, how it is fitted, and why the defaults are what they are, with the short answers alongside.</p></div>
+
+      <dl><dt><a href="implementation.html">Generalized BART with bartisan</a></dt>
+        <dd>
+        </dd><dt><a href="faq.html">Frequently Asked Questions</a></dt>
+        <dd>
+      </dd></dl></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
