@@ -4,3 +4,107 @@ template:
   bootstrap: 5
   light-switch: true
   math-rendering: mathjax
+
+reference:
+- title: Fitting a Model
+  desc: >
+    `bartisan()` is the entry point and `bcf()` is its counterpart for a
+    treatment effect. Everything else in this section changes what either one
+    fits: the likelihood, the settings the sampler runs under, and the one term
+    that gives a predictor a coefficient of its own.
+  contents:
+  - bartisan
+  - bartisan-families
+  - bartisan_control
+  - bcf
+  - vc
+
+- title: Predictions and Effects
+  desc: >
+    What the fitted model says about units, real or counterfactual. Every
+    quantity here is computed from the posterior draws, so the summaries carry
+    credible intervals rather than standard errors, and `predict()` hands back
+    the draws themselves. Calling `plot()` on a fit draws a partial dependence
+    plot, and that method is documented on the last page in this section.
+  contents:
+  - predict.bartisan_fit
+  - estimate_effect
+  - bartisan-marginaleffects
+  - partial_dependence
+
+- title: Describing a Fitted Model
+  desc: >
+    A forest has no coefficient table, so what takes its place is the printed
+    summary, how the splitting rules were spent, and what the parts of the model
+    that do have parameters were drawn to be. The last page holds the print and
+    plot methods a `bcf()` fit adds on top of these.
+  contents:
+  - print.bartisan_fit
+  - variable_importance
+  - coef.bartisan_fit
+  - ranef.bartisan_fit
+  - error_density
+  - print.bcf_fit
+
+- title: Checking Convergence and Fit
+  desc: >
+    Whether the sampler explored the posterior, and whether the model describes
+    the data, which are worth settling before anything above is read off a fit.
+    The second page collects the methods that *rstantools*, *loo*, *bayesplot*,
+    *posterior* and *performance* call on a fit, along with the `stats` methods
+    that report the same quantities, so posterior predictive draws,
+    cross-validation, the prior the fit was given, and the fit statistics are
+    all on it.
+  contents:
+  - diagnose
+  - bartisan-interop
+
+- title: Data
+  desc: >
+    The observational study the examples and most of the vignettes are fitted
+    to.
+  contents:
+  - rhc
+
+articles:
+- title: Start Here
+  desc: >
+    The tour: one analysis carried from the formula through to the estimates,
+    with a pointer out of each section to the guide that takes it further.
+  contents:
+  - bartisan
+
+- title: Fitting a Model
+  desc: >
+    Choosing the likelihood, which is the modeling decision that matters more
+    than any sampler setting, and the response type whose families need a guide
+    of their own.
+  contents:
+  - families
+  - survival
+
+- title: Reading a Fit
+  desc: >
+    Turning a fitted forest into the quantities an analysis reports: effects and
+    the shape of a relationship, which predictors the model spends its splitting
+    rules on, and what it takes to read an effect as causal.
+  contents:
+  - effects
+  - importance
+  - causal
+
+- title: Checking a Fit
+  desc: >
+    Whether the sampler converged and whether the model describes the data, and
+    how to choose between two models that both do.
+  contents:
+  - diagnostics
+  - comparison
+
+- title: Reference
+  desc: >
+    What the model is, how it is fitted, and why the defaults are what they are,
+    with the short answers alongside.
+  contents:
+  - implementation
+  - faq
