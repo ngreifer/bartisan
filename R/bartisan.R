@@ -1631,7 +1631,7 @@ drop_unusable_rows <- function(mf, mt) {
 # reachable as the conjunction of all the others.
 build_design <- function(mt, mf) {
   predictors <- attr(mt, "term.labels")
-  variables <- all.vars(stats::delete.response(mt))
+  variables <- get_varnames(stats::delete.response(mt))
 
   categorical <- variables[vapply(variables, function(nm) {
     if (!nm %in% names(mf)) {

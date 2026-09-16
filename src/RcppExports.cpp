@@ -36,9 +36,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// bartisan_tree_uses
+LogicalVector bartisan_tree_uses(const std::vector<double>& forest_flat, const std::vector<int>& tree_start, int num_forest, const std::vector<int>& num_trees, int num_draws, const std::vector<int>& num_cols, const std::vector<int>& cat_cols);
+RcppExport SEXP _bartisan_bartisan_tree_uses(SEXP forest_flatSEXP, SEXP tree_startSEXP, SEXP num_forestSEXP, SEXP num_treesSEXP, SEXP num_drawsSEXP, SEXP num_colsSEXP, SEXP cat_colsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type forest_flat(forest_flatSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type tree_start(tree_startSEXP);
+    Rcpp::traits::input_parameter< int >::type num_forest(num_forestSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type num_trees(num_treesSEXP);
+    Rcpp::traits::input_parameter< int >::type num_draws(num_drawsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type num_cols(num_colsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type cat_cols(cat_colsSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_tree_uses(forest_flat, tree_start, num_forest, num_trees, num_draws, num_cols, cat_cols));
+    return rcpp_result_gen;
+END_RCPP
+}
 // bartisan_predict
-List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat, const std::vector<int>& tree_start, const arma::mat& bandwidth, int num_forest, const std::vector<int>& num_trees, int num_draws, bool soft, int gate, const std::vector<int>& iterations, const arma::imat& codes);
-RcppExport SEXP _bartisan_bartisan_predict(SEXP XSEXP, SEXP forest_flatSEXP, SEXP tree_startSEXP, SEXP bandwidthSEXP, SEXP num_forestSEXP, SEXP num_treesSEXP, SEXP num_drawsSEXP, SEXP softSEXP, SEXP gateSEXP, SEXP iterationsSEXP, SEXP codesSEXP) {
+List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat, const std::vector<int>& tree_start, const arma::mat& bandwidth, int num_forest, const std::vector<int>& num_trees, int num_draws, bool soft, int gate, const std::vector<int>& iterations, const arma::imat& codes, const std::vector<int>& tree_mask);
+RcppExport SEXP _bartisan_bartisan_predict(SEXP XSEXP, SEXP forest_flatSEXP, SEXP tree_startSEXP, SEXP bandwidthSEXP, SEXP num_forestSEXP, SEXP num_treesSEXP, SEXP num_drawsSEXP, SEXP softSEXP, SEXP gateSEXP, SEXP iterationsSEXP, SEXP codesSEXP, SEXP tree_maskSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -53,7 +70,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type gate(gateSEXP);
     Rcpp::traits::input_parameter< const std::vector<int>& >::type iterations(iterationsSEXP);
     Rcpp::traits::input_parameter< const arma::imat& >::type codes(codesSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_predict(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes));
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type tree_mask(tree_maskSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_predict(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes, tree_mask));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -146,7 +164,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bartisan_bartisan_fit", (DL_FUNC) &_bartisan_bartisan_fit, 15},
-    {"_bartisan_bartisan_predict", (DL_FUNC) &_bartisan_bartisan_predict, 11},
+    {"_bartisan_bartisan_tree_uses", (DL_FUNC) &_bartisan_bartisan_tree_uses, 7},
+    {"_bartisan_bartisan_predict", (DL_FUNC) &_bartisan_bartisan_predict, 12},
     {"_bartisan_bartisan_logdens", (DL_FUNC) &_bartisan_bartisan_logdens, 7},
     {"_bartisan_bartisan_mnp_probs", (DL_FUNC) &_bartisan_bartisan_mnp_probs, 3},
     {"_bartisan_bartisan_derivs", (DL_FUNC) &_bartisan_bartisan_derivs, 10},

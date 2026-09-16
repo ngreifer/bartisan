@@ -15,7 +15,8 @@
   soft,
   gate,
   iterations,
-  codes
+  codes,
+  tree_mask
 )
 }
 \arguments{
@@ -35,6 +36,14 @@ stored chain.}
 \code{node.h}.}
 
 \item{iterations}{\code{integer}; the zero-based saved iterations to evaluate.}
+
+\item{codes}{a matrix of level codes for the categorical rules.}
+
+\item{tree_mask}{\code{logical}; one entry per stored tree, in the order
+\code{.bartisan_tree_uses()} reports, saying whether to evaluate it. A
+zero-length vector evaluates every tree, which is the ordinary case; a
+subset is what partial dependence uses to avoid re-evaluating the trees
+that cannot move across its grid.}
 }
 \value{
 A list of \code{num_forest} matrices of additive predictors.

@@ -103,3 +103,39 @@ test_that("the child weights the split records are the ones the target needs", {
                                          num_draws = 200L))
   expect_predictor_invariant(fit, d2)
 })
+
+# `get_varnames()` is `all.vars()` except that an extraction with `$`, `[[` or
+# `[` is one variable rather than the pieces it is written from, which is how
+# `model.frame()` names it.
+test_that("get_varnames keeps an extraction whole where all.vars splits it", {
+  expect_identical(get_varnames(quote(x)), "x")
+  expect_identical(get_varnames(quote(log(x))), "x")
+  expect_identical(get_varnames(quote(poly(x, 2))), "x")
+  expect_identical(get_varnames(quote(cbind(a, b))), c("a", "b"))
+
+  # The three extraction operators, each of which `all.vars()` mishandles: `$`
+  # splits into the object and the column, and `[[` and `[` lose the column.
+  expect_identical(get_varnames(quote(d$g)), "d$g")
+  expect_identical(get_varnames(quote(d[["g"]])), 'd[["g"]]')
+  expect_identical(get_varnames(quote(log(d$g + 1))), "d$g")
+  expect_identical(get_varnames(quote(x + d$g)), c("x", "d$g"))
+
+  expect_identical(all.vars(quote(d$g)), c("d", "g"))
+  expect_identical(all.vars(quote(d[["g"]])), "d")
+})
+
+test_that("get_varnames walks a terms object, which as.list() would derail", {
+  d <- data.frame(y = 1:3, x1 = 1:3, x2 = 1:3)
+  tt <- stats::terms(y ~ x1 + d$x2, data = d)
+
+  expect_identical(get_varnames(tt), c("y", "x1", "d$x2"))
+  expect_identical(get_varnames(stats::delete.response(tt)), c("x1", "d$x2"))
+
+  # A terms object is a call carrying attributes, and `as.list()` on one does
+  # not drop the operator the way it does on a plain call, so a traversal built
+  # on `as.list(e)[-1L]` walks the wrong tree. Indexing positions avoids it.
+  expect_length(as.list(tt)[-1L], 3L)
+
+  # The same formula without the attributes must give the same answer.
+  expect_identical(get_varnames(y ~ x1 + d$x2), c("y", "x1", "d$x2"))
+})

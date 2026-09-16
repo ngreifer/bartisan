@@ -794,6 +794,125 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   return out;
 }
 
+// Whether one encoded tree has an internal node splitting on any of the given
+// columns. Walks the records with the same cursor `eval_tree()` uses, but takes
+// both subtrees unconditionally: this is a property of the tree rather than of
+// any observation, so there is no gate to follow.
+//
+// A rule with a level mask indexes `codes`, and one without indexes `X`, so the
+// two kinds of column are looked up in separate sets rather than in one.
+bool tree_splits_on(const double* record, int& pos,
+                    const std::vector<char>& numeric_wanted,
+                    const std::vector<char>& categorical_wanted) {
+  bool leaf = record[pos] > 0.5;
+  int var = static_cast<int>(record[pos + 1]);
+  int words = static_cast<int>(record[pos + 5]);
+  pos += RECORD_SIZE + words;
+
+  if (leaf) {
+    return false;
+  }
+
+  bool here = false;
+
+  if (words > 0) {
+    if (var >= 0 && var < static_cast<int>(categorical_wanted.size())) {
+      here = categorical_wanted[var] != 0;
+    }
+  }
+  else if (var >= 0 && var < static_cast<int>(numeric_wanted.size())) {
+    here = numeric_wanted[var] != 0;
+  }
+
+  // Both subtrees are walked whatever this node said, because the cursor has to
+  // reach the end of the record either way for the caller to continue.
+  bool left = tree_splits_on(record, pos, numeric_wanted, categorical_wanted);
+  bool right = tree_splits_on(record, pos, numeric_wanted, categorical_wanted);
+
+  return here || left || right;
+}
+
+//' Which stored trees split on a given set of predictor columns
+//'
+//' A sum of trees is separable, so a tree that never splits on a column
+//' contributes the same amount however that column is set. Partial dependence
+//' evaluates one column over a grid with the rest of the data held fixed, so the
+//' trees this marks out are the only ones that have to be re-evaluated at each
+//' grid point; the rest are evaluated once.
+//'
+//' @param forest_flat,tree_start the encoded forests returned by
+//'   `.bartisan_fit()`.
+//' @param num_forest,num_trees,num_draws `integer`; the dimensions of the
+//'   stored chain.
+//' @param num_cols `integer`; the zero-based columns of the design matrix to
+//'   look for, for rules without a level mask.
+//' @param cat_cols `integer`; the zero-based columns of the level-code matrix to
+//'   look for, for rules with one.
+//' @returns A `logical` vector with one entry per stored tree, in the order the
+//'   flat encoding holds them, which is iteration-major and then forest and then
+//'   tree.
+//' @keywords internal
+// [[Rcpp::export(.bartisan_tree_uses)]]
+LogicalVector bartisan_tree_uses(const std::vector<double>& forest_flat,
+                                 const std::vector<int>& tree_start,
+                                 int num_forest,
+                                 const std::vector<int>& num_trees,
+                                 int num_draws,
+                                 const std::vector<int>& num_cols,
+                                 const std::vector<int>& cat_cols) {
+
+  if (static_cast<int>(num_trees.size()) != num_forest) {
+    stop("`num_trees` must have one value per forest.");
+  }
+
+  int total_trees = 0;
+  for (int h = 0; h < num_forest; h++) {
+    total_trees += num_trees[h];
+  }
+
+  // Membership as a lookup on the column index rather than a search per node:
+  // a tree is walked once per call and a node asks this question once.
+  int n_numeric = 0;
+  for (std::size_t k = 0; k < num_cols.size(); k++) {
+    n_numeric = std::max(n_numeric, num_cols[k] + 1);
+  }
+
+  int n_categorical = 0;
+  for (std::size_t k = 0; k < cat_cols.size(); k++) {
+    n_categorical = std::max(n_categorical, cat_cols[k] + 1);
+  }
+
+  std::vector<char> numeric_wanted(n_numeric, 0);
+  for (std::size_t k = 0; k < num_cols.size(); k++) {
+    if (num_cols[k] >= 0) {
+      numeric_wanted[num_cols[k]] = 1;
+    }
+  }
+
+  std::vector<char> categorical_wanted(n_categorical, 0);
+  for (std::size_t k = 0; k < cat_cols.size(); k++) {
+    if (cat_cols[k] >= 0) {
+      categorical_wanted[cat_cols[k]] = 1;
+    }
+  }
+
+  int n_stored = num_draws * total_trees;
+
+  if (static_cast<int>(tree_start.size()) < n_stored) {
+    stop("`tree_start` is shorter than the stored chain implies.");
+  }
+
+  LogicalVector out(n_stored);
+
+  for (int k = 0; k < n_stored; k++) {
+    int pos = tree_start[k];
+    out[k] = tree_splits_on(forest_flat.data(), pos, numeric_wanted,
+                            categorical_wanted);
+  }
+
+  return out;
+}
+
 //' Evaluate stored forests at new data
 //'
 //' @param X a design matrix with entries in `[0, 1]`.
@@ -806,6 +925,12 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
 //' @param gate `integer`; which gate the soft rules use; see `GateShape` in
 //'   `node.h`.
 //' @param iterations `integer`; the zero-based saved iterations to evaluate.
+//' @param codes a matrix of level codes for the categorical rules.
+//' @param tree_mask `logical`; one entry per stored tree, in the order
+//'   `.bartisan_tree_uses()` reports, saying whether to evaluate it. A
+//'   zero-length vector evaluates every tree, which is the ordinary case; a
+//'   subset is what partial dependence uses to avoid re-evaluating the trees
+//'   that cannot move across its grid.
 //' @returns A list of `num_forest` matrices of additive predictors.
 //' @keywords internal
 // [[Rcpp::export(.bartisan_predict)]]
@@ -815,7 +940,8 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
                      const std::vector<int>& num_trees,
                      int num_draws, bool soft, int gate,
                      const std::vector<int>& iterations,
-                     const arma::imat& codes) {
+                     const arma::imat& codes,
+                     const std::vector<int>& tree_mask) {
 
   int n = static_cast<int>(X.n_rows);
   int num_iter = static_cast<int>(iterations.size());
@@ -830,6 +956,12 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
   }
   int total_trees = tree_offset[num_forest];
 
+  bool masked = !tree_mask.empty();
+
+  if (masked && static_cast<int>(tree_mask.size()) != num_draws * total_trees) {
+    stop("`tree_mask` must have one entry per stored tree.");
+  }
+
   std::vector<arma::mat> out(num_forest, arma::mat(num_iter, n,
                                                   arma::fill::zeros));
 
@@ -843,6 +975,11 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
         // Trees were written iteration-major, then forest, then tree, with the
         // forests back to back rather than as a rectangle.
         int flat_index = iter * total_trees + tree_offset[h] + t;
+
+        if (masked && !tree_mask[flat_index]) {
+          continue;
+        }
+
         int begin = tree_start[flat_index];
         double band = bandwidth(iter, tree_offset[h] + t);
         for (int i = 0; i < n; i++) {

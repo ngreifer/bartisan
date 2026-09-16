@@ -13,11 +13,12 @@ Bayesian additive regression trees (BART) estimate a regression function
 as a sum of small trees, so nonlinearity and interactions are found
 rather than specified. *bartisan* does that for response distributions
 that standard BART cannot reach, using the Laplace-approximation
-reversible-jump sampler of Linero (2025), which lifts the requirement
-that the leaf parameters be integrable in closed form. A model is
-written the way it is in `glm()`, with a formula, a data frame, and a
-family, and the `stats::family` objects `glm()` takes are accepted
-unchanged. Beyond them come the families that have no `glm()`
+reversible-jump sampler of Linero (2025), which relaxes the requirement
+that the leaf parameters be integrable in closed form.
+
+A model is written the way it is in `glm()`, with a formula, a data
+frame, and a family, and the `stats::family` objects `glm()` takes are
+accepted unchanged. Beyond them come the families that have no `glm()`
 counterpart: negative binomial, ordinal, multinomial, beta and ordered
 beta, zero-inflated counts, a Tweedie compound Poisson, accelerated
 failure time and proportional hazards models for right-censored times,
@@ -25,6 +26,18 @@ location-scale regression, a Dirichlet process mixture for the error
 distribution, and a log density written as an R function. Decision rules
 are smooth by default, in the manner of Linero and Yang (2018), which
 fits a smoother function than the step functions of standard BART.
+
+*bartisan* supports varying-coefficient models, where the effect of a
+predictor receives its own forest, a special case of which is the
+Bayesian causal forest (BCF) model for estimating treatment effects.
+Along with this is an interface for estimating average treatment effects
+from BART and BCF models. In addition, *bartisan* supports random
+intercepts BART models.
+
+Integration is provided with the
+[*future*](https://CRAN.R-project.org/package=future) and
+[*progressr*](https://CRAN.R-project.org/package=progressr) packages for
+parallel processing and progress bars.
 
 ## Installation
 
@@ -53,13 +66,16 @@ library(bartisan)
 data("rhc")
 set.seed(123)
 
-fit <- bartisan(death ~ . - days, data = rhc, family = binomial())
+fit <- bartisan(death ~ rhc + age + sex + race + edu + pafi + 
+                  paco2 + crea + surv2m + card,
+                data = rhc, family = binomial())
 
 fit
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = death ~ . - days, data = rhc, family = binomial())
+#> bartisan(formula = death ~ rhc + age + sex + race + edu + pafi + 
+#>     paco2 + crea + surv2m + card, data = rhc, family = binomial())
 #> 
 #> Family: "binomial" with the "logit" link
 #> Observations: 1500
@@ -93,14 +109,14 @@ estimate_effect(fit, treat = "rhc")
 #> Treatment: "rhc"
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate lower upper    n
-#>  Y[1] - Y[0]   0.0555     0 0.103 1500
+#>     contrast estimate   lower upper    n
+#>  Y[1] - Y[0]   0.0644 0.00775 0.119 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.634 0.603 0.663
-#>      Y[1]    0.689 0.644 0.725
+#>      Y[0]    0.630 0.600 0.658
+#>      Y[1]    0.694 0.652 0.737
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

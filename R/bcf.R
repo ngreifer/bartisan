@@ -187,7 +187,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   arg::arg_formula(formula, one_sided = FALSE)
   arg::arg_formula(treat, one_sided = TRUE)
 
-  name <- all.vars(treat)
+  name <- get_varnames(treat)
 
   if (length(name) != 1L) {
     arg::err("{.arg treat} must name exactly one variable, as in

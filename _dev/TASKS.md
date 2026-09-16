@@ -7520,3 +7520,131 @@ uses *collapse* for its Bayesian calculations, which is the path every
 `<bartisan_fit>` takes through `avg_comparisons()` and its relatives. Removing
 it would degrade the estimands three vignettes lead with. Recorded here because
 the sweep will run again.
+
+## Blocking grid points in `partial_dependence()`: measured, and there is nothing to amortize
+
+`partial_dependence()` calls `predict()` once per grid point, over the whole
+sample each time. The obvious optimization is to stack several grid points into
+one data frame and make fewer, larger calls. Measured, it does not pay, and at
+the sizes where a partial dependence plot is actually slow it costs time rather
+than saving it.
+
+**The per-call cost of `predict()` is zero.** Timing one call against row count,
+minimum of five runs, 50 trees and 800 draws at 10 predictors:
+
+| rows | elapsed | per 1000 rows |
+|---|---|---|
+| 1 | 0.0010 s | 1.00 s |
+| 10 | 0.0070 s | 0.70 s |
+| 100 | 0.0680 s | 0.68 s |
+| 500 | 0.3490 s | 0.70 s |
+| 2000 | 1.4090 s | 0.70 s |
+
+Regressing elapsed on rows gives a fixed cost of **-1.3 ms**, which is zero
+within noise, and a marginal cost of 0.705 ms per row. There is no per-call
+setup to spread over a larger batch, because the forest is walked per row and
+nothing is rebuilt per call.
+
+**That is where the time goes.** `Rprof` on a 25-point plot at n = 1500 puts
+**98.7%** of the run inside `.bartisan_predict()`, the C++ forest walk. The R
+side that blocking would actually remove (one `model.frame()`, one
+`model.matrix()`, one data frame copy per grid point) is under 1% of the total.
+Stacking B grid points does the same forest work on the same number of rows.
+
+**End to end it goes the wrong way at scale.** 25 grid points, 50 trees, 500
+draws, stacking all 25 against looping over them:
+
+| n | 25 calls | 1 stacked call | ratio |
+|---|---|---|---|
+| 200 | 2.35 s | 1.79 s | 1.31x |
+| 1000 | 11.30 s | 9.84 s | 1.15x |
+| 5000 | 54.54 s | 63.74 s | **0.86x** |
+
+The gains at small n are fractions of a second on runs that were already fast,
+and they are within the run-to-run variation of a single-shot measurement. The
+loss at n = 5000 is nine seconds, and the reason is the draws matrix: stacking
+is `n * grid * num_draws` doubles, 500 MB at that size, against 20 MB unstacked.
+
+Two further reasons not to, beyond the timings. The result is discarded almost
+immediately: `at_grid_point()` takes `rowMeans()` of the draws and keeps a
+length-`num_draws` vector, so a bigger matrix buys nothing downstream. And each
+grid point currently gets its own RNG stream, deliberately, so that a family
+whose prediction simulates gives the same draws whether or not a `future` plan
+is set; a block would share one stream across its points and change those
+results.
+
+**What actually helps is skipping trees**, and that is the entry below. The
+predictor is a sum over trees, and a tree that never splits on the plotted
+variable contributes the same value at every grid point, so it is evaluated once
+rather than `grid` times. The ceiling is large: on an `rhc` fit with 50 trees, an
+upper bound on the share of trees using each predictor is 37% for `age`, 31% for
+`surv2m`, and under 15% for the other twelve.
+
+Benchmarks run on one core (`parallelly::availableCores()` reports 1 on this
+machine), so the parallel path was not measured. It would not change the
+conclusion: `future_lapply()` chunks tasks per worker, so the fit is exported
+once per worker rather than once per grid point, and blocking removes no
+serialization.
+
+## Tree skipping in `partial_dependence()`: 2.6x to 12x, and exact
+
+The entry above measured blocking and found nothing to amortize, because
+`predict()` has no per-call cost worth spreading. This is the version of the
+idea that works: cut the number of *trees* evaluated rather than the number of
+calls.
+
+The additive predictor is a sum over trees. A tree that never splits on a
+plotted column returns the same value however that column is set, so it
+contributes the same amount at every grid point. Those trees are evaluated once,
+on the data as it stands, and only the rest are re-evaluated per grid point and
+added to them. Measured on the `rhc` fit at 50 trees, 800 draws and 25 grid
+points, against the path it replaces:
+
+| variable | trees that move | before | after | speedup |
+|---|---|---|---|---|
+| `surv2m` | 32.6% | 24.95 s | 9.72 s | 2.57x |
+| `age` | 22.1% | 25.77 s | 7.06 s | 3.65x |
+| `paco2` | 15.3% | 26.51 s | 5.61 s | 4.72x |
+| `aps` | 11.1% | 27.03 s | 4.48 s | 6.04x |
+| `resp` | 4.9% | 28.23 s | 2.87 s | 9.84x |
+| `meanbp` | 3.0% | 27.84 s | 2.33 s | 11.96x |
+
+The saving tracks the share of trees that move, which is what it should do. The
+curves are identical to the unoptimized ones, not close to them: the largest
+difference across those six is `1.11e-16`, and four of the six are exactly zero.
+
+**The pieces.** `.bartisan_tree_uses()` walks each stored tree's records with
+the cursor `eval_tree()` uses, taking both subtrees unconditionally since this
+is a property of the tree rather than of an observation, and reports whether any
+internal node splits on a given set of columns. Rules carrying a level mask index
+the level-code matrix and the rest index the design matrix, so the two kinds of
+column are looked up in separate sets. `bartisan_predict()` gained a `tree_mask`;
+a zero-length mask evaluates everything, so the ordinary path is untouched.
+
+On the R side, `eta_to_type()` was split out of `predict.bartisan_fit()`, which
+is everything that happens once the predictors are in hand. Partial dependence
+calls it rather than a copy of it, so a grid point's number is the one
+`predict()` would have returned. `predict_eta()` gained `tree_mask` and a
+`constants` flag: the intercept, the offset and the random effects belong to the
+predictor once rather than to any subset of trees, so the base carries them and
+the moving part does not.
+
+**Where it declines, and why each case is the way it is.** `pd_tree_mask()`
+returns `NULL` and the ordinary path runs when a plotted variable is a `(1 | g)`
+grouping factor, because those intercepts are drawn parameters rather than trees
+and no choice of trees holds them fixed. Everything else uncertain is marked
+*moving* instead, which is only slower and never wrong: a term label that will
+not parse, and a `bcf()` propensity score, which is rebuilt from the data at
+every grid point and so moves whether or not the plotted variable feeds it.
+
+Two cases needed care. A `vc()` covariate multiplies its own forest, so the part
+that does not move still reaches the prediction scaled by something the grid
+does; combining after the sum rather than before is what keeps that right. And
+when no tree splits on the variable at all, the whole forest lands in the base,
+the grid costs one evaluation in total, and the curve comes out exactly flat
+rather than flat to rounding.
+
+A term is matched to a variable through `get_varnames()` on the label rather
+than by string equality, so `log(x1 + 1)` is correctly marked as moving when the
+grid is over `x1`. Keying on the label alone would have held that curve flat with
+nothing to show it had.

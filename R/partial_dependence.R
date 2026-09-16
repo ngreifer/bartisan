@@ -26,7 +26,7 @@
 #' @param y for `plot.bartisan_fit()`, the predictors to plot, as `variables`
 #'   above.
 #' @param ... for `plot.bartisan_fit()`, further arguments passed to
-#'   `partial_dependence()`; otherwise ignored.
+#'   `partial_dependence()`; for `partial_dependence()`, further arguments passed to [predict.bartisan_fit()].
 #'
 #' @returns
 #' A `<bartisan_partial>` object, a data frame with one row per grid point,
@@ -76,7 +76,7 @@
 #' @export
 partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
                                values = NULL, level = 0.95, type = "response",
-                               plot = FALSE) {
+                               plot = FALSE, ...) {
 
   arg::arg_is(object, "bartisan_fit")
   arg::arg_whole_number(grid)
@@ -112,6 +112,8 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
   combos <- expand.grid(points, KEEP.OUT.ATTRS = FALSE,
                         stringsAsFactors = FALSE)
 
+  predictor <- pd_predictor(object, newdata, vars, type, list(...))
+
   at_grid_point <- function(i) {
     d <- newdata
 
@@ -119,7 +121,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 25L,
       d[[v]] <- pd_assign(newdata[[v]], combos[[v]][[i]])
     }
 
-    draws <- stats::predict(object, newdata = d, type = type, draws = TRUE)
+    draws <- predictor(d)
 
     if (!is.matrix(draws)) {
       arg::err(c("{.code type = \"{type}\"} does not give one number per
@@ -177,7 +179,7 @@ pd_variables <- function(variables) {
               arg::arg_formula(one_sided = TRUE),
               arg::arg_character)
   vars <- {
-    if (rlang::is_formula(variables)) all.vars(variables)
+    if (rlang::is_formula(variables)) get_varnames(variables)
     else variables
   }
 
@@ -196,7 +198,7 @@ pd_variables <- function(variables) {
 # grid across its range, and anything with few distinct values at those values,
 # since a grid of 25 points over 3 of them invents 22.
 pd_grid <- function(z, grid, given) {
-  if (!is_null(given)) {
+  if (!missing(given) && !is_null(given)) {
     return(given)
   }
 
@@ -248,7 +250,10 @@ print.bartisan_partial <- function(x, digits = 3L, ...) {
            {.val {attr(x, 'type')}} scale")
   cli::cat_line()
 
-  print(effect_round(as.data.frame(x), digits), row.names = FALSE)
+  as.data.frame(x) |>
+    effect_round(digits) |>
+    print(row.names = FALSE)
+
   cli::cat_line()
   cli_bullets_cat(c(i = "{.field lower} and {.field upper} bound the
                         {100 * attr(x, 'level')}% credible interval on the
@@ -327,4 +332,141 @@ plot.bartisan_fit <- function(x, y, ...) {
   }
 
   partial_dependence(x, variables = y, ..., plot = TRUE)
+}
+
+# How a grid point is predicted, chosen once for the whole grid.
+#
+# The additive predictor is a sum over trees, and a tree that never splits on a
+# column the grid varies returns the same value however that column is set. So
+# those trees are evaluated once, on the data as it stands, and only the rest are
+# evaluated again at each grid point and added to them. On an `rhc` fit most
+# predictors are split on by well under a fifth of the trees, so most of the
+# forest is walked once rather than `grid` times.
+#
+# Falls back to `predict()` whenever the split cannot be made safely, which is
+# what `pd_tree_mask()` reports by returning `NULL`, and for the prediction types
+# that need more than the predictor and the nuisance parameters to evaluate.
+# The fallback is the path this replaces, so the two cannot disagree about a fit
+# the optimization declines.
+pd_predictor <- function(object, newdata, vars, type, dots) {
+  ordinary <- function(d) {
+    do.call(stats::predict,
+            c(list(object, newdata = d, type = type, draws = TRUE), dots))
+  }
+
+  if (!type %in% c("link", "response", "stdlv", "mean")) {
+    return(ordinary)
+  }
+
+  uses <- pd_tree_mask(object, vars)
+
+  # Nothing to save when every tree moves, since the base would then be empty
+  # and each grid point would do the whole forest anyway, with one wasted pass
+  # on top. When no tree moves the base is the whole forest and the grid costs
+  # nothing, which is the best case rather than a reason to decline.
+  if (is_null(uses) || all(uses)) {
+    return(ordinary)
+  }
+
+  offset <- dots[["offset"]]
+  iterations <- resolve_iterations(dots[["iterations"]],
+                                   nrow(object[["sigma_mu"]]))
+
+  # The part that cannot move, including the intercept, the offset and the
+  # random effects, which belong to the predictor rather than to any tree. Taken
+  # at `newdata` because the columns the grid varies are the ones these trees do
+  # not read.
+  base <- predict_eta(object, newdata, offset, iterations,
+                      tree_mask = !uses, constants = TRUE)
+
+  aux <- {
+    if (is_null(object[["aux"]])) NULL
+    else object[["aux"]][iterations, , drop = FALSE]
+  }
+
+  function(d) {
+    eta <- predict_eta(object, d, offset, iterations,
+                       tree_mask = uses, constants = FALSE)
+
+    for (h in seq_along(eta)) {
+      eta[[h]] <- eta[[h]] + base[[h]]
+    }
+
+    # Combined after the sum rather than before it, because a varying
+    # coefficient multiplies its forest by the covariate and the covariate is
+    # one of the things the grid moves.
+    parts <- list(eta = vc_combine(object, eta, d, iterations),
+                  aux = aux, iterations = iterations)
+
+    eta_to_type(object, parts, type, draws = TRUE, newdata = d,
+                weights = dots[["weights"]], values = dots[["values"]],
+                log = dots[["log"]] %or% FALSE, times = dots[["times"]])
+  }
+}
+
+# Which stored trees can move across the grid, or `NULL` when that cannot be
+# decided safely and the caller should predict the ordinary way.
+#
+# Marking a tree as moving when it does not is only slower, so everything
+# uncertain is marked moving; the one case that cannot be handled that way is a
+# part of the predictor that is not a tree at all.
+pd_tree_mask <- function(object, vars) {
+  labels <- object[["term_labels"]]
+  assign <- object[["assign"]]
+
+  if (is_null(labels) || is_null(assign) || is_null(object[["forest_flat"]])) {
+    return(NULL)
+  }
+
+  # A `(1 | g)` term's intercepts are drawn parameters rather than trees, so no
+  # choice of trees holds them fixed while the grid moves `g`. Refused rather
+  # than special-cased, since a grid over a grouping factor is rare.
+  if (any(vars %in% names(object[["random"]]))) {
+    return(NULL)
+  }
+
+  # A term moves if it mentions any of the plotted variables. A label that
+  # cannot be parsed is treated as moving.
+  moves <- vapply(labels, function(l) {
+    named <- rlang::try_fetch(get_varnames(str2lang(l)),
+                              error = function(cnd) NULL)
+    is_null(named) || any(vars %in% named)
+  }, logical(1L))
+
+  # A `bcf()` propensity score is a function of the covariates, so it moves with
+  # the grid. Its own columns are named in the fit rather than in the formula,
+  # and marking them all is the cheap side of the trade.
+  score <- object[["bcf"]][["propensity"]]
+
+  if (!is_null(score)) {
+    moves <- moves | labels %in% colnames(score)
+  }
+
+  groups <- sort(unique(assign))
+  moving <- groups[moves[groups]]
+
+  if (is_null(moving)) {
+    return(NULL)
+  }
+
+  # Zero-based, as the engine indexes them: the design columns for the numeric
+  # rules, and the level-code columns for the rules carrying a level mask.
+  num_cols <- which(assign %in% moving) - 1L
+
+  info <- object[["level_codes"]]
+  cat_cols <- integer()
+
+  if (!is_null(info) && any(info[["n_levels"]] > 0L)) {
+    pos <- match(moving, groups)
+    pos <- pos[info[["n_levels"]][pos] > 0L]
+    cat_cols <- info[["cat_col"]][pos]
+  }
+
+  .bartisan_tree_uses(forest_flat = object[["forest_flat"]],
+                      tree_start = object[["tree_start"]],
+                      num_forest = object[["num_forest"]],
+                      num_trees = object[["num_trees"]],
+                      num_draws = nrow(object[["sigma_mu"]]),
+                      num_cols = as.integer(num_cols),
+                      cat_cols = as.integer(cat_cols))
 }

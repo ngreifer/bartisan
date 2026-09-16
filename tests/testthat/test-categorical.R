@@ -158,3 +158,25 @@ test_that("only groups whose columns are mutually exclusive indicators qualify",
   expect_identical(info[["cat_col"]], c(0L, -1L, -1L))
   expect_identical(as.integer(info[["codes"]]), c(0L, 1L, 2L, 0L, 1L))
 })
+
+# `build_design()` gives a factor one indicator column per level, so that "is
+# level j" is a rule a tree can take. Reached through `$`, the factor used to
+# miss that: `all.vars()` named the data frame and the column separately,
+# neither matched the model frame's single `d$g` column, the factor was not
+# recognized as categorical, and it fell back to contrast coding with the
+# reference level reachable only as the conjunction of the others.
+test_that("a factor named through `$` still gets an indicator per level", {
+  d <- sim_x(n = 80L, p = 1L)
+  d$g <- factor(rep(c("a", "b", "c"), length.out = nrow(d)))
+  d$y <- d$x1 + as.numeric(d$g) + stats::rnorm(nrow(d))
+
+  plain <- stats::terms(y ~ x1 + g, data = d)
+  dollar <- stats::terms(y ~ x1 + d$g, data = d)
+
+  cols <- function(mt) {
+    colnames(build_design(mt, stats::model.frame(mt, d))[["x"]])
+  }
+
+  expect_identical(cols(plain), c("x1", "ga", "gb", "gc"))
+  expect_identical(cols(dollar), c("x1", "d$ga", "d$gb", "d$gc"))
+})

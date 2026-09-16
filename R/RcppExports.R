@@ -25,6 +25,30 @@
     .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis)
 }
 
+#' Which stored trees split on a given set of predictor columns
+#'
+#' A sum of trees is separable, so a tree that never splits on a column
+#' contributes the same amount however that column is set. Partial dependence
+#' evaluates one column over a grid with the rest of the data held fixed, so the
+#' trees this marks out are the only ones that have to be re-evaluated at each
+#' grid point; the rest are evaluated once.
+#'
+#' @param forest_flat,tree_start the encoded forests returned by
+#'   `.bartisan_fit()`.
+#' @param num_forest,num_trees,num_draws `integer`; the dimensions of the
+#'   stored chain.
+#' @param num_cols `integer`; the zero-based columns of the design matrix to
+#'   look for, for rules without a level mask.
+#' @param cat_cols `integer`; the zero-based columns of the level-code matrix to
+#'   look for, for rules with one.
+#' @returns A `logical` vector with one entry per stored tree, in the order the
+#'   flat encoding holds them, which is iteration-major and then forest and then
+#'   tree.
+#' @keywords internal
+.bartisan_tree_uses <- function(forest_flat, tree_start, num_forest, num_trees, num_draws, num_cols, cat_cols) {
+    .Call(`_bartisan_bartisan_tree_uses`, forest_flat, tree_start, num_forest, num_trees, num_draws, num_cols, cat_cols)
+}
+
 #' Evaluate stored forests at new data
 #'
 #' @param X a design matrix with entries in `[0, 1]`.
@@ -37,10 +61,16 @@
 #' @param gate `integer`; which gate the soft rules use; see `GateShape` in
 #'   `node.h`.
 #' @param iterations `integer`; the zero-based saved iterations to evaluate.
+#' @param codes a matrix of level codes for the categorical rules.
+#' @param tree_mask `logical`; one entry per stored tree, in the order
+#'   `.bartisan_tree_uses()` reports, saying whether to evaluate it. A
+#'   zero-length vector evaluates every tree, which is the ordinary case; a
+#'   subset is what partial dependence uses to avoid re-evaluating the trees
+#'   that cannot move across its grid.
 #' @returns A list of `num_forest` matrices of additive predictors.
 #' @keywords internal
-.bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes) {
-    .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes)
+.bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes, tree_mask) {
+    .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes, tree_mask)
 }
 
 #' Conditional log density of the outcome at stored posterior draws

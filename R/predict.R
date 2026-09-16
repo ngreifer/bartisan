@@ -258,6 +258,20 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
   }
 
   parts <- predict_parts(object, newdata, offset, iterations)
+
+  eta_to_type(object, parts, type, draws, newdata = newdata, weights = weights,
+              values = values, log = log, times = times)
+}
+
+# Everything `predict()` does once it has the additive predictors, which is also
+# everything `partial_dependence()` needs once it has assembled its own. Split
+# out so the two cannot drift: a grid point's prediction has to be the number
+# `predict()` would have returned for the same data.
+eta_to_type <- function(object, parts, type, draws, newdata = NULL,
+                        weights = NULL, values = NULL, log = FALSE,
+                        times = NULL) {
+
+  family <- object[["family"]][["family"]]
   eta <- parts[["eta"]]
   aux <- parts[["aux"]]
 
@@ -456,7 +470,8 @@ resolve_iterations <- function(iterations, num_draws) {
 
 # Rebuild the design matrix for new data exactly as it was built for fitting,
 # then evaluate the stored forests.
-predict_eta <- function(object, newdata, offset, iterations) {
+predict_eta <- function(object, newdata, offset, iterations, tree_mask = NULL,
+                        constants = TRUE) {
 
   if (!is.data.frame(newdata)) {
     newdata <- as.data.frame(newdata)
@@ -534,7 +549,16 @@ predict_eta <- function(object, newdata, offset, iterations) {
                            soft = object[["soft"]],
                            gate = gate_code(object[["gate"]] %or% "logistic"),
                            iterations = as.integer(iterations) - 1L,
-                           codes = codes)
+                           codes = codes,
+                           tree_mask = as.integer(tree_mask))
+
+  # The intercept, the offset and the random effects are what the forests are a
+  # departure from, so they belong to the predictor once rather than to any
+  # subset of the trees. A caller evaluating a subset asks for the trees alone
+  # and adds them to a predictor that already carries these.
+  if (!constants) {
+    return(setNames(eta, names(object[["eta"]])))
+  }
 
   intercept <- object[["intercept"]]
   n_new <- nrow(x)
@@ -1468,7 +1492,7 @@ density_response_vector <- function(object, newdata) {
     newdata <- as.data.frame(newdata)
   }
 
-  absent <- setdiff(all.vars(object[["terms"]][[2L]]), names(newdata))
+  absent <- setdiff(get_varnames(object[["terms"]][[2L]]), names(newdata))
 
   if (!is_null(absent)) {
     arg::err("{.arg type} {.val density} is the density of the outcome, so
@@ -1492,7 +1516,7 @@ density_response <- function(object, newdata, weights) {
     newdata <- as.data.frame(newdata)
   }
 
-  response_vars <- all.vars(object[["terms"]][[2L]])
+  response_vars <- get_varnames(object[["terms"]][[2L]])
   absent <- setdiff(response_vars, names(newdata))
 
   if (!is_null(absent)) {

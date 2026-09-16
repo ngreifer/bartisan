@@ -15,7 +15,8 @@ partial_dependence(
   values = NULL,
   level = 0.95,
   type = "response",
-  plot = FALSE
+  plot = FALSE,
+  ...
 )
 
 \method{print}{bartisan_partial}(x, digits = 3L, ...)
@@ -48,14 +49,14 @@ predictor at, which overrides \code{grid} for the predictors it names.}
 Default is \code{FALSE}. \code{plot = TRUE} calls \code{\link[=plot.bartisan_partial]{plot.bartisan_partial()}}, so the
 argument and the method cannot disagree.}
 
+\item{...}{for \code{plot.bartisan_fit()}, further arguments passed to
+\code{partial_dependence()}; for \code{partial_dependence()}, further arguments passed to \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}.}
+
 \item{x}{a \verb{<bartisan_partial>} object; the output of a call to
 \code{partial_dependence()}. For \code{plot.bartisan_fit()}, a \verb{<bartisan_fit>}.}
 
 \item{digits}{\code{integer}; for \code{print()}, the number of significant digits to
 print the estimates and their interval to. Default is 3.}
-
-\item{...}{for \code{plot.bartisan_fit()}, further arguments passed to
-\code{partial_dependence()}; otherwise ignored.}
 
 \item{y}{for \code{plot.bartisan_fit()}, the predictors to plot, as \code{variables}
 above.}

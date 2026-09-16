@@ -398,6 +398,47 @@ PER_FOREST_DEFAULTS <- list(
   bandwidth_every = 1L
 )
 
+# The variables a formula or expression names, as `model.frame()` will name
+# them. Adapted from `WeightIt:::get_varnames()`.
+#
+# This is `all.vars()` with one difference, and the difference is the reason it
+# exists: an extraction with `$`, `[[` or `[` is one variable, not the pieces it
+# is written from. `all.vars(quote(d$g))` gives `c("d", "g")`, and neither is a
+# column of the model frame, which holds one column named `d$g`. So a caller who
+# writes `y ~ x + d$g` gets a name that matches nothing, and whatever the name
+# was being used for silently does not happen to that variable.
+#
+# `[[` on the call rather than `as.list()`, because a terms object is a call
+# carrying attributes and `as.list()` on one does not subset the way it does on
+# a plain call: `as.list(tt)[-1L]` returns three elements for a three-element
+# terms object rather than dropping the operator, which walks the wrong tree.
+# Indexing positions directly is immune to that, so this takes a terms object
+# and a bare expression alike, as `all.vars()` does.
+get_varnames <- function(expr) {
+  recurse <- function(e) {
+    if (is.symbol(e)) {
+      return(as.character(e))
+    }
+
+    if (!is.call(e)) {
+      return(NULL)
+    }
+
+    fn <- e[[1L]]
+
+    if (identical(fn, quote(`$`)) || identical(fn, quote(`[[`)) ||
+        identical(fn, quote(`[`))) {
+      return(deparse1(e))
+    }
+
+    seq_along(e)[-1L] |>
+      lapply(function(i) recurse(e[[i]])) |>
+      unlist()
+  }
+
+  recurse(expr)
+}
+
 # One formula per forest, from either a formula or a list of them.
 #
 # The first is the model for the main parameter and carries the response. The
