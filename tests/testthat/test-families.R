@@ -92,6 +92,26 @@ test_that("survival responses are validated", {
   expect_error(prepare_surv(c(1, 2, 3), 3), "two-column response")
 })
 
+test_that("a multi-column response is refused by the single-column families", {
+  surv <- structure(cbind(time = c(1, 2, 3), status = c(1, 0, 1)),
+                    class = "Surv", type = "right")
+
+  # A `Surv` object is a numeric matrix, so without this check `as.numeric()`
+  # flattens it and each family fails differently and misleadingly further on:
+  # `custom` reached the engine and died on an out-of-bounds index.
+  for (name in c("custom", "gaussian", "Gamma", "beta", "tweedie")) {
+    expect_error(check_numeric_response(surv, name), "one response value per")
+    expect_error(check_numeric_response(surv, name), "survival family")
+  }
+
+  expect_error(check_numeric_response(cbind(c(2, 5), c(8, 5)), "gaussian"),
+               "successes and failures")
+
+  # One column is a vector that happens to be stored as a matrix, and stays one.
+  expect_identical(check_numeric_response(cbind(c(1, 2, 3)), "gaussian"),
+                   c(1, 2, 3))
+})
+
 test_that("unused response levels are dropped for multinomial", {
   y <- factor(c("a", "b", "a"), levels = c("a", "b", "c"))
   expect_warning(out <- prepare_unordered(y, "multinomial"), "unused")

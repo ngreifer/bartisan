@@ -659,6 +659,28 @@ check_numeric_response <- function(y, name) {
     y <- drop(y)
   }
 
+  # A `Surv` object is a numeric matrix, so it passes the check below and
+  # `as.numeric()` then flattens it into a vector of length 2n. Every family
+  # that reaches here takes one value per observation, so the flattening is
+  # never what the caller meant, and what it does downstream depends on the
+  # family rather than on the mistake: `gaussian()` reaches `weighted.mean()`
+  # with mismatched lengths, `Gamma()` and `Beta()` report the event
+  # indicators as out-of-range responses, and `custom_family()` reaches the
+  # engine and dies there on an out-of-bounds index. Refuse the shape instead.
+  if (is.matrix(y) && ncol(y) > 1L) {
+    arg::err(c("the {.val {name}} family requires one response value per
+                observation, but the response has {ncol(y)} columns",
+               i = if (inherits(y, "Surv")) {
+                 "a {.cls Surv} response needs a survival family:
+                  {.fn dpm_aft}, {.fn weibull_aft}, {.fn loglogistic_aft},
+                  {.fn lognormal_aft} or {.fn ph}"
+               }
+               else {
+                 "a two-column response of successes and failures needs
+                  {.fn binomial}"
+               }))
+  }
+
   if (!is.numeric(y)) {
     arg::err("the {.val {name}} family requires a numeric response")
   }

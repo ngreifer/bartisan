@@ -6,9 +6,9 @@ This file is organized by subject, not by session. Each entry states the problem
 
 ## Status
 
-388 tests and 1933 expectations passing, 0 failures, 0 warnings and 0 skips when the `skip_on_cran()` fits are run locally with `NOT_CRAN=true`. `R CMD check` on the built tarball, with examples, tests and all nine vignette rebuilds, reports `Status: OK` with no notes and no warnings; inside it the suite skips 67 and passes 1560, which is the configuration a CRAN machine runs. `--as-cran` has not been made to complete on this machine, for a reason that looks environmental rather than packaged; see the pre-submission report at the end of this file.
+463 tests and 2312 expectations passing, 0 failures, 0 warnings and 0 skips when the `skip_on_cran()` fits are run locally with `NOT_CRAN=true`. `R CMD check` on the built tarball, with examples, tests and all ten vignette rebuilds, reports `Status: OK` with no notes and no warnings; inside it the suite skips 67 and passes 1560, which is the configuration a CRAN machine runs. `--as-cran` has not been made to complete on this machine, for a reason that looks environmental rather than packaged; see the pre-submission report at the end of this file.
 
-**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, nine vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`. No `NEWS.md`: nothing has been released, so there is no previous version for a user to have seen.
+**What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, ten vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`. No `NEWS.md`: nothing has been released, so there is no previous version for a user to have seen.
 
 Benchmark, Friedman function, n = 1000, p = 10, 50 trees, 1000 warmup plus 1000 saved, best of 3, scored against the true regression function on a held-out thousand. Reproducible with `_dev/benchmark.Rmd`. **The table below is not comparable with versions of it from before 2026-09-02**: until then bartisan's Gaussian rows omitted `family = gaussian()` and so timed a `dpm()` fit, and the competing packages were passed test data inside the timed call while bartisan's `predict()` ran outside it. Both are fixed; see the Log entry.
 
@@ -7407,3 +7407,116 @@ Removing it would mean changing `bartisan_fit()`'s signature from
 `arma::sp_mat` to `arma::mat`, recompiling, and accepting both regressions, in
 order to drop a package that has `Priority: recommended` and therefore ships
 with every R installation. Not a saving.
+
+## A documentation audit: what ten clean-building vignettes were still getting wrong
+
+The vignettes all built, and the build was not the check. A pass over the ten
+against the source found 106 defects that `R CMD check` cannot see, because
+nothing validates the prose in a markdown file against the code it describes.
+The mechanical checks were already clean: no Rd markup in any `.Rmd`, no ` -- `
+anywhere, every `vignette()` cross-reference resolving, all 50 citation keys
+resolving in `references.bib`. The defects were in what the sentences claimed.
+
+**Five vignettes could not build without a `Suggests` package.** The worst is
+`families.Rmd`, where the chunk guarded on *loo* was the only place `n` and `d`
+were created and six later unguarded chunks used them, so without *loo* the
+vignette died at the next chunk with `object 'n' not found`. `causal.Rmd`'s
+`bal.tab()` chunk carried no chunk options at all. `diagnostics.Rmd` called
+`posterior::rhat()` under `eval = run`, where `run` is hard-coded `TRUE` and
+`has_post` was sitting unused two lines above. `comparison.Rmd` called
+`rstantools::posterior_predict()` guarded on *cobalt*. `survival.Rmd` defined
+`has_surv`, spent it on three chunks, and called `library(survival)` unguarded
+before any of them. The pattern is the same each time: the flag exists, so the
+hazard was noticed, and the guard landed on the wrong chunk.
+
+**An inline expression had been silently deleting a sentence.**
+`survival.Rmd` read `res$meta$num_draws` where the field is `num_save`. `$` does
+not partially match on a list, so `sprintf()` received `NULL`, returned
+`character(0)`, and knitr's inline hook rendered that as the empty string. The
+whole opening sentence of "The Families Compared by Simulation" was absent from
+the built vignette and had been for as long as the field was misnamed. Nothing
+warns. This is the argument for reading the rendered HTML rather than the source
+when checking a vignette.
+
+**Three claims about the package were wrong.** `bartisan.Rmd` said out-of-range
+predictions are "shrunk toward the overall mean"; `range_map()` clamps with
+`pmin(pmax(., 0), 1)` and `ecdf_map()` saturates, so they are held flat at the
+boundary instead. `families.Rmd` listed `negbin()` among the families taking a
+composed link, where `negbin()` validates with `arg::match_arg(link, "log")` and
+the roxygen names it as one of the two exceptions. `survival.Rmd` sent a reader
+wanting interval censoring to `custom_family()`, which cannot take a censored
+response at all: `logdens` gets `y` as a length-`n` vector, and a `Surv` response
+reaches the engine flattened, where it dies with `Mat::operator(): index out of
+bounds`. That crash was a real gap and is fixed below.
+
+**The largest class was prose contradicting the chunk printed directly above
+it.** In `importance.Rmd` the straggler noise predictor is `x9` at .22, not `x8`
+at .4, and `x8` is in fact the lowest of the ten; both `x1` and `x1_copy` sit at
+`prop_used` 1.000, where the text said `x1` was used in under 10% of draws; and
+`avg_comparisons()` gives the original .347 where the text said "none". In
+`bartisan.Rmd` the partial dependence curve runs .870 to .480, not .88 to .45.
+In `families.Rmd` the `loo_compare()` output puts `negbin()` last, not
+`zi_negbin()`. Every one of these is a seeded chunk whose output moved when
+something upstream changed, with the sentence beneath it left behind.
+
+The lesson is not to check the numbers more often. It is that **a sentence should
+not commit to a digit a seeded chunk recomputes** unless the digit is the point.
+The rewrites read the tables qualitatively ("four of the five noise predictors
+near zero. The fifth sits above the other noise variables and still well below
+the real ones") and cannot go stale the same way.
+
+Also done in the pass: `README.Rmd` rewritten from scratch, from about 1700 words
+to 644, dropping the feature-comparison table that duplicates
+`vignette("implementation")` and replacing the syntax tour with one analysis of
+`rhc` carried from a binomial fit through `estimate_effect()` to the same event
+as a censored time. A `reference:` index in `_pkgdown.yml`, five sections by use,
+all 18 non-internal topics, `check_pkgdown()` clean. `bartisan.Rmd` moved from
+second person to the first person plural the other eight tutorials use, and its
+headings and every vignette title to Title Case. Three spellings of
+`marginaleffects_posterior_center` normalized to the one `?bartisan-marginaleffects`
+documents. `?bartisan-package`'s `@seealso` had been sending readers to
+`vignette("bartisan")` "for how the sampler works", which is
+`vignette("implementation")`.
+
+Verified by rebuilding all ten: 13m 12s, ten clean, zero warnings or messages
+captured. The duplicate `diagnose(fit)` chunk removed from `diagnostics.Rmd` is
+most of the 3m 34s the build lost.
+
+## A `Surv` is a numeric matrix, which is how four families and the engine each failed differently
+
+`check_numeric_response()` dropped a one-column matrix and then called
+`as.numeric()`. A `Surv` object is a numeric matrix with two columns, so it
+passed the `is.numeric()` check and came out flattened to length `2n`, with the
+event indicators appended to the times. Every family that takes one value per
+observation funnels through that function, so the same mistake surfaced four
+ways and none of them named it:
+
+| Family | What the caller saw |
+|---|---|
+| `gaussian()` | `'x' and 'w' must have the same length`, from `weighted.mean()` |
+| `Gamma("log")` | "requires a strictly positive response", flagging the zeros in the status column |
+| `Beta()` | "requires a response strictly between 0 and 1", same cause |
+| `custom_family()` | `Mat::operator(): index out of bounds`, from the C++ engine |
+
+The last is the one that mattered, because `vignette("survival")` had been
+recommending `custom_family()` as the route to an interval-censored likelihood.
+It is not a route: `logdens` receives `y` as a length-`n` vector and has nowhere
+to put a censoring indicator. The vignette now says so.
+
+The fix is six lines in `check_numeric_response()`, refusing a response with
+more than one column before the coercion rather than after it, with the hint
+keyed on whether the response is a `Surv` (name the five survival families) or a
+plain two-column matrix (name `binomial()`). Fixing it at the funnel rather than
+in `custom_family()` is what makes all four cases report the same thing.
+
+Tested in `test-families.R`, over all five families and both hint branches, plus
+the one-column matrix that must still come back as a vector.
+
+## `collapse` is in Suggests for *marginaleffects*, not for us
+
+Nothing in `R/`, `tests/` or `vignettes/` references it, so a dependency sweep
+reads it as dead weight and proposes dropping it. It is not: *marginaleffects*
+uses *collapse* for its Bayesian calculations, which is the path every
+`<bartisan_fit>` takes through `avg_comparisons()` and its relatives. Removing
+it would degrade the estimands three vignettes lead with. Recorded here because
+the sweep will run again.
