@@ -1,12 +1,12 @@
 ---
-title: "Choosing between models"
+title: "Choosing Between Models"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Choosing between models}
+  %\VignetteIndexEntry{Choosing Between Models}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
@@ -71,13 +71,13 @@ loo(full)
 
 `elpd_loo` estimates the log predictive density on data the model has not seen, with higher values being better. It is computed by importance sampling from the fitted posterior rather than by refitting, which is why it is fast [@vehtari2017].
 
-`p_loo` is the effective number of parameters, about 32 here; for a forest with hundreds of leaves across its trees that number is small, because the prior shrinks most of them toward zero. It is a useful measure of how much of the data the model is actually using.
+`p_loo` is the effective number of parameters, a little over thirty here; for a forest with hundreds of leaves across its trees that number is small, because the prior shrinks most of them toward zero. It is a useful measure of how much of the data the model is actually using.
 
-The Pareto $k$ diagnostics are the thing to check: leave-one-out by importance sampling is trustworthy only when the importance weights are well behaved, and a $k$ above .7 says that for that observation they are not. Here they are all good.
+The Pareto $k$ diagnostics are the thing to check: leave-one-out by importance sampling is trustworthy only when the importance weights are well behaved, and a $k$ above the threshold *loo* prints with them, which is at most .7 and a little lower for a fit with this many draws, says that for that observation they are not. Here they are all good.
 
 ### When the Approximation Fails
 
-A forest is a flexible function, so a single observation can have a good deal of influence on the leaves it falls into, and high $k$ values are therefore more common than they are for a parametric model. If many observations are flagged, the estimate is unreliable, and the remedy is held-out data rather than a different diagnostic: fit to part of the sample and score the part the model was not shown.
+A forest is a flexible function, so a single observation can have a good deal of influence on the leaves it falls into, and the worry is therefore that high $k$ values will be more common than they are for a parametric model. Measured, they usually are not: the leaf prior shrinks every leaf toward zero and the fit is a sum over many trees, so no single observation dominates the leaves it reaches. The exceptions that do turn up are usually about the likelihood rather than the trees, which makes the warning worth reading rather than expecting. If many observations are flagged, the estimate is unreliable, and the remedy is held-out data rather than a different diagnostic: fit to part of the sample and score the part the model was not shown.
 
 ```{r holdout, eval = run}
 set.seed(2026)
@@ -102,7 +102,7 @@ rbind(loo     = c(total = elpd_total, n = nrow(rhc),     per_obs = elpd_total / 
       heldout = c(total = sum(score), n = length(score), per_obs = mean(score)))
 ```
 
-The totals differ by a factor of five because they sum different numbers of terms: `loo()` scores every observation and the split scores only the ones held out. It is the per-observation column that the two can be read against each other, and there they nearly agree. The gap that remains is in the direction to expect, since leave-one-out trains on 1499 observations and the split trains on 1200.
+The totals differ by a factor of five because they sum different numbers of terms: `loo()` scores every observation and the split scores only the ones held out. It is in the per-observation column that the two can be read against each other, and there they nearly agree. The gap that remains is in the direction to expect, since leave-one-out trains on 1499 observations and the split trains on 1200.
 
 That is the whole of what a held-out score gives us on its own, which is not much: a log score has no scale, and the only thing to do with one is put it beside another. The next section does that, first through `loo()` and then through this split.
 
@@ -125,7 +125,7 @@ The full model predicts better by around six times the standard error of the dif
 
 ### Totals, Averages, and Why the Convention Is a Total
 
-`elpd_diff` is a difference of *totals*, and the reason is that a log score is additive. Summing it over observations gives a log predictive likelihood, so the difference between two models is a log likelihood ratio: the evidence the sample carries about which model predicts better, in nats. On that reading the total is the quantity with meaning, and it should grow with the sample, because more data is more evidence. It also puts `elpd` on the scale AIC, WAIC and DIC are quoted on, which are likewise totals.
+`elpd_diff` is a difference of *totals*, and the reason is that a log score is additive. Summing it over observations gives a log predictive likelihood, so the difference between two models is a log likelihood ratio: the evidence the sample carries about which model predicts better, in nats. On that reading the total is the quantity with meaning, and it should grow with the sample, because more data is more evidence. It also keeps `elpd` a total over observations, as AIC, WAIC and DIC are, though those three are quoted on the deviance scale, which is $-2$ times a log score.
 
 Nothing is lost by preferring the average, because the decision does not depend on the choice. The mean difference and the total differ by a factor of $n$, its standard error differs by the same factor, and the ratio of the two, which is what says whether the difference is real, is identical either way.
 
@@ -182,13 +182,13 @@ c(kfold = kfold_full$estimates["elpd_kfold", "Estimate"] / nrow(rhc),
   loo = elpd_total / nrow(rhc))
 ```
 
-They agree, which is what a clean Pareto $k$ column was saying in less direct form. That is the division of labour between the three routes: `loo()` for one fit and a diagnostic, $K$-fold for $K$ fits and no approximation, and a single split when even that is too expensive. When the outcome is rare enough that a random split could leave a fold with no events in it, `loo::kfold_split_stratified()` assigns the folds instead.
+They agree, which is what a clean Pareto $k$ column was saying in less direct form. That is the division of labor between the three routes: `loo()` for one fit and a diagnostic, $K$-fold for $K$ fits and no approximation, and a single split when even that is too expensive. When the outcome is rare enough that a random split could leave a fold with no events in it, `loo::kfold_split_stratified()` assigns the folds instead.
 
 This is the right way to ask whether a set of variables earns its place, and it is a better question than the one variable importance answers, because it is about prediction rather than about how the forest happened to spend its splits. Here the answer is not in doubt by any of the three routes: how sick a patient is on arrival predicts whether they die, and demographics alone do not.
 
 ## Comparing Links (`family`)
 
-The other choice is the likelihood. For a binary outcome the family is settled, and what remains is the link (i.e., the function that maps the forest's output onto a probability). Below we compare probit and complimentary log-log BART models to our original logistic BART model.
+The other choice is the likelihood. For a binary outcome the family is settled, and what remains is the link (i.e., the function that maps the forest's output onto a probability). Below we compare probit and complementary log-log BART models to our original logistic BART model.
 
 ```{r links, eval = run}
 set.seed(2026)
@@ -251,7 +251,7 @@ c(on_time = elpd(loo(prop_haz, scale = "time")) - elpd(loo(aft, scale = "time"))
     elpd(loo(aft, scale = "log_time")))
 ```
 
-The everyday version of this mistake takes the same repair by hand. A model of `log(y)` reports $\log f_Y(\log y)$, so subtracting $\log y$ from each of its pointwise contributions, with `loo(sweep(log_lik(fit), 2, log(y), "-"))`, puts it on the scale of a model of `y`.
+The everyday version of this mistake takes the same repair by hand. A model of `log(y)` reports $\log f_Y(\log y)$, so subtracting $\log y$ from each of its pointwise contributions, with `loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))`, puts it on the scale of a model of `y`.
 
 There is also a way to sidestep the correction rather than apply it. Survival at a horizon is a probability under every family, so comparing fits on `predict(type = "survival")` needs no Jacobian at all; `vignette("survival")` gives that route, along with the same correction written for a held-out log score instead of for `loo()`.
 
@@ -286,7 +286,7 @@ rbind(gaussian = c(at_zero = sum(loo(normal)$pointwise[zero, "elpd_loo"]),
 
 At the positive outcomes, where both report a density, the two are within a couple of points of each other. Everything else is the atom.
 
-**The one case where the comparison is valid** is an outcome that is really recorded on a grid rather than being continuous: whole dollars, whole counts, tenths of a millimetre. Then neither model is reporting a density at all, properly speaking, and both can be put on the probability of landing in one cell of that grid, after which the totals are comparable. Doing it means turning each density into a probability by multiplying it by the cell width, which is a constant per observation and so a correction of the same shape as the Jacobian above. The width has to come from knowing how the outcome was recorded; no fitted model can supply it, and choosing it to favour a model is choosing the answer.
+**The one case where the comparison is valid** is an outcome that is really recorded on a grid rather than being continuous: whole dollars, whole counts, tenths of a millimeter. Then neither model is reporting a density at all, properly speaking, and both can be put on the probability of landing in one cell of that grid, after which the totals are comparable. Doing it means turning each density into a probability by multiplying it by the cell width, which is a constant per observation and so a correction of the same shape as the Jacobian above. The width has to come from knowing how the outcome was recorded; no fitted model can supply it, and choosing it to favor a model is choosing the answer.
 
 When the zeros are exact rather than rounded, there is no width to use and no correction to make. In that case do not compare the two families by `loo()` at all. Two things answer the question instead, and between them they cover it.
 
@@ -294,7 +294,9 @@ The first is to compare them only where both describe the outcome the same way, 
 
 The second is to notice that the disagreement is entirely about whether the outcome has a point mass, and that this is a question about the shape of the predictive distribution rather than about a density at a point. A posterior predictive check settles it in one line:
 
-```{r tweediecheck, eval = run && has_cobalt}
+```{r tweediecheck, eval = run && has_cobalt && rlang::is_installed("rstantools")}
+set.seed(2026)
+
 zero_share <- function(y) mean(y == 0)
 
 c(observed = zero_share(lalonde$re78),

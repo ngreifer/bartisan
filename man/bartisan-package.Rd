@@ -84,7 +84,8 @@ interval around it.
 \seealso{
 \code{\link[=bartisan]{bartisan()}} to fit a model; \link{bartisan-families} to choose a likelihood;
 \link{bartisan-marginaleffects} and \link{bartisan-interop} for the packages that read a
-fit; \code{vignette("bartisan")} for how the sampler works.
+fit; \code{vignette("bartisan")} for a worked analysis and
+\code{vignette("implementation")} for how the sampler works.
 }
 \author{
 \strong{Maintainer}: Noah Greifer \email{noah.greifer@gmail.com} (\href{https://orcid.org/0000-0003-3067-7154}{ORCID})

@@ -76,7 +76,8 @@
 #' @seealso
 #' [bartisan()] to fit a model; [bartisan-families] to choose a likelihood;
 #' [bartisan-marginaleffects] and [bartisan-interop] for the packages that read a
-#' fit; `vignette("bartisan")` for how the sampler works.
+#' fit; `vignette("bartisan")` for a worked analysis and
+#' `vignette("implementation")` for how the sampler works.
 #'
 "_PACKAGE"
 

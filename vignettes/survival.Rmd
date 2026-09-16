@@ -1,12 +1,12 @@
 ---
-title: "Survival analysis in bartisan"
+title: "Survival Analysis in bartisan"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Survival analysis in bartisan}
+  %\VignetteIndexEntry{Survival Analysis in bartisan}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
@@ -58,18 +58,18 @@ library(ggplot2)
 theme_set(theme_bw(base_size = 9) +
             theme(panel.grid.minor = element_blank(),
                   strip.background = element_rect(fill = "grey93",
-                                                  colour = NA),
+                                                  color = NA),
                   legend.position = "bottom",
                   legend.title = element_blank()))
 
-fam_colours <- setNames(
+fam_colors <- setNames(
   c("#B2182B", "#EF8A62", "#F4A582", "#4393C3", "#2166AC", "#1B7837"),
   fam_levels)
 ```
 
 ```{r libs}
 library(bartisan)
-library(survival)
+if (has_surv) library(survival) else knitr::knit_exit()
 
 set.seed(2026)
 
@@ -108,7 +108,7 @@ d$status <- as.numeric(latent <= cens)
 mean(d$status)
 ```
 
-Only right censoring is supported: `Surv(time, status)` and nothing else. Left-truncated, interval-censored and competing-risks data need a different likelihood, and `custom_family()` is the place to write one.
+Only right censoring is supported: `Surv(time, status)` and nothing else. Left-truncated, interval-censored and competing-risks data need a different likelihood, and none of the families here supplies one. `custom_family()` is not a way around it either, since it hands `logdens` the response as a single numeric vector and so has nowhere to put a censoring indicator.
 
 Censoring is assumed **independent** of the event time given the covariates, as it is in every model in this vignette and in `survival::coxph()`. That is an assumption about the data, not about the family, so no choice below relaxes it.
 
@@ -150,7 +150,7 @@ fit_ln <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
 c(weibull = mean(fit_w$aux[, "sigma"]), lognormal = mean(fit_ln$aux[, "sigma"]))
 ```
 
-They differ only in the error's shape, and therefore in the shape of the hazard. **`weibull_aft()`** has a **monotone** hazard, which may be increasing, decreasing or flat but never turning around; it is the only family in the package that is simultaneously an accelerated failure time and a proportional hazards model, so it is the one parametric choice that supports a hazard-ratio reading, and it is about seven times slower than the other two (see [Speed](#speed)). **`loglogistic_aft()`** allows a hazard that rises and then falls, and has the heaviest tails of the three, so a handful of very long survivors move it least. **`lognormal_aft()`** also allows a non-monotone hazard, with thinner tails than the log-logistic.
+They differ only in the error's shape, and therefore in the shape of the hazard. **`weibull_aft()`** has a **monotone** hazard, which may be increasing, decreasing or flat but never turning around; it is the only family in the package that is simultaneously an accelerated failure time and a proportional hazards model, which is what makes it the one parametric choice supporting a hazard-ratio reading. It is also about seven times slower than the other two (see [Speed](#speed)). **`loglogistic_aft()`** allows a hazard that rises and then falls, and has the heaviest tails of the three, so a handful of very long survivors move it least. **`lognormal_aft()`** also allows a non-monotone hazard, with thinner tails than the log-logistic.
 
 In practice the log-logistic and log-normal are hard to tell apart from data and the Weibull is distinguishable from both, so the informative comparison is Weibull against either of the other two, by `loo()`.
 
@@ -181,12 +181,12 @@ ggplot(ed, aes(at, mean)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey85") +
   geom_line(linewidth = 0.5) +
   stat_function(fun = dnorm, args = list(sd = sd_fitted),
-                linetype = 2, colour = "#B2182B") +
+                linetype = 2, color = "#B2182B") +
   labs(x = "error in log T", y = "density",
        subtitle = "fitted error density (solid) against the normal of the same spread (dashed)")
 ```
 
-Because the mixture can collapse to a single component, it costs almost nothing when a single normal was the right answer, which is the property that makes it a reasonable default rather than a specialist tool. Nor does it cost much time: conditional on which component each observation sits in, the model is Gaussian, so it takes the same fast path `lognormal_aft()` does and the mixture update on top is cheap. It runs at about twice `lognormal_aft()`'s cost and a third of `weibull_aft()`'s.
+Because the mixture can collapse to a single component, it costs almost nothing when a single normal was the right answer, which is the property that makes it a reasonable default rather than a specialist tool. Nor does it cost much time: conditional on which component each observation sits in, the model is Gaussian, so it takes the same fast path `lognormal_aft()` does and the mixture update on top is cheap. It runs at about two and a half times `lognormal_aft()`'s cost and a third of `weibull_aft()`'s, though what the mixture update costs depends on how many components the data ask for.
 
 ### A Free Baseline Hazard (`ph()`)
 
@@ -194,7 +194,7 @@ Because the mixture can collapse to a single component, it costs almost nothing 
 
 $$\lambda(t \mid x) = \lambda_0(t)\exp\{r(x)\},$$
 
-with $\lambda_0$ constant within each of `num_bins` pieces whose edges sit at evenly spaced quantiles of the observed times. This is the piecewise-exponential proportional hazards model with a forest on the log hazard ratio. The baseline can take any shape at all, including one that turns over, which none of the three parametric families can do.
+with $\lambda_0$ constant within each of `num_bins` pieces whose edges sit at evenly spaced quantiles of the observed times. This is the piecewise-exponential proportional hazards model with a forest on the log hazard ratio. The baseline can take any shape at all, including one that turns over more than once, which none of the three parametric families can do.
 
 ```{r phfit}
 fit_ph <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
@@ -228,7 +228,7 @@ The contrast is a log time ratio in all four, but $e^{\eta}$ on its own is a dif
 | `dpm_aft()` | mean zero, asymmetric in general | the geometric mean of $T$, that is $\exp E[\log T \mid x]$, which is not the median |
 | `weibull_aft()` | location zero, so mean $-\gamma\sigma$ | the Weibull scale, which is the 63.2nd percentile of $T$ whatever the shape |
 
-So `weibull_aft()` is the family whose level needs the most care, not `dpm_aft()`. Its predictor is neither the mean nor the median of $\log T$, and putting its level beside a log-normal fit's means carrying the $\gamma\sigma$ offset, where $\gamma \approx 0.577$. Contrasts are unaffected in every case, which is the usual reason to prefer them.
+So `weibull_aft()` is the family whose level needs the most care, not `dpm_aft()`. Its predictor is neither the mean nor the median of $\log T$, and putting its level beside a log-normal fit's means carrying the $\gamma\sigma$ offset, where $\gamma \approx .577$. Contrasts are unaffected in every case, which is the usual reason to prefer them.
 
 ### Survival at a Horizon (`type = "survival"`)
 
@@ -280,19 +280,19 @@ haz <- rbind(
 haz$family <- factor(haz$family, levels = fam_levels)
 
 ggplot(haz, aes(t, h, group = interaction(family, label))) +
-  geom_line(aes(colour = family), linewidth = 0.6) +
+  geom_line(aes(color = family), linewidth = 0.6) +
   facet_wrap(~ family, nrow = 1) +
-  scale_colour_manual(values = fam_colours, guide = "none") +
+  scale_color_manual(values = fam_colors, guide = "none") +
   coord_cartesian(ylim = c(0, 2.6)) +
   labs(x = "time", y = "hazard",
        subtitle = "the Weibull hazard cannot turn around; the other two can turn over exactly once; ph()'s can do anything")
 ```
 
-`dpm_aft()` is not in the figure because its hazard shape is whatever the fitted error mixture implies, which can be multi-modal (i.e., have more than one peak), something none of the other four can produce.
+`dpm_aft()` is not in the figure because its hazard shape is whatever the fitted error mixture implies, which can be multi-modal (i.e., have more than one peak), something none of the three parametric families can produce.
 
 ## The Families Compared by Simulation
 
-`r sprintf("The simulation behind this section fits each family to %d training observations and scores it on %d held-out observations, with %d trees and %d draws after %d warmup, over %d replicates and at about 30%% censoring.", res$meta$n_train, res$meta$n_test, res$meta$num_trees, res$meta$num_draws, res$meta$num_burn, res$meta$n_rep)`
+`r sprintf("The simulation behind this section fits each family to %d training observations and scores it on %d held-out observations, with %d trees and %d draws after %d warmup, over %d replicates and at about 30%% censoring.", res$meta$n_train, res$meta$n_test, res$meta$num_trees, res$meta$num_save, res$meta$num_burn, res$meta$n_rep)`
 The script is `_dev/survival-sim.R` in the package sources.
 
 Every truth we built uses the same nonlinear function of five covariates, so the families differ only in how well they cope with the *shape* of the time distribution built around it. The six truths are:
@@ -319,12 +319,12 @@ knitr::kable(data.frame(
 We take as the primary metric the RMSE of the fitted survival function $S(t \mid x)$ against the true one, on held-out subjects and over twenty times spanning the 5th to 95th percentile of the event-time distribution, because it is on the same scale for every family, which the predictors are not.
 
 ```{r rmsefig, echo = FALSE, fig.height = 4.4}
-ggplot(agg, aes(s_rmse, family, colour = family)) +
+ggplot(agg, aes(s_rmse, family, color = family)) +
   geom_point(size = 1.9) +
   geom_linerange(aes(xmin = s_rmse - s_rmse_se, xmax = s_rmse + s_rmse_se),
                  linewidth = 0.5) +
   facet_wrap(~ truth, ncol = 2) +
-  scale_colour_manual(values = fam_colours, guide = "none") +
+  scale_color_manual(values = fam_colors, guide = "none") +
   scale_y_discrete(limits = rev(fam_levels)) +
   expand_limits(x = 0) +
   labs(x = expression(RMSE~of~S(t*"|"*x)~~~"(lower is better)"), y = NULL,
@@ -340,7 +340,7 @@ Five things to read off it.
 
 **Being exactly right is worth surprisingly little.** On the Weibull truth, which `weibull_aft()` and `ph()` both describe exactly, `weibull_aft()` leads at .045, and `ph()` and `dpm_aft()`, neither of which is given the shape, are level with it at .046. Being *wrong* costs far more than being right gains: `lognormal_aft()` pays .068 on the same data. So the question worth asking of a family is not how much it wins when its assumption holds, but how much it loses when it does not.
 
-**`ph()` wins where the baseline turns over, and only there.** At .045 against .055 for the best parametric alternative, it is clearly ahead on the case the three parametric families structurally cannot fit. But this is the one truth in the table where it leads. On the two accelerated failure time truths it is among the worst (.069 on log-normal errors against .049) because proportional hazards is an assumption too, and it is the wrong one there.
+**`ph()` wins where the baseline turns over, and only there.** At .045 against .055 for the best parametric alternative, it is clearly ahead on the case the three parametric families structurally cannot fit. But this is the one truth in the table where it leads. On the log-normal and heavy-tailed accelerated failure time truths it is among the worst (.069 on log-normal errors against .049) because proportional hazards is an assumption too, and it is the wrong one there.
 
 **When the error is badly shaped, `dpm_aft()` wins by a wide margin.** On the two-component error it is three times more accurate than anything else and 300 log points ahead, because no other family in the set can represent a bimodal time distribution at any value of its parameters. The heavy-tailed case is milder, and there `loglogistic_aft()` matches it, which is what the log-logistic's heavy tails are for.
 
@@ -369,10 +369,10 @@ cv$family <- factor(cv$family, levels = keep,
 cv$subject <- factor(cv$subject, levels = c("poor prognosis", "typical",
                                             "good prognosis"))
 
-ggplot(cv, aes(time, surv, colour = subject)) +
+ggplot(cv, aes(time, surv, color = subject)) +
   geom_line(linewidth = 0.55) +
   facet_grid(truth ~ family) +
-  scale_colour_manual(values = c("poor prognosis" = "#B2182B",
+  scale_color_manual(values = c("poor prognosis" = "#B2182B",
                                  "typical" = "#999999",
                                  "good prognosis" = "#2166AC")) +
   coord_cartesian(ylim = c(0, 1)) +
@@ -391,17 +391,17 @@ Two cautions on reading this panel. It shows three subjects, not the sample: the
 A weaker question than the curve itself is whether the model gets the *ordering* of subjects right at each time. Misspecification costs much less here.
 
 ```{r rankfig, echo = FALSE, fig.height = 3.4}
-ggplot(agg, aes(rank, family, colour = family)) +
+ggplot(agg, aes(rank, family, color = family)) +
   geom_point(size = 1.9) +
   facet_wrap(~ truth, ncol = 3) +
-  scale_colour_manual(values = fam_colours, guide = "none") +
+  scale_color_manual(values = fam_colors, guide = "none") +
   scale_y_discrete(limits = rev(fam_levels)) +
   labs(x = "mean Spearman correlation with the true S(t | x)  (higher is better)",
        y = NULL,
        subtitle = "how well the ordering of subjects by survival is recovered")
 ```
 
-On all five truths where the covariate effect is constant in time, every family recovers the ordering at a correlation between .92 and .99, whether or not it has the shape right. The spread across families is a few hundredths where the spread in the survival curve was a factor of three.
+On all five truths where the covariate effect is constant in time, every family recovers the ordering at a correlation between .91 and .99, whether or not it has the shape right. The spread across families is a few hundredths where the spread in the survival curve was a factor of three.
 
 The crossing truth is the exception, and there the column collapses: the discrete-time model reaches .47, the accelerated failure time families .24 to .29, and `ph()` and `weibull_aft()` essentially zero (.04 and $-.03$), which is to say no information about who is at risk at a given time. This is the same erasure the curves showed, measured.
 
@@ -423,8 +423,8 @@ truthdens <- do.call(rbind, lapply(split(dn, dn$truth), function(z) {
 
 ggplot(dn, aes(at, mean)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "#4393C3", alpha = 0.25) +
-  geom_line(colour = "#2166AC", linewidth = 0.6) +
-  geom_line(data = truthdens, colour = "black", linetype = 2, linewidth = 0.5) +
+  geom_line(color = "#2166AC", linewidth = 0.6) +
+  geom_line(data = truthdens, color = "black", linetype = 2, linewidth = 0.5) +
   facet_wrap(~ truth, scales = "free") +
   labs(x = "error in log T", y = "density",
        subtitle = "dpm_aft()'s fitted error density (blue, with interval) against the truth (dashed)")
@@ -456,10 +456,10 @@ More censoring means less information, so every family gets worse. The question 
 sw <- res$sweep_agg
 sw$family <- factor(sw$family, levels = fam_levels)
 
-ggplot(sw, aes(censor, s_rmse, colour = family)) +
+ggplot(sw, aes(censor, s_rmse, color = family)) +
   geom_line(linewidth = 0.5) +
   geom_point(size = 1.6) +
-  scale_colour_manual(values = fam_colours) +
+  scale_color_manual(values = fam_colors) +
   scale_x_continuous(labels = function(z) paste0(100 * z, "%")) +
   labs(x = "fraction censored", y = expression(RMSE~of~S(t*"|"*x)),
        subtitle = "turning-over baseline, censoring swept from none to 70% (note the y axis does not start at zero)")
@@ -469,7 +469,7 @@ ggplot(sw, aes(censor, s_rmse, colour = family)) +
 
 The degradation is gentle up to about half the observations censored (`ph()` goes from .044 to .055), which is the usual reassurance about likelihood-based survival analysis: a censored observation is not a missing one, since it contributes $S(t)$ and that is real information. Beyond half, the curves steepen.
 
-**One line does not behave**, and it is worth understanding rather than passing over. `weibull_aft()` is the *worst* family in the panel with no censoring at all, at .097, and it gets **better** as censoring increases, reaching .072 at 70%. Everything else degrades monotonically. The likely reason is that this truth has a heavy, polynomial tail, which a smallest extreme value error in log time cannot represent; with no censoring the fit is dragged by observed times far out in that tail, and censoring truncates exactly the observations it cannot accommodate. Censoring is protecting a misspecified model from the part of the distribution it gets wrong. That is a caution about reading a fit's apparent quality off a heavily censored sample, not a reason to want censoring.
+**One line does not behave**, and it is worth understanding rather than passing over. `weibull_aft()` is the *worst* family in the panel with no censoring at all, at .096, and it gets **better** as censoring increases, reaching .072 at 70%. Everything else degrades monotonically, apart from the discrete-time route, which dips a little between no censoring and 25% before climbing again. The likely reason is that this truth has a heavy, polynomial tail, which a smallest extreme value error in log time cannot represent; with no censoring the fit is dragged by observed times far out in that tail, and censoring truncates exactly the observations it cannot accommodate. Censoring is protecting a misspecified model from the part of the distribution it gets wrong. That is a caution about reading a fit's apparent quality off a heavily censored sample, not a reason to want censoring.
 
 One expectation the sweep did not bear out: we might have expected `dpm_aft()` to suffer most under heavy censoring, since it estimates a whole density from log-times that are increasingly imputed rather than observed. It does not. Over the sweep its error grows by a factor of 1.4, against 1.5 for both `ph()` and `loglogistic_aft()`. Its advantage is not fragile in the way the extra machinery suggests.
 
@@ -588,7 +588,7 @@ tm$family <- factor(tm$family, levels = fam_levels)
 
 ggplot(tm, aes(secs, family, fill = family)) +
   geom_col(width = 0.6) +
-  scale_fill_manual(values = fam_colours, guide = "none") +
+  scale_fill_manual(values = fam_colors, guide = "none") +
   scale_y_discrete(limits = rev(fam_levels)) +
   labs(x = "seconds per fit", y = NULL,
        subtitle = "700 observations, 50 trees, 500 draws after 500 warmup")
@@ -596,7 +596,7 @@ ggplot(tm, aes(secs, family, fill = family)) +
 
 The spread is about eightfold, and it does not follow the families' flexibility at all.
 
-`lognormal_aft()` and `loglogistic_aft()` are the fastest, at about 1.2 seconds, because both reach the sampler's quadratic fast path through data augmentation, under which the augmented target is exactly quadratic in the predictor, so the leaf draw is a closed form rather than a Laplace approximation. `dpm_aft()` comes next at about 2.8 seconds, because conditional on which mixture component each observation currently sits in it is *also* exactly Gaussian, and so takes the same fast path; the Dirichlet process update on top of that is cheap. `ph()` and the discrete-time route sit at about six seconds. The slowest family is `weibull_aft()`, at about 8.4 seconds, because its likelihood takes the exponential path rather than the quadratic one. None of these is slow enough at this sample size to drive the choice. Fit the one that matches the question; speed is a reason to prefer `lognormal_aft()` only when many models are being fit rather than one.
+`lognormal_aft()` and `loglogistic_aft()` are the fastest, at about 1.2 seconds, because both reach the sampler's quadratic fast path through data augmentation, under which the augmented target is exactly quadratic in the predictor, so the leaf draw is a closed form rather than a Laplace approximation. `dpm_aft()` comes next at about 2.8 seconds, because conditional on which mixture component each observation currently sits in it is *also* exactly Gaussian, and so takes the same fast path; the Dirichlet process update on top of that is cheap. `ph()` and the discrete-time route sit at about six seconds. The slowest family is `weibull_aft()`, at about 8.4 seconds, for the opposite reason to the one its form suggests. Its likelihood is already exponential in the predictor, censoring included, so it needs no imputation at all. But the exponential route is unavailable under the default soft rules, so its leaf draws fall back on the general one, where every trial value of a leaf parameter costs its own pass. None of these is slow enough at this sample size to drive the choice. Fit the one that matches the question; speed is a reason to prefer `lognormal_aft()` only when many models are being fit rather than one.
 
 ## Choosing a Family
 

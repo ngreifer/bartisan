@@ -1,12 +1,12 @@
 ---
-title: "Response families in bartisan"
+title: "Response Families in bartisan"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Response families in bartisan}
+  %\VignetteIndexEntry{Response Families in bartisan}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
@@ -96,11 +96,14 @@ Two questions cut across that table.
 
 When two families are both defensible, we can compare them rather than argue about them; `loo()` and `waic()` work on a fit:
 
-```{r loo, eval = rlang::is_installed("loo")}
+```{r simdata}
+# The count response used here and through the rest of the vignette
 n <- 300
 d <- data.frame(x1 = runif(n), x2 = runif(n))
 d$count <- rpois(n, exp(1.2 * sin(pi * d$x1) + 0.4))
+```
 
+```{r loo, eval = rlang::is_installed("loo")}
 loo::loo_compare(
   loo::loo(bartisan(count ~ ., d, family = poisson(), control = ctrl)),
   loo::loo(bartisan(count ~ ., d, family = negbin(), control = ctrl))
@@ -117,7 +120,7 @@ loo::loo_compare(
 | an ordered factor | `ordinal()` |
 | logical, a factor or character with two levels, or numeric taking only the values 0 and 1 | `binomial()` |
 | any other factor or character | `multinomial()` |
-| a two-column numeric matrix | `binomial()`, read as successes and failures, unless the columns look like strictly positive times and 0/1 events, which give `dpm_aft()` |
+| a two-column numeric matrix | `binomial()`, read as successes and failures, unless the columns look like non-negative times and 0/1 events, which give `dpm_aft()` |
 | any other numeric | `dpm()` |
 
 The choice is reported when it is made, and naming `family` silences the message. That is the intended way to silence it: an inferred family is a modeling decision taken on the analyst's behalf, so confirming it in the call is a better outcome than suppressing the notice.
@@ -221,7 +224,7 @@ c(scale_splits = sum(flat$counts$log_sd),
   sigma = mean(exp(flat$eta[[2L]])))
 ```
 
-The scalar is drawn under the leaf prior rather than under the prior the corresponding built-in family puts on its nuisance parameter, so the two agree closely rather than exactly. The multinomial families are the exception, for the reason given at the end of this section.
+The scalar is drawn under the leaf prior rather than under the prior the corresponding built-in family puts on its nuisance parameter, so the two agree closely rather than exactly. The multinomial families are the exception: their forests are the levels of one categorical parameter and act together rather than describing separate components of the response distribution, so every per-forest argument applies to all of them at once, and more than one value is an error rather than a silent recycling.
 
 The scale forest never splits on `x1`, because its formula does not name it. The predictor is still in the data, so nothing about `predict()` or `newdata` changes; the forest simply never uses it. This is useful when we already know which covariates drive the spread, or when the second forest is spending capacity on predictors that only matter for the mean.
 
@@ -236,7 +239,7 @@ fit_dpm <- bartisan(heavy ~ x1 + x2, data = d,
                     family = dpm(), control = ctrl)
 ```
 
-```{r dpmplot, fig.height = 2.6, eval = rlang::is_installed("ggplot2")}
+```{r dpmplot, fig.height = 2.6}
 plot(error_density(fit_dpm))
 ```
 
@@ -263,7 +266,7 @@ We compared `Gamma()`, `Gamma_ls()`, `gaussian()` with a `"log"` link, `dpm()`, 
 
 A few things to take from this:
 
-**`Gamma_ls()` is the family to reach for when the dispersion might vary, and it costs almost nothing when it does not.** In the varying-dispersion column it cuts RMSE by 26% against `Gamma("log")` (0.461 against 0.620) and gains 62 log points. In the constant-dispersion column, where `Gamma("log")` is exactly right, the two are indistinguishable: 0.378 against 0.395 on RMSE and two log points apart, well inside the replicate-to-replicate spread. That is the same property that makes `dpm()` a safe default against `gaussian()`, and it is the argument for starting here when the outcome is positive and the spread is not known to be stable. What it costs is time, at about six times `Gamma("log")`, almost all of it in the dispersion forest, which takes the sampler's general path where the mean forest does not.
+**`Gamma_ls()` is the family to reach for when the dispersion might vary, and it costs almost nothing when it does not.** In the varying-dispersion column it cuts RMSE by 26% against `Gamma("log")` (.461 against .620) and gains 62 log points. In the constant-dispersion column, where `Gamma("log")` is exactly right, the two are indistinguishable: 0.378 against 0.395 on RMSE and two log points apart, well inside the replicate-to-replicate spread. That is the same property that makes `dpm()` a safe default against `gaussian()`, and it is the argument for starting here when the outcome is positive and the spread is not known to be stable. What it costs is time, at about six times `Gamma("log")`, almost all of it in the dispersion forest, which takes the sampler's general path where the mean forest does not.
 
 **`ordinal("probit")` on 25 bins has the best RMSE of any family in two of the four columns**, on the lognormal error by 26% over `Gamma_ls()` and on the heavy tail by a hair, at a fraction of the cost and with no assumption about the error's shape at all. What it gives up is the density on the original scale, and with it `loo()` comparisons against the other families here. It is the option to remember when the mean is the estimand and the error is a nuisance; see [a continuous outcome as ordinal](#a-continuous-outcome-as-ordinal).
 
@@ -308,9 +311,9 @@ c(mean = mean(dz$count), zeros = mean(dz$count == 0),
 library(ggplot2)
 
 ggplot(dz, aes(count)) +
-  geom_histogram(binwidth = 1, fill = "grey70", colour = "white") +
+  geom_histogram(binwidth = 1, fill = "grey70", color = "white") +
   labs(x = "count", y = "observations",
-       subtitle = "Poisson, no zero inflation, marginal mean 1.8") +
+       subtitle = "Poisson, no zero inflation, marginal mean 1.9") +
   theme_bw()
 ```
 
@@ -332,7 +335,7 @@ loo::loo_compare(list(poisson = count_fit(poisson()),
                       zi_negbin = count_fit(zi_negbin())))
 ```
 
-Read this the way `vignette("comparison")` recommends, which is to look at the standard errors before the ordering. Every difference here is within about two standard errors, so these data do not sharply separate any of the four, and that is worth saying before anything else. What they certainly do not do is *prefer* a zero-inflated fit: both zero-inflated families come out nominally behind the plain Poisson rather than ahead of it, despite a response that is 46% zeros, and `zi_negbin()`, which adds inflation and overdispersion at once, is nominally last. Since the truth here has neither, "no better than the plain Poisson" is the right answer rather than a failure to detect something.
+Read this the way `vignette("comparison")` recommends, which is to look at the standard errors before the ordering. Every difference here is within about two standard errors, so these data do not sharply separate any of the four, and that is worth saying before anything else. What they certainly do not do is *prefer* a zero-inflated fit: both zero-inflated families come out nominally behind the plain Poisson rather than ahead of it, despite a response that is 46% zeros, and the two families that add a dispersion parameter, `negbin()` and `zi_negbin()`, sit at the bottom. Since the truth here has neither, "no better than the plain Poisson" is the right answer rather than a failure to detect something.
 
 What has happened is that the forest already accounts for the zeros by finding where the conditional mean is small, which is what a nonparametric mean is for, so a mixture has nothing left to explain and pays for its parameters. The lesson generalizes past counts: with a flexible mean, a feature of the *marginal* distribution of the response is not evidence about the conditional model. Reach for zero inflation when the zero mechanism is a process worth modeling in its own right, and let a comparison of fits, not a histogram, settle whether it is there.
 
@@ -446,9 +449,9 @@ There are five families that can be used with survival time response, all taking
 
 All four accelerated failure time families share the structure $\log T = \eta(x) + W$ with $W$ independent of $x$, and that alone makes a contrast in the predictor a log time ratio: every quantile of $T$, its mean, and its geometric mean all scale by $e^{\Delta\eta}$, whatever shape $W$ has. What differs between them is what $e^{\eta}$ is on its own, since each pins its error's location differently, and `vignette("survival")` gives that per family. `weibull_aft()` is the only one whose predictor also carries a log hazard ratio, of $-\Delta\eta/\sigma$, and that is a property of the smallest extreme value error rather than of the shared structure: it is the only error that makes an accelerated failure time model proportional hazards as well.
 
-The three structured accelerated failure time families (i.e., the first three above) fix the shape of the error and so of the hazard, and are quick to fit. `ph()` frees the baseline hazard instead, so it fits a hazard of any shape, at the price of asserting proportionality and of reading the predictor on the hazard scale. `dpm_aft()` frees the error density [@henderson2020], which costs little when a single normal was right and gains a great deal when it was not.
+The three structured accelerated failure time families (i.e., the first three above) fix the shape of the error and so of the hazard. `lognormal_aft()` and `loglogistic_aft()` are the quickest of the five to fit, since imputing the censored times leaves the sampler a quadratic target; `weibull_aft()`, whose likelihood takes the exponential path instead, is the slowest. `ph()` frees the baseline hazard instead, so it fits a hazard of any shape, at the price of asserting proportionality and of reading the predictor on the hazard scale. `dpm_aft()` frees the error density [@henderson2020], which costs little when a single normal was right and gains a great deal when it was not.
 
-`dpm_aft()` is the default for a `Surv` response, on the evidence in the survival vignette and because it is cheaper to fit than most of the alternatives. `weibull_aft()` is the one family that is both an accelerated failure time and a proportional hazards model, so it is the one to name when a hazard-ratio reading is what we want.
+`dpm_aft()` is the default for a `Surv` response, on the evidence in the survival vignette and because it is one of the cheaper families to fit. `weibull_aft()` is the one family that is both an accelerated failure time and a proportional hazards model, so it is the one to name when a hazard-ratio reading is what we want.
 
 ```{r aft, eval = rlang::is_installed("survival")}
 d$time <- rexp(n, exp(-(1 + d$x1)))
@@ -479,9 +482,9 @@ The trade-offs behind these choices are measured in `vignette("survival", packag
 
 ## Other Links and Custom Likelihoods
 
-Links beyond those in the table are accepted for `gaussian()`, `binomial()`, `poisson()`, `negbin()` and `Beta()`, and applied from R by composing the supplied inverse link with the family's own. So `binomial("cauchit")` works, as does any link object of the kind `stats::make.link()` returns, including one written by hand. Two cautions: 1) the fit is slower, because each leaf costs a call into R, and 2) the additive predictor is unconstrained, so a link whose inverse has a restricted range (e.g., `poisson("identity")`) gives non-finite densities for some predictors, which are rejected rather than breaking the chain but are wasted work. `bartisan()` reports that when the fit starts. The families with more than one predictor, or whose link enters somewhere other than a single mean, take only their listed links.
+Links beyond those in the table are accepted for `gaussian()`, `binomial()`, `poisson()` and `Beta()`, and applied from R by composing the supplied inverse link with the family's own. So `binomial("cauchit")` works, as does any link object of the kind `stats::make.link()` returns, including one written by hand. Two cautions: 1) the fit is slower, because each leaf costs a call into R, and 2) the additive predictor is unconstrained, so a link whose inverse has a restricted range (e.g., `poisson("identity")`) gives non-finite densities for some predictors, which are rejected rather than breaking the chain but are wasted work. `bartisan()` reports that when the fit starts. The families with more than one predictor, or whose link enters somewhere other than a single mean, take only their listed links.
 
-`custom_family()`can be used to fit a BART model with a density of the user's design. It takes the log density itself and fits the model that goes with it. The sampler needs only the first two derivatives with respect to each additive predictor, and central differences of the supplied function produce both. Terms free of `eta`, the predictor to be modeled by BART, may be dropped: they cancel from every acceptance ratio. See below for an example of a "hand-rolled" Poisson fit using the Poisson density `dpois()`.
+`custom_family()` can be used to fit a BART model with a density of the user's design. It takes the log density itself and fits the model that goes with it. The sampler needs only the first two derivatives with respect to each additive predictor, and central differences of the supplied function produce both. Terms free of `eta`, the predictor to be modeled by BART, may be dropped: they cancel from every acceptance ratio. See below for an example of a "hand-rolled" Poisson fit using the Poisson density `dpois()`.
 
 ```{r custom}
 # Custom Poisson family
@@ -535,6 +538,6 @@ There is no prior argument and no bounds argument. A parameter with a restricted
 
 What it cannot do: take a non-numeric response, so a factor has to be coded first; or report a fitted mean, since the package cannot know what the mean of a supplied density is, so `predict(type = "response")` returns the additive predictors instead, though `type = "density"` works.
 
-Custom likelihoods are why *bartisan* is named what it is; they support *artisanal* models augmented by BART. Anywhere you might otherwise include a linear predictor in a model, it can be estimated flexibly with BART instead.
+Custom likelihoods are why *bartisan* is named what it is; they support *artisanal* models augmented by BART. Anywhere a linear predictor might otherwise go in a model, it can be estimated flexibly with BART instead.
 
 ## References

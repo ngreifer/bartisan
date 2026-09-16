@@ -1,17 +1,21 @@
 ---
-title: "bartisan Frequently Asked Questions"
+title: "Frequently Asked Questions"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{bartisan Frequently Asked Questions}
+  %\VignetteIndexEntry{Frequently Asked Questions}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib
 link-citations: true
 ---
+
+## Introduction
+
+These are the questions that come up most often about BART and about *bartisan*. Each answer stands on its own, so they can be read in any order, and each one points at the vignette or help page that works its topic through in full.
 
 ## What is BART?
 
@@ -37,15 +41,15 @@ Because each prediction from the model has a posterior, any quantity derived fro
 
 `predict()` gives you the fitted values or the full posterior of them. `estimate_effect()` turns those into a treatment effect: the ATE, the ATT, or one effect per unit, with a credible interval and on the response scale, which is the scale on which averaging unit-level contrasts gives the marginal effect. `partial_dependence()` shows how the prediction moves with one or two predictors, and `plot()` on a fit draws it. `variable_importance()` reports how often each predictor is split on, which is a rough guide to what the model is using but not a test of anything.
 
-For the quantities those do not cover, `marginaleffects::avg_comparisons()` and its relatives work on a fit directly, including slopes, arbitrary contrasts between covariate values, and hypotheses comparing one estimate to another. Because every draw goes through the same machinery either way, the result carries a posterior rather than a point estimate with a delta-method standard error. See `vignette("effects")` for the worked versions and `?estimate_effect` for the estimands.
+For the quantities those do not cover, `marginaleffects::avg_comparisons()` and its relatives work on a fit directly, including arbitrary contrasts between covariate values, hypotheses comparing one estimate to another, and slopes, which want `x_transform = "range"` in `bartisan_control()`, since the default quantile transform leaves the fit a step function of the original predictor. Because every draw goes through the same machinery either way, the result carries a posterior rather than a point estimate with a delta-method standard error. See `vignette("effects")` for the worked versions and `?estimate_effect` for the estimands.
 
 ## What if I have missing data?
 
-Missing values in the predictors are fine and nothing is dropped for them. Each splitting rule carries its own answer for what to do with a missing value, drawn from the prior alongside the variable and the cutpoint, so the missingness is part of the model rather than something to impute first. This is missingness incorporated in attributes, and it means a covariate can be informative through whether it is observed as well as through its value. A missing *outcome* is different: those rows are dropped, with a warning saying how many.
+Missing values in the predictors are fine and nothing is dropped for them, though `predict()` accepts a missing value only in a column that had one at fitting time, since only those columns' rules carry an answer for it. Each splitting rule carries its own answer for what to do with a missing value, drawn from the prior alongside the variable and the cutpoint, so the missingness is part of the model rather than something to impute first. This is missingness incorporated in attributes, and it means a covariate can be informative through whether it is observed as well as through its value. A missing *outcome* is different: those rows are dropped, with a warning saying how many.
 
 ## Can I supply my own likelihood?
 
-Yes, through `custom_family()`, which is the feature the package is named for. You give it a function returning the log density of one observation given the additive predictor, and the sampler does the rest; you do not have to derive a conjugate update or write any C++. The trade-off is that a log density says nothing about how to draw from the distribution it describes, so a custom family has no posterior predictive draws, and everything built on them, including `pp_check()` and `posterior_predict()`, is unavailable. Fitting, prediction on the link and response scales, and `loo()` all work.
+Yes, through `custom_family()`, which is the feature the package is named for. You give it a function of the response and the additive predictors, `function(y, eta)`, returning one log density per observation, and the sampler does the rest; you do not have to derive a conjugate update or write any C++. The trade-off is that a log density says nothing about how to draw from the distribution it describes, so a custom family has no posterior predictive draws, and everything built on them, including `pp_check()` and `posterior_predict()`, is unavailable. Fitting, prediction on the link scale, and `loo()` all work, though `predict(type = "response")` hands back the additive predictors rather than a fitted mean, since the package cannot know where the mean of a supplied density sits.
 
 ## Why is my model slow, and what should I change first?
 
@@ -61,7 +65,7 @@ Yes! BART or a related method won the American Causal Inference Conference Data 
 
 ## How can BART be used for causal inference?
 
-The only step BART can be used for in causal inference is causal effect estimation, i.e., estimating causal effects given causal assumptions on the data. It works like any other regression method as part of a causal effect estimator. The award-winning use of BART often involves BART-based g-computation [@hill2011; @snowdenImplementationGComputationSimulated2011; @dorieAutomatedDoityourselfMethods2019; @carnegieCommentContributionsModel2019], which involves modeling the relationship between the outcome, treatment, and confounders, and using that model to predict the counterfactual outcomes under each treatment for each unit. See `vignette("causal")` for a walkthrough with *bartisan*. BART can also be used to estimate propensity scores [@hillChallengesPropensityScore2011], which, together with a BART outcome model, can be used in doubly-robust estimators like DML and TMLE. BART can also be used in instrumental variables analysis [@mccullochCausalInferenceInstrumental2021], regression discontinuity [@alcantaraModifiedBARTLearning2024], and difference-in-differences [@soutoForestsDifferencesRobust2025].
+The only step BART can be used for in causal inference is causal effect estimation, i.e., estimating causal effects given causal assumptions on the data. It works like any other regression method as part of a causal effect estimator. The award-winning use of BART often involves BART-based g-computation [@hill2011; @snowdenImplementationGComputationSimulated2011; @dorieAutomatedDoityourselfMethods2019; @carnegieCommentContributionsModel2019], which involves modeling the relationship between the outcome, treatment, and confounders, and using that model to predict the counterfactual outcomes under each treatment for each unit. See `vignette("causal")` for a walkthrough with *bartisan*. BART can also be used to estimate propensity scores [@hillChallengesPropensityScore2011], which, together with a BART outcome model, can be used in doubly robust estimators like DML and TMLE. BART can also be used in instrumental variables analysis [@mccullochCausalInferenceInstrumental2021], regression discontinuity [@alcantaraModifiedBARTLearning2024], and difference-in-differences [@soutoForestsDifferencesRobust2025].
 
 ## What are Bayesian Causal Forests?
 
@@ -92,7 +96,7 @@ the estimate into a causal effect, which no model supplies.
 
 ## What papers should I read to better understand BART?
 
-BART has a growing literature spread across multiple fields. I would recommend reading the original BART paper by @chipmanBARTBayesianAdditive2010, the paper introducing BART for causal inference by @hill2011, an accessible paper on BART for social scientists @greenModelingHeterogeneousTreatment2012, and the Annual Reviews paper on BART by @hillBayesianAdditiveRegression2020.
+BART has a growing literature spread across multiple fields. We recommend reading the original BART paper by @chipmanBARTBayesianAdditive2010, the paper introducing BART for causal inference by @hill2011, an accessible paper on BART for social scientists @greenModelingHeterogeneousTreatment2012, and the Annual Reviews paper on BART by @hillBayesianAdditiveRegression2020.
 
 ## What does the name "bartisan" mean?
 
@@ -100,7 +104,7 @@ BART has a growing literature spread across multiple fields. I would recommend r
 
 ## How does *bartisan* differ from other BART implementations in R?
 
-There are many R packages that implement BART, each of which has its own strengths. *bartisan* aims to be highly general but with intelligent defaults that make it easy to simply plug in in place of a GLM or generalized additive model (GAM) as part of a data analysis workflow. *bartisan* offers many more model types and families than other packages. Often, R packages will be built to implement a few specific features of BART; for example, [*SoftBart*](https://cran.r-project.org/package=SoftBart) implements soft decision trees, [*VCBART*](https://cran.r-project.org/package=VCBART) implements the varying coefficient model, [*dbarts*](https://cran.r-project.org/package=dbarts) implements Normal and probit BART regression with optional random intercepts. The package README has a feature-by-feature comparison against the most popular BART packages, and `vignette("implementation")` adds the relative cost of each family. *bartisan* was designed to incorporate as many recent advancements in BART theory and practice as possible, including models for different outcome types (e.g., multinomial, ordinal, $\left[ 0, 1 \right]$-bounded, zero-inflated), soft trees, sparsity priors, varying coefficients, random effects, and more, all in a single package[^1]. There are ways in which *bartisan* is inferior to these more specialized packages, but as a general-purpose tool, I hope you'll find it effective.
+There are many R packages that implement BART, each of which has its own strengths. *bartisan* aims to be highly general but with intelligent defaults that make it easy to simply plug in in place of a GLM or generalized additive model (GAM) as part of a data analysis workflow. *bartisan* offers many more model types and families than other packages. Often, R packages will be built to implement a few specific features of BART; for example, [*SoftBart*](https://cran.r-project.org/package=SoftBart) implements soft decision trees, [*VCBART*](https://cran.r-project.org/package=VCBART) implements the varying coefficient model, [*dbarts*](https://cran.r-project.org/package=dbarts) implements Normal and probit BART regression with optional random intercepts. `vignette("implementation")` has a feature-by-feature comparison against the most popular BART packages, along with the relative cost of each family. *bartisan* was designed to incorporate as many recent advancements in BART theory and practice as possible, including models for different outcome types (e.g., multinomial, ordinal, $\left[ 0, 1 \right]$-bounded, zero-inflated), soft trees, sparsity priors, varying coefficients, random effects, and more, all in a single package[^1]. There are ways in which *bartisan* is inferior to these more specialized packages, but as a general-purpose tool, I hope you'll find it effective.
 
 [^1]: I am well aware of [this xkcd comic](https://xkcd.com/927/).
 
@@ -116,6 +120,6 @@ That said, there are a few hyperparameters that might be considered. `gate` cont
 
 ## How should I choose how many chains and burn-in and posterior draws?
 
-For all of these parameters, more is always better but requires more computation and more memory usage. It can be a good idea to build your model on synthetic data with the default number of burn-in and posterior draws, and then to use a much higher number for the final analysis on the real data. More chains come almost for free in wall-clock terms if you have parallel processing, as each chain can be run in parallel, whereas burn-in and posterior draws must be run sequentially. They are not free diagnostically, though, and it is worth knowing which way that cuts. Effective sample size depends on the total number of draws you keep and not on how they are split up, so four chains of 10,000 and eight of 5,000 give you about the same precision. But R-hat compares chains against each other, and the value it takes under a perfectly behaved sampler rises with the number of chains being compared: it sits near $1 + m/S$ for $m$ chains and effective sample size $S$. Splitting a fixed budget into more chains therefore raises the bar R-hat has to clear without buying any more information, and a fit that passes at four chains can warn at twelve. Two to four chains is a good default, and `diagnose()` reports R-hat against the right null rather than against 1.01. See `vignette("diagnostics")` for more information on diagnosing and fixing poor mixing.
+For all of these parameters, more is always better but requires more computation and more memory usage. It can be a good idea to build your model on synthetic data with the default number of burn-in and posterior draws, and then to use a much higher number for the final analysis on the real data. More chains come almost for free in wall-clock terms if you have parallel processing, as each chain can be run in parallel, whereas burn-in and posterior draws must be run sequentially. They are not free diagnostically, though, and it is worth knowing which way that cuts. Effective sample size depends on the total number of draws you keep and not on how they are split up, so four chains of 10,000 and eight of 5,000 give you about the same precision. But R-hat compares chains against each other, and the value it takes under a perfectly behaved sampler rises with the number of chains being compared: it sits near $1 + m/S$ for $m$ chains and effective sample size $S$. Splitting a fixed budget into more chains therefore raises the bar R-hat has to clear without buying any more information, and a fit that passes at four chains can warn at twelve. Two to four chains is a good default, and when a quantity fails `diagnose()`'s R-hat threshold on too few effective draws for the comparison to mean anything, the report adds a line saying the number cannot be read yet rather than letting it stand on its own. See `vignette("diagnostics")` for more information on diagnosing and fixing poor mixing.
 
 ## References

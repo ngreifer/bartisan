@@ -60,13 +60,13 @@ library(ggplot2)
 
 Catheterization was not randomized. Doctors chose it, and they chose it more often for patients who were already doing badly. Those patients were also more likely to die. We can use `cobalt::bal.tab()` to see how the patients differ between groups:
 
-```{r}
+```{r baltab, eval = run && has_cobalt}
 bal.tab(rhc ~ age + sex + race + edu + aps + meanbp + resp +
           hema + pafi + paco2 + crea + surv2m + card,
         data = rhc, stats = c("m", "ovl"), disp = "m")
 ```
 
-The `M.0.Un` column indicates the mean for each variable in control group and the `M.1.Un` column indicates the mean for each variable in treated group. `Diff.Un` and `OVL.Un` are measures of the distributional difference between the groups for each covariate; values far from 0 indicate imbalance due to differential selection into treatment. In particular, we can see that patients with higher values of `aps` and `crea` and lower values of `meanbp, hema`, `pafi`, `paco2`, and `surv2m` are overrepresented among treated units.
+The `M.0.Un` column indicates the mean for each variable in the control group and the `M.1.Un` column indicates the mean for each variable in the treated group. `Diff.Un` and `OVL.Un` are measures of the distributional difference between the groups for each covariate; values far from 0 indicate imbalance due to differential selection into treatment. In particular, we can see that patients with higher values of `aps` and `crea` and lower values of `meanbp`, `hema`, `pafi`, `paco2`, and `surv2m` are overrepresented among treated units.
 
 Given that sicker patients are both more likely to die and more likely to receive RHC, it would not be unexpected to see that patients who receive RHC are more likely to die, and we do see that:
 
@@ -90,8 +90,7 @@ Several assumptions are required to interpret an adjusted effect estimate as cau
 
 The first is the one that usually fails and the one to be explicit about. State it as an assumption in what you write, rather than letting the interval imply it has been handled.
 
-### Checking positivity
-
+### Checking Positivity
 Positivity fails when some combination of covariates makes the treatment nearly certain. To look for that, model the treatment and inspect the fitted probabilities in both groups. BART is a good choice for this model too, for the same reason it is a good choice for the outcome: the functional form is not known.
 
 ```{r psfit, eval = run}
@@ -114,8 +113,7 @@ What matters for positivity is that the two groups overlap over most of their ra
 
 This check belongs before the outcome model, not after. A flexible outcome model will happily produce an estimate in a region with no data, and the interval will not tell you that is what happened.
 
-## The Estimator: G-computation
-
+## The Estimator: G-Computation
 To estimate the average treatment effect $\tau_{\text{ATE}} = E[Y(1)] - E[Y(0)]$, which is a function of the unobserved potential outcomes $Y(1)$ and $Y(0)$, we can use the assumptions above to express it as a function of observed quantities:
 
 $$E[Y(1)] - E[Y(0)] = E \left[ E[Y | X, A = 1] \right] - E \left[ E[Y | X, A = 0] \right]$$ To estimate $E \left[ E \left[ Y | X, A = a \right] \right] = \theta_a$, we use g-computation [@snowdenImplementationGComputationSimulated2011]:
@@ -128,11 +126,11 @@ Here, we use traditional BART and BCF to model $\mu(A, X)$. The rest of the anal
 
 ### Controlling Sparsity
 
-Before we fit the outcome model, we need to change one setting to make traditional BART suitable for estimating the ATE. The default splitting prior is a variable-selection prior. It can drop a predictor from every tree in the forest at once, which is what makes it worth having when the goal is prediction, and exactly what you do not want when the estimand is a contrast on one particular predictor. Every outcome model below is fitted with `sparsity = FALSE`, which weights the predictors equally and cannot drop any of them.
+Before we fit the outcome model, we need to change one setting to make traditional BART suitable for estimating the ATE. The default splitting prior is a variable-selection prior. It can drop a predictor from every tree in the forest at once, which is what makes it worth having when the goal is prediction, and exactly what you do not want when the estimand is a contrast on one particular predictor. The traditional BART outcome model below is fitted with `sparsity = FALSE`, which weights the predictors equally and cannot drop any of them.
 
 The propensity score model above keeps the default, and should: predicting who was treated is a prediction problem, and no contrast is read off it. `?bartisan_control` explains both halves of this, and `split_prior` is the alternative when there are enough covariates that weighting them all alike is wasteful.
 
-## The outcome model
+## The Outcome Model
 
 We can fit the outcome model as a simple binary BART regression of the outcome on the treatment and covariates, as in @hill2011:
 
@@ -143,10 +141,9 @@ fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
                 chains = 4, sparsity = FALSE)
 ```
 
-We include both the treatment and covariate in the formula's right-hand side, set `family = binomial()` to model the binary outcome with logistic regression, and `sparsity = FALSE` to remove the sparsity-inducing prior. We could also have included the propensity score as a covariate, which is recommended by @carnegie2019 to slightly improve performance (in this case it doesn't affect the result, which has also been reported by @soutoAblationStudiesNovel2024). Normally, we would examine convergence diagnostics for this model to make sure it was fit correctly; see `vignette("diagnostics")` for more information on how to do that.
+We include both the treatment and the covariates in the formula's right-hand side, set `family = binomial()` to model the binary outcome with logistic regression, and `sparsity = FALSE` to remove the sparsity-inducing prior. We could also have included the propensity score as a covariate, which is recommended by @carnegie2019 to slightly improve performance (in this case it doesn't affect the result, which has also been reported by @soutoAblationStudiesNovel2024). Normally, we would examine convergence diagnostics for this model to make sure it was fit correctly; see `vignette("diagnostics")` for more information on how to do that.
 
-## Potential outcomes
-
+## Potential Outcomes
 The quantities underlying the effect estimate are the two average potential outcomes: the proportion who would die if every patient were catheterized, and if none were. `estimate_effect()` computes them on the way to the effect and prints them beneath it. On a fit from `bartisan()` the treatment has to be named, since nothing in the formula marks one predictor as the treatment:
 
 ```{r ate, eval = run}
@@ -155,12 +152,11 @@ ate <- estimate_effect(fit, treat = "rhc")
 ate
 ```
 
-Under the assumptions above this is the average treatment effect: catheterization raises the probability of death by about `r if (run) round(100 * abs(ate$estimate[1])) else "3"` percentage points, with an interval running from roughly `r if (run) round(100 * ate$lower[1], 1) else "0"` to `r if (run) round(100 * ate$upper[1], 1) else "8"`.
+Under the assumptions above this is the average treatment effect: catheterization raises the probability of death by about `r if (run) round(100 * abs(ate$estimate[1])) else "6"` percentage points, with an interval running from roughly `r if (run) round(100 * ate$lower[1], 1) else "1.6"` to `r if (run) round(100 * ate$upper[1], 1) else "11"`.
 
 The two rows below the contrast are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%. `potential_outcomes = FALSE` in the `print()` call drops them where the difference is all that is wanted.
 
-### How the estimate is computed, and on which scale
-
+### How the Estimate Is Computed, and on Which Scale
 `estimate_effect()` performs the g-computation above literally. Every unit is predicted twice, once with the treatment set to each of its levels; the two sets of predictions are averaged over the units the estimand asks for, *within each posterior draw*; and only then are the two averages contrasted. What comes back is a posterior for the estimand, summarized by its mean and a credible interval.
 
 That order is what makes a ratio here the marginal ratio rather than the average of the conditional ones, which is a different quantity. For a difference the two orders agree, so it only shows up once a ratio is asked for.
@@ -171,12 +167,11 @@ The scale matters, and it is the reason the default is `type = "response"`. On t
 estimate_effect(fit, treat = "rhc", comparison = "lnor")
 ```
 
-### The same answer through *marginaleffects*
-
+### The Same Answer Through *marginaleffects*
 A fit also works with *marginaleffects*, and for the average effect the two routes compute the same thing from the same draws. The one thing to set is the posterior summary: *marginaleffects* reports the median by default and `estimate_effect()` reports the mean, so an unadjusted comparison shows a difference that is not there.
 
 ```{r me_equiv, eval = run && has_me}
-options(marginaleffects_posterior_center = "mean")
+options(marginaleffects_posterior_center = mean)
 
 avg_comparisons(fit, variables = "rhc")
 ```
@@ -215,13 +210,12 @@ Because the treatment is named in the call, `estimate_effect()` needs nothing el
 estimate_effect(fit_bcf)
 ```
 
-The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 64% and another against 5%; `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` and `O(y)` are.
+The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 64% and another against 5%; `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` is, adding what `O(y)` is once an odds ratio is asked for.
 
 `summary()` on a `bcf()` fit is the same summary of the forests it is on any other fit, and says at the end where the effect is reported. That way the same call means the same thing whichever way the model was written.
 
-### Conditional effects
-
-The effect forest gives one value per patient, and `estimate_effect()` returns them with `estimand = "CATE"`. Here we ask for them as odds ratios, which for a conditional effect is a conditional odds ratio:
+### Conditional Effects
+The effect forest gives one coefficient per patient, and `estimate_effect()` turns those coefficients into one effect per patient with `estimand = "CATE"`, reported on the response scale rather than on the forest's own link scale. Here we ask for them as odds ratios, which for a conditional effect is a conditional odds ratio:
 
 ```{r bcfcate, eval = run}
 cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
@@ -229,7 +223,7 @@ cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 ```
 
-`plot()` draws them: patients ordered by their estimate, with a credible interval each, and the marginal effect as a single interval past the right edge in its own color. Ordering is what makes the spread readable as heterogeneity rather than as a list of numbers, and keeping the average off to the side is what makes it comparable against any of them.
+`plot()` draws the conditional effects, as differences unless `comparison` says otherwise: patients ordered by their estimate, with a credible interval each, and the marginal effect as a single interval past the right edge in its own color. Ordering is what makes the spread readable as heterogeneity rather than as a list of numbers, and keeping the average off to the side is what makes it comparable against any of them.
 
 ```{r bcfplot, eval = run, fig.height = 3.4}
 plot(fit_bcf)
@@ -239,8 +233,7 @@ plot(fit_bcf)
 
 Note that a conditional odds ratio is not the marginal one, and their average is not it either. That is the scale caution from earlier in a second place: an average of conditional contrasts equals the marginal contrast only when the contrast is a difference. For an identity link, which the next example uses, the ATE *is* the average of the conditional effects.
 
-## A second example: a continuous outcome, and the ATT
-
+## A Second Example: A Continuous Outcome, and the ATT
 The catheterization question is about a whole population, so the ATE is the estimand. Many questions are not. When a program is offered to a particular group and the question is whether it helped *them*, the ATT is what to report, and the outcome is often continuous rather than binary.
 
 `lalonde`, from *cobalt*, is the standard example: a job training program, with earnings in 1978 as the outcome.
@@ -289,14 +282,12 @@ plot(cate_att)
 
 Most of the conditional effects are positive, as the ATT is, and none of their intervals excludes zero. That is the usual picture: a per-unit effect is estimated from far less information than an average, so the intervals are wide even where the average is clear.
 
-## What the credible interval means
-
+## What the Credible Interval Means
 The posterior interval is a credible interval for the estimand under the model and under the identification assumptions. It covers uncertainty from having a finite sample and from not knowing the shape of the outcome surface. It does not cover uncertainty about whether the assumptions hold.
 
 An unmeasured confounder does not widen the interval. It moves the estimate and leaves the interval where it was. This is why a sensitivity analysis, asking how strong a confounder would have to be to explain the result away, is a more informative addition than any refinement of the model.
 
-## Where to go next
-
+## Where to Go Next
 `?estimate_effect` is the reference for the estimands used here, including the subgroup form and the contrast types. `vignette("effects")` covers what *marginaleffects* adds beyond them, which is a much wider class of quantities and the route to take when the question is not a treatment contrast. `vignette("diagnostics")` covers checking the fit, which should happen before any of this is interpreted.
 
 ## References
