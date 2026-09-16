@@ -9,36 +9,22 @@
 
 ## Overview
 
-*bartisan* fits Bayesian additive regression trees (BART) for responses
+Bayesian additive regression trees (BART) estimate a regression function
+as a sum of small trees, so nonlinearity and interactions are found
+rather than specified. *bartisan* does that for response distributions
 that standard BART cannot reach, using the Laplace-approximation
 reversible-jump sampler of Linero (2025), which lifts the requirement
-that the leaf parameters be integrable in closed form. The primary
-function is `bartisan()`, and a model is specified the way it is in
-`glm()`: a formula, a data frame, and a family, with a forest in place
-of the linear predictor, so nothing has to be said about which terms are
-curved or which interact. The `stats::family` objects `glm()` takes are
-accepted unchanged, links included. The families that have no `glm()`
-counterpart are supplied in the same style: negative binomial, ordinal,
-multinomial, beta and ordered beta, zero-inflated counts, a Tweedie
-compound Poisson, accelerated failure time and proportional hazards
-models for right-censored times, location-scale regression, a Dirichlet
-process mixture for the error distribution, and a log density written as
-an R function. Decision rules are soft by default, in the manner of
-Linero and Yang (2018), which gives smoother fits than the step
-functions of standard BART, and `gate = "hard"` gives those back.
-Treatment effects come from `estimate_effect()`, and a fit is otherwise
-read through the packages that already do that work:
-[*marginaleffects*](https://CRAN.R-project.org/package=marginaleffects)
-for the wider range of counterfactual estimands,
-[*loo*](https://CRAN.R-project.org/package=loo) for model comparison,
-[*bayesplot*](https://CRAN.R-project.org/package=bayesplot) and
-[*posterior*](https://CRAN.R-project.org/package=posterior) for
-convergence diagnostics, and
-[*performance*](https://CRAN.R-project.org/package=performance) for fit
-statistics.
-
-Check out the *bartisan*
-[website](https://ngreifer.github.io/bartisan/)!
+that the leaf parameters be integrable in closed form. A model is
+written the way it is in `glm()`, with a formula, a data frame, and a
+family, and the `stats::family` objects `glm()` takes are accepted
+unchanged. Beyond them come the families that have no `glm()`
+counterpart: negative binomial, ordinal, multinomial, beta and ordered
+beta, zero-inflated counts, a Tweedie compound Poisson, accelerated
+failure time and proportional hazards models for right-censored times,
+location-scale regression, a Dirichlet process mixture for the error
+distribution, and a log density written as an R function. Decision rules
+are smooth by default, in the manner of Linero and Yang (2018), which
+fits a smoother function than the step functions of standard BART.
 
 ## Installation
 
@@ -50,24 +36,16 @@ from [GitHub](https://github.com/ngreifer/bartisan) with:
 pak::pak("ngreifer/bartisan")
 ```
 
-Installation compiles C++, so it requires a C++17 toolchain along with
-*Rcpp* and *RcppArmadillo*.
+Installation compiles C++, so it needs a C++17 toolchain.
 
 ## Example
 
-### Right heart catheterization in critically ill patients
-
-`rhc` holds 1500 patients from the SUPPORT study, with an indicator for
-whether each was given right heart catheterization within 24 hours of
-admission to an intensive care unit, whether they died during follow-up,
-and how long that took (Connors et al., 1996). Thirteen covariates
-recorded before the catheter went in come with them, and `?rhc` lists
-them. Catheterization was not randomized, so sicker patients were
-likelier to receive it, and those covariates are what adjustment has to
-work with. Nothing in the model supplies the assumption that they
-suffice; what it supplies is a flexible estimate of the outcome under
-each treatment given the covariates, which is what g-computation then
-averages.
+`rhc` holds 1500 critically ill patients from the SUPPORT study,
+recording whether each was given right heart catheterization on
+admission to intensive care, whether they died during follow-up, and
+thirteen covariates measured beforehand (Connors et al., 1996). Fitting
+a model to it takes one call, and the family is the one `glm()` would be
+given:
 
 ``` r
 library(bartisan)
@@ -75,47 +53,38 @@ library(bartisan)
 data("rhc")
 set.seed(123)
 
-# Death as the outcome, with every variable but the timing of the same event
-# as a candidate predictor. The family is the one `glm()` would be given
-fit <- bartisan(death ~ . - days, data = rhc,
-                family = binomial("probit"))
+fit <- bartisan(death ~ . - days, data = rhc, family = binomial())
 
 fit
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = death ~ . - days, data = rhc, family = binomial("probit"))
+#> bartisan(formula = death ~ . - days, data = rhc, family = binomial())
 #> 
-#> Family: "binomial" with the "probit" link
+#> Family: "binomial" with the "logit" link
 #> Observations: 1500
 #> Structure: 1 forest of 50 trees, soft decision rules
 #> Draws: 800 kept after 200 warmup
 ```
 
-The forest finds its own interactions and nonlinearity, so what it
-reports in place of a coefficient table is how it spent its splitting
-rules:
+Nothing had to be said about which predictors matter, which are curved,
+or which interact. `plot()` shows what the model made of one of them,
+here the study’s own estimate of each patient’s chance of surviving two
+months:
 
 ``` r
-head(variable_importance(fit), 5)
-#> Variable importance
-#> 
-#>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.318   23.9
-#>       age     1.000       0.147   11.0
-#>      pafi     1.000       0.099    7.5
-#>     paco2     0.954       0.108    8.1
-#>       rhc     0.945       0.062    4.7
-#> 
-#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
+plot(fit, ~ surv2m) +
+  ggplot2::labs(x = "estimated probability of surviving two months",
+                y = "fitted probability of death")
 ```
 
-Having no coefficients also means the effect of catheterization is a
-contrast between what the model predicts with `rhc` set to one and with
-it set to zero, averaged over the covariate distribution in the sample.
-That is g-computation, and every posterior draw goes through it, so the
-interval is a credible interval rather than a delta-method
-approximation:
+<img src="man/figures/README-pdp-1.png" alt="Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .48, inside a credible band that widens at both ends." width="90%" style="display: block; margin: auto;" />
+
+A forest has no coefficients, so an effect is a contrast between what
+the model predicts under one value of a predictor and under another,
+averaged over the sample. Every posterior draw goes through that
+contrast, so what comes back is a credible interval rather than a
+standard error:
 
 ``` r
 estimate_effect(fit, treat = "rhc")
@@ -125,59 +94,54 @@ estimate_effect(fit, treat = "rhc")
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate lower upper    n
-#>  Y[1] - Y[0]   0.0562     0 0.105 1500
+#>  Y[1] - Y[0]   0.0555     0 0.103 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.634 0.603 0.665
-#>      Y[1]    0.690 0.652 0.726
+#>      Y[0]    0.634 0.603 0.663
+#>      Y[1]    0.689 0.644 0.725
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
 #> ℹ Y[a] is the average response with "rhc" set to a.
 ```
 
-The same event is also a right-censored survival time, and asking for it
-that way changes the left-hand side of the formula and the family and
-nothing else. Here the contrast is a ratio, so the estimate is the
-factor by which catheterization multiplies expected survival:
+## Learning More
 
-``` r
-sfit <- bartisan(survival::Surv(days, death) ~ ., data = rhc,
-                 family = lognormal_aft())
+`vignette("bartisan")` is the place to start. It carries one analysis
+from the formula through to the estimates, and each of its sections
+points at the guide that takes that step further:
 
-estimate_effect(sfit, treat = "rhc", comparison = "ratio")
-#> Average treatment effect (ratio)
-#> 
-#> Treatment: "rhc"
-#> Averaged over 1500 units
-#> 
-#>     contrast estimate lower upper    n
-#>  Y[1] / Y[0]    0.595  0.43 0.806 1500
-#> 
-#> Average potential outcomes
-#> 
-#>  quantity estimate lower upper
-#>      Y[0]      248   201   308
-#>      Y[1]      146   113   189
-#> 
-#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
-#>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
-```
+| Topic                                        | Vignette                     |
+|----------------------------------------------|------------------------------|
+| Choosing a response family                   | `vignette("families")`       |
+| Censored and survival outcomes               | `vignette("survival")`       |
+| Effects, curves, and interactions            | `vignette("effects")`        |
+| Which predictors the model uses              | `vignette("importance")`     |
+| Convergence and model fit                    | `vignette("diagnostics")`    |
+| Comparing and selecting models               | `vignette("comparison")`     |
+| Causal inference and Bayesian causal forests | `vignette("causal")`         |
+| What the model is and how it is fitted       | `vignette("implementation")` |
+| Short answers to common questions            | `vignette("faq")`            |
 
-`vignette("bartisan")` works through a complete analysis, from fitting
-to convergence checks to the estimates, and the other vignettes take
-those pieces one at a time. `vignette("implementation")` sets out how
-the sampler works and compares the package’s features against *dbarts*,
-*BART*, *flexBART*, *SoftBart*, *bartMachine*, and *stochtree*.
+A fitted model also works with the packages that already read Bayesian
+fits:
+[*marginaleffects*](https://CRAN.R-project.org/package=marginaleffects)
+for a wider range of estimands,
+[*loo*](https://CRAN.R-project.org/package=loo) for model comparison,
+[*bayesplot*](https://CRAN.R-project.org/package=bayesplot) and
+[*posterior*](https://CRAN.R-project.org/package=posterior) for the
+draws themselves, and
+[*performance*](https://CRAN.R-project.org/package=performance) for fit
+statistics. Load one and call its functions on the fit; there is nothing
+to set up.
 
 ## Citing *bartisan*
 
 *bartisan* implements the sampler of Linero (2025), and its MCMC engine
 is adapted from that paper’s `FlexBart` reference implementation. Please
-cite both the method and the package, the latter with the version
+cite the method and the package both, the latter with its version
 number, which `citation("bartisan")` supplies:
 
 Linero, A. R. (2025). Generalized Bayesian additive regression trees
