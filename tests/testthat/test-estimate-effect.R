@@ -201,9 +201,20 @@ test_that("the interval type is what it says it is", {
   eti <- estimate_effect(fit, interval = "eti")
   hpdi <- estimate_effect(fit, interval = "hpdi")
 
-  # The HPD interval is the shortest one at that level, so it cannot be wider.
+  # The HPD interval is the shortest window of draws at that level, so it cannot
+  # be wider than the equal-tailed window of the same number of them. Compared
+  # against that rather than against `eti`'s own bounds, which come from
+  # `quantile()` and interpolate between order statistics: the two then cover
+  # slightly different fractions of the draws, `floor(.95 n)` gaps against
+  # `.95 (n - 1)`, and the shortest-window guarantee does not span the
+  # difference.
+  draws <- sort(attr(eti, "draws")[[1L]])
+  n <- length(draws)
+  k <- floor(0.95 * n)
+  start <- (n - k) %/% 2L + 1L
+
   expect_lte(hpdi[["upper"]] - hpdi[["lower"]],
-             eti[["upper"]] - eti[["lower"]] + 1e-8)
+             draws[start + k] - draws[start] + 1e-8)
 
   # Matched against the collapsed output, since cli wraps the note to the
   # console width and the phrase can land across two lines.

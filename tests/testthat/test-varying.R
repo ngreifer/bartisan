@@ -319,6 +319,10 @@ test_that("a continuous covariate may modify its own coefficient", {
 
   linear <- bartisan(y ~ x1 + vc(z), data = d, family = gaussian(),
                      control = vc_control())
+  # Seeded again, so that this fit does not start from wherever the one above it
+  # left the stream. Without it the chain, and the coefficient read off it below,
+  # depend on how many draws the first fit took.
+  set.seed(6)
   curved <- suppressWarnings(
     bartisan(y ~ x1 + z + vc(z, ~ z + x1), data = d, family = gaussian(),
              control = vc_control()))
@@ -326,12 +330,19 @@ test_that("a continuous covariate may modify its own coefficient", {
   expect_lt(sqrt(mean((fitted(curved) - d$truth)^2)),
             sqrt(mean((fitted(linear) - d$truth)^2)) / 3)
 
-  # And the coefficient traces the slope of z^2, which is z.
+  # And the coefficient traces the slope of z^2, which is z. Read as a slope
+  # rather than as three levels: the coding is drawn, so a constant can move the
+  # whole trace up or down without changing the model, and it is the rate the
+  # coefficient changes with `z` that carries the claim. Shrunk toward zero by
+  # the leaf prior, which is why the tolerance is one-sided in effect.
   at <- stats::approx(d$z[order(d$z)],
                       coef(curved)[order(d$z), "z"],
                       xout = c(-1, 0, 1))$y
 
-  expect_equal(at, c(-1, 0, 1), tolerance = 0.35)
+  expect_equal((at[3L] - at[1L]) / 2, 1, tolerance = 0.35)
+
+  # And it is increasing in `z`, which a coefficient that cannot see `z` is not.
+  expect_gt(at[3L], at[1L])
 })
 
 test_that("centring moves the control function and leaves the effect alone", {

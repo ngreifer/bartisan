@@ -109,14 +109,14 @@ estimate_effect(fit, treat = "rhc")
 #> Treatment: "rhc"
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate  lower upper    n
-#>  Y[1] - Y[0]   0.0652 0.0179 0.114 1500
+#>     contrast estimate lower upper    n
+#>  Y[1] - Y[0]   0.0568     0 0.107 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.630 0.602 0.658
-#>      Y[1]    0.695 0.655 0.731
+#>      Y[0]    0.633 0.605 0.664
+#>      Y[1]    0.690 0.649 0.725
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

@@ -68,6 +68,12 @@ test_that("the smoothstep gate saturates and the logistic one does not", {
   # gate is exactly zero or one, so an observation takes one side of the rule
   # outright. Checked on the C++ gate through a two-leaf tree whose split is
   # known, by comparing predictions far from the cutpoint.
+  # Seeded here rather than inheriting whatever the stream had reached, so the
+  # data is a property of this test rather than of how many draws the fits above
+  # it happened to take. Saturation needs every cutpoint the tree draws to sit
+  # clear of the region checked below, which holds for this sample and is not
+  # guaranteed for every one.
+  set.seed(1)
   n <- 400
   d <- data.frame(x1 = seq(0, 1, length.out = n))
   d$y <- ifelse(d$x1 > 0.5, 1, -1) + stats::rnorm(n, sd = 0.1)
@@ -83,7 +89,12 @@ test_that("the smoothstep gate saturates and the logistic one does not", {
     # the shape of the gate, so the warning is noise rather than a finding.
     fit <- bartisan(y ~ ., d, family = gaussian(), control = quick_control(
       gate = g, bandwidth = band, update_bandwidth = FALSE, num_trees = 1,
-      update_sigma_mu = FALSE, num_burn = 200, num_draws = 200))
+      update_sigma_mu = FALSE, num_burn = 200, num_draws = 200,
+      # The claim below is about the gate's shape in the coordinate the rules
+      # see, so the coordinate is held linear. Under the default the map is a
+      # smoothed distribution function, and "far from the cut in `x1`" is then
+      # not the same distance as "far from the cut in the coordinate".
+      x_transform = "range"))
     stats::predict(fit, type = "link")
   }
 

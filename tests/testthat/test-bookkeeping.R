@@ -139,3 +139,85 @@ test_that("get_varnames walks a terms object, which as.list() would derail", {
   # The same formula without the attributes must give the same answer.
   expect_identical(get_varnames(y ~ x1 + d$x2), c("y", "x1", "d$x2"))
 })
+
+# The smoothed distribution function is swept rather than computed pairwise: an
+# observation the kernel has entirely passed contributes a weight of exactly 1
+# and one it has not reached contributes 0, so only those inside the window are
+# evaluated. These check the sweep against the definition it is an optimization
+# of, which is the only thing that makes the optimization safe.
+test_that("the smooth CDF sweep matches evaluating every pair", {
+  pairwise <- function(x, grid, h, kernel) {
+    W <- if (kernel == 0L) {
+      function(u) ifelse(u <= -1, 0, ifelse(u >= 1, 1, 0.75 * (u - u^3 / 3) + 0.5))
+    }
+    else {
+      function(u) stats::pnorm(u)
+    }
+    t(vapply(grid, function(v) {
+      w <- W((v - x) / h)
+      c(mean(w), sum(w^2), sum((w - (x <= v))^2))
+    }, numeric(3L)))
+  }
+
+  set.seed(4)
+  # Skewed, with an outlier at each end, so the window moves unevenly.
+  x <- sort(c(stats::rlnorm(198), -3, 40))
+  grid <- sort(c(seq(min(x) - 1, max(x) + 1, length.out = 61L), x[c(1L, 200L)]))
+  h <- min(stats::sd(x), stats::IQR(x) / 1.349) * 200^(-1 / 3)
+
+  # Exact for a kernel with bounded support: nothing outside the window is
+  # discarded, it is genuinely 0 or 1 there.
+  epan <- .bartisan_smooth_cdf(x, grid, h, EPANECHNIKOV)
+  expect_equal(epan, pairwise(x, grid, h, 0L), tolerance = 1e-12,
+               ignore_attr = TRUE)
+
+  # The Gaussian reaches everywhere and is cut at five bandwidths, so what it
+  # drops is a tail rather than nothing.
+  gauss <- .bartisan_smooth_cdf(x, grid, h, GAUSSIAN)
+  expect_equal(gauss, pairwise(x, grid, h, 1L), tolerance = 1e-5,
+               ignore_attr = TRUE)
+
+  # The distribution function it reports is one, whatever the kernel.
+  for (m in list(epan, gauss)) {
+    expect_false(is.unsorted(m[, 1L]))
+    expect_true(all(m[, 1L] >= 0 & m[, 1L] <= 1))
+  }
+
+  expect_error(.bartisan_smooth_cdf(x, grid, 0, EPANECHNIKOV), "bandwidth")
+  expect_error(.bartisan_smooth_cdf(numeric(), grid, h, EPANECHNIKOV), "at least one")
+})
+
+test_that("the smoothcdf map is increasing and spans the unit interval", {
+  set.seed(11)
+
+  # The outliers are placed rather than drawn, so how extreme they are is not a
+  # property of the seed, and there are three of them in 300 so that the central
+  # 98% checked below is the bulk rather than the bulk plus most of the tail.
+  shapes <- list(lognormal = stats::rlnorm(300),
+                 outliers = c(stats::rnorm(297), c(200, 500, 1000)),
+                 bimodal = c(stats::rnorm(150, 0, .3), stats::rnorm(150, 8, .3)),
+                 ties = rep(seq_len(12), length.out = 300))
+
+  for (nm in names(shapes)) {
+    x <- shapes[[nm]]
+    m <- make_unit_map(x, "smoothcdf")
+    u <- m(sort(x))
+
+    expect_false(is.unsorted(u))
+    expect_equal(range(u), c(0, 1), tolerance = 1e-8)
+    expect_true(is.na(m(NA_real_)))
+
+    # Clamped outside the observed range, as the other maps are.
+    expect_identical(m(min(x) - 1e6), 0)
+    expect_identical(m(max(x) + 1e6), 1)
+  }
+
+  # The point of it: an outlier no longer compresses the bulk into a sliver the
+  # cutpoint prior cannot reach, which is what `"range"` does here.
+  x <- shapes[["outliers"]]
+  bulk <- function(type) {
+    diff(range(make_unit_map(x, type)(stats::quantile(x, c(.01, .99)))))
+  }
+  expect_gt(bulk("smoothcdf"), 0.9)
+  expect_lt(bulk("range"), 0.05)
+})

@@ -147,10 +147,12 @@ the scale the gate's width is measured on, and each has a failure it is
 worth knowing about; see Details.
 
 \code{"smoothcdf"} uses a kernel-smoothed estimate of each predictor's
-distribution function, at the bandwidth rate Azzalini (1981) gives for a
-distribution function. Cutpoints land where the data are, as under
-\code{"quantile"}, and the map is strictly increasing and differentiable, as
-under \code{"range"}.
+distribution function, with an Epanechnikov kernel and a plug-in bandwidth
+at the \code{n^(-1/3)} rate that is right for a distribution function rather than
+the \code{n^(-1/5)} that is right for a density (Tenreiro, 2006; the rate was
+pointed out for a second-order approximation by Azzalini, 1981). Cutpoints
+land where the data are, as under \code{"quantile"}, and the map is strictly
+increasing and differentiable, as under \code{"range"}.
 
 \code{"quantile"} uses the empirical distribution function, which is what
 \pkgfun{SoftBart}{softbart} does. It is a step function, so the fit is a
@@ -398,6 +400,16 @@ somewhere. It is not a free lunch: a derivative taken through it is the
 derivative of the fitted function times an estimated density, so \code{"range"}
 remains the better choice when a slope is the quantity of interest rather
 than a prediction.
+
+The bandwidth is a plug-in rather than one chosen from the data. The
+data-based selectors of Bergmann and Zaehle (2026) were measured here and are
+not used, because they optimize a different thing: they minimize the error in
+the estimated distribution function, where this map exists to place cutpoints
+and keep the coordinate smooth. The two come apart exactly where it matters.
+Given two tight clusters with a gap between them, they correctly choose a much
+narrower bandwidth, the distribution function really being flat in the gap;
+that returns the coordinate to nearly the step \code{"quantile"} would have given,
+and doubled the error of the fit.
 }
 
 \subsection{Splitting a Factor}{
@@ -552,6 +564,15 @@ bartisan_control(split_prior = c(rhc = 10))
 Azzalini, A. (1981). A note on the estimation of a distribution function and
 quantiles by a kernel method. \emph{Biometrika}, 68(1), 326--328.
 \doi{10.1093/biomet/68.1.326}
+
+Bergmann, T., & Zaehle, H. (2026). Data-based bandwidth selection for kernel
+smoothing of empirical distribution functions. \emph{Metrika}.
+\doi{10.1007/s00184-026-01025-6}
+
+Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in bandwidth
+selections for kernel distribution function estimators. \emph{Journal of
+Nonparametric Statistics}, 18(1), 101--116.
+\doi{10.1080/10485250600578334}
 
 Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 prediction and variable selection. \emph{Journal of the American Statistical

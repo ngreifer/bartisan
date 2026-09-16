@@ -161,6 +161,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// bartisan_smooth_cdf
+Rcpp::NumericMatrix bartisan_smooth_cdf(const std::vector<double>& x, const std::vector<double>& grid, double h, int kernel);
+RcppExport SEXP _bartisan_bartisan_smooth_cdf(SEXP xSEXP, SEXP gridSEXP, SEXP hSEXP, SEXP kernelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type grid(gridSEXP);
+    Rcpp::traits::input_parameter< double >::type h(hSEXP);
+    Rcpp::traits::input_parameter< int >::type kernel(kernelSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_smooth_cdf(x, grid, h, kernel));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bartisan_bartisan_fit", (DL_FUNC) &_bartisan_bartisan_fit, 15},
@@ -172,6 +186,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bartisan_bartisan_rpg", (DL_FUNC) &_bartisan_bartisan_rpg, 3},
     {"_bartisan_bartisan_rtruncnorm", (DL_FUNC) &_bartisan_bartisan_rtruncnorm, 3},
     {"_bartisan_bartisan_optimized", (DL_FUNC) &_bartisan_bartisan_optimized, 0},
+    {"_bartisan_bartisan_smooth_cdf", (DL_FUNC) &_bartisan_bartisan_smooth_cdf, 4},
     {NULL, NULL, 0}
 };
 

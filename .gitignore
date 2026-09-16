@@ -43,6 +43,7 @@ _dev/*
 !_dev/xtransform-results.R
 !_dev/xtransform-candidates.R
 !_dev/xtransform-candidates-results.R
+!_dev/xtransform-kernel.R
 !_dev/bcf-interfaces.md
 !_dev/bcf-proof.R
 !_dev/bcf-mixing.R

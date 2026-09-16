@@ -7856,3 +7856,78 @@ median is lower than `quantile`'s (.12 against .30). The threshold was tighter
 than the noise and had been passing on its seed by luck. It now averages four
 seeds, which the noise allows and which still leaves the factor of four the bug
 produced far above the bar.
+
+## Epanechnikov and a swept kernel, and why Bergmann and Zaehle's bandwidths are not used
+
+Two questions about `smooth_cdf_map()`: whether the kernel weights can be
+computed without evaluating every pair, and whether the data-based bandwidth
+selectors of Bergmann and Zaehle (2026) beat the plug-in. Both measured in
+`_dev/xtransform-kernel.R`, five arms over the same eight processes at two sizes,
+ten replicates.
+
+**The sweep.** Almost every kernel weight is a 0 or a 1 rather than something in
+between: an observation the kernel has entirely passed contributes exactly 1 and
+one it has not reached contributes 0. With data and grid both sorted, the two
+ends of the window advance monotonically, so the whole thing costs `O(n + m)`
+plus one evaluation per observation actually inside a window.
+`.bartisan_smooth_cdf()` does that in C++ and also returns the two sums the
+selectors need.
+
+Checked against the pairwise definition it replaces: the Epanechnikov agrees to
+`1.2e-15`, exactly, because its support is bounded and nothing outside the
+window is discarded rather than approximated. The Gaussian agrees to `6e-9`,
+which is the tail it drops at five bandwidths. Building the maps for ten
+predictors at n = 10000 went from about 4.4 s to 6 ms.
+
+**The kernel.** Matched at equivalent smoothing, the two are indistinguishable:
+
+| arm | median ratio | worst | mean coverage | map build |
+|---|---|---|---|---|
+| gauss, plug-in | 1.01 | 1.07 | .962 | .0095 s |
+| **epan, plug-in** | 1.02 | 1.11 | .962 | **.0009 s** |
+| gauss, Emp | 1.03 | 1.99 | .959 | .1440 s |
+| epan, Emp | 1.02 | 2.28 | .959 | .0045 s |
+| epan, EmpC | 1.02 | 2.26 | .961 | .0068 s |
+
+So the Epanechnikov is in, at ten times the build speed and with no truncation
+error. A bandwidth does not mean the same thing to both kernels, one reaching
+exactly `h` where the other reaches several, so the plug-in is scaled by 2.1 for
+it; that number is the ratio of the two kernels' MISE-optimal bandwidths,
+measured by minimizing the paper's own criterion across four data shapes at two
+sizes, which put it between 2.0 and 2.2.
+
+**The bandwidth selectors are not.** They are better at what they are for and
+worse at what this needs, and the case that separates them is the one this
+transform exists for. Given two tight clusters with a gap, they choose a much
+narrower bandwidth than the plug-in, 0.14 against 0.69, and they are right to:
+the distribution function really is nearly flat in the gap. But a narrow
+bandwidth returns the coordinate to nearly the step that `"quantile"` gives, and
+the error doubles, .079 to .091 against .0399. Their worst case over the eight
+processes is 2.0 to 2.3 times the best arm where the plug-in's is 1.07. The
+plug-in's apparent flaw, a global scale that oversmooths a bimodal predictor, is
+the property that makes it work here.
+
+Worth recording that their numerical experiments run at n of 10, 25 and 100,
+which is not the regime a BART fit is in.
+
+**Four tests moved, none of them a regression, and two shared a cause.** The
+`gate` test builds its data from the ambient stream, and the `varying` test fits
+its second model from wherever the first left it, so changing how many draws a
+fit takes changed both fixtures. The smoothstep saturation property holds
+exactly under `"range"` and under the default alike on one sample and fails under
+both on another, which is what a fixture inheriting its randomness looks like;
+both now seed. The HPD interval was being compared against `quantile()`, which
+interpolates between order statistics, so the two covered `floor(.95 n)` gaps
+against `.95 (n - 1)` and the shortest-window guarantee did not span the
+difference; it is now compared against the equal-tailed window of the same
+number of draws, which is the claim. And `test-perforest.R` asked the scale
+forest to split at least once on a predictor that carries no signal, which the
+sparsity prior is designed to refuse; it now asks about the one the scale
+actually depends on.
+
+**One thing I broke.** Rewriting `smooth_cdf_map()` by splicing between two text
+anchors deleted the nine functions that lay between them, `range_map()` and
+`ecdf_map()` among them. `R CMD INSTALL` passed, R resolving functions at call
+time, and the map's own checks passed because they never reached the fallback
+branch. The suite caught it. Rebuilt from the previous commit with only the
+intended change reapplied.

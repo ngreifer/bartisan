@@ -110,10 +110,12 @@
 #'   worth knowing about; see Details.
 #'
 #'   `"smoothcdf"` uses a kernel-smoothed estimate of each predictor's
-#'   distribution function, at the bandwidth rate Azzalini (1981) gives for a
-#'   distribution function. Cutpoints land where the data are, as under
-#'   `"quantile"`, and the map is strictly increasing and differentiable, as
-#'   under `"range"`.
+#'   distribution function, with an Epanechnikov kernel and a plug-in bandwidth
+#'   at the `n^(-1/3)` rate that is right for a distribution function rather than
+#'   the `n^(-1/5)` that is right for a density (Tenreiro, 2006; the rate was
+#'   pointed out for a second-order approximation by Azzalini, 1981). Cutpoints
+#'   land where the data are, as under `"quantile"`, and the map is strictly
+#'   increasing and differentiable, as under `"range"`.
 #'
 #'   `"quantile"` uses the empirical distribution function, which is what
 #'   \pkgfun{SoftBart}{softbart} does. It is a step function, so the fit is a
@@ -321,6 +323,16 @@
 #' remains the better choice when a slope is the quantity of interest rather
 #' than a prediction.
 #'
+#' The bandwidth is a plug-in rather than one chosen from the data. The
+#' data-based selectors of Bergmann and Zaehle (2026) were measured here and are
+#' not used, because they optimize a different thing: they minimize the error in
+#' the estimated distribution function, where this map exists to place cutpoints
+#' and keep the coordinate smooth. The two come apart exactly where it matters.
+#' Given two tight clusters with a gap between them, they correctly choose a much
+#' narrower bandwidth, the distribution function really being flat in the gap;
+#' that returns the coordinate to nearly the step `"quantile"` would have given,
+#' and doubled the error of the fit.
+#'
 #' ## Splitting a Factor
 #'
 #' What `"onehot"` costs is partial pooling. A rule on one indicator column can
@@ -438,6 +450,15 @@
 #' Azzalini, A. (1981). A note on the estimation of a distribution function and
 #' quantiles by a kernel method. *Biometrika*, 68(1), 326--328.
 #' \doi{10.1093/biomet/68.1.326}
+#'
+#' Bergmann, T., & Zaehle, H. (2026). Data-based bandwidth selection for kernel
+#' smoothing of empirical distribution functions. *Metrika*.
+#' \doi{10.1007/s00184-026-01025-6}
+#'
+#' Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in bandwidth
+#' selections for kernel distribution function estimators. *Journal of
+#' Nonparametric Statistics*, 18(1), 101--116.
+#' \doi{10.1080/10485250600578334}
 #'
 #' Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 #' prediction and variable selection. *Journal of the American Statistical

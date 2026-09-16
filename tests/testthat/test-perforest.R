@@ -29,8 +29,12 @@ test_that("a formula per forest holds each forest to its own predictors", {
 
   expect_identical(unname(mean_splits[["x3"]]), 0)
   expect_identical(unname(sd_splits[["x1"]]), 0)
+  # Each forest is checked against a predictor it both has and needs: the mean
+  # depends on `x1` and the scale on `x2`. `x3` is available to the scale forest
+  # and carries no signal, so how often the sparsity prior spends a rule on it is
+  # a property of that prior rather than of the wiring, and it is often zero.
   expect_gt(mean_splits[["x1"]], 0)
-  expect_gt(sd_splits[["x3"]], 0)
+  expect_gt(sd_splits[["x2"]], 0)
 })
 
 test_that("the list of formulas can be named, and names reorder it", {
