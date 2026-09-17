@@ -132,8 +132,14 @@ test_that("only the family with no prior to draw from refuses prior_only", {
   # The multinomial probit drew each latent utility with a variance of one over
   # the weight, which at zero weight left the covariance draw working on
   # infinities and warning that its matrix was no longer symmetric.
+  #
+  # Only that warning is the subject. A flat likelihood leaves the leaf scale
+  # unidentified, so it can settle far above its prior median and warn about it
+  # legitimately, and a bare `expect_no_warning()` fails on that instead
+  # whenever the draws happen to run high.
   expect_no_warning(bartisan(cat ~ x1, d, family = multinomial("probit"),
-                             control = ctrl, prior_only = TRUE))
+                             control = ctrl, prior_only = TRUE),
+                    message = "symmetric")
 })
 
 test_that("nothing that scores a fit against data runs on a prior-only one", {

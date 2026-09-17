@@ -301,8 +301,15 @@ test_that("a bcf propensity score is treated as moving with the grid", {
   score_group <- match(colnames(fit[["bcf"]][["propensity"]]), labels)
   expect_false(is.na(score_group))
 
-  # A variable that names no term at all still leaves the score group moving.
-  expect_true(any(pd_tree_mask(fit, "nothing_at_all")))
+  # A variable that names no term at all still leaves the score group moving, so
+  # its mask is the one the score's own columns give. `any()` of that mask would
+  # instead be asking whether a 10-tree chain happened to split on the score,
+  # which it need not.
+  by_score <- pd_tree_mask(fit, colnames(fit[["bcf"]][["propensity"]]))
+  nothing <- pd_tree_mask(fit, "nothing_at_all")
+
+  expect_false(is.null(nothing))
+  expect_identical(nothing, by_score)
 
   expect_same_as_unmasked(fit, ~ x1, grid = 5L)
   expect_same_as_unmasked(fit, ~ x2, grid = 5L)

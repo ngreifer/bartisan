@@ -20,7 +20,7 @@
 #' @param family_name,link,family_opts the family specification.
 #' @param control a list of sampler and prior settings.
 #' @returns A list of posterior draws and the encoded forests.
-#' @keywords internal
+#' @noRd
 .bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis) {
     .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis)
 }
@@ -44,7 +44,7 @@
 #' @returns A `logical` vector with one entry per stored tree, in the order the
 #'   flat encoding holds them, which is iteration-major and then forest and then
 #'   tree.
-#' @keywords internal
+#' @noRd
 .bartisan_tree_uses <- function(forest_flat, tree_start, num_forest, num_trees, num_draws, num_cols, cat_cols) {
     .Call(`_bartisan_bartisan_tree_uses`, forest_flat, tree_start, num_forest, num_trees, num_draws, num_cols, cat_cols)
 }
@@ -68,7 +68,7 @@
 #'   subset is what partial dependence uses to avoid re-evaluating the trees
 #'   that cannot move across its grid.
 #' @returns A list of `num_forest` matrices of additive predictors.
-#' @keywords internal
+#' @noRd
 .bartisan_predict <- function(X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes, tree_mask) {
     .Call(`_bartisan_bartisan_predict`, X, forest_flat, tree_start, bandwidth, num_forest, num_trees, num_draws, soft, gate, iterations, codes, tree_mask)
 }
@@ -88,7 +88,7 @@
 #' @param aux a matrix of draws by nuisance parameters, with zero columns when
 #'   the family has none.
 #' @returns A matrix of draws by observations.
-#' @keywords internal
+#' @noRd
 .bartisan_logdens <- function(y, weights, eta_draws, family_name, link, family_opts, aux) {
     .Call(`_bartisan_bartisan_logdens`, y, weights, eta_draws, family_name, link, family_opts, aux)
 }
@@ -108,7 +108,7 @@
 #' @param replicates `integer`; the number of simulation replicates per draw
 #'   and observation.
 #' @returns An array of draws by observations by categories.
-#' @keywords internal
+#' @noRd
 .bartisan_mnp_probs <- function(eta_draws, sigma, replicates) {
     .Call(`_bartisan_bartisan_mnp_probs`, eta_draws, sigma, replicates)
 }
@@ -130,7 +130,7 @@
 #'   per-observation route falls back on differences while its block route does
 #'   not.
 #' @returns A list with matrices `d1` and `info`, draws by observations.
-#' @keywords internal
+#' @noRd
 .bartisan_derivs <- function(y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked = FALSE) {
     .Call(`_bartisan_bartisan_derivs`, y, weights, eta_draws, family_name, link, family_opts, aux, component, by_difference, blocked)
 }
@@ -139,7 +139,7 @@
 #' @param n `integer`; the number of draws.
 #' @param b,c `numeric`; the parameters of the distribution.
 #' @returns A numeric vector of draws.
-#' @keywords internal
+#' @noRd
 .bartisan_rpg <- function(n, b, c) {
     .Call(`_bartisan_bartisan_rpg`, n, b, c)
 }
@@ -157,7 +157,7 @@
 #' from the wrong numbers.
 #'
 #' @returns `TRUE` if the library was optimized.
-#' @keywords internal
+#' @noRd
 .bartisan_optimized <- function() {
     .Call(`_bartisan_bartisan_optimized`)
 }
@@ -195,7 +195,7 @@
 #'   distribution function, the sum of squared kernel weights, and the sum of
 #'   squared differences between each kernel weight and the step it smooths.
 #'   The last two are the terms that distinguish the two selectors.
-#' @keywords internal
+#' @noRd
 .bartisan_smooth_cdf <- function(x, grid, h, kernel) {
     .Call(`_bartisan_bartisan_smooth_cdf`, x, grid, h, kernel)
 }

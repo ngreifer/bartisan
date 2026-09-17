@@ -2,20 +2,9 @@
 #'
 #' @description
 #' Collects the tuning constants of the sampler and the hyperparameters of the
-#' tree prior. The defaults follow Linero (2025) and, for the soft decision
-#' rules, Linero and Yang (2018), and are intended to be usable without
-#' adjustment.
-#'
-#' The arguments fall into three groups and are ordered by how often they are
-#' worth changing. Everything from `chains` to `x_transform` is a **modeling
-#' decision**, in that changing one changes what is fitted or how long it is
-#' fitted for; the chain lengths and `num_trees` come first because they are
-#' adjusted most. Everything from `gamma` to `num_print` is an **advanced
-#' setting**: a hyperparameter of a prior the first group summarizes, or a switch
-#' whose default is almost always right. The last three (`block_eval`,
-#' `exact_quadratic`, and `generic_accumulate`) exist **for internal
-#' validation**; they compute the same posterior more slowly and are documented
-#' so that the checks using them can be read.
+#' tree prior, for passing to the `control` argument of [bartisan()]. The
+#' defaults follow Linero (2025) and, for the soft decision rules, Linero and
+#' Yang (2018), and are meant to be usable without adjustment.
 #'
 #' @param chains `numeric`; how many independent chains to run. Default is 1.
 #'   The draws are pooled, and [diagnose()] computes split-R-hat from them on
@@ -103,30 +92,20 @@
 #'   `"aft"`) asks for exactly those. A rewriting is always faster and has not
 #'   been measured to mix worse per second, so the default is rarely worth
 #'   changing; see `vignette("implementation")`.
-#' @param x_transform string; how numeric predictors are mapped to `[0, 1]`.
-#'   Allowable options include `"smoothcdf"` (the default), `"quantile"`, and
-#'   `"range"`. The choice places the cutpoint prior and, for soft rules, sets
-#'   the scale the gate's width is measured on, and each has a failure it is
-#'   worth knowing about; see Details.
-#'
-#'   `"smoothcdf"` uses a kernel-smoothed estimate of each predictor's
-#'   distribution function, with an Epanechnikov kernel and a plug-in bandwidth
-#'   at the `n^(-1/3)` rate that is right for a distribution function rather than
-#'   the `n^(-1/5)` that is right for a density (Tenreiro, 2006; the rate was
-#'   pointed out for a second-order approximation by Azzalini, 1981). Cutpoints
-#'   land where the data are, as under `"quantile"`, and the map is strictly
-#'   increasing and differentiable, as under `"range"`.
-#'
-#'   `"quantile"` uses the empirical distribution function, which is what
-#'   \pkgfun{SoftBart}{softbart} does. It is a step function, so the fit is a
-#'   step function of the predictor: it has no derivative, and a relationship
-#'   that is straight in the predictor becomes a jump wherever the data are
-#'   gappy.
-#'
-#'   `"range"` rescales linearly and preserves the original spacing. It is the
-#'   most accurate of the three on well-behaved predictors and the right choice
-#'   when a derivative is the quantity of interest, and it fails where a few
-#'   extreme values leave the bulk of a predictor inside a sliver of its range.
+#' @param x_transform string; how numeric predictors are mapped to `[0, 1]`
+#'   before any rule sees them. Allowable options include `"smoothcdf"` (the
+#'   default), `"quantile"`, and `"range"`. The map decides where a cutpoint can
+#'   fall, the cutpoint prior being uniform on a node's live range in the
+#'   transformed coordinate, and for soft rules it is also the scale `bandwidth`
+#'   is measured on. `"smoothcdf"` smooths the empirical distribution function
+#'   with an Epanechnikov kernel, at the \eqn{n^{-1/3}} bandwidth rate that is
+#'   right for a distribution function rather than the \eqn{n^{-1/5}} that is
+#'   right for a density (Azzalini, 1981; Tenreiro, 2006); `"quantile"` uses the
+#'   empirical distribution function itself, as \pkgfun{SoftBart}{softbart}
+#'   does; and `"range"` rescales linearly. Note that `"range"` is the one to
+#'   use when a slope is the quantity of interest, being the only affine map of
+#'   the three; see `vignette("effects")`. Where the other two fail, and why the
+#'   default is the default, is in `vignette("implementation")`.
 #' @param gamma,beta *Advanced.* `numeric`; the branching probability at depth
 #'   `d` is `gamma * (1 + d)^(-beta)`. Defaults are .95 and 2.
 #' @param sigma_mu *Advanced.* `numeric`; the prior median of the leaf standard
@@ -200,6 +179,15 @@
 #' [bartisan()].
 #'
 #' @details
+#' The arguments are ordered by how often they are worth changing. Those from
+#' `chains` to `x_transform` are modeling decisions, in that changing one changes
+#' what is fitted or how long it is fitted for, and the chain lengths and
+#' `num_trees` come first because they are adjusted most. Those marked
+#' *Advanced.* are hyperparameters of a prior that one of the first group
+#' summarizes, or switches whose default is almost always right. The three marked
+#' *Validation.* compute the same posterior more slowly, and are documented so
+#' that the checks using them can be read.
+#'
 #' ## How Long Warmup Needs to Be
 #'
 #' The default is comfortably longer than the transient in every family measured,
@@ -208,18 +196,19 @@
 #' mixture carrying a component-count state that settles more slowly than a
 #' forest does, so a longer warmup is worth having there and especially when the
 #' error distribution itself is the object of interest.
+#'
 #' ## How Many Trees, and How Many per Forest
 #'
-#' **Soft rules need far fewer trees than hard ones**, and can get worse as trees
-#' are added, which makes the count most BART packages default to actively wrong
+#' Soft rules need far fewer trees than hard ones, and can get worse as trees are
+#' added, which makes the count most BART packages default to actively wrong
 #' here. The default is the same for both anyway, because a smaller forest mixes
 #' worse: chains can disagree markedly on an average contrast at a small forest
 #' where they agree at the default, for only a slight gain in point accuracy.
 #' Drop below it if prediction is the only goal and the fit is soft; raise it
 #' with hard rules if it is not.
 #'
-#' **A vector is worth using when the family has more than one forest.** The
-#' scale forest of `gaussian_ls()` dominates the run time, its target not being
+#' A vector is worth using when the family has more than one forest. The scale
+#' forest of `gaussian_ls()` dominates the run time, its target not being
 #' quadratic, and a variance surface carries much less information than a mean
 #' surface, so giving it fewer trees runs substantially faster at the same
 #' accuracy. It is not the default because how much resolution a variance surface
@@ -227,6 +216,7 @@
 #' up as intervals that are wrong, which is what `gaussian_ls()` exists to get
 #' right. The leaf prior scale divides by the square root of each forest's own
 #' tree count, so shrinking one forest does not change the prior on the sum.
+#'
 #' ## The Sparsity Prior, and What It Costs
 #'
 #' `sparsity = TRUE` is the Dirichlet prior of Linero (2018) on the splitting
@@ -243,21 +233,22 @@
 #' proportion has gone small is rarely proposed and so is hard to get back in.
 #'
 #' Which way to throw the switch follows from the estimand, and the strength
-#' barely matters either way. **For prediction or variable selection**, keep the
+#' barely matters either way. For prediction or variable selection, keep the
 #' default; reaching past `TRUE` is warranted only when the predictors are many
-#' and nearly all are expected to be irrelevant. **For a contrast, a partial
-#' effect, or a treatment effect**, set `sparsity = FALSE`, or use `split_prior`,
+#' and nearly all are expected to be irrelevant. For a contrast, a partial
+#' effect, or a treatment effect, set `sparsity = FALSE`, or use `split_prior`,
 #' which cannot drop anything: on a weak signal the prior attenuates the estimate
 #' substantially and its interval covers below its nominal rate, while a strong
 #' effect is untouched. `vignette("effects")` works this through and
 #' [bartisan-marginaleffects] covers the atom.
 #'
-#' **For a varying-coefficient model the two answers can differ by forest.** What
-#' the prior can drop is a predictor a forest splits on, and in a [vc()] model the
+#' For a varying-coefficient model the two answers can differ by forest. What the
+#' prior can drop is a predictor a forest splits on, and in a [vc()] model the
 #' treatment is the coefficient rather than one of those, carried by a forest of
 #' its own, so no splitting proportion can drop it; the prior on that forest
 #' selects among the moderators instead. So `sparsity = c(FALSE, TRUE)` is
 #' coherent, and in [bcf()] it is the asymmetry worth considering.
+#'
 #' ## Sharing the Sparsity Prior Across Forests
 #'
 #' The trade is asymmetric, which is what makes `share_sparsity = TRUE` worth
@@ -265,10 +256,11 @@
 #' problem to transfer, a real gain for the weaker component when they are many,
 #' and a comparatively small cost when the components turn out to depend on
 #' different predictors. `vignette("families")` shows it in use and
-#' `variable_importance()` is where to check it. This is the variable-selection
+#' [variable_importance()] is where to check it. This is the variable-selection
 #' content of the shared forests of Linero et al. (2020) and not their model,
 #' which shares the tree *topology* and so fixes the cut points too; [bcf()] sits
 #' at the other extreme, sharing an entire function rather than a prior.
+#'
 #' ## Arguments That Vary by Forest
 #'
 #' A family with several additive predictors has one forest per predictor, each
@@ -289,49 +281,6 @@
 #' The multinomial families are the exception, for the reason given in
 #' [bartisan-families]: their forests act as one, so these arguments take a
 #' single value.
-#' ## The Predictor Transform (`x_transform`)
-#'
-#' Numeric predictors are mapped to `[0, 1]` before any rule sees them, and the
-#' map does two jobs at once: cutpoints are uniform on a node's live range in
-#' that coordinate, and for soft rules the gate's bandwidth is measured there
-#' too. The three options fail in different places, which is the whole of the
-#' choice between them.
-#'
-#' `"range"` is the most accurate on well-behaved predictors and the only one
-#' that supports a derivative, since it is the only affine map of the three. Its
-#' failure is a predictor whose bulk sits inside a sliver of its range, which a
-#' few extreme values are enough to produce: a cutpoint drawn uniformly on a
-#' node's live range then almost never lands where the structure is. Measured
-#' over a simulation with 1% of a predictor at 300 times the scale and a truth
-#' that oscillates within the bulk, it was 4 times worse than the alternatives
-#' at `n = 500` and 6 times worse at `n = 2000`, with 95% intervals covering .24
-#' rather than .95. The deterioration with `n` is the signature: the extremes
-#' grow with the sample, so the bulk occupies an ever smaller share.
-#'
-#' `"quantile"` cannot fail that way, since it places cutpoints by rank. It
-#' fails instead by being a step function, so the fit is a step function of the
-#' predictor: there is no derivative to take, and a relationship that is
-#' straight in the predictor becomes a jump wherever the data are gappy. On two
-#' tight clusters with a linear truth it was nearly three times worse than the
-#' alternatives.
-#'
-#' `"smoothcdf"`, the default, smooths the same distribution function and so
-#' does neither. Across eight data-generating processes it was never the most
-#' accurate and never far from it, where each of the other two was badly wrong
-#' somewhere. It is not a free lunch: a derivative taken through it is the
-#' derivative of the fitted function times an estimated density, so `"range"`
-#' remains the better choice when a slope is the quantity of interest rather
-#' than a prediction.
-#'
-#' The bandwidth is a plug-in rather than one chosen from the data. The
-#' data-based selectors of Bergmann and Zaehle (2026) were measured here and are
-#' not used, because they optimize a different thing: they minimize the error in
-#' the estimated distribution function, where this map exists to place cutpoints
-#' and keep the coordinate smooth. The two come apart exactly where it matters.
-#' Given two tight clusters with a gap between them, they correctly choose a much
-#' narrower bandwidth, the distribution function really being flat in the gap;
-#' that returns the coordinate to nearly the step `"quantile"` would have given,
-#' and doubled the error of the fit.
 #'
 #' ## Splitting a Factor
 #'
@@ -342,12 +291,13 @@
 #' or not. A rule on a subset of the levels reaches every partition.
 #'
 #' Under hard rules `"subset"` is better at every sample size, clearly so when
-#' levels are thinly observed; under soft rules, which is the default, **the two
-#' are indistinguishable**. So `"subset"` is the default because it is right about
+#' levels are thinly observed; under soft rules, which is the default, the two
+#' are indistinguishable. So `"subset"` is the default because it is right about
 #' the prior and never loses beyond noise, not because it will visibly improve a
 #' fit. Note that a rule on a factor is always hard even in a soft tree, since a
 #' gate is a function of the distance from a cutpoint and there is no distance
 #' between two levels; and that a two-level factor is unaffected either way.
+#'
 #' ## Telling the Prior What Is Already Known
 #'
 #' `sparsity` and `split_prior` answer different questions and cannot both be in
@@ -367,6 +317,7 @@
 #' predictors are too many to treat alike. One weight per term in the formula,
 #' not per column of the design matrix, so a factor is named once and its levels
 #' share the weight.
+#'
 #' ## What `augment` Does Not Cover
 #'
 #' `Gamma()` and `poisson()` need no rewriting, their targets being already in
@@ -374,6 +325,7 @@
 #' accelerated failure time, ordered beta, or location-scale families, so
 #' `augment` is silent for all of them. Which families it does cover, what each
 #' rewriting is, and what each buys are in `vignette("implementation")`.
+#'
 #' ## Rare Events Mix Slowly
 #'
 #' With very few events the whole fit mixes slowly, augmented or not, and the
@@ -382,6 +334,7 @@
 #' handful of events rather than a fault of the rewritings, and \pkg{dbarts}, an
 #' independent implementation of the same latent normal, reproduces it. Lengthen
 #' the chain, and read [diagnose()]'s `rhat`.
+#'
 #' ## Progress
 #'
 #' `verbose = TRUE` prints a line every `num_print` iterations, which is the
@@ -422,6 +375,7 @@
 #' `future.globals.maxSize`, 500 MB by default, and a fit large enough on both
 #' counts will trip it. The error names the option; raising it is the fix, and
 #' running sequentially is the alternative.
+#'
 #' ## Soft Rules and the Cost of a Gate
 #'
 #' A soft rule is charged for in two places: every observation reaches more than
@@ -446,19 +400,11 @@
 #' nonsmooth ones. Raising `bandwidth_every` is the middle course, recovering
 #' some speed while keeping soft rules, at a real cost in mixing and a small one
 #' in accuracy where the mean function jumps.
+#'
 #' @references
 #' Azzalini, A. (1981). A note on the estimation of a distribution function and
 #' quantiles by a kernel method. *Biometrika*, 68(1), 326--328.
 #' \doi{10.1093/biomet/68.1.326}
-#'
-#' Bergmann, T., & Zaehle, H. (2026). Data-based bandwidth selection for kernel
-#' smoothing of empirical distribution functions. *Metrika*.
-#' \doi{10.1007/s00184-026-01025-6}
-#'
-#' Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in bandwidth
-#' selections for kernel distribution function estimators. *Journal of
-#' Nonparametric Statistics*, 18(1), 101--116.
-#' \doi{10.1080/10485250600578334}
 #'
 #' Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 #' prediction and variable selection. *Journal of the American Statistical
@@ -466,15 +412,20 @@
 #'
 #' Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
 #' beyond conditional conjugacy. *Journal of the American Statistical
-#' Association*, 120(549), 356--369.
-#'
-#' Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles that
-#' adapt to smoothness and sparsity. *Journal of the Royal Statistical Society
-#' Series B*, 80(5), 1087--1110.
+#' Association*, 120(549), 356--369. \doi{10.1080/01621459.2024.2337156}
 #'
 #' Linero, A. R., Sinha, D., & Lipsitz, S. R. (2020). Semiparametric mixed-scale
 #' models using shared Bayesian forests. *Biometrics*, 76(1), 131--144.
 #' \doi{10.1111/biom.13107}
+#'
+#' Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles that
+#' adapt to smoothness and sparsity. *Journal of the Royal Statistical Society
+#' Series B*, 80(5), 1087--1110. \doi{10.1111/rssb.12293}
+#'
+#' Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in bandwidth
+#' selections for kernel distribution function estimators. *Journal of
+#' Nonparametric Statistics*, 18(1), 101--116.
+#' \doi{10.1080/10485250600578334}
 #'
 #' @seealso
 #' [bartisan()], which takes the result as its `control` argument;
@@ -482,6 +433,7 @@
 #'
 #' @examples
 #' data("rhc")
+#' set.seed(123)
 #'
 #' # Settings can be built up once and reused across fits
 #' ctrl <- bartisan_control(num_trees = 20, gate = "hard", num_burn = 50,

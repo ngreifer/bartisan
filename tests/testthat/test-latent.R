@@ -231,19 +231,32 @@ test_that("a binomial and a two-category ordinal probit fit agree", {
   d$ordered <- factor(d$y, levels = c(0L, 1L), ordered = TRUE)
 
   # Two ways of writing the same model. They are fitted by different samplers,
-  # so they agree up to Monte Carlo error rather than exactly.
-  chain <- quick_control(num_trees = 20L, num_burn = 150L, num_draws = 150L)
+  # so they agree up to Monte Carlo error rather than exactly, and each is
+  # seeded rather than started from wherever the other left the stream.
+  chain <- quick_control(num_trees = 20L, num_burn = 500L, num_draws = 500L)
+
+  set.seed(1134)
   binary <- bartisan(y ~ x1 + x2, d, family = stats::binomial("probit"),
                      control = chain)
+
+  set.seed(1135)
   ordinal_fit <- bartisan(ordered ~ x1 + x2, d, family = ordinal("probit"),
                           control = chain)
 
   from_binary <- stats::predict(binary, type = "stdlv")
   from_ordinal <- stats::predict(ordinal_fit, type = "stdlv")
 
-  expect_gt(stats::cor(from_binary, from_ordinal), 0.98)
+  # The chain is longer than the plumbing tests elsewhere use, because the
+  # threshold has to sit outside the Monte Carlo noise rather than inside it.
+  # Holding this data fixed and moving only the sampler's stream, 150 draws put
+  # the correlation between .965 and .999, so a floor of .98 was inside the
+  # noise band and failed 2 times in 20; 500 draws put it between .985 and .999,
+  # where .95 is a statement about the two samplers agreeing rather than about
+  # how the draws fell. The ratio of the two standard deviations ran .95 to
+  # 1.10, and the means never parted by more than .012.
+  expect_gt(stats::cor(from_binary, from_ordinal), 0.95)
   expect_equal(stats::sd(from_binary), stats::sd(from_ordinal),
-               tolerance = 0.1)
+               tolerance = 0.2)
   expect_lt(abs(mean(from_binary) - mean(from_ordinal)), 0.05)
 })
 

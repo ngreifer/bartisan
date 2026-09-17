@@ -38,9 +38,10 @@ test_that("the mixture is stored, weighted and shaped as a mixture", {
 })
 
 test_that("the reporting chart puts the mixture at zero and the mean on the predictor", {
+  set.seed(1303)
   d <- data.frame(x = stats::runif(500, -1, 1))
   truth <- 10 * d$x^3
-  set.seed(1303)
+
   # A skewed error, so that the raw mixture is a long way off centre and the
   # shift being taken out is a real one rather than rounding.
   d$y <- truth + 3 * (stats::rgamma(nrow(d), 1.5, 1.5) - 1)
@@ -112,8 +113,9 @@ test_that("the reported likelihood is the mixture's own predictive", {
 })
 
 test_that("error_density integrates to one and finds the shape of the errors", {
-  d <- data.frame(x = stats::runif(600, -1, 1))
   set.seed(1307)
+  d <- data.frame(x = stats::runif(600, -1, 1))
+
   # Two well-separated normals, which no single normal can look like.
   side <- stats::rbinom(nrow(d), 1L, 0.5)
   d$y <- 5 * d$x + ifelse(side == 1L, stats::rnorm(nrow(d), 3, 0.5),
@@ -148,15 +150,20 @@ test_that("error_density integrates to one and finds the shape of the errors", {
 test_that("the mixture adapts to heavy tails and stays put when the errors are normal", {
   skip_on_cran()
 
+  set.seed(1309)
   d <- data.frame(x = stats::runif(800, -1, 1))
   truth <- 10 * d$x^3
   chain <- quick_control(num_trees = 50L, num_burn = 500L, num_draws = 500L)
 
   # Normal errors: the mixture should not need many components, and should agree
-  # with the Gaussian family on the scale it reports.
-  set.seed(1309)
+  # with the Gaussian family on the scale it reports. Each fit is seeded rather
+  # than started from wherever the one before it left the stream.
   d$y <- truth + stats::rnorm(nrow(d), 0, 2)
+
+  set.seed(1319)
   normal_fit <- bartisan(y ~ x, d, family = dpm(), control = chain)
+
+  set.seed(1319)
   plain <- bartisan(y ~ x, d, family = stats::gaussian(), control = chain)
 
   expect_equal(stats::sigma(normal_fit), stats::sigma(plain), tolerance = 0.15)

@@ -135,7 +135,7 @@ double trigamma_inverse(double x) {
 //' from the wrong numbers.
 //'
 //' @returns `TRUE` if the library was optimized.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_optimized)]]
 bool bartisan_optimized() {
 #ifdef __OPTIMIZE__
@@ -178,7 +178,7 @@ bool bartisan_optimized() {
 //'   distribution function, the sum of squared kernel weights, and the sum of
 //'   squared differences between each kernel weight and the step it smooths.
 //'   The last two are the terms that distinguish the two selectors.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_smooth_cdf)]]
 Rcpp::NumericMatrix bartisan_smooth_cdf(const std::vector<double>& x,
                                         const std::vector<double>& grid,

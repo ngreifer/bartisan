@@ -7931,3 +7931,179 @@ anchors deleted the nine functions that lay between them, `range_map()` and
 time, and the map's own checks passed because they never reached the fallback
 branch. The suite caught it. Rebuilt from the previous commit with only the
 intended change reapplied.
+
+## Nine help pages that should never have existed, and a documentation pass on `bartisan_control()`
+
+`@keywords internal` does not suppress an Rd page. It generates one and hides it
+from the index, which is why `man/` held nine `dot-bartisan_*.Rd` files for the
+Rcpp entry points and `pkgdown::check_pkgdown()` never complained: pkgdown drops
+`internal` topics from the index on its own, so the only signal was reading
+`man/`. `@noRd` is the tag that suppresses. All nine `//'` blocks in `src/` now
+carry it, the prose staying where it was useful, and `man/` is 19 topics against
+28, every one of them user-facing. `NAMESPACE` is unchanged; nothing linked to
+them.
+
+### The transform is one `@param` now, and the vignette carries the rest
+
+48 lines across a `@param` and a Details section, down to 14 in the `@param`
+alone. What stays is what a reader with the argument in front of them needs: the
+three values, what each does, the citations for the bandwidth rate, and the fact
+that `"range"` is the one to reach for when a slope is the estimand. The failure
+modes, the simulation numbers and the sweep moved to a new section of
+`vignette("implementation")`, under the prior and the gate, which are what the
+map interacts with.
+
+Both DOIs were checked against Crossref metadata rather than by title, per
+PAPERS.md: title, authors, journal, volume, issue, pages and year all match.
+`references.bib` gained the two entries.
+
+### Bold was the tell, and it is measurable
+
+| package | bold spans | roxygen lines |
+| --- | --- | --- |
+| WeightIt | 13 | 5220 |
+| cobalt | 6 | 2348 |
+| MatchIt | 13 | 3371 |
+| adrftools | 0 | 764 |
+| fwb | 0 | 669 |
+| `bartisan_control()` | 11 | ~480 |
+
+Seven times the rate of the corpus, and used differently: the corpus bolds a
+`**NOTE:**`, a `**required**`, a defined term in a list of methods. Nine of the
+eleven here were bolded paragraph openers. Two survive, both genuine gotchas.
+The `@description` went from eight sentences to two, with the argument-grouping
+key moved to the top of `@details`; `@references` is alphabetical with the two
+missing DOIs restored; `set.seed(123)` added to the example, which was the only
+fitting example in the package without one.
+
+The `*Advanced.*` and `*Validation.*` markers stay. `families.R` uses the same
+device on `num_bins`, so it is a local convention rather than an agent tic.
+
+## Finding RNG-fragile tests by perturbing the sampler, not by reading the tests
+
+A syntactic scan for tests that draw from an ambient stream flagged 240 blocks,
+which is no answer at all: most of them assert something structural that no
+reshuffle could move. The property actually wanted is narrower, and it is
+testable. **A test should reach the same verdict however much randomness ran
+before it.** So wrap the sampler to burn extra uniforms on every call, which is
+exactly the change that rewrote the `gate` and `varying` fixtures last time, and
+run the suite.
+
+### The first instrument was broken, and said so in the output
+
+Wrapping the exported `bartisan()` and `bcf()` in `function(...)` destroys
+`match.call()` and the caller-frame evaluation of `data`, `weights`, `subset`
+and `offset`. 21 errors and 2 failures, every one an artifact; the giveaway was
+`deparse(fit[["call"]])` coming back as `f(formula = ...)`, the wrapper's own
+name in the recorded call. Errors rather than failures is the signal that the
+instrument broke rather than the tests.
+
+The hook is `.bartisan_fit()` instead: ordinary positional arguments, no
+non-standard evaluation, one call site at `bartisan.R:805`. The recorded call
+survives intact.
+
+### What it found
+
+Baseline 476 tests, 0 failed, 0 errors. Under jitter, four tests moved, **and
+not one of them appeared in both runs** -- which is itself the finding. The
+fixture-inheriting class the experiment was built to catch is gone from the
+suite; a test of that kind fails under any shift, not one in two. What is left
+is assertions perched on a threshold that one seed happens to clear.
+
+### Measure the exposure the test faces, not a nearby one
+
+The first pass at quantifying these varied the data seed across replicates. The
+tests pin their data and only ever see the sampler's stream move, and the two
+distributions are not the same: that pass put the smallest `test-mnp`
+correlation at .9762 over 25 seeds, where the jitter run, sampler-only on the
+test's own dataset, had already produced .914. Redone with the data held and
+only the fit seeds varying.
+
+| assertion | held | measured |
+| --- | --- | --- |
+| `a$variable[1L] == b$variable[1L]` | **14/25** | a coin flip |
+| `setequal(a$variable[1:2], b$variable[1:2])` | **25/25** | the actual claim |
+
+`y` depends on `2 * x1` and on `sin(3 * x2)`, so which of the two leads is close
+to arbitrary. Asserting positional identity of the leading predictor was asking
+for a coin flip and passing on HEAD by landing in the 56%. The pair carries over
+in every replicate, which is what the comment beside it already claimed, so the
+new assertion is stronger rather than looser.
+
+### A threshold inside the noise band is testing the noise
+
+Three more runs, one clean and two jittered, turned up two more. Both
+correlation assertions had the same shape: a floor set close enough to 1 that
+Monte Carlo error alone crossed it, so the test was measuring how the draws fell
+rather than whether the two models agree. The chain was the fix, not the
+threshold.
+
+| test | chain | noise floor | floor asserted | flake |
+| --- | --- | --- | --- | --- |
+| `test-mnp` | 300 draws | .977 | .98 | 1 in 20 |
+| `test-mnp` | 800 draws | .9966 | .98 | 0 in 20 |
+| `test-latent` | 150 draws | .965 | .98 | 2 in 20 |
+| `test-latent` | 500 draws | .985 | .95 | 0 in 20 |
+
+`test-mnp` keeps both of its original thresholds and only gets a longer chain;
+its companion `max |prob diff| < .1` was marginal in the same way, exceeded by 3
+of 25 at 300 draws and by none at 800. `test-latent` keeps the longer chain and
+takes the floor *below* the noise band rather than above it.
+
+### The one claim that could not be made into a test
+
+`test-varying`'s antisymmetry check failed under two of the three jitters, which
+is a different signature from the rest: not a threshold cleared by luck but a
+claim that is more often true than not and was being asserted as though it
+always held. Its own comment said a single pair "orders the wrong way about one
+time in five" and that a mean of four fixes it. It does not.
+
+| pairs averaged | orders the right way |
+| --- | --- |
+| 4 | 75.2% |
+| 8 | 79.9% |
+| 20 | 90.6% |
+| 40 | 96.7% |
+
+The effect is real -- the drawn coding summed closer to zero in 28 of 40 pairs,
+median .0072 against .0127, Wilcoxon p = .021 -- and too small to assert at unit
+test cost, since even 40 pairs is 160 fits and still flakes at 3%. Giving the
+data a treatment effect did not rescue it either, 11 of 15 with signal against
+28 of 40 without.
+
+What the treatment effect did buy is a test that means something. `sim_vc()`
+leaves `y` independent of `z`, so both codings were estimates of nothing and the
+comparison was noise against noise. With `y <- x1 + z * (1 + x2) + rnorm(n)` the
+coefficient is 1 by construction, comes back at 1.02 to 1.04, and the drawn
+coding's two estimates sum to at most .0203 over 15 redraws. The test asserts
+the magnitude, the sign flip and the antisymmetry, in 4 fits rather than 16, and
+records the ordering as a measurement in the comment instead of asserting it.
+
+The other two were mis-scoped rather than marginal. `expect_no_warning()` around
+a prior-only multinomial probit was written for one warning, that the covariance
+draw's matrix was not symmetric, and caught any warning -- so it failed on the
+leaf scale settling above its prior median, which under a flat likelihood is
+correct behavior rather than a bug; it is narrowed by message. And
+`any(pd_tree_mask(fit, "nothing_at_all"))` conflated "the score group is treated
+as moving", which is the claim, with "a 10-tree chain happened to split on the
+score", which it need not; it now compares that mask against the one the score's
+own columns give, which is deterministic and still fails if the score branch is
+removed.
+
+`test-dpm.R` had three blocks with `set.seed()` one line below the `runif()` it
+was meant to cover, so the predictor was ambient in all three, and its
+heavy-tails block fit `plain` from wherever `normal_fit` left the stream while
+asserting the two agree to 15%. Fixed before the experiment ran.
+
+### Verification
+
+Four full runs after the fixes, one clean and three jittered at 3, 17 and 41
+extra draws per fit: 476 tests, 0 failures, 0 errors in every one. Three
+perturbations rather than one because each of the six problems above showed up
+in only one or two of the runs that could have caught it, so a single clean
+jitter would prove much less than it looks like it does.
+
+The hook lived in a `helper-zz-jitter.R` that is not committed. To rebuild it:
+wrap `.bartisan_fit()` in the namespace with `utils::assignInNamespace()`, burn
+`runif(k)` on exit, and burn `runif(k)` once at load. Not `bartisan()` itself,
+for the reason above.

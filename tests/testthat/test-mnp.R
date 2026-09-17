@@ -39,8 +39,18 @@ test_that("two categories are binary probit, exactly as the trace constraint say
                        "yes", "no"),
                 levels = c("no", "yes"))
 
-  chain <- quick_control(num_trees = 30L, num_burn = 300L, num_draws = 300L)
+  # Long enough that the thresholds below sit outside the Monte Carlo noise
+  # instead of inside it. At 300 draws, holding this data fixed and moving only
+  # the sampler's stream, the correlation fell as low as .977 and the largest
+  # probability gap reached .11, so both assertions failed about one run in
+  # twenty; at 800 the correlation stays above .996 and the gap below .06. Each
+  # fit is seeded rather than started from wherever the other left the stream.
+  chain <- quick_control(num_trees = 30L, num_burn = 800L, num_draws = 800L)
+
+  set.seed(1202)
   probit <- bartisan(y ~ ., d, family = multinomial("probit"), control = chain)
+
+  set.seed(1203)
   binary <- bartisan(y ~ ., d, family = stats::binomial("probit"),
                      control = chain)
 

@@ -57,9 +57,13 @@ test_that("prop_splits is a share, and so survives a change of forest size", {
   set.seed(7731)
   d$y <- 2 * d$x1 + sin(3 * d$x2) + stats::rnorm(nrow(d), sd = 0.3)
 
+  # Each fit is seeded rather than started from wherever the one before it left
+  # the stream, so neither is a property of how many draws the other took.
+  set.seed(7732)
   small <- bartisan(y ~ ., d, family = stats::gaussian(),
                     control = quick_control(num_trees = 10L, num_burn = 200L,
                                             num_draws = 200L, sparsity = TRUE))
+  set.seed(7733)
   large <- bartisan(y ~ ., d, family = stats::gaussian(),
                     control = quick_control(num_trees = 40L, num_burn = 200L,
                                             num_draws = 200L, sparsity = TRUE))
@@ -80,9 +84,13 @@ test_that("prop_splits is a share, and so survives a change of forest size", {
   # It is not invariant: measured here, the leading predictor's share moved from
   # .51 to .64 when the forest went from 10 trees to 40, so the column removes
   # the dependence on `num_trees` without removing the forest from the answer.
+  #
+  # Which of the two leads is not the claim, and asserting it was asking for a
+  # coin flip: `y` depends on both `x1` and `x2`, and holding this data fixed
+  # while the sampler's stream moved, the leading predictor matched across the
+  # two forest sizes in 14 of 25 draws. The pair carries over in 25 of 25.
   expect_true(all(a$prop_splits >= 0 & a$prop_splits <= 1))
-  expect_identical(a$variable[1L], b$variable[1L])
-  expect_identical(a$variable[2L], b$variable[2L])
+  expect_setequal(a$variable[1:2], b$variable[1:2])
 })
 
 test_that("draws = TRUE hands back the counts themselves", {

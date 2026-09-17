@@ -147,7 +147,7 @@ List wrap_matrices(const std::vector<T>& x) {
 //' @param family_name,link,family_opts the family specification.
 //' @param control a list of sampler and prior settings.
 //' @returns A list of posterior draws and the encoded forests.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_fit)]]
 List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
                  const arma::vec& y,
@@ -851,7 +851,7 @@ bool tree_splits_on(const double* record, int& pos,
 //' @returns A `logical` vector with one entry per stored tree, in the order the
 //'   flat encoding holds them, which is iteration-major and then forest and then
 //'   tree.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_tree_uses)]]
 LogicalVector bartisan_tree_uses(const std::vector<double>& forest_flat,
                                  const std::vector<int>& tree_start,
@@ -932,7 +932,7 @@ LogicalVector bartisan_tree_uses(const std::vector<double>& forest_flat,
 //'   subset is what partial dependence uses to avoid re-evaluating the trees
 //'   that cannot move across its grid.
 //' @returns A list of `num_forest` matrices of additive predictors.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_predict)]]
 List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat,
                      const std::vector<int>& tree_start,
@@ -1015,7 +1015,7 @@ List bartisan_predict(const arma::mat& X, const std::vector<double>& forest_flat
 //' @param aux a matrix of draws by nuisance parameters, with zero columns when
 //'   the family has none.
 //' @returns A matrix of draws by observations.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_logdens)]]
 arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights,
                           const List& eta_draws, std::string family_name,
@@ -1087,7 +1087,7 @@ arma::mat bartisan_logdens(const arma::vec& y, const arma::vec& weights,
 //' @param replicates `integer`; the number of simulation replicates per draw
 //'   and observation.
 //' @returns An array of draws by observations by categories.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_mnp_probs)]]
 arma::cube bartisan_mnp_probs(const List& eta_draws, const arma::mat& sigma,
                              int replicates) {
@@ -1187,7 +1187,7 @@ arma::cube bartisan_mnp_probs(const List& eta_draws, const arma::mat& sigma,
 //'   per-observation route falls back on differences while its block route does
 //'   not.
 //' @returns A list with matrices `d1` and `info`, draws by observations.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_derivs)]]
 List bartisan_derivs(const arma::vec& y, const arma::vec& weights,
                     const List& eta_draws, std::string family_name,

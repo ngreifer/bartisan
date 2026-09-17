@@ -6,7 +6,7 @@
 //' @param n `integer`; the number of draws.
 //' @param b,c `numeric`; the parameters of the distribution.
 //' @returns A numeric vector of draws.
-//' @keywords internal
+//' @noRd
 // [[Rcpp::export(.bartisan_rpg)]]
 Rcpp::NumericVector bartisan_rpg(int n, double b, double c) {
   Rcpp::NumericVector out(n);

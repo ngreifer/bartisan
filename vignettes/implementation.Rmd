@@ -139,6 +139,24 @@ rbind(timed("smoothstep"), timed("hard"))
 
 The true function has a standard deviation of about `r round(sd(test$eta), 1)`, so both are fitting real structure and the soft fit is the more accurate.
 
+### The Predictor Transform (`x_transform`)
+
+Numeric predictors are mapped to $[0, 1]$ before any rule sees them, and the map is not cosmetic. A cutpoint is drawn uniformly on a node's live range in the transformed coordinate, so the map decides where a rule *can* split, and under soft rules it is also the scale on which $\tau$ is measured. The `x_transform` argument of `bartisan_control()` chooses it. The three options fail in different places, which is the whole of the choice between them.
+
+`"range"` rescales linearly, $T(x) = (x - \min x) / (\max x - \min x)$, and so preserves the original spacing. That makes it the most accurate of the three on a well-behaved predictor, and, being the only affine map among them, the only one a derivative passes through cleanly. Its failure is a predictor whose bulk sits inside a sliver of its range, which a few extreme values are enough to produce: a cutpoint drawn uniformly on the range then almost never lands where the structure is. In a simulation with 1% of a predictor at 300 times the scale of the rest and a truth that oscillates within the bulk, it was 4 times worse than the alternatives at $n = 500$ and 6 times worse at $n = 2000$, with 95% intervals covering .24 rather than .95. The deterioration with $n$ is the signature: the extremes grow with the sample, so the bulk occupies an ever smaller share of the range.
+
+`"quantile"` maps each predictor through its own empirical distribution function, which is what `SoftBart::softbart()` does. It cannot fail that way, because it places cutpoints by rank and knows nothing about spacing. It fails instead by being a step function, so the fit is a step function of the original predictor: there is no derivative to take, and a relationship that is straight in the predictor becomes a staircase wherever the data are gappy. On two tight clusters with a linear truth it was nearly three times worse than the alternatives.
+
+`"smoothcdf"`, the default, smooths that same distribution function and so does neither. The estimate is
+
+$$\hat F_h(x) = \frac{1}{n} \sum_{i=1}^n K\left(\frac{x - x_i}{h}\right),$$
+
+where $K$ is the integrated Epanechnikov kernel and $h = 2.1 \hat\sigma n^{-1/3}$, with $\hat\sigma$ the smaller of the standard deviation and the interquartile range over 1.349 so that a long tail sets the bandwidth from the bulk rather than from itself. The $n^{-1/3}$ rate is the one for a distribution function rather than the $n^{-1/5}$ that is right for a density [@tenreiro2006], a rate @azzalini1981 had pointed out for a second-order approximation. The result is stretched affinely so that the smallest and largest observations land on 0 and 1, as they do under the other two maps; normalizing on the smoothed values instead would leave a few percent of the coordinate outside the data, where no cutpoint can be useful. Cutpoints then land where the data are, as under `"quantile"`, and the map is strictly increasing and differentiable, as under `"range"`. Across eight data-generating processes it was never the most accurate and never far from it, where each of the other two was badly wrong somewhere.
+
+It is not a free lunch for slopes. Writing the fit as $f(T(x))$, a derivative in the original coordinate is $f'(T(x)) T'(x)$: an affine $T$ has a known constant derivative, so only $f'$ is estimated, where a smoothed distribution function contributes an estimated density and the two errors multiply. `vignette("effects")` measures what that costs and recommends refitting with `"range"` when a slope is the quantity being reported.
+
+The kernel is Epanechnikov rather than Gaussian because its support is bounded, which is what makes the estimate cheap to compute exactly. Written directly, $\hat F_h$ on a grid of $m$ points is $nm$ kernel evaluations, tens of millions per predictor on a large fit. Almost all of that work is avoidable, because almost every weight is a 0 or a 1 rather than something in between: an observation further below a grid point than the kernel reaches has passed it entirely and contributes 1, one further above contributes 0, and only those within $h$ need evaluating. With the data and the grid both sorted, the two ends of that window advance monotonically, so each is found by a pointer that never goes back and the sweep costs $O(n + m)$. For ten predictors at $n = 10{,}000$ that is 6 ms rather than 4.4 seconds, and unlike a Gaussian truncated at five bandwidths it is exact.
+
 ### Sparsity (`sparsity`)
 
 By default the variable a rule splits on is drawn from a categorical distribution whose probabilities have a Dirichlet prior [@linero2018sparse]:
@@ -281,6 +299,7 @@ Most of `bartisan_control()` does not need to be touched. In rough order of how 
 | `num_burn`, `num_draws` | when `rhat` says the chain has not converged |
 | `num_trees` | more for a complex function and a large sample; fewer to speed up |
 | `gate` | `"hard"` when the truth really is a step function, or for speed |
+| `x_transform` | `"range"` when a slope is the quantity being reported |
 | `sparsity` | `FALSE` to recover classic BART, which is rarely the goal |
 | `k` | to shrink harder toward the mean, in a very small sample |
 
