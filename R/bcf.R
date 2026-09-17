@@ -222,7 +222,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   fits <- list(progress_spec(list(...)))
 
   if (!isFALSE(propensity) && !is_null(propensity) &&
-        !is.numeric(propensity) && !is.matrix(propensity)) {
+      !is.numeric(propensity) && !is.matrix(propensity)) {
     fits <- c(fits, list(progress_spec(propensity_args)))
   }
 
@@ -270,7 +270,14 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   adaptive <- identical(kind, "binary")
 
   dots <- list(...)
-  supplied_trees <- !is_null(dots[["num_trees"]])
+
+  # Whether the caller chose a tree count, in either of the two spellings
+  # `bartisan()` accepts. Reading only `...` meant that
+  # `bcf(control = bartisan_control(num_trees = 7))` was overridden by the
+  # asymmetric default below without saying so, where `bcf(num_trees = 7)` was
+  # honored and `bartisan()` documents the two as equivalent.
+  supplied_trees <- "num_trees" %in%
+    c(names(dots), names(attr(dots[["control"]], "supplied")))
 
   # Both the formula and the default tree count follow the coding: a drawn coding
   # is one effect forest whatever the number of levels, where the symmetric one
@@ -402,9 +409,9 @@ bcf_newdata_score <- function(object, newdata) {
                   cannot be rebuilt. Add the same column to {.arg newdata}."))
   }
 
-  score <- as.matrix(stats::fitted(spec[["model"]], newdata = newdata))
-  colnames(score) <- wanted
-  score
+  stats::fitted(spec[["model"]], newdata = newdata) |>
+    as.matrix() |>
+    setColnames(wanted)
 }
 
 # The propensity score, or nothing. The model follows the treatment's type,
@@ -459,7 +466,12 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
                  c(list(formula = model, data = data, family = fit_family),
                    args))
 
-  score <- as.matrix(stats::fitted(fit))
+  score <- stats::fitted(fit) |>
+    as.matrix()
+
+  # Not folded into the pipe above: the names depend on the object being
+  # assigned, so `setColnames()` would force `ncol(score)` before `score`
+  # exists. Same form as the supplied-score branch above.
   colnames(score) <- bcf_score_names(ncol(score))
 
   list(score = score, model = fit)

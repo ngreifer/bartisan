@@ -41,6 +41,35 @@ test_that("bcf sets up the model the way it says it does", {
   expect_true(".propensity" %in% attr(stats::terms(fit), "term.labels"))
 })
 
+test_that("bcf's tree counts give way to either spelling of the caller's", {
+  d <- sim_causal(seed = 11)
+
+  trees <- function(...) {
+    fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                               family = gaussian()), list(...)))
+    fit[["num_trees"]]
+  }
+
+  # `bartisan()` documents `num_trees = 7` and
+  # `control = bartisan_control(num_trees = 7)` as the same thing, so the
+  # asymmetric default has to stand aside for both. It once read only `...`, and
+  # the control spelling lost to it without a word.
+  expect_identical(trees(num_trees = 7L, num_burn = 20L, num_draws = 20L,
+                         verbose = FALSE),
+                   c(7L, 7L))
+  expect_identical(trees(control = bartisan_control(num_trees = 7L,
+                                                    num_burn = 20L,
+                                                    num_draws = 20L,
+                                                    verbose = FALSE)),
+                   c(7L, 7L))
+
+  # And still applies when the caller said nothing either way.
+  expect_identical(trees(control = bartisan_control(num_burn = 20L,
+                                                    num_draws = 20L,
+                                                    verbose = FALSE)),
+                   c(50L, 25L))
+})
+
 test_that("the propensity score reaches the control function and not the effect", {
   d <- sim_causal(seed = 2)
 

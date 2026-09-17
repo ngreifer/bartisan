@@ -731,9 +731,7 @@ shape_link <- function(eta, draws, object) {
     return(drop(out))
   }
 
-  colnames(out) <- names(eta)
-
-  out
+  setColnames(out, names(eta))
 }
 
 # The survival function at named times: the predictive distribution of a

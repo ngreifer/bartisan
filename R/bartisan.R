@@ -551,9 +551,10 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   }
 
   unit <- unit_transform(design$x, control[["x_transform"]])
+
   has_na <- vapply(seq_len(ncol(unit$x)), function(j) anyNA(unit$x[, j]),
-                   logical(1L))
-  names(has_na) <- colnames(unit$x)
+                   logical(1L)) |>
+    setNames(colnames(unit$x))
 
   random <- random_terms(split$bars, mf)
 
@@ -899,9 +900,8 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
               x_transform = control[["x_transform"]])
 
   if (!is_null(draws[["aux"]])) {
-    aux <- draws[["aux"]]
-    colnames(aux) <- draws[["aux_names"]]
-    out[["aux"]] <- aux
+    out[["aux"]] <- draws[["aux"]] |>
+      setColnames(draws[["aux_names"]])
   }
 
   names(out[["eta"]]) <- predictor_names(out)
@@ -1159,12 +1159,13 @@ combine_chains <- function(fits) {
   out <- first
 
   stack <- function(fits, name) {
-    do.call(rbind, lapply(fits, `[[`, name))
+    pluck(fits, name) |> do_rbind()
   }
 
   stack_list <- function(fits, name) {
     lapply(seq_along(first[[name]]), function(h) {
-      do.call(rbind, lapply(fits, function(z) z[[name]][[h]]))
+      lapply(fits, function(z) z[[name]][[h]]) |>
+        do_rbind()
     })
   }
 
@@ -1187,7 +1188,7 @@ combine_chains <- function(fits) {
   # chain's offsets past what came before it. Each chain's own offsets start
   # with a zero, which belongs only to the first.
 
-  flat <- lapply(fits, `[[`, "forest_flat")
+  flat <- pluck(fits, "forest_flat")
   at <- utils::head(cumsum(c(0L, lengths(flat))), -1L)
   starts <- lapply(seq_along(fits), function(k) {
     fits[[k]][["tree_start"]][-1L] + at[k]
@@ -1198,7 +1199,7 @@ combine_chains <- function(fits) {
 
 
   if (!is_null(first[["mixture_flat"]])) {
-    flat <- lapply(fits, `[[`, "mixture_flat")
+    flat <- pluck(fits, "mixture_flat")
     at <- utils::head(cumsum(c(0L, lengths(flat))), -1L)
     starts <- lapply(seq_along(fits), function(k) {
       fits[[k]][["mixture_start"]][-1L] + at[k]
@@ -1751,14 +1752,15 @@ gate_code <- function(gate) {
   if (is.na(code)) 1L else code
 }
 
-# One tree count per additive predictor. The default depends on the rules,
-# because a soft rule makes a tree more expressive: measured on the Friedman
-# function, held-out error levels off by 20 trees with soft rules and keeps
-# improving to 50 with hard ones. 50 is kept for both because a smaller forest
-# mixes worse -- on `lalonde`, four chains at 20 soft trees disagreed by 35% on
-# an average contrast against 9% at 50 -- and the Friedman gain at 20 was 5%.
+# One tree count per additive predictor. The default of 50 is set in
+# `bartisan_control()`'s signature and does not depend on the rules, though the
+# measurement suggested it might: on the Friedman function held-out error levels
+# off by 20 trees with soft rules and keeps improving to 50 with hard ones. 50 is
+# kept for both because a smaller forest mixes worse -- on `lalonde`, four chains
+# at 20 soft trees disagreed by 35% on an average contrast against 9% at 50 --
+# and the Friedman gain at 20 was 5%.
 resolve_num_trees <- function(num_trees, n_forest, n_aux = 0L) {
-  num_trees <- as.integer(num_trees %or% 50L)
+  num_trees <- as.integer(num_trees)
 
   # `num_trees` is about the additive predictors, so the count the caller sees
   # excludes the trailing nuisance forests.

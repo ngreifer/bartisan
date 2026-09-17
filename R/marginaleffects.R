@@ -395,8 +395,10 @@ get_predict.bartisan_fit <- function(model, newdata = NULL, type = NULL, ...) {
       group = rep(levs, each = nrow(estimate)),
       estimate = as.vector(estimate))
 
-    flat <- do.call(cbind, lapply(seq_len(dim(draws)[3L]),
-                                  function(k) draws[, , k]))
+    flat <- lapply(seq_len(dim(draws)[3L]),
+                   function(k) draws[, , k]) |>
+      do_cbind()
+
     attr(out, "posterior_draws") <- t(flat)
 
     return(out)

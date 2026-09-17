@@ -722,7 +722,7 @@ effect_marginal <- function(po, pairs, comparison, level, interval, keep,
 
   names(draws) <- keys
 
-  out <- do.call(rbind, rows) |>
+  out <- do_rbind(rows) |>
     unrowname()
 
   attr(out, "draws") <- draws
@@ -755,7 +755,7 @@ effect_cate <- function(po, pairs, comparison, level, interval, keep, newdata) {
   names(draws) <- vapply(pairs, contrast_label, character(1L),
                          comparison = comparison)
 
-  out <- do.call(rbind, rows) |>
+  out <- do_rbind(rows) |>
     unrowname()
 
   attr(out, "draws") <- draws
@@ -766,7 +766,7 @@ effect_cate <- function(po, pairs, comparison, level, interval, keep, newdata) {
 # the difference: a few hundred dollars means one thing against a baseline of
 # six thousand and another against six hundred.
 effect_po_summary <- function(po, keep, level, interval) {
-  rows <- lapply(names(po), function(nm) {
+  lapply(names(po), function(nm) {
     s <- po[[nm]][, keep, drop = FALSE] |>
       rowMeans() |>
       effect_summary(level, interval)
@@ -776,9 +776,8 @@ effect_po_summary <- function(po, keep, level, interval) {
                lower = s[["lower"]],
                upper = s[["upper"]],
                stringsAsFactors = FALSE)
-  })
-
-  do.call(rbind, rows) |>
+  }) |>
+    do_rbind() |>
     unrowname()
 }
 
@@ -943,13 +942,14 @@ effect_display <- function(x, contrasts, focal) {
 # The quartiles of the per-unit estimates, which say how much the effect varies
 # rather than how well any one unit is estimated.
 cate_spread <- function(show) {
-  do.call(rbind, lapply(split(show, show[["contrast"]]), function(z) {
+  lapply(split(show, show[["contrast"]]), function(z) {
     q <- stats::quantile(z[["estimate"]], c(0, 0.25, 0.5, 0.75, 1),
                          names = FALSE)
     data.frame(contrast = z[["contrast"]][1L], units = nrow(z), min = q[1L],
                q25 = q[2L], median = q[3L], q75 = q[4L], max = q[5L],
                stringsAsFactors = FALSE)
-  })) |>
+  }) |>
+    do_rbind() |>
     unrowname()
 }
 
@@ -1003,11 +1003,12 @@ effect_forest_units <- function(x, ylab, null_at) {
   d <- as.data.frame(x)
   marg <- attr(x, "marginal")
 
-  d <- do.call(rbind, lapply(split(d, d[["contrast"]]), function(z) {
+  d <- lapply(split(d, d[["contrast"]]), function(z) {
     z <- z[order(z[["estimate"]]), , drop = FALSE]
     z[["rank"]] <- seq_len(nrow(z))
     z
-  })) |>
+  }) |>
+    do_rbind() |>
     unrowname()
 
   n <- max(d[["rank"]])
@@ -1091,9 +1092,10 @@ effect_forest_groups <- function(x, by, ylab, null_at) {
 effect_density <- function(x, ylab, null_at) {
   draws <- attr(x, "draws")
 
-  d <- do.call(rbind, lapply(names(draws), function(nm) {
+  d <- lapply(names(draws), function(nm) {
     data.frame(contrast = nm, value = draws[[nm]], stringsAsFactors = FALSE)
-  }))
+  }) |>
+    do_rbind()
 
   bands <- as.data.frame(x)
   bands[["contrast"]] <- {

@@ -782,16 +782,28 @@ per_forest_vector <- function(value, labels, arg, default, joint = FALSE) {
   unlist(out, use.names = FALSE)
 }
 
-# One named field from every element of a list, as a vector of a known type.
-#
-# Replaces a bare `vapply()` over the extraction operator, which had drifted
-# into two spellings, one of them wrapping an anonymous function around what the
-# operator already does. `type` is the prototype `vapply()` checks each field
-# against, so a field that is missing or of the wrong type is an error here
-# rather than a surprise downstream. Where the fields are not all one type, or
-# are not scalars, `lapply()` over the operator is still the way.
-pluck <- function(x, field, type = character(1L)) {
-  vapply(x, `[[`, type, field)
+# One named field from every element of a list. When `type = NULL`, `lapply()`
+# is used. Otherwise `vapply()` is.
+pluck <- function(x, field, type = NULL) {
+  if (is_null(type)) {
+    lapply(x, `[[`, field)
+  }
+  else {
+    vapply(x, `[[`, type, field)
+  }
+}
+
+do_rbind <- function(x) {
+  do.call("rbind", x)
+}
+
+do_cbind <- function(x) {
+  do.call("cbind", x)
+}
+
+setColnames <- function(object, nm) {
+  colnames(object) <- nm
+  object
 }
 
 post_summary <- function(x, level = 0.95) {

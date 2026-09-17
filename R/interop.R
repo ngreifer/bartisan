@@ -762,7 +762,7 @@ random_prior <- function(object, prior) {
     return(NULL)
   }
 
-  list(terms = pluck(random, "label"),
+  list(terms = pluck(random, "label", character(1L)),
        levels = pluck(random, "num_levels", integer(1L)),
        scale = prior[["sigma_mu"]][[1L]],
        estimated = isTRUE(prior[["update_tau"]]))
@@ -880,7 +880,7 @@ family_prior <- function(object) {
     return(NULL)
   }
 
-  do.call(rbind, rows)
+  do_rbind(rows)
 }
 
 # Whether a setting was drawn, said in a way that survives a fit whose forests
@@ -1217,7 +1217,7 @@ kfold.bartisan_fit <- function(x, K = 10, folds = NULL, scale = NULL,
   }
 
   kfold_object(elpd, lpd, folds, K, nrow(x[["sigma_mu"]]),
-               if (save_fits) lapply(done, `[[`, "fit"))
+               if (save_fits) pluck(done, "fit"))
 }
 
 # The data the fit was made from, recovered the way `stats::update()` recovers

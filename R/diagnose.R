@@ -343,7 +343,7 @@ diagnose.bartisan_effect <- function(object, rhat_max = 1.01, ess_min = 400,
     }))
   }
 
-  table <- unrowname(do.call(rbind, rows))
+  table <- unrowname(do_rbind(rows))
   checks <- diagnosis_checks(table, chains, n_draws, rhat_max, ess_min)
   advice <- diagnosis_advice(checks, attr(object, "control"))
 
@@ -458,7 +458,8 @@ diagnosis_table <- function(object, chains, rhat_max, budget = NULL) {
 
   rows <- c(rows, diagnosis_worst_rows(object, chains, rhat_max, budget))
 
-  do.call(rbind, rows) |>
+  rows |>
+    do_rbind() |>
     unrowname()
 }
 
@@ -593,7 +594,7 @@ diagnosis_columns <- function(wide, chains, budget) {
     function(part) diagnosis_block(part[["draws"]], chains, part[["step"]]),
     future.packages = "bartisan", future.seed = FALSE)
 
-  do.call(cbind, blocks)
+  do_cbind(blocks)
 }
 
 diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
@@ -602,7 +603,7 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
 
   # Two rows per forest, an average and a worst, over however many forests each
   # part has. A part with nothing in it contributes none.
-  out <- vector("list", 2L * sum(lengths(lapply(parts, `[[`, "draws"))))
+  out <- vector("list", 2L * sum(lengths(pluck(parts, "draws"))))
   at <- 0L
 
   budget <- budget %or% function(n) function() invisible(NULL)
@@ -891,7 +892,8 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
                         lo_frac[["quantity"]], 100 * lo_frac[["value"]]))
   }
 
-  do.call(rbind, rows) |>
+  rows |>
+    do_rbind() |>
     unrowname()
 }
 

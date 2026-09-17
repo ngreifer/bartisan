@@ -3,6 +3,15 @@ test_that("bartisan_control validates its arguments", {
 
   expect_error(bartisan_control(num_trees = 0), "must be")
   expect_error(bartisan_control(num_trees = 2.5), "whole")
+
+  # `num_trees` takes a number rather than deriving one, so there is nothing for
+  # `NULL` to mean and it is refused along with the zero-length vector that the
+  # package counts as the same thing.
+  expect_identical(bartisan_control()[["num_trees"]], 50L)
+  expect_error(bartisan_control(num_trees = NULL), "non-NULL")
+  expect_error(bartisan_control(num_trees = integer(0)), "non-NULL")
+  expect_error(bartisan_control(num_trees = NA_integer_), "NA")
+  expect_error(bartisan_control(num_trees = c(10L, NA_integer_)), "NA")
   expect_error(bartisan_control(gate = "yes"), "should be one of")
   expect_error(bartisan_control(sparsity = "yes"), "should be one of")
 

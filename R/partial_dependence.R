@@ -158,7 +158,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 51L,
     })
   }
 
-  out <- cbind(combos, do.call(rbind, rows)) |>
+  out <- cbind(combos, do_rbind(rows)) |>
     unrowname()
 
   attr(out, "variables") <- vars

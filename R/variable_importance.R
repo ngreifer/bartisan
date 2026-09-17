@@ -208,7 +208,7 @@ variable_importance <- function(object, level = 0.95, draws = FALSE,
                row.names = NULL)
   })
 
-  out <- do.call(rbind, rows)
+  out <- do_rbind(rows)
 
   # One forest needs no column saying which forest.
   if (length(counts) == 1L) {

@@ -141,9 +141,9 @@ ranef_summary <- function(object, level) {
     }
   }
 
-  names(rows) <- labels
-
-  do.call(rbind, rows)
+  rows |>
+    setNames(labels) |>
+    do_rbind()
 }
 
 # A family built by custom_family() reports the name the caller gave it, since
@@ -193,10 +193,7 @@ summary.bartisan_fit <- function(object, level = 0.95, ...) {
     out[order(out[, "prop_used"], decreasing = TRUE), , drop = FALSE]
   })
 
-  aux <- {
-    if (is_null(object[["aux"]])) NULL
-    else t(apply(object[["aux"]], 2L, post_summary, level = level))
-  }
+  aux <- if (!is_null(object[["aux"]])) t(apply(object[["aux"]], 2L, post_summary, level = level))
 
   out <- list(call = object[["call"]],
               family = object[["family"]],
@@ -476,10 +473,7 @@ ranef.bartisan_fit <- function(object, draws = FALSE, ...) {
     columns <- lapply(stored, function(m) m[, want, drop = FALSE])
 
     if (draws) {
-      columns <- lapply(columns, function(m) {
-        colnames(m) <- term[["levels"]]
-        m
-      })
+      columns <- lapply(columns, setColnames, term[["levels"]])
 
       return(setNames(columns, labels))
     }
@@ -489,5 +483,5 @@ ranef.bartisan_fit <- function(object, draws = FALSE, ...) {
     data.frame(means, row.names = term[["levels"]], check.names = FALSE) |>
       setNames(labels)
   }) |>
-    setNames(pluck(random, "label"))
+    setNames(pluck(random, "label", character(1L)))
 }

@@ -317,7 +317,7 @@ split_vc_terms <- function(formula, unique_covariates = TRUE) {
          center = center)
   })
 
-  names(specs) <- pluck(specs, "covariate")
+  names(specs) <- pluck(specs, "covariate", character(1L))
 
   duplicated_at <- duplicated(names(specs))
 
@@ -422,7 +422,7 @@ vc_modifiers <- function(specs, groups, dot, categorical, where = NULL) {
   # since an interpolated value is inserted rather than parsed.
   which <- sprintf("the %s formula", where %or% "model")
 
-  covariates <- pluck(specs, "covariate")
+  covariates <- pluck(specs, "covariate", character(1L))
   present <- intersect(covariates, groups)
 
   control <- setdiff(groups, present)
@@ -508,7 +508,7 @@ vc_basis <- function(specs, mf) {
     vc_basis_numeric(x, spec)
   })
 
-  list(columns = do.call(cbind, lapply(out, `[[`, "columns")),
+  list(columns = do_cbind(pluck(out, "columns")),
        parts = out)
 }
 
@@ -649,8 +649,8 @@ vc_basis_factor <- function(x, spec) {
   # Mean-centered, which puts the control function at the average composition of
   # the levels. Reporting against a particular level is exact from these draws.
   shares <- colMeans(indicators, na.rm = TRUE)
-  columns <- sweep(indicators, 2L, shares, "-")
-  colnames(columns) <- sprintf("%s%s", spec[["covariate"]], levels)
+  columns <- sweep(indicators, 2L, shares, "-") |>
+    setColnames(sprintf("%s%s", spec[["covariate"]], levels))
 
   list(columns = columns, center = center, levels = levels, shares = shares,
        kind = "factor", scale = rep.int(1, length(levels)))
@@ -758,7 +758,7 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
 
   missing_from_frame <- setdiff(
     unlist(lapply(forest_vc, function(f) {
-      pluck(f[["specs"]], "covariate")
+      pluck(f[["specs"]], "covariate", character(1L))
     }), use.names = FALSE),
     names(mf))
 
@@ -801,7 +801,7 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
     categorical <- vapply(basis[["parts"]],
                           function(p) identical(p[["kind"]], "factor"),
                           logical(1L))
-    names(categorical) <- pluck(specs, "covariate")
+    names(categorical) <- pluck(specs, "covariate", character(1L))
 
     modifiers <- vc_modifiers(specs, allowed, forest_vc[[h]][["dot"]],
                               categorical, labels[h])
@@ -826,7 +826,7 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
 
   n_slope <- vapply(per, function(p) ncol(p[["columns"]]) %or% 0L, integer(1L))
 
-  masks <- cbind(do.call(cbind, lapply(per, `[[`, "masks")),
+  masks <- cbind(do_cbind(pluck(per, "masks")),
                  matrix(TRUE, nrow = length(groups), ncol = n_aux))
   rownames(masks) <- groups
 
@@ -851,9 +851,9 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
     at <- at + n_slope[h]
   }
 
-  list(specs = unlist(lapply(per, `[[`, "specs"), recursive = FALSE),
-       basis = do.call(cbind, lapply(per, `[[`, "columns")),
-       parts = unlist(lapply(per, `[[`, "parts"), recursive = FALSE),
+  list(specs = unlist(pluck(per, "specs"), recursive = FALSE),
+       basis = do_cbind(pluck(per, "columns")),
+       parts = unlist(pluck(per, "parts"), recursive = FALSE),
        slopes = sum(n_slope), n_slope = n_slope,
        param = c(param, aux), column = c(column, integer(n_aux)),
        masks = masks, pinned = pinned, groups = groups)
@@ -873,7 +873,7 @@ vc_newdata_basis <- function(object, newdata) {
     return(vc[["basis"]])
   }
 
-  columns <- lapply(seq_along(vc[["specs"]]), function(j) {
+  lapply(seq_along(vc[["specs"]]), function(j) {
     spec <- vc[["specs"]][[j]]
     part <- vc[["parts"]][[j]]
     name <- spec[["covariate"]]
@@ -910,11 +910,9 @@ vc_newdata_basis <- function(object, newdata) {
     }
 
     matrix(as.numeric(x) - part[["center"]], ncol = 1L)
-  })
-
-  out <- do.call(cbind, columns)
-  colnames(out) <- colnames(vc[["basis"]])
-  out
+  }) |>
+    do_cbind() |>
+    setColnames(colnames(vc[["basis"]]))
 }
 
 # A factor's coefficients, recentered to sum to zero across its levels.

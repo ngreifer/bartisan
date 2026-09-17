@@ -51,6 +51,7 @@ Suggests:
     MASS,
     marginaleffects,
     nlme,
+    lme4,
     performance,
     posterior,
     progressr,

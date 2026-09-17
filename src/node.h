@@ -341,30 +341,30 @@ inline double left_prob(double x, double val, double bandwidth, bool soft,
     return x <= val ? 1.0 : 0.0;
   }
 
-  if (gate != GATE_LOGISTIC) {
-    double half = bandwidth;
-
-    half *= gate == GATE_SMOOTHSTEP ? SMOOTHSTEP_HALF_WIDTH
-                                    : SMOOTHERSTEP_HALF_WIDTH;
-
-    double t = 0.5 + 0.5 * (val - x) / half;
-
-    if (t <= 0.0) {
-      return 0.0;
-    }
-
-    if (t >= 1.0) {
-      return 1.0;
-    }
-
-    if (gate == GATE_SMOOTHSTEP) {
-      return t * t * (3.0 - 2.0 * t);
-    }
-
-    return t * t * t * (10.0 + t * (6.0 * t - 15.0));
+  if (gate == GATE_LOGISTIC) {
+    return expit((val - x) / bandwidth);
   }
 
-  return expit((val - x) / bandwidth);
+  double half = bandwidth;
+
+  half *= gate == GATE_SMOOTHSTEP ? SMOOTHSTEP_HALF_WIDTH
+                                  : SMOOTHERSTEP_HALF_WIDTH;
+
+  double t = 0.5 + 0.5 * (val - x) / half;
+
+  if (t <= 0.0) {
+    return 0.0;
+  }
+
+  if (t >= 1.0) {
+    return 1.0;
+  }
+
+  if (gate == GATE_SMOOTHSTEP) {
+    return t * t * (3.0 - 2.0 * t);
+  }
+
+  return t * t * t * (10.0 + t * (6.0 * t - 15.0));
 }
 
 // Recompute every node's support below this one, for use after the bandwidth
