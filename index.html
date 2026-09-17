@@ -70,8 +70,10 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p><em>bartisan</em> fits Bayesian additive regression trees (BART) for responses that standard BART cannot reach, using the Laplace-approximation reversible-jump sampler of Linero (2025), which lifts the requirement that the leaf parameters be integrable in closed form. The primary function is <code><a href="reference/bartisan.html">bartisan()</a></code>, and a model is specified the way it is in <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>: a formula, a data frame, and a family, with a forest in place of the linear predictor, so nothing has to be said about which terms are curved or which interact. The <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> objects <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> takes are accepted unchanged, links included. The families that have no <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> counterpart are supplied in the same style: negative binomial, ordinal, multinomial, beta and ordered beta, zero-inflated counts, a Tweedie compound Poisson, accelerated failure time and proportional hazards models for right-censored times, location-scale regression, a Dirichlet process mixture for the error distribution, and a log density written as an R function. Decision rules are soft by default, in the manner of Linero and Yang (2018), which gives smoother fits than the step functions of standard BART, and <code>gate = "hard"</code> gives those back. Treatment effects come from <code><a href="reference/estimate_effect.html">estimate_effect()</a></code>, and a fit is otherwise read through the packages that already do that work: <a href="https://CRAN.R-project.org/package=marginaleffects" class="external-link"><em>marginaleffects</em></a> for the wider range of counterfactual estimands, <a href="https://CRAN.R-project.org/package=loo" class="external-link"><em>loo</em></a> for model comparison, <a href="https://CRAN.R-project.org/package=bayesplot" class="external-link"><em>bayesplot</em></a> and <a href="https://CRAN.R-project.org/package=posterior" class="external-link"><em>posterior</em></a> for convergence diagnostics, and <a href="https://CRAN.R-project.org/package=performance" class="external-link"><em>performance</em></a> for fit statistics.</p>
-<p>Check out the <em>bartisan</em> <a href="https://ngreifer.github.io/bartisan/">website</a>!</p>
+<p>Bayesian additive regression trees (BART) estimate a regression function as a sum of small trees, so nonlinearity and interactions are found rather than specified. <em>bartisan</em> does that for response distributions that standard BART cannot reach, using the Laplace-approximation reversible-jump sampler of Linero (2025), which relaxes the requirement that the leaf parameters be integrable in closed form.</p>
+<p>A model is written the way it is in <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, with a formula, a data frame, and a family, and the <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> objects <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> takes are accepted unchanged. Beyond them come the families that have no <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> counterpart: negative binomial, ordinal, multinomial, beta and ordered beta, zero-inflated counts, a Tweedie compound Poisson, accelerated failure time and proportional hazards models for right-censored times, location-scale regression, a Dirichlet process mixture for the error distribution, and a log density written as an R function. Decision rules are smooth by default, in the manner of Linero and Yang (2018), which fits a smoother function than the step functions of standard BART.</p>
+<p><em>bartisan</em> supports varying-coefficient models, where the effect of a predictor receives its own forest, a special case of which is the Bayesian causal forest (BCF) model for estimating treatment effects. Along with this is an interface for estimating average treatment effects from BART and BCF models. In addition, <em>bartisan</em> supports random intercepts BART models.</p>
+<p>Integration is provided with the <a href="https://CRAN.R-project.org/package=future" class="external-link"><em>future</em></a> and <a href="https://CRAN.R-project.org/package=progressr" class="external-link"><em>progressr</em></a> packages for parallel processing and progress bars.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -80,50 +82,40 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"ngreifer/bartisan"</span><span class="op">)</span></span></code></pre></div>
-<p>Installation compiles C++, so it requires a C++17 toolchain along with <em>Rcpp</em> and <em>RcppArmadillo</em>.</p>
+<p>Installation compiles C++, so it needs a C++17 toolchain.</p>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
-<div class="section level3">
-<h3 id="right-heart-catheterization-in-critically-ill-patients">Right heart catheterization in critically ill patients<a class="anchor" aria-label="anchor" href="#right-heart-catheterization-in-critically-ill-patients"></a>
-</h3>
-<p><code>rhc</code> holds 1500 patients from the SUPPORT study, with an indicator for whether each was given right heart catheterization within 24 hours of admission to an intensive care unit, whether they died during follow-up, and how long that took (Connors et al., 1996). Thirteen covariates recorded before the catheter went in come with them, and <code><a href="reference/rhc.html">?rhc</a></code> lists them. Catheterization was not randomized, so sicker patients were likelier to receive it, and those covariates are what adjustment has to work with. Nothing in the model supplies the assumption that they suffice; what it supplies is a flexible estimate of the outcome under each treatment given the covariates, which is what g-computation then averages.</p>
+<p><code>rhc</code> holds 1500 critically ill patients from the SUPPORT study, recording whether each was given right heart catheterization on admission to intensive care, whether they died during follow-up, and thirteen covariates measured beforehand (Connors et al., 1996). Fitting a model to it takes one call, and the family is the one <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> would be given:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Death as the outcome, with every variable but the timing of the same event</span></span>
-<span><span class="co"># as a candidate predictor. The family is the one `glm()` would be given</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
-<span>                family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="st">"probit"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> </span>
+<span>                  <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span>
+<span>                data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; Generalized BART</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; bartisan(formula = death ~ . - days, data = rhc, family = binomial("probit"))</span></span>
+<span><span class="co">#&gt; bartisan(formula = death ~ rhc + age + sex + race + edu + pafi + </span></span>
+<span><span class="co">#&gt;     paco2 + crea + surv2m + card, data = rhc, family = binomial())</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: "binomial" with the "probit" link</span></span>
+<span><span class="co">#&gt; Family: "binomial" with the "logit" link</span></span>
 <span><span class="co">#&gt; Observations: 1500</span></span>
 <span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 800 kept after 200 warmup</span></span></code></pre></div>
-<p>The forest finds its own interactions and nonlinearity, so what it reports in place of a coefficient table is how it spent its splitting rules:</p>
+<p>Nothing had to be said about which predictors matter, which are curved, or which interact. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> shows what the model made of one of them, here the study’s own estimate of each patient’s chance of surviving two months:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>, <span class="fl">5</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Variable importance</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;    surv2m     1.000       0.318   23.9</span></span>
-<span><span class="co">#&gt;       age     1.000       0.147   11.0</span></span>
-<span><span class="co">#&gt;      pafi     1.000       0.099    7.5</span></span>
-<span><span class="co">#&gt;     paco2     0.954       0.108    8.1</span></span>
-<span><span class="co">#&gt;       rhc     0.945       0.062    4.7</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ℹ splits_lower and splits_upper hold the 95% interval, not shown above.</span></span></code></pre></div>
-<p>Having no coefficients also means the effect of catheterization is a contrast between what the model predicts with <code>rhc</code> set to one and with it set to zero, averaged over the covariate distribution in the sample. That is g-computation, and every posterior draw goes through it, so the interval is a credible interval rather than a delta-method approximation:</p>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Estimated probability of surviving two months"</span>,</span>
+<span>                y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="reference/figures/README-pdp-1.png" alt="Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .48, inside a credible band that widens at both ends." width="90%" style="display: block; margin: auto;"></p>
+<p>A forest has no coefficients, so an effect is a contrast between what the model predicts under one value of a predictor and under another, averaged over the sample. Every posterior draw goes through that contrast, so what comes back is a credible interval rather than a standard error:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Average treatment effect (difference)</span></span>
@@ -132,48 +124,77 @@
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     contrast estimate lower upper    n</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0]   0.0562     0 0.105 1500</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0]   0.0568     0 0.107 1500</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Average potential outcomes</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
-<span><span class="co">#&gt;      Y[0]    0.634 0.603 0.665</span></span>
-<span><span class="co">#&gt;      Y[1]    0.690 0.652 0.726</span></span>
+<span><span class="co">#&gt;      Y[0]    0.633 0.605 0.664</span></span>
+<span><span class="co">#&gt;      Y[1]    0.690 0.649 0.725</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed</span></span>
 <span><span class="co">#&gt;   credible interval.</span></span>
 <span><span class="co">#&gt; ℹ Y[a] is the average response with "rhc" set to a.</span></span></code></pre></div>
-<p>The same event is also a right-censored survival time, and asking for it that way changes the left-hand side of the formula and the family and nothing else. Here the contrast is a ratio, so the estimate is the factor by which catheterization multiplies expected survival:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sfit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">days</span>, <span class="va">death</span><span class="op">)</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
-<span>                 family <span class="op">=</span> <span class="fu"><a href="reference/bartisan-families.html">lognormal_aft</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">sfit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span>, comparison <span class="op">=</span> <span class="st">"ratio"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Average treatment effect (ratio)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Treatment: "rhc"</span></span>
-<span><span class="co">#&gt; Averaged over 1500 units</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     contrast estimate lower upper    n</span></span>
-<span><span class="co">#&gt;  Y[1] / Y[0]    0.595  0.43 0.806 1500</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Average potential outcomes</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  quantity estimate lower upper</span></span>
-<span><span class="co">#&gt;      Y[0]      248   201   308</span></span>
-<span><span class="co">#&gt;      Y[1]      146   113   189</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed</span></span>
-<span><span class="co">#&gt;   credible interval.</span></span>
-<span><span class="co">#&gt; ℹ Y[a] is the average response with "rhc" set to a.</span></span></code></pre></div>
-<p><code><a href="articles/bartisan.html">vignette("bartisan")</a></code> works through a complete analysis, from fitting to convergence checks to the estimates, and the other vignettes take those pieces one at a time. <code><a href="articles/implementation.html">vignette("implementation")</a></code> sets out how the sampler works and compares the package’s features against <em>dbarts</em>, <em>BART</em>, <em>flexBART</em>, <em>SoftBart</em>, <em>bartMachine</em>, and <em>stochtree</em>.</p>
 </div>
+<div class="section level2">
+<h2 id="learning-more">Learning More<a class="anchor" aria-label="anchor" href="#learning-more"></a>
+</h2>
+<p><code><a href="articles/bartisan.html">vignette("bartisan")</a></code> is the place to start. It carries one analysis from the formula through to the estimates, and each of its sections points at the guide that takes that step further:</p>
+<table class="table">
+<colgroup>
+<col width="60%">
+<col width="39%">
+</colgroup>
+<thead><tr>
+<th>Topic</th>
+<th>Vignette</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Choosing a response family</td>
+<td><code><a href="articles/families.html">vignette("families")</a></code></td>
+</tr>
+<tr>
+<td>Censored and survival outcomes</td>
+<td><code><a href="articles/survival.html">vignette("survival")</a></code></td>
+</tr>
+<tr>
+<td>Effects, curves, and interactions</td>
+<td><code><a href="articles/effects.html">vignette("effects")</a></code></td>
+</tr>
+<tr>
+<td>Which predictors the model uses</td>
+<td><code><a href="articles/importance.html">vignette("importance")</a></code></td>
+</tr>
+<tr>
+<td>Convergence and model fit</td>
+<td><code><a href="articles/diagnostics.html">vignette("diagnostics")</a></code></td>
+</tr>
+<tr>
+<td>Comparing and selecting models</td>
+<td><code><a href="articles/comparison.html">vignette("comparison")</a></code></td>
+</tr>
+<tr>
+<td>Causal inference and Bayesian causal forests</td>
+<td><code><a href="articles/causal.html">vignette("causal")</a></code></td>
+</tr>
+<tr>
+<td>What the model is and how it is fitted</td>
+<td><code><a href="articles/implementation.html">vignette("implementation")</a></code></td>
+</tr>
+<tr>
+<td>Short answers to common questions</td>
+<td><code><a href="articles/faq.html">vignette("faq")</a></code></td>
+</tr>
+</tbody>
+</table>
+<p>A fitted model also works with the packages that already read Bayesian fits: <a href="https://CRAN.R-project.org/package=marginaleffects" class="external-link"><em>marginaleffects</em></a> for a wider range of estimands, <a href="https://CRAN.R-project.org/package=loo" class="external-link"><em>loo</em></a> for model comparison, <a href="https://CRAN.R-project.org/package=bayesplot" class="external-link"><em>bayesplot</em></a> and <a href="https://CRAN.R-project.org/package=posterior" class="external-link"><em>posterior</em></a> for the draws themselves, and <a href="https://CRAN.R-project.org/package=performance" class="external-link"><em>performance</em></a> for fit statistics. Load one and call its functions on the fit; there is nothing to set up.</p>
 </div>
 <div class="section level2">
 <h2 id="citing-bartisan">Citing <em>bartisan</em>
 <a class="anchor" aria-label="anchor" href="#citing-bartisan"></a>
 </h2>
-<p><em>bartisan</em> implements the sampler of Linero (2025), and its MCMC engine is adapted from that paper’s <code>FlexBart</code> reference implementation. Please cite both the method and the package, the latter with the version number, which <code>citation("bartisan")</code> supplies:</p>
+<p><em>bartisan</em> implements the sampler of Linero (2025), and its MCMC engine is adapted from that paper’s <code>FlexBart</code> reference implementation. Please cite the method and the package both, the latter with its version number, which <code>citation("bartisan")</code> supplies:</p>
 <p>Linero, A. R. (2025). Generalized Bayesian additive regression trees models: beyond conditional conjugacy. <em>Journal of the American Statistical Association</em>, 120(549), 356–369. <a href="https://doi.org/10.1080/01621459.2024.2337156" class="external-link uri">https://doi.org/10.1080/01621459.2024.2337156</a></p>
 <p>Linero, A. R., &amp; Yang, Y. (2018). Bayesian regression tree ensembles that adapt to smoothness and sparsity. <em>Journal of the Royal Statistical Society Series B</em>, 80(5), 1087–1110. <a href="https://doi.org/10.1111/rssb.12293" class="external-link uri">https://doi.org/10.1111/rssb.12293</a></p>
 </div>

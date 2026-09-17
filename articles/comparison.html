@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-16</h4>
+            <h4 data-toc-skip class="date">2026-09-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/comparison.Rmd" class="external-link"><code>vignettes/comparison.Rmd</code></a></small>
       <div class="d-none name"><code>comparison.Rmd</code></div>
@@ -134,11 +134,11 @@ comparisons.</p>
 <span><span class="co">#&gt; Computed from 800 by 1500 log-likelihood matrix.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;          Estimate   SE</span></span>
-<span><span class="co">#&gt; elpd_loo   -847.8 17.3</span></span>
-<span><span class="co">#&gt; p_loo        32.9  0.9</span></span>
-<span><span class="co">#&gt; looic      1695.5 34.6</span></span>
+<span><span class="co">#&gt; elpd_loo   -848.3 17.4</span></span>
+<span><span class="co">#&gt; p_loo        32.2  0.9</span></span>
+<span><span class="co">#&gt; looic      1696.7 34.7</span></span>
 <span><span class="co">#&gt; ------</span></span>
-<span><span class="co">#&gt; MCSE of elpd_loo is 0.7.</span></span>
+<span><span class="co">#&gt; MCSE of elpd_loo is 0.9.</span></span>
 <span><span class="co">#&gt; MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.4]).</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.66).</span></span>
@@ -185,7 +185,7 @@ not shown.</p>
 <span><span class="va">score</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_train</span>, newdata <span class="op">=</span> <span class="va">held</span>, type <span class="op">=</span> <span class="st">"density"</span>, log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">score</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] -172.6</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] -171.9</span></span></code></pre></div>
 <p><code>type = "density"</code> evaluates the outcome under each
 posterior draw and averages over the draws before taking the log, which
 is the same form as one pointwise <code>elpd_loo</code> contribution.
@@ -197,8 +197,8 @@ do not make obvious:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>loo     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>total <span class="op">=</span> <span class="va">elpd_total</span>, n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>,     per_obs <span class="op">=</span> <span class="va">elpd_total</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>      heldout <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>total <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">score</span><span class="op">)</span>, n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">score</span><span class="op">)</span>, per_obs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">score</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          total    n per_obs</span></span>
-<span><span class="co">#&gt; loo     -847.8 1500 -0.5652</span></span>
-<span><span class="co">#&gt; heldout -172.6  300 -0.5753</span></span></code></pre></div>
+<span><span class="co">#&gt; loo     -848.3 1500 -0.5656</span></span>
+<span><span class="co">#&gt; heldout -171.9  300 -0.5730</span></span></code></pre></div>
 <p>The totals differ by a factor of five because they sum different
 numbers of terms: <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> scores every observation and the
 split scores only the ones held out. It is in the per-observation column
@@ -228,7 +228,7 @@ compare to our full model.</p>
 <span>                 demographics <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">demographics</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
-<span><span class="co">#&gt;  demographics     -69.4    11.1    1.00</span></span></code></pre></div>
+<span><span class="co">#&gt;  demographics     -68.1    11.1    1.00</span></span></code></pre></div>
 <p>The full model predicts better by around six times the standard error
 of the difference. The standard error is the important half: a
 difference of many standard errors is clear, and a difference smaller
@@ -295,7 +295,7 @@ them saw:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean_diff <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>, se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  ratio <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">/</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; mean_diff        se     ratio </span></span>
-<span><span class="co">#&gt;   0.03691   0.01645   2.24372</span></span></code></pre></div>
+<span><span class="co">#&gt;   0.03927   0.01604   2.44809</span></span></code></pre></div>
 <p>That is <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare()</a></code>’s arithmetic done by hand and
 quoted per observation: the average difference in log score, its
 standard error, and the ratio that decides whether to believe it. The
@@ -323,9 +323,9 @@ model that never saw it, holds every observation out exactly once.
 <span><span class="co">#&gt; Based on 5-fold cross-validation.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;            Estimate   SE</span></span>
-<span><span class="co">#&gt; elpd_kfold   -843.7 17.2</span></span>
-<span><span class="co">#&gt; p_kfold        28.9  2.3</span></span>
-<span><span class="co">#&gt; kfoldic      1687.5 34.3</span></span></code></pre></div>
+<span><span class="co">#&gt; elpd_kfold   -845.3 17.2</span></span>
+<span><span class="co">#&gt; p_kfold        29.2  2.2</span></span>
+<span><span class="co">#&gt; kfoldic      1690.6 34.4</span></span></code></pre></div>
 <p><code>elpd_kfold</code> is the held-out log score, summed over every
 observation, and it owes nothing to an importance-sampling
 approximation: the model really was refitted without each fold.
@@ -341,7 +341,7 @@ scored on the same split, which is what makes the two comparable:</p>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="va">kfold_full</span>, demographics <span class="op">=</span> <span class="va">kfold_demographics</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
-<span><span class="co">#&gt;  demographics     -72.2    11.1    1.00</span></span></code></pre></div>
+<span><span class="co">#&gt;  demographics     -70.3    11.1    1.00</span></span></code></pre></div>
 <p>The same reading as before, and at the same precision as the
 leave-one-out comparison rather than the single split’s: every
 observation is scored, so nothing is thrown away.</p>
@@ -352,7 +352,7 @@ thing:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>kfold <span class="op">=</span> <span class="va">kfold_full</span><span class="op">$</span><span class="va">estimates</span><span class="op">[</span><span class="st">"elpd_kfold"</span>, <span class="st">"Estimate"</span><span class="op">]</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>,</span>
 <span>  loo <span class="op">=</span> <span class="va">elpd_total</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   kfold     loo </span></span>
-<span><span class="co">#&gt; -0.5625 -0.5652</span></span></code></pre></div>
+<span><span class="co">#&gt; -0.5635 -0.5656</span></span></code></pre></div>
 <p>They agree, which is what a clean Pareto <span class="math inline">\(k\)</span> column was saying in less direct form.
 That is the division of labor between the three routes:
 <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> for one fit and a diagnostic, <span class="math inline">\(K\)</span>-fold for <span class="math inline">\(K\)</span> fits and no approximation, and a single
@@ -387,9 +387,9 @@ model.</p>
 <span>                 probit <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">probit</span><span class="op">)</span>,</span>
 <span>                 cloglog <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">cloglog</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
-<span><span class="co">#&gt;  cloglog       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;   probit      -0.3     1.8    0.57 |elpd_diff| &lt; 4          </span></span>
-<span><span class="co">#&gt;    logit      -1.5     2.1    0.77 |elpd_diff| &lt; 4</span></span></code></pre></div>
+<span><span class="co">#&gt;    logit       0.0     0.0      NA                          </span></span>
+<span><span class="co">#&gt;   probit      -0.1     1.2    0.53 |elpd_diff| &lt; 4          </span></span>
+<span><span class="co">#&gt;  cloglog      -1.7     1.9    0.82 |elpd_diff| &lt; 4</span></span></code></pre></div>
 <p>The three are within a point or two of each other, and the
 differences are smaller than their standard errors, which <em>loo</em>
 flags directly. The reading is that the link does not matter here.</p>
@@ -427,8 +427,8 @@ come out:</p>
 <span></span>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span><span class="op">)</span>, ph <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
-<span><span class="co">#&gt;    aft       0.0     0.0      NA           2 k_psis &gt; 0.66</span></span>
-<span><span class="co">#&gt;     ph   -3390.9    90.8    1.00</span></span></code></pre></div>
+<span><span class="co">#&gt;    aft       0.0     0.0      NA                          </span></span>
+<span><span class="co">#&gt;     ph   -3375.9    91.0    1.00           1 k_psis &gt; 0.66</span></span></code></pre></div>
 <p>The accelerated failure time model appears to win by thousands of
 points, which is implausible on its face: no choice of baseline hazard
 is worth that much. What the comparison is measuring is the change of
@@ -448,8 +448,8 @@ the scale named is returned untouched:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span>,</span>
 <span>                 ph <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
-<span><span class="co">#&gt;     ph       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;    aft    -131.0    14.9    1.00           2 k_psis &gt; 0.66</span></span></code></pre></div>
+<span><span class="co">#&gt;     ph       0.0     0.0      NA           1 k_psis &gt; 0.66</span></span>
+<span><span class="co">#&gt;    aft    -146.1    15.0    1.00</span></span></code></pre></div>
 <p>The ordering reverses. Read on the scale they share, the two are a
 hundred-odd points apart rather than three thousand, and it is the
 proportional hazards model that predicts these times better.</p>
@@ -467,7 +467,7 @@ was:</p>
 <span>  on_log_time <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/elpd.html" class="external-link">elpd</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span>, scale <span class="op">=</span> <span class="st">"log_time"</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span></span>
 <span>    <span class="fu"><a href="https://mc-stan.org/loo/reference/elpd.html" class="external-link">elpd</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>, scale <span class="op">=</span> <span class="st">"log_time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     on_time on_log_time </span></span>
-<span><span class="co">#&gt;         131         131</span></span></code></pre></div>
+<span><span class="co">#&gt;       146.1       146.1</span></span></code></pre></div>
 <p>The everyday version of this mistake takes the same repair by hand. A
 model of <code>log(y)</code> reports <span class="math inline">\(\log
 f_Y(\log y)\)</span>, so subtracting <span class="math inline">\(\log
@@ -505,7 +505,7 @@ exactly nothing.</p>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>gaussian <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">normal</span><span class="op">)</span>, tweedie <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
 <span><span class="co">#&gt;   tweedie       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;  gaussian   -1247.4    95.1    1.00           1 k_psis &gt; 0.66</span></span></code></pre></div>
+<span><span class="co">#&gt;  gaussian   -1249.8    95.0    1.00           2 k_psis &gt; 0.66</span></span></code></pre></div>
 <p>The tweedie is ahead by more than a thousand points, and that number
 should not be believed. At an observation where earnings are exactly
 zero the tweedie reports a probability and the gaussian reports a
@@ -520,8 +520,8 @@ gap is nothing but that mismatch:</p>
 <span>      tweedie  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>at_zero <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span><span class="op">$</span><span class="va">pointwise</span><span class="op">[</span><span class="va">zero</span>, <span class="st">"elpd_loo"</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>                   positive <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span><span class="op">$</span><span class="va">pointwise</span><span class="op">[</span><span class="op">!</span><span class="va">zero</span>, <span class="st">"elpd_loo"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          at_zero positive</span></span>
-<span><span class="co">#&gt; gaussian -1459.2    -4843</span></span>
-<span><span class="co">#&gt; tweedie   -213.5    -4841</span></span></code></pre></div>
+<span><span class="co">#&gt; gaussian -1457.8    -4845</span></span>
+<span><span class="co">#&gt; tweedie   -213.7    -4839</span></span></code></pre></div>
 <p>At the positive outcomes, where both report a density, the two are
 within a couple of points of each other. Everything else is the
 atom.</p>
@@ -556,7 +556,7 @@ a point. A posterior predictive check settles it in one line:</p>
 <span>  gaussian <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="fu">rstantools</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstantools/reference/posterior_predict.html" class="external-link">posterior_predict</a></span><span class="op">(</span><span class="va">normal</span><span class="op">)</span>, <span class="fl">1</span>, <span class="va">zero_share</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  tweedie  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="fu">rstantools</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstantools/reference/posterior_predict.html" class="external-link">posterior_predict</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span>, <span class="fl">1</span>, <span class="va">zero_share</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; observed gaussian  tweedie </span></span>
-<span><span class="co">#&gt;   0.2329   0.0000   0.2185</span></span></code></pre></div>
+<span><span class="co">#&gt;   0.2329   0.0000   0.2177</span></span></code></pre></div>
 <p>A gaussian fit never produces an exact zero and about a quarter of
 these outcomes are exactly zero, so <code><a href="../reference/bartisan-families.html">tweedie()</a></code> is the family
 to use here and no log score was needed to say so.
@@ -608,7 +608,7 @@ it a <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-
 <code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>bart <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>, logistic <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">logistic</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;  logistic       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;      bart      -2.9     5.1    0.72 |elpd_diff| &lt; 4</span></span></code></pre></div>
+<span><span class="co">#&gt;      bart      -3.5     5.0    0.76 |elpd_diff| &lt; 4</span></span></code></pre></div>
 <p>The forest is behind by roughly half a standard error of the
 difference, which is to say the two predict this outcome equally well<a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content='&lt;p&gt;&lt;code&gt;&lt;a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link"&gt;loo_compare()&lt;/a&gt;&lt;/code&gt; warns that the models do not
 have the same &lt;code&gt;y&lt;/code&gt; variable, which is not what has happened
@@ -664,9 +664,9 @@ through <code><a href="https://mc-stan.org/loo/reference/loo.html" class="extern
 <span></span>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">tuned</span>, <span class="va">loo</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
-<span><span class="co">#&gt;  trees_200       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;   trees_20      -0.4     1.9    0.59 |elpd_diff| &lt; 4          </span></span>
-<span><span class="co">#&gt;   trees_50      -0.9     1.3    0.76 |elpd_diff| &lt; 4</span></span></code></pre></div>
+<span><span class="co">#&gt;   trees_50       0.0     0.0      NA                          </span></span>
+<span><span class="co">#&gt;   trees_20      -0.5     1.1    0.67 |elpd_diff| &lt; 4          </span></span>
+<span><span class="co">#&gt;  trees_200      -1.2     1.1    0.86 |elpd_diff| &lt; 4</span></span></code></pre></div>
 <p>Nothing separates them: every difference is smaller than its own
 standard error, and <em>loo</em> flags both comparisons as too small to
 read. Scoring the same three fits on the held-out observations says it
@@ -675,7 +675,7 @@ again, and is the assessment the selection is not allowed to see:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">tuned</span>, <span class="kw">function</span><span class="op">(</span><span class="va">f</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">f</span>, newdata <span class="op">=</span> <span class="va">held</span>, type <span class="op">=</span> <span class="st">"density"</span>,</span>
 <span>                                      log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  trees_20  trees_50 trees_200 </span></span>
-<span><span class="co">#&gt;    -171.9    -172.7    -172.2</span></span></code></pre></div>
+<span><span class="co">#&gt;    -172.9    -172.6    -171.4</span></span></code></pre></div>
 <p>The two orderings disagree, which is the practical content of the
 warning rather than a contradiction: when the spread across a grid is
 smaller than the noise in the estimate, whichever setting comes out top
@@ -721,8 +721,8 @@ rest:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>surv2m <span class="op">=</span> <span class="fu">drop_one</span><span class="op">(</span><span class="st">"surv2m"</span><span class="op">)</span>, rhc <span class="op">=</span> <span class="fu">drop_one</span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        elpd_diff se_diff</span></span>
-<span><span class="co">#&gt; surv2m    40.454   9.357</span></span>
-<span><span class="co">#&gt; rhc        1.787   2.544</span></span></code></pre></div>
+<span><span class="co">#&gt; surv2m    40.252   9.477</span></span>
+<span><span class="co">#&gt; rhc        1.023   2.811</span></span></code></pre></div>
 <p>Losing <code>surv2m</code>, the prognostic score, costs about forty
 points and is plainly detectable. Losing <code>rhc</code> costs about
 two, which is smaller than its own standard error, and yet

@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-16</h4>
+            <h4 data-toc-skip class="date">2026-09-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/importance.Rmd" class="external-link"><code>vignettes/importance.Rmd</code></a></small>
       <div class="d-none name"><code>importance.Rmd</code></div>
@@ -125,20 +125,20 @@ variables.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;    surv2m     1.000       0.265   20.2</span></span>
-<span><span class="co">#&gt;       age     1.000       0.196   15.0</span></span>
-<span><span class="co">#&gt;     paco2     0.971       0.113    8.6</span></span>
-<span><span class="co">#&gt;      pafi     0.928       0.070    5.4</span></span>
-<span><span class="co">#&gt;       rhc     0.905       0.076    5.7</span></span>
-<span><span class="co">#&gt;       aps     0.871       0.069    5.3</span></span>
-<span><span class="co">#&gt;       edu     0.657       0.042    3.2</span></span>
-<span><span class="co">#&gt;      crea     0.577       0.030    2.3</span></span>
-<span><span class="co">#&gt;      card     0.524       0.024    1.8</span></span>
-<span><span class="co">#&gt;      hema     0.505       0.026    2.0</span></span>
-<span><span class="co">#&gt;    meanbp     0.490       0.020    1.5</span></span>
-<span><span class="co">#&gt;      race     0.462       0.021    1.5</span></span>
-<span><span class="co">#&gt;      resp     0.453       0.027    2.0</span></span>
-<span><span class="co">#&gt;       sex     0.410       0.020    1.5</span></span>
+<span><span class="co">#&gt;    surv2m     1.000       0.284   21.6</span></span>
+<span><span class="co">#&gt;       age     1.000       0.152   11.5</span></span>
+<span><span class="co">#&gt;     paco2     0.968       0.080    6.1</span></span>
+<span><span class="co">#&gt;       rhc     0.935       0.053    4.0</span></span>
+<span><span class="co">#&gt;       aps     0.891       0.067    5.1</span></span>
+<span><span class="co">#&gt;      pafi     0.889       0.063    4.8</span></span>
+<span><span class="co">#&gt;       edu     0.749       0.046    3.5</span></span>
+<span><span class="co">#&gt;      card     0.715       0.056    4.3</span></span>
+<span><span class="co">#&gt;      hema     0.640       0.035    2.6</span></span>
+<span><span class="co">#&gt;    meanbp     0.632       0.032    2.4</span></span>
+<span><span class="co">#&gt;      crea     0.630       0.035    2.7</span></span>
+<span><span class="co">#&gt;      race     0.582       0.039    3.0</span></span>
+<span><span class="co">#&gt;      resp     0.562       0.032    2.4</span></span>
+<span><span class="co">#&gt;       sex     0.521       0.027    2.1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The output has six columns, of which <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> shows four,
@@ -187,7 +187,7 @@ on <code>meanbp</code>, for instance, is a proportion of draws:</p>
 <code class="sourceCode R"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">counts</span><span class="op">[</span>, <span class="st">"aps"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="va">counts</span><span class="op">[</span>, <span class="st">"meanbp"</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.744</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.67</span></span></code></pre></div>
 <p>That is worth doing before reading much into a difference in the
 table: two predictors adjacent in the ranking are usually not
 distinguishable, and this is how to find out.</p>
@@ -212,23 +212,23 @@ means adding a few.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;    surv2m     1.000       0.218   16.6</span></span>
-<span><span class="co">#&gt;       age     1.000       0.143   10.9</span></span>
-<span><span class="co">#&gt;     paco2     0.985       0.110    8.3</span></span>
-<span><span class="co">#&gt;       rhc     0.969       0.053    4.0</span></span>
-<span><span class="co">#&gt;      pafi     0.918       0.062    4.8</span></span>
-<span><span class="co">#&gt;       aps     0.904       0.066    5.0</span></span>
-<span><span class="co">#&gt;      card     0.819       0.042    3.2</span></span>
-<span><span class="co">#&gt;    noise1     0.730       0.043    3.2</span></span>
-<span><span class="co">#&gt;       edu     0.680       0.030    2.3</span></span>
-<span><span class="co">#&gt;      hema     0.664       0.036    2.8</span></span>
-<span><span class="co">#&gt;    meanbp     0.629       0.026    2.0</span></span>
-<span><span class="co">#&gt;    noise2     0.627       0.024    1.8</span></span>
-<span><span class="co">#&gt;      crea     0.625       0.034    2.6</span></span>
-<span><span class="co">#&gt;    noise3     0.606       0.037    2.8</span></span>
-<span><span class="co">#&gt;      resp     0.538       0.023    1.7</span></span>
-<span><span class="co">#&gt;       sex     0.525       0.033    2.5</span></span>
-<span><span class="co">#&gt;      race     0.498       0.018    1.4</span></span>
+<span><span class="co">#&gt;    surv2m     1.000       0.199   15.2</span></span>
+<span><span class="co">#&gt;       age     1.000       0.132   10.1</span></span>
+<span><span class="co">#&gt;     paco2     0.966       0.083    6.3</span></span>
+<span><span class="co">#&gt;      pafi     0.957       0.065    5.0</span></span>
+<span><span class="co">#&gt;       aps     0.928       0.082    6.3</span></span>
+<span><span class="co">#&gt;       rhc     0.924       0.055    4.2</span></span>
+<span><span class="co">#&gt;      card     0.788       0.036    2.7</span></span>
+<span><span class="co">#&gt;    noise1     0.777       0.049    3.7</span></span>
+<span><span class="co">#&gt;       edu     0.776       0.042    3.2</span></span>
+<span><span class="co">#&gt;    meanbp     0.730       0.040    3.0</span></span>
+<span><span class="co">#&gt;      hema     0.719       0.036    2.8</span></span>
+<span><span class="co">#&gt;      crea     0.712       0.046    3.5</span></span>
+<span><span class="co">#&gt;    noise2     0.673       0.028    2.1</span></span>
+<span><span class="co">#&gt;    noise3     0.666       0.032    2.5</span></span>
+<span><span class="co">#&gt;      race     0.590       0.026    2.0</span></span>
+<span><span class="co">#&gt;       sex     0.569       0.021    1.6</span></span>
+<span><span class="co">#&gt;      resp     0.568       0.028    2.1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The noise variables do not sort to the bottom. They land in the
@@ -269,16 +269,16 @@ Below we use the Friedman function, in which <code>x1</code> through
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;        x2     1.000       0.365   29.4</span></span>
-<span><span class="co">#&gt;        x1     1.000       0.301   24.2</span></span>
-<span><span class="co">#&gt;        x4     1.000       0.163   13.1</span></span>
-<span><span class="co">#&gt;        x3     1.000       0.123    9.9</span></span>
-<span><span class="co">#&gt;        x5     1.000       0.041    3.3</span></span>
-<span><span class="co">#&gt;        x9     0.221       0.003    0.2</span></span>
-<span><span class="co">#&gt;       x10     0.058       0.001    0.1</span></span>
-<span><span class="co">#&gt;        x6     0.048       0.001    0.1</span></span>
-<span><span class="co">#&gt;        x7     0.043       0.001    0.1</span></span>
-<span><span class="co">#&gt;        x8     0.025       0.000    0.0</span></span>
+<span><span class="co">#&gt;        x2     1.000       0.418   34.1</span></span>
+<span><span class="co">#&gt;        x1     1.000       0.219   17.8</span></span>
+<span><span class="co">#&gt;        x3     1.000       0.186   15.2</span></span>
+<span><span class="co">#&gt;        x4     1.000       0.123   10.1</span></span>
+<span><span class="co">#&gt;        x5     1.000       0.051    4.2</span></span>
+<span><span class="co">#&gt;        x8     0.056       0.001    0.1</span></span>
+<span><span class="co">#&gt;        x7     0.055       0.001    0.1</span></span>
+<span><span class="co">#&gt;       x10     0.045       0.001    0.0</span></span>
+<span><span class="co">#&gt;        x6     0.040       0.001    0.0</span></span>
+<span><span class="co">#&gt;        x9     0.021       0.000    0.0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The five real predictors sit at 1.00 and four of the five noise
@@ -312,10 +312,10 @@ a confident and wrong answer rather than an uninformative one.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;   x1_copy     1.000       0.729   55.3</span></span>
-<span><span class="co">#&gt;        x1     1.000       0.257   19.6</span></span>
-<span><span class="co">#&gt;        x3     0.320       0.013    0.9</span></span>
-<span><span class="co">#&gt;        x2     0.079       0.001    0.1</span></span>
+<span><span class="co">#&gt;   x1_copy     1.000       0.660   50.3</span></span>
+<span><span class="co">#&gt;        x1     0.797       0.317   24.3</span></span>
+<span><span class="co">#&gt;        x3     0.445       0.017    1.3</span></span>
+<span><span class="co">#&gt;        x2     0.152       0.006    0.4</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The outcome depends on <code>x1</code>. The forest spent most of its
@@ -333,8 +333,8 @@ affected is any statement about which variable matters.</p>
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit_corr</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"x1"</span>, <span class="st">"x1_copy"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     Term Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  x1         0.347 -0.0487  0.858</span></span>
-<span><span class="co">#&gt;  x1_copy    1.062  0.4681  1.509</span></span>
+<span><span class="co">#&gt;  x1         0.382 -0.0409   1.28</span></span>
+<span><span class="co">#&gt;  x1_copy    0.998  0.1900   1.53</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: +1</span></span></code></pre></div>
@@ -350,7 +350,7 @@ underlying quantity would mean, recovers the truth:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>estimate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">drawn</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">drawn</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; estimate     2.5%    97.5% </span></span>
-<span><span class="co">#&gt;     1.57     1.45     1.69</span></span></code></pre></div>
+<span><span class="co">#&gt;     1.59     1.46     1.73</span></span></code></pre></div>
 <p>The true difference over that range is 1.5, so the model knows the
 relationship; it just cannot say which of two identical columns it
 belongs to.</p>

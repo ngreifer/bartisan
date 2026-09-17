@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-16</h4>
+            <h4 data-toc-skip class="date">2026-09-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/effects.Rmd" class="external-link"><code>vignettes/effects.Rmd</code></a></small>
       <div class="d-none name"><code>effects.Rmd</code></div>
@@ -158,10 +158,10 @@ table. A few at a time is easier to read:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rhc"</span>, <span class="st">"age"</span>, <span class="st">"card"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Term Contrast Estimate    2.5 %  97.5 %</span></span>
-<span><span class="co">#&gt;  age  +1        0.00317  0.00150 0.00491</span></span>
-<span><span class="co">#&gt;  card yes - no  0.00000 -0.00246 0.07933</span></span>
-<span><span class="co">#&gt;  rhc  1 - 0     0.05962  0.00000 0.11124</span></span>
+<span><span class="co">#&gt;  Term Contrast Estimate    2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;  age  +1        0.00308  0.00131 0.0048</span></span>
+<span><span class="co">#&gt;  card yes - no  0.02794 -0.00266 0.0852</span></span>
+<span><span class="co">#&gt;  rhc  1 - 0     0.05588  0.00000 0.1052</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>This reads as a coefficient table. Each estimate is an average
@@ -207,7 +207,7 @@ would notice.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0.0124     0 0.0291</span></span>
+<span><span class="co">#&gt;    0.0122     0 0.0291</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: aps</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
@@ -226,8 +226,8 @@ straight line.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no    0.0601     0  0.113</span></span>
-<span><span class="co">#&gt;   yes   0.0585     0  0.112</span></span>
+<span><span class="co">#&gt;   no    0.0573     0  0.110</span></span>
+<span><span class="co">#&gt;   yes   0.0525     0  0.104</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
@@ -246,8 +246,8 @@ own.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span>,</span>
 <span>                hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    Hypothesis  Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  (yes) - (no) -0.000333 -0.0224 0.0118</span></span>
+<span><span class="co">#&gt;    Hypothesis Estimate   2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;  (yes) - (no) -0.00132 -0.0494 0.0122</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>The difference is small with an interval covering zero, so there is
@@ -267,8 +267,8 @@ rather than differences, which is useful for describing groups:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no     0.637 0.608  0.662</span></span>
-<span><span class="co">#&gt;   yes    0.686 0.654  0.727</span></span>
+<span><span class="co">#&gt;   no     0.634 0.607  0.660</span></span>
+<span><span class="co">#&gt;   yes    0.691 0.656  0.731</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 </div>
@@ -328,7 +328,7 @@ therefore the scale on which effects are reported.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, type <span class="op">=</span> <span class="st">"link"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.319     0    0.6</span></span>
+<span><span class="co">#&gt;     0.296     0  0.571</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: link</span></span>
@@ -343,26 +343,39 @@ log-odds needs a baseline before it means anything.</p>
 at a horizon. See <code><a href="../articles/survival.html">vignette("survival")</a></code>.</p>
 </div>
 <div class="section level2">
-<h2 id="unreliable-slopes-avg_slopes">Unreliable Slopes (<code>avg_slopes()</code>)<a class="anchor" aria-label="anchor" href="#unreliable-slopes-avg_slopes"></a>
+<h2 id="slopes-and-the-predictor-transform-avg_slopes">Slopes and the Predictor Transform (<code>avg_slopes()</code>)<a class="anchor" aria-label="anchor" href="#slopes-and-the-predictor-transform-avg_slopes"></a>
 </h2>
-<p><code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> reports a derivative; it is available and
-it will return a number, but that number should not be trusted for a fit
-made with the default settings.</p>
-<p>The reason is the predictor transform: by default numeric predictors
-are mapped through their empirical distribution function before the
-trees see them, which makes the fitted function a step function of the
-original predictor. Between two observed values the prediction does not
-change at all, so the difference quotient is either exactly zero or a
-whole step divided by a very small number, depending on where the step
-lands.</p>
-<p>Instead we use <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">comparisons()</a></code> with a step we can
-interpret, as with <code>aps = 10</code> above. If a genuine derivative
-is needed, we refit with <code>x_transform = "range"</code> in
-<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>, which maps each predictor linearly and
-so leaves a soft-rule fit differentiable; with
-<code>gate = "hard"</code> the fit is a step function under either
-transform and has no derivative worth taking. This is documented at
-<code>?bartisan-marginaleffects</code>.</p>
+<p><code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> reports a derivative, and whether that
+derivative means anything depends on <code>x_transform</code> in
+<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>. The fit is a smooth function of the
+<em>transformed</em> predictor, so the question is what the transform
+does to the original one.</p>
+<p>The default, <code>"smoothcdf"</code>, is differentiable, so
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> works. The way to check such a thing is to
+shrink the numerical step and see whether the answer settles. On a
+surface whose average slope over the sample is .5485, the default gives
+.553, .559, .560, .561, .561 as the step runs from 1e-1 down to 1e-5. It
+settles.</p>
+<p>Under <code>"quantile"</code> the same sequence is .577, .882, 3.73,
+31.8, 311. That transform maps each predictor through its empirical
+distribution function, which is a step, so the fitted function is a step
+function of the original predictor and the difference quotient grows
+without bound as the step shrinks. There is no derivative there to
+estimate, and the number <code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> returns is a property
+of the step size rather than of the fit.</p>
+<p>Under <code>"range"</code> the sequence is .544, .543, .543, .543,
+.543, which settles closest to the truth. Writing the fit as <span class="math inline">\(f(T(x))\)</span>, a slope is <span class="math inline">\(f'(T(x))\,T'(x)\)</span>: an affine <span class="math inline">\(T\)</span> has a known constant derivative, so
+only <span class="math inline">\(f'\)</span> is estimated, where a
+smoothed distribution function contributes an estimated density and the
+two errors multiply. So <strong>we refit with
+<code>x_transform = "range"</code> when a slope is the quantity being
+reported</strong>, and leave the default alone when it is not.</p>
+<p>For everything else we use <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">comparisons()</a></code> with a step we
+can interpret, as with <code>aps = 10</code> above, which evaluates the
+fit at two points a substantive distance apart rather than dividing by a
+vanishing one. With <code>gate = "hard"</code> the fit is piecewise
+constant under any transform and has no derivative worth taking. This is
+documented at <code>?bartisan-marginaleffects</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="varying-coefficients-vc">Varying Coefficients (<code>vc()</code>)<a class="anchor" aria-label="anchor" href="#varying-coefficients-vc"></a>
@@ -388,12 +401,12 @@ continuous one.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_vc</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         rhc</span></span>
-<span><span class="co">#&gt; [1,] 0.4676</span></span>
-<span><span class="co">#&gt; [2,] 0.2003</span></span>
-<span><span class="co">#&gt; [3,] 0.2111</span></span>
-<span><span class="co">#&gt; [4,] 0.3168</span></span>
-<span><span class="co">#&gt; [5,] 0.2789</span></span>
-<span><span class="co">#&gt; [6,] 0.2618</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,] 0.4892</span></span>
+<span><span class="co">#&gt; [2,] 0.1855</span></span>
+<span><span class="co">#&gt; [3,] 0.2007</span></span>
+<span><span class="co">#&gt; [4,] 0.3322</span></span>
+<span><span class="co">#&gt; [5,] 0.2895</span></span>
+<span><span class="co">#&gt; [6,] 0.2646</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> returns one value per patient, which is what a
 coefficient becomes when it is allowed to vary. It is on the link scale,
 so for this binary outcome it is a difference in log odds rather than in

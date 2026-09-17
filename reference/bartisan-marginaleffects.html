@@ -221,29 +221,45 @@ within 9%. A single chain can look much more settled than the posterior is.</p>
 </div>
 
 <div class="section">
-<h3 id="slopes-need-a-linear-predictor-transform">Slopes Need a Linear Predictor Transform<a class="anchor" aria-label="anchor" href="#slopes-need-a-linear-predictor-transform"></a></h3>
+<h3 id="slopes-and-the-predictor-transform">Slopes and the Predictor Transform<a class="anchor" aria-label="anchor" href="#slopes-and-the-predictor-transform"></a></h3>
 
 
 <p>A slope is a numerical derivative, and taking one requires the fitted function
-to be differentiable in the predictor <em>as the caller supplies it</em>. The default
-<code>x_transform = "quantile"</code> maps each predictor through its empirical
-distribution function before any rule sees it, and an empirical distribution
-function is a step function; the fit is therefore a step function of the
-original predictor whatever the decision rules are, and its difference
-quotient grows without bound as the step shrinks: on a smooth surface whose
-average derivative is zero, the estimate goes from -0.29 at a step of 5e-2 to
--4.79 at 1e-4 under the quantile transform, where under <code>"range"</code> it stays
-near -0.28 throughout.</p>
-<p>So <strong><code>x_transform = "range"</code> is what slopes want</strong>, since it maps each
-predictor linearly and leaves a soft-rule fit differentiable. Hard rules give a
-piecewise-constant fit under either transform, and a derivative of one is not
-a meaningful quantity however it is computed.</p>
+to be differentiable in the predictor <em>as the caller supplies it</em>. Whether it
+is depends on <code>x_transform</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>, because the fit is a
+smooth function of the transformed predictor rather than of the original one.</p>
+<p>The three options behave differently, and the way to see it is to shrink the
+step. On a smooth surface whose average slope over the sample is .5485:</p><table class="table table"><tr><td>step</td><td><code>"smoothcdf"</code></td><td><code>"quantile"</code></td><td><code>"range"</code></td></tr><tr><td>1e-1</td><td>.553</td><td>.577</td><td>.544</td></tr><tr><td>1e-2</td><td>.559</td><td>.882</td><td>.543</td></tr><tr><td>1e-3</td><td>.560</td><td>3.73</td><td>.543</td></tr><tr><td>1e-4</td><td>.561</td><td>31.8</td><td>.543</td></tr><tr><td>1e-5</td><td>.561</td><td>311.</td><td>.543</td></tr></table><p><code>"quantile"</code> has no derivative at all. It maps each predictor through its
+empirical distribution function, which is a step, so the fit is a step
+function of the original predictor whatever the decision rules are, and the
+difference quotient grows without bound as the step shrinks. The number it
+returns at any particular step is an artifact of that step.</p>
+<p>The other two converge, and <code>"range"</code> converges closer. That is not an
+accident of this example. Writing the fit as <code>f(T(x))</code>, a slope is
+<code>f'(T(x))</code> times <code>T'(x)</code>. Under <code>"range"</code> the map is affine, so <code>T'</code> is a known
+constant and the only estimated quantity is <code>f'</code>. Under <code>"smoothcdf"</code> the map
+is an estimated distribution function, so <code>T'</code> is an estimated <em>density</em> and
+the slope is a product of two estimates whose relative errors add. On the fit
+above that density factor is off by a median of 6% and by as much as 40% in
+the sparse upper tail, which is most of the gap between the two columns.</p>
+<p>Two details make that worse rather than better. The bandwidth is chosen at the
+rate that is right for a distribution function, which is smaller than the rate
+that is right for a density, so the density implied by the map is
+undersmoothed for the purpose a slope puts it to. And the leaf prior acts on
+<code>f</code> in the transformed coordinate, where a constant slope in <code>x</code> requires
+<code>f'</code> to grow like one over the density; the prior shrinks that, which pulls
+slopes in sparse regions toward zero on top of the estimation error.</p>
+<p>So <strong><code>x_transform = "range"</code> is what slopes want</strong>, and refitting with it is
+worthwhile when a derivative is the quantity being reported rather than a
+prediction. The default is <code>"smoothcdf"</code> because it is the better bet for
+everything else; see <code><a href="bartisan_control.html">bartisan_control()</a></code>. Hard rules give a
+piecewise-constant fit under any transform, and a derivative of one is not a
+meaningful quantity however it is computed.</p>
 <p>None of this affects <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::predictions()</a></code>
  or
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::comparisons()</a></code>
 , which evaluate the fit at two points a
-substantive distance apart rather than dividing by a vanishing one. Those are
-the estimands to reach for with the default transform.</p>
+substantive distance apart rather than dividing by a vanishing one.</p>
 </div>
 
 <div class="section">
@@ -308,8 +324,8 @@ computed on; <code><a href="bartisan_control.html">bartisan_control()</a></code>
 <span class="r-in"><span><span class="co"># contrast of counterfactual predictions</span></span></span>
 <span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate  2.5 % 97.5 %</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    0.0749 0.0211  0.112</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate 2.5 % 97.5 %</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0.0453     0  0.101</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Term: rhc</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
@@ -320,8 +336,8 @@ computed on; <code><a href="bartisan_control.html">bartisan_control()</a></code>
 <span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"sex"</span>,</span></span>
 <span class="r-in"><span>                                 hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         Hypothesis Estimate    2.5 %  97.5 %</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  (male) - (female) 0.000296 -0.00827 0.00302</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         Hypothesis Estimate   2.5 %  97.5 %</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  (male) - (female)        0 -0.0388 0.00448</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -331,8 +347,8 @@ computed on; <code><a href="bartisan_control.html">bartisan_control()</a></code>
 <span class="r-in"><span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>marginaleffects_posterior_center <span class="op">=</span> <span class="va">mean</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate  2.5 % 97.5 %</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     0.072 0.0211  0.112</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate 2.5 % 97.5 %</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    0.0463     0  0.101</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Term: rhc</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>

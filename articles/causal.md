@@ -259,13 +259,13 @@ ate
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate  lower upper    n
-#>  Y[1] - Y[0]   0.0626 0.0158  0.11 1500
+#>  Y[1] - Y[0]    0.061 0.0106 0.111 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.631 0.602 0.660
-#>      Y[1]    0.694 0.656 0.729
+#>      Y[0]    0.631 0.602  0.66
+#>      Y[1]    0.692 0.655  0.73
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -274,7 +274,7 @@ ate
 
 Under the assumptions above this is the average treatment effect:
 catheterization raises the probability of death by about 6 percentage
-points, with an interval running from roughly 1.6 to 11.
+points, with an interval running from roughly 1.1 to 11.1.
 
 The two rows below the contrast are the estimates of \\E\[Y(0)\]\\ and
 \\E\[Y(1)\]\\, each averaged over the observed covariate distribution.
@@ -317,14 +317,14 @@ estimate_effect(fit, treat = "rhc", comparison = "lnor")
 #> Treatment: "rhc"
 #> Averaged over 1500 units
 #> 
-#>                contrast estimate lower upper    n
-#>  log(O(Y[1]) / O(Y[0]))    0.282  0.07 0.497 1500
+#>                contrast estimate  lower upper    n
+#>  log(O(Y[1]) / O(Y[0]))    0.274 0.0484 0.505 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.631 0.602 0.660
-#>      Y[1]    0.694 0.656 0.729
+#>      Y[0]    0.631 0.602  0.66
+#>      Y[1]    0.692 0.655  0.73
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -349,7 +349,7 @@ options(marginaleffects_posterior_center = mean)
 avg_comparisons(fit, variables = "rhc")
 #> 
 #>  Estimate  2.5 % 97.5 %
-#>    0.0626 0.0158   0.11
+#>     0.061 0.0106  0.111
 #> 
 #> Term: rhc
 #> Type: response
@@ -413,7 +413,7 @@ fit_bcf
 #> Structure: 2 forests of 50 and 25 trees, soft decision rules
 #> Draws: 3200 kept across 4 chains after 200 warmup
 #> 
-#> Posterior means: b.rhc.0 = -0.0781, b.rhc.1 = 0.0482
+#> Posterior means: b.rhc.0 = -0.0651, b.rhc.1 = 0.124
 #> 
 #> Treatment: "rhc"
 #> Effect moderators: "age", "sex", "race", "edu", "aps", "meanbp", "resp", "hema", "pafi", "paco2", "crea", "surv2m", and "card"
@@ -450,14 +450,14 @@ estimate_effect(fit_bcf)
 #> Treatment: "rhc"
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate    lower upper    n
-#>  Y[1] - Y[0]   0.0476 -0.00226 0.105 1500
+#>     contrast estimate    lower  upper    n
+#>  Y[1] - Y[0]   0.0452 -0.00203 0.0995 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.637 0.605 0.666
-#>      Y[1]    0.684 0.645 0.725
+#>      Y[0]    0.637 0.605 0.667
+#>      Y[1]    0.682 0.645 0.723
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -495,7 +495,7 @@ cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 #>    0%   25%   50%   75%  100% 
-#> 1.131 1.282 1.329 1.375 1.501
+#> 1.157 1.270 1.316 1.358 1.526
 ```
 
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws the
@@ -579,13 +579,13 @@ estimate_effect(fit_earn_bcf, estimand = "ATT")
 #> Averaged over the 185 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
-#>  Y[1] - Y[0]      175  -275   886 185
+#>  Y[1] - Y[0]      183  -248   823 185
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]     5760  3390  9090
-#>      Y[1]     5940  3420  9440
+#>      Y[0]     5420  2750  7030
+#>      Y[1]     5600  3000  7180
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -618,7 +618,7 @@ cate_att <- estimate_effect(fit_earn_bcf, estimand = "CATE",
 
 c(ATT = att$estimate, mean_CATE = mean(cate_att$estimate))
 #>       ATT mean_CATE 
-#>     175.4     175.4
+#>     183.3     183.3
 ```
 
 And the conditional effects, drawn:

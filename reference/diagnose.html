@@ -309,24 +309,25 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.281     1.791        6       45</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.008     1.153       31       48</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.004     1.161       77       64</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.488     1.728        4       16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.456     1.161        5       24</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.141     1.834       11       13</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 0.990     1.000       79      117</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.386     1.468        5       17</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   when they agree</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 16 for eta.eta (worst 5% of observations), below 400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1.14)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 5 for loglik, below 400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 13 for splits.eta, below 400</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 77 effective draws)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   carries 4.3 effective draws per hundred kept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 0.99, 79 effective draws)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -357,24 +358,25 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.281     1.791        6       45</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.008     1.153       31       48</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.004     1.161       77       64</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.488     1.728        4       16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.456     1.161        5       24</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.141     1.834       11       13</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 0.990     1.000       79      117</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.386     1.468        5       17</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   when they agree</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 16 for eta.eta (worst 5% of observations), below 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1.14)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 5 for loglik, below 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 13 for splits.eta, below 1000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 77 effective draws)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   carries 4.3 effective draws per hundred kept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 0.99, 79 effective draws)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

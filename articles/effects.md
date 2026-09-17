@@ -92,10 +92,10 @@ this model is a long table. A few at a time is easier to read:
 
 avg_comparisons(fit, variables = c("rhc", "age", "card"))
 #> 
-#>  Term Contrast Estimate    2.5 %  97.5 %
-#>  age  +1        0.00317  0.00150 0.00491
-#>  card yes - no  0.00000 -0.00246 0.07933
-#>  rhc  1 - 0     0.05962  0.00000 0.11124
+#>  Term Contrast Estimate    2.5 % 97.5 %
+#>  age  +1        0.00308  0.00131 0.0048
+#>  card yes - no  0.02794 -0.00266 0.0852
+#>  rhc  1 - 0     0.05588  0.00000 0.1052
 #> 
 #> Type: response
 ```
@@ -146,7 +146,7 @@ would notice.
 avg_comparisons(fit, variables = list(aps = 10))
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>    0.0124     0 0.0291
+#>    0.0122     0 0.0291
 #> 
 #> Term: aps
 #> Type: response
@@ -167,8 +167,8 @@ straight line.
 avg_comparisons(fit, variables = "rhc", by = "card")
 #> 
 #>  card Estimate 2.5 % 97.5 %
-#>   no    0.0601     0  0.113
-#>   yes   0.0585     0  0.112
+#>   no    0.0573     0  0.110
+#>   yes   0.0525     0  0.104
 #> 
 #> Term: rhc
 #> Type: response
@@ -191,8 +191,8 @@ the two (i.e., a difference of differences) with an interval of its own.
 avg_comparisons(fit, variables = "rhc", by = "card",
                 hypothesis = ~pairwise)
 #> 
-#>    Hypothesis  Estimate   2.5 % 97.5 %
-#>  (yes) - (no) -0.000333 -0.0224 0.0118
+#>    Hypothesis Estimate   2.5 % 97.5 %
+#>  (yes) - (no) -0.00132 -0.0494 0.0122
 #> 
 #> Type: response
 ```
@@ -220,8 +220,8 @@ useful for describing groups:
 avg_predictions(fit, by = "card")
 #> 
 #>  card Estimate 2.5 % 97.5 %
-#>   no     0.637 0.608  0.662
-#>   yes    0.686 0.654  0.727
+#>   no     0.634 0.607  0.660
+#>   yes    0.691 0.656  0.731
 #> 
 #> Type: response
 ```
@@ -294,7 +294,7 @@ scale on which effects are reported.
 avg_comparisons(fit, variables = "rhc", type = "link")
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>     0.319     0    0.6
+#>     0.296     0  0.571
 #> 
 #> Term: rhc
 #> Type: link
@@ -311,30 +311,46 @@ For survival families, `type = "survival"` with a `times` argument gives
 a difference in survival probability at a horizon. See
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md).
 
-## Unreliable Slopes (`avg_slopes()`)
+## Slopes and the Predictor Transform (`avg_slopes()`)
 
 [`avg_slopes()`](https://rdrr.io/pkg/marginaleffects/man/slopes.html)
-reports a derivative; it is available and it will return a number, but
-that number should not be trusted for a fit made with the default
-settings.
+reports a derivative, and whether that derivative means anything depends
+on `x_transform` in
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md).
+The fit is a smooth function of the *transformed* predictor, so the
+question is what the transform does to the original one.
 
-The reason is the predictor transform: by default numeric predictors are
-mapped through their empirical distribution function before the trees
-see them, which makes the fitted function a step function of the
-original predictor. Between two observed values the prediction does not
-change at all, so the difference quotient is either exactly zero or a
-whole step divided by a very small number, depending on where the step
-lands.
+The default, `"smoothcdf"`, is differentiable, so
+[`avg_slopes()`](https://rdrr.io/pkg/marginaleffects/man/slopes.html)
+works. The way to check such a thing is to shrink the numerical step and
+see whether the answer settles. On a surface whose average slope over
+the sample is .5485, the default gives .553, .559, .560, .561, .561 as
+the step runs from 1e-1 down to 1e-5. It settles.
 
-Instead we use
+Under `"quantile"` the same sequence is .577, .882, 3.73, 31.8, 311.
+That transform maps each predictor through its empirical distribution
+function, which is a step, so the fitted function is a step function of
+the original predictor and the difference quotient grows without bound
+as the step shrinks. There is no derivative there to estimate, and the
+number
+[`avg_slopes()`](https://rdrr.io/pkg/marginaleffects/man/slopes.html)
+returns is a property of the step size rather than of the fit.
+
+Under `"range"` the sequence is .544, .543, .543, .543, .543, which
+settles closest to the truth. Writing the fit as \\f(T(x))\\, a slope is
+\\f'(T(x))\\T'(x)\\: an affine \\T\\ has a known constant derivative, so
+only \\f'\\ is estimated, where a smoothed distribution function
+contributes an estimated density and the two errors multiply. So **we
+refit with `x_transform = "range"` when a slope is the quantity being
+reported**, and leave the default alone when it is not.
+
+For everything else we use
 [`comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-with a step we can interpret, as with `aps = 10` above. If a genuine
-derivative is needed, we refit with `x_transform = "range"` in
-[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
-which maps each predictor linearly and so leaves a soft-rule fit
-differentiable; with `gate = "hard"` the fit is a step function under
-either transform and has no derivative worth taking. This is documented
-at `?bartisan-marginaleffects`.
+with a step we can interpret, as with `aps = 10` above, which evaluates
+the fit at two points a substantive distance apart rather than dividing
+by a vanishing one. With `gate = "hard"` the fit is piecewise constant
+under any transform and has no derivative worth taking. This is
+documented at `?bartisan-marginaleffects`.
 
 ## Varying Coefficients (`vc()`)
 
@@ -363,12 +379,12 @@ fit_vc <- bartisan(death ~ age + sex + race + edu + aps + meanbp + resp +
 
 head(coef(fit_vc))
 #>         rhc
-#> [1,] 0.4676
-#> [2,] 0.2003
-#> [3,] 0.2111
-#> [4,] 0.3168
-#> [5,] 0.2789
-#> [6,] 0.2618
+#> [1,] 0.4892
+#> [2,] 0.1855
+#> [3,] 0.2007
+#> [4,] 0.3322
+#> [5,] 0.2895
+#> [6,] 0.2646
 ```
 
 [`coef()`](https://rdrr.io/r/stats/coef.html) returns one value per

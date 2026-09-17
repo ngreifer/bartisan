@@ -112,7 +112,7 @@ fit_ln <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
 
 c(weibull = mean(fit_w$aux[, "sigma"]), lognormal = mean(fit_ln$aux[, "sigma"]))
 #>   weibull lognormal 
-#>     0.654     0.711
+#>     0.654     0.710
 ```
 
 They differ only in the error’s shape, and therefore in the shape of the
@@ -160,7 +160,7 @@ fit_dpm <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
 
 round(colMeans(fit_dpm$aux), 3)
 #>    alpha clusters   center error_sd 
-#>    3.066   14.747    0.015    0.713
+#>    3.551   16.893    0.082    0.720
 ```
 
 [`error_density()`](https://ngreifer.github.io/bartisan/reference/error_density.md)
@@ -221,7 +221,7 @@ fit_ph <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
 
 head(round(colMeans(fit_ph$aux), 3))
 #> lambda1 lambda2 lambda3 lambda4 lambda5 lambda6 
-#>   0.055   0.167   0.292   0.280   0.314   0.299
+#>   0.045   0.140   0.242   0.224   0.267   0.252
 ```
 
 The bin hazards come back as `lambda1`, `lambda2`, … alongside
@@ -316,9 +316,9 @@ as below.
 
 head(predict(fit_ph, type = "survival", times = c(1, 2, 5)), 3)
 #>          1     2     5
-#> [1,] 0.990 0.971 0.842
-#> [2,] 0.982 0.945 0.720
-#> [3,] 0.933 0.809 0.297
+#> [1,] 0.989 0.968 0.828
+#> [2,] 0.985 0.955 0.766
+#> [3,] 0.925 0.787 0.258
 ```
 
 and inside the estimand machinery:
@@ -330,8 +330,8 @@ library(marginaleffects)
 # The average difference in survival at t = 5 that the treatment is worth.
 avg_comparisons(fit_ph, variables = "trt", type = "survival", times = 5)
 #> 
-#>  Estimate 2.5 % 97.5 %
-#>     0.167 0.115   0.22
+#>  Estimate  2.5 % 97.5 %
+#>     0.171 0.0987  0.231
 #> 
 #> Term: trt
 #> Type: survival
@@ -697,9 +697,9 @@ h <- matrix(predict(fit_dt, newdata = grid_dat, type = "response"),
             nrow = length(edges))
 round(t(apply(1 - h, 2, cumprod))[, c(1, 8, 15)], 3)
 #>       [,1]  [,2]  [,3]
-#> [1,] 0.995 0.926 0.318
-#> [2,] 0.981 0.747 0.089
-#> [3,] 0.849 0.232 0.011
+#> [1,] 0.993 0.911 0.154
+#> [2,] 0.971 0.730 0.075
+#> [3,] 0.852 0.212 0.002
 ```
 
 `binomial("probit")` is among the cheapest families in the package, so
@@ -792,7 +792,7 @@ log_score_T <- function(fit, newdata) {
 
 c(lognormal = log_score_T(fit_ln, d), ph = log_score_T(fit_ph, d))
 #> lognormal        ph 
-#>      -777      -788
+#>      -776      -791
 ```
 
 Without the correction the comparison is meaningless: on one of the

@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-16</h4>
+            <h4 data-toc-skip class="date">2026-09-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/survival.Rmd" class="external-link"><code>vignettes/survival.Rmd</code></a></small>
       <div class="d-none name"><code>survival.Rmd</code></div>
@@ -229,7 +229,7 @@ time axis without changing the shape of the survival curve.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>weibull <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_w</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"sigma"</span><span class="op">]</span><span class="op">)</span>, lognormal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_ln</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"sigma"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   weibull lognormal </span></span>
-<span><span class="co">#&gt;     0.654     0.711</span></span></code></pre></div>
+<span><span class="co">#&gt;     0.654     0.710</span></span></code></pre></div>
 <p>They differ only in the error’s shape, and therefore in the shape of
 the hazard. <strong><code><a href="../reference/bartisan-families.html">weibull_aft()</a></code></strong> has a
 <strong>monotone</strong> hazard, which may be increasing, decreasing or
@@ -267,7 +267,7 @@ at its censoring time.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_dpm</span><span class="op">$</span><span class="va">aux</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    alpha clusters   center error_sd </span></span>
-<span><span class="co">#&gt;    3.066   14.747    0.015    0.713</span></span></code></pre></div>
+<span><span class="co">#&gt;    3.551   16.893    0.082    0.720</span></span></code></pre></div>
 <p><code><a href="../reference/error_density.html">error_density()</a></code> reports what the error distribution came
 out looking like, which is the diagnostic the model exists to
 provide:</p>
@@ -315,7 +315,7 @@ than once, which none of the three parametric families can do.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_ph</span><span class="op">$</span><span class="va">aux</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; lambda1 lambda2 lambda3 lambda4 lambda5 lambda6 </span></span>
-<span><span class="co">#&gt;   0.055   0.167   0.292   0.280   0.314   0.299</span></span></code></pre></div>
+<span><span class="co">#&gt;   0.045   0.140   0.242   0.224   0.267   0.252</span></span></code></pre></div>
 <p>The bin hazards come back as <code>lambda1</code>,
 <code>lambda2</code>, … alongside <code>lambda_rate</code>, the drawn
 rate of their own Gamma prior; the hazards are shrunk toward each other
@@ -427,9 +427,9 @@ below.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_ph</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          1     2     5</span></span>
-<span><span class="co">#&gt; [1,] 0.990 0.971 0.842</span></span>
-<span><span class="co">#&gt; [2,] 0.982 0.945 0.720</span></span>
-<span><span class="co">#&gt; [3,] 0.933 0.809 0.297</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,] 0.989 0.968 0.828</span></span>
+<span><span class="co">#&gt; [2,] 0.985 0.955 0.766</span></span>
+<span><span class="co">#&gt; [3,] 0.925 0.787 0.258</span></span></code></pre></div>
 <p>and inside the estimand machinery:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://marginaleffects.com/" class="external-link">marginaleffects</a></span><span class="op">)</span></span>
@@ -437,8 +437,8 @@ below.</p>
 <span><span class="co"># The average difference in survival at t = 5 that the treatment is worth.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit_ph</span>, variables <span class="op">=</span> <span class="st">"trt"</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.167 0.115   0.22</span></span>
+<span><span class="co">#&gt;  Estimate  2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;     0.171 0.0987  0.231</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: trt</span></span>
 <span><span class="co">#&gt; Type: survival</span></span>
@@ -902,9 +902,9 @@ hazards:</p>
 <span>            nrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">edges</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">h</span>, <span class="fl">2</span>, <span class="va">cumprod</span><span class="op">)</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">8</span>, <span class="fl">15</span><span class="op">)</span><span class="op">]</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       [,1]  [,2]  [,3]</span></span>
-<span><span class="co">#&gt; [1,] 0.995 0.926 0.318</span></span>
-<span><span class="co">#&gt; [2,] 0.981 0.747 0.089</span></span>
-<span><span class="co">#&gt; [3,] 0.849 0.232 0.011</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,] 0.993 0.911 0.154</span></span>
+<span><span class="co">#&gt; [2,] 0.971 0.730 0.075</span></span>
+<span><span class="co">#&gt; [3,] 0.852 0.212 0.002</span></span></code></pre></div>
 <p><code>binomial("probit")</code> is among the cheapest families in the
 package, so the cost is the expansion rather than the sampler: the
 number of rows is the sum of how many grid points each subject reaches.
@@ -1043,7 +1043,7 @@ probabilities and carry no measure at all.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>lognormal <span class="op">=</span> <span class="fu">log_score_T</span><span class="op">(</span><span class="va">fit_ln</span>, <span class="va">d</span><span class="op">)</span>, ph <span class="op">=</span> <span class="fu">log_score_T</span><span class="op">(</span><span class="va">fit_ph</span>, <span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; lognormal        ph </span></span>
-<span><span class="co">#&gt;      -777      -788</span></span></code></pre></div>
+<span><span class="co">#&gt;      -776      -791</span></span></code></pre></div>
 <p>Without the correction the comparison is meaningless: on one of the
 simulations above the uncorrected gap between <code><a href="../reference/bartisan-families.html">ph()</a></code> and the
 accelerated failure time families exceeded a thousand log points and

@@ -207,20 +207,20 @@ imp
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>     paco2      1.00       0.207    3.0
-#>    surv2m      1.00       0.170    2.5
-#>       age      1.00       0.104    1.5
-#>       aps      0.96       0.135    2.0
-#>      card      0.76       0.054    0.8
-#>       rhc      0.64       0.083    1.3
-#>      pafi      0.58       0.093    1.4
-#>      resp      0.44       0.035    0.5
-#>      crea      0.42       0.039    0.5
-#>      race      0.20       0.052    0.8
-#>       edu      0.18       0.012    0.2
-#>    meanbp      0.12       0.010    0.2
-#>      hema      0.06       0.004    0.1
-#>       sex      0.02       0.002    0.0
+#>      pafi      1.00       0.163    2.8
+#>       aps      1.00       0.151    2.6
+#>    surv2m      1.00       0.112    1.9
+#>       age      1.00       0.091    1.6
+#>     paco2      1.00       0.090    1.5
+#>       rhc      0.84       0.099    1.7
+#>    meanbp      0.84       0.087    1.5
+#>       edu      0.44       0.039    0.7
+#>      card      0.42       0.029    0.5
+#>      hema      0.40       0.023    0.4
+#>      race      0.38       0.032    0.5
+#>      resp      0.36       0.044    0.7
+#>      crea      0.28       0.020    0.4
+#>       sex      0.24       0.019    0.3
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 
@@ -229,10 +229,11 @@ subset(imp, prop_used > .9)
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>     paco2      1.00       0.207    3.0
-#>    surv2m      1.00       0.170    2.5
-#>       age      1.00       0.104    1.5
-#>       aps      0.96       0.135    2.0
+#>      pafi         1       0.163    2.8
+#>       aps         1       0.151    2.6
+#>    surv2m         1       0.112    1.9
+#>       age         1       0.091    1.6
+#>     paco2         1       0.090    1.5
 #> 
 
 # `prop_splits` is the column that survives a change of forest size, since
@@ -247,25 +248,25 @@ merge(variable_importance(fit)[c("variable", "prop_splits")],
       variable_importance(big)[c("variable", "prop_splits")],
       by = "variable", suffixes = c("_10", "_40"))
 #>    variable prop_splits_10 prop_splits_40
-#> 1       age    0.103936407     0.10915611
-#> 2       aps    0.135239912     0.07412900
-#> 3      card    0.053880291     0.04540793
-#> 4      crea    0.038787046     0.03804600
-#> 5       edu    0.011627631     0.04547107
-#> 6      hema    0.004250000     0.05491165
-#> 7    meanbp    0.010388655     0.05604351
-#> 8     paco2    0.206618692     0.07269543
-#> 9      pafi    0.093291556     0.09744325
-#> 10     race    0.052406593     0.07787674
-#> 11     resp    0.035172308     0.03435895
-#> 12      rhc    0.082606194     0.06000012
-#> 13      sex    0.001538462     0.07148764
-#> 14   surv2m    0.170256252     0.16297259
+#> 1       age     0.09145554    0.081909718
+#> 2       aps     0.15094173    0.150314800
+#> 3      card     0.02948447    0.039288290
+#> 4      crea     0.02047668    0.088576493
+#> 5       edu     0.03915304    0.067878559
+#> 6      hema     0.02317787    0.015440428
+#> 7    meanbp     0.08678033    0.009164937
+#> 8     paco2     0.08975803    0.066894390
+#> 9      pafi     0.16322893    0.053418438
+#> 10     race     0.03218804    0.012447264
+#> 11     resp     0.04446252    0.053555629
+#> 12      rhc     0.09870784    0.067816662
+#> 13      sex     0.01862418    0.048068330
+#> 14   surv2m     0.11156079    0.245226062
 
 # The counts themselves, for a comparison the summary does not make
 counts <- variable_importance(fit, draws = TRUE)
 mean(counts[, "aps"] > counts[, "meanbp"])
-#> [1] 0.86
+#> [1] 0.56
 
 # The ranking, drawn. Subsetting first is what keeps a wide model readable.
 plot(head(imp, 8))

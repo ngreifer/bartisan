@@ -33,7 +33,7 @@ bartisan_control(
   share_sparsity = FALSE,
   categorical = "subset",
   augment = TRUE,
-  x_transform = "quantile",
+  x_transform = "smoothcdf",
   gamma = 0.95,
   beta = 2,
   sigma_mu = NULL,
@@ -195,10 +195,31 @@ bartisan_control(
 - x_transform:
 
   string; how numeric predictors are mapped to `[0, 1]`. Allowable
-  options include `"quantile"` (the default), which uses each
-  predictor's empirical distribution function and so makes the cutpoint
-  prior invariant to monotone reparameterization, and `"range"`, which
-  rescales linearly and preserves the original spacing.
+  options include `"smoothcdf"` (the default), `"quantile"`, and
+  `"range"`. The choice places the cutpoint prior and, for soft rules,
+  sets the scale the gate's width is measured on, and each has a failure
+  it is worth knowing about; see Details.
+
+  `"smoothcdf"` uses a kernel-smoothed estimate of each predictor's
+  distribution function, with an Epanechnikov kernel and a plug-in
+  bandwidth at the `n^(-1/3)` rate that is right for a distribution
+  function rather than the `n^(-1/5)` that is right for a density
+  (Tenreiro, 2006; the rate was pointed out for a second-order
+  approximation by Azzalini, 1981). Cutpoints land where the data are,
+  as under `"quantile"`, and the map is strictly increasing and
+  differentiable, as under `"range"`.
+
+  `"quantile"` uses the empirical distribution function, which is what
+  `SoftBart::softbart()` does. It is a step function, so the fit is a
+  step function of the predictor: it has no derivative, and a
+  relationship that is straight in the predictor becomes a jump wherever
+  the data are gappy.
+
+  `"range"` rescales linearly and preserves the original spacing. It is
+  the most accurate of the three on well-behaved predictors and the
+  right choice when a derivative is the quantity of interest, and it
+  fails where a few extreme values leave the bulk of a predictor inside
+  a sliver of its range.
 
 - gamma, beta:
 
@@ -438,6 +459,52 @@ The multinomial families are the exception, for the reason given in
 [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md):
 their forests act as one, so these arguments take a single value.
 
+### The Predictor Transform (`x_transform`)
+
+Numeric predictors are mapped to `[0, 1]` before any rule sees them, and
+the map does two jobs at once: cutpoints are uniform on a node's live
+range in that coordinate, and for soft rules the gate's bandwidth is
+measured there too. The three options fail in different places, which is
+the whole of the choice between them.
+
+`"range"` is the most accurate on well-behaved predictors and the only
+one that supports a derivative, since it is the only affine map of the
+three. Its failure is a predictor whose bulk sits inside a sliver of its
+range, which a few extreme values are enough to produce: a cutpoint
+drawn uniformly on a node's live range then almost never lands where the
+structure is. Measured over a simulation with 1% of a predictor at 300
+times the scale and a truth that oscillates within the bulk, it was 4
+times worse than the alternatives at `n = 500` and 6 times worse at
+`n = 2000`, with 95% intervals covering .24 rather than .95. The
+deterioration with `n` is the signature: the extremes grow with the
+sample, so the bulk occupies an ever smaller share.
+
+`"quantile"` cannot fail that way, since it places cutpoints by rank. It
+fails instead by being a step function, so the fit is a step function of
+the predictor: there is no derivative to take, and a relationship that
+is straight in the predictor becomes a jump wherever the data are gappy.
+On two tight clusters with a linear truth it was nearly three times
+worse than the alternatives.
+
+`"smoothcdf"`, the default, smooths the same distribution function and
+so does neither. Across eight data-generating processes it was never the
+most accurate and never far from it, where each of the other two was
+badly wrong somewhere. It is not a free lunch: a derivative taken
+through it is the derivative of the fitted function times an estimated
+density, so `"range"` remains the better choice when a slope is the
+quantity of interest rather than a prediction.
+
+The bandwidth is a plug-in rather than one chosen from the data. The
+data-based selectors of Bergmann and Zaehle (2026) were measured here
+and are not used, because they optimize a different thing: they minimize
+the error in the estimated distribution function, where this map exists
+to place cutpoints and keep the coordinate smooth. The two come apart
+exactly where it matters. Given two tight clusters with a gap between
+them, they correctly choose a much narrower bandwidth, the distribution
+function really being flat in the gap; that returns the coordinate to
+nearly the step `"quantile"` would have given, and doubled the error of
+the fit.
+
 ### Splitting a Factor
 
 What `"onehot"` costs is partial pooling. A rule on one indicator column
@@ -579,6 +646,19 @@ where the mean function jumps.
 
 ## References
 
+Azzalini, A. (1981). A note on the estimation of a distribution function
+and quantiles by a kernel method. *Biometrika*, 68(1), 326–328.
+[doi:10.1093/biomet/68.1.326](https://doi.org/10.1093/biomet/68.1.326)
+
+Bergmann, T., & Zaehle, H. (2026). Data-based bandwidth selection for
+kernel smoothing of empirical distribution functions. *Metrika*.
+[doi:10.1007/s00184-026-01025-6](https://doi.org/10.1007/s00184-026-01025-6)
+
+Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in
+bandwidth selections for kernel distribution function estimators.
+*Journal of Nonparametric Statistics*, 18(1), 101–116.
+[doi:10.1080/10485250600578334](https://doi.org/10.1080/10485250600578334)
+
 Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 prediction and variable selection. *Journal of the American Statistical
 Association*, 113(522), 626–636.
@@ -674,7 +754,7 @@ bartisan_control(num_trees = c(mean = 50, log_sd = 10))
 #> [6] "aft"         "negbin"     
 #> 
 #> $x_transform
-#> [1] "quantile"
+#> [1] "smoothcdf"
 #> 
 #> $gamma
 #> [1] 0.95
@@ -792,7 +872,7 @@ bartisan_control(split_prior = c(rhc = 10))
 #> [6] "aft"         "negbin"     
 #> 
 #> $x_transform
-#> [1] "quantile"
+#> [1] "smoothcdf"
 #> 
 #> $gamma
 #> [1] 0.95

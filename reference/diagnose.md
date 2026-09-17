@@ -280,24 +280,25 @@ diagnose(fit)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.281     1.791        6       45
-#>                           splits.eta 1.008     1.153       31       48
-#>  eta.eta (average over observations) 1.004     1.161       77       64
-#>   eta.eta (worst 5% of observations) 1.488     1.728        4       16
+#>                               loglik 1.456     1.161        5       24
+#>                           splits.eta 1.141     1.834       11       13
+#>  eta.eta (average over observations) 0.990     1.000       79      117
+#>   eta.eta (worst 5% of observations) 1.386     1.468        5       17
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even
+#> ✖ That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even
 #>   when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
-#> ✔ The chains agree about the size of the forest
-#> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400
-#> ✖ Tail ESS is 16 for eta.eta (worst 5% of observations), below 400
+#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
+#>   1.14)
+#> ✖ Bulk ESS is 5 for loglik, below 400
+#> ✖ Tail ESS is 13 for splits.eta, below 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 77 effective draws)
-#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
-#>   carries 4.3 effective draws per hundred kept
+#>   average (R-hat 0.99, 79 effective draws)
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws
+#>   per hundred kept
 #> 
 #> What to do
 #> 
@@ -328,24 +329,25 @@ diagnose(fit, ess_min = 1000)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.281     1.791        6       45
-#>                           splits.eta 1.008     1.153       31       48
-#>  eta.eta (average over observations) 1.004     1.161       77       64
-#>   eta.eta (worst 5% of observations) 1.488     1.728        4       16
+#>                               loglik 1.456     1.161        5       24
+#>                           splits.eta 1.141     1.834       11       13
+#>  eta.eta (average over observations) 0.990     1.000       79      117
+#>   eta.eta (worst 5% of observations) 1.386     1.468        5       17
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 6 effective draws, where 2 chains average 1.346 even
+#> ✖ That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even
 #>   when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
-#> ✔ The chains agree about the size of the forest
-#> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000
-#> ✖ Tail ESS is 16 for eta.eta (worst 5% of observations), below 1000
+#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
+#>   1.14)
+#> ✖ Bulk ESS is 5 for loglik, below 1000
+#> ✖ Tail ESS is 13 for splits.eta, below 1000
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 77 effective draws)
-#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
-#>   carries 4.3 effective draws per hundred kept
+#>   average (R-hat 0.99, 79 effective draws)
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws
+#>   per hundred kept
 #> 
 #> What to do
 #> 

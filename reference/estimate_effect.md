@@ -255,13 +255,13 @@ estimate_effect(fit)
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate    lower  upper    n
-#>  Y[1] - Y[0]   0.0331 -0.00319 0.0902 1500
+#>  Y[1] - Y[0]   0.0334 -0.00348 0.0878 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.615  0.67
-#>      Y[1]    0.675 0.647  0.71
+#>      Y[0]    0.642 0.610 0.665
+#>      Y[1]    0.675 0.638 0.704
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -275,13 +275,13 @@ estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 #> Averaged over the 565 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
-#>  Y[1] / Y[0]     1.04 0.996  1.13 565
+#>  Y[1] / Y[0]     1.04 0.994  1.12 565
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.668 0.633 0.701
-#>      Y[1]    0.696 0.668 0.728
+#>      Y[0]    0.670 0.634 0.693
+#>      Y[1]    0.699 0.668 0.728
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -301,14 +301,14 @@ estimate_effect(fit, by = ~ sex)
 #> Within levels of "sex"
 #> 
 #>     sex    contrast estimate    lower  upper   n
-#>  female Y[1] - Y[0]   0.0454 -0.00502 0.1180 676
-#>    male Y[1] - Y[0]   0.0230 -0.00672 0.0723 824
+#>  female Y[1] - Y[0]   0.0490 -0.00818 0.1270 676
+#>    male Y[1] - Y[0]   0.0206 -0.01960 0.0634 824
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.615  0.67
-#>      Y[1]    0.675 0.647  0.71
+#>      Y[0]    0.642 0.610 0.665
+#>      Y[1]    0.675 0.638 0.704
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

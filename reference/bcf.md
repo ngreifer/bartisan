@@ -266,13 +266,13 @@ fit <- bcf(death ~ . - days, treat = ~ rhc, data = rhc,
 # One conditional effect per patient, which is what the effect forest comes
 # to at each observation
 head(coef(fit))
-#>            rhc
-#> [1,] 0.2976305
-#> [2,] 0.1495210
-#> [3,] 0.2202776
-#> [4,] 0.1666915
-#> [5,] 0.5088872
-#> [6,] 0.4356817
+#>               rhc
+#> [1,]  0.276254026
+#> [2,]  0.220726838
+#> [3,] -0.057821159
+#> [4,]  0.025513898
+#> [5,] -0.005822382
+#> [6,]  0.071148221
 
 # The average effect over the sample, on the response scale, which for a
 # binomial fit makes it a risk difference rather than a log odds ratio
@@ -282,14 +282,14 @@ estimate_effect(fit)
 #> Treatment: "rhc"
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate  lower upper    n
-#>  Y[1] - Y[0]   0.0539 0.0048 0.119 1500
+#>     contrast estimate    lower  upper    n
+#>  Y[1] - Y[0]   0.0289 -0.00395 0.0687 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.632 0.607 0.659
-#>      Y[1]    0.686 0.652 0.720
+#>      Y[0]    0.643 0.624 0.667
+#>      Y[1]    0.672 0.645 0.699
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -310,46 +310,46 @@ summary(fit)
 #> Draws: 50
 #> 
 #> Nuisance parameters
-#>          mean    sd  lower upper
-#> b.rhc.0 0.431 0.424 -0.595 0.965
-#> b.rhc.1 1.148 0.327  0.732 1.690
+#>          mean    sd lower upper
+#> b.rhc.0 0.834 0.172 0.503 1.084
+#> b.rhc.1 1.165 0.288 0.745 1.610
 #> 
 #> Predictor usage
 #> Splitting rules per draw, and how often used at all.
 #> 
 #> Predictor "(Intercept)":
 #>             mean    sd lower  upper prop_used
-#> age         5.46 2.305     2 10.550      1.00
-#> surv2m      5.78 3.079     2 11.775      1.00
-#> paco2       1.64 1.367     0  4.775      0.78
-#> card        1.44 1.280     0  3.775      0.64
-#> race        0.64 0.776     0  2.775      0.50
-#> hema        0.34 0.593     0  1.000      0.30
-#> resp        0.26 0.443     0  1.000      0.26
-#> edu         0.30 0.735     0  2.775      0.18
-#> aps         0.14 0.405     0  1.000      0.12
-#> sex         0.08 0.274     0  1.000      0.08
-#> pafi        0.12 0.435     0  1.775      0.08
-#> meanbp      0.04 0.198     0  0.775      0.04
-#> .propensity 0.04 0.198     0  0.775      0.04
-#> crea        0.02 0.141     0  0.000      0.02
+#> aps         2.02 1.672     1  6.000      1.00
+#> paco2       2.42 0.702     2  4.000      1.00
+#> surv2m      7.14 1.830     4 11.000      1.00
+#> pafi        1.34 0.823     0  2.775      0.82
+#> card        0.70 0.614     0  2.000      0.62
+#> crea        0.80 0.990     0  3.000      0.46
+#> meanbp      0.48 0.646     0  2.000      0.40
+#> hema        0.50 0.814     0  2.775      0.34
+#> age         0.34 0.519     0  1.000      0.32
+#> edu         0.10 0.303     0  1.000      0.10
+#> race        0.04 0.198     0  0.775      0.04
+#> resp        0.04 0.198     0  0.775      0.04
+#> sex         0.00 0.000     0  0.000      0.00
+#> .propensity 0.00 0.000     0  0.000      0.00
 #> 
 #> Predictor "rhc":
 #>             mean    sd lower upper prop_used
-#> pafi        1.52 0.789     0     3      0.90
-#> crea        1.26 0.828     0     3      0.84
-#> hema        1.42 1.357     0     4      0.66
-#> age         0.70 0.707     0     2      0.56
-#> aps         0.58 0.642     0     2      0.50
-#> edu         0.70 0.814     0     2      0.48
-#> sex         0.34 0.688     0     2      0.24
-#> meanbp      0.26 0.487     0     1      0.24
-#> race        0.24 0.476     0     1      0.22
-#> paco2       0.22 0.418     0     1      0.22
-#> card        0.18 0.388     0     1      0.18
-#> surv2m      0.16 0.370     0     1      0.16
-#> resp        0.14 0.351     0     1      0.14
-#> .propensity 0.00 0.000     0     0      0.00
+#> age         6.02 2.005 2.225 9.775      1.00
+#> surv2m      1.46 1.705 0.000 5.775      0.54
+#> resp        0.22 0.465 0.000 1.000      0.20
+#> crea        0.10 0.303 0.000 1.000      0.10
+#> sex         0.08 0.274 0.000 1.000      0.08
+#> hema        0.10 0.463 0.000 1.000      0.06
+#> edu         0.06 0.314 0.000 0.775      0.04
+#> aps         0.04 0.198 0.000 0.775      0.04
+#> pafi        0.04 0.198 0.000 0.775      0.04
+#> paco2       0.04 0.198 0.000 0.775      0.04
+#> race        0.02 0.141 0.000 0.000      0.02
+#> meanbp      0.02 0.141 0.000 0.000      0.02
+#> card        0.02 0.141 0.000 0.000      0.02
+#> .propensity 0.00 0.000 0.000 0.000      0.00
 #> 
 #> ℹ This fit has a treatment, "rhc". `estimate_effect()` reports its effect, with
 #>   the average potential outcomes beside it.

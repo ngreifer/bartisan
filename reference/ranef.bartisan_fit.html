@@ -130,20 +130,20 @@ intercept is one the forest did not take.</p>
 <span class="r-in"><span><span class="co"># which \pkg{lme4} re-exports, so either qualification reaches this.</span></span></span>
 <span class="r-in"><span><span class="fu">nlme</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/random.effects.html" class="external-link">ranef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $site</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   (Intercept)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> a  -0.1753165</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> b   0.1716366</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> c   0.6186320</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> d   0.6787379</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> e   1.4104597</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     (Intercept)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> a -0.7852989913</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> b -0.4494857398</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> c -0.0092514420</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> d  0.0003933138</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> e  0.7338711283</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># With the draws, so the intercepts come with intervals</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="fu">nlme</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/random.effects.html" class="external-link">ranef</a></span><span class="op">(</span><span class="va">fit</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">$</span><span class="va">site</span><span class="op">[[</span><span class="st">"(Intercept)"</span><span class="op">]</span><span class="op">]</span>, <span class="fl">2L</span>, <span class="va">quantile</span>,</span></span>
 <span class="r-in"><span>      <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.025</span>, <span class="fl">.975</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                a          b         c         d        e</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2.5%  -0.6378739 -0.2492532 0.1594344 0.1790185 1.057249</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 97.5%  0.2664883  0.6400939 1.1145651 1.1708190 1.764146</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                a           b          c          d         e</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2.5%  -1.0886060 -0.87397240 -0.4809000 -0.4275375 0.3910354</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 97.5% -0.4415373 -0.05452073  0.5507739  0.4072018 1.1632560</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

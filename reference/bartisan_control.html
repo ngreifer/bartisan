@@ -105,7 +105,7 @@ so that the checks using them can be read.</p>
 <span>  share_sparsity <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  categorical <span class="op">=</span> <span class="st">"subset"</span>,</span>
 <span>  augment <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  x_transform <span class="op">=</span> <span class="st">"quantile"</span>,</span>
+<span>  x_transform <span class="op">=</span> <span class="st">"smoothcdf"</span>,</span>
 <span>  gamma <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  beta <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  sigma_mu <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -260,10 +260,27 @@ changing; see <code><a href="../articles/implementation.html">vignette("implemen
 
 <dt id="arg-x-transform">x_transform<a class="anchor" aria-label="anchor" href="#arg-x-transform"></a></dt>
 <dd><p>string; how numeric predictors are mapped to <code>[0, 1]</code>.
-Allowable options include <code>"quantile"</code> (the default), which uses each
-predictor's empirical distribution function and so makes the cutpoint prior
-invariant to monotone reparameterization, and <code>"range"</code>, which rescales
-linearly and preserves the original spacing.</p></dd>
+Allowable options include <code>"smoothcdf"</code> (the default), <code>"quantile"</code>, and
+<code>"range"</code>. The choice places the cutpoint prior and, for soft rules, sets
+the scale the gate's width is measured on, and each has a failure it is
+worth knowing about; see Details.</p>
+<p><code>"smoothcdf"</code> uses a kernel-smoothed estimate of each predictor's
+distribution function, with an Epanechnikov kernel and a plug-in bandwidth
+at the <code>n^(-1/3)</code> rate that is right for a distribution function rather than
+the <code>n^(-1/5)</code> that is right for a density (Tenreiro, 2006; the rate was
+pointed out for a second-order approximation by Azzalini, 1981). Cutpoints
+land where the data are, as under <code>"quantile"</code>, and the map is strictly
+increasing and differentiable, as under <code>"range"</code>.</p>
+<p><code>"quantile"</code> uses the empirical distribution function, which is what
+<code>SoftBart::softbart()</code>
+ does. It is a step function, so the fit is a
+step function of the predictor: it has no derivative, and a relationship
+that is straight in the predictor becomes a jump wherever the data are
+gappy.</p>
+<p><code>"range"</code> rescales linearly and preserves the original spacing. It is the
+most accurate of the three on well-behaved predictors and the right choice
+when a derivative is the quantity of interest, and it fails where a few
+extreme values leave the bulk of a predictor inside a sliver of its range.</p></dd>
 
 
 <dt id="arg-gamma-beta">gamma, beta<a class="anchor" aria-label="anchor" href="#arg-gamma-beta"></a></dt>
@@ -488,6 +505,49 @@ single value.</p>
 </div>
 
 <div class="section">
+<h3 id="the-predictor-transform-x-transform-">The Predictor Transform (<code>x_transform</code>)<a class="anchor" aria-label="anchor" href="#the-predictor-transform-x-transform-"></a></h3>
+
+
+<p>Numeric predictors are mapped to <code>[0, 1]</code> before any rule sees them, and the
+map does two jobs at once: cutpoints are uniform on a node's live range in
+that coordinate, and for soft rules the gate's bandwidth is measured there
+too. The three options fail in different places, which is the whole of the
+choice between them.</p>
+<p><code>"range"</code> is the most accurate on well-behaved predictors and the only one
+that supports a derivative, since it is the only affine map of the three. Its
+failure is a predictor whose bulk sits inside a sliver of its range, which a
+few extreme values are enough to produce: a cutpoint drawn uniformly on a
+node's live range then almost never lands where the structure is. Measured
+over a simulation with 1% of a predictor at 300 times the scale and a truth
+that oscillates within the bulk, it was 4 times worse than the alternatives
+at <code>n = 500</code> and 6 times worse at <code>n = 2000</code>, with 95% intervals covering .24
+rather than .95. The deterioration with <code>n</code> is the signature: the extremes
+grow with the sample, so the bulk occupies an ever smaller share.</p>
+<p><code>"quantile"</code> cannot fail that way, since it places cutpoints by rank. It
+fails instead by being a step function, so the fit is a step function of the
+predictor: there is no derivative to take, and a relationship that is
+straight in the predictor becomes a jump wherever the data are gappy. On two
+tight clusters with a linear truth it was nearly three times worse than the
+alternatives.</p>
+<p><code>"smoothcdf"</code>, the default, smooths the same distribution function and so
+does neither. Across eight data-generating processes it was never the most
+accurate and never far from it, where each of the other two was badly wrong
+somewhere. It is not a free lunch: a derivative taken through it is the
+derivative of the fitted function times an estimated density, so <code>"range"</code>
+remains the better choice when a slope is the quantity of interest rather
+than a prediction.</p>
+<p>The bandwidth is a plug-in rather than one chosen from the data. The
+data-based selectors of Bergmann and Zaehle (2026) were measured here and are
+not used, because they optimize a different thing: they minimize the error in
+the estimated distribution function, where this map exists to place cutpoints
+and keep the coordinate smooth. The two come apart exactly where it matters.
+Given two tight clusters with a gap between them, they correctly choose a much
+narrower bandwidth, the distribution function really being flat in the gap;
+that returns the coordinate to nearly the step <code>"quantile"</code> would have given,
+and doubled the error of the fit.</p>
+</div>
+
+<div class="section">
 <h3 id="splitting-a-factor">Splitting a Factor<a class="anchor" aria-label="anchor" href="#splitting-a-factor"></a></h3>
 
 
@@ -622,7 +682,17 @@ in accuracy where the mean function jumps.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Linero, A. R. (2018). Bayesian regression trees for high-dimensional
+    <p>Azzalini, A. (1981). A note on the estimation of a distribution function and
+quantiles by a kernel method. <em>Biometrika</em>, 68(1), 326–328.
+<a href="https://doi.org/10.1093/biomet/68.1.326" class="external-link">doi:10.1093/biomet/68.1.326</a></p>
+<p>Bergmann, T., &amp; Zaehle, H. (2026). Data-based bandwidth selection for kernel
+smoothing of empirical distribution functions. <em>Metrika</em>.
+<a href="https://doi.org/10.1007/s00184-026-01025-6" class="external-link">doi:10.1007/s00184-026-01025-6</a></p>
+<p>Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in bandwidth
+selections for kernel distribution function estimators. <em>Journal of
+Nonparametric Statistics</em>, 18(1), 101–116.
+<a href="https://doi.org/10.1080/10485250600578334" class="external-link">doi:10.1080/10485250600578334</a></p>
+<p>Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 prediction and variable selection. <em>Journal of the American Statistical
 Association</em>, 113(522), 626–636. <a href="https://doi.org/10.1080/01621459.2016.1264957" class="external-link">doi:10.1080/01621459.2016.1264957</a></p>
 <p>Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
@@ -711,7 +781,7 @@ models using shared Bayesian forests. <em>Biometrics</em>, 76(1), 131–144.
 <span class="r-out co"><span class="r-pr">#&gt;</span> [6] "aft"         "negbin"     </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $x_transform</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "quantile"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "smoothcdf"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $gamma</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.95</span>
@@ -829,7 +899,7 @@ models using shared Bayesian forests. <em>Biometrics</em>, 76(1), 131–144.
 <span class="r-out co"><span class="r-pr">#&gt;</span> [6] "aft"         "negbin"     </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $x_transform</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "quantile"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "smoothcdf"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $gamma</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.95</span>

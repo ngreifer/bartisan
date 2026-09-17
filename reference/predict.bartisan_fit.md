@@ -300,17 +300,17 @@ fit <- bartisan(death ~ . - days, data = rhc,
 
 # Fitted probabilities of death, averaged over the draws
 head(predict(fit, type = "response"))
-#> [1] 0.7860891 0.8385106 0.2271306 0.4409820 0.3670865 0.4670693
+#> [1] 0.7685691 0.8202057 0.2465819 0.3451376 0.3927522 0.5274813
 
 # The whole posterior for the first five patients rather than its mean
 post <- predict(fit, newdata = rhc[1:5, ], draws = TRUE)
 apply(post, 2, quantile, c(.025, .5, .975))
 #>            [,1]      [,2]      [,3]      [,4]      [,5]
-#> 2.5%  0.7085616 0.7908357 0.1505209 0.3506389 0.2793308
-#> 50%   0.7857738 0.8385867 0.2279566 0.4419846 0.3651961
-#> 97.5% 0.8779175 0.8856130 0.3058042 0.5315154 0.4875912
+#> 2.5%  0.6886183 0.7198000 0.1446598 0.2570470 0.2670428
+#> 50%   0.7746833 0.8244962 0.2644145 0.3468819 0.3781887
+#> 97.5% 0.8232087 0.9118594 0.3225904 0.4547626 0.6209257
 
 # A held-out log score, which needs the outcome, so `newdata` carries it
 sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
-#> [1] -59.99775
+#> [1] -59.81794
 ```

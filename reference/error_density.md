@@ -107,9 +107,9 @@ fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
 # assumed to be normal
 head(error_density(fit, at = c(-2, 0, 2)))
 #>   at      mean     lower     upper
-#> 1 -2 0.1149753 0.1115021 0.1177285
-#> 2  0 0.2457427 0.2339895 0.2589215
-#> 3  2 0.1149345 0.1115033 0.1173836
+#> 1 -2 0.1149222 0.1129846 0.1167409
+#> 2  0 0.2460588 0.2382741 0.2537277
+#> 3  2 0.1149235 0.1130015 0.1167404
 
 # The same thing drawn, with the pointwise interval as a ribbon
 plot(error_density(fit))

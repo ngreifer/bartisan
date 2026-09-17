@@ -520,7 +520,7 @@ fit
 
 # Fitted probabilities
 head(predict(fit, type = "response"))
-#> [1] 0.7860891 0.8385106 0.2271306 0.4409820 0.3670865 0.4670693
+#> [1] 0.7685691 0.8202057 0.2465819 0.3451376 0.3927522 0.5274813
 
 # The forest has no coefficients, so an effect is a contrast of
 # predictions, here of catheterization on the probability of death
@@ -529,7 +529,7 @@ if (rlang::is_installed("marginaleffects")) {
 }
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>    0.0358     0 0.0892
+#>    0.0585     0  0.102
 #> 
 #> Term: rhc
 #> Type: response

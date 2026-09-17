@@ -55,24 +55,23 @@ diagnose(fit)
 #> Convergence and mixing
 #> 
 #>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.12     1.036       23      234
-#>                           splits.eta 1.01     1.039      264      731
-#>  eta.eta (average over observations) 1.00     0.999     1610     2278
-#>   eta.eta (worst 5% of observations) 1.04     1.073       80      305
+#>                               loglik 1.16      1.34       17       64
+#>                           splits.eta 1.01      1.02      332      540
+#>  eta.eta (average over observations) 1.00      1.01     1698     2754
+#>   eta.eta (worst 5% of observations) 1.06      1.11       56      330
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 23 effective draws, where 4 chains average 1.171
+#> ✖ That R-hat rests on only 17 effective draws, where 4 chains average 1.235
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
-#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
-#>   1.01)
-#> ✖ Bulk ESS is 23 for loglik, below 400
-#> ✖ Tail ESS is 234 for loglik, below 400
+#> ✔ The chains agree about the size of the forest
+#> ✖ Bulk ESS is 17 for loglik, below 400
+#> ✖ Tail ESS is 64 for loglik, below 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 1610 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.7 effective draws
+#>   average (R-hat 1.00, 1698 effective draws)
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.5 effective draws
 #>   per hundred kept
 #> 
 #> What to do
@@ -232,17 +231,17 @@ too_short <- bartisan(y ~ ., fr, family = gaussian(), chains = 4,
 
 diagnose(too_short)$table
 #>                              quantity rhat rhat_late ess_bulk ess_tail ess_frac
-#> 1                              loglik 1.72      1.79     6.85     12.3   0.0342
-#> 2                           aux.sigma 1.26      1.10    12.33     29.6   0.0617
-#> 3                          splits.eta 1.57      1.96     7.73     17.8   0.0387
-#> 4 eta.eta (average over observations) 1.02      1.02   203.44    191.7   1.0172
-#> 5  eta.eta (worst 5% of observations) 1.86      1.97     6.46     14.6   0.0323
+#> 1                              loglik 1.69      2.21     6.99     12.2   0.0350
+#> 2                           aux.sigma 1.21      1.39    14.65     25.9   0.0733
+#> 3                          splits.eta 1.70      1.97     6.99     29.6   0.0350
+#> 4 eta.eta (average over observations) 1.01      1.01   169.70    193.9   0.8485
+#> 5  eta.eta (worst 5% of observations) 1.83      1.97     6.59     13.9   0.0329
 #>   rhat_bad late_bad
-#> 1    1.000        1
-#> 2    1.000        1
-#> 3    1.000        1
-#> 4    1.000        1
-#> 5    0.998        1
+#> 1    1.000    1.000
+#> 2    1.000    1.000
+#> 3    1.000    1.000
+#> 4    0.000    0.000
+#> 5    0.998    0.998
 ```
 
 Almost everything is bad. Every `rhat` but the average over observations
@@ -260,17 +259,17 @@ long_enough <- bartisan(y ~ ., fr, family = gaussian(), chains = 4)
 
 diagnose(long_enough)$table
 #>                              quantity rhat rhat_late ess_bulk ess_tail ess_frac
-#> 1                              loglik 1.12      1.14     26.9    127.8  0.00839
-#> 2                           aux.sigma 1.03      1.04    130.5    550.1  0.04077
-#> 3                          splits.eta 1.08      1.11     37.3    164.5  0.01166
-#> 4 eta.eta (average over observations) 1.00      1.00   3322.6   3158.2  1.03830
-#> 5  eta.eta (worst 5% of observations) 1.14      1.23     20.5     70.5  0.00641
+#> 1                              loglik 1.12      1.17     23.2     58.1  0.00725
+#> 2                           aux.sigma 1.03      1.04    101.1   1004.4  0.03160
+#> 3                          splits.eta 1.11      1.22     29.5    192.9  0.00921
+#> 4 eta.eta (average over observations) 1.00      1.00   3275.0   3194.3  1.02343
+#> 5  eta.eta (worst 5% of observations) 1.15      1.21     17.9     66.0  0.00561
 #>   rhat_bad late_bad
-#> 1    1.000    1.000
-#> 2    1.000    1.000
-#> 3    1.000    1.000
-#> 4    0.000    0.000
-#> 5    0.993    0.995
+#> 1     1.00        1
+#> 2     1.00        1
+#> 3     1.00        1
+#> 4     0.00        0
+#> 5     0.99        1
 ```
 
 Everything has improved by a large factor, and the residual standard
@@ -296,7 +295,7 @@ per_observation_rhat <- function(fit) {
 
 round(quantile(per_observation_rhat(fit), c(0.5, 0.9, 0.99, 1)), 3)
 #>  50%  90%  99% 100% 
-#> 1.02 1.04 1.06 1.07
+#> 1.02 1.04 1.08 1.11
 ```
 
 The median is a little above 1 and so is most of the distribution, so
@@ -328,18 +327,18 @@ as_draws(fit) |>
 #> # A tibble: 12 × 10
 #>    variable         mean   median     sd    mad       q5      q95  rhat ess_bulk
 #>    <chr>           <dbl>    <dbl>  <dbl>  <dbl>    <dbl>    <dbl> <dbl>    <dbl>
-#>  1 loglik       -8.32e+2 -8.32e+2 6.26   6.11   -841.    -821.     1.13    23.5 
-#>  2 sigma_mu.eta  2.50e-1  2.36e-1 0.0650 0.0577    0.165    0.372  1.33     9.85
-#>  3 eta[119]     -1.52e+0 -1.50e+0 0.363  0.348    -2.13    -0.945  1.04   102.  
-#>  4 eta[466]     -4.19e-1 -4.06e-1 0.336  0.322    -0.976    0.127  1.02   294.  
-#>  5 eta[541]     -2.67e-5  5.60e-3 0.289  0.282    -0.482    0.462  1.01   374.  
-#>  6 eta[673]      2.97e-1  2.92e-1 0.311  0.301    -0.219    0.818  1.01   281.  
-#>  7 eta[763]      5.78e-1  5.64e-1 0.296  0.289     0.123    1.08   1.01   294.  
-#>  8 eta[1261]     8.69e-1  8.63e-1 0.336  0.338     0.319    1.42   1.02   337.  
-#>  9 eta[1228]     1.28e+0  1.28e+0 0.341  0.333     0.717    1.83   1.01   269.  
-#> 10 eta[137]      1.66e+0  1.65e+0 0.388  0.391     1.04     2.31   1.02   157.  
-#> 11 eta[1374]     2.01e+0  2.01e+0 0.485  0.473     1.24     2.80   1.01   288.  
-#> 12 eta[1135]     3.16e+0  3.12e+0 0.512  0.491     2.39     4.08   1.06    48.8 
+#>  1 loglik       -8.32e+2 -8.32e+2 6.68   6.64   -843.    -821.     1.16     17.1
+#>  2 sigma_mu.eta  2.34e-1  2.30e-1 0.0457 0.0422    0.172    0.315  1.18     16.6
+#>  3 eta[119]     -1.50e+0 -1.49e+0 0.404  0.393    -2.17    -0.831  1.07     40.8
+#>  4 eta[45]      -4.32e-1 -4.43e-1 0.347  0.337    -0.992    0.163  1.04     83.6
+#>  5 eta[209]     -1.14e-3  4.95e-3 0.319  0.331    -0.521    0.505  1.02    238. 
+#>  6 eta[222]      2.83e-1  2.76e-1 0.315  0.295    -0.230    0.820  1.02    268. 
+#>  7 eta[955]      5.82e-1  5.82e-1 0.271  0.276     0.141    1.03   1.01    302. 
+#>  8 eta[559]      8.79e-1  8.79e-1 0.300  0.301     0.388    1.37   1.01    398. 
+#>  9 eta[377]      1.29e+0  1.27e+0 0.331  0.325     0.752    1.86   1.02    369. 
+#> 10 eta[1038]     1.66e+0  1.65e+0 0.392  0.372     1.02     2.30   1.01    376. 
+#> 11 eta[496]      2.01e+0  2.01e+0 0.354  0.348     1.44     2.60   1.01    348. 
+#> 12 eta[1135]     3.09e+0  3.08e+0 0.509  0.499     2.28     3.95   1.07     45.1
 #> # ℹ 1 more variable: ess_tail <dbl>
 ```
 
@@ -387,36 +386,17 @@ estimate_effect(bcf_fit, estimand = "ATE") |>
 #> Convergence and mixing
 #> 
 #>     quantity rhat rhat_late ess_bulk ess_tail
-#>  Y[1] - Y[0] 1.04      1.12       88      327
-#>         Y[0] 1.02      1.05      258     1389
-#>         Y[1] 1.02      1.08      167      976
+#>  Y[1] - Y[0]    1      1.03      533      626
+#>         Y[0]    1      1.01     1000     1602
+#>         Y[1]    1      1.02      633     1055
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
-#> ✖ R-hat is above 1.01 for Y[1] - Y[0]
-#> ✖ That R-hat rests on only 88 effective draws, where 4 chains average 1.045
-#>   even when they agree
-#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
-#>   draws alone as well
-#> ✖ Bulk ESS is 88 for Y[1] - Y[0], below 400
-#> ✖ Tail ESS is 327 for Y[1] - Y[0], below 400
-#> ℹ Per-draw efficiency is lowest for Y[1] - Y[0], which carries 2.7 effective
-#>   draws per hundred kept
+#> ✔ R-hat is below 1.01 throughout
+#> ✔ Warmup was long enough, since R-hat is already fine
+#> ✔ Bulk ESS is at least 533 everywhere, above 400
+#> ✔ Tail ESS is at least 626 everywhere, above 400
 #> 
-#> What to do
-#> 
-#> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
-#>   quantity that carries too few effective draws for the threshold to mean
-#>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. Effective sample size is
-#>   what makes it readable, and that grows with the total number of draws; using
-#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
-#>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`. A smaller forest has fewer
-#>   ways to represent the same fit, so the sampler has less room to move between
-#>   them.
-#> • Then check the family. A likelihood that fits the data badly can give a
-#>   posterior with no single place to be; `bayesplot::pp_check()` is the
-#>   diagnostic.
+#> ✔ Nothing to change.
 ```
 
 Three rows: the contrast, and the two average potential outcomes it is a
@@ -432,25 +412,25 @@ Now compare what the fit’s own table says about the same sampler:
 
 diagnose(bcf_fit)$table
 #>                                      quantity rhat rhat_late ess_bulk ess_tail
-#> 1                                      loglik 1.04      1.19     68.8    199.6
-#> 2                                 aux.b.rhc.0 1.16      1.37     30.4     75.6
-#> 3                                 aux.b.rhc.1 1.08      1.17     38.2    137.1
-#> 4                          splits.(Intercept) 1.02      1.04    201.5    410.0
-#> 5                                  splits.rhc 1.00      1.03    285.5    587.0
-#> 6 eta.(Intercept) (average over observations) 1.32      1.70     10.2     14.6
-#> 7  eta.(Intercept) (worst 5% of observations) 1.24      1.45     12.6     15.9
-#> 8         eta.rhc (average over observations) 1.26      1.61     12.1     22.3
-#> 9          eta.rhc (worst 5% of observations) 1.26      1.56     12.1     18.9
+#> 1                                      loglik 1.02      1.06    94.41    270.1
+#> 2                                 aux.b.rhc.0 1.22      1.25    14.12     30.6
+#> 3                                 aux.b.rhc.1 1.14      1.25    32.96     68.2
+#> 4                          splits.(Intercept) 1.01      1.02   434.98    908.9
+#> 5                                  splits.rhc 1.02      1.02   326.82    531.0
+#> 6 eta.(Intercept) (average over observations) 1.21      1.36    14.61     58.2
+#> 7  eta.(Intercept) (worst 5% of observations) 1.20      1.33    14.73     80.8
+#> 8         eta.rhc (average over observations) 1.34      1.49     9.88     67.8
+#> 9          eta.rhc (worst 5% of observations) 1.40      1.54     8.73     39.0
 #>   ess_frac rhat_bad late_bad
-#> 1  0.02149        1        1
-#> 2  0.00950        1        1
-#> 3  0.01192        1        1
-#> 4  0.06298        1        1
-#> 5  0.08923        0        1
-#> 6  0.00317        1        1
-#> 7  0.00393        1        1
-#> 8  0.00378        1        1
-#> 9  0.00379        1        1
+#> 1  0.02950        1        1
+#> 2  0.00441        1        1
+#> 3  0.01030        1        1
+#> 4  0.13593        1        1
+#> 5  0.10213        1        1
+#> 6  0.00457        1        1
+#> 7  0.00460        1        1
+#> 8  0.00309        1        1
+#> 9  0.00273        1        1
 ```
 
 The two forests are far worse than the estimand. Their R-hats are in the
@@ -505,7 +485,7 @@ folded |>
 #> # A tibble: 1 × 5
 #>   variable   mean  rhat ess_bulk ess_tail
 #>   <chr>     <dbl> <dbl>    <dbl>    <dbl>
-#> 1 ATE      0.0568  1.04     117.     63.8
+#> 1 ATE      0.0538  1.06     57.1     64.1
 ```
 
 The same statistics
@@ -566,24 +546,24 @@ diagnose(short)
 #> Convergence and mixing
 #> 
 #>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.04     1.050      101      317
-#>                           splits.eta 1.01     1.016      252      528
-#>  eta.eta (average over observations) 1.00     0.999     1912     2678
-#>   eta.eta (worst 5% of observations) 1.03     1.039      136      585
+#>                               loglik 1.05      1.07       58      406
+#>                           splits.eta 1.01      1.03      429      800
+#>  eta.eta (average over observations) 1.00      1.00     1568     2501
+#>   eta.eta (worst 5% of observations) 1.06      1.10       49      402
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 101 effective draws, where 4 chains average 1.040
+#> ✖ That R-hat rests on only 58 effective draws, where 4 chains average 1.069
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✔ The chains agree about the size of the forest
-#> ✖ Bulk ESS is 101 for loglik, below 400
-#> ✖ Tail ESS is 317 for loglik, below 400
+#> ✖ Bulk ESS is 49 for eta.eta (worst 5% of observations), below 400
+#> ✔ Tail ESS is at least 402 everywhere, above 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 1912 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 3.2 effective draws
-#>   per hundred kept
+#>   average (R-hat 1.00, 1568 effective draws)
+#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
+#>   carries 1.5 effective draws per hundred kept
 #> 
 #> What to do
 #> 
@@ -631,18 +611,18 @@ diagnose(longer)
 #> Convergence and mixing
 #> 
 #>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.01      1.02      407     1139
-#>                           splits.eta 1.00      1.00     2949     5444
-#>  eta.eta (average over observations) 1.00      1.00    15655    24219
-#>   eta.eta (worst 5% of observations) 1.01      1.01      921     2542
+#>                               loglik 1.01      1.01      645     1092
+#>                           splits.eta 1.00      1.01     2313     5161
+#>  eta.eta (average over observations) 1.00      1.00    16106    25219
+#>   eta.eta (worst 5% of observations) 1.01      1.01      999     2235
 #> 
 #> ✔ 4 chains, 32000 draws kept in total
 #> ✔ R-hat is below 1.01 throughout
 #> ✔ Warmup was long enough, since R-hat is already fine
 #> ✔ The chains agree about the size of the forest
-#> ✔ Bulk ESS is at least 407 everywhere, above 400
-#> ✔ Tail ESS is at least 1139 everywhere, above 400
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 1.3 effective draws
+#> ✔ Bulk ESS is at least 645 everywhere, above 400
+#> ✔ Tail ESS is at least 1092 everywhere, above 400
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 2.0 effective draws
 #>   per hundred kept
 #> 
 #> ✔ Nothing to change.
@@ -765,11 +745,11 @@ p <- c(.01, .1, .5, .9, .99)
 
 quantile(predict(prior, type = "response", draws = TRUE), p)
 #>      1%     10%     50%     90%     99% 
-#> 0.00971 0.21408 0.65613 0.93302 0.99520
+#> 0.00963 0.21435 0.65584 0.93317 0.99522
 
 quantile(predict(fit, type = "response", draws = TRUE), p)
 #>    1%   10%   50%   90%   99% 
-#> 0.192 0.368 0.676 0.893 0.950
+#> 0.192 0.368 0.677 0.892 0.948
 ```
 
 The prior runs from about .01 to about .99, which is what we want of a

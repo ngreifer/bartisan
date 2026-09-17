@@ -274,12 +274,12 @@ propensity score set up for it</p></li>
 <span class="r-in"><span><span class="co"># One coefficient per patient, which is what a coefficient function comes to</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>            rhc</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.3737500</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.3055717</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.2825872</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.3777876</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.3233088</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.2106816</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.3852362</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.2000175</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.2619060</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.2908669</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.4621013</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.3784168</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The same effect, free to vary with severity of illness alone</span></span></span>
 <span class="r-in"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span> <span class="op">+</span> <span class="fu">vc</span><span class="op">(</span><span class="va">rhc</span>, <span class="op">~</span> <span class="va">aps</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
@@ -287,13 +287,13 @@ propensity score set up for it</p></li>
 <span class="r-in"><span>                 num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit2</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             rhc</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.43552834</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.41613303</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.04479542</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.49654015</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.49513169</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.37428010</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            rhc</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.3902913</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.2556783</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.2023919</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.3963084</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.3731666</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.3302474</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

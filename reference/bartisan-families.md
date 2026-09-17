@@ -772,12 +772,12 @@ fit <- bartisan(cbind(days, death) ~ ., data = rhc, family = dpm_aft(),
 # The shape the errors came out
 head(error_density(fit))
 #>          at         mean        lower        upper
-#> 1 -7.951284 2.231688e-06 1.035634e-08 1.725141e-05
-#> 2 -7.871771 2.740017e-06 1.400678e-08 2.073086e-05
-#> 3 -7.792258 3.363112e-06 1.895640e-08 2.489060e-05
-#> 4 -7.712745 4.126868e-06 2.629499e-08 2.985934e-05
-#> 5 -7.633233 5.063076e-06 3.642054e-08 3.578917e-05
-#> 6 -7.553720 6.210788e-06 4.584312e-08 4.285956e-05
+#> 1 -8.149747 6.990040e-05 3.117357e-05 0.0001222741
+#> 2 -8.068250 8.174272e-05 3.713237e-05 0.0001414876
+#> 3 -7.986752 9.544615e-05 4.415258e-05 0.0001634804
+#> 4 -7.905255 1.112774e-04 5.240790e-05 0.0001886150
+#> 5 -7.823757 1.295371e-04 6.209755e-05 0.0002172952
+#> 6 -7.742260 1.505634e-04 7.344957e-05 0.0002499697
 
 # The same response under proportional hazards, whose predictor is a log
 # hazard ratio and whose baseline is free to take any shape
@@ -794,7 +794,7 @@ bartisan(cbind(days, death) ~ ., data = rhc, family = ph(),
 #> Structure: 1 forest of 10 trees, soft decision rules
 #> Draws: 50 kept after 50 warmup
 #> 
-#> Posterior means: lambda1 = 0.0165, lambda2 = 0.0246, lambda3 = 0.0164, lambda4 = 0.0109, lambda5 = 0.00464, lambda6 = 0.00203, lambda7 = 0.00156, lambda8 = 0.00103, lambda9 = 0.00207, lambda10 = 0.00309, lambda11 = 0.00247, lambda12 = 0.00285, lambda_rate = 146
+#> Posterior means: lambda1 = 0.0105, lambda2 = 0.0158, lambda3 = 0.0107, lambda4 = 0.0071, lambda5 = 0.0029, lambda6 = 0.00137, lambda7 = 0.00101, lambda8 = 0.000722, lambda9 = 0.00135, lambda10 = 0.00203, lambda11 = 0.00164, lambda12 = 0.00185, lambda_rate = 233
 
 # An unordered response, with one forest per category and a prior that is
 # symmetric in them

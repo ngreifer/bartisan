@@ -185,8 +185,8 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.434     1.3
-#> 2       hard     1.025     0.4
+#> 1 smoothstep     0.416     1.3
+#> 2       hard     1.079     0.4
 ```
 
 The true function has a standard deviation of about 4.9, so both are
@@ -390,7 +390,7 @@ fit_miss <- bartisan(y ~ . - eta, data = d_miss, family = gaussian(),
                      control = ctrl)
 
 sqrt(mean((predict(fit_miss, newdata = test) - test$eta)^2))
-#> [1] 0.662
+#> [1] 0.504
 ```
 
 The fit uses the incomplete variable rather than discarding it. Note
@@ -418,14 +418,14 @@ fit_chains <- bartisan(y ~ . - eta, data = train, family = gaussian(),
 
 diagnose(fit_chains)$table
 #>                              quantity rhat rhat_late ess_bulk ess_tail ess_frac
-#> 1                              loglik 1.39      1.27     8.87     52.0  0.00739
-#> 2                           aux.sigma 1.06      1.04    71.06    488.2  0.05922
-#> 3                          splits.eta 1.63      1.89     6.79     23.6  0.00566
-#> 4 eta.eta (average over observations) 1.00      1.01  1031.88   1017.2  0.85990
-#> 5  eta.eta (worst 5% of observations) 1.35      1.46     9.47     31.3  0.00789
+#> 1                              loglik 1.07     1.064    58.56    325.1  0.04880
+#> 2                           aux.sigma 1.01     1.018   408.53    496.5  0.34044
+#> 3                          splits.eta 1.27     1.346    12.56     18.7  0.01046
+#> 4 eta.eta (average over observations) 1.00     0.999  1060.22   1172.6  0.88352
+#> 5  eta.eta (worst 5% of observations) 1.44     1.607     7.98     27.4  0.00665
 #>   rhat_bad late_bad
 #> 1        1        1
-#> 2        1        1
+#> 2        0        1
 #> 3        1        1
 #> 4        0        0
 #> 5        1        1

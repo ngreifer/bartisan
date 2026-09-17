@@ -56,11 +56,11 @@ loo(full)
 #> Computed from 800 by 1500 log-likelihood matrix.
 #> 
 #>          Estimate   SE
-#> elpd_loo   -847.8 17.3
-#> p_loo        32.9  0.9
-#> looic      1695.5 34.6
+#> elpd_loo   -848.3 17.4
+#> p_loo        32.2  0.9
+#> looic      1696.7 34.7
 #> ------
-#> MCSE of elpd_loo is 0.7.
+#> MCSE of elpd_loo is 0.9.
 #> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.4]).
 #> 
 #> All Pareto k estimates are good (k < 0.66).
@@ -110,7 +110,7 @@ fit_train <- bartisan(model, data = train, family = binomial())
 score <- predict(fit_train, newdata = held, type = "density", log = TRUE)
 
 sum(score)
-#> [1] -172.6
+#> [1] -171.9
 ```
 
 `type = "density"` evaluates the outcome under each posterior draw and
@@ -125,8 +125,8 @@ elpd_total <- loo(full)$estimates["elpd_loo", "Estimate"]
 rbind(loo     = c(total = elpd_total, n = nrow(rhc),     per_obs = elpd_total / nrow(rhc)),
       heldout = c(total = sum(score), n = length(score), per_obs = mean(score)))
 #>          total    n per_obs
-#> loo     -847.8 1500 -0.5652
-#> heldout -172.6  300 -0.5753
+#> loo     -848.3 1500 -0.5656
+#> heldout -171.9  300 -0.5730
 ```
 
 The totals differ by a factor of five because they sum different numbers
@@ -161,7 +161,7 @@ loo_compare(list(full = loo(full),
                  demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -69.4    11.1    1.00
+#>  demographics     -68.1    11.1    1.00
 ```
 
 The full model predicts better by around six times the standard error of
@@ -232,7 +232,7 @@ d <- score - score_demographics
 c(mean_diff = mean(d), se = sd(d) / sqrt(length(d)),
   ratio = mean(d) / (sd(d) / sqrt(length(d))))
 #> mean_diff        se     ratio 
-#>   0.03691   0.01645   2.24372
+#>   0.03927   0.01604   2.44809
 ```
 
 That is
@@ -267,9 +267,9 @@ kfold_full
 #> Based on 5-fold cross-validation.
 #> 
 #>            Estimate   SE
-#> elpd_kfold   -843.7 17.2
-#> p_kfold        28.9  2.3
-#> kfoldic      1687.5 34.3
+#> elpd_kfold   -845.3 17.2
+#> p_kfold        29.2  2.2
+#> kfoldic      1690.6 34.4
 ```
 
 `elpd_kfold` is the held-out log score, summed over every observation,
@@ -289,7 +289,7 @@ kfold_demographics <- kfold(demographics, folds = folds)
 loo_compare(list(full = kfold_full, demographics = kfold_demographics))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -72.2    11.1    1.00
+#>  demographics     -70.3    11.1    1.00
 ```
 
 The same reading as before, and at the same precision as the
@@ -306,7 +306,7 @@ thing:
 c(kfold = kfold_full$estimates["elpd_kfold", "Estimate"] / nrow(rhc),
   loo = elpd_total / nrow(rhc))
 #>   kfold     loo 
-#> -0.5625 -0.5652
+#> -0.5635 -0.5656
 ```
 
 They agree, which is what a clean Pareto \\k\\ column was saying in less
@@ -344,9 +344,9 @@ loo_compare(list(logit = loo(full),
                  probit = loo(probit),
                  cloglog = loo(cloglog)))
 #>    model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>  cloglog       0.0     0.0      NA                          
-#>   probit      -0.3     1.8    0.57 |elpd_diff| < 4          
-#>    logit      -1.5     2.1    0.77 |elpd_diff| < 4
+#>    logit       0.0     0.0      NA                          
+#>   probit      -0.1     1.2    0.53 |elpd_diff| < 4          
+#>  cloglog      -1.7     1.9    0.82 |elpd_diff| < 4
 ```
 
 The three are within a point or two of each other, and the differences
@@ -390,8 +390,8 @@ prop_haz <- bartisan(surv_model, data = rhc, family = ph())
 
 loo_compare(list(aft = loo(aft), ph = loo(prop_haz)))
 #>  model elpd_diff se_diff p_worse diag_diff       diag_elpd
-#>    aft       0.0     0.0      NA           2 k_psis > 0.66
-#>     ph   -3390.9    90.8    1.00
+#>    aft       0.0     0.0      NA                          
+#>     ph   -3375.9    91.0    1.00           1 k_psis > 0.66
 ```
 
 The accelerated failure time model appears to win by thousands of
@@ -416,8 +416,8 @@ because a fit already on the scale named is returned untouched:
 loo_compare(list(aft = loo(aft, scale = "time"),
                  ph = loo(prop_haz, scale = "time")))
 #>  model elpd_diff se_diff p_worse diag_diff       diag_elpd
-#>     ph       0.0     0.0      NA                          
-#>    aft    -131.0    14.9    1.00           2 k_psis > 0.66
+#>     ph       0.0     0.0      NA           1 k_psis > 0.66
+#>    aft    -146.1    15.0    1.00
 ```
 
 The ordering reverses. Read on the scale they share, the two are a
@@ -441,7 +441,7 @@ c(on_time = elpd(loo(prop_haz, scale = "time")) - elpd(loo(aft, scale = "time"))
   on_log_time = elpd(loo(prop_haz, scale = "log_time")) -
     elpd(loo(aft, scale = "log_time")))
 #>     on_time on_log_time 
-#>         131         131
+#>       146.1       146.1
 ```
 
 The everyday version of this mistake takes the same repair by hand. A
@@ -483,7 +483,7 @@ compound <- bartisan(earnings, data = lalonde, family = tweedie())
 loo_compare(list(gaussian = loo(normal), tweedie = loo(compound)))
 #>     model elpd_diff se_diff p_worse diag_diff       diag_elpd
 #>   tweedie       0.0     0.0      NA                          
-#>  gaussian   -1247.4    95.1    1.00           1 k_psis > 0.66
+#>  gaussian   -1249.8    95.0    1.00           2 k_psis > 0.66
 ```
 
 The tweedie is ahead by more than a thousand points, and that number
@@ -502,8 +502,8 @@ rbind(gaussian = c(at_zero = sum(loo(normal)$pointwise[zero, "elpd_loo"]),
       tweedie  = c(at_zero = sum(loo(compound)$pointwise[zero, "elpd_loo"]),
                    positive = sum(loo(compound)$pointwise[!zero, "elpd_loo"])))
 #>          at_zero positive
-#> gaussian -1459.2    -4843
-#> tweedie   -213.5    -4841
+#> gaussian -1457.8    -4845
+#> tweedie   -213.7    -4839
 ```
 
 At the positive outcomes, where both report a density, the two are
@@ -544,7 +544,7 @@ c(observed = zero_share(lalonde$re78),
   gaussian = mean(apply(rstantools::posterior_predict(normal), 1, zero_share)),
   tweedie  = mean(apply(rstantools::posterior_predict(compound), 1, zero_share)))
 #> observed gaussian  tweedie 
-#>   0.2329   0.0000   0.2185
+#>   0.2329   0.0000   0.2177
 ```
 
 A gaussian fit never produces an exact zero and about a quarter of these
@@ -608,7 +608,7 @@ loo(logistic)
 loo_compare(list(bart = loo(full), logistic = loo(logistic)))
 #>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
 #>  logistic       0.0     0.0      NA                          
-#>      bart      -2.9     5.1    0.72 |elpd_diff| < 4
+#>      bart      -3.5     5.0    0.76 |elpd_diff| < 4
 ```
 
 The forest is behind by roughly half a standard error of the difference,
@@ -663,9 +663,9 @@ names(tuned) <- paste0("trees_", trees)
 
 loo_compare(lapply(tuned, loo))
 #>      model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>  trees_200       0.0     0.0      NA                          
-#>   trees_20      -0.4     1.9    0.59 |elpd_diff| < 4          
-#>   trees_50      -0.9     1.3    0.76 |elpd_diff| < 4
+#>   trees_50       0.0     0.0      NA                          
+#>   trees_20      -0.5     1.1    0.67 |elpd_diff| < 4          
+#>  trees_200      -1.2     1.1    0.86 |elpd_diff| < 4
 ```
 
 Nothing separates them: every difference is smaller than its own
@@ -678,7 +678,7 @@ and is the assessment the selection is not allowed to see:
 sapply(tuned, function(f) sum(predict(f, newdata = held, type = "density",
                                       log = TRUE)))
 #>  trees_20  trees_50 trees_200 
-#>    -171.9    -172.7    -172.2
+#>    -172.9    -172.6    -171.4
 ```
 
 The two orderings disagree, which is the practical content of the
@@ -732,8 +732,8 @@ drop_one <- function(v) {
 
 rbind(surv2m = drop_one("surv2m"), rhc = drop_one("rhc"))
 #>        elpd_diff se_diff
-#> surv2m    40.454   9.357
-#> rhc        1.787   2.544
+#> surv2m    40.252   9.477
+#> rhc        1.023   2.811
 ```
 
 Losing `surv2m`, the prognostic score, costs about forty points and is

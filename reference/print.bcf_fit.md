@@ -97,7 +97,7 @@ fit
 #> Structure: 2 forests of 10 trees, soft decision rules
 #> Draws: 50 kept after 50 warmup
 #> 
-#> Posterior means: b.rhc.0 = 0.239, b.rhc.1 = 0.455
+#> Posterior means: b.rhc.0 = 0.161, b.rhc.1 = 6.89e-05
 #> 
 #> Treatment: "rhc"
 #> Effect moderators: "age", "sex", "meanbp", and "aps"
@@ -112,13 +112,13 @@ estimate_effect(fit)
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate    lower  upper    n
-#>  Y[1] - Y[0]   0.0331 -0.00319 0.0902 1500
+#>  Y[1] - Y[0]   0.0334 -0.00348 0.0878 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.615  0.67
-#>      Y[1]    0.675 0.647  0.71
+#>      Y[0]    0.642 0.610 0.665
+#>      Y[1]    0.675 0.638 0.704
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

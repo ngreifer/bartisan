@@ -79,10 +79,10 @@ and its relatives work on a fit directly, including arbitrary contrasts
 between covariate values, hypotheses comparing one estimate to another,
 and slopes, which want `x_transform = "range"` in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
-since the default quantile transform leaves the fit a step function of
-the original predictor. Because every draw goes through the same
-machinery either way, the result carries a posterior rather than a point
-estimate with a delta-method standard error. See
+since a slope through the default transform carries an estimated density
+along with it. Because every draw goes through the same machinery either
+way, the result carries a posterior rather than a point estimate with a
+delta-method standard error. See
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
 for the worked versions and
 [`?estimate_effect`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)

@@ -134,9 +134,10 @@ loo::loo_compare(
   loo::loo(bartisan(count ~ ., d, family = negbin(), control = ctrl))
 )
 #> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
+#> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 #>   model elpd_diff se_diff p_worse       diag_diff       diag_elpd
-#>  model1       0.0     0.0      NA                 2 k_psis > 0.54
-#>  model2      -0.1     1.5    0.54 |elpd_diff| < 4
+#>  model2       0.0     0.0      NA                 1 k_psis > 0.54
+#>  model1      -0.4     1.4    0.61 |elpd_diff| < 4 6 k_psis > 0.54
 #> 
 #> Diagnostic flags present.
 #> See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)
@@ -323,14 +324,14 @@ summary(fit_sub)
 #> Splitting rules per draw, and how often used at all.
 #> 
 #> Predictor "mean":
-#>      mean    sd lower  upper prop_used
-#> x1 14.873 2.112    11 19.000     1.000
-#> x2  0.027 0.162     0  0.275     0.027
+#>     mean   sd lower upper prop_used
+#> x1 14.64 3.34     8  20.3     1.000
+#> x2  1.76 1.89     0   6.0     0.667
 #> 
 #> Predictor "log_sd":
-#>    mean  sd lower upper prop_used
-#> x2 7.95 1.9     5  12.3         1
-#> x1 0.00 0.0     0   0.0         0
+#>    mean   sd lower upper prop_used
+#> x2 6.39 1.52     4    11         1
+#> x1 0.00 0.00     0     0         0
 ```
 
 Separate is not always what we want. Each forest draws its own splitting
@@ -364,7 +365,7 @@ top3 <- function(fit, forest) {
 # find and whatever it concentrates on came from the mean forest
 c(apart = top3(apart, "log_sd"), shared = top3(shared, "log_sd"))
 #>        apart       shared 
-#> "x7 x13 x23"   "x4 x1 x2"
+#> "x8 x14 x17"   "x1 x4 x2"
 ```
 
 That is a statement about the data rather than a free improvement: it
@@ -405,7 +406,7 @@ flat <- bartisan(list(y ~ x1 + x2, ~ 1), data = dz2,
 c(scale_splits = sum(flat$counts$log_sd),
   sigma = mean(exp(flat$eta[[2L]])))
 #> scale_splits        sigma 
-#>        0.000        0.719
+#>        0.000        0.718
 ```
 
 The scalar is drawn under the leaf prior rather than under the prior the
@@ -667,9 +668,9 @@ loo::loo_compare(list(poisson = count_fit(poisson()),
                       zi_negbin = count_fit(zi_negbin())))
 #>       model elpd_diff se_diff p_worse       diag_diff       diag_elpd
 #>     poisson       0.0     0.0      NA                                
-#>  zi_poisson      -1.3     0.7    0.97 |elpd_diff| < 4 1 k_psis > 0.63
-#>   zi_negbin      -3.3     3.2    0.85 |elpd_diff| < 4 1 k_psis > 0.63
-#>      negbin      -4.0     3.6    0.87 |elpd_diff| < 4
+#>  zi_poisson      -1.5     0.6    1.00 |elpd_diff| < 4                
+#>   zi_negbin      -7.2     2.7    1.00                 2 k_psis > 0.63
+#>      negbin     -12.3     4.4    1.00
 #> 
 #> Diagnostic flags present.
 #> See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)
@@ -807,7 +808,7 @@ fit_oc <- bartisan(binned ~ x1 + x2,
                    family = ordinal("probit"))
 
 head(predict(fit_oc, type = "mean"))
-#> [1] 1.9576 2.4205 1.6156 2.1975 2.9249 0.0415
+#> [1] 2.244 2.492 1.462 1.986 2.751 0.231
 ```
 
 Two limits. `type = "mean"` is a convex combination of observed outcome
@@ -877,7 +878,7 @@ d$rate <- rbeta(n, plogis(1.5 * sin(pi * d$x1)) * 12,
 
 fit_beta <- bartisan(rate ~ x1 + x2, data = d, family = Beta(), control = ctrl)
 mean(fit_beta$aux[, "phi"])
-#> [1] 12.3
+#> [1] 12.4
 ```
 
 The
@@ -945,7 +946,7 @@ d$spend <- ifelse(claims > 0,
 fit_tw <- bartisan(spend ~ x1 + x2, data = d, family = tweedie(), control = ctrl)
 c(zeros = mean(d$spend == 0), phi = mean(fit_tw$aux[, "phi"]))
 #> zeros   phi 
-#> 0.213 3.743
+#>  0.24  3.91
 ```
 
 The `power` argument is fixed at 1.5 by default rather than drawn, which
@@ -1034,7 +1035,7 @@ fit_aft <- bartisan(survival::Surv(time, event) ~ x1 + x2,
 
 colMeans(fit_aft$aux)
 #> sigma 
-#>  1.03
+#>  0.95
 ```
 
 The survival function comes from `predict(., type = "survival")`, which
@@ -1048,9 +1049,9 @@ fit_ph <- bartisan(survival::Surv(time, event) ~ x1 + x2,
 
 head(predict(fit_ph, type = "survival", times = c(1, 2, 5)), 3)
 #>          1     2     5
-#> [1,] 0.867 0.758 0.524
-#> [2,] 0.853 0.734 0.485
-#> [3,] 0.802 0.653 0.369
+#> [1,] 0.876 0.767 0.472
+#> [2,] 0.871 0.757 0.456
+#> [3,] 0.845 0.712 0.384
 ```
 
 It is also the estimand we usually want. The question is rarely about
@@ -1170,15 +1171,15 @@ fit_gauss <- bartisan(heavy ~ x1 + x2,
 
 cor(predict(fit_aux, type = "link"),
     predict(fit_gauss, type = "link"))
-#> [1] 0.974
+#> [1] 0.993
 
 # Estimate of the auxiliary parameter
 summary(exp(fit_aux$aux[, "log_sigma"]))
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>    1.43    1.55    1.59    1.59    1.63    1.78
+#>    1.32    1.45    1.50    1.50    1.54    1.69
 summary(fit_gauss$aux[, "sigma"])
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>    1.41    1.55    1.59    1.60    1.64    1.76
+#>    1.35    1.45    1.48    1.49    1.53    1.67
 ```
 
 There is no prior argument and no bounds argument. A parameter with a

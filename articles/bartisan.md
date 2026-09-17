@@ -141,24 +141,23 @@ diagnose(fit)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.125     1.036       23      234
-#>                           splits.eta 1.014     1.039      264      731
-#>  eta.eta (average over observations) 1.004     0.999     1610     2278
-#>   eta.eta (worst 5% of observations) 1.045     1.073       80      305
+#>                               loglik 1.163     1.341       17       64
+#>                           splits.eta 1.010     1.023      332      540
+#>  eta.eta (average over observations) 1.001     1.006     1698     2754
+#>   eta.eta (worst 5% of observations) 1.056     1.111       56      330
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 23 effective draws, where 4 chains average 1.171
+#> ✖ That R-hat rests on only 17 effective draws, where 4 chains average 1.235
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
-#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
-#>   1.01)
-#> ✖ Bulk ESS is 23 for loglik, below 400
-#> ✖ Tail ESS is 234 for loglik, below 400
+#> ✔ The chains agree about the size of the forest
+#> ✖ Bulk ESS is 17 for loglik, below 400
+#> ✖ Tail ESS is 64 for loglik, below 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 1610 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.7 effective draws
+#>   average (R-hat 1.00, 1698 effective draws)
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.5 effective draws
 #>   per hundred kept
 #> 
 #> What to do
@@ -215,21 +214,21 @@ diagnose(estimate_effect(fit, treat = "rhc"))
 #> Convergence and mixing
 #> 
 #>     quantity  rhat rhat_late ess_bulk ess_tail
-#>  Y[1] - Y[0] 1.035     1.105      117       64
-#>         Y[0] 1.019     1.059      190      388
-#>         Y[1] 1.028     1.083      148      221
+#>  Y[1] - Y[0] 1.058     1.088       57       63
+#>         Y[0] 1.029     1.044      138     1726
+#>         Y[1] 1.044     1.066       97      466
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
 #> ✖ R-hat is above 1.01 for Y[1] - Y[0]
-#> ✖ That R-hat rests on only 117 effective draws, where 4 chains average 1.034
+#> ✖ That R-hat rests on only 57 effective draws, where 4 chains average 1.071
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
-#> ✖ Bulk ESS is 117 for Y[1] - Y[0], below 400
-#> ✖ Tail ESS is 64 for Y[1] - Y[0], below 400
-#> ℹ Per-draw efficiency is lowest for Y[1] - Y[0], which carries 3.7 effective
+#> ✖ Bulk ESS is 57 for Y[1] - Y[0], below 400
+#> ✖ Tail ESS is 63 for Y[1] - Y[0], below 400
+#> ℹ Per-draw efficiency is lowest for Y[1] - Y[0], which carries 1.8 effective
 #>   draws per hundred kept
-#> ℹ 10% of draws put the contrast at exactly zero, which is the splitting prior
+#> ℹ 6% of draws put the contrast at exactly zero, which is the splitting prior
 #>   dropping the treatment
 #> 
 #> What to do
@@ -300,20 +299,20 @@ variable_importance(fit)
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.265   20.2
-#>       age     1.000       0.196   15.0
-#>     paco2     0.971       0.113    8.6
-#>      pafi     0.928       0.070    5.4
-#>       rhc     0.905       0.076    5.7
-#>       aps     0.871       0.069    5.3
-#>       edu     0.657       0.042    3.2
-#>      crea     0.577       0.030    2.3
-#>      card     0.524       0.024    1.8
-#>      hema     0.505       0.026    2.0
-#>    meanbp     0.490       0.020    1.5
-#>      race     0.462       0.021    1.5
-#>      resp     0.453       0.027    2.0
-#>       sex     0.410       0.020    1.5
+#>    surv2m     1.000       0.284   21.6
+#>       age     1.000       0.152   11.5
+#>     paco2     0.968       0.080    6.1
+#>       rhc     0.935       0.053    4.0
+#>       aps     0.891       0.067    5.1
+#>      pafi     0.889       0.063    4.8
+#>       edu     0.749       0.046    3.5
+#>      card     0.715       0.056    4.3
+#>      hema     0.640       0.035    2.6
+#>    meanbp     0.632       0.032    2.4
+#>      crea     0.630       0.035    2.7
+#>      race     0.582       0.039    3.0
+#>      resp     0.562       0.032    2.4
+#>       sex     0.521       0.027    2.1
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
@@ -359,13 +358,13 @@ eff
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate lower upper    n
-#>  Y[1] - Y[0]   0.0568     0 0.111 1500
+#>  Y[1] - Y[0]   0.0538     0 0.105 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.633 0.601 0.666
-#>      Y[1]    0.690 0.646 0.729
+#>      Y[0]    0.634 0.603 0.665
+#>      Y[1]    0.688 0.645 0.727
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -437,7 +436,7 @@ new_patient <- rhc[1, ]
 new_patient$rhc <- 1
 
 predict(fit, newdata = new_patient)
-#> [1] 0.8346
+#> [1] 0.836
 ```
 
 For a prediction with an interval, use
@@ -448,7 +447,7 @@ For a prediction with an interval, use
 marginaleffects::predictions(fit, newdata = new_patient)
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>     0.839 0.739  0.908
+#>      0.84 0.746  0.906
 #> 
 #> Type: response
 ```
@@ -472,9 +471,9 @@ loo(fit)
 #> Computed from 3200 by 1500 log-likelihood matrix.
 #> 
 #>          Estimate   SE
-#> elpd_loo   -848.6 17.4
-#> p_loo        33.1  1.0
-#> looic      1697.3 34.8
+#> elpd_loo   -849.1 17.4
+#> p_loo        33.5  1.0
+#> looic      1698.2 34.7
 #> ------
 #> MCSE of elpd_loo is 0.5.
 #> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.2]).
@@ -504,7 +503,7 @@ loo_compare(list(full = loo(fit),
                  demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -68.2    11.2    1.00
+#>  demographics     -67.2    11.2    1.00
 ```
 
 The full model predicts better by around six times the standard error of

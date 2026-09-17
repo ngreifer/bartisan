@@ -16,7 +16,8 @@ Evaluate stored forests at new data
   soft,
   gate,
   iterations,
-  codes
+  codes,
+  tree_mask
 )
 ```
 
@@ -50,6 +51,19 @@ Evaluate stored forests at new data
 - iterations:
 
   `integer`; the zero-based saved iterations to evaluate.
+
+- codes:
+
+  a matrix of level codes for the categorical rules.
+
+- tree_mask:
+
+  `logical`; one entry per stored tree, in the order
+  [`.bartisan_tree_uses()`](https://ngreifer.github.io/bartisan/reference/dot-bartisan_tree_uses.md)
+  reports, saying whether to evaluate it. A zero-length vector evaluates
+  every tree, which is the ordinary case; a subset is what partial
+  dependence uses to avoid re-evaluating the trees that cannot move
+  across its grid.
 
 ## Value
 

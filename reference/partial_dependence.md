@@ -12,11 +12,12 @@ partial_dependence(
   object,
   variables,
   newdata = NULL,
-  grid = 25L,
+  grid = 51L,
   values = NULL,
   level = 0.95,
   type = "response",
-  plot = FALSE
+  plot = FALSE,
+  ...
 )
 
 # S3 method for class 'bartisan_partial'
@@ -49,7 +50,7 @@ plot(x, y, ...)
 - grid:
 
   `integer`; how many values of a numeric predictor to evaluate. Default
-  is 25. A factor is evaluated at each of its levels whatever this is.
+  is 51. A factor is evaluated at each of its levels whatever this is.
 
 - values:
 
@@ -72,6 +73,13 @@ plot(x, y, ...)
   is `FALSE`. `plot = TRUE` calls `plot.bartisan_partial()`, so the
   argument and the method cannot disagree.
 
+- ...:
+
+  for `plot.bartisan_fit()`, further arguments passed to
+  `partial_dependence()`; for `partial_dependence()`, further arguments
+  passed to
+  [`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md).
+
 - x:
 
   a `<bartisan_partial>` object; the output of a call to
@@ -82,11 +90,6 @@ plot(x, y, ...)
   `integer`; for [`print()`](https://rdrr.io/r/base/print.html), the
   number of significant digits to print the estimates and their interval
   to. Default is 3.
-
-- ...:
-
-  for `plot.bartisan_fit()`, further arguments passed to
-  `partial_dependence()`; otherwise ignored.
 
 - y:
 
@@ -149,31 +152,57 @@ pd
 #>            "response" scale
 #> 
 #>  meanbp estimate lower upper
-#>    0.00    0.655 0.608 0.705
-#>    9.25    0.655 0.608 0.705
-#>   18.50    0.655 0.608 0.705
-#>   27.75    0.655 0.608 0.705
-#>   37.00    0.656 0.613 0.705
-#>   46.25    0.660 0.627 0.705
-#>   55.50    0.655 0.621 0.688
-#>   64.75    0.656 0.633 0.674
-#>   74.00    0.656 0.633 0.676
-#>   83.25    0.655 0.632 0.677
-#>   92.50    0.655 0.632 0.678
-#>  101.75    0.655 0.631 0.678
-#>  111.00    0.655 0.628 0.681
-#>  120.25    0.654 0.625 0.685
-#>  129.50    0.651 0.625 0.688
-#>  138.75    0.649 0.618 0.688
-#>  148.00    0.646 0.604 0.695
-#>  157.25    0.645 0.600 0.696
-#>  166.50    0.645 0.599 0.696
-#>  175.75    0.645 0.598 0.696
-#>  185.00    0.645 0.597 0.697
-#>  194.25    0.645 0.596 0.697
-#>  203.50    0.645 0.596 0.697
-#>  212.75    0.645 0.596 0.697
-#>  222.00    0.645 0.596 0.697
+#>    0.00    0.654 0.638 0.680
+#>    4.44    0.654 0.638 0.680
+#>    8.88    0.654 0.638 0.680
+#>   13.32    0.654 0.638 0.680
+#>   17.76    0.654 0.638 0.680
+#>   22.20    0.654 0.638 0.680
+#>   26.64    0.654 0.638 0.680
+#>   31.08    0.654 0.638 0.680
+#>   35.52    0.654 0.638 0.680
+#>   39.96    0.654 0.638 0.680
+#>   44.40    0.654 0.638 0.680
+#>   48.84    0.654 0.638 0.680
+#>   53.28    0.654 0.638 0.676
+#>   57.72    0.654 0.638 0.674
+#>   62.16    0.654 0.638 0.674
+#>   66.60    0.654 0.638 0.678
+#>   71.04    0.654 0.638 0.680
+#>   75.48    0.654 0.638 0.680
+#>   79.92    0.654 0.638 0.680
+#>   84.36    0.654 0.638 0.679
+#>   88.80    0.654 0.638 0.679
+#>   93.24    0.654 0.638 0.679
+#>   97.68    0.654 0.638 0.679
+#>  102.12    0.654 0.638 0.679
+#>  106.56    0.654 0.638 0.679
+#>  111.00    0.654 0.638 0.679
+#>  115.44    0.654 0.638 0.679
+#>  119.88    0.654 0.638 0.679
+#>  124.32    0.654 0.638 0.679
+#>  128.76    0.654 0.638 0.679
+#>  133.20    0.655 0.638 0.679
+#>  137.64    0.655 0.638 0.679
+#>  142.08    0.655 0.638 0.679
+#>  146.52    0.655 0.638 0.679
+#>  150.96    0.655 0.638 0.679
+#>  155.40    0.655 0.638 0.679
+#>  159.84    0.655 0.638 0.679
+#>  164.28    0.655 0.638 0.679
+#>  168.72    0.655 0.638 0.679
+#>  173.16    0.655 0.638 0.679
+#>  177.60    0.655 0.638 0.679
+#>  182.04    0.655 0.638 0.679
+#>  186.48    0.655 0.638 0.679
+#>  190.92    0.655 0.638 0.679
+#>  195.36    0.655 0.638 0.679
+#>  199.80    0.655 0.638 0.679
+#>  204.24    0.655 0.638 0.679
+#>  208.68    0.655 0.638 0.679
+#>  213.12    0.655 0.638 0.679
+#>  217.56    0.655 0.638 0.679
+#>  222.00    0.655 0.638 0.679
 #> 
 #> ℹ lower and upper bound the 95% credible interval on the average prediction,
 #>   not on any one unit's.

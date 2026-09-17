@@ -90,18 +90,18 @@ fit <- bartisan(y ~ x + (1 | site), data = d, num_trees = 10,
 # which \pkg{lme4} re-exports, so either qualification reaches this.
 nlme::ranef(fit)
 #> $site
-#>   (Intercept)
-#> a  -0.1753165
-#> b   0.1716366
-#> c   0.6186320
-#> d   0.6787379
-#> e   1.4104597
+#>     (Intercept)
+#> a -0.7852989913
+#> b -0.4494857398
+#> c -0.0092514420
+#> d  0.0003933138
+#> e  0.7338711283
 #> 
 
 # With the draws, so the intercepts come with intervals
 apply(nlme::ranef(fit, draws = TRUE)$site[["(Intercept)"]], 2L, quantile,
       c(.025, .975))
-#>                a          b         c         d        e
-#> 2.5%  -0.6378739 -0.2492532 0.1594344 0.1790185 1.057249
-#> 97.5%  0.2664883  0.6400939 1.1145651 1.1708190 1.764146
+#>                a           b          c          d         e
+#> 2.5%  -1.0886060 -0.87397240 -0.4809000 -0.4275375 0.3910354
+#> 97.5% -0.4415373 -0.05452073  0.5507739  0.4072018 1.1632560
 ```

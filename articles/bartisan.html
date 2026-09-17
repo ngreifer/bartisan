@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-16</h4>
+            <h4 data-toc-skip class="date">2026-09-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -201,24 +201,23 @@ about whichever of them fall short.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity  rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.125     1.036       23      234</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.014     1.039      264      731</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.004     0.999     1610     2278</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.045     1.073       80      305</span></span>
+<span><span class="co">#&gt;                               loglik 1.163     1.341       17       64</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.010     1.023      332      540</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.001     1.006     1698     2754</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.056     1.111       56      330</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 23 effective draws, where 4 chains average 1.171</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 17 effective draws, where 4 chains average 1.235</span></span>
 <span><span class="co">#&gt;   even when they agree</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span></span>
-<span><span class="co">#&gt;   1.01)</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 23 for loglik, below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 234 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 17 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 64 for loglik, below 400</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span></span>
-<span><span class="co">#&gt;   average (R-hat 1.00, 1610 effective draws)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 0.7 effective draws</span></span>
+<span><span class="co">#&gt;   average (R-hat 1.00, 1698 effective draws)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 0.5 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
@@ -269,21 +268,21 @@ one to take:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     quantity  rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0] 1.035     1.105      117       64</span></span>
-<span><span class="co">#&gt;         Y[0] 1.019     1.059      190      388</span></span>
-<span><span class="co">#&gt;         Y[1] 1.028     1.083      148      221</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0] 1.058     1.088       57       63</span></span>
+<span><span class="co">#&gt;         Y[0] 1.029     1.044      138     1726</span></span>
+<span><span class="co">#&gt;         Y[1] 1.044     1.066       97      466</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for Y[1] - Y[0]</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 117 effective draws, where 4 chains average 1.034</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 57 effective draws, where 4 chains average 1.071</span></span>
 <span><span class="co">#&gt;   even when they agree</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 117 for Y[1] - Y[0], below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 64 for Y[1] - Y[0], below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for Y[1] - Y[0], which carries 3.7 effective</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 57 for Y[1] - Y[0], below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 63 for Y[1] - Y[0], below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for Y[1] - Y[0], which carries 1.8 effective</span></span>
 <span><span class="co">#&gt;   draws per hundred kept</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> 10% of draws put the contrast at exactly zero, which is the splitting prior</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> 6% of draws put the contrast at exactly zero, which is the splitting prior</span></span>
 <span><span class="co">#&gt;   dropping the treatment</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
@@ -345,20 +344,20 @@ a departure from the diagonal looks like and what else to check.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;    surv2m     1.000       0.265   20.2</span></span>
-<span><span class="co">#&gt;       age     1.000       0.196   15.0</span></span>
-<span><span class="co">#&gt;     paco2     0.971       0.113    8.6</span></span>
-<span><span class="co">#&gt;      pafi     0.928       0.070    5.4</span></span>
-<span><span class="co">#&gt;       rhc     0.905       0.076    5.7</span></span>
-<span><span class="co">#&gt;       aps     0.871       0.069    5.3</span></span>
-<span><span class="co">#&gt;       edu     0.657       0.042    3.2</span></span>
-<span><span class="co">#&gt;      crea     0.577       0.030    2.3</span></span>
-<span><span class="co">#&gt;      card     0.524       0.024    1.8</span></span>
-<span><span class="co">#&gt;      hema     0.505       0.026    2.0</span></span>
-<span><span class="co">#&gt;    meanbp     0.490       0.020    1.5</span></span>
-<span><span class="co">#&gt;      race     0.462       0.021    1.5</span></span>
-<span><span class="co">#&gt;      resp     0.453       0.027    2.0</span></span>
-<span><span class="co">#&gt;       sex     0.410       0.020    1.5</span></span>
+<span><span class="co">#&gt;    surv2m     1.000       0.284   21.6</span></span>
+<span><span class="co">#&gt;       age     1.000       0.152   11.5</span></span>
+<span><span class="co">#&gt;     paco2     0.968       0.080    6.1</span></span>
+<span><span class="co">#&gt;       rhc     0.935       0.053    4.0</span></span>
+<span><span class="co">#&gt;       aps     0.891       0.067    5.1</span></span>
+<span><span class="co">#&gt;      pafi     0.889       0.063    4.8</span></span>
+<span><span class="co">#&gt;       edu     0.749       0.046    3.5</span></span>
+<span><span class="co">#&gt;      card     0.715       0.056    4.3</span></span>
+<span><span class="co">#&gt;      hema     0.640       0.035    2.6</span></span>
+<span><span class="co">#&gt;    meanbp     0.632       0.032    2.4</span></span>
+<span><span class="co">#&gt;      crea     0.630       0.035    2.7</span></span>
+<span><span class="co">#&gt;      race     0.582       0.039    3.0</span></span>
+<span><span class="co">#&gt;      resp     0.562       0.032    2.4</span></span>
+<span><span class="co">#&gt;       sex     0.521       0.027    2.1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p><code>splits</code> is the average number of splitting rules the
@@ -398,13 +397,13 @@ which predictor is the treatment:</p>
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     contrast estimate lower upper    n</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0]   0.0568     0 0.111 1500</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0]   0.0538     0 0.105 1500</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Average potential outcomes</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
-<span><span class="co">#&gt;      Y[0]    0.633 0.601 0.666</span></span>
-<span><span class="co">#&gt;      Y[1]    0.690 0.646 0.729</span></span>
+<span><span class="co">#&gt;      Y[0]    0.634 0.603 0.665</span></span>
+<span><span class="co">#&gt;      Y[1]    0.688 0.645 0.727</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
 <span><span class="co">#&gt;   credible interval.</span></span>
@@ -462,7 +461,7 @@ interactions.</p>
 <span><span class="va">new_patient</span><span class="op">$</span><span class="va">rhc</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.8346</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.836</span></span></code></pre></div>
 <p>For a prediction with an interval, use
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::predictions()</a></code><a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content='&lt;p&gt;Note that by default, &lt;em&gt;marginaleffects&lt;/em&gt; uses the
 posterior median as the point estimate, whereas &lt;code&gt;&lt;a href="https://rdrr.io/r/stats/predict.html" class="external-link"&gt;predict()&lt;/a&gt;&lt;/code&gt;
@@ -474,7 +473,7 @@ this in &lt;code&gt;&lt;a href="../articles/causal.html"&gt;vignette("causal")&l
 <code class="sourceCode R"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.839 0.739  0.908</span></span>
+<span><span class="co">#&gt;      0.84 0.746  0.906</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>This describes the probability that a patient with these
@@ -496,9 +495,9 @@ predicts data it has not seen.</p>
 <span><span class="co">#&gt; Computed from 3200 by 1500 log-likelihood matrix.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;          Estimate   SE</span></span>
-<span><span class="co">#&gt; elpd_loo   -848.6 17.4</span></span>
-<span><span class="co">#&gt; p_loo        33.1  1.0</span></span>
-<span><span class="co">#&gt; looic      1697.3 34.8</span></span>
+<span><span class="co">#&gt; elpd_loo   -849.1 17.4</span></span>
+<span><span class="co">#&gt; p_loo        33.5  1.0</span></span>
+<span><span class="co">#&gt; looic      1698.2 34.7</span></span>
 <span><span class="co">#&gt; ------</span></span>
 <span><span class="co">#&gt; MCSE of elpd_loo is 0.5.</span></span>
 <span><span class="co">#&gt; MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.2]).</span></span>
@@ -523,7 +522,7 @@ its keep over the demographics alone:</p>
 <span>                 demographics <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">demographics</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
-<span><span class="co">#&gt;  demographics     -68.2    11.2    1.00</span></span></code></pre></div>
+<span><span class="co">#&gt;  demographics     -67.2    11.2    1.00</span></span></code></pre></div>
 <p>The full model predicts better by around six times the standard error
 of the difference, which is what we would expect: how sick a patient is
 on arrival is the main thing that predicts whether they die.</p>

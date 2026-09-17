@@ -48,20 +48,20 @@ imp
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.265   20.2
-#>       age     1.000       0.196   15.0
-#>     paco2     0.971       0.113    8.6
-#>      pafi     0.928       0.070    5.4
-#>       rhc     0.905       0.076    5.7
-#>       aps     0.871       0.069    5.3
-#>       edu     0.657       0.042    3.2
-#>      crea     0.577       0.030    2.3
-#>      card     0.524       0.024    1.8
-#>      hema     0.505       0.026    2.0
-#>    meanbp     0.490       0.020    1.5
-#>      race     0.462       0.021    1.5
-#>      resp     0.453       0.027    2.0
-#>       sex     0.410       0.020    1.5
+#>    surv2m     1.000       0.284   21.6
+#>       age     1.000       0.152   11.5
+#>     paco2     0.968       0.080    6.1
+#>       rhc     0.935       0.053    4.0
+#>       aps     0.891       0.067    5.1
+#>      pafi     0.889       0.063    4.8
+#>       edu     0.749       0.046    3.5
+#>      card     0.715       0.056    4.3
+#>      hema     0.640       0.035    2.6
+#>    meanbp     0.632       0.032    2.4
+#>      crea     0.630       0.035    2.7
+#>      race     0.582       0.039    3.0
+#>      resp     0.562       0.032    2.4
+#>       sex     0.521       0.027    2.1
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
@@ -126,7 +126,7 @@ proportion of draws:
 counts <- variable_importance(fit, draws = TRUE)
 
 mean(counts[, "aps"] > counts[, "meanbp"])
-#> [1] 0.744
+#> [1] 0.67
 ```
 
 That is worth doing before reading much into a difference in the table:
@@ -154,23 +154,23 @@ variable_importance(fit_noise)
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.218   16.6
-#>       age     1.000       0.143   10.9
-#>     paco2     0.985       0.110    8.3
-#>       rhc     0.969       0.053    4.0
-#>      pafi     0.918       0.062    4.8
-#>       aps     0.904       0.066    5.0
-#>      card     0.819       0.042    3.2
-#>    noise1     0.730       0.043    3.2
-#>       edu     0.680       0.030    2.3
-#>      hema     0.664       0.036    2.8
-#>    meanbp     0.629       0.026    2.0
-#>    noise2     0.627       0.024    1.8
-#>      crea     0.625       0.034    2.6
-#>    noise3     0.606       0.037    2.8
-#>      resp     0.538       0.023    1.7
-#>       sex     0.525       0.033    2.5
-#>      race     0.498       0.018    1.4
+#>    surv2m     1.000       0.199   15.2
+#>       age     1.000       0.132   10.1
+#>     paco2     0.966       0.083    6.3
+#>      pafi     0.957       0.065    5.0
+#>       aps     0.928       0.082    6.3
+#>       rhc     0.924       0.055    4.2
+#>      card     0.788       0.036    2.7
+#>    noise1     0.777       0.049    3.7
+#>       edu     0.776       0.042    3.2
+#>    meanbp     0.730       0.040    3.0
+#>      hema     0.719       0.036    2.8
+#>      crea     0.712       0.046    3.5
+#>    noise2     0.673       0.028    2.1
+#>    noise3     0.666       0.032    2.5
+#>      race     0.590       0.026    2.0
+#>       sex     0.569       0.021    1.6
+#>      resp     0.568       0.028    2.1
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
@@ -214,16 +214,16 @@ variable_importance(fit_fr)
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>        x2     1.000       0.365   29.4
-#>        x1     1.000       0.301   24.2
-#>        x4     1.000       0.163   13.1
-#>        x3     1.000       0.123    9.9
-#>        x5     1.000       0.041    3.3
-#>        x9     0.221       0.003    0.2
-#>       x10     0.058       0.001    0.1
-#>        x6     0.048       0.001    0.1
-#>        x7     0.043       0.001    0.1
-#>        x8     0.025       0.000    0.0
+#>        x2     1.000       0.418   34.1
+#>        x1     1.000       0.219   17.8
+#>        x3     1.000       0.186   15.2
+#>        x4     1.000       0.123   10.1
+#>        x5     1.000       0.051    4.2
+#>        x8     0.056       0.001    0.1
+#>        x7     0.055       0.001    0.1
+#>       x10     0.045       0.001    0.0
+#>        x6     0.040       0.001    0.0
+#>        x9     0.021       0.000    0.0
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
@@ -260,10 +260,10 @@ variable_importance(fit_corr)
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>   x1_copy     1.000       0.729   55.3
-#>        x1     1.000       0.257   19.6
-#>        x3     0.320       0.013    0.9
-#>        x2     0.079       0.001    0.1
+#>   x1_copy     1.000       0.660   50.3
+#>        x1     0.797       0.317   24.3
+#>        x3     0.445       0.017    1.3
+#>        x2     0.152       0.006    0.4
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
@@ -287,8 +287,8 @@ library(marginaleffects)
 avg_comparisons(fit_corr, variables = c("x1", "x1_copy"))
 #> 
 #>     Term Estimate   2.5 % 97.5 %
-#>  x1         0.347 -0.0487  0.858
-#>  x1_copy    1.062  0.4681  1.509
+#>  x1         0.382 -0.0409   1.28
+#>  x1_copy    0.998  0.1900   1.53
 #> 
 #> Type: response
 #> Comparison: +1
@@ -308,7 +308,7 @@ drawn <- rowMeans(predict(fit_corr, newdata = hi, draws = TRUE) -
 
 round(c(estimate = mean(drawn), quantile(drawn, c(0.025, 0.975))), 3)
 #> estimate     2.5%    97.5% 
-#>     1.57     1.45     1.69
+#>     1.59     1.46     1.73
 ```
 
 The true difference over that range is 1.5, so the model knows the

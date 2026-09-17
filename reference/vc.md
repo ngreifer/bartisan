@@ -243,12 +243,12 @@ fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
 # One coefficient per patient, which is what a coefficient function comes to
 head(coef(fit))
 #>            rhc
-#> [1,] 0.3737500
-#> [2,] 0.3055717
-#> [3,] 0.2825872
-#> [4,] 0.3777876
-#> [5,] 0.3233088
-#> [6,] 0.2106816
+#> [1,] 0.3852362
+#> [2,] 0.2000175
+#> [3,] 0.2619060
+#> [4,] 0.2908669
+#> [5,] 0.4621013
+#> [6,] 0.3784168
 
 # The same effect, free to vary with severity of illness alone
 fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
@@ -256,11 +256,11 @@ fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
                  num_draws = 50)
 
 head(coef(fit2))
-#>             rhc
-#> [1,] 0.43552834
-#> [2,] 0.41613303
-#> [3,] 0.04479542
-#> [4,] 0.49654015
-#> [5,] 0.49513169
-#> [6,] 0.37428010
+#>            rhc
+#> [1,] 0.3902913
+#> [2,] 0.2556783
+#> [3,] 0.2023919
+#> [4,] 0.3963084
+#> [5,] 0.3731666
+#> [6,] 0.3302474
 ```

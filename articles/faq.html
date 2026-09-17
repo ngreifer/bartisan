@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-16</h4>
+            <h4 data-toc-skip class="date">2026-09-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/faq.Rmd" class="external-link"><code>vignettes/faq.Rmd</code></a></small>
       <div class="d-none name"><code>faq.Rmd</code></div>
@@ -157,9 +157,9 @@ test of anything.</p>
 on a fit directly, including arbitrary contrasts between covariate
 values, hypotheses comparing one estimate to another, and slopes, which
 want <code>x_transform = "range"</code> in
-<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>, since the default quantile transform
-leaves the fit a step function of the original predictor. Because every
-draw goes through the same machinery either way, the result carries a
+<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>, since a slope through the default
+transform carries an estimated density along with it. Because every draw
+goes through the same machinery either way, the result carries a
 posterior rather than a point estimate with a delta-method standard
 error. See <code><a href="../articles/effects.html">vignette("effects")</a></code> for the worked versions and
 <code><a href="../reference/estimate_effect.html">?estimate_effect</a></code> for the estimands.</p>
