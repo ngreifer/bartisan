@@ -363,6 +363,39 @@ The two orderings disagree, which is the practical content of the warning rather
 
 That is the usual outcome, and it is worth knowing before spending a grid on it. When tuning does pay, it tends to be for cost rather than accuracy, and `vignette("faq")` lists the settings that buy speed; `bartisan_control()` documents what each one changes.
 
+## A Constant Coefficient Against a Varying One (`vc()`)
+
+`vc(z)` gives `z` a coefficient that is itself a forest, free to vary with the other predictors. Naming no modifier, `vc(z, ~ 1)`, leaves that forest nothing to split on: every tree in it is a stump, so the coefficient is a single drawn number and `z` enters the model as a linear term while everything else stays nonparametric. That is the semiparametric case of the General BART model of @tan2019, a forest and a parametric part taking disjoint sets of predictors, and it is the shape *stan4bart* fits.
+
+Comparing the two by `loo_compare()` asks a question neither variable importance nor a dropped predictor answers: not whether `z` matters, but whether what it does depends on anything else.
+
+```{r vcconstant, eval = run}
+set.seed(2026)
+constant <- bartisan(update(model, . ~ . - rhc + vc(rhc, ~ 1)),
+                     data = rhc, family = binomial())
+
+set.seed(2026)
+varying <- bartisan(update(model, . ~ . - rhc + vc(rhc)),
+                    data = rhc, family = binomial())
+
+loo_compare(list(constant = loo(constant), varying = loo(varying)))
+```
+
+The constant coefficient is not beaten, so there is no evidence here that the effect of right heart catheterization on the log odds of death varies with the other covariates. That buys an interpretation the varying fit cannot offer, because one number describes the whole sample:
+
+```{r vccoef, eval = run}
+b <- coef(constant, draws = TRUE)[[1]][, 1]
+
+c(log_OR = mean(b), lower = quantile(b, 0.025, names = FALSE),
+  upper = quantile(b, 0.975, names = FALSE), OR = exp(mean(b)))
+```
+
+An odds ratio of about 1.4, conditional on the forest. `vignette("causal")` puts the same effect at around six percentage points on the probability scale; the two are the same finding read on different scales, and which one to report is a question about the audience rather than about the fit.
+
+Two things to keep in mind. The coefficient is drawn under the leaf prior of its own forest, not under a prior written for a regression coefficient, so it is shrunk toward zero and is a regularized log odds ratio rather than a maximum likelihood one. Because `sigma_mu` scales as $1/\sqrt{m}$, that prior does not change with the number of trees.
+
+And the comparison is far better powered on some outcomes than others. On a Gaussian outcome with a coefficient truly ranging from 0.3 to 2.5, `vc(z)` won by 187 points at $n = 1000$; on a binary outcome with the same coefficients it won by 10, against a standard error of 5. A null result on a binary outcome at a few hundred observations says little, and should not be read as evidence that an effect is constant.
+
 ## Variable Selection
 
 Variables should not be selected by fitting many models and keeping the best. With a search over all subsets, the winner is chosen partly for fitting the noise, for the same reason stepwise regression is not to be trusted.

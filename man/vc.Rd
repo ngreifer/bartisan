@@ -65,6 +65,17 @@ predictor might not be proportional to it. A categorical covariate is removed
 from its own forests instead: a level's indicator is nonzero only on the rows
 where that level holds, and the variable is constant on exactly those rows, so
 such a split separates rows that contribute from rows that contribute nothing.
+
+At the other extreme, \code{~ 1} names nothing at all, which leaves the
+coefficient's forest no predictor to split on: every tree in it is a stump,
+so the coefficient is one drawn number and \code{x} enters as a linear term while
+the rest of the model stays nonparametric. Comparing \code{vc(z, ~ 1)} against
+\code{vc(z)} with \link[=bartisan-interop]{loo()} is then a test of whether the effect
+of \code{z} varies at all, and the constant fit reports it as a single
+coefficient, which under a logit link is one conditional log odds ratio. It
+is drawn under the leaf prior rather than a prior written for a regression
+coefficient, so it is shrunk toward zero. See
+\code{vignette("comparison", package = "bartisan")}.
 }
 
 \subsection{Setting \code{center}}{

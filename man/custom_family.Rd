@@ -20,7 +20,7 @@ additive predictors, \verb{function(y, eta)}, where \code{y} is a numeric vector
 length \code{n} and \code{eta} an \code{n} by \code{num_predictors} matrix, returning a numeric
 vector of length \code{n}. With nuisance parameters it takes a third argument,
 \verb{function(y, eta, aux)}, where \code{aux} is a numeric vector of their current
-values. It is the log density of \emph{one unit of prior weight}, so that
+values. It is the log density of one unit of prior weight, so that
 \code{weights} behave as they do elsewhere, and terms free of \code{eta} may be
 dropped.}
 
@@ -66,7 +66,7 @@ elements \code{family} and \code{link} and which inherits from \code{family}, so
 \code{custom_family()} takes the log density itself, as an R function, and returns
 a family object \code{\link[=bartisan]{bartisan()}} fits the model for. It is the route to a
 response distribution none of the compiled families in
-\code{\link{bartisan-families}} covers.
+\code{\link{bartisan-families}} cover.
 }
 \details{
 Nothing else about the sampler changes: the leaf-level Laplace proposal needs
@@ -90,6 +90,14 @@ observations reaching that leaf, so it must be vectorized over \code{y} and the
 rows of \code{eta}; it must not be vectorized \emph{within} an observation, and it must
 return exactly one value per row. Supplying \code{derivatives} cuts three calls to
 one and removes the differencing error.
+
+Because it sees a subset rather than the whole sample, anything else the
+density needs has to be a scalar or reach it through \code{eta}. A
+per-observation vector captured from the enclosing environment will not line
+up with the rows it is handed, and nothing can detect that for you: the
+fit runs and is wrong. Where such a quantity is genuinely needed, an offset
+belongs in the formula and a varying trial count or exposure belongs in a
+family written for it.
 \subsection{Nuisance Parameters}{
 
 These are drawn alongside the trees when \code{aux_names} names them, and
@@ -115,9 +123,9 @@ above is what keeps the scale positive.
 \subsection{What a Log Density Cannot Supply}{
 
 A density says how likely an observed value is, not how to draw a new one, so
-a \code{custom_family()} fit has no posterior predictive distribution. That is
+a \code{custom_family()} fit has no posterior predictive distribution, which is
 what \code{\link[=bartisan-interop]{simulate()}}, \code{\link[=bartisan-interop]{pp_check()}} and
-\code{\link[=bartisan-interop]{r2()}} rest on, and each of them errors on such a fit
+\code{\link[=bartisan-interop]{r2()}} rely on. Each of them errors on such a fit
 rather than returning something it cannot support. \link[=bartisan-interop]{loo()}
 and \code{\link[=bartisan-interop]{waic()}} are unaffected, since both read the
 pointwise log likelihood the family already computes.
@@ -131,19 +139,47 @@ fitted mean.
 \examples{
 set.seed(123)
 
-d <- data.frame(x1 = runif(200), x2 = runif(200))
-d$y <- rpois(200, exp(1 + sin(pi * d$x1)))
+d <- data.frame(x1 = runif(300), x2 = runif(300))
+d$y <- rpois(300, exp(1 + sin(pi * d$x1)))
 
-# A Poisson likelihood written out by hand. Terms free of eta may be
-# dropped, since they cancel from every acceptance ratio.
-pois <- custom_family(function(y, eta) y * eta[, 1] - exp(eta[, 1]),
-                      start = log(mean(d$y)))
+# A Poisson likelihood written out by hand, with its derivatives. Terms
+# free of eta may be dropped, since they cancel from every acceptance
+# ratio, and the same terms are absent from the score.
+pois <- custom_family(
+  function(y, eta) y * eta[, 1] - exp(eta[, 1]),
+  derivatives = function(y, eta, h) {
+    list(score = y - exp(eta[, 1]), info = exp(eta[, 1]))
+  },
+  start = log(mean(d$y)))
 
 fit <- bartisan(y ~ x1 + x2, data = d, family = pois,
                 num_trees = 20, num_burn = 100, num_draws = 100,
                 verbose = FALSE)
 
 fit
+
+# A beta-binomial, which no built-in family covers: counts out of a known
+# number of trials, overdispersed relative to a binomial. `phi` is drawn
+# alongside the trees, and `size` is a scalar, so closing over it is safe.
+size <- 30
+d$hits <- rbinom(300, size, rbeta(300, plogis(d$x1) * 6,
+                                  (1 - plogis(d$x1)) * 6))
+
+bb <- custom_family(
+  logdens = function(y, eta, aux) {
+    p <- plogis(eta[, 1])
+    phi <- exp(aux[1])
+    lbeta(y + p * phi, size - y + (1 - p) * phi) -
+      lbeta(p * phi, (1 - p) * phi)
+  },
+  aux_names = "log_phi", aux_start = log(5), name = "beta-binomial")
+
+fit_bb <- bartisan(hits ~ x1 + x2, data = d, family = bb,
+                   num_trees = 20, num_burn = 100, num_draws = 100,
+                   verbose = FALSE)
+
+# The drawn precision, on the scale it was written on.
+exp(mean(fit_bb$aux[, "log_phi"]))
 
 }
 \seealso{
