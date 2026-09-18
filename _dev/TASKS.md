@@ -5764,11 +5764,24 @@ where a platform difference would show up.
 
 ### Worth doing, not blocking
 
-**Two references for `tweedie()`.** The compound Poisson-gamma is Jorgensen's and
-the series is Dunn and Smyth's, and neither paper is in the Zotero library, so
-per `PAPERS.md` the prose was written without a citation rather than with a
-reconstructed one. `?bartisan-families` and `vignette("families")`'s
-`references.bib` both want an entry.
+**Two references for `tweedie()`.** *(done 2026-09-18)* Both are in
+`references.bib` as `jorgensen1987` and `dunn2005`, verified by querying
+Crossref **by DOI** and reading the title back, which is the direction that
+cannot fuzzy-match a wrong record onto a plausible one. It caught a recalled
+page range that was wrong: Jorgensen 1987 is 127--145, not 127--162, the longer
+range being the paper plus its discussion.
+
+Cited in the vignettes and not on the help page: `vignette("families")` for the
+compound Poisson-gamma as an exponential dispersion model, and
+`vignette("implementation")` for the series that normalizes the density, which
+is Dunn and Smyth's own contribution, plus the exponential-dispersion form the
+eta-free split rests on. The help page carries no citation because articles
+belong in the vignette a help page points to.
+
+Dunn and Smyth (2007), the Fourier-inversion companion, is deliberately absent:
+it is a real paper but `tweedie()` evaluates the series only, so citing it would
+claim something the code does not do. Tweedie (1984) is absent for a different
+reason -- it is a conference paper with no DOI to verify against.
 
 **`vignette("bartisan")` gaps.** It does not cover the bounded gates or either
 ordinal augmentation.

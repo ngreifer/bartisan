@@ -49,12 +49,12 @@ What follows supersedes the table above where the two disagree.
 | Item | State on 2026-09-18 |
 | --- | --- |
 | Version is `0.0.0.9000` | **Open.** `DESCRIPTION` unchanged. This is the one thing `--as-cran` actually objects to. |
-| No `NEWS.md` | **Open.** Still absent. Nothing says what 0.1.0 is. |
-| `custom_family()` caveat not on its own page | **Open.** The sentence lives in `R/interop.R` alone; `grep` finds it nowhere in `R/families.R`, which is where `custom_family()` is documented and where a reader meets it. Still one cross-reference, not new prose. |
-| `vignette("bartisan")` gaps | **Open.** The file contains zero occurrences of `gate` or `augment`. |
+| No `NEWS.md` | **Closed 2026-09-18.** Added, with an initial-submission entry. |
+| `custom_family()` caveat not on its own page | **Closed 2026-09-18.** It has its own page now, `?custom_family`, with a section saying what a log density cannot supply and noting that `loo()` and `waic()` are unaffected. |
+| `vignette("bartisan")` gaps | **Closed 2026-09-18.** One paragraph on the decision rules, pointing at `vignette("implementation")`. The augmentations are deliberately left out; they are covered in `vignette("families")` and are not a decision the tour asks a reader to make. |
 | `--as-cran` never completed | **Open, and the reason to care has not changed.** It hangs at `checking use of S3 registration` on this machine, which looks like a network wait rather than the package. Needs one run somewhere unrestricted. |
 | A second platform, and the spell check | **Open.** win-builder, macbuilder and R-devel have still never seen this package. |
-| Two `tweedie()` references | **Open.** Jorgensen for the compound Poisson-gamma and Dunn and Smyth for the series, neither in the library, so per `PAPERS.md` the prose carries no citation rather than an invented one. |
+| Two `tweedie()` references | **Closed 2026-09-18.** `jorgensen1987` and `dunn2005`, verified by DOI against Crossref and cited in `vignette("families")` and `vignette("implementation")`. |
 | A hex logo | **Open, newly listed.** None exists; `_pkgdown.yml` has no `logo` key and `README.Rmd` has no badge row. |
 | `VarCorr()` | Post-1.0, unchanged. |
 
@@ -74,7 +74,9 @@ from a plain check is therefore not evidence that the induced-Dirichlet prior,
 the empty-category handling or the `augment` flag work; the `NOT_CRAN=true` run
 is the evidence, and it is clean.
 
-**`ordinal("probit")` with `augment = FALSE` occasionally stalls.** Over 15
+**`ordinal("probit")` with `augment = FALSE` stalled once.** *(Set aside
+2026-09-18: seen a single time and not reproduced since, so it is recorded
+rather than tracked.)* Over 15
 replicates at n = 400, fourteen un-augmented hard-rule fits took 30 to 43
 seconds and one took **3882**; under soft rules, thirteen took 51 to 65 seconds
 and two took about 600. Every augmented fit and both `ordinal("logit")` arms are
@@ -83,13 +85,9 @@ is a supported, documented setting, which is what makes this the one genuinely
 new candidate blocker rather than a curiosity. Under investigation in its own
 session; the measurements are in `TASKS.md` under "stalls".
 
-**Nothing is committed.** 35 modified files sit in the working tree against
-`faff724`, including the induced-Dirichlet prior across four ordinal families
-and `ordbeta()`, the `augment` flag change, ordinal level preservation, the
-13-page documentation pass, the vignette table updates, the bibliography
-de-duplication and today's link and README work. The last full check predates
-some of it. Nothing here is a code defect; it is a statement about what a
-submission would currently be built from.
+**Nothing is committed.** *(resolved 2026-09-18 in `ff12510`.)* The tree is
+clean. The last full check still predates the documentation changes in that
+commit, so one more run is owed before a submission tarball is built.
 
 ### What that adds up to
 
@@ -559,26 +557,29 @@ worth remembering: `.gitignore` keeps it out of the repository and
    `nlme::ranef`, which *lme4* re-exports as the same function object so
    both qualifications reach it. `VarCorr()` is not, and is post-1.0: `tau` is
    the only thing it would return and `?bartisan` names it.
-2. **Move the `custom_family()` limitation onto its own help page.** It is
+2. ~~**Move the `custom_family()` limitation onto its own help page.**~~ Done in
+   `ff12510`, and more than a cross-reference in the end: `custom_family()` now
+   has its own page rather than a shared one. Original note follows. It is
    already stated on `?bartisan-interop` ("no posterior predictive distribution
    at all, because a log density supplies no way to draw from it") and in
    `vignette("faq")`, so this is one cross-reference rather than new prose. But
    `?bartisan-families` is where `custom_family()` is documented and where a
    reader meets it, and the caveat is not there. That placement is what makes
    item 4 non-blocking rather than merely unfinished.
-3. **`NEWS.md` does not exist.** Nothing requires one before a first release, but
-   the version is still `0.0.0.9000` and something has to say what 0.1.0 is.
+3. ~~**`NEWS.md` does not exist.**~~ Added. The version is still `0.0.0.9000`,
+   which remains item 0 of any submission.
 4. ~~**Re-run `_dev/check.sh` to a clean bill.**~~ Done: `Status: OK`. Worth
    re-running before submission itself, since the last three findings all
    arrived from a source the suite and the knit cannot see.
-5. **Understand the `ordinal("probit")` stall under `augment = FALSE`**, or
-   decide it is acceptable and say so on the help page. New on 2026-09-18; see
-   the re-read section near the top.
+5. ~~**The `ordinal("probit")` stall under `augment = FALSE`.**~~ Set aside:
+   seen once, never reproduced.
 6. **A hex logo**, which wires into `_pkgdown.yml` and `README.Rmd` and so is
    cheaper before the site and README are final than after.
-7. **Commit.** 35 files are uncommitted, and a submission tarball would be built
-   from them.
-8. Post-1.0, in no order: `VarCorr()`, the `loo_*` prediction wrappers,
+7. ~~**Commit.**~~ Done in `ff12510`.
+8. **Re-run the full check**, which now predates a commit's worth of
+   documentation changes. This is item 4 again, and it is the one that keeps
+   coming back because the suite and the knit cannot see what it sees.
+9. Post-1.0, in no order: `VarCorr()`, the `loo_*` prediction wrappers,
    `posterior_vs_prior()`, an `rng` for `custom_family()`, and the DART
    inclusion probability as a stored quantity (`TASKS.md` has why it is a C++
    change).

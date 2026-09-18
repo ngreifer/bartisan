@@ -498,7 +498,7 @@ Choose between `Beta()` and `ordbeta()` based on whether the response *can* reac
 
 ## A Point Mass at Zero and a Continuous Positive Part
 
-Spending, rainfall, insurance claims and earnings share a shape that none of the families above has: a genuine mass of exact zeros, and a skewed continuum above them. The `tweedie()` family is the compound Poisson--gamma, which models the pair as one process. A Poisson number of gamma-distributed amounts are added up, so a count of zero produces an exact zero and any positive count produces a positive amount, and the mean and variance come out as
+Spending, rainfall, insurance claims and earnings share a shape that none of the families above has: a genuine mass of exact zeros, and a skewed continuum above them. The `tweedie()` family is the compound Poisson--gamma, one of the exponential dispersion models of @jorgensen1987, which models the pair as one process. A Poisson number of gamma-distributed amounts are added up, so a count of zero produces an exact zero and any positive count produces a positive amount, and the mean and variance come out as
 
 $$\mathrm{E}[y \mid x] = \mu(x) = \exp(\eta(x)), \qquad \mathrm{Var}(y \mid x) = \phi\,\mu(x)^p$$
 
