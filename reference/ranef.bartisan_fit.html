@@ -26,6 +26,7 @@
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -96,7 +97,7 @@ on each, independent of the others, and the columns are named for the
 predictors instead; <code><a href="../articles/families.html">vignette("families")</a></code> lists them per family.</p>
 <p>Only the intercepts are returned. The standard deviation each grouping factor
 was drawn under is in <code>object$tau</code>, one column per factor and one matrix per
-additive predictor, and <a href="bartisan-interop.html">prior_summary()</a> reports the prior
+additive predictor, and <code><a href="bartisan-interop.html">prior_summary()</a></code> reports the prior
 it was drawn from.</p>
 <p>A posterior mean is the wrong summary for a level with few observations, which
 is the case a group intercept exists for. <code>draws = TRUE</code> is what gives an
@@ -111,7 +112,7 @@ intercept is one the forest did not take.</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="bartisan.html">bartisan()</a></code> for the <code>(1 | group)</code> syntax and what it fits;
-<a href="bartisan-interop.html">prior_summary()</a> for the prior on these</p></div>
+<code><a href="bartisan-interop.html">prior_summary()</a></code> for the prior on these</p></div>
     </div>
 
     <div class="section level2">

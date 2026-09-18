@@ -124,6 +124,16 @@ covers the choice, and
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
 covers censored outcomes such as this one’s `days`.
 
+The other decision worth knowing about is the shape of the decision
+rules. By default a rule is soft, so an observation near a split
+contributes to both sides of it and the fitted function comes out smooth
+rather than piecewise constant; `gate` in
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+switches to the hard rules of standard BART, which fit faster and less
+accurately.
+[`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md)
+has the comparison.
+
 ## Checking the Model
 
 Two questions are worth separating: whether the sampler converged, and
@@ -402,8 +412,8 @@ see the shape, plot the model’s predictions against one predictor.
 ``` r
 
 plot(fit, ~ surv2m) +
-  ggplot2::labs(x = "estimated probability of surviving two months",
-                y = "fitted probability of death")
+  ggplot2::labs(x = "Estimated probability of surviving two months",
+                y = "Fitted probability of death")
 ```
 
 ![](bartisan_files/figure-html/pdp-1.png)

@@ -230,7 +230,7 @@ tools for summarizing and visualizing one.
 fits the model this is usually called on;
 [`print.bcf_fit()`](https://ngreifer.github.io/bartisan/reference/print.bcf_fit.md)
 for its other methods;
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 for the same estimands through marginaleffects, which also covers the
 ones not offered here
 

@@ -34,6 +34,7 @@ one."></head><body>
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -100,14 +101,14 @@ what the propensity score is and how it is modeled; see Details.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>the response distribution, given as a <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a> object,
-as one of the families in <a href="bartisan-families.html">bartisan-families</a>, or as the name of either. A
+<dd><p>the response distribution, given as a <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> object,
+as one of the families in <code><a href="bartisan-families.html">bartisan-families</a></code>, or as the name of either. A
 <code>family</code> object is accepted when the distribution it names is one this
 package implements, since the likelihood is the package's rather than the
 object's: a <code>family</code> object carries a link and a variance function and not a
-density, so one naming anything else (e.g., <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::inverse.gaussian</a>, or a
+density, so one naming anything else (e.g., <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::inverse.gaussian</a></code>, or a
 Tweedie from another package) is an error rather than something a likelihood
-can be built from, and <code><a href="bartisan-families.html">custom_family()</a></code> is the route for those. Links are
+can be built from, and <code><a href="custom_family.html">custom_family()</a></code> is the route for those. Links are
 used as supplied, and a link the package does not compile is composed onto
 the scale its family works on. Default is <code>NULL</code>, in which case the family
 is read off the response and a message reports the choice; see Details for
@@ -149,7 +150,7 @@ the class exists so that methods needing a named treatment have something to
 dispatch on. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> gives the conditional effect for each observation and
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code>
  the average; see
-<a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>.</p>
+<code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

@@ -132,7 +132,7 @@ large the forest is are exploring different tree structures.
 
 The leaf scale `sigma_mu` is left out of the table, and is in
 `fit$sigma_mu` and
-[as_draws()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+[`as_draws()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 for anyone who wants to look.
 
 ### Setting `rhat_max` and `ess_min`
@@ -180,7 +180,7 @@ works all of this through on a fit.
 
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 for the settings the advice names;
-[as_draws()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+[`as_draws()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 for handing the draws to
 [bayesplot](https://CRAN.R-project.org/package=bayesplot) or
 [posterior](https://CRAN.R-project.org/package=posterior);

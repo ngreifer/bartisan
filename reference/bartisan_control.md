@@ -285,7 +285,7 @@ bartisan_control(
   *Validation.* `logical`; whether to evaluate the likelihood one leaf
   at a time rather than one observation at a time. Default is `FALSE`. A
   family built by
-  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
   does this regardless, since it must call back into R; setting it for a
   compiled family produces the same draws from the same seed at somewhat
   greater cost.
@@ -436,7 +436,7 @@ and its interval covers below its nominal rate, while a strong effect is
 untouched.
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
 works this through and
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 covers the atom.
 
 For a varying-coefficient model, the sparsity choice can differ by
@@ -483,7 +483,7 @@ A family with several additive predictors has one forest per predictor,
 each with its own prior. Every argument that could mean something
 different for one of them may be given once, to apply to all, or once
 per forest, either positionally or keyed by the forest names listed in
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
+[`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 A forest a named argument does not mention keeps that argument's default
 rather than borrowing another forest's value. That covers `num_trees`,
 `k`, `sigma_mu`, `sparsity`, `split_prior`, `bandwidth`, `gamma`,
@@ -496,7 +496,7 @@ describes.
                      sparsity = c(mean = TRUE, log_sd = FALSE))
 
 The multinomial families are the exception, for the reason given in
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md):
+[`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md):
 their forests act as one, so these arguments take a single value.
 
 ### Progress
@@ -561,7 +561,7 @@ Society Series B*, 80(5), 1087–1110.
 
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md),
 which takes the result as its `control` argument;
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 for the forest names the per-forest arguments are keyed by
 
 [`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md)

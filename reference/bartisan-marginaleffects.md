@@ -231,7 +231,7 @@ value rather than an extrapolated one.
 for the prediction scales these estimands are computed on;
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 for `sparsity` and `x_transform`;
-[bartisan-interop](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+[`bartisan-interop`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 for the methods that let other packages assess the fit
 
 ## Examples

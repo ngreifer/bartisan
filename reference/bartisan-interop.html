@@ -28,6 +28,7 @@ function on the fit."></head><body>
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -419,7 +420,7 @@ instead, its result being a data frame. An accelerated failure time response
 comes back as an event time rather than a log time, and the predictive
 distribution of the outcome knows nothing of the censoring that may have hidden
 it, so <code>pp_check()</code> says so when replicates are compared against censored
-observations. A <code><a href="bartisan-families.html">custom_family()</a></code> fit supplies a log density and no way to draw
+observations. A <code><a href="custom_family.html">custom_family()</a></code> fit supplies a log density and no way to draw
 from it, so these methods error on one.</p>
 </div>
 
@@ -461,7 +462,7 @@ flexible. It needs a mean, so it is available for every family except
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> for the predictions these methods are built on;
 <code><a href="diagnose.html">diagnose()</a></code> for the convergence and mixing diagnostics;
-<a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a> for reading effects off a fit;
+<code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code> for reading effects off a fit;
 <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> for the fuller treatment</p></div>
     </div>
 

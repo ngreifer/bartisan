@@ -185,7 +185,7 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.416     1.2
+#> 1 smoothstep     0.416     1.4
 #> 2       hard     1.079     0.4
 ```
 
@@ -368,7 +368,7 @@ The practical consequence is the reason the package exists. A family
 needs only the log density of one observation and its first two
 derivatives with respect to the predictor. Anything that can supply
 those can be fit, which is why
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 takes an R function and works.
 
 The sampler recognizes three shapes of the leaf-level target and uses
@@ -426,7 +426,7 @@ come back in `fit$aux` and are summarized by
 [`summary()`](https://rdrr.io/r/base/summary.html).
 
 A likelihood written with
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 can have them too, by naming them in `aux_names`. There is no prior
 argument: a parameter with a restricted range is handled by writing the
 transform into the density, exactly as it would be for a real predictor.
@@ -966,19 +966,20 @@ density and its derivatives are:
 [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 earns a note because it looks as though it should be far worse: its
 density has no closed form at a positive response, and normalizing it
-takes an infinite series. Measured against a Gaussian fit of the same
-size it costs 6.7 times as much where `Gamma("log")` costs 5.5, so the
-series is not visible in the total. The reason is where the series sits.
-Writing the log density in exponential-dispersion form separates it into
-a part that moves with the predictor, which is closed form, and a
-normalizing term that does not depend on the predictor at all; the
-second goes in the eta-free part, which is evaluated once per sweep
-rather than at every leaf, and cancels from every acceptance ratio in
-between. Its length depends on the response and the dispersion but never
-on the mean, so it does not grow as the forest moves. Drawing `power`
-costs about 45% again, because the slice sampler has to re-sum the
-series at each candidate value and cannot use the table of log-gammas
-that a fixed power allows.
+takes an infinite series ([Dunn and Smyth 2005](#ref-dunn2005)).
+Measured against a Gaussian fit of the same size it costs 6.7 times as
+much where `Gamma("log")` costs 5.5, so the series is not visible in the
+total. The reason is where the series sits. Writing the log density in
+exponential-dispersion form ([Jørgensen 1987](#ref-jorgensen1987))
+separates it into a part that moves with the predictor, which is closed
+form, and a normalizing term that does not depend on the predictor at
+all; the second goes in the eta-free part, which is evaluated once per
+sweep rather than at every leaf, and cancels from every acceptance ratio
+in between. Its length depends on the response and the dispersion but
+never on the mean, so it does not grow as the forest moves. Drawing
+`power` costs about 45% again, because the slice sampler has to re-sum
+the series at each candidate value and cannot use the table of
+log-gammas that a fixed power allows.
 
 [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
@@ -1053,7 +1054,7 @@ median, and `update_sigma_mu = FALSE` pins it.
 
 A link supplied from R costs a call into the interpreter for every leaf
 the sampler visits, and
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 costs three unless the derivatives are supplied. Both are usable at the
 sizes a BART model is usually fit at, and both are slower than the
 compiled equivalent.
@@ -1100,6 +1101,10 @@ Cowles, Mary Kathryn. 1996. “Accelerating Monte Carlo Markov Chain
 Convergence for Cumulative-Link Generalized Linear Models.” *Statistics
 and Computing* 6 (2): 101–11. <https://doi.org/10.1007/BF00162520>.
 
+Dunn, Peter K., and Gordon K. Smyth. 2005. “Series Evaluation of Tweedie
+Exponential Dispersion Model Densities.” *Statistics and Computing* 15
+(4): 267–80. <https://doi.org/10.1007/s11222-005-4070-y>.
+
 Escobar, Michael D., and Mike West. 1995. “Bayesian Density Estimation
 and Inference Using Mixtures.” *Journal of the American Statistical
 Association* 90 (430): 577–88.
@@ -1125,6 +1130,10 @@ Hill, Jennifer, Antonio Linero, and Jared Murray. 2020. “Bayesian
 Additive Regression Trees: A Review and Look Forward.” *Annual Review of
 Statistics and Its Application* 7 (1): 251–78.
 <https://doi.org/10.1146/annurev-statistics-031219-041110>.
+
+Jørgensen, Bent. 1987. “Exponential Dispersion Models.” *Journal of the
+Royal Statistical Society Series B: Statistical Methodology* 49 (2):
+127–45. <https://doi.org/10.1111/j.2517-6161.1987.tb01685.x>.
 
 Kapelner, Adam, and Justin Bleich. 2015. “Prediction with Missing Data
 via Bayesian Additive Regression Trees.” *Canadian Journal of

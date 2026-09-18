@@ -104,7 +104,7 @@ saying how many.
 ## Can I supply my own likelihood?
 
 Yes, through
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md),
 which is the feature the package is named for. You give it a function of
 the response and the additive predictors, `function(y, eta)`, returning
 one log density per observation, and the sampler does the rest; you do

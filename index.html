@@ -40,6 +40,7 @@
 <li class="nav-item"><a class="nav-link" href="articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -70,8 +71,8 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>Bayesian additive regression trees (BART) estimate a regression function as a sum of small trees, so nonlinearity and interactions are found rather than specified. <em>bartisan</em> does that for response distributions that standard BART cannot reach, using the Laplace-approximation reversible-jump sampler of Linero (2025), which relaxes the requirement that the leaf parameters be integrable in closed form.</p>
-<p>A model is written the way it is in <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, with a formula, a data frame, and a family, and the <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> objects <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> takes are accepted unchanged. Beyond them come the families that have no <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> counterpart: negative binomial, ordinal, multinomial, beta and ordered beta, zero-inflated counts, a Tweedie compound Poisson, accelerated failure time and proportional hazards models for right-censored times, location-scale regression, a Dirichlet process mixture for the error distribution, and a log density written as an R function. Decision rules are smooth by default, in the manner of Linero and Yang (2018), which fits a smoother function than the step functions of standard BART.</p>
+<p>Bayesian additive regression trees (BART) estimate a regression function as a sum of small trees, so nonlinearity and interactions are found rather than specified. <em>bartisan</em> does that for response distributions that standard BART cannot reach, using the Laplace-approximation reversible-jump sampler of Linero (<a href="#ref-linero2025">2025</a>), which relaxes the requirement that the leaf parameters be integrable in closed form. That requirement is what ties standard BART to a Gaussian likelihood, and lifting it is the sense in which the model here is <em>generalized</em>: the same sense a generalized linear model is, in which the response distribution is a choice the analyst makes rather than an assumption the sampler imposes.</p>
+<p>A model is written the way it is in <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>, with a formula, a data frame, and a family, and the <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> objects <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> takes are accepted unchanged. Beyond them come the families that have no <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> counterpart: negative binomial, ordinal, multinomial, beta and ordered beta, zero-inflated counts, a Tweedie compound Poisson, accelerated failure time and proportional hazards models for right-censored times, location-scale regression, a Dirichlet process mixture for the error distribution, and a log density written as an R function. Decision rules are smooth by default, in the manner of Linero and Yang (<a href="#ref-linero2018">2018</a>), which fits a smoother function than the step functions of standard BART.</p>
 <p><em>bartisan</em> supports varying-coefficient models, where the effect of a predictor receives its own forest, a special case of which is the Bayesian causal forest (BCF) model for estimating treatment effects. Along with this is an interface for estimating average treatment effects from BART and BCF models. In addition, <em>bartisan</em> supports random intercepts BART models.</p>
 <p>Integration is provided with the <a href="https://CRAN.R-project.org/package=future" class="external-link"><em>future</em></a> and <a href="https://CRAN.R-project.org/package=progressr" class="external-link"><em>progressr</em></a> packages for parallel processing and progress bars.</p>
 </div>
@@ -87,7 +88,7 @@
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
-<p><code>rhc</code> holds 1500 critically ill patients from the SUPPORT study, recording whether each was given right heart catheterization on admission to intensive care, whether they died during follow-up, and thirteen covariates measured beforehand (Connors et al., 1996). Fitting a model to it takes one call, and the family is the one <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> would be given:</p>
+<p><code>rhc</code> holds 1500 critically ill patients from the SUPPORT study, recording whether each was given right heart catheterization on admission to intensive care, whether they died during follow-up, and thirteen covariates measured beforehand (<a href="#ref-connors1996">Connors et al. 1996</a>). Fitting a model to it takes one call, and the family is the one <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> would be given:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span></span>
@@ -194,14 +195,27 @@
 <h2 id="citing-bartisan">Citing <em>bartisan</em>
 <a class="anchor" aria-label="anchor" href="#citing-bartisan"></a>
 </h2>
-<p><em>bartisan</em> implements the sampler of Linero (2025), and its MCMC engine is adapted from that paper’s <code>FlexBart</code> reference implementation. Please cite the method and the package both, the latter with its version number, which <code>citation("bartisan")</code> supplies:</p>
-<p>Linero, A. R. (2025). Generalized Bayesian additive regression trees models: beyond conditional conjugacy. <em>Journal of the American Statistical Association</em>, 120(549), 356–369. <a href="https://doi.org/10.1080/01621459.2024.2337156" class="external-link uri">https://doi.org/10.1080/01621459.2024.2337156</a></p>
-<p>Linero, A. R., &amp; Yang, Y. (2018). Bayesian regression tree ensembles that adapt to smoothness and sparsity. <em>Journal of the Royal Statistical Society Series B</em>, 80(5), 1087–1110. <a href="https://doi.org/10.1111/rssb.12293" class="external-link uri">https://doi.org/10.1111/rssb.12293</a></p>
+<p><em>bartisan</em> implements the sampler of Linero (<a href="#ref-linero2025">2025</a>), and its MCMC engine is adapted from that paper’s <code>FlexBart</code> reference implementation. Please cite the method and the package both, the latter with its version number, which <code>citation("bartisan")</code> supplies. The smooth decision rules are those of Linero and Yang (<a href="#ref-linero2018">2018</a>). Both papers are listed under References below.</p>
 </div>
 <div class="section level2">
 <h2 id="questions-and-bug-reports">Questions and Bug Reports<a class="anchor" aria-label="anchor" href="#questions-and-bug-reports"></a>
 </h2>
 <p>Please file an issue at <a href="https://github.com/ngreifer/bartisan/issues" class="external-link uri">https://github.com/ngreifer/bartisan/issues</a>, with a reproducible example where the report concerns a fit.</p>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-connors1996" class="csl-entry">
+Connors, Alfred F., Theodore Speroff, Neal V. Dawson, et al. 1996. “The Effectiveness of Right Heart Catheterization in the Initial Care of Critically Ill Patients.” <em>JAMA</em> 276 (11): 889–97. <a href="https://doi.org/10.1001/jama.1996.03540110043030" class="external-link uri">https://doi.org/10.1001/jama.1996.03540110043030</a>.
+</div>
+<div id="ref-linero2025" class="csl-entry">
+Linero, Antonio R. 2025. “Generalized Bayesian Additive Regression Trees Models: Beyond Conditional Conjugacy.” <em>Journal of the American Statistical Association</em> 120 (549): 356–69. <a href="https://doi.org/10.1080/01621459.2024.2337156" class="external-link uri">https://doi.org/10.1080/01621459.2024.2337156</a>.
+</div>
+<div id="ref-linero2018" class="csl-entry">
+Linero, Antonio R., and Yun Yang. 2018. “Bayesian Regression Tree Ensembles That Adapt to Smoothness and Sparsity.” <em>Journal of the Royal Statistical Society Series B: Statistical Methodology</em> 80 (5): 1087–110. <a href="https://doi.org/10.1111/rssb.12293" class="external-link uri">https://doi.org/10.1111/rssb.12293</a>.
+</div>
+</div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

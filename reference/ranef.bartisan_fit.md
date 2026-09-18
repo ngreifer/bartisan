@@ -52,7 +52,7 @@ lists them per family.
 Only the intercepts are returned. The standard deviation each grouping
 factor was drawn under is in `object$tau`, one column per factor and one
 matrix per additive predictor, and
-[prior_summary()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+[`prior_summary()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 reports the prior it was drawn from.
 
 A posterior mean is the wrong summary for a level with few observations,
@@ -70,7 +70,7 @@ a shift common to every intercept is one the forest did not take.
 
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 for the `(1 | group)` syntax and what it fits;
-[prior_summary()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+[`prior_summary()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 for the prior on these
 
 ## Examples

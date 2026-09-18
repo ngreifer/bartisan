@@ -30,6 +30,7 @@ Yang (2018), and are meant to be usable without adjustment."></head><body>
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -326,7 +327,7 @@ reports <code>verbose</code> prints. Default is 100.</p></dd>
 <dt id="arg-block-eval">block_eval<a class="anchor" aria-label="anchor" href="#arg-block-eval"></a></dt>
 <dd><p><em>Validation.</em> <code>logical</code>; whether to evaluate the likelihood
 one leaf at a time rather than one observation at a time. Default is
-<code>FALSE</code>. A family built by <code><a href="bartisan-families.html">custom_family()</a></code> does this regardless, since it
+<code>FALSE</code>. A family built by <code><a href="custom_family.html">custom_family()</a></code> does this regardless, since it
 must call back into R; setting it for a compiled family produces the same
 draws from the same seed at somewhat greater cost.</p></dd>
 
@@ -471,7 +472,7 @@ when the predictors are many and nearly all are expected to be irrelevant.
 For a contrast, a partial effect, or a treatment effect, set <code>sparsity = FALSE</code>, or use <code>split_prior</code>, which cannot drop anything: on a weak signal
 the sparsity prior attenuates the estimate substantially and its interval
 covers below its nominal rate, while a strong effect is untouched.
-<code><a href="../articles/effects.html">vignette("effects")</a></code> works this through and <a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>
+<code><a href="../articles/effects.html">vignette("effects")</a></code> works this through and <code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code>
 covers the atom.</p>
 <p>For a varying-coefficient model, the sparsity choice can differ by forest
 (see more details below). What the prior can drop is a predictor a forest
@@ -515,7 +516,7 @@ once and its levels share the weight.</p>
 <p>A family with several additive predictors has one forest per predictor, each
 with its own prior. Every argument that could mean something different for
 one of them may be given once, to apply to all, or once per forest, either
-positionally or keyed by the forest names listed in <a href="bartisan-families.html">bartisan-families</a>. A
+positionally or keyed by the forest names listed in <code><a href="bartisan-families.html">bartisan-families</a></code>. A
 forest a named argument does not mention keeps that argument's default rather
 than borrowing another forest's value. That covers <code>num_trees</code>, <code>k</code>,
 <code>sigma_mu</code>, <code>sparsity</code>, <code>split_prior</code>, <code>bandwidth</code>, <code>gamma</code>, <code>beta</code>, the four
@@ -524,7 +525,7 @@ way, as <code><a href="bartisan.html">bartisan()</a></code> describes.</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fl">50</span>, log_sd <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>,</span>
 <span>                 sparsity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="cn">TRUE</span>, log_sd <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>The multinomial families are the exception, for the reason given in
-<a href="bartisan-families.html">bartisan-families</a>: their forests act as one, so these arguments take a
+<code><a href="bartisan-families.html">bartisan-families</a></code>: their forests act as one, so these arguments take a
 single value.</p>
 </div>
 
@@ -583,7 +584,7 @@ Series B</em>, 80(5), 1087–1110. <a href="https://doi.org/10.1111/rssb.12293" 
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="bartisan.html">bartisan()</a></code>, which takes the result as its <code>control</code> argument;
-<a href="bartisan-families.html">bartisan-families</a> for the forest names the per-forest arguments are keyed
+<code><a href="bartisan-families.html">bartisan-families</a></code> for the forest names the per-forest arguments are keyed
 by</p>
 <p><code><a href="../articles/implementation.html">vignette("implementation")</a></code> for more details on the BART implementation.</p></div>
     </div>

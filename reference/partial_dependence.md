@@ -124,7 +124,7 @@ is for a contrast that is meant causally.
 for treatment effects rather than fitted surfaces;
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
 for which predictors the forest uses;
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md),
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md),
 since
 [`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html)
 draws the same thing with more control over the grid

@@ -32,6 +32,7 @@ error if it is called on its own."></head><body>
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -127,6 +128,16 @@ predictor might not be proportional to it. A categorical covariate is removed
 from its own forests instead: a level's indicator is nonzero only on the rows
 where that level holds, and the variable is constant on exactly those rows, so
 such a split separates rows that contribute from rows that contribute nothing.</p>
+<p>At the other extreme, <code>~ 1</code> names nothing at all, which leaves the
+coefficient's forest no predictor to split on: every tree in it is a stump,
+so the coefficient is one drawn number and <code>x</code> enters as a linear term while
+the rest of the model stays nonparametric. Comparing <code>vc(z, ~ 1)</code> against
+<code>vc(z)</code> with <a href="bartisan-interop.html">loo()</a> is then a test of whether the effect
+of <code>z</code> varies at all, and the constant fit reports it as a single
+coefficient, which under a logit link is one conditional log odds ratio. It
+is drawn under the leaf prior rather than a prior written for a regression
+coefficient, so it is shrunk toward zero. See
+<code><a href="../articles/comparison.html">vignette("comparison", package = "bartisan")</a></code>.</p>
 </div>
 
 <div class="section">
@@ -209,7 +220,7 @@ reporting does not carry them.</p>
 <li><p><code><a href="bcf.html">bcf()</a></code> for the causal case, which is this term with the priors and the
 propensity score set up for it</p></li>
 <li><p><code><a href="coef.bartisan_fit.html">coef.bartisan_fit()</a></code> for reading the coefficients out</p></li>
-<li><p><a href="bartisan-families.html">bartisan-families</a> for the order the forests come in</p></li>
+<li><p><code><a href="bartisan-families.html">bartisan-families</a></code> for the order the forests come in</p></li>
 </ul></div>
     </div>
 

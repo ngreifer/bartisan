@@ -38,6 +38,7 @@
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -182,7 +183,7 @@ saying how many.</p>
 <div class="section level2">
 <h2 id="can-i-supply-my-own-likelihood">Can I supply my own likelihood?<a class="anchor" aria-label="anchor" href="#can-i-supply-my-own-likelihood"></a>
 </h2>
-<p>Yes, through <code><a href="../reference/bartisan-families.html">custom_family()</a></code>, which is the feature the
+<p>Yes, through <code><a href="../reference/custom_family.html">custom_family()</a></code>, which is the feature the
 package is named for. You give it a function of the response and the
 additive predictors, <code>function(y, eta)</code>, returning one log
 density per observation, and the sampler does the rest; you do not have

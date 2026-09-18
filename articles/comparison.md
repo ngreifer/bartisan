@@ -698,6 +698,76 @@ lists the settings that buy speed;
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 documents what each one changes.
 
+## A Constant Coefficient Against a Varying One (`vc()`)
+
+`vc(z)` gives `z` a coefficient that is itself a forest, free to vary
+with the other predictors. Naming no modifier, `vc(z, ~ 1)`, leaves that
+forest nothing to split on: every tree in it is a stump, so the
+coefficient is a single drawn number and `z` enters the model as a
+linear term while everything else stays nonparametric. That is the
+semiparametric case of the General BART model of Tan and Roy
+([2019](#ref-tan2019)), a forest and a parametric part taking disjoint
+sets of predictors, and it is the shape *stan4bart* and *flexBART* fit;
+*flexBART*’s formula interface writes it as `y ~ bart(x1 + x2) + x3`,
+with `x3` linear, and a varying coefficient as `x4 * bart(x1 + x2)`.
+
+Comparing the two by
+[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+asks a question neither variable importance nor a dropped predictor
+answers: not whether `z` matters, but whether what it does depends on
+anything else.
+
+``` r
+
+set.seed(2026)
+constant <- bartisan(update(model, . ~ . - rhc + vc(rhc, ~ 1)),
+                     data = rhc, family = binomial())
+
+set.seed(2026)
+varying <- bartisan(update(model, . ~ . - rhc + vc(rhc)),
+                    data = rhc, family = binomial())
+
+loo_compare(list(constant = loo(constant), varying = loo(varying)))
+#>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
+#>  constant       0.0     0.0      NA                          
+#>   varying      -1.4     1.3    0.85 |elpd_diff| < 4
+```
+
+The constant coefficient is not beaten, so there is no evidence here
+that the effect of right heart catheterization on the log odds of death
+varies with the other covariates. That buys an interpretation the
+varying fit cannot offer, because one number describes the whole sample:
+
+``` r
+
+b <- coef(constant, draws = TRUE)[[1]][, 1]
+
+c(log_OR = mean(b), lower = quantile(b, 0.025, names = FALSE),
+  upper = quantile(b, 0.975, names = FALSE), OR = exp(mean(b)))
+#> log_OR  lower  upper     OR 
+#> 0.3565 0.1089 0.6201 1.4283
+```
+
+An odds ratio of about 1.4, conditional on the forest.
+[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
+puts the same effect at around six percentage points on the probability
+scale; the two are the same finding read on different scales, and which
+one to report is a question about the audience rather than about the
+fit.
+
+Two things to keep in mind. The coefficient is drawn under the leaf
+prior of its own forest, not under a prior written for a regression
+coefficient, so it is shrunk toward zero and is a regularized log odds
+ratio rather than a maximum likelihood one. Because `sigma_mu` scales as
+\\1/\sqrt{m}\\, that prior does not change with the number of trees.
+
+And the comparison is far better powered on some outcomes than others.
+On a Gaussian outcome with a coefficient truly ranging from 0.3 to 2.5,
+`vc(z)` won by 187 points at \\n = 1000\\; on a binary outcome with the
+same coefficients it won by 10, against a standard error of 5. A null
+result on a binary outcome at a few hundred observations says little,
+and should not be read as evidence that an effect is constant.
+
 ## Variable Selection
 
 Variables should not be selected by fitting many models and keeping the
@@ -768,6 +838,10 @@ covers what the families assume, which is what a comparison between them
 is really about.
 
 ## References
+
+Tan, Yaoyuan Vincent, and Jason Roy. 2019. “Bayesian Additive Regression
+Trees and the General BART Model.” *Statistics in Medicine* 38 (25):
+5048–69. <https://doi.org/10.1002/sim.8347>.
 
 Vehtari, Aki, Andrew Gelman, and Jonah Gabry. 2017. “Practical Bayesian
 Model Evaluation Using Leave-One-Out Cross-Validation and WAIC.”

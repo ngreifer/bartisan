@@ -40,6 +40,7 @@ this package's own spelling and resolves to the log link; see Details."></head><
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -63,7 +64,7 @@ this package's own spelling and resolves to the log link; see Details."></head><
     </div>
 
     <div class="ref-description section level2">
-    <p><code><a href="bartisan.html">bartisan()</a></code> accepts the <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a> objects used by <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code>, so
+    <p><code><a href="bartisan.html">bartisan()</a></code> accepts the <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> objects used by <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code>, so
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>, <code>binomial("probit")</code>, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code> and <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::Gamma()</a></code> all work
 unchanged. The functions documented here supply the additional families that
 have no <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> counterpart, in the same style, so that they can be passed to
@@ -113,17 +114,7 @@ this package's own spelling and resolves to the log link; see Details.</p>
 <span></span>
 <span><span class="fu">ordbeta</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"logit"</span>, phi <span class="op">=</span> <span class="cn">NULL</span>, cut_alpha <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">tweedie</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span>, power <span class="op">=</span> <span class="fl">1.5</span>, phi <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">custom_family</span><span class="op">(</span></span>
-<span>  <span class="va">logdens</span>,</span>
-<span>  num_predictors <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  start <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>  derivatives <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  aux_names <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  aux_start <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  name <span class="op">=</span> <span class="st">"custom"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">tweedie</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span>, power <span class="op">=</span> <span class="fl">1.5</span>, phi <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -236,68 +227,12 @@ badly determined power drags the dispersion around with it. Pass <code>NULL</cod
 draw it, which is worth doing only with a large sample and a real interest
 in the shape rather than the mean.</p></dd>
 
-
-<dt id="arg-logdens">logdens<a class="anchor" aria-label="anchor" href="#arg-logdens"></a></dt>
-<dd><p>for <code>custom_family()</code>, the log density, given as a function of
-the response and the additive predictors, <code>function(y, eta)</code>, where <code>y</code> is a
-numeric vector of length <code>n</code> and <code>eta</code> an <code>n</code> by <code>num_predictors</code> matrix,
-returning a numeric vector of length <code>n</code>. With nuisance parameters it takes
-a third argument, <code>function(y, eta, aux)</code>, where <code>aux</code> is a numeric vector
-of their current values. It is the log density of <em>one unit of prior
-weight</em>, so that <code>weights</code> behave as they do elsewhere, and terms free of
-<code>eta</code> may be dropped.</p></dd>
-
-
-<dt id="arg-num-predictors">num_predictors<a class="anchor" aria-label="anchor" href="#arg-num-predictors"></a></dt>
-<dd><p><code>numeric</code>; for <code>custom_family()</code>, how many additive
-predictors the density has (i.e., how many forests to fit). Default is 1.</p></dd>
-
-
-<dt id="arg-start">start<a class="anchor" aria-label="anchor" href="#arg-start"></a></dt>
-<dd><p><code>numeric</code>; for <code>custom_family()</code>, the value each additive
-predictor starts at, in place of the intercept-only fit the compiled
-families use. One value or one per predictor. Default is 0.</p></dd>
-
-
-<dt id="arg-derivatives">derivatives<a class="anchor" aria-label="anchor" href="#arg-derivatives"></a></dt>
-<dd><p>for <code>custom_family()</code>, optional; a <code>function(y, eta, h)</code>
-returning a list with elements <code>score</code> and <code>info</code>, the first derivative of
-<code>logdens</code> with respect to the <code>h</code>th predictor and minus its second
-derivative, each a vector of length <code>n</code>. Default is <code>NULL</code> to take central
-differences of <code>logdens</code>. It covers the additive predictors only: a nuisance
-parameter is always differenced, which costs three calls per sweep rather
-than three per leaf.</p></dd>
-
-
-<dt id="arg-aux-names">aux_names<a class="anchor" aria-label="anchor" href="#arg-aux-names"></a></dt>
-<dd><p>optional <code>character</code>; for <code>custom_family()</code>, the names of the
-nuisance parameters to draw, if any. Naming them is what declares them,
-because the names label the columns of <code>fit$aux</code> and are what <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>
-and <code><a href="diagnose.html">diagnose()</a></code> report them under. They must be distinct and non-empty.
-Default is <code>NULL</code> for none, unless <code>aux_start</code> is given, in which case the
-parameters are named by <code>names(aux_start)</code> when it carries names and
-positionally (<code>"aux1"</code>, <code>"aux2"</code>, and so on) when it does not.</p></dd>
-
-
-<dt id="arg-aux-start">aux_start<a class="anchor" aria-label="anchor" href="#arg-aux-start"></a></dt>
-<dd><p>optional <code>numeric</code>; for <code>custom_family()</code>, the value each
-nuisance parameter starts at, given as one value or one per parameter.
-Default is <code>NULL</code>, which is 0 for each. The sampler will walk to the
-posterior from a poor start, so this need only be the right order of
-magnitude. Supplying it is a second way to declare the parameters, so
-<code>aux_start = c(shape = 1)</code> both names one and starts it at 1.</p></dd>
-
-
-<dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
-<dd><p>string; for <code>custom_family()</code>, a label used when printing the fit.
-Default is <code>"custom"</code>.</p></dd>
-
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>&lt;bartisan_family&gt;</code> object, which is a list containing at least the elements
 <code>family</code> and <code>link</code> and which inherits from <code>family</code>, so that <code><a href="bartisan.html">bartisan()</a></code>
-recognizes it wherever it recognizes an ordinary <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a> object.</p>
+recognizes it wherever it recognizes an ordinary <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> object.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -326,7 +261,7 @@ so a link given to it is an error rather than a composition. <code><a href="http
 accepts any link and fits none of them but <code>"log"</code>: every other link is
 dropped with a message, because the ones base R offers have inverses that go
 non-positive over part of the line and the additive predictor is
-unconstrained. <code>custom_family()</code> is the route to a gamma response on another
+unconstrained. <code><a href="custom_family.html">custom_family()</a></code> is the route to a gamma response on another
 link.</p>
 <p>A composed link whose inverse has a restricted range (<code>poisson("identity")</code>,
 <code>poisson("sqrt")</code>) will give non-finite densities for some predictors. Those
@@ -336,7 +271,7 @@ Prefer links whose inverse is defined on the whole line.</p>
 <p>The families with more than one additive predictor, or whose link enters
 somewhere other than a single mean (<code>ordinal()</code>, <code>multinomial()</code>, the
 accelerated failure time families, <code>gaussian_ls()</code>, the zero-inflated
-families and <code>ordbeta()</code>), take only their listed links. <code>custom_family()</code> is
+families and <code>ordbeta()</code>), take only their listed links. <code><a href="custom_family.html">custom_family()</a></code> is
 the way to reach anything else.</p>
 </div>
 
@@ -485,7 +420,7 @@ model does decompose, and it approaches the partial likelihood as the bins
 shrink, which is how <code>ph()</code> reaches proportional hazards without it.</p>
 <p><code>num_bins</code> should be left at its default. The estimates are insensitive to it,
 and what it does change is the effective number of parameters, which grows
-with the bin count and so matters for <a href="bartisan-interop.html">loo()</a> and <code>waic()</code>.
+with the bin count and so matters for <code><a href="bartisan-interop.html">loo()</a></code> and <code>waic()</code>.
 <code><a href="../articles/survival.html">vignette("survival")</a></code> sweeps it.</p>
 <p>The three differ in cost, though not enough to decide a model on.
 <code>lognormal_aft()</code> and <code>loglogistic_aft()</code> impute each censored failure time
@@ -550,7 +485,7 @@ at \(\exp(-\mu^{2-p}/(\phi(2-p)))\). That is what makes it a single process
 and is also its restriction: the share of zeros has no level of its own, so a
 response whose zeros are more or less common than its mean implies wants a
 two-part model instead, which <code>zi_poisson()</code> and <code>zi_negbin()</code> are for counts
-and which <code>custom_family()</code> can supply for anything else.</p>
+and which <code><a href="custom_family.html">custom_family()</a></code> can supply for anything else.</p>
 <p>Two things follow from the mean being \(\exp(\eta)\) exactly. A
 counterfactual mean through <a href="https://CRAN.R-project.org/package=marginaleffects" class="external-link"><span class="pkg">marginaleffects</span></a> needs nothing beyond the
 forest, unlike a two-part model where it has to be recombined across
@@ -606,50 +541,17 @@ than one value is an error rather than a silent recycling.</p>
 <h3 id="supplying-a-likelihood">Supplying a Likelihood<a class="anchor" aria-label="anchor" href="#supplying-a-likelihood"></a></h3>
 
 
-<p><code>custom_family()</code> takes the log density itself, as an R function, and fits the
-model that goes with it. Nothing else about the sampler changes: the
-leaf-level Laplace proposal needs the first two derivatives of the log density
-with respect to each additive predictor and nothing more, and central
-differences of the supplied function produce both.</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="co"># A Poisson model written out by hand. Terms free of eta may be dropped;</span></span>
-<span><span class="co"># they cancel from every acceptance ratio.</span></span>
-<span><span class="va">pois</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan-families.html">custom_family</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">y</span>, <span class="va">eta</span><span class="op">)</span> <span class="va">y</span> <span class="op">*</span> <span class="va">eta</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">eta</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>                      start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">y</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Two predictors: a mean and a log standard deviation.</span></span>
-<span><span class="va">ls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan-families.html">custom_family</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">y</span>, <span class="va">eta</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">dnorm</a></span><span class="op">(</span><span class="va">y</span>, <span class="va">eta</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">eta</span><span class="op">[</span>, <span class="fl">2</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>                                           log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
-<span>                    num_predictors <span class="op">=</span> <span class="fl">2</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
-<p>The function is called once per leaf per Fisher-scoring step with the
-observations reaching that leaf, so it must be vectorized over <code>y</code> and the
-rows of <code>eta</code>; it must not be vectorized <em>within</em> an observation, and it must
-return exactly one value per row. Supplying <code>derivatives</code> cuts three calls to
-one and removes the differencing error.</p>
-<p>Nuisance parameters are drawn alongside the trees when <code>aux_names</code> names
-them, and <code>logdens</code> then takes a third argument holding their current values:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="co"># A Gaussian written out by hand, with its scale drawn rather than fixed.</span></span>
-<span><span class="va">by_hand</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan-families.html">custom_family</a></span><span class="op">(</span></span>
-<span>  logdens <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">y</span>, <span class="va">eta</span>, <span class="va">aux</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">dnorm</a></span><span class="op">(</span><span class="va">y</span>, <span class="va">eta</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">aux</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span>, log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
-<span>  aux_names <span class="op">=</span> <span class="st">"log_sigma"</span>, aux_start <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span></code></pre><p></p></div>
-<p>They are reported in <code>fit$aux</code> under those names, and covered by <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>
-and <code><a href="diagnose.html">diagnose()</a></code> like any other family's. There is no prior argument and no
-bounds argument, because a nuisance parameter here is carried as an additive
-predictor whose forest is pinned at depth zero (one tree that can never
-split, so the forest is a single scalar), and it is drawn by the same
-Laplace-plus-Metropolis step as any leaf, under that step's Gaussian leaf
-prior. So a parameter with a restricted range is handled the way it would be
-for a real predictor, by writing the transform into <code>logdens</code>: the <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code>
-above is what keeps the scale positive.</p>
-<p>What <code>custom_family()</code> does not do: the response must be numeric, so a factor
-has to be coded first; and since the package cannot know what the mean of the
-density is, <code>predict(type = "response")</code> returns the additive predictors
-rather than a fitted mean.</p>
+<p>When none of the families above is the right one, <code><a href="custom_family.html">custom_family()</a></code> takes the
+log density itself, as an R function, and fits the model that goes with it.
+Its page has the details, including the two things a log density cannot
+supply: a posterior predictive distribution, and a fitted mean.</p>
 </div>
 
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="bartisan.html">bartisan()</a></code> for fitting a model with one of these families;
+<code><a href="custom_family.html">custom_family()</a></code> for a likelihood none of them covers;
 <code><a href="error_density.html">error_density()</a></code> for the error distribution a <code>dpm()</code> or <code>dpm_aft()</code> fit
 estimates; <code><a href="../articles/families.html">vignette("families", package = "bartisan")</a></code> for the long form</p></div>
     </div>

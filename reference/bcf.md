@@ -43,18 +43,18 @@ bcf(
 - family:
 
   the response distribution, given as a
-  [stats::family](https://rdrr.io/r/stats/family.html) object, as one of
-  the families in
-  [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+  [`stats::family`](https://rdrr.io/r/stats/family.html) object, as one
+  of the families in
+  [`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
   or as the name of either. A `family` object is accepted when the
   distribution it names is one this package implements, since the
   likelihood is the package's rather than the object's: a `family`
   object carries a link and a variance function and not a density, so
   one naming anything else (e.g.,
-  [stats::inverse.gaussian](https://rdrr.io/r/stats/family.html), or a
+  [`stats::inverse.gaussian`](https://rdrr.io/r/stats/family.html), or a
   Tweedie from another package) is an error rather than something a
   likelihood can be built from, and
-  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
   is the route for those. Links are used as supplied, and a link the
   package does not compile is composed onto the scale its family works
   on. Default is `NULL`, in which case the family is read off the
@@ -104,7 +104,7 @@ needing a named treatment have something to dispatch on.
 effect for each observation and
 [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
 the average; see
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
 
 ## Details
 

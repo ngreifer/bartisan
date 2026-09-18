@@ -24,6 +24,7 @@
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -45,6 +46,22 @@
     </div>
 
     <div class="section level2">
+      <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a></h2>
+
+      <div class="section-desc"><p>The package’s own page: what it fits, and a table pointing from the task at hand to the function that does it.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="bartisan-package.html">bartisan-package</a></code>
+
+        </dt>
+        <dd>bartisan: Generalized Bayesian Additive Regression Trees</dd>
+      </dl></div><div class="section level2">
       <h2 id="fitting-a-model">Fitting a Model<a class="anchor" aria-label="anchor" href="#fitting-a-model"></a></h2>
 
       <div class="section-desc"><p><code><a href="../reference/bartisan.html">bartisan()</a></code> is the entry point and <code><a href="../reference/bcf.html">bcf()</a></code> is its counterpart for a treatment effect. Everything else in this section changes what either one fits: the likelihood, the settings the sampler runs under, and the one term that gives a predictor a coefficient of its own.</p></div>
@@ -63,10 +80,17 @@
 
         <dt>
 
-          <code><a href="bartisan-families.html">negbin()</a></code> <code><a href="bartisan-families.html">ordinal()</a></code> <code><a href="bartisan-families.html">multinomial()</a></code> <code><a href="bartisan-families.html">dpm_aft()</a></code> <code><a href="bartisan-families.html">dpm()</a></code> <code><a href="bartisan-families.html">weibull_aft()</a></code> <code><a href="bartisan-families.html">loglogistic_aft()</a></code> <code><a href="bartisan-families.html">lognormal_aft()</a></code> <code><a href="bartisan-families.html">ph()</a></code> <code><a href="bartisan-families.html">gaussian_ls()</a></code> <code><a href="bartisan-families.html">Gamma_ls()</a></code> <code><a href="bartisan-families.html">zi_poisson()</a></code> <code><a href="bartisan-families.html">zi_negbin()</a></code> <code><a href="bartisan-families.html">Beta()</a></code> <code><a href="bartisan-families.html">ordbeta()</a></code> <code><a href="bartisan-families.html">tweedie()</a></code> <code><a href="bartisan-families.html">custom_family()</a></code>
+          <code><a href="bartisan-families.html">negbin()</a></code> <code><a href="bartisan-families.html">ordinal()</a></code> <code><a href="bartisan-families.html">multinomial()</a></code> <code><a href="bartisan-families.html">dpm_aft()</a></code> <code><a href="bartisan-families.html">dpm()</a></code> <code><a href="bartisan-families.html">weibull_aft()</a></code> <code><a href="bartisan-families.html">loglogistic_aft()</a></code> <code><a href="bartisan-families.html">lognormal_aft()</a></code> <code><a href="bartisan-families.html">ph()</a></code> <code><a href="bartisan-families.html">gaussian_ls()</a></code> <code><a href="bartisan-families.html">Gamma_ls()</a></code> <code><a href="bartisan-families.html">zi_poisson()</a></code> <code><a href="bartisan-families.html">zi_negbin()</a></code> <code><a href="bartisan-families.html">Beta()</a></code> <code><a href="bartisan-families.html">ordbeta()</a></code> <code><a href="bartisan-families.html">tweedie()</a></code>
 
         </dt>
         <dd>Response families for generalized BART</dd>
+
+        <dt>
+
+          <code><a href="custom_family.html">custom_family()</a></code>
+
+        </dt>
+        <dd>Fit a model to a likelihood written in R</dd>
 
         <dt>
 

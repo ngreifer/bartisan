@@ -38,6 +38,7 @@
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -141,7 +142,7 @@ is somewhere above it.</p>
 <p>Only right censoring is supported: <code>Surv(time, status)</code>
 and nothing else. Left-truncated, interval-censored and competing-risks
 data need a different likelihood, and none of the families here supplies
-one. <code><a href="../reference/bartisan-families.html">custom_family()</a></code> is not a way around it either, since
+one. <code><a href="../reference/custom_family.html">custom_family()</a></code> is not a way around it either, since
 it hands <code>logdens</code> the response as a single numeric vector
 and so has nowhere to put a censoring indicator.</p>
 <p>Censoring is assumed <strong>independent</strong> of the event time
@@ -282,8 +283,8 @@ provide:</p>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>linewidth <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_function.html" class="external-link">stat_function</a></span><span class="op">(</span>fun <span class="op">=</span> <span class="va">dnorm</span>, args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sd <span class="op">=</span> <span class="va">sd_fitted</span><span class="op">)</span>,</span>
 <span>                linetype <span class="op">=</span> <span class="fl">2</span>, color <span class="op">=</span> <span class="st">"#B2182B"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"error in log T"</span>, y <span class="op">=</span> <span class="st">"density"</span>,</span>
-<span>       subtitle <span class="op">=</span> <span class="st">"fitted error density (solid) against the normal of the same spread (dashed)"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Error in log T"</span>, y <span class="op">=</span> <span class="st">"Density"</span>,</span>
+<span>       subtitle <span class="op">=</span> <span class="st">"Fitted error density (solid) against the normal of the same spread (dashed)"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="survival_files/figure-html/errdens-1.png" class="r-plt" alt="" width="770" style="display: block; margin: auto;"></p>
 <p>Because the mixture can collapse to a single component, it costs
 almost nothing when a single normal was the right answer, which is the

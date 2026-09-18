@@ -81,6 +81,19 @@ indicator is nonzero only on the rows where that level holds, and the
 variable is constant on exactly those rows, so such a split separates
 rows that contribute from rows that contribute nothing.
 
+At the other extreme, `~ 1` names nothing at all, which leaves the
+coefficient's forest no predictor to split on: every tree in it is a
+stump, so the coefficient is one drawn number and `x` enters as a linear
+term while the rest of the model stays nonparametric. Comparing
+`vc(z, ~ 1)` against `vc(z)` with
+[loo()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+is then a test of whether the effect of `z` varies at all, and the
+constant fit reports it as a single coefficient, which under a logit
+link is one conditional log odds ratio. It is drawn under the leaf prior
+rather than a prior written for a regression coefficient, so it is
+shrunk toward zero. See
+[`vignette("comparison", package = "bartisan")`](https://ngreifer.github.io/bartisan/articles/comparison.md).
+
 ### Setting `center`
 
 Centering is a reparameterization of \\f_0\\ alone: every coefficient
@@ -171,7 +184,7 @@ coefficient and the reporting does not carry them.
 - [`coef.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/coef.bartisan_fit.md)
   for reading the coefficients out
 
-- [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+- [`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   for the order the forests come in
 
 ## Examples

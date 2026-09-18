@@ -1,5 +1,13 @@
 # Package index
 
+## Overview
+
+The package’s own page: what it fits, and a table pointing from the task
+at hand to the function that does it.
+
+- [`bartisan-package`](https://ngreifer.github.io/bartisan/reference/bartisan-package.md)
+  : bartisan: Generalized Bayesian Additive Regression Trees
+
 ## Fitting a Model
 
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
@@ -29,8 +37,10 @@ own.
   [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
   : Response families for generalized BART
+
+- [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
+  : Fit a model to a likelihood written in R
 
 - [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
   :

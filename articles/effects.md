@@ -247,7 +247,7 @@ curve <- plot_predictions(fit, condition = "aps", draw = FALSE)
 ggplot(curve, aes(aps, estimate)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2) +
   geom_line() +
-  labs(x = "APACHE III score on day 1", y = "fitted probability of death") +
+  labs(x = "APACHE III score on day 1", y = "Fitted probability of death") +
   theme_bw(base_size = 9)
 ```
 
@@ -273,8 +273,8 @@ ggplot(curve2, aes(aps, estimate, color = factor(rhc))) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = factor(rhc)),
               alpha = 0.15, color = NA) +
   geom_line() +
-  labs(x = "APACHE III score on day 1", y = "fitted probability of death",
-       color = "catheterized", fill = "catheterized") +
+  labs(x = "APACHE III score on day 1", y = "Fitted probability of death",
+       color = "Catheterized", fill = "Catheterized") +
   theme_bw(base_size = 9)
 ```
 

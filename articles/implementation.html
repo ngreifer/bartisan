@@ -38,6 +38,7 @@
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -247,7 +248,7 @@ usually worth it:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu">timed</span><span class="op">(</span><span class="st">"smoothstep"</span><span class="op">)</span>, <span class="fu">timed</span><span class="op">(</span><span class="st">"hard"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        rules test_rmse seconds</span></span>
-<span><span class="co">#&gt; 1 smoothstep     0.416     1.2</span></span>
+<span><span class="co">#&gt; 1 smoothstep     0.416     1.4</span></span>
 <span><span class="co">#&gt; 2       hard     1.079     0.4</span></span></code></pre></div>
 <p>The true function has a standard deviation of about 4.9, so both are
 fitting real structure and the soft fit is the more accurate.</p>
@@ -440,7 +441,7 @@ right.</p>
 <p>The practical consequence is the reason the package exists. A family
 needs only the log density of one observation and its first two
 derivatives with respect to the predictor. Anything that can supply
-those can be fit, which is why <code><a href="../reference/bartisan-families.html">custom_family()</a></code> takes an R
+those can be fit, which is why <code><a href="../reference/custom_family.html">custom_family()</a></code> takes an R
 function and works.</p>
 <p>The sampler recognizes three shapes of the leaf-level target and uses
 the cheapest machinery each admits:</p>
@@ -517,7 +518,7 @@ trees. A residual standard deviation, a negative binomial dispersion,
 the cutpoints of an ordinal model, and the baseline hazard of a
 proportional hazards model are all handled this way. They come back in
 <code>fit$aux</code> and are summarized by <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>.</p>
-<p>A likelihood written with <code><a href="../reference/bartisan-families.html">custom_family()</a></code> can have them
+<p>A likelihood written with <code><a href="../reference/custom_family.html">custom_family()</a></code> can have them
 too, by naming them in <code>aux_names</code>. There is no prior
 argument: a parameter with a restricted range is handled by writing the
 transform into the density, exactly as it would be for a real
@@ -1644,20 +1645,20 @@ density and its derivatives are:</p>
 </table>
 <p><code><a href="../reference/bartisan-families.html">tweedie()</a></code> earns a note because it looks as though it
 should be far worse: its density has no closed form at a positive
-response, and normalizing it takes an infinite series. Measured against
-a Gaussian fit of the same size it costs 6.7 times as much where
-<code>Gamma("log")</code> costs 5.5, so the series is not visible in the
-total. The reason is where the series sits. Writing the log density in
-exponential-dispersion form separates it into a part that moves with the
-predictor, which is closed form, and a normalizing term that does not
-depend on the predictor at all; the second goes in the eta-free part,
-which is evaluated once per sweep rather than at every leaf, and cancels
-from every acceptance ratio in between. Its length depends on the
-response and the dispersion but never on the mean, so it does not grow
-as the forest moves. Drawing <code>power</code> costs about 45% again,
-because the slice sampler has to re-sum the series at each candidate
-value and cannot use the table of log-gammas that a fixed power
-allows.</p>
+response, and normalizing it takes an infinite series <span class="citation">(<a href="#ref-dunn2005">Dunn and Smyth
+2005</a>)</span>. Measured against a Gaussian fit of the same size it
+costs 6.7 times as much where <code>Gamma("log")</code> costs 5.5, so
+the series is not visible in the total. The reason is where the series
+sits. Writing the log density in exponential-dispersion form <span class="citation">(<a href="#ref-jorgensen1987">Jørgensen
+1987</a>)</span> separates it into a part that moves with the predictor,
+which is closed form, and a normalizing term that does not depend on the
+predictor at all; the second goes in the eta-free part, which is
+evaluated once per sweep rather than at every leaf, and cancels from
+every acceptance ratio in between. Its length depends on the response
+and the dispersion but never on the mean, so it does not grow as the
+forest moves. Drawing <code>power</code> costs about 45% again, because
+the slice sampler has to re-sum the series at each candidate value and
+cannot use the table of log-gammas that a fixed power allows.</p>
 <p><code><a href="../reference/bartisan-families.html">ordbeta()</a></code> and <code><a href="../reference/bartisan-families.html">Beta()</a></code> are the expensive ones
 because every evaluation of their log density needs two log-gamma calls
 that no amount of restructuring removes. <code><a href="../reference/bartisan-families.html">ordinal()</a></code> is at
@@ -1715,7 +1716,7 @@ between 3 and 9 times its prior median over 1600 draws without settling.
 times above its prior median, and <code>update_sigma_mu = FALSE</code>
 pins it.</p>
 <p>A link supplied from R costs a call into the interpreter for every
-leaf the sampler visits, and <code><a href="../reference/bartisan-families.html">custom_family()</a></code> costs three
+leaf the sampler visits, and <code><a href="../reference/custom_family.html">custom_family()</a></code> costs three
 unless the derivatives are supplied. Both are usable at the sizes a BART
 model is usually fit at, and both are slower than the compiled
 equivalent.</p>
@@ -1767,6 +1768,11 @@ Cowles, Mary Kathryn. 1996. <span>“Accelerating Monte Carlo Markov Chain
 Convergence for Cumulative-Link Generalized Linear Models.”</span>
 <em>Statistics and Computing</em> 6 (2): 101–11. <a href="https://doi.org/10.1007/BF00162520" class="external-link">https://doi.org/10.1007/BF00162520</a>.
 </div>
+<div id="ref-dunn2005" class="csl-entry">
+Dunn, Peter K., and Gordon K. Smyth. 2005. <span>“Series Evaluation of
+<span>Tweedie</span> Exponential Dispersion Model Densities.”</span>
+<em>Statistics and Computing</em> 15 (4): 267–80. <a href="https://doi.org/10.1007/s11222-005-4070-y" class="external-link">https://doi.org/10.1007/s11222-005-4070-y</a>.
+</div>
 <div id="ref-escobar1995" class="csl-entry">
 Escobar, Michael D., and Mike West. 1995. <span>“Bayesian Density
 Estimation and Inference Using Mixtures.”</span> <em>Journal of the
@@ -1795,6 +1801,11 @@ Statistics</em> 20 (1): 217–40. <a href="https://doi.org/10.1198/jcgs.2010.081
 Hill, Jennifer, Antonio Linero, and Jared Murray. 2020. <span>“Bayesian
 Additive Regression Trees: A Review and Look Forward.”</span> <em>Annual
 Review of Statistics and Its Application</em> 7 (1): 251–78. <a href="https://doi.org/10.1146/annurev-statistics-031219-041110" class="external-link">https://doi.org/10.1146/annurev-statistics-031219-041110</a>.
+</div>
+<div id="ref-jorgensen1987" class="csl-entry">
+Jørgensen, Bent. 1987. <span>“Exponential Dispersion Models.”</span>
+<em>Journal of the Royal Statistical Society Series B: Statistical
+Methodology</em> 49 (2): 127–45. <a href="https://doi.org/10.1111/j.2517-6161.1987.tb01685.x" class="external-link">https://doi.org/10.1111/j.2517-6161.1987.tb01685.x</a>.
 </div>
 <div id="ref-kapelner2015" class="csl-entry">
 Kapelner, Adam, and Justin Bleich. 2015. <span>“Prediction with Missing

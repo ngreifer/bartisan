@@ -38,6 +38,7 @@
 <li class="active nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -184,6 +185,13 @@ detect chains that have settled in different places.</p>
 more than any sampler setting. <code><a href="../articles/families.html">vignette("families")</a></code> covers
 the choice, and <code><a href="../articles/survival.html">vignette("survival")</a></code> covers censored
 outcomes such as this one’s <code>days</code>.</p>
+<p>The other decision worth knowing about is the shape of the decision
+rules. By default a rule is soft, so an observation near a split
+contributes to both sides of it and the fitted function comes out smooth
+rather than piecewise constant; <code>gate</code> in
+<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code> switches to the hard rules of standard
+BART, which fit faster and less accurately.
+<code><a href="../articles/implementation.html">vignette("implementation")</a></code> has the comparison.</p>
 </div>
 <div class="section level2">
 <h2 id="checking-the-model">Checking the Model<a class="anchor" aria-label="anchor" href="#checking-the-model"></a>
@@ -435,8 +443,8 @@ To see the shape, plot the model’s predictions against one
 predictor.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"estimated probability of surviving two months"</span>,</span>
-<span>                y <span class="op">=</span> <span class="st">"fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Estimated probability of surviving two months"</span>,</span>
+<span>                y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bartisan_files/figure-html/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The fitted probability of death falls from close to .9 to about .5 as
 the prognostic score rises, and the fall is not a straight line. A

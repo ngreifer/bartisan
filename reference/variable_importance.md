@@ -113,7 +113,7 @@ move the prediction very little. Where the question is how much a
 predictor moves the outcome,
 [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
 on the fitted model answers it; see
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
 Where two predictors carry the same information the trees split on
 whichever is convenient and the usage distributes between them
 arbitrarily, so a group of correlated predictors is best read as a
@@ -140,7 +140,7 @@ ones.
 which prints the same table;
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 for `sparsity`;
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 for effects rather than usage
 
 ## Examples

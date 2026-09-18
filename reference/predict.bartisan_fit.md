@@ -103,7 +103,7 @@ predict(
       Returns one column per time, or a draws by rows by times array
       when `draws = TRUE`. This is what makes the usual survival
       estimand reachable through marginaleffects; see
-      [bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
+      [`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
 
 - draws:
 
@@ -229,7 +229,7 @@ included, report the density of \\\log T\\, where
 reports the density of \\T\\. The two differ by \\\sum \log t\\, so log
 scores are comparable within each group rather than across them, and
 `type = "survival"` is comparable throughout.
-[loo()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+[`loo()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 takes a `scale` argument that puts them on one measure.
 
 `type = "density"` returns `NaN` for an observation whose density is
@@ -246,9 +246,9 @@ enough to make an observation `NaN`.
 
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 for fitting the model;
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 for averages and contrasts of these predictions;
-[bartisan-interop](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+[`bartisan-interop`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 for the methods that let other packages assess the fit
 
 ## Examples

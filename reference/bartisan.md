@@ -9,7 +9,7 @@ that of [`stats::glm()`](https://rdrr.io/r/stats/glm.html): a formula, a
 data frame, and a family, with the families that
 [`glm()`](https://rdrr.io/r/stats/glm.html) has no counterpart for
 documented at
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
+[`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 
 ## Usage
 
@@ -44,7 +44,7 @@ bartisan(
   *list* of formulas, one per forest, to give each one its own
   predictors. The first is the model for the main parameter and carries
   the response; the rest need no response, and follow the order in
-  [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+  [`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
   under "Several additive predictors", which also gives the name of each
   forest so the list can be named instead of ordered:
 
@@ -77,18 +77,18 @@ bartisan(
 - family:
 
   the response distribution, given as a
-  [stats::family](https://rdrr.io/r/stats/family.html) object, as one of
-  the families in
-  [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+  [`stats::family`](https://rdrr.io/r/stats/family.html) object, as one
+  of the families in
+  [`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
   or as the name of either. A `family` object is accepted when the
   distribution it names is one this package implements, since the
   likelihood is the package's rather than the object's: a `family`
   object carries a link and a variance function and not a density, so
   one naming anything else (e.g.,
-  [stats::inverse.gaussian](https://rdrr.io/r/stats/family.html), or a
+  [`stats::inverse.gaussian`](https://rdrr.io/r/stats/family.html), or a
   Tweedie from another package) is an error rather than something a
   likelihood can be built from, and
-  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+  [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
   is the route for those. Links are used as supplied, and a link the
   package does not compile is composed onto the scale its family works
   on. Default is `NULL`, in which case the family is read off the
@@ -103,7 +103,8 @@ bartisan(
 - offset:
 
   optional; a known component of the additive predictor, on the link
-  scale.
+  scale. One value per observation, or a matrix with one column per
+  additive predictor to give each its own; see Details.
 
 - subset:
 
@@ -112,15 +113,15 @@ bartisan(
 - na.action:
 
   how missing values are handled. Default is
-  [stats::na.pass](https://rdrr.io/r/stats/na.fail.html), which keeps
+  [`stats::na.pass`](https://rdrr.io/r/stats/na.fail.html), which keeps
   rows whose *predictors* are missing and lets the splitting rules
   decide where they go, which is something the trees can do and
   [`lm()`](https://rdrr.io/r/stats/lm.html) and
   [`glm()`](https://rdrr.io/r/stats/glm.html) cannot; see Details. Pass
-  [stats::na.omit](https://rdrr.io/r/stats/na.fail.html) to drop any row
-  with a missing value anywhere instead. Note that rows with a missing
-  response, weight, or offset are dropped either way, with a warning,
-  since there is nothing to fit them to.
+  [`stats::na.omit`](https://rdrr.io/r/stats/na.fail.html) to drop any
+  row with a missing value anywhere instead. Note that rows with a
+  missing response, weight, or offset are dropped either way, with a
+  warning, since there is nothing to fit them to.
 
 - control:
 
@@ -213,7 +214,7 @@ and
 [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 carry one forest per parameter. Because that is the whole interface, it
 can be reached from R:
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 takes the log density as an R function and differences it for the
 derivatives.
 
@@ -298,6 +299,37 @@ its keep.
 
 A level of `group` that was not present at fitting time is given the
 prior mean of zero when predicting, with a warning.
+
+### Offsets
+
+An offset is a known part of the additive predictor, supplied on the
+link scale and not estimated: the log of an exposure for a count, say.
+It is given as one value per observation, through `offset` or as an
+[`offset()`](https://rdrr.io/r/stats/offset.html) term in the formula.
+
+A family with several additive predictors takes the same offset on each
+of them, unless it is given a matrix with one column per predictor,
+which offsets each separately: a category-specific exposure for
+[`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+say, or an offset on the count part of
+[`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+and not on its zero-inflation part. `?bartisan-families` lists each
+family's forests in order, which is the column order.
+[`predict()`](https://rdrr.io/r/stats/predict.html) takes the same two
+forms.
+
+A vector is worth thinking about before reaching for under
+[`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+because the default symmetric coding gives every category a forest and a
+shift common to all of them cancels out of the softmax. A vector offset
+there leaves the fitted probabilities unchanged; with `reference` set it
+does not cancel, and moves every non-reference category against the
+reference one. A matrix is what expresses a per-category offset either
+way.
+
+An offset is not a function of the predictors, so it cannot be rebuilt
+for rows the fit has not seen: a model fitted with one requires `offset`
+at [`predict()`](https://rdrr.io/r/stats/predict.html) time.
 
 ### Missing Predictor Values
 
@@ -403,11 +435,11 @@ Society Series B*, 80(5), 1087–1110.
 for the sampler and prior settings;
 [`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md)
 for prediction;
-[bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 for the likelihoods, and
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 for a family-by-family guide;
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 for reading effects off a fit
 
 ## Examples

@@ -36,6 +36,7 @@ counterpart for documented at bartisan-families."></head><body>
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -65,7 +66,7 @@ Laplace-approximation reversible-jump sampler of Linero (2025). Decision rules
 may be soft, as in Linero and Yang (2018), which gives smoother fits than the
 step functions of standard BART. The interface mirrors that of <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code>:
 a formula, a data frame, and a family, with the families that <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> has no
-counterpart for documented at <a href="bartisan-families.html">bartisan-families</a>.</p>
+counterpart for documented at <code><a href="bartisan-families.html">bartisan-families</a></code>.</p>
     </div>
 
     <div class="section level2">
@@ -98,7 +99,7 @@ group-level random intercept, in the notation of <span class="pkg">lme4</span>; 
 <p>For a family with more than one additive predictor this may be a <em>list</em> of
 formulas, one per forest, to give each one its own predictors. The first is
 the model for the main parameter and carries the response; the rest need no
-response, and follow the order in <a href="bartisan-families.html">bartisan-families</a>, under "Several
+response, and follow the order in <code><a href="bartisan-families.html">bartisan-families</a></code>, under "Several
 additive predictors", which also gives the name of each forest so the list
 can be named instead of ordered:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
@@ -123,14 +124,14 @@ forests two-dimensional (one axis the parameter, the other the coefficient).
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
-<dd><p>the response distribution, given as a <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a> object,
-as one of the families in <a href="bartisan-families.html">bartisan-families</a>, or as the name of either. A
+<dd><p>the response distribution, given as a <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::family</a></code> object,
+as one of the families in <code><a href="bartisan-families.html">bartisan-families</a></code>, or as the name of either. A
 <code>family</code> object is accepted when the distribution it names is one this
 package implements, since the likelihood is the package's rather than the
 object's: a <code>family</code> object carries a link and a variance function and not a
-density, so one naming anything else (e.g., <a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::inverse.gaussian</a>, or a
+density, so one naming anything else (e.g., <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::inverse.gaussian</a></code>, or a
 Tweedie from another package) is an error rather than something a likelihood
-can be built from, and <code><a href="bartisan-families.html">custom_family()</a></code> is the route for those. Links are
+can be built from, and <code><a href="custom_family.html">custom_family()</a></code> is the route for those. Links are
 used as supplied, and a link the package does not compile is composed onto
 the scale its family works on. Default is <code>NULL</code>, in which case the family
 is read off the response and a message reports the choice; see Details for
@@ -145,7 +146,8 @@ response given as proportions, these are the numbers of trials, as in
 
 <dt id="arg-offset">offset<a class="anchor" aria-label="anchor" href="#arg-offset"></a></dt>
 <dd><p>optional; a known component of the additive predictor, on the
-link scale.</p></dd>
+link scale. One value per observation, or a matrix with one column per
+additive predictor to give each its own; see Details.</p></dd>
 
 
 <dt id="arg-subset">subset<a class="anchor" aria-label="anchor" href="#arg-subset"></a></dt>
@@ -153,10 +155,10 @@ link scale.</p></dd>
 
 
 <dt id="arg-na-action">na.action<a class="anchor" aria-label="anchor" href="#arg-na-action"></a></dt>
-<dd><p>how missing values are handled. Default is <a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.pass</a>,
+<dd><p>how missing values are handled. Default is <code><a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.pass</a></code>,
 which keeps rows whose <em>predictors</em> are missing and lets the splitting rules
 decide where they go, which is something the trees can do and <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> and
-<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> cannot; see Details. Pass <a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.omit</a> to drop any row with a
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> cannot; see Details. Pass <code><a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">stats::na.omit</a></code> to drop any row with a
 missing value anywhere instead. Note that rows with a missing response,
 weight, or offset are dropped either way, with a warning, since there is
 nothing to fit them to.</p></dd>
@@ -237,7 +239,7 @@ observation and its first two derivatives with respect to the additive
 predictor. Families whose response has more than one unconstrained parameter,
 such as <code><a href="bartisan-families.html">multinomial()</a></code> and <code><a href="bartisan-families.html">gaussian_ls()</a></code>, carry one forest per
 parameter. Because that is the whole interface, it can be reached from R:
-<code><a href="bartisan-families.html">custom_family()</a></code> takes the log density as an R function and differences it for
+<code><a href="custom_family.html">custom_family()</a></code> takes the log density as an R function and differences it for
 the derivatives.</p>
 </div>
 
@@ -302,6 +304,31 @@ group with the covariates. The random intercept wins where there are many
 small groups, which is where partial pooling earns its keep.</p>
 <p>A level of <code>group</code> that was not present at fitting time is given the prior
 mean of zero when predicting, with a warning.</p>
+</div>
+
+<div class="section">
+<h3 id="offsets">Offsets<a class="anchor" aria-label="anchor" href="#offsets"></a></h3>
+
+
+<p>An offset is a known part of the additive predictor, supplied on the link
+scale and not estimated: the log of an exposure for a count, say. It is
+given as one value per observation, through <code>offset</code> or as an <code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code>
+term in the formula.</p>
+<p>A family with several additive predictors takes the same offset on each of
+them, unless it is given a matrix with one column per predictor, which
+offsets each separately: a category-specific exposure for <code><a href="bartisan-families.html">multinomial()</a></code>,
+say, or an offset on the count part of <code><a href="bartisan-families.html">zi_poisson()</a></code> and not on its
+zero-inflation part. <code>?bartisan-families</code> lists each family's forests in
+order, which is the column order. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> takes the same two forms.</p>
+<p>A vector is worth thinking about before reaching for under <code><a href="bartisan-families.html">multinomial()</a></code>,
+because the default symmetric coding gives every category a forest and a
+shift common to all of them cancels out of the softmax. A vector offset
+there leaves the fitted probabilities unchanged; with <code>reference</code> set it
+does not cancel, and moves every non-reference category against the
+reference one. A matrix is what expresses a per-category offset either way.</p>
+<p>An offset is not a function of the predictors, so it cannot be rebuilt for
+rows the fit has not seen: a model fitted with one requires <code>offset</code> at
+<code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> time.</p>
 </div>
 
 <div class="section">
@@ -394,9 +421,9 @@ Series B</em>, 80(5), 1087–1110. <a href="https://doi.org/10.1111/rssb.12293" 
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="bartisan_control.html">bartisan_control()</a></code> for the sampler and prior settings;
-<code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> for prediction; <a href="bartisan-families.html">bartisan-families</a> for the
+<code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> for prediction; <code><a href="bartisan-families.html">bartisan-families</a></code> for the
 likelihoods, and <code><a href="../articles/families.html">vignette("families")</a></code> for a family-by-family guide;
-<a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a> for reading effects off a fit</p></div>
+<code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code> for reading effects off a fit</p></div>
     </div>
 
     <div class="section level2">

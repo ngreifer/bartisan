@@ -68,7 +68,7 @@ mean(d$status)
 Only right censoring is supported: `Surv(time, status)` and nothing
 else. Left-truncated, interval-censored and competing-risks data need a
 different likelihood, and none of the families here supplies one.
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 is not a way around it either, since it hands `logdens` the response as
 a single numeric vector and so has nowhere to put a censoring indicator.
 
@@ -179,8 +179,8 @@ ggplot(ed, aes(at, mean)) +
   geom_line(linewidth = 0.5) +
   stat_function(fun = dnorm, args = list(sd = sd_fitted),
                 linetype = 2, color = "#B2182B") +
-  labs(x = "error in log T", y = "density",
-       subtitle = "fitted error density (solid) against the normal of the same spread (dashed)")
+  labs(x = "Error in log T", y = "Density",
+       subtitle = "Fitted error density (solid) against the normal of the same spread (dashed)")
 ```
 
 ![](survival_files/figure-html/errdens-1.png)

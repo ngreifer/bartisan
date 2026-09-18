@@ -38,6 +38,7 @@
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -691,6 +692,69 @@ speed; <code><a href="../reference/bartisan_control.html">bartisan_control()</a>
 changes.</p>
 </div>
 <div class="section level2">
+<h2 id="a-constant-coefficient-against-a-varying-one-vc">A Constant Coefficient Against a Varying One
+(<code>vc()</code>)<a class="anchor" aria-label="anchor" href="#a-constant-coefficient-against-a-varying-one-vc"></a>
+</h2>
+<p><code>vc(z)</code> gives <code>z</code> a coefficient that is itself
+a forest, free to vary with the other predictors. Naming no modifier,
+<code>vc(z, ~ 1)</code>, leaves that forest nothing to split on: every
+tree in it is a stump, so the coefficient is a single drawn number and
+<code>z</code> enters the model as a linear term while everything else
+stays nonparametric. That is the semiparametric case of the General BART
+model of <span class="citation">Tan and Roy (<a href="#ref-tan2019">2019</a>)</span>, a forest and a parametric part
+taking disjoint sets of predictors, and it is the shape
+<em>stan4bart</em> and <em>flexBART</em> fit; <em>flexBART</em>’s
+formula interface writes it as <code>y ~ bart(x1 + x2) + x3</code>, with
+<code>x3</code> linear, and a varying coefficient as
+<code>x4 * bart(x1 + x2)</code>.</p>
+<p>Comparing the two by <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare()</a></code> asks a question
+neither variable importance nor a dropped predictor answers: not whether
+<code>z</code> matters, but whether what it does depends on anything
+else.</p>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">constant</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">.</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">rhc</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">rhc</span>, <span class="op">~</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>                     data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">varying</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">.</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">rhc</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>                    data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>constant <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">constant</span><span class="op">)</span>, varying <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">varying</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;     model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
+<span><span class="co">#&gt;  constant       0.0     0.0      NA                          </span></span>
+<span><span class="co">#&gt;   varying      -1.4     1.3    0.85 |elpd_diff| &lt; 4</span></span></code></pre></div>
+<p>The constant coefficient is not beaten, so there is no evidence here
+that the effect of right heart catheterization on the log odds of death
+varies with the other covariates. That buys an interpretation the
+varying fit cannot offer, because one number describes the whole
+sample:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">b</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">constant</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>log_OR <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">b</span><span class="op">)</span>, lower <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">b</span>, <span class="fl">0.025</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>  upper <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">b</span>, <span class="fl">0.975</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>, OR <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">b</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; log_OR  lower  upper     OR </span></span>
+<span><span class="co">#&gt; 0.3565 0.1089 0.6201 1.4283</span></span></code></pre></div>
+<p>An odds ratio of about 1.4, conditional on the forest.
+<code><a href="../articles/causal.html">vignette("causal")</a></code> puts the same effect at around six
+percentage points on the probability scale; the two are the same finding
+read on different scales, and which one to report is a question about
+the audience rather than about the fit.</p>
+<p>Two things to keep in mind. The coefficient is drawn under the leaf
+prior of its own forest, not under a prior written for a regression
+coefficient, so it is shrunk toward zero and is a regularized log odds
+ratio rather than a maximum likelihood one. Because
+<code>sigma_mu</code> scales as <span class="math inline">\(1/\sqrt{m}\)</span>, that prior does not change
+with the number of trees.</p>
+<p>And the comparison is far better powered on some outcomes than
+others. On a Gaussian outcome with a coefficient truly ranging from 0.3
+to 2.5, <code>vc(z)</code> won by 187 points at <span class="math inline">\(n = 1000\)</span>; on a binary outcome with the
+same coefficients it won by 10, against a standard error of 5. A null
+result on a binary outcome at a few hundred observations says little,
+and should not be read as evidence that an effect is constant.</p>
+</div>
+<div class="section level2">
 <h2 id="variable-selection">Variable Selection<a class="anchor" aria-label="anchor" href="#variable-selection"></a>
 </h2>
 <p>Variables should not be selected by fitting many models and keeping
@@ -708,7 +772,7 @@ way a search is not.</p>
 dropping one at a time and reading <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> is a weak
 instrument. It works for a dominant predictor and fails for the
 rest:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">drop_one</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span>  <span class="va">reduced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">model</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">". ~ . -"</span>, <span class="va">v</span><span class="op">)</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
@@ -753,6 +817,11 @@ is what a comparison between them is really about.</p>
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
 <div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-tan2019" class="csl-entry">
+Tan, Yaoyuan Vincent, and Jason Roy. 2019. <span>“Bayesian Additive
+Regression Trees and the General <span>BART</span> Model.”</span>
+<em>Statistics in Medicine</em> 38 (25): 5048–69. <a href="https://doi.org/10.1002/sim.8347" class="external-link">https://doi.org/10.1002/sim.8347</a>.
+</div>
 <div id="ref-vehtari2017" class="csl-entry">
 Vehtari, Aki, Andrew Gelman, and Jonah Gabry. 2017. <span>“Practical
 <span>B</span>ayesian Model Evaluation Using Leave-One-Out

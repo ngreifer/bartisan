@@ -396,7 +396,7 @@ time response comes back as an event time rather than a log time, and
 the predictive distribution of the outcome knows nothing of the
 censoring that may have hidden it, so `pp_check()` says so when
 replicates are compared against censored observations. A
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 fit supplies a log density and no way to draw from it, so these methods
 error on one.
 
@@ -438,7 +438,7 @@ and
 for the predictions these methods are built on;
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
 for the convergence and mixing diagnostics;
-[bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
+[`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 for reading effects off a fit;
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 for the fuller treatment

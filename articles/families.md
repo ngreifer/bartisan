@@ -27,7 +27,7 @@ covers how the sampler goes about fitting them.
 unchanged, *bartisan* adds the families that have no
 [`glm()`](https://rdrr.io/r/stats/glm.html) counterpart in the same
 style, and
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 takes a log density written as an R function when nothing on the list
 fits. Unlike ordinary BART, nothing here requires the response to be
 conditionally conjugate ([Linero 2025](#ref-linero2025)), which is why
@@ -42,7 +42,7 @@ categories, bounded, and right-censored times), reporting for each what
 the measured differences between the candidate families are. Finally
 we’ll cover the links beyond the listed ones and the route to a
 likelihood of one’s own through
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md).
 
 ## The Families
 
@@ -66,7 +66,7 @@ likelihood of one’s own through
 | [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | none | 1 | scale |
 | [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | none | 1 | baseline hazard per bin |
 | [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | none | 1 | error mixture, concentration |
-| [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | implied by `logdens` | as many as requested | as many as named in `aux_names` |
+| [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md) | implied by `logdens` | as many as requested | as many as named in `aux_names` |
 
 A family with more than one additive predictor fits one forest per
 predictor, and `predict(type = "link")` returns one column per forest.
@@ -89,7 +89,7 @@ We start from the shape of the response:
 | an ordered factor | [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | an unordered factor | [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | a time with censoring | [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) or [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md); [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) for proportional hazards with a free baseline; [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) if the shape of the error is in doubt |
-| something else | [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
+| something else | [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md) |
 
 Two considerations cut across that table.
 
@@ -487,7 +487,7 @@ returns `NaN` there. So *bartisan* ignores any other link and fits on
 untouched, so attaching the package cannot change what
 [`glm()`](https://rdrr.io/r/stats/glm.html) does. If another link for a
 gamma response is genuinely wanted,
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 is the route.
 [`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 defaults to the log link without warning.
@@ -652,7 +652,7 @@ library(ggplot2)
 
 ggplot(dz, aes(count)) +
   geom_histogram(binwidth = 1, fill = "grey70", color = "white") +
-  labs(x = "count", y = "observations",
+  labs(x = "Count", y = "Observations",
        subtitle = "Poisson, no zero inflation, marginal mean 1.9") +
   theme_bw()
 ```
@@ -803,10 +803,9 @@ variables. This is the induced-Dirichlet construction ([Betancourt
 2019](#ref-betancourt2019), [2025](#ref-betancourt2025)), used for
 ordinal meta-analysis by Cerullo et al. ([2025](#ref-cerullo2025)):
 
-\\p(\mathbf{c} \mid \boldsymbol\alpha, \varphi) =
-\mathrm{Dir}\big(\mathbf{P}(\mathbf{c}, \varphi) \mid
-\boldsymbol\alpha\big) \cdot \big\|\mathbf{J}\_{\mathbf{c} \to
-\mathbf{P}}\big\|\\
+\\p(\mathbf{c} \mid \alpha, \varphi) =
+\mathrm{Dir}\big(\mathbf{P}(\mathbf{c}, \varphi) \mid \alpha\big) \cdot
+\big\|\mathbf{J}\_{\mathbf{c} \to \mathbf{P}}\big\|\\
 
 The Jacobian is what makes it cheap. Each \\c_k\\ appears in exactly two
 of the probabilities, \\P_k\\ and \\P\_{k+1}\\, so the matrix is
@@ -1038,10 +1037,11 @@ Spending, rainfall, insurance claims and earnings share a shape that
 none of the families above has: a genuine mass of exact zeros, and a
 skewed continuum above them. The
 [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-family is the compound Poisson–gamma, which models the pair as one
-process. A Poisson number of gamma-distributed amounts are added up, so
-a count of zero produces an exact zero and any positive count produces a
-positive amount, and the mean and variance come out as
+family is the compound Poisson–gamma, one of the exponential dispersion
+models of Jørgensen ([1987](#ref-jorgensen1987)), which models the pair
+as one process. A Poisson number of gamma-distributed amounts are added
+up, so a count of zero produces an exact zero and any positive count
+produces a positive amount, and the mean and variance come out as
 
 \\\mathrm{E}\[y \mid x\] = \mu(x) = \exp(\eta(x)), \qquad \mathrm{Var}(y
 \mid x) = \phi\\\mu(x)^p\\
@@ -1057,7 +1057,7 @@ also the assumption to check. The share of zeros has no level of its
 own: two people with the same mean have the same probability of a zero,
 with the functional form above. Where that is wrong, a two-part model is
 the alternative, and
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 is how to write one.
 
 ``` r
@@ -1231,7 +1231,7 @@ reports that when the fit starts. The families with more than one
 predictor, or whose link enters somewhere other than a single mean, take
 only their listed links.
 
-[`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 can be used to fit a BART model with a density of the user’s design. It
 takes the log density itself and fits the model that goes with it. The
 sampler needs only the first two derivatives with respect to each
@@ -1269,7 +1269,7 @@ the rows of `eta` and must return exactly one value per row. Ask for
 several additive predictors with `num_predictors`; supply `derivatives`
 when they are easy to write down, which cuts three calls to one and
 removes the differencing error. See
-[`?custom_family`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+[`?custom_family`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 for details.
 
 Nuisance parameters are drawn too, if they are named. `logdens` then
@@ -1361,6 +1361,10 @@ Imai, Kosuke, and David A. van Dyk. 2005. “A Bayesian Analysis of the
 Multinomial Probit Model Using Marginal Data Augmentation.” *Journal of
 Econometrics* 124 (2): 311–34.
 <https://doi.org/10.1016/j.jeconom.2004.02.002>.
+
+Jørgensen, Bent. 1987. “Exponential Dispersion Models.” *Journal of the
+Royal Statistical Society Series B: Statistical Methodology* 49 (2):
+127–45. <https://doi.org/10.1111/j.2517-6161.1987.tb01685.x>.
 
 Kubinec, Robert. 2023. “Ordered Beta Regression: A Parsimonious,
 Well-Fitting Model for Continuous Data with Lower and Upper Bounds.”
