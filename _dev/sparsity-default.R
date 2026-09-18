@@ -13,11 +13,36 @@
 # Everything below uses default `num_burn` and `num_draws` so that this script
 # does not depend on their names.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 library(marginaleffects)
 
 LEVELS <- c("none", "weak", "moderate", "strong")
 REPS <- 3
+P_GRID <- c(10L, 50L)
+OUT <- "_dev/sparsity-default.rds"
+
+# Four sparsity settings per replicate, at each of two widths, in each of the
+# two sections.
+N_FITS <- 2L * length(P_GRID) * REPS * length(LEVELS)
+
+pr <- prog_init(total = N_FITS, title = "The sparsity default", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+results <- list()
+done <- 0L
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = results, complete = complete, done = done,
+               total = N_FITS, reps = REPS, levels = LEVELS), OUT)
+}
 
 friedman <- function(x) {
   10 * sin(pi * x[, 1] * x[, 2]) + 20 * (x[, 3] - 0.5)^2 +
@@ -38,8 +63,13 @@ predict_rep <- function(p, rep) {
 
   vapply(LEVELS, function(lv) {
     set.seed(7)
+    t0 <- Sys.time()
     fit <- bartisan(y ~ ., data = dtr, family = gaussian(), chains = 2,
                     control = bartisan_control(sparsity = lv, verbose = FALSE))
+    done <<- done + 1L
+    prog_tick(pr, i = done,
+              secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+              label = sprintf("prediction p=%d rep %d / %s", p, rep, lv))
     # Scored against the true regression function, not the noisy outcome, so
     # this is error in the fit rather than irreducible noise.
     sqrt(mean((predict(fit, newdata = dte) - fte)^2))
@@ -48,10 +78,19 @@ predict_rep <- function(p, rep) {
 
 cat("== Prediction: RMSE against the true function, mean of", REPS, "reps ==\n")
 cat(sprintf("%-8s %s\n", "p", paste(sprintf("%8s", LEVELS), collapse = "")))
-for (p in c(10L, 50L)) {
-  m <- rowMeans(vapply(seq_len(REPS), function(r) predict_rep(p, r),
-                       numeric(length(LEVELS))))
-  cat(sprintf("%-8d %s\n", p, paste(sprintf("%8.3f", m), collapse = "")))
+for (p in P_GRID) {
+  key <- sprintf("prediction, p = %d", p)
+  each <- matrix(NA_real_, length(LEVELS), REPS,
+                 dimnames = list(LEVELS, NULL))
+
+  for (r in seq_len(REPS)) {
+    each[, r] <- predict_rep(p, r)
+    results[[key]] <- each
+    checkpoint(FALSE)
+  }
+
+  cat(sprintf("%-8d %s\n", p,
+              paste(sprintf("%8.3f", rowMeans(each)), collapse = "")))
 }
 
 # ---- (2) a contrast ------------------------------------------------------
@@ -69,8 +108,13 @@ contrast_rep <- function(p, rep) {
 
   t(vapply(LEVELS, function(lv) {
     set.seed(7)
+    t0 <- Sys.time()
     fit <- bartisan(y ~ ., data = d, family = gaussian(), chains = 2,
                     control = bartisan_control(sparsity = lv, verbose = FALSE))
+    done <<- done + 1L
+    prog_tick(pr, i = done,
+              secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+              label = sprintf("contrast p=%d rep %d / %s", p, rep, lv))
     a <- avg_comparisons(fit, variables = "z")
     post <- attr(a, "posterior_draws")
     vi <- variable_importance(fit)
@@ -83,8 +127,17 @@ contrast_rep <- function(p, rep) {
   }, numeric(7)))
 }
 
-for (p in c(10L, 50L)) {
-  acc <- Reduce(`+`, lapply(seq_len(REPS), function(r) contrast_rep(p, r))) / REPS
+for (p in P_GRID) {
+  key <- sprintf("contrast, p = %d", p)
+  each <- list()
+
+  for (r in seq_len(REPS)) {
+    each[[r]] <- contrast_rep(p, r)
+    results[[key]] <- each
+    checkpoint(FALSE)
+  }
+
+  acc <- Reduce(`+`, each) / REPS
   cat(sprintf("\n== A contrast, p = %d, truth %.2f, mean of %d reps ==\n",
               p, TAU, REPS))
   cat(sprintf("%-10s %7s %7s %7s %7s %7s %9s\n",
@@ -97,3 +150,8 @@ for (p in c(10L, 50L)) {
   cat(sprintf("coverage of the truth: %s\n",
               paste(sprintf("%s %.2f", LEVELS, acc[, "covers"]), collapse = "  ")))
 }
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
+cat("\nwrote", OUT, "\n")

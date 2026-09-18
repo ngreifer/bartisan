@@ -159,17 +159,29 @@ test_that("predict works on the caller's own data", {
   # name they never chose.
   expect_no_error(p <- predict(fit, newdata = d))
 
-  # Close, but not to the last bit. The score is a predictor, and a predictor
-  # goes through the quantile transform, which is a step function -- so a score
-  # that rebuilds to 1e-11 can still land on the other side of a step. Supplying
-  # the score instead of rebuilding it removes the reconstruction and the
-  # predictions match exactly, which is what pins the cause.
-  expect_lt(max(abs(as.numeric(p) - as.numeric(fitted(fit)))),
-            0.1 * stats::sd(d$y))
+  # The rebuilt score reproduces the fit to numerical noise, so this is as tight
+  # as supplying the stored score below. It was once much looser, and the reason
+  # is worth keeping: under `x_transform = "quantile"`, which used to be the
+  # default, a predictor went through a step function, so a score that rebuilt to
+  # 1e-10 could still land on the other side of a step. Measured over six seeds
+  # on this fixture, the rebuilt path reaches 1.2e-10 under the current default
+  # and .080 under `"quantile"`, against an `sd(y)` of 2.35.
+  expect_lt(max(abs(as.numeric(p) - as.numeric(fitted(fit)))), 1e-8)
 
   supplied_score <- cbind(d, fit[["bcf"]][["propensity"]])
   expect_equal(as.numeric(predict(fit, newdata = supplied_score)),
                as.numeric(fitted(fit)), tolerance = 1e-8)
+
+  # And the step-function case is still reachable, so the loose path is covered
+  # rather than merely no longer the default.
+  stepped <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                                 family = gaussian(),
+                                 x_transform = "quantile"),
+                            bcf_args()))
+
+  expect_lt(max(abs(as.numeric(predict(stepped, newdata = d)) -
+                      as.numeric(fitted(stepped)))),
+            0.1 * stats::sd(d$y))
 
   # And a supplied score cannot be rebuilt, so that says so rather than failing
   # on the missing column.

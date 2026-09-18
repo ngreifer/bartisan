@@ -113,22 +113,21 @@ level of the treatment, contrasts those potential outcomes within each draw,
 and averages over the units the estimand asks for.
 }
 \details{
-\subsection{Why the Response Scale}{
+\subsection{Setting \code{type}}{
 
-A varying coefficient is a contrast on the \emph{link} scale: on a
-\code{binomial("logit")} fit, \code{coef(object)} is a per-unit difference in log odds.
-The average of those is the average conditional log odds ratio, which is not
-the marginal log odds ratio and is not usually the quantity a treatment
-question asks for. So the default here is \code{type = "response"}, where every
-unit's contrast is on the scale the response is measured on and averaging
-them is the marginal effect.
+A varying coefficient is a contrast on the link scale: on a
+\code{binomial("logit")} fit, \code{coef(object)} is a per-unit difference in log odds,
+and the average of those is the average conditional log odds ratio rather than
+the marginal one a treatment question usually asks for. The default is
+therefore \code{type = "response"}, where every unit's contrast is on the scale the
+response is measured on and averaging them gives the marginal effect.
 
-\code{type = "link"} is still available and is the right choice for looking at how
-the effect \emph{varies}, since that is the scale the forest models it on. It is
-the wrong choice for reporting an average.
+\code{type = "link"} is the right choice for looking at how the effect varies,
+since that is the scale the forest models it on, and the wrong one for
+reporting an average.
 }
 
-\subsection{Marginal Rather Than Average Conditional}{
+\subsection{Setting \code{comparison}}{
 
 For \code{"ratio"}, \code{"lnratio"}, \code{"or"} and \code{"lnor"} the potential outcomes are
 averaged over units first and contrasted afterward, which gives the marginal
@@ -144,7 +143,7 @@ should be symmetric on, which for a ratio is usually the log. The same holds
 of \code{"ratio"} against \code{"lnratio"}.
 }
 
-\subsection{Which Level Is Treated}{
+\subsection{Setting \code{focal}}{
 
 With a binary treatment and no \code{focal}, which level is the treated one is
 worked out from the treatment's values by the rules
@@ -171,9 +170,9 @@ choice, made by \code{contrasts} in the \code{print()} method: with a focal grou
 default is to show only the contrasts involving it, matching how
 \pkgfun{WeightIt}{weightit} and \pkgfun{cobalt}{bal.tab} use \code{focal}.
 
-A continuous treatment is not currently supported, because the effect of a continuous
-treatment is a slope or a dose-response curve rather than a contrast of
-levels. See the \CRANpkg{adrftools} package for tools to visualize and summarize the effect of a continuous treatment.
+The effect of a continuous treatment is a slope or a dose-response curve
+rather than a contrast of levels, and the \CRANpkg{adrftools} package has
+tools for summarizing and visualizing one.
 }
 }
 \examples{

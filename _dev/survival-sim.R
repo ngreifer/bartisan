@@ -9,10 +9,15 @@
 # which writes _dev/survival-sim.rds. The vignette embeds the numbers rather
 # than sourcing this, so that it builds without refitting anything.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressPackageStartupMessages({
   library(bartisan)
   library(survival)
 })
+
+OUT <- "_dev/survival-sim.rds"
 
 N_TRAIN <- 700L
 N_TEST  <- 700L
@@ -243,9 +248,19 @@ one_rep <- function(truth_name, rep, censor = CENSOR, families = FAMILIES) {
   out <- list()
   for (nm in names(families)) {
     tick <- proc.time()[["elapsed"]]
-    fit <- bartisan(FORM, data = train, family = families[[nm]](),
-                    control = ctrl, verbose = FALSE)
+    fit <- tryCatch(bartisan(FORM, data = train, family = families[[nm]](),
+                             control = ctrl, verbose = FALSE),
+                    error = function(e) e)
     secs <- proc.time()[["elapsed"]] - tick
+
+    # A family that fails loses its row rather than the run; the widget's
+    # failures panel says which one it was.
+    if (inherits(fit, "error")) {
+      prog_tick(pr, ok = FALSE, secs = secs, msg = conditionMessage(fit),
+                label = sprintf("%s / %s rep %d", truth_name, nm, rep))
+      next
+    }
+
     shat <- predict(fit, newdata = test, type = "survival", times = edges)
     err <- surv_error(shat, strue)
     out[[nm]] <- data.frame(
@@ -268,6 +283,9 @@ one_rep <- function(truth_name, rep, censor = CENSOR, families = FAMILIES) {
                                         mean = ed$mean, lower = ed$lower,
                                         upper = ed$upper)
     }
+
+    prog_tick(pr, secs = secs,
+              label = sprintf("%s / %s rep %d", truth_name, nm, rep))
   }
 
   tick <- proc.time()[["elapsed"]]
@@ -278,6 +296,9 @@ one_rep <- function(truth_name, rep, censor = CENSOR, families = FAMILIES) {
     censor = censor, s_rmse = err[["rmse"]], s_worst = err[["worst"]],
     logscore = NA_real_, rank = err[["rank"]],
     secs = proc.time()[["elapsed"]] - tick)
+
+  prog_tick(pr, secs = out[["discrete time"]][["secs"]],
+            label = sprintf("%s / discrete time rep %d", truth_name, rep))
 
   if (rep == 1L && censor == CENSOR) {
     curves[["discrete time"]] <<- data.frame(
@@ -302,7 +323,33 @@ all_dens <- list()
 
 # ---- run --------------------------------------------------------------------
 
+CENSOR_GRID <- c(0, 0.25, 0.5, 0.7)
+SWEEP_REP <- 3L
+N_REPS <- length(TRUTHS) * N_REP + length(CENSOR_GRID) * SWEEP_REP
+N_FITS <- N_REPS * (length(FAMILIES) + 1L)
+
+pr <- prog_init(total = N_FITS, title = "Survival families", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
 main <- list()
+sweep <- list()
+done <- 0L
+
+# Written after every replicate rather than after the last one, so a run that
+# is killed leaves its finished replicates readable. `complete` is what tells a
+# reader which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(main = do.call(rbind, main),
+               sweep = if (length(sweep)) do.call(rbind, sweep),
+               curves = do.call(rbind, all_curves),
+               dens = do.call(rbind, all_dens),
+               complete = complete, done = done, total = N_REPS,
+               when = Sys.time()),
+          OUT)
+}
+
 for (nm in names(TRUTHS)) {
   for (r in seq_len(N_REP)) {
     curves <- list(); dens <- list()
@@ -311,25 +358,22 @@ for (nm in names(TRUTHS)) {
       all_curves[[nm]] <- do.call(rbind, curves)
       all_dens[[nm]] <- do.call(rbind, dens)
     }
-    cat(sprintf("[main] %-20s rep %d done\n", nm, r)); flush(stdout())
+    done <- done + 1L
+    checkpoint(FALSE)
   }
 }
-main <- do.call(rbind, main)
-all_curves <- do.call(rbind, all_curves)
-all_dens <- do.call(rbind, all_dens)
 
 # Censoring sweep on the turning-over baseline, where the families disagree
 # most, to see whether the ordering survives heavy censoring.
-sweep <- list()
-for (cz in c(0, 0.25, 0.5, 0.7)) {
-  for (r in 1:3) {
+for (cz in CENSOR_GRID) {
+  for (r in seq_len(SWEEP_REP)) {
     sweep[[length(sweep) + 1L]] <- one_rep("hazard turns over", r, censor = cz)
-    cat(sprintf("[sweep] censor %.2f rep %d done\n", cz, r)); flush(stdout())
+    done <- done + 1L
+    checkpoint(FALSE)
   }
 }
-sweep <- do.call(rbind, sweep)
 
-saveRDS(list(main = main, sweep = sweep, curves = all_curves,
-             dens = all_dens, when = Sys.time()),
-        "_dev/survival-sim.rds")
-cat("wrote _dev/survival-sim.rds\n")
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d replicates", done))
+cat("wrote", OUT, "\n")

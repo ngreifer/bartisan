@@ -20,6 +20,9 @@
 # So the honest question is not one number but a decomposition. Every arm below
 # fits on training data only and predicts nothing, which isolates the sampler.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 suppressMessages(library(dbarts))
 
@@ -53,9 +56,17 @@ best_of <- function(label, expr) {
   for (i in seq_len(REPS)) {
     t <- system.time(eval(e, parent.frame()))[["elapsed"]]
     seconds <- min(seconds, t)
+    done <<- done + 1L
+    prog_tick(pr, i = done, secs = t,
+              label = sprintf("%s rep %d", label, i))
   }
 
   cat(sprintf("  %-52s %7.3f s\n", label, seconds))
+
+  # Written after every arm rather than at the end, so a run that is killed
+  # leaves its finished arms readable.
+  timings[[label]] <<- seconds
+  checkpoint(FALSE)
   invisible(seconds)
 }
 
@@ -75,6 +86,28 @@ fit_bartisan <- function(...) {
 
 cat(sprintf("\nFriedman, n = %d, p = %d, %d trees, %d warmup + %d draws, best of %d\n\n",
             N, P, TREES, DRAWS, DRAWS, REPS))
+
+OUT <- "_dev/parity-benchmark.rds"
+
+# Four dbarts arms and five bartisan ones, plus whichever of BART and stochtree
+# is installed.
+N_ARMS <- 9L + requireNamespace("BART", quietly = TRUE) +
+  requireNamespace("stochtree", quietly = TRUE)
+
+pr <- prog_init(total = N_ARMS * REPS, title = "Sampler parity",
+                unit = "fit", kind = "benchmark")
+on.exit(prog_end(pr, "failed", "aborted before the last arm"), add = TRUE)
+
+timings <- list()
+done <- 0L
+
+# `complete` is what tells a reader whether it has every arm or only the ones
+# that had finished when the run stopped.
+checkpoint <- function(complete) {
+  saveRDS(list(res = timings, complete = complete, done = done,
+               total = N_ARMS * REPS, reps = REPS, n = N, p = P,
+               num_trees = TREES, num_draws = DRAWS), OUT)
+}
 
 cat("dbarts\n")
 dbarts_notrees <- best_of("bart(), keeptrees = FALSE, no test data",
@@ -136,3 +169,8 @@ if (requireNamespace("stochtree", quietly = TRUE)) {
                     num_burnin = DRAWS, num_mcmc = DRAWS,
                     mean_forest_params = list(num_trees = TREES)))
 }
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d arms", length(timings)))
+cat("\nwrote", OUT, "\n")

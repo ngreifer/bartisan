@@ -93,6 +93,7 @@ docs
 !_dev/bandwidth-confirm.R
 !_dev/relative-cost.R
 !_dev/augment-benchmark.R
+!_dev/ordinal-stall.R
 !_dev/coverage-calibration.R
 !_dev/justfile
 # Live-progress run records: rebuildable churn, served over loopback.

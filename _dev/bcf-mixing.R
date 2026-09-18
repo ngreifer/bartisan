@@ -8,7 +8,26 @@
 # So: same data, same custom-family route, with and without the varying
 # coefficient.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
+
+OUT <- "_dev/bcf-mixing.rds"
+
+pr <- prog_init(total = 3L, title = "Where a BCF fit mixes badly", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last arm"), add = TRUE)
+
+rows <- list()
+
+# Written after every arm rather than at the end, so a run that is killed
+# leaves its finished arms readable. `complete` is what tells a reader which of
+# the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, rows), complete = complete,
+               done = length(rows), total = 3L), OUT)
+}
 
 set.seed(20260831)
 n <- 1000
@@ -43,10 +62,20 @@ vc <- custom_family(
   num_predictors = 2, aux_names = "log_sigma", name = "vc")
 
 # 3. The compiled Gaussian, for reference on how this data mixes at all.
+# `fit` is a promise, so it is the first line here that runs the sampler, which
+# is what makes the elapsed time measurable at all.
 show <- function(label, fit) {
+  t0 <- Sys.time()
   r <- fit$rhat[order(-fit$rhat$rhat), ]
+  prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = label)
+
   cat("\n--", label, "--\n")
   print(utils::head(r, 3), row.names = FALSE)
+
+  rows[[label]] <<- cbind(arm = label, utils::head(r, 3))
+  checkpoint(FALSE)
+  invisible(NULL)
 }
 
 set.seed(1)
@@ -64,3 +93,8 @@ set.seed(1)
 show("compiled gaussian(), z as an ordinary predictor",
      bartisan(y ~ z + x1 + x2 + x3 + x4 + x5, data = d, family = gaussian(),
               control = ctrl, chains = 4))
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d arms", length(rows)))
+cat("\nwrote", OUT, "\n")

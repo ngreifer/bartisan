@@ -99,7 +99,7 @@ test_that("a permuted response leaves a prior-only fit where it was", {
   expect_lt(max(abs(a - b)), 0.25 * stats::sd(a))
 })
 
-test_that("only the family with no prior to draw from refuses prior_only", {
+test_that("every family can be drawn from its prior", {
   skip_on_cran()
 
   d <- sim_x(n = 120L, p = 2L, seed = 111L)
@@ -107,15 +107,26 @@ test_that("only the family with no prior to draw from refuses prior_only", {
   d$pos <- stats::rexp(nrow(d))
   d$ord <- factor(sample(1:3, nrow(d), replace = TRUE), ordered = TRUE)
   d$cat <- factor(sample(letters[1:3], nrow(d), replace = TRUE))
+  d$unit <- stats::runif(nrow(d))
+  d$unit[seq_len(12L)] <- 0
+  d$unit[13:24] <- 1
 
   ctrl <- quick_control(num_trees = 5L, num_burn = 30L, num_draws = 50L)
 
-  # The cutpoints have no prior term, so a flat likelihood leaves the slice
-  # sampler nothing to draw from and it walks out to the bound. That fails
-  # silently if it is allowed through, which is why it is an error.
-  expect_error(bartisan(ord ~ x1, d, family = ordinal(), control = ctrl,
-                        prior_only = TRUE),
-               "no prior term to fall back on")
+  # The two cutpoint families were refused until the cutpoints carried the
+  # induced-Dirichlet prior. With it, a flat likelihood leaves a proper density
+  # to draw from and the replicates stay on the scale the response is measured
+  # on rather than piling at one end of it.
+  for (spec in list(list(ord ~ x1, ordinal()), list(unit ~ x1, ordbeta()))) {
+    fit <- suppressWarnings(bartisan(spec[[1L]], d, family = spec[[2L]],
+                                     control = ctrl, prior_only = TRUE))
+    expect_s3_class(fit, "bartisan_fit")
+
+    rep <- rstantools::posterior_predict(fit)
+    expect_true(all(is.finite(rep)))
+    # Every category is reachable under the prior rather than one absorbing it.
+    expect_gt(length(unique(round(as.vector(rep), 6))), 1L)
+  }
 
   # Everything else is reachable, whether the weight carries the whole
   # likelihood or an auxiliary update had to be told about it separately.

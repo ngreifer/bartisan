@@ -19,7 +19,29 @@ BINS <- c(4, 9, 20, 50, 100, 250)
 TRUTH_PH <- c("hazard turns over", "Weibull PH")
 N_REP_B <- 3L
 
+# The head of survival-sim.R, evaluated above, brings progress.R with it along
+# with its own `OUT`.
+OUT <- "_dev/survival-bins.rds"
+N_FITS <- length(TRUTH_PH) * N_REP_B * length(BINS)
+
 out <- list()
+
+pr <- prog_init(total = N_FITS, title = "Survival: how many bins ph() needs",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+# `survival-results.R` reads this file as a data frame, so how far the run got
+# is carried in attributes rather than by wrapping it in a list. Written after
+# every replicate, so a killed run still leaves its finished ones readable.
+checkpoint <- function(complete) {
+  res <- do.call(rbind, out)
+  attr(res, "complete") <- complete
+  attr(res, "done") <- length(out)
+  attr(res, "total") <- N_FITS
+  saveRDS(res, OUT)
+}
+
 for (tn in TRUTH_PH) {
   for (r in seq_len(N_REP_B)) {
     set.seed(770011L + 100L * match(tn, TRUTH_PH) + r)
@@ -37,8 +59,10 @@ for (tn in TRUTH_PH) {
     r_true <- signal(test) - mean(signal(test))
 
     for (b in BINS) {
+      t0 <- Sys.time()
       fit <- bartisan(FORM, data = train, family = ph(num_bins = b),
                       control = ctrl, verbose = FALSE)
+      secs <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
       shat <- predict(fit, newdata = test, type = "survival", times = edges)
       rhat <- drop(predict(fit, newdata = test, type = "link"))
       rhat <- rhat - mean(rhat)
@@ -51,9 +75,15 @@ for (tn in TRUTH_PH) {
         bad_k = mean(pareto_k_values(lo) > 0.7))
       cat(sprintf("[bins] %-18s rep %d bins %3d done\n", tn, r, b))
       flush(stdout())
+      prog_tick(pr, i = length(out), secs = secs,
+                label = sprintf("%s rep %d, %d bins", tn, r, b))
     }
+
+    checkpoint(FALSE)
   }
 }
 
-saveRDS(do.call(rbind, out), "_dev/survival-bins.rds")
-cat("wrote _dev/survival-bins.rds\n")
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", length(out)))
+cat("wrote", OUT, "\n")

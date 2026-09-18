@@ -85,7 +85,7 @@ test_that("the cloglog augmentation targets the same posterior as the direct fit
   }
 
   direct <- fit(FALSE)
-  aug <- fit("ordinal")
+  aug <- fit(TRUE)
 
   expect_gt(stats::cor(colMeans(direct[["eta"]][[1L]]),
                        colMeans(aug[["eta"]][[1L]])), 0.95)

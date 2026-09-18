@@ -79,17 +79,14 @@
 #'   which draws a subset of the levels still available at the node and sends
 #'   those left, and `"onehot"`, which is what most BART implementations do: it
 #'   splits on one indicator column, peeling a single level off the rest.
-#' @param augment *Advanced.* `logical` or `character`; whether to rewrite the
-#'   likelihood as the margin of a Gaussian or a Poisson one, which makes the
-#'   target a shape the sampler can exploit. The posterior is the same either
-#'   way, so this is a sampling setting and not a modeling one. Default is
-#'   `TRUE`, which rewrites wherever a rewriting exists: the binomial, ordinal,
-#'   multinomial, negative binomial, zero-inflated, and survival families.
-#'   `FALSE` never does, and a character vector of engine family names
-#'   (`"binomial"`, `"ordinal"`, `"multinomial"`, `"negbin"`, `"zip"`, `"zinb"`,
-#'   `"aft"`) asks for exactly those. A rewriting is always faster and has not
-#'   been measured to mix worse per second, so the default is rarely worth
-#'   changing; see `vignette("implementation")`.
+#' @param augment *Advanced.* `logical`; whether to rewrite the likelihood as the
+#'   margin of a Gaussian or a Poisson one, which makes the target a shape the
+#'   sampler can exploit. The posterior is the same either way, so this is a
+#'   sampling setting rather than a modeling one. Default is `TRUE`, which
+#'   rewrites wherever a rewriting exists: the binomial, ordinal, multinomial,
+#'   negative binomial, zero-inflated, and survival families. A rewriting is
+#'   faster and has not been measured to mix worse per second, so the default is
+#'   rarely worth changing; see `vignette("implementation")`.
 #' @param x_transform string; how numeric predictors are mapped to `[0, 1]`
 #'   before any rule sees them. Allowable options include `"smoothcdf"` (the
 #'   default), `"quantile"`, and `"range"`. The map decides where a cutpoint can
@@ -736,21 +733,14 @@ resolve_split_prior <- function(split_prior) {
 # exponential form collapses the leaf work to one pass, and a slight loss with
 # soft rules, where it does not. Naming a family explicitly always honors the
 # request.
+# The engine is told which family names may be rewritten, and a fit has one
+# family, so per-family control would only ever amount to whether this fit's own
+# family is in the list. The argument is the flag; the list is how the engine
+# asks the question.
 resolve_augment <- function(augment) {
-  arg::arg_or(augment,
-              arg::arg_flag,
-              arg::arg_character)
+  arg::arg_flag(augment)
 
-  if (is.character(augment)) {
-    arg::arg_element(augment,
-                     c("binomial", "ordinal", "multinomial", "negbin", "zip",
-                       "zinb", "aft"),
-                     .arg = "augment")
-
-    return(unique(augment))
-  }
-
-  if (!isTRUE(augment)) {
+  if (!augment) {
     return(character())
   }
 

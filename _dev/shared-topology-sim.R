@@ -252,13 +252,47 @@ pr <- prog_init(total = nrow(jobs), title = "Shared forests: accuracy",
                 unit = "job", workers = max(workers, 1L), kind = "simulation")
 on.exit(prog_end(pr, "failed"), add = TRUE)
 
-res <- prog_future_lapply(pr, seq_len(nrow(jobs)), function(j) {
-  cell <- as.list(jobs[j, c("model", "overlap", "p")])
-  one_rep(cell, jobs[["rep"]][j],
-          truth[[cell_key(cell[["model"]], cell[["overlap"]], cell[["p"]])]])
-}, label = function(j) sprintf("%s %s p=%d rep %d", jobs[["model"]][j],
-                               jobs[["overlap"]][j], jobs[["p"]][j],
-                               jobs[["rep"]][j]))
+# The jobs run in blocks of replicates rather than as one flat pool, so that a
+# run that is killed leaves its finished blocks on disk. Each block holds
+# several jobs per worker, which keeps the idle tail at the barrier short.
+per_block <- max(1L, (4L * max(workers, 1L)) %/% nrow(cells))
+blocks <- split(seq_len(REPS), ceiling(seq_len(REPS) / per_block))
+
+res <- list()
+done <- 0L
+
+# `complete` is what tells a reader whether it has the whole run or the part
+# that had finished when the run stopped.
+checkpoint <- function(complete) {
+  saveRDS(list(res = unlist(res, recursive = FALSE), truth = truth,
+               cells = cells, complete = complete, done = done,
+               total = nrow(jobs),
+               settings = list(n_train = N_TRAIN, n_test = N_TEST, reps = REPS,
+                               num_trees = NUM_TREES, num_burn = NUM_BURN,
+                               num_draws = NUM_DRAWS)),
+          OUT)
+}
+
+for (b in blocks) {
+  ix <- which(jobs[["rep"]] %in% b)
+
+  # prog_do() rather than prog_future_lapply() so that the tick carries the
+  # job's index in the whole run, not its position within the block.
+  got <- future.apply::future_lapply(ix, function(j) {
+    cell <- as.list(jobs[j, c("model", "overlap", "p")])
+    prog_do(pr, j, function(j) {
+      one_rep(cell, jobs[["rep"]][j],
+              truth[[cell_key(cell[["model"]], cell[["overlap"]],
+                              cell[["p"]])]])
+    }, label = sprintf("%s %s p=%d rep %d", jobs[["model"]][j],
+                       jobs[["overlap"]][j], jobs[["p"]][j],
+                       jobs[["rep"]][j]))
+  }, future.seed = TRUE)
+
+  res <- c(res, got)
+  done <- done + length(ix)
+  checkpoint(FALSE)
+}
 
 # `prog_do()` turns a failed job into a NULL rather than killing the run, so a
 # short result list means jobs died; the widget's failures panel says which.
@@ -268,13 +302,10 @@ if (bad > 0) {
   prog_log(pr, sprintf("%d of %d jobs failed", bad, nrow(jobs)), level = "warn")
 }
 
-saveRDS(list(res = unlist(res, recursive = FALSE), truth = truth, cells = cells,
-             settings = list(n_train = N_TRAIN, n_test = N_TEST, reps = REPS,
-                             num_trees = NUM_TREES, num_burn = NUM_BURN,
-                             num_draws = NUM_DRAWS)),
-        OUT)
+checkpoint(TRUE)
 
 on.exit()
-prog_end(pr, if (bad > 0) "failed" else "done")
+prog_end(pr, if (bad > 0) "failed" else "done",
+         sprintf("%d of %d jobs", nrow(jobs) - bad, nrow(jobs)))
 
 cat("wrote", OUT, "\n")

@@ -12,12 +12,16 @@
 # Width alone proves nothing -- an interval of zero width covers nothing -- so
 # the two are always read together.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 REPS <- 10L
 N <- 500L
 BURN <- 1000L
 DRAWS <- 1000L
+OUT <- "_dev/sparsity-null.rds"
 
 betas <- function(z) {
   cbind(3 + 2 * z[, 1] - 3 * z[, 2]^2,
@@ -60,12 +64,16 @@ run_rep <- function(rep) {
       sprintf('vc(x%d, ~ z1 + z2 + z3 + z4 + z5, center = "zero")', 1:4)),
     response = quote(y))
 
-  vapply(ARMS, function(arm) {
+  vapply(seq_along(ARMS), function(a) {
+    arm <- ARMS[[a]]
+    t0 <- Sys.time()
     fit <- do.call(bartisan, c(
       list(formula = form, data = frame, family = gaussian(),
            num_trees = 50L, num_burn = BURN, num_draws = DRAWS,
            verbose = FALSE),
       arm))
+    prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+              label = sprintf("rep %d / %s", rep, names(ARMS)[a]))
 
     cf <- coef(fit, draws = TRUE)
     as.vector(vapply(seq_len(4L), function(j) score(cf[[j]], b[, j + 1L]),
@@ -73,7 +81,33 @@ run_rep <- function(rep) {
   }, numeric(12L))
 }
 
-each <- vapply(seq_len(REPS), run_rep, matrix(0, 12L, length(ARMS)))
+pr <- prog_init(total = REPS * length(ARMS), unit = "fit",
+                title = "Sparsity and the null coefficient",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+reps <- list()
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = if (length(reps)) simplify2array(reps),
+               complete = complete, done = length(reps), total = REPS,
+               reps = REPS, n = N, arms = names(ARMS), labels = LABELS), OUT)
+}
+
+for (r in seq_len(REPS)) {
+  reps[[r]] <- run_rep(r)
+  checkpoint(FALSE)
+}
+
+each <- simplify2array(reps)
+checkpoint(TRUE)
+
+on.exit()
+prog_end(pr, "done", sprintf("%d replicates", length(reps)))
 
 cat(sprintf("\nSparsity and the null coefficient: %d replicates, n = %d\n",
             REPS, N))

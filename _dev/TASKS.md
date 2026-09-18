@@ -8107,3 +8107,439 @@ The hook lived in a `helper-zz-jitter.R` that is not committed. To rebuild it:
 wrap `.bartisan_fit()` in the namespace with `utils::assignInNamespace()`, burn
 `runif(k)` on exit, and burn `runif(k)` once at load. Not `bartisan()` itself,
 for the reason above.
+
+## Live-progress instrumentation across every simulation script
+
+All 52 scripts in `_dev/` audited against the `/live-progress` contract. 48
+report; the four that do not (`shared-topology-results.R`,
+`survival-results.R`, `xtransform-results.R`,
+`xtransform-candidates-results.R`) only read a saved `.rds` and print tables,
+so there is nothing to instrument.
+
+Every instrumented script now has four things rather than one or two:
+`prog_init()`, at least one `prog_tick()` per unit, `on.exit(prog_end(pr,
+"failed"), add = TRUE)`, and a `checkpoint()` written **inside** the loop with
+a `complete` flag. The last is the one that was missing everywhere: before
+this, a run killed at 90% left nothing on disk, which is how the first
+`positive-sim` run lost forty minutes.
+
+### The audit undercounted twice, both times by pattern-matching
+
+A parse-based audit missed the loops written as `lapply()` closures, which is
+how `positive-sim.R` and `shared-topology-mixing.R` are written, so both were
+filed as "a fit but no loop". A text-based re-audit fixed that but then missed
+`sparsity-null.R` entirely, because it fits through `do.call(bartisan, ...)`
+and the pattern looked for `bartisan(`. That script is 40 fits at 1000 + 1000
+draws — the single largest thing the audit dropped. `rg 'do\.call\(bartisan'`
+is the check that catches it.
+
+Two more were misfiled as analysis-only for having no fit at all, which was
+true and beside the point: `categorical-priors.R` draws 160,000 trees from the
+prior in pure R and `ess-rhat-calibration.R` simulates 3,000 AR(1) replicates
+up to 318,400 draws each. The threshold is 8 seconds of wall clock, not the
+presence of a sampler.
+
+### Shapes the checkpoint had to take
+
+Three, because the readers differ:
+
+- **A list with `res`, `complete`, `done`, `total`.** The default, used
+  wherever the file has no reader or the reader is the script itself.
+- **A bare data frame carrying `complete` as an attribute.**
+  `survival-bins.rds` and `survival-timing.rds` are read by
+  `survival-results.R` as data frames (`split(timings, timings$family)`), and
+  the files on disk predate this change, so wrapping them in a list would have
+  broken that script against its own inputs until both sims were re-run.
+- **A list grown field by field.** `mixing-anatomy.R` writes the fit's
+  diagnostics as soon as the fit returns, before the post-processing that has
+  run out of memory before.
+
+### Parallel runs cannot checkpoint from a flat pool
+
+`prog_future_lapply()` returns nothing until every job is done, so
+`shared-topology-sim.R` now runs its 240 jobs in blocks of replicates and
+checkpoints after each block. Block size is `4 * workers %/% nrow(cells)`,
+which at 8 workers and 12 cells is 2 replicates — 24 jobs, exactly three waves
+of 8, so the barrier costs nothing when jobs are of equal cost. It also calls
+`prog_do()` directly rather than `prog_future_lapply()`, because the latter
+ticks with the index *within* the block and the widget would then see the same
+unit numbers in every block.
+
+### One edit deleted a line and one referenced a variable that did not exist
+
+`bandwidth-confirm.R` got a checkpoint referencing `n_total`, which that file
+never defined (its `prog_init()` computed the total inline). And the
+`survival-timing.R` replacement swallowed `out <- list()`, because the matched
+text spanned it and the replacement did not put it back. Both were caught by
+re-reading the file after the edit rather than by the parse, which passes in
+both cases. A grep for the accumulator initializations across all 22 edited
+scripts found no others.
+
+## The induced-Dirichlet citation was attributed to the wrong document
+
+`betancourt2019` was built from the reference list of the Cerullo paper rather
+than from the source, which is the failure `PAPERS.md` warns about, and it was
+wrong in three ways: the URL pointed at a GitHub tree rather than the document,
+and the entry was the 2019 Stan case study "Ordinal Regression" when the named
+construction lives in the 2025 chapter "Ordinal Modeling".
+
+Checked against both sources directly. The 2019 case study does contain the
+construction — "the pushforward of the Dirichlet prior model along the inverse
+map from ordinal probabilities to internal cut points induces a prior model on
+the latent cut points" — but the string "induced Dirichlet" appears in it zero
+times. The 2025 chapter names it and develops it at length. So the attribution
+was substantively right and bibliographically wrong, and the vignette now cites
+both: `[@betancourt2019; @betancourt2025]`, which renders as
+"(Betancourt 2019, 2025)".
+
+Verified with `pandoc --citeproc` on a scratch file rather than by knitting,
+which is how to check a citation cheaply.
+
+A scan for undefined keys alongside it reported 17 missing from `faq.Rmd` and
+`causal.Rmd`. That was my regex, not the bibliography: `@\w+\{([^,\s]+),`
+requires the key on the same line as the entry type, and the Zotero exports in
+this file wrap it onto the next line. Every key resolves. The pattern that
+actually works is `@\w+\{\s*([^,\s}]+)\s*,`.
+
+What the file does have is duplicate entries for seven works, one short key and
+one Zotero key each: `chipman2010` / `chipmanBARTBayesianAdditive2010`,
+`arelbundock2024` / `arel-bundockHowInterpretStatistical2024`, `dorie2019`,
+`carnegie2019`, `hahn2020`, `hill2020` and `deshpande2026` likewise. Harmless —
+both render — but the two keys can drift apart.
+
+### One claim in the vignette was wrong and one was thin
+
+The Jacobian was described as "lower bidiagonal". Under the natural indexing
+(rows the probabilities, columns the cutpoints) it is upper bidiagonal, but the
+determinant is the product of the diagonal either way, and reading the
+orientation off a browser text extraction of the chapter's LaTeX is exactly what
+`PAPERS.md` forbids. The word is gone; "bidiagonal" is all the argument needs.
+
+The chapter also sharpens why `cut_alpha = 1` is not the same as no prior: it
+warns that a prior "uniform over the interior cut points" is "not the same as
+the uniform simplex prior model". That distinction is now stated in the vignette
+with the Jacobian named as the difference between the two.
+
+## The error-shapes table was measuring the wrong ordinal model, twice
+
+The original `_dev/error-shapes-sim.R` was never kept (`_dev/` is gitignored
+apart from an allowlist), so the vignette's numbers came from a script that no
+longer exists and I rebuilt it from the vignette's own description. The rebuild
+did not match: RMSE around .03 against the published .135, log scores around
+-229 against -1439. Those are not the same design, and nothing in the vignette
+records the mean function or the error scale, so the published numbers are not
+recoverable. The rebuild is now the design of record and every magnitude in the
+surrounding prose was recomputed from it.
+
+The rebuild's own ordinal arm was wrong twice over:
+
+1. It passed the raw continuous `y` to `ordinal("probit")`, so **every distinct
+   value became a category** -- a thousand cutpoints at n = 1000. That is a
+   different model from the one the vignette recommends, and it took 50 seconds
+   a fit against 3 for `gaussian()`.
+2. Binning to 25 quantiles fixed the cost but not the comparison, because it
+   binned to integer *indices* and then mapped back through bin centers with
+   `approx()`. That hand-mapping cost real accuracy: RMSE .059 to .092, roughly
+   double every other family, which would have been published as a finding
+   about ordinal models rather than about the mapping.
+
+`_dev/positive-sim.R` already had it right and had had it right all along:
+`bin_response()` replaces each value with the **mean of its bin**
+(`stats::ave(y, idx)`), leaving a numeric response whose sorted unique values
+are the categories, so `type = "mean"` reads the response's own scale back with
+no mapping at all. With that, the ordinal arm lands at .029 to .043 and 5.1
+seconds, comparable with the rest.
+
+The lesson is narrow and worth keeping: when two simulations in the same package
+fit the same family, they should share the helper that prepares the response,
+not each implement it. The two arms here disagreed by a factor of two on RMSE
+and neither script was obviously wrong on its own.
+
+## `ordinal("probit")` with `augment = FALSE` stalls, and the augmentation table hid it
+
+Re-running the augmentation benchmark's four ordinal rows at 15 replicates
+turned up something the published table could not show. Under
+`augment = FALSE`:
+
+- `ordinal("probit")`, hard rules: fourteen replicates took 30 to 43 seconds
+  and one took **3882** (65 minutes).
+- `ordinal("probit")`, soft rules: thirteen took 51 to 65 seconds and two took
+  about **600**.
+- Both `ordinal("logit")` rows are tight to a second (20 to 21, 33 to 34), and
+  every augmented fit is tight.
+
+So it is specific to the un-augmented probit path, which is the cutpoint slice
+sampler on the general exponential target. A near-zero-width slice interval
+would produce exactly this, and this session already found one such case: equal
+starting cutpoints gave a zero-width interval before the pseudo-count fix. Worth
+a look on its own; the induced-Dirichlet prior may have changed the exposure.
+
+### The table's convention could not survive the outlier
+
+The published table was built from the **ratio of means** across replicates. I
+verified that by reproducing four un-re-run rows to two decimals on all three
+columns, which is the only way to tell one aggregation from another after the
+fact. Under that convention the 3882-second replicate turns the probit-hard row
+into a **232-fold** speedup, which is not a fact about anything a user will
+experience.
+
+The table is now built from the **median of the within-replicate ratio**
+throughout, which is both robust and the reading the paired design supports.
+That restates the thirteen rows that were not re-measured, so it is a disclosed
+convention change rather than a silent edit, and the caption now states the
+convention. Two claims moved with it:
+
+- Effective draws per second favors augmentation in **15 of 17** rows, not all
+  seventeen. The two negative-binomial rows come out at 1.0 and 0.8, so that
+  family's rewriting does not pay for itself at all.
+- The worst-quantity ESS ratio has a median of **0.89**, not 1.05.
+
+### A simulation script rewrote a result file after I had used it
+
+`ordsims.sh` (pueue 172) runs `positive-sim.R` as its last step, so it rewrote
+`_dev/positive-results.rds` at 8:37pm, after the table had been built from the
+7pm copy. Every RMSE and log-score cell was byte-identical, because that script
+seeds per replicate; only the `seconds` column moved, and the later run is the
+better measurement because it had the machine to itself. Checking a result file's
+mtime against when a number was read off it is cheap, and it is the only way to
+catch this.
+
+## The bibliography held seven works twice, under two key conventions
+
+`references.bib` had accumulated a second, Zotero-exported entry for seven
+works already present under the short-key convention the rest of the file uses:
+`chipman2010`, `hill2020`, `dorie2019`, `carnegie2019`, `hahn2020`,
+`deshpande2026` and `arelbundock2024`. Found by matching **DOIs**, not names,
+which matters: `hill2011` and `hillChallengesPropensityScore2011` share an
+author and a year and are different papers.
+
+The short entries survived, and not only for consistency. They carry
+brace-protected acronyms (`{BART}`, `{VCBART}`, `{marginaleffects}`), which is
+what stops a CSL style lowercasing them, and Title Case titles; and where the
+two disagreed on content the short one was right. `hillBayesianAdditiveRegression2020`
+had `pages = {annurev-statistics-031219-041110}` and `hahnBayesianRegressionTree2020`
+had no pages at all. The Zotero entries contributed only `issn`, `month` and a
+`url` duplicating the DOI. Author lists matched on all seven, which was worth
+checking before discarding either.
+
+### Three regexes were wrong, each in a different way
+
+Every one of them produced output that looked right.
+
+1. `@\w+\{([^,\s]+),` requires the key on the same line as the entry type. The
+   Zotero exports wrap it onto the next line, so this reported 17 keys as
+   undefined when none were.
+2. `(?![A-Za-z0-9_:.-])` as the key boundary treats a sentence-ending `.` as
+   part of the key, so `@hillBayesianAdditiveRegression2020.` was skipped by the
+   rewrite while its entry was deleted out from under it.
+3. `[A-Za-z0-9_]*\d{4}[a-z]?` cannot match a key with a word suffix, so
+   `@linero2018sparse` was invisible and the DART paper was reported as uncited
+   when it is cited three times.
+
+The fix is to stop pattern-matching keys. Scan for `@`, take the longest run of
+characters that could belong to a key, and resolve that run against the set of
+keys the bibliography defines, longest match first; `@linero2018sparse` then
+resolves to itself rather than crediting `linero2018`. That is
+`scratchpad/keyusage.py`.
+
+And check the result with **pandoc**, which is what decides the question at
+build time: `pandoc --citeproc` over each vignette's prose names every
+unresolved key. A missing reference renders as "**key?**" rather than failing,
+so `R CMD check` will not tell you. Running it is what caught failure 2.
+
+### Two of the orphans had a home, and one of them exposed an undocumented prior
+
+`venables2002` now sits where `MASS::polr()` is first named in each of
+`families.Rmd` and `implementation.Rmd`, the second of which makes a specific
+claim about how `polr()` identifies the location and so rests on the source.
+
+`imai2005` was the more interesting one. `R/response.R` carries a comment
+reading "Imai and van Dyk's (2005) choice, nu = C + 1 with Psi the identity",
+but **nothing in the documentation stated the prior on the latent covariance at
+all** -- not the help page, which covers the trace normalization and the weak
+identification, and not the vignette. So the citation needed a sentence written
+for it rather than a slot to fill, which is the useful kind of orphan.
+
+Checked against the source before writing it, because the comment and the code
+disagree on their face: R sets `nu = m$num_cat` while the comment says `C + 1`.
+They agree once `C` is read as the dimension of \eqn{\Sigma}, which is
+`num_cat - 1`; `src/family.cpp` sets `Psi` to the identity and the degrees of
+freedom to `nu` plus the weights. Inverse Wishart with the identity scale and
+one degree of freedom more than the dimension is the standard choice that makes
+each correlation marginally uniform, so the attribution holds. The vignette says
+"each of its correlations", of the **unnormalized** matrix, because the trace
+constraint is applied afterwards and marginal uniformity does not survive it
+unchanged.
+
+Two entries remain uncited, `kalbfleisch1978` and `kindo2016`, and neither is
+mentioned anywhere in the package.
+
+## The `ordinal("probit")` stall was the clock, not the sampler
+
+The entry above guessed that the 3882-second fit was the cutpoint slice sampler,
+on the grounds that a near-zero-width slice interval had already produced one
+grinding loop here. That was wrong in every part, and the way it was settled is
+worth recording because it generalizes: **replay the replicate and compare the
+draws, not the time.**
+
+### A fit restores the RNG stream, so one replicate can be replayed on its own
+
+`run_chains()` and `parallel_streams()` each capture the session's RNG state and
+put it back on exit, so a fit leaves the stream exactly as it found it. The state
+entering a replicate's second arm is therefore the state `make()` left, and
+nothing earlier in the benchmark reaches it; a replicate can be replayed from its
+own seed alone. `_dev/ordinal-stall.R` does that, and it is the tool to reach for
+the next time a timing outlier turns up.
+
+The replay returned **the same chain**. Both arms came back with `ess_worst` of
+93.700422 and `ess_median` of 175.403744, which is every digit the benchmark
+recorded, and the un-augmented arm took **29.58 seconds** against 3881.83. The
+sampler performed identical arithmetic both times, so whatever consumed the other
+3852 seconds never touched the draws. That single comparison disposes of every
+hypothesis about the sampler, before any of them is examined.
+
+### The slice sampler is 1.6% of the fit, and its loops are capped
+
+Examined anyway, because the hypothesis was specific. A `sample` profile of an
+un-augmented probit fit (400 observations, 50 trees, 1500 sweeps) attributes
+5557 samples to `update_forest`, of which:
+
+| frame | samples |
+|---|---|
+| `OrdinalFamily::score_info_unit` | 4213 |
+| `fit_laplace2` | 2014 |
+| `fit_laplace1_at` | 1539 |
+| `fit_laplace1` | 687 |
+| `update_ordinal_cuts` + `slice_sampler` | 89 + 45 |
+
+So the cutpoint update is 1.6% of the run and an arbitrarily bad one could not
+produce a 100-fold fit. Three quarters of the time is the per-observation score
+and information, reached from the Newton loops, which is where the cost of this
+family lives.
+
+`slice_sampler()` caps all three of its loops at `max_steps = 100`, and has since
+it was written; the header says why. The width heuristic covers a narrow
+admissible gap (`width = span < 1 ? max(0.5 * span, 1e-8) : 0.5`), and with three
+categories there is one free cutpoint bounded below by the pinned `cuts(0)`, so
+the interval is never degenerate. A non-finite target cannot spin either, because
+the sampler returns `x0` when `logf(x0)` is not finite.
+
+The induced-Dirichlet prior was not even active. `ordinal()` defaults to
+`cut_alpha = 1`, and at `alpha == 1` the Dirichlet branch is skipped in both
+`induced_dirichlet_logpdf()` and the slice target, leaving the Jacobian
+`dnorm(cut - anchor, log = TRUE)`, which is strictly log-concave. It cannot
+flatten the target; it is what keeps an empty category's bounds finite.
+
+### The Newton loops converge in 2.3 iterations against a cap of 50
+
+Counters added to `fit_laplace1()`, `fit_laplace1_at()` and `fit_laplace2()` in a
+scratch build, and removed afterward (the four `src/` files were checksummed
+before and after). One chain, the benchmark's settings:
+
+| arm | 1-D iterations per call | 2-D iterations per call | hit the cap | numeric fallback | seconds |
+|---|---|---|---|---|---|
+| probit, `augment = FALSE` | 2.34 | 2.47 | 0 | 0 | 16.7 |
+| logit, `augment = FALSE` | 2.31 | 2.46 | 0 | 0 | 8.3 |
+
+Two hundred million calls to `score_info_unit()` per fit and the analytic branch
+served all of them; `prob` never fell to the `1e-300` guard, so the central
+difference never ran. Probit and logit are indistinguishable on iteration counts,
+which is the point: the factor of two between them is the cost of `pnorm` against
+`plogis`, not a difference in how the loops behave. A cap of 50 against a mean of
+2.3 bounds any conceivable blow-up here at about twenty-fold, and nothing
+approached it.
+
+### On a quiet machine there is no tail at all
+
+Sixty un-augmented probit fits, seeds 7001 to 7060, benchmark settings, one
+chain: **15.07 to 19.11 seconds**, median 16.75, and the upper end of that range
+is other work on the machine during the run rather than anything in the fits. At
+the observed rate of one stall in fifteen, four were expected. None appeared.
+
+### What the time does correlate with is other jobs
+
+The benchmark's own progress records carry a completion time and a duration per
+fit, so its timeline reconstructs exactly. Four other runs overlapped it:
+`positive-continuous-families` from 6:23:59pm to 6:49:42pm, and
+`error-shapes-by-family` from 6:49:43pm to 7:15:55pm, 7:26:37pm to 7:35:23pm,
+and 7:36:29pm to 7:45:37pm. Cross-tabulating the un-augmented probit fits against
+whether they overlapped one of those windows separates them perfectly:
+
+| gate | overlapped another run | did not |
+|---|---|---|
+| hard | 1 fit: 3881.8s | 14 fits: 29.9 to 42.6s |
+| soft | 2 fits: 586.4s, 623.7s | 13 fits: 51.2 to 65.0s |
+
+Three of three against twenty-seven of twenty-seven, and the first fit after the
+last competing run ended was back to 62.4 seconds. The machine did not sleep that
+day (the last `pmset` transition is September 11), and memory is not implicated:
+the fit's resident set is 369 MB on a machine with 24 GB.
+
+### But contention of the size that occurred does not explain the size of the outlier
+
+Worth stating plainly, because the association above invites a conclusion the
+measurement does not support. Replaying the same replicate against K concurrent
+copies of the same fit:
+
+| concurrent jobs | seconds | inflation | `ess_worst` |
+|---|---|---|---|
+| 0 | 32.63 | 1.0x | 93.700422 |
+| 1 | 45.35 | 1.4x | 93.700422 |
+| 3 | 67.09 | 2.1x | 93.700422 |
+| 9 | 110.61 | 3.4x | 93.700422 |
+
+One competing job, which is what actually ran, costs 1.4-fold on ten cores. The
+outlier is 131-fold. So the association is real and the mechanism is not CPU
+contention alone, and three hours after the fact the machine's state is no longer
+recoverable. The draws settle what matters regardless: the fit performed 30
+seconds of work and 65 minutes passed, so the missing hour was spent not running,
+and no change to this package would have prevented it.
+
+### The clean re-measurement reproduced every draw
+
+All four ordinal cells were re-run with the machine to itself, and the check that
+matters came out perfectly: **all 120 fits returned their effective sample sizes
+unchanged, maximum absolute difference exactly 0**, because a replicate's streams
+descend deterministically from its own `set.seed()`. Only the clock moved.
+
+| cell | before | after |
+|---|---|---|
+| probit hard, rep 13 | 3881.83s | 33.89s |
+| probit soft, rep 2 | 586.44s | 65.20s |
+| probit soft, rep 3 | 623.70s | 65.47s |
+
+Every cell is now tight: probit hard 31.8 to 37.9 seconds, probit soft 61.1 to
+68.8, logit hard 21.6 to 23.6, logit soft 36.9 to 41.9. The contended run is kept
+as `_dev/augment-benchmark-ordinal-contended.rds`.
+
+Because the aggregation is medians of within-replicate ratios, the table barely
+moved: the three ratio columns are unchanged in all four rows, and effective
+draws per second went 16x to 15x for probit soft, 6.3x to 6.5x for logit hard and
+6.1x to 6.3x for logit soft, with probit hard unchanged at 16x. The two probit
+rows swap places in the ordering. Every summary figure in the surrounding prose
+(speed from 1.2x to 31x with a median of 8.7, a median worst-quantity ratio of
+0.89, fifteen of seventeen rows above one, seven intervals below one and three
+above) is unchanged. So the published numbers were never wrong; the sentence
+explaining them was.
+
+### The consequences
+
+- The vignette no longer attributes the outlier to the cutpoint sampler, and the
+  ordinal rows now come from the clean run.
+- A timing claim needs the machine to itself, which `_dev/survival-timing.R`
+  already existed to arrange. The stronger form of that rule is that a timing run
+  must not be *queued alongside* another, since pueue will happily run two at
+  once; submit timing work to a group with `parallel 1`, or wait.
+- Timings and draws fail independently, so a suspect timing is checked by
+  replaying the cell and comparing the draws. Identical draws and a different
+  clock is a measurement problem, and there is no point reading the sampler.
+
+### Noticed in passing, not the cause, not exercised
+
+`OrdinalFamily::score_info_unit()` guards the analytic branch with
+`prob > 1e-300` and then divides by `prob * prob`, which underflows to zero for
+`prob` below about `1.5e-154`. Between those two bounds the information comes back
+`Inf` or `NaN`. Both Newton loops treat that as a converged step and fall back to
+the prior width, so it would cost mixing rather than time, and the counters above
+show `prob` never reached even the `1e-300` guard in 200 million calls per fit.
+Left alone; recorded so it is not rediscovered as a stall.

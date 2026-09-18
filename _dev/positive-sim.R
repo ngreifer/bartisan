@@ -20,6 +20,9 @@
 # Run with: Rscript _dev/positive-sim.R
 # Writes:   _dev/positive-results.rds
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 n_train <- 800L
@@ -126,7 +129,25 @@ fits <- list(
   }
 )
 
+OUT <- file.path("_dev", "positive-results.rds")
+
 out <- list()
+n_total <- length(truths) * reps * length(fits)
+
+pr <- prog_init(total = n_total, title = "Positive continuous families",
+                unit = "fit", kind = "simulation", workers = 1L,
+                command = "Rscript _dev/positive-sim.R")
+
+# A crash still closes the run, so the widget and `progress-status` report a
+# failure rather than a job that looks as though it is still going.
+on.exit(prog_end(pr, "failed", "aborted before the last cell"), add = TRUE)
+
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete,
+               done = length(out), total = n_total, reps = reps,
+               n_train = n_train, n_test = n_test, n_bins = n_bins),
+          OUT)
+}
 
 for (truth in names(truths)) {
   for (rep in seq_len(reps)) {
@@ -154,17 +175,23 @@ for (truth in names(truths)) {
         seconds = seconds
       )
 
-      cat(sprintf("%-28s %-20s rep %d  rmse %.4f  score %10.1f  %5.1fs\n",
-                  truth, family, rep, out[[length(out)]]$rmse,
-                  out[[length(out)]]$score, seconds))
-      utils::flush.console()
+      prog_tick(pr, i = length(out), secs = seconds,
+                label = sprintf("%s / %s rep %d", truth, family, rep))
     }
+
+    # After every replicate rather than after the last one: a killed run leaves
+    # every finished fit on disk, and `complete` stops the partial file being
+    # read as a whole one.
+    checkpoint(FALSE)
   }
 }
 
+checkpoint(TRUE)
 results <- do.call(rbind, out)
 
-saveRDS(results, "_dev/positive-results.rds")
+on.exit()
+prog_end(pr, "done", sprintf("%d fits over %d truths", length(out),
+                             length(truths)))
 
 # The medians rather than the means, because the heavy-tail row's log score is
 # dominated by whichever test point landed furthest out.

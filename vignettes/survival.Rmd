@@ -114,22 +114,13 @@ Censoring is assumed **independent** of the event time given the covariates, as 
 
 ## The Five Families
 
-```{r famtable, echo = FALSE}
-knitr::kable(data.frame(
-  Family = c("`weibull_aft()`", "`loglogistic_aft()`", "`lognormal_aft()`",
-             "`ph()`", "`dpm_aft()`"),
-  Model = c("$\\log T = \\eta + \\sigma\\epsilon$, $\\epsilon$ smallest extreme value",
-            "the same with $\\epsilon$ standard logistic",
-            "the same with $\\epsilon$ standard normal",
-            "$\\lambda(t \\mid x) = \\lambda_0(t)\\,e^{r(x)}$",
-            "$\\log T = m(x) + W$, $W$ a mixture of normals"),
-  `A contrast in the forest gives` = c("a log time ratio (and a log hazard ratio)",
-                                      "a log time ratio", "a log time ratio",
-                                      "a log hazard ratio", "a log time ratio"),
-  `Drawn nuisance` = c("$\\sigma$", "$\\sigma$", "$\\sigma$",
-                       "$\\lambda_0$ on a grid", "the error density"),
-  check.names = FALSE))
-```
+|Family              |Model                                                               |A contrast in the forest gives            |Drawn nuisance        |
+|:-------------------|:-------------------------------------------------------------------|:-----------------------------------------|:---------------------|
+|`weibull_aft()`     |$\log T = \eta + \sigma\epsilon$, $\epsilon$ smallest extreme value |a log time ratio (and a log hazard ratio) |$\sigma$              |
+|`loglogistic_aft()` |the same with $\epsilon$ standard logistic                          |a log time ratio                          |$\sigma$              |
+|`lognormal_aft()`   |the same with $\epsilon$ standard normal                            |a log time ratio                          |$\sigma$              |
+|`ph()`              |$\lambda(t \mid x) = \lambda_0(t)\,e^{r(x)}$                        |a log hazard ratio                        |$\lambda_0$ on a grid |
+|`dpm_aft()`         |$\log T = m(x) + W$, $W$ a mixture of normals                       |a log time ratio                          |the error density     |
 
 All five put a BART forest on a single additive predictor and leave something else free; what differs is which part is parametric.
 
@@ -297,24 +288,14 @@ The script is `_dev/survival-sim.R` in the package sources.
 
 Every truth we built uses the same nonlinear function of five covariates, so the families differ only in how well they cope with the *shape* of the time distribution built around it. The six truths are:
 
-```{r truthtable, echo = FALSE}
-knitr::kable(data.frame(
-  Truth = c("Weibull PH", "hazard turns over", "log-normal errors",
-            "bimodal errors", "heavy-tailed errors", "crossing hazards"),
-  `What it is` = c(
-    "proportional hazards with a Weibull baseline",
-    "proportional hazards, baseline hazard rises then falls",
-    "accelerated failure time, normal errors",
-    "accelerated failure time, two-component error",
-    "accelerated failure time, $t_3$ errors",
-    "the covariate effect reverses sign over time"),
-  `Exactly right for` = c(
-    "`weibull_aft()` and `ph()` both", "`ph()`", "`lognormal_aft()`",
-    "`dpm_aft()`",
-    "none; `dpm_aft()` and `loglogistic_aft()` nearest",
-    "none of the five, nor the discrete-time route exactly"),
-  check.names = FALSE))
-```
+|Truth               |What it is                                             |Exactly right for                                     |
+|:-------------------|:------------------------------------------------------|:-----------------------------------------------------|
+|Weibull PH          |proportional hazards with a Weibull baseline           |`weibull_aft()` and `ph()` both                       |
+|hazard turns over   |proportional hazards, baseline hazard rises then falls |`ph()`                                                |
+|log-normal errors   |accelerated failure time, normal errors                |`lognormal_aft()`                                     |
+|bimodal errors      |accelerated failure time, two-component error          |`dpm_aft()`                                           |
+|heavy-tailed errors |accelerated failure time, $t_3$ errors                 |none; `dpm_aft()` and `loglogistic_aft()` nearest     |
+|crossing hazards    |the covariate effect reverses sign over time           |none of the five, nor the discrete-time route exactly |
 
 We take as the primary metric the RMSE of the fitted survival function $S(t \mid x)$ against the true one, on held-out subjects and over twenty times spanning the 5th to 95th percentile of the event-time distribution, because it is on the same scale for every family, which the predictors are not.
 
@@ -600,24 +581,15 @@ The spread is about eightfold, and it does not follow the families' flexibility 
 
 ## Choosing a Family
 
-```{r choosetable, echo = FALSE}
-knitr::kable(data.frame(
-  `If` = c("there is no view about the shape of anything",
-           "the same, but the fit has to be quick",
-           "the shape of the baseline hazard is the point",
-           "a hazard ratio is wanted from a parametric fit",
-           "only the ordering of risk is needed",
-           "the covariate effect may move with time",
-           "a treatment effect is to be reported"),
-  Use = c("`dpm_aft()`",
-          "`lognormal_aft()` or `loglogistic_aft()`",
-          "`ph()`",
-          "`weibull_aft()`",
-          "any of them, if the effect is constant in time",
-          "the discrete-time route, not a family",
-          "any of them, through `type = \"survival\"`"),
-  check.names = FALSE))
-```
+|If                                             |Use                                            |
+|:----------------------------------------------|:----------------------------------------------|
+|there is no view about the shape of anything   |`dpm_aft()`                                    |
+|the same, but the fit has to be quick          |`lognormal_aft()` or `loglogistic_aft()`       |
+|the shape of the baseline hazard is the point  |`ph()`                                         |
+|a hazard ratio is wanted from a parametric fit |`weibull_aft()`                                |
+|only the ordering of risk is needed            |any of them, if the effect is constant in time |
+|the covariate effect may move with time        |the discrete-time route, not a family          |
+|a treatment effect is to be reported           |any of them, through `type = "survival"`       |
 
 `dpm_aft()` heads the table, and is the default for an unnamed `Surv` response, on the evidence above rather than on principle: it was best or tied-best on four of the six truths and never worse than third, and on the two truths where a parametric family was exactly right it matched that family to the third decimal. It is also, contrary to what its flexibility suggests, one of the cheaper families to fit, at about twice `lognormal_aft()` and a third of `weibull_aft()`. The second row is for fitting many models rather than one.
 

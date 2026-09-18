@@ -72,21 +72,20 @@
 #' \pkg{ggplot2} object.
 #'
 #' @details
-#' ## Why the Response Scale
+#' ## Setting `type`
 #'
-#' A varying coefficient is a contrast on the *link* scale: on a
-#' `binomial("logit")` fit, `coef(object)` is a per-unit difference in log odds.
-#' The average of those is the average conditional log odds ratio, which is not
-#' the marginal log odds ratio and is not usually the quantity a treatment
-#' question asks for. So the default here is `type = "response"`, where every
-#' unit's contrast is on the scale the response is measured on and averaging
-#' them is the marginal effect.
+#' A varying coefficient is a contrast on the link scale: on a
+#' `binomial("logit")` fit, `coef(object)` is a per-unit difference in log odds,
+#' and the average of those is the average conditional log odds ratio rather than
+#' the marginal one a treatment question usually asks for. The default is
+#' therefore `type = "response"`, where every unit's contrast is on the scale the
+#' response is measured on and averaging them gives the marginal effect.
 #'
-#' `type = "link"` is still available and is the right choice for looking at how
-#' the effect *varies*, since that is the scale the forest models it on. It is
-#' the wrong choice for reporting an average.
+#' `type = "link"` is the right choice for looking at how the effect varies,
+#' since that is the scale the forest models it on, and the wrong one for
+#' reporting an average.
 #'
-#' ## Marginal Rather Than Average Conditional
+#' ## Setting `comparison`
 #'
 #' For `"ratio"`, `"lnratio"`, `"or"` and `"lnor"` the potential outcomes are
 #' averaged over units first and contrasted afterward, which gives the marginal
@@ -101,7 +100,7 @@
 #' should be symmetric on, which for a ratio is usually the log. The same holds
 #' of `"ratio"` against `"lnratio"`.
 #'
-#' ## Which Level Is Treated
+#' ## Setting `focal`
 #'
 #' With a binary treatment and no `focal`, which level is the treated one is
 #' worked out from the treatment's values by the rules
@@ -127,9 +126,9 @@
 #' default is to show only the contrasts involving it, matching how
 #' \pkgfun{WeightIt}{weightit} and \pkgfun{cobalt}{bal.tab} use `focal`.
 #'
-#' A continuous treatment is not currently supported, because the effect of a continuous
-#' treatment is a slope or a dose-response curve rather than a contrast of
-#' levels. See the \CRANpkg{adrftools} package for tools to visualize and summarize the effect of a continuous treatment.
+#' The effect of a continuous treatment is a slope or a dose-response curve
+#' rather than a contrast of levels, and the \CRANpkg{adrftools} package has
+#' tools for summarizing and visualizing one.
 #'
 #' @seealso [bcf()], which fits the model this is usually called on;
 #'   [print.bcf_fit()] for its other methods; [bartisan-marginaleffects] for the

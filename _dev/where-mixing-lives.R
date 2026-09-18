@@ -10,6 +10,9 @@
 #
 # Usage: Rscript _dev/where-mixing-lives.R [draws]
 options(parallelly.availableCores.fallback = 4, parallelly.maxWorkers.localhost = Inf)
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages({
   library(bartisan); library(future)
 })
@@ -45,12 +48,30 @@ cases <- list(
 
 stats <- function(x) bartisan:::diagnosis_stats(bartisan:::as_chains(x, CHAINS))
 
+OUT <- file.path(ROOT, "_dev/where-mixing-lives.rds")
+
+pr <- prog_init(total = length(cases), title = "Where the mixing lives",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last case"), add = TRUE)
+
 out <- list()
+
+# Written after every case rather than at the end, so a run that is killed
+# leaves its finished cases readable. `complete` is what tells a reader which of
+# the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete,
+               done = length(out), total = length(cases), chains = CHAINS,
+               draws = DRAWS), OUT)
+}
+
 for (cs in cases) {
   set.seed(20260905)
+  t0 <- Sys.time()
   fit <- bartisan(cs[["f"]], data = cs[["d"]], family = cs[["fam"]],
                   chains = CHAINS, num_burn = DRAWS, num_draws = DRAWS,
                   sparsity = cs[["sparsity"]] %||% TRUE, verbose = FALSE)
+  secs <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
   eta <- fit[["eta"]][[1L]]
   pc <- vapply(seq_len(ncol(eta)), function(j) stats(eta[, j]), numeric(4L))
   av <- stats(rowMeans(eta))
@@ -61,10 +82,15 @@ for (cs in cases) {
     w5_rhat = stats::quantile(pc[1L, ], 0.95, names = FALSE),
     w5_ess = stats::quantile(pc[3L, ], 0.05, names = FALSE),
     share_bad = mean(pc[1L, ] > 1.01, na.rm = TRUE))
-  cat(sprintf("%-20s done\n", cs[["name"]])); utils::flush.console()
+  prog_tick(pr, i = length(out), secs = secs, label = cs[["name"]])
+  checkpoint(FALSE)
 }
+
+checkpoint(TRUE)
 res <- do.call(rbind, out)
-saveRDS(res, file.path(ROOT, "_dev/where-mixing-lives.rds"))
+
+on.exit()
+prog_end(pr, "done", sprintf("%d cases", length(out)))
 
 cat(sprintf("\n%d chains x %d draws, so %d kept.\n\n", CHAINS, DRAWS, CHAINS * DRAWS))
 cat(sprintf("%-20s %6s | %8s %8s | %8s %8s | %8s %8s | %6s\n",

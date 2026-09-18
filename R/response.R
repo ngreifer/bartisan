@@ -275,12 +275,25 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            # scale, then shift so the first sits at zero and let the offset carry the
            # location. This makes a two-category response identical to binary
            # regression with the same link.
-           props <- cumsum(tabulate(o$codes + 1L, nbins = o$num_cat)) / length(o$codes)
+           # Half a count per category before accumulating, so that a category
+           # nobody landed in still leaves its two bounds strictly apart. Equal
+           # starting cutpoints would give the slice sampler a zero-width
+           # interval and pin them there for the whole run.
+           counts <- tabulate(o$codes + 1L, nbins = o$num_cat) + 0.5
+           props <- cumsum(counts) / sum(counts)
            props <- pmin(pmax(props[-o$num_cat], 1 / (2 * n)), 1 - 1 / (2 * n))
            raw <- binomial_link(props, link)
+           # `cut_anchor` is where the induced-Dirichlet prior on the cutpoints
+           # reads the category probabilities. The first cutpoint is pinned at
+           # zero and the intercept carries the location, so the anchor is that
+           # intercept: the probabilities the prior is uniform over are then the
+           # ones at the null fit rather than at an arbitrary zero.
            out$opts <- list(num_cat = o$num_cat,
                             cuts = raw - raw[1L],
-                            update_cuts = o$num_cat > 2L)
+                            update_cuts = o$num_cat > 2L,
+                            cut_anchor = -raw[1L],
+                            cut_alpha = family[["cut_alpha"]] %or% 1,
+                            cut_prior = !isTRUE(the$no_cut_prior))
            intercept <- -raw[1L]
          },
 
@@ -454,8 +467,15 @@ prepare_response <- function(family, y, weights, offset, x, n) {
              else 5
            }
 
+           # The induced-Dirichlet anchor is the intercept, so the three
+           # probabilities the prior is uniform over are the observed masses at
+           # zero and one and the interior share, rather than those at an
+           # arbitrary zero.
            out$opts <- list(cut1 = cut1,
                             cut2 = cut2,
+                            cut_alpha = family[["cut_alpha"]] %or% 1,
+                            cut_anchor = intercept,
+                            cut_prior = !isTRUE(the$no_cut_prior),
                             phi = family[["phi"]] %or% max(phi_start, 0.5),
                             phi_prior_shape = 0.01,
                             phi_prior_rate = 0.01,
@@ -766,6 +786,38 @@ prepare_binomial <- function(y, weights, n) {
   list(y = y, weights = weights, levels = levels)
 }
 
+# A numeric response is read as the values it takes, so a rating scale with an
+# unselected point silently becomes a scale with one fewer category and the two
+# thresholds either side of the gap collapse into one. An ordered factor carries
+# its levels whether or not anyone chose them, which is what makes the gap
+# modelable, so that is what to say.
+#
+# Only whole numbers over a short span are worth warning about: a response
+# taking two thousand distinct values is not a scale and its gaps mean nothing,
+# where twenty points covers the rating scales in ordinary use.
+warn_unused_scale_points <- function(values) {
+  if (length(values) < 2L || anyNA(values) || !all(values == trunc(values))) {
+    return(invisible(NULL))
+  }
+
+  span <- as.integer(max(values) - min(values)) + 1L
+
+  if (span > 20L || length(values) == span) {
+    return(invisible(NULL))
+  }
+
+  absent <- setdiff(seq(min(values), max(values)), values)
+
+  arg::wrn(c("the response runs from {min(values)} to {max(values)}, but
+              {length(absent)} value{?s} in that range {?is/are} never taken:
+              {.val {absent}}",
+             i = "Those categories are ignored, so the scale is fitted with
+                  {length(values)} of its {span} points.",
+             i = "To model them, give the response as an {.cls ordered} factor
+                  whose levels include them, as in
+                  {.code ordered(y, levels = {min(values)}:{max(values)})}."))
+}
+
 prepare_ordered <- function(y, name) {
   if (is.ordered(y)) {
     levels <- levels(y)
@@ -784,6 +836,8 @@ prepare_ordered <- function(y, name) {
     values <- sort(unique(y))
     levels <- as.character(values)
     codes <- match(y, values) - 1L
+
+    warn_unused_scale_points(values)
   }
 
   num_cat <- length(levels)

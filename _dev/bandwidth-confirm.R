@@ -74,7 +74,9 @@ cells <- rbind(
               family = c("gaussian_ls", "binomial"), stringsAsFactors = FALSE)
 )
 
-pr <- prog_init(total = nrow(cells) * REPS * 2L,
+n_total <- nrow(cells) * REPS * 2L
+
+pr <- prog_init(total = n_total,
                 title = "bandwidth_every = 10 confirmation", unit = "fit",
                 kind = "simulation")
 on.exit(prog_end(pr, "failed"), add = TRUE)
@@ -122,11 +124,18 @@ for (i in seq_len(nrow(cells))) {
                 label = sprintf("%s %s n=%d p=%d every=%d r%d", cl$family,
                                 cl$shape, cl$n, cl$p, every, r))
     }
+
+    # After every cell rather than after the last one, so a killed run leaves
+    # its finished cells readable. `complete` is what tells a reader which it
+    # is looking at.
+    saveRDS(list(res = do.call(rbind, rows), reps = REPS,
+                 complete = FALSE, done = k, total = n_total), OUT)
   }
 }
 
 res <- do.call(rbind, rows)
-saveRDS(list(res = res, reps = REPS), OUT)
+saveRDS(list(res = res, reps = REPS, complete = TRUE, done = k,
+             total = n_total), OUT)
 on.exit()
 prog_end(pr, "done")
 

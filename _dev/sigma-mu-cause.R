@@ -15,7 +15,30 @@
 # as trees are added, because more leaves make the proposal tighter and tie
 # `sigma_mu` more closely to the forest.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
+
+OUT <- "_dev/sigma-mu-cause.rds"
+
+# Three tree counts, one long run, and two per-chain fits.
+pr <- prog_init(total = 6L, title = "What sigma_mu's mixing is", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last fit"), add = TRUE)
+
+probes <- list()
+chainwise <- list()
+
+# Written after every fit rather than at the end, so a run that is killed still
+# leaves the fits it finished on disk. `complete` is what tells a reader which
+# of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(probes = do.call(rbind, probes),
+               chainwise = if (length(chainwise)) do.call(rbind, chainwise),
+               complete = complete,
+               done = length(probes) + length(chainwise), total = 6L), OUT)
+}
 
 set.seed(1)
 n <- 600
@@ -27,9 +50,13 @@ ess <- function(m) bartisan:::ess_bulk(m)
 
 probe <- function(trees, burn = 750, save = 750) {
   set.seed(2)
+  t0 <- Sys.time()
   fit <- bartisan(y ~ ., data = d, family = gaussian(), chains = 4,
                   control = bartisan_control(num_trees = trees, num_burn = burn,
                                              num_draws = save))
+  secs <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  prog_tick(pr, secs = secs,
+            label = sprintf("%d trees, %d burn + %d draws", trees, burn, save))
   sm <- fit$sigma_mu[, 1]
 
   # Acceptance rate: an independence proposal that is rejected leaves the value
@@ -49,6 +76,14 @@ probe <- function(trees, burn = 750, save = 750) {
               max(r$rhat[startsWith(r$quantity, "sigma_mu")]),
               ess(per_chain), ess(spread),
               max(r$rhat[startsWith(r$quantity, "eta")])))
+
+  probes[[length(probes) + 1L]] <<- data.frame(
+    trees = trees, burn = burn, draws = save, secs = secs, accept = accept,
+    sigma_mu_rhat = max(r$rhat[startsWith(r$quantity, "sigma_mu")]),
+    sigma_mu_ess = ess(per_chain), sd_eta_ess = ess(spread),
+    eta_rhat = max(r$rhat[startsWith(r$quantity, "eta")]))
+  checkpoint(FALSE)
+  invisible(NULL)
 }
 
 for (tr in c(10L, 50L, 200L)) probe(tr)
@@ -80,9 +115,13 @@ cat("\n-- (c): leaf magnitude against tree count, per chain --\n")
 
 for (tr in c(50L, 200L)) {
   set.seed(2)
+  t0 <- Sys.time()
   fit <- bartisan(y ~ ., data = d, family = gaussian(), chains = 4,
                   control = bartisan_control(num_trees = tr, num_burn = 750,
                                              num_draws = 750))
+  prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = sprintf("%d trees, per chain", tr))
+
   sm <- matrix(fit$sigma_mu[, 1], ncol = 4)
   splits <- matrix(rowSums(fit$counts$eta), ncol = 4)
 
@@ -91,4 +130,14 @@ for (tr in c(50L, 200L)) {
   cat(sprintf("           per-chain mean splits   %s   cor %.2f\n",
               paste(sprintf("%.1f", colMeans(splits)), collapse = " "),
               stats::cor(colMeans(sm), colMeans(splits))))
+
+  chainwise[[length(chainwise) + 1L]] <- data.frame(
+    trees = tr, chain = seq_len(4L), sigma_mu = colMeans(sm),
+    splits = colMeans(splits))
+  checkpoint(FALSE)
 }
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done")
+cat("\nwrote", OUT, "\n")

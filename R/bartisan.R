@@ -11,7 +11,7 @@
 #'
 #' @param formula a model formula. The right-hand side lists candidate
 #'   predictors; the model finds interactions and nonlinearity on its own, so
-#'   `y ~ .` is usually the right specification. Survival families take a
+#'   `y ~ x1 + x2 + x3` is usually the right specification. Survival families take a
 #'   \pkgfun{survival}{Surv} object on the left. A `(1 | group)` term adds a
 #'   group-level random intercept, in the notation of \pkg{lme4}; see Details.
 #'
@@ -23,7 +23,8 @@
 #'   can be named instead of ordered:
 #'
 #'   ```r
-#'   bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = gaussian_ls())
+#'   bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d,
+#'            family = gaussian_ls())
 #'   bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
 #'            family = gaussian_ls())
 #'   ```
@@ -32,23 +33,10 @@
 #'   left out of one forest's formula is still in the data and is never split on
 #'   by that forest.
 #'
-#'   **A formula naming no predictor at all makes that parameter a constant.**
+#'   A formula naming no predictor at all makes that parameter a constant.
 #'   `~ 1` leaves its forest nothing to split on, so every tree in it is a stump
 #'   and the forest is a single drawn scalar rather than a function of the
-#'   predictors. This works for every family that takes more than one formula, and
-#'   it is how a nuisance parameter is asked for without a family that has one
-#'   built in: `gaussian_ls()` with `~ 1` on its scale is `gaussian()` with its
-#'   drawn `sigma`, `Gamma_ls()` with `~ 1` is `Gamma("log")` with its drawn
-#'   shape, and `zi_poisson()` with `~ 1` on its inflation part is the ordinary
-#'   zero-inflated Poisson with one structural-zero probability. The scalar is
-#'   drawn under the leaf prior rather than under the prior the built-in family
-#'   would use, so the two agree to within that difference rather than exactly.
-#'
-#'   ```r
-#'   # the scale free to vary, then held constant
-#'   bartisan(y ~ x1 + x2, data = d, family = gaussian_ls())
-#'   bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = gaussian_ls())
-#'   ```
+#'   predictors.
 #'
 #'   [vc()] terms are read out of each formula in turn, so a parameter has the
 #'   varying coefficients its own formula asks for and no others, which makes the
@@ -93,11 +81,11 @@
 #'   rather than being silently ignored.
 #'
 #' @details
-#' ## What the Sampler Does
+#' ## The Sampler
 #'
 #' Standard BART relies on the leaf parameters being integrable in closed form,
 #' which restricts it to a Gaussian response, or to models that can be reduced to
-#' one by data augmentation. Linero's algorithm removes that restriction. At each
+#' one by data augmentation. Linero's (2025) algorithm removes that restriction. At each
 #' candidate move it builds a Gaussian approximation to the conditional posterior
 #' of the affected leaf parameters, by Fisher scoring, and uses that
 #' approximation as the proposal in a reversible-jump Metropolis step. The
@@ -128,14 +116,10 @@
 #' A message reports the choice, and naming `family` is what silences it, which
 #' is also what changes it.
 #'
-#' Two of these are worth saying out loud. A **count** is not inferred as
-#' `poisson()`: a non-negative integer response is often Poisson and often not,
-#' and the Poisson variance assumption is strong enough that making it silently
-#' would be a modeling decision taken on the caller's behalf. Gaussian is the
-#' weaker guess and the one whose failure is easy to see. And a numeric response
-#' with exactly two values that are *not* zero and one (e.g., `c(1, 2)`) is
-#' Gaussian rather than binomial, because which of the two counts as the success
-#' is not something to guess at.
+#' Two scenarios are worth noting. A count is read as a numeric variable and therefore has `dpm()` as its default. And a
+#' numeric response with exactly two values other than zero and one (e.g.,
+#' `c(1, 2)`) is also given `dpm()` as its default rather than `binomial()`, which of the two counts as the
+#' success not being something to guess at.
 #'
 #' ## Soft Decision Rules
 #'
@@ -180,15 +164,11 @@
 #' split on the group and on the variable together and get an interaction of any
 #' shape.
 #'
-#' **When to reach for this rather than putting the group in as a predictor.** A
-#' grouping factor can also go in the fixed part, where a tree splits on it like
-#' anything else, and with few large groups that is the better choice; measured,
-#' it beats a random intercept, because the group means are well determined
-#' without pooling and a split can interact the group with the covariates. The
-#' random intercept wins when there are many small groups, which is where partial
-#' pooling earns its keep: at 250 groups of four observations it cut held-out
-#' error by 30% against the factor route, and at five groups of a hundred it lost
-#' to it.
+#' A grouping factor can also go in the fixed part, where a tree splits on it
+#' like anything else, and with few large groups that is the better choice: the
+#' group means are well determined without pooling and a split can interact the
+#' group with the covariates. The random intercept wins where there are many
+#' small groups, which is where partial pooling earns its keep.
 #'
 #' A level of `group` that was not present at fitting time is given the prior
 #' mean of zero when predicting, with a warning.
@@ -205,32 +185,22 @@
 #' - `x < c` goes left, missing goes right;
 #' - missing goes left, present goes right.
 #'
-#' This is *missingness incorporated in attributes* (Twala, Jones and Hand 2008;
-#' for BART, Kapelner and Bleich 2015). The third rule is what lets the model
-#' split on missingness itself, so a variable whose *absence* carries the signal
-#' is usable even if its observed values say nothing. Since the choice is drawn
-#' from its prior along with the variable and the cutpoint, it cancels from every
-#' acceptance ratio, and a variable with no missing values is not given the extra
-#' draw at all: complete data reproduces the sampler exactly as it was.
-#'
-#' A missing value takes a hard path through the tree even when the rules are
-#' soft (there being nothing about absence to smooth over), which keeps the leaf
-#' weights summing to one.
+#' This is missingness incorporated in attributes, and the third rule is what
+#' lets the model split on missingness itself, so a variable whose absence
+#' carries the signal is usable even where its observed values say nothing.
 #'
 #' Two consequences are worth being clear about. `predict()` accepts missing
-#' values only in columns that had them at fitting time, because only those
-#' columns' rules carry an answer; elsewhere every rule would send the value the
-#' same arbitrary way, so a missing value is an error instead. And what the model
-#' estimates is the mean of the response given the predictors *and the pattern of
-#' missingness*, which is the quantity prediction calls for. Note that if the
-#' estimand is a regression or causal effect defined on complete data, multiple
-#' imputation is the right tool and this is not.
+#' values in a column that had them at fitting time, those being the columns
+#' whose rules carry an answer. And what the model estimates is the mean of the
+#' response given the predictors and the pattern of missingness, which is the
+#' quantity prediction calls for; where the estimand is a regression or causal
+#' effect defined on complete data, multiple imputation is the right tool.
 #'
 #' ## Preprocessing
 #'
 #' Predictors are mapped to the unit interval, because the cutpoint prior is
 #' uniform on a node's live range and the soft-rule bandwidth is measured on the
-#' predictor scale. Factors are expanded to an indicator per level and share a
+#' predictor scale. Factors share a
 #' single weight in the sparsity prior, so that a factor is selected or not as a
 #' whole rather than one level at a time. The additive predictor starts from an
 #' intercept-only fit, so the leaf prior describes departures from that fit
@@ -240,11 +210,44 @@
 #' for the zero-inflated and ordered beta families, it is a moment
 #' approximation, which the sampler then moves away from.
 #'
+#' ## Drawing From the Prior (`prior_only`)
+#'
+#' `prior_only = TRUE` fits the same model to no data. Every observation is given
+#' a weight of zero, and since the weight multiplies that observation's log
+#' density, its gradient, and its curvature, the likelihood is flat: each tree
+#' move is accepted or rejected on the prior alone and each leaf is drawn from
+#' its prior. A family that draws an auxiliary parameter from the response
+#' directly rather than through the weighted density (the mixture atoms under
+#' `dpm()`, the latent utilities under `multinomial(link = "probit")`) is told
+#' separately that a weightless observation carries no information, and draws
+#' that parameter from its own prior instead. The sampler is otherwise untouched,
+#' so what comes back is an ordinary fit whose draws are prior draws, and
+#' \pkgfun{rstantools}{posterior_predict} on it gives the prior predictive
+#' distribution.
+#'
+#' It answers a question the priors themselves cannot. `k`, `gamma` and `beta`
+#' are statements about trees and leaves, and what they
+#' imply about an outcome is opaque. The replicates put that on the response's own scale,
+#' where it can be judged: a prior predictive that puts its mass where the
+#' outcome cannot go, or spread over an implausible range, is a prior worth
+#' changing before the data are seen and before any of their information is
+#' spent.
+#'
+#' The additive predictor is anchored at an intercept-only fit on the link scale
+#' and the leaf scale is calibrated from the response, which is how a BART prior
+#' is specified. The replicates therefore take their location and scale from the
+#' response and everything else from the prior: which predictors are split on,
+#' how deep, how far the fitted function departs from that anchor. Read them for
+#' shape and spread rather than for level, and note that the wider a prior is the
+#' wider its replicates, so `gaussian_ls()` and `Gamma_ls()`, which put a log
+#' scale in a second forest, run far wider than the response ever does.
+#'
+#' `loo()`, `waic()` and `kfold()` score a fit against data, so they refuse a
+#' prior-only fit, and \pkgfun{performance}{model_performance} leaves out the
+#' three columns built on them.
+#'
 #' @returns
 #' A `<bartisan_fit>` object, a list with the following components among others.
-#' Note that convergence diagnostics are not among them: computing R-hat and the
-#' effective sample sizes for every observation costs more than the sampling
-#' does, so it is [diagnose()]'s work and happens when it is asked for.
 #'
 #'   \item{`eta`}{a list with one matrix per additive predictor, each of
 #'     posterior draws by observation, on the link scale.}
@@ -260,11 +263,7 @@
 #'     for soft rules, the per-tree gate bandwidths.}
 #'   \item{`loglik`}{the log likelihood at each draw.}
 #'   \item{`control`}{the `<bartisan_control>` object the fit used, with any
-#'     settings given in `...` merged in. Its `augment` element is a `logical`
-#'     saying whether a rewriting of the likelihood was applied to this fit,
-#'     rather than the families one was permitted for; what was asked for
-#'     remains in `attr(control, "supplied")`.}
-#'
+#'     settings given in `...` merged in.}
 #'
 #' @references
 #' Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
@@ -274,81 +273,6 @@
 #' Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles that
 #' adapt to smoothness and sparsity. *Journal of the Royal Statistical Society
 #' Series B*, 80(5), 1087--1110. \doi{10.1111/rssb.12293}
-#'
-#' Albert, J. H., & Chib, S. (1993). Bayesian analysis of binary and
-#' polychotomous response data. *Journal of the American Statistical
-#' Association*, 88(422), 669--679. \doi{10.1080/01621459.1993.10476321}
-#'
-#' Polson, N. G., Scott, J. G., & Windle, J. (2013). Bayesian inference for
-#' logistic models using Polya-Gamma latent variables. *Journal of the American
-#' Statistical Association*, 108(504), 1339--1349.
-#' \doi{10.1080/01621459.2013.829001}
-#'
-#' Kapelner, A., & Bleich, J. (2015). Prediction with missing data via Bayesian
-#' additive regression trees. *Canadian Journal of Statistics*, 43(2), 224--239.
-#' \doi{10.1002/cjs.11248}
-#'
-#' Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., & Buerkner, P.-C. (2021).
-#' Rank-normalization, folding, and localization: an improved \eqn{\widehat{R}}
-#' for assessing convergence of MCMC. *Bayesian Analysis*, 16(2), 667--718.
-#' \doi{10.1214/20-BA1221}
-#'
-#' Twala, B. E. T. H., Jones, M. C., & Hand, D. J. (2008). Good methods for
-#' coping with missing data in decision trees. *Pattern Recognition Letters*,
-#' 29(7), 950--956. \doi{10.1016/j.patrec.2008.01.010}
-#'
-#' ## Drawing From the Prior (`prior_only`)
-#'
-#' `prior_only = TRUE` fits the same model to no data. Every observation is given
-#' a weight of zero, and since the weight multiplies that observation's log
-#' density, its gradient and its curvature, the likelihood is flat: each tree
-#' move is accepted or rejected on the prior alone and each leaf is drawn from
-#' its prior. A family that draws an auxiliary parameter from the response
-#' directly rather than through the weighted density (the mixture atoms under
-#' `dpm()`, the latent utilities under `multinomial(link = "probit")`) is told
-#' separately that a weightless observation carries no information, and draws
-#' that parameter from its own prior instead. The sampler is otherwise untouched,
-#' so what comes back is an ordinary fit whose draws are prior draws, and
-#' \pkgfun{rstantools}{posterior_predict} on it gives the prior predictive
-#' distribution.
-#'
-#' It answers a question the priors themselves cannot. `k`, `gamma` and `beta`
-#' are statements about trees and leaves, and nobody has intuition for what they
-#' imply about an outcome. The replicates put that on the response's own scale,
-#' where it can be judged: a prior predictive that puts its mass where the
-#' outcome cannot go, or spread over an implausible range, is a prior worth
-#' changing before the data are seen and before any of their information is
-#' spent.
-#'
-#' **What the prior is still conditioned on.** The additive predictor is anchored
-#' at an intercept-only fit on the link scale, and the leaf scale is calibrated
-#' from the response, which is how a BART prior is specified and not a leak.
-#' So the replicates take their *location and scale* from the response and
-#' everything else from the prior: which predictors are split on, how deep, how
-#' much the fitted function departs from that anchor. Read them for shape and
-#' spread rather than for level.
-#'
-#' **The two families that refuse it.** `ordinal()` and `ordbeta()` draw their
-#' cutpoints from the likelihood alone, with no prior term to fall back on, so at
-#' zero weight the target is not flattened but empty and the cutpoints wander out
-#' to the bound. The replicates would pile at one end of the scale with nothing
-#' in the fit to say so, which is why this is an error rather than a warning. The
-#' gap is in the model and not in the mechanism; it would close if a prior over
-#' ordered cutpoints were specified. Every other family allows it, and for an
-#' ordered outcome with few enough categories `multinomial()` is the nearest
-#' substitute.
-#'
-#' Note that the wider a prior is, the wider its replicates, and that is a
-#' finding rather than a fault. `gaussian_ls()` and `Gamma_ls()` put a log scale
-#' in a second forest, and a scale drawn from the leaf prior sends their
-#' replicates far wider than the response ever runs. That is the prior the
-#' defaults specify, shown on the scale where it can be judged, which is what
-#' the check is for.
-#'
-#' Nothing that scores a fit against data will run on one. `loo()`, `waic()` and
-#' `kfold()` refuse, and
-#' \pkgfun{performance}{model_performance} leaves out the three columns built on
-#' them.
 #'
 #' @seealso
 #' [bartisan_control()] for the sampler and prior settings;
@@ -454,7 +378,14 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # The frame carries the varying covariates, so they get the same missing-value
   # handling as any predictor; the design does not.
   mf[["formula"]] <- reformulas::subbars(vc_to_names(formula))
-  mf[["drop.unused.levels"]] <- TRUE
+
+  # Unused levels are dropped from the predictors below rather than here,
+  # because `model.frame()` would drop them from the *response* too. An ordinal
+  # model can estimate a threshold for a category nobody landed in -- the
+  # categories either side of it inform the two thresholds that bound it -- and
+  # a rating scale with an unselected point is the ordinary case, not a
+  # degenerate one.
+  mf[["drop.unused.levels"]] <- FALSE
 
   # Set from the formal rather than carried over from the call. `match.call()`
   # only records what the caller actually wrote, so an argument left at its
@@ -504,6 +435,16 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   mf[[1L]] <- quote(stats::model.frame)
   mf <- eval(mf, parent.frame())
+
+  # An indicator column that can never fire is only a cost, so the predictors
+  # lose their unused levels; the response keeps them.
+  response_at <- attr(attr(mf, "terms"), "response")
+
+  for (j in seq_along(mf)) {
+    if (j != response_at && is.factor(mf[[j]])) {
+      mf[[j]] <- droplevels(mf[[j]])
+    }
+  }
 
   # The terms of the fixed part, which is what the trees split on. The frame's
   # own terms include the grouping variables, because the frame was built from
@@ -1051,11 +992,10 @@ run_chains <- function(engine, chains) {
 #
 # Refused rather than warned about, because the failure is silent: a fit comes
 # back and the replicates look like replicates, all of them piled at one end.
-PRIOR_ONLY_REFUSED <- c(
-  ordinal = "its cutpoints are drawn from the likelihood alone, with no prior
-             term to fall back on when the likelihood goes flat",
-  ordbeta = "its cutpoints are drawn from the likelihood alone, with no prior
-             term to fall back on when the likelihood goes flat")
+# `ordinal()` and `ordbeta()` were both here. Their cutpoints now carry the
+# induced-Dirichlet prior, so a flat likelihood leaves a proper density to draw
+# from and every family supports `prior_only = TRUE`.
+PRIOR_ONLY_REFUSED <- character()
 
 # The prior as the engine received it, trimmed to the forests that are reported.
 #

@@ -20,7 +20,7 @@ bartisan(
 \arguments{
 \item{formula}{a model formula. The right-hand side lists candidate
 predictors; the model finds interactions and nonlinearity on its own, so
-\code{y ~ .} is usually the right specification. Survival families take a
+\code{y ~ x1 + x2 + x3} is usually the right specification. Survival families take a
 \pkgfun{survival}{Surv} object on the left. A \code{(1 | group)} term adds a
 group-level random intercept, in the notation of \pkg{lme4}; see Details.
 
@@ -31,7 +31,8 @@ response, and follow the order in \link{bartisan-families}, under "Several
 additive predictors", which also gives the name of each forest so the list
 can be named instead of ordered:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d, family = gaussian_ls())
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d,
+         family = gaussian_ls())
 bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
          family = gaussian_ls())
 }\if{html}{\out{</div>}}
@@ -40,22 +41,10 @@ One formula applies to every forest, which is the ordinary case. A predictor
 left out of one forest's formula is still in the data and is never split on
 by that forest.
 
-\strong{A formula naming no predictor at all makes that parameter a constant.}
+A formula naming no predictor at all makes that parameter a constant.
 \code{~ 1} leaves its forest nothing to split on, so every tree in it is a stump
 and the forest is a single drawn scalar rather than a function of the
-predictors. This works for every family that takes more than one formula, and
-it is how a nuisance parameter is asked for without a family that has one
-built in: \code{gaussian_ls()} with \code{~ 1} on its scale is \code{gaussian()} with its
-drawn \code{sigma}, \code{Gamma_ls()} with \code{~ 1} is \code{Gamma("log")} with its drawn
-shape, and \code{zi_poisson()} with \code{~ 1} on its inflation part is the ordinary
-zero-inflated Poisson with one structural-zero probability. The scalar is
-drawn under the leaf prior rather than under the prior the built-in family
-would use, so the two agree to within that difference rather than exactly.
-
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{# the scale free to vary, then held constant
-bartisan(y ~ x1 + x2, data = d, family = gaussian_ls())
-bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = gaussian_ls())
-}\if{html}{\out{</div>}}
+predictors.
 
 \code{\link[=vc]{vc()}} terms are read out of each formula in turn, so a parameter has the
 varying coefficients its own formula asks for and no others, which makes the
@@ -110,9 +99,6 @@ rather than being silently ignored.}
 }
 \value{
 A \verb{<bartisan_fit>} object, a list with the following components among others.
-Note that convergence diagnostics are not among them: computing R-hat and the
-effective sample sizes for every observation costs more than the sampling
-does, so it is \code{\link[=diagnose]{diagnose()}}'s work and happens when it is asked for.
 
 \item{\code{eta}}{a list with one matrix per additive predictor, each of
 posterior draws by observation, on the link scale.}
@@ -128,10 +114,7 @@ what determines where \code{predict()} will accept one.}
 for soft rules, the per-tree gate bandwidths.}
 \item{\code{loglik}}{the log likelihood at each draw.}
 \item{\code{control}}{the \verb{<bartisan_control>} object the fit used, with any
-settings given in \code{...} merged in. Its \code{augment} element is a \code{logical}
-saying whether a rewriting of the likelihood was applied to this fit,
-rather than the families one was permitted for; what was asked for
-remains in \code{attr(control, "supplied")}.}
+settings given in \code{...} merged in.}
 }
 \description{
 Fits a BART model in which the response distribution is arbitrary rather than
@@ -143,11 +126,11 @@ a formula, a data frame, and a family, with the families that \code{glm()} has n
 counterpart for documented at \link{bartisan-families}.
 }
 \details{
-\subsection{What the Sampler Does}{
+\subsection{The Sampler}{
 
 Standard BART relies on the leaf parameters being integrable in closed form,
 which restricts it to a Gaussian response, or to models that can be reduced to
-one by data augmentation. Linero's algorithm removes that restriction. At each
+one by data augmentation. Linero's (2025) algorithm removes that restriction. At each
 candidate move it builds a Gaussian approximation to the conditional posterior
 of the affected leaf parameters, by Fisher scoring, and uses that
 approximation as the proposal in a reversible-jump Metropolis step. The
@@ -179,14 +162,10 @@ the derivatives.
 A message reports the choice, and naming \code{family} is what silences it, which
 is also what changes it.
 
-Two of these are worth saying out loud. A \strong{count} is not inferred as
-\code{poisson()}: a non-negative integer response is often Poisson and often not,
-and the Poisson variance assumption is strong enough that making it silently
-would be a modeling decision taken on the caller's behalf. Gaussian is the
-weaker guess and the one whose failure is easy to see. And a numeric response
-with exactly two values that are \emph{not} zero and one (e.g., \code{c(1, 2)}) is
-Gaussian rather than binomial, because which of the two counts as the success
-is not something to guess at.
+Two scenarios are worth noting. A count is read as a numeric variable and therefore has \code{dpm()} as its default. And a
+numeric response with exactly two values other than zero and one (e.g.,
+\code{c(1, 2)}) is also given \code{dpm()} as its default rather than \code{binomial()}, which of the two counts as the
+success not being something to guess at.
 }
 
 \subsection{Soft Decision Rules}{
@@ -232,15 +211,11 @@ varies by group belongs in the fixed part of the formula, where a tree can
 split on the group and on the variable together and get an interaction of any
 shape.
 
-\strong{When to reach for this rather than putting the group in as a predictor.} A
-grouping factor can also go in the fixed part, where a tree splits on it like
-anything else, and with few large groups that is the better choice; measured,
-it beats a random intercept, because the group means are well determined
-without pooling and a split can interact the group with the covariates. The
-random intercept wins when there are many small groups, which is where partial
-pooling earns its keep: at 250 groups of four observations it cut held-out
-error by 30\% against the factor route, and at five groups of a hundred it lost
-to it.
+A grouping factor can also go in the fixed part, where a tree splits on it
+like anything else, and with few large groups that is the better choice: the
+group means are well determined without pooling and a split can interact the
+group with the covariates. The random intercept wins where there are many
+small groups, which is where partial pooling earns its keep.
 
 A level of \code{group} that was not present at fitting time is given the prior
 mean of zero when predicting, with a warning.
@@ -259,33 +234,23 @@ equal probability:
 \item missing goes left, present goes right.
 }
 
-This is \emph{missingness incorporated in attributes} (Twala, Jones and Hand 2008;
-for BART, Kapelner and Bleich 2015). The third rule is what lets the model
-split on missingness itself, so a variable whose \emph{absence} carries the signal
-is usable even if its observed values say nothing. Since the choice is drawn
-from its prior along with the variable and the cutpoint, it cancels from every
-acceptance ratio, and a variable with no missing values is not given the extra
-draw at all: complete data reproduces the sampler exactly as it was.
-
-A missing value takes a hard path through the tree even when the rules are
-soft (there being nothing about absence to smooth over), which keeps the leaf
-weights summing to one.
+This is missingness incorporated in attributes, and the third rule is what
+lets the model split on missingness itself, so a variable whose absence
+carries the signal is usable even where its observed values say nothing.
 
 Two consequences are worth being clear about. \code{predict()} accepts missing
-values only in columns that had them at fitting time, because only those
-columns' rules carry an answer; elsewhere every rule would send the value the
-same arbitrary way, so a missing value is an error instead. And what the model
-estimates is the mean of the response given the predictors \emph{and the pattern of
-missingness}, which is the quantity prediction calls for. Note that if the
-estimand is a regression or causal effect defined on complete data, multiple
-imputation is the right tool and this is not.
+values in a column that had them at fitting time, those being the columns
+whose rules carry an answer. And what the model estimates is the mean of the
+response given the predictors and the pattern of missingness, which is the
+quantity prediction calls for; where the estimand is a regression or causal
+effect defined on complete data, multiple imputation is the right tool.
 }
 
 \subsection{Preprocessing}{
 
 Predictors are mapped to the unit interval, because the cutpoint prior is
 uniform on a node's live range and the soft-rule bandwidth is measured on the
-predictor scale. Factors are expanded to an indicator per level and share a
+predictor scale. Factors share a
 single weight in the sparsity prior, so that a factor is selected or not as a
 whole rather than one level at a time. The additive predictor starts from an
 intercept-only fit, so the leaf prior describes departures from that fit
@@ -294,6 +259,43 @@ exact null-model estimate for most families; for the accelerated failure time
 families, where censoring makes the sample mean of the log times biased, and
 for the zero-inflated and ordered beta families, it is a moment
 approximation, which the sampler then moves away from.
+}
+
+\subsection{Drawing From the Prior (\code{prior_only})}{
+
+\code{prior_only = TRUE} fits the same model to no data. Every observation is given
+a weight of zero, and since the weight multiplies that observation's log
+density, its gradient, and its curvature, the likelihood is flat: each tree
+move is accepted or rejected on the prior alone and each leaf is drawn from
+its prior. A family that draws an auxiliary parameter from the response
+directly rather than through the weighted density (the mixture atoms under
+\code{dpm()}, the latent utilities under \code{multinomial(link = "probit")}) is told
+separately that a weightless observation carries no information, and draws
+that parameter from its own prior instead. The sampler is otherwise untouched,
+so what comes back is an ordinary fit whose draws are prior draws, and
+\pkgfun{rstantools}{posterior_predict} on it gives the prior predictive
+distribution.
+
+It answers a question the priors themselves cannot. \code{k}, \code{gamma} and \code{beta}
+are statements about trees and leaves, and what they
+imply about an outcome is opaque. The replicates put that on the response's own scale,
+where it can be judged: a prior predictive that puts its mass where the
+outcome cannot go, or spread over an implausible range, is a prior worth
+changing before the data are seen and before any of their information is
+spent.
+
+The additive predictor is anchored at an intercept-only fit on the link scale
+and the leaf scale is calibrated from the response, which is how a BART prior
+is specified. The replicates therefore take their location and scale from the
+response and everything else from the prior: which predictors are split on,
+how deep, how far the fitted function departs from that anchor. Read them for
+shape and spread rather than for level, and note that the wider a prior is the
+wider its replicates, so \code{gaussian_ls()} and \code{Gamma_ls()}, which put a log
+scale in a second forest, run far wider than the response ever does.
+
+\code{loo()}, \code{waic()} and \code{kfold()} score a fit against data, so they refuse a
+prior-only fit, and \pkgfun{performance}{model_performance} leaves out the
+three columns built on them.
 }
 }
 \examples{
@@ -326,81 +328,6 @@ Association}, 120(549), 356--369. \doi{10.1080/01621459.2024.2337156}
 Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles that
 adapt to smoothness and sparsity. \emph{Journal of the Royal Statistical Society
 Series B}, 80(5), 1087--1110. \doi{10.1111/rssb.12293}
-
-Albert, J. H., & Chib, S. (1993). Bayesian analysis of binary and
-polychotomous response data. \emph{Journal of the American Statistical
-Association}, 88(422), 669--679. \doi{10.1080/01621459.1993.10476321}
-
-Polson, N. G., Scott, J. G., & Windle, J. (2013). Bayesian inference for
-logistic models using Polya-Gamma latent variables. \emph{Journal of the American
-Statistical Association}, 108(504), 1339--1349.
-\doi{10.1080/01621459.2013.829001}
-
-Kapelner, A., & Bleich, J. (2015). Prediction with missing data via Bayesian
-additive regression trees. \emph{Canadian Journal of Statistics}, 43(2), 224--239.
-\doi{10.1002/cjs.11248}
-
-Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., & Buerkner, P.-C. (2021).
-Rank-normalization, folding, and localization: an improved \eqn{\widehat{R}}
-for assessing convergence of MCMC. \emph{Bayesian Analysis}, 16(2), 667--718.
-\doi{10.1214/20-BA1221}
-
-Twala, B. E. T. H., Jones, M. C., & Hand, D. J. (2008). Good methods for
-coping with missing data in decision trees. \emph{Pattern Recognition Letters},
-29(7), 950--956. \doi{10.1016/j.patrec.2008.01.010}
-\subsection{Drawing From the Prior (\code{prior_only})}{
-
-\code{prior_only = TRUE} fits the same model to no data. Every observation is given
-a weight of zero, and since the weight multiplies that observation's log
-density, its gradient and its curvature, the likelihood is flat: each tree
-move is accepted or rejected on the prior alone and each leaf is drawn from
-its prior. A family that draws an auxiliary parameter from the response
-directly rather than through the weighted density (the mixture atoms under
-\code{dpm()}, the latent utilities under \code{multinomial(link = "probit")}) is told
-separately that a weightless observation carries no information, and draws
-that parameter from its own prior instead. The sampler is otherwise untouched,
-so what comes back is an ordinary fit whose draws are prior draws, and
-\pkgfun{rstantools}{posterior_predict} on it gives the prior predictive
-distribution.
-
-It answers a question the priors themselves cannot. \code{k}, \code{gamma} and \code{beta}
-are statements about trees and leaves, and nobody has intuition for what they
-imply about an outcome. The replicates put that on the response's own scale,
-where it can be judged: a prior predictive that puts its mass where the
-outcome cannot go, or spread over an implausible range, is a prior worth
-changing before the data are seen and before any of their information is
-spent.
-
-\strong{What the prior is still conditioned on.} The additive predictor is anchored
-at an intercept-only fit on the link scale, and the leaf scale is calibrated
-from the response, which is how a BART prior is specified and not a leak.
-So the replicates take their \emph{location and scale} from the response and
-everything else from the prior: which predictors are split on, how deep, how
-much the fitted function departs from that anchor. Read them for shape and
-spread rather than for level.
-
-\strong{The two families that refuse it.} \code{ordinal()} and \code{ordbeta()} draw their
-cutpoints from the likelihood alone, with no prior term to fall back on, so at
-zero weight the target is not flattened but empty and the cutpoints wander out
-to the bound. The replicates would pile at one end of the scale with nothing
-in the fit to say so, which is why this is an error rather than a warning. The
-gap is in the model and not in the mechanism; it would close if a prior over
-ordered cutpoints were specified. Every other family allows it, and for an
-ordered outcome with few enough categories \code{multinomial()} is the nearest
-substitute.
-
-Note that the wider a prior is, the wider its replicates, and that is a
-finding rather than a fault. \code{gaussian_ls()} and \code{Gamma_ls()} put a log scale
-in a second forest, and a scale drawn from the leaf prior sends their
-replicates far wider than the response ever runs. That is the prior the
-defaults specify, shown on the scale where it can be judged, which is what
-the check is for.
-
-Nothing that scores a fit against data will run on one. \code{loo()}, \code{waic()} and
-\code{kfold()} refuse, and
-\pkgfun{performance}{model_performance} leaves out the three columns built on
-them.
-}
 }
 \seealso{
 \code{\link[=bartisan_control]{bartisan_control()}} for the sampler and prior settings;

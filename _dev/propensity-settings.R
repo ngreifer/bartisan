@@ -12,6 +12,9 @@
 #
 # See _dev/SIMULATION.md for what makes this design work and how to reuse it.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 # `Rscript _dev/propensity-settings.R <reps> [design]`. Naming a design runs
@@ -206,6 +209,33 @@ designs <- rbind(
 out <- list()
 
 rows <- if (is.na(only)) seq_len(nrow(designs)) else only
+OUT <- if (is.na(only)) {
+  "_dev/propensity-settings.rds"
+} else {
+  sprintf("_dev/propensity-settings-%d.rds", only)
+}
+
+n_total <- length(rows) * reps * length(settings)
+done <- 0L
+
+title <- if (is.na(only)) {
+  "Propensity settings"
+} else {
+  sprintf("Propensity settings: design %d", only)
+}
+
+pr <- prog_init(total = n_total, unit = "fit", kind = "simulation",
+                title = title)
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+# Written after every replicate rather than after the last one, so a run that
+# is killed leaves its finished replicates readable. `complete` is what tells a
+# reader which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete, done = done,
+               total = n_total, reps = reps, designs = designs[rows, ]), OUT)
+}
 
 for (di in rows) {
   dg <- designs[di, ]
@@ -230,18 +260,22 @@ for (di in rows) {
         surface = dg[["surface"]], hetero = dg[["hetero"]],
         confounding = dg[["confounding"]]
       )
+
+      done <- done + 1L
+      prog_tick(pr, i = done, secs = elapsed,
+                label = sprintf("%s / %s / %s / %s rep %d", dg[["data"]],
+                                dg[["selection"]], dg[["confounding"]], nm, r))
     }
 
-    cat(sprintf("  %s / %s / %s: rep %d of %d\n", dg[["data"]],
-                dg[["selection"]], dg[["confounding"]], r, reps))
-    utils::flush.console()
+    checkpoint(FALSE)
   }
 }
 
+checkpoint(TRUE)
 results <- do.call(rbind, out)
 
-saveRDS(results, if (is.na(only)) "_dev/propensity-settings.rds"
-                else sprintf("_dev/propensity-settings-%d.rds", only))
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
 
 # ---- the report -------------------------------------------------------------
 

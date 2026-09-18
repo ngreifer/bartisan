@@ -525,9 +525,72 @@ inline double ordinal_log_prob(int cat, double eta, const arma::vec& c,
 // one step and redrawing them straight afterwards is a partially collapsed Gibbs
 // sampler in the sense of Van Dyk and Park (2008), and is the standard fix
 // (Cowles 1996).
+// The density of the link's latent error, which is the Jacobian of the map from
+// a cutpoint to the category probability it bounds.
+inline double opt_double(const Rcpp::List& opts, const char* name,
+                         double fallback) {
+  return opts.containsElementNamed(name) ? Rcpp::as<double>(opts[name])
+                                         : fallback;
+}
+
+inline bool opt_bool(const Rcpp::List& opts, const char* name, bool fallback) {
+  return opts.containsElementNamed(name) ? Rcpp::as<bool>(opts[name])
+                                         : fallback;
+}
+
+inline double ordinal_link_logpdf(double z, int link) {
+  if (link == ORD_LOGIT) {
+    return log_expit(z) + log1m_expit(z);
+  }
+
+  if (link == ORD_PROBIT) {
+    return R::dnorm4(z, 0.0, 1.0, 1);
+  }
+
+  // P(Y <= k) = 1 - exp(-exp(z)), so the density is exp(z - exp(z)).
+  return z - std::exp(z);
+}
+
+// The induced-Dirichlet prior on the cutpoints (Betancourt 2019; Cerullo et al.
+// 2025). A cutpoint vector is an awkward thing to put a prior on directly: the
+// parameters are ordered, live on the latent scale, and mean nothing on their
+// own. The category probabilities they induce at a fixed anchor are not awkward
+// at all, so the prior is placed there and pulled back:
+//
+//   log p(C) = sum_k (alpha_k - 1) log P_k(C) + sum_j log f(C_j)
+//
+// with P the induced probabilities at the anchor and f the link's density,
+// whose product over the free cutpoints is the Jacobian determinant of the map
+// (the matrix is lower bidiagonal, so the determinant is its diagonal).
+//
+// At alpha = 1 the Dirichlet term vanishes and the prior is the Jacobian alone,
+// which is a proper density and says the induced probabilities are uniform on
+// the simplex. That is what makes it worth having by default: without any prior
+// term the cutpoints are identified by the likelihood alone, so a category
+// nobody lands in sends its bounds to wherever the slice can reach, and a
+// weightless fit (`prior_only = TRUE`) has nothing to draw from at all.
+inline double induced_dirichlet_logpdf(const arma::vec& cuts, int num_cat,
+                                       int link, double alpha, double anchor) {
+  double out = 0.0;
+
+  for (int j = 0; j <= num_cat - 2; j++) {
+    out += ordinal_link_logpdf(cuts(j) - anchor, link);
+  }
+
+  if (alpha != 1.0) {
+    for (int k = 0; k < num_cat; k++) {
+      out += (alpha - 1.0) *
+        ordinal_log_prob(k, anchor, cuts, num_cat, link);
+    }
+  }
+
+  return out;
+}
+
 inline void update_ordinal_cuts(arma::vec& cuts, int num_cat, int link,
                                 const std::vector<std::vector<int> >& by_cat,
-                                const arma::vec& w, const arma::rowvec& e) {
+                                const arma::vec& w, const arma::rowvec& e,
+                                double alpha, double anchor, bool with_prior) {
   if (num_cat < 3) {
     return;
   }
@@ -543,7 +606,14 @@ inline void update_ordinal_cuts(arma::vec& cuts, int num_cat, int link,
 
     auto logf = [&](double value) {
       trial(k) = value;
-      double out = 0.0;
+      double out = with_prior ? ordinal_link_logpdf(value - anchor, link) : 0.0;
+
+      if (with_prior && alpha != 1.0) {
+        out += (alpha - 1.0) *
+          (ordinal_log_prob(k, anchor, trial, num_cat, link) +
+           ordinal_log_prob(k + 1, anchor, trial, num_cat, link));
+      }
+
       for (std::size_t m = 0; m < below.size(); m++) {
         int i = below[m];
         out += w(i) * ordinal_log_prob(k, e(i), trial, num_cat, link);
@@ -601,16 +671,23 @@ struct OrdinalProbitAugmentedFamily : Concrete<OrdinalProbitAugmentedFamily> {
   int num_cat;
   arma::vec cuts;       // length num_cat - 1, cuts(0) fixed at 0
   bool update_cuts;
+  double cut_alpha;
+  double cut_anchor;
+  bool cut_prior;
   arma::vec cat;        // the observed category, 0 ... num_cat - 1
   arma::vec latent;     // z, redrawn every sweep
   std::vector<std::vector<int> > by_cat;
 
   OrdinalProbitAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
                                int num_cat_, const arma::vec& cuts_,
-                               bool update_cuts_)
+                               bool update_cuts_,
+                               double cut_alpha_, double cut_anchor_,
+                               bool cut_prior_)
     : Concrete<OrdinalProbitAugmentedFamily>(
         arma::vec(y_.n_elem, arma::fill::zeros), w_, 1),
-      num_cat(num_cat_), cuts(cuts_), update_cuts(update_cuts_), cat(y_) {
+      num_cat(num_cat_), cuts(cuts_), update_cuts(update_cuts_),
+      cut_alpha(cut_alpha_), cut_anchor(cut_anchor_),
+      cut_prior(cut_prior_), cat(y_) {
     by_cat = group_by_category(y_, num_cat_);
     latent.set_size(N);
 
@@ -670,7 +747,8 @@ struct OrdinalProbitAugmentedFamily : Concrete<OrdinalProbitAugmentedFamily> {
     // integrated out, and the latent normals immediately afterwards from their
     // conditional given the drawn cutpoints.
     if (update_cuts) {
-      update_ordinal_cuts(cuts, num_cat, ORD_PROBIT, by_cat, w, e);
+      update_ordinal_cuts(cuts, num_cat, ORD_PROBIT, by_cat, w, e,
+                          cut_alpha, cut_anchor, cut_prior);
     }
 
     for (int i = 0; i < N; i++) {
@@ -767,6 +845,9 @@ struct OrdinalLogitAugmentedFamily : Concrete<OrdinalLogitAugmentedFamily> {
   int num_cat;
   arma::vec cuts;       // length num_cat - 1, cuts(0) fixed at 0
   bool update_cuts;
+  double cut_alpha;
+  double cut_anchor;
+  bool cut_prior;
   arma::vec cat;        // the observed category, 0 ... num_cat - 1
   arma::vec latent;     // z
   arma::vec omega;      // the precision of z, one per observation
@@ -778,10 +859,14 @@ struct OrdinalLogitAugmentedFamily : Concrete<OrdinalLogitAugmentedFamily> {
 
   OrdinalLogitAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
                               int num_cat_, const arma::vec& cuts_,
-                              bool update_cuts_)
+                              bool update_cuts_,
+                              double cut_alpha_, double cut_anchor_,
+                               bool cut_prior_)
     : Concrete<OrdinalLogitAugmentedFamily>(
         arma::vec(y_.n_elem, arma::fill::zeros), w_, 1),
-      num_cat(num_cat_), cuts(cuts_), update_cuts(update_cuts_), cat(y_) {
+      num_cat(num_cat_), cuts(cuts_), update_cuts(update_cuts_),
+      cut_alpha(cut_alpha_), cut_anchor(cut_anchor_),
+      cut_prior(cut_prior_), cat(y_) {
     by_cat = group_by_category(y_, num_cat_);
     latent.set_size(N);
     omega.set_size(N);
@@ -835,7 +920,8 @@ struct OrdinalLogitAugmentedFamily : Concrete<OrdinalLogitAugmentedFamily> {
     const arma::rowvec& e = eta.row(0);
 
     if (update_cuts) {
-      update_ordinal_cuts(cuts, num_cat, ORD_LOGIT, by_cat, w, e);
+      update_ordinal_cuts(cuts, num_cat, ORD_LOGIT, by_cat, w, e,
+                          cut_alpha, cut_anchor, cut_prior);
     }
 
     for (int i = 0; i < N; i++) {
@@ -948,16 +1034,23 @@ struct OrdinalCloglogAugmentedFamily : Concrete<OrdinalCloglogAugmentedFamily> {
   int num_cat;
   arma::vec cuts;
   bool update_cuts;
+  double cut_alpha;
+  double cut_anchor;
+  bool cut_prior;
   arma::vec cat;        // the observed category, 0 ... num_cat - 1
   arma::vec latent;     // T, redrawn every sweep
   std::vector<std::vector<int> > by_cat;
 
   OrdinalCloglogAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
                                 int num_cat_, const arma::vec& cuts_,
-                                bool update_cuts_)
+                                bool update_cuts_,
+                               double cut_alpha_, double cut_anchor_,
+                               bool cut_prior_)
     : Concrete<OrdinalCloglogAugmentedFamily>(
         arma::vec(y_.n_elem, arma::fill::zeros), w_, 1),
-      num_cat(num_cat_), cuts(cuts_), update_cuts(update_cuts_), cat(y_) {
+      num_cat(num_cat_), cuts(cuts_), update_cuts(update_cuts_),
+      cut_alpha(cut_alpha_), cut_anchor(cut_anchor_),
+      cut_prior(cut_prior_), cat(y_) {
     by_cat = group_by_category(y_, num_cat_);
     latent.set_size(N);
 
@@ -1010,7 +1103,8 @@ struct OrdinalCloglogAugmentedFamily : Concrete<OrdinalCloglogAugmentedFamily> {
     const arma::rowvec& e = eta.row(0);
 
     if (update_cuts) {
-      update_ordinal_cuts(cuts, num_cat, ORD_CLOGLOG, by_cat, w, e);
+      update_ordinal_cuts(cuts, num_cat, ORD_CLOGLOG, by_cat, w, e,
+                          cut_alpha, cut_anchor, cut_prior);
     }
 
     for (int i = 0; i < N; i++) {
@@ -1341,15 +1435,21 @@ struct OrdinalFamily : Family {
   int num_cat;
   arma::vec cuts;   // length num_cat - 1, cuts(0) fixed at 0
   bool update_cuts;
+  double cut_alpha;
+  double cut_anchor;
+  bool cut_prior;
 
   // Observation indices grouped by category, so that a cutpoint update can
   // touch only the two groups that involve it.
   std::vector<std::vector<int>> by_cat;
 
   OrdinalFamily(const arma::vec& y_, const arma::vec& w_, int link_,
-                int num_cat_, const arma::vec& cuts_, bool update_cuts_)
+                int num_cat_, const arma::vec& cuts_, bool update_cuts_,
+                double cut_alpha_, double cut_anchor_,
+                               bool cut_prior_)
     : Family(y_, w_, 1), link(link_), num_cat(num_cat_), cuts(cuts_),
-      update_cuts(update_cuts_) {
+      update_cuts(update_cuts_), cut_alpha(cut_alpha_),
+      cut_anchor(cut_anchor_), cut_prior(cut_prior_) {
     by_cat = group_by_category(y_, num_cat_);
   }
 
@@ -1419,7 +1519,8 @@ struct OrdinalFamily : Family {
       return;
     }
 
-    update_ordinal_cuts(cuts, num_cat, link, by_cat, w, eta.row(0));
+    update_ordinal_cuts(cuts, num_cat, link, by_cat, w, eta.row(0),
+                        cut_alpha, cut_anchor, cut_prior);
   }
 
 
@@ -2798,12 +2899,18 @@ struct OrdBetaFamily : Family {
   double tab_step;
   double tab_phi;
 
+  double cut_alpha;
+  double cut_anchor;
+  bool cut_prior;
+
   OrdBetaFamily(const arma::vec& y_, const arma::vec& w_, double cut1_,
                 double cut2_, double phi_, double prior_shape_,
-                double prior_rate_, bool update_phi_)
+                double prior_rate_, bool update_phi_,
+                double cut_alpha_, double cut_anchor_, bool cut_prior_)
     : Family(y_, w_, 1), cut1(cut1_), cut2(cut2_), phi(phi_),
       prior_shape(prior_shape_), prior_rate(prior_rate_),
-      update_phi(update_phi_) {
+      update_phi(update_phi_), cut_alpha(cut_alpha_),
+      cut_anchor(cut_anchor_), cut_prior(cut_prior_) {
     log_y.set_size(N);
     log1m_y.set_size(N);
     logit_y.set_size(N);
@@ -2997,8 +3104,33 @@ struct OrdBetaFamily : Family {
     // phi but not on the cutpoints. So each update evaluates its own half and
     // drops the other as a constant, instead of rebuilding the whole likelihood
     // -- three log-gamma calls per observation -- on every slice evaluation.
-    auto cut_total = [this, &e](double c1, double c2) {
-      double out = 0.0;
+    // The induced-Dirichlet prior, the same construction the ordinal families
+    // use. `ordbeta()` has three category probabilities at the anchor -- the
+    // mass at zero, the interior, and the mass at one -- so the map from
+    // (c1, c2) to them has the same lower-bidiagonal Jacobian and its
+    // determinant is again the product of the link densities at the two
+    // cutpoints. The link is logistic here, where the ordinal families take
+    // theirs from `link`.
+    auto cut_prior_term = [this](double c1, double c2) {
+      if (!cut_prior) {
+        return 0.0;
+      }
+
+      double out = ordinal_link_logpdf(cut_anchor - c1, ORD_LOGIT) +
+        ordinal_link_logpdf(cut_anchor - c2, ORD_LOGIT);
+
+      if (cut_alpha != 1.0) {
+        double p_zero = log1m_expit(cut_anchor - c1);
+        double p_one = log_expit(cut_anchor - c2);
+        double p_mid = log_diff_logistic(cut_anchor - c2, cut_anchor - c1);
+        out += (cut_alpha - 1.0) * (p_zero + p_mid + p_one);
+      }
+
+      return out;
+    };
+
+    auto cut_total = [this, &e, &cut_prior_term](double c1, double c2) {
+      double out = cut_prior_term(c1, c2);
       for (int i = 0; i < N; i++) {
         double y_i = y(i);
         if (y_i <= 0.0) {
@@ -5935,7 +6067,10 @@ Family* make_base_family(const std::string& name, const std::string& link,
 
     return finish(new OrdinalFamily(y, w, l, as<int>(opts["num_cat"]),
                              as<arma::vec>(opts["cuts"]),
-                             as<bool>(opts["update_cuts"])));
+                             as<bool>(opts["update_cuts"]),
+                             opt_double(opts, "cut_alpha", 1.0),
+                             opt_double(opts, "cut_anchor", 0.0),
+                             opt_bool(opts, "cut_prior", true)));
   }
 
   if (name == "multinomial") {
@@ -6032,7 +6167,10 @@ Family* make_base_family(const std::string& name, const std::string& link,
                              as<double>(opts["cut2"]), as<double>(opts["phi"]),
                              as<double>(opts["phi_prior_shape"]),
                              as<double>(opts["phi_prior_rate"]),
-                             as<bool>(opts["update_phi"])));
+                             as<bool>(opts["update_phi"]),
+                             opt_double(opts, "cut_alpha", 1.0),
+                             opt_double(opts, "cut_anchor", 0.0),
+                             opt_bool(opts, "cut_prior", true)));
   }
 
   stop("Unsupported family '%s'.", name);
@@ -6161,21 +6299,24 @@ Family* augmented_base(const std::string& name, const std::string& link,
       OrdinalCloglogAugmentedFamily::applies(w)) {
     return finish(new OrdinalCloglogAugmentedFamily(
       y, w, as<int>(opts["num_cat"]), as<arma::vec>(opts["cuts"]),
-      as<bool>(opts["update_cuts"])));
+      as<bool>(opts["update_cuts"]), opt_double(opts, "cut_alpha", 1.0),
+      opt_double(opts, "cut_anchor", 0.0), opt_bool(opts, "cut_prior", true)));
   }
 
   if (name == "ordinal" && link == "logit" &&
       OrdinalLogitAugmentedFamily::applies(w)) {
     return finish(new OrdinalLogitAugmentedFamily(
       y, w, as<int>(opts["num_cat"]), as<arma::vec>(opts["cuts"]),
-      as<bool>(opts["update_cuts"])));
+      as<bool>(opts["update_cuts"]), opt_double(opts, "cut_alpha", 1.0),
+      opt_double(opts, "cut_anchor", 0.0), opt_bool(opts, "cut_prior", true)));
   }
 
   if (name == "ordinal" && link == "probit" &&
       OrdinalProbitAugmentedFamily::applies(w)) {
     return finish(new OrdinalProbitAugmentedFamily(
       y, w, as<int>(opts["num_cat"]), as<arma::vec>(opts["cuts"]),
-      as<bool>(opts["update_cuts"])));
+      as<bool>(opts["update_cuts"]), opt_double(opts, "cut_alpha", 1.0),
+      opt_double(opts, "cut_anchor", 0.0), opt_bool(opts, "cut_prior", true)));
   }
 
   if (name == "aft" && link == "lognormal" &&

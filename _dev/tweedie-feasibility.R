@@ -4,8 +4,13 @@
 # has a free level. Which of those the data want is testable: estimate mu(x),
 # bin on it, and compare the observed share of zeros per bin against the best
 # curve each model can draw.
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages(library(bartisan))
 data("lalonde", package = "cobalt")
+
+OUT <- "_dev/tweedie-feasibility.rds"
 y <- lalonde[["re78"]]
 cat(sprintf("re78: n = %d, %.1f%% zeros, mean %.0f, sd %.0f\n",
             length(y), 100*mean(y == 0), mean(y), sd(y)))
@@ -25,9 +30,16 @@ cat(sprintf("  implied sd %.0f (observed %.0f), implied P(0) %.3f (observed %.3f
             exp(-mean(y)^(2-m$p)/(m$phi*(2-m$p))), mean(y == 0)))
 
 # Now the conditional constraint. mu(x) from a flexible fit of E[y|x].
+pr <- prog_init(total = 1L, title = "Tweedie feasibility on re78", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the fit finished"), add = TRUE)
+
 set.seed(4)
+t0 <- Sys.time()
 fit <- bartisan(re78 ~ ., data = lalonde, family = gaussian(), chains = 4,
                 num_burn = 400, num_draws = 800, verbose = FALSE)
+prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+          label = "E[y | x]")
 mu <- pmax(fitted(fit), 50)
 b <- cut(mu, stats::quantile(mu, seq(0, 1, length.out = 9L)), include.lowest = TRUE)
 obs <- tapply(y == 0, b, mean)
@@ -51,7 +63,23 @@ for (i in seq_along(obs))
   cat(sprintf("%14.0f %8d %8.3f %10.3f %10.3f\n", mub[i], nb[i], obs[i],
               exp(-mub[i]^(2-p_hat)/(phi_hat*(2-p_hat))),
               1 - stats::plogis(o2$par[1]*log(mub[i]) - o2$par[2])))
-cat("DONE\n")
+saveRDS(list(marginal = m,
+             bins = data.frame(
+               mu = as.numeric(mub), n = as.numeric(nb),
+               obs = as.numeric(obs),
+               tweedie = exp(-as.numeric(mub)^(2 - p_hat) /
+                               (phi_hat * (2 - p_hat))),
+               cutpoint = 1 - stats::plogis(o2$par[1] * log(as.numeric(mub)) -
+                                              o2$par[2])),
+             tweedie = list(p = p_hat, phi = phi_hat, ss = o1$value),
+             cutpoint = list(slope = o2$par[1], cut = o2$par[2],
+                             ss = o2$value),
+             complete = TRUE),
+        OUT)
+
+on.exit()
+prog_end(pr, "done")
+cat("wrote", OUT, "\n")
 
 # --- Why the intractable density is not a blocker -----------------------------
 #

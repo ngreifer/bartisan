@@ -97,13 +97,24 @@ grid <- expand.grid(model = c("gaussian_ls", "zi_poisson"),
 
 pr <- prog_init(total = nrow(grid) * 2L * REPS, title = "Shared forests: ESS per second",
                 unit = "fit", kind = "benchmark")
-on.exit(prog_end(pr, "failed"), add = TRUE)
+on.exit(prog_end(pr, "failed", "aborted before the last arm"), add = TRUE)
 fit_no <- 0L
+rows <- list()
 
-res <- do.call(rbind, lapply(seq_len(nrow(grid)), function(i) {
+# Written after every arm rather than at the end, so a run that is killed
+# leaves its finished arms readable. `complete` is what tells a reader which of
+# the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, rows), chains = CHAINS, reps = REPS,
+               num_burn = NUM_BURN, num_draws = NUM_DRAWS,
+               complete = complete, done = length(rows),
+               total = nrow(grid) * 2L), OUT)
+}
+
+invisible(lapply(seq_len(nrow(grid)), function(i) {
   g <- grid[i, ]
 
-  do.call(rbind, lapply(c(FALSE, TRUE), function(shared) {
+  lapply(c(FALSE, TRUE), function(shared) {
     got <- do.call(rbind, lapply(seq_len(REPS), function(r) {
       out <- quiet(one(g$model, g$n, 20L, shared, seed = 6000L + 31L * i + r))
       fit_no <<- fit_no + 1L
@@ -124,15 +135,18 @@ res <- do.call(rbind, lapply(seq_len(nrow(grid)), function(i) {
     cat(sprintf("%-12s n=%4d shared=%-5s  %6.1fs  ess_min %6.0f  ess/s %5.1f  rhat_max %.3f\n",
                 out$model, out$n, out$shared, out$elapsed, out$ess_min,
                 out$ess_per_sec, out$rhat_max))
-    out
-  }))
+
+    rows[[length(rows) + 1L]] <<- out
+    checkpoint(FALSE)
+    NULL
+  })
 }))
 
-saveRDS(list(res = res, chains = CHAINS, reps = REPS, num_burn = NUM_BURN,
-             num_draws = NUM_DRAWS), OUT)
+res <- do.call(rbind, rows)
+checkpoint(TRUE)
 
 on.exit()
-prog_end(pr, "done")
+prog_end(pr, "done", sprintf("%d fits", fit_no))
 
 cat("\nwrote", OUT, "\n")
 print(res)

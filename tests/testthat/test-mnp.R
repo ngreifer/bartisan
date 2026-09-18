@@ -243,7 +243,7 @@ test_that("the categorical prediction types and the interop methods all work", {
 test_that("a covariance is not something augment can be asked for", {
   # The latent variables are the model rather than a rewriting of it, so `mnp`
   # is not one of the names `augment` takes.
-  expect_error(bartisan_control(augment = "mnp"), "must be one of")
+  expect_error(bartisan_control(augment = "mnp"), "must be")
 
   d <- sim_x(n = 200, seed = 215)
   latent <- cbind(d$x1, -d$x2)

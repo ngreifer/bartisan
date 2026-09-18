@@ -17,20 +17,14 @@ forest may split on. Default is \code{NULL} to allow every predictor in the mode
 except \code{x} itself. Note that naming something that is not a predictor is an
 error rather than a silent restriction.}
 
-\item{center}{the value of \code{x} at which the control function is read, which is
-both how the model is fitted and how it is reported, given as either a
-string or a number. Allowable options include \code{"auto"} (the default),
-\code{"mean"}, \code{"zero"}, \code{"mid"}, and \code{"estimate"}. \code{"auto"} uses \code{"zero"} for a
-\code{0}/\code{1} covariate and \code{"mean"} for any other numeric one, for the reason in
-Details. \code{"mean"} centers \code{x}, so the control function is the surface at its
-average; \code{"zero"} leaves \code{x} alone, so the control function is the surface at
-\code{x = 0}; \code{"mid"} uses the midpoint of \code{x}'s range (i.e., the average of its
-smallest and largest values); and a number uses that number. For a factor,
-\code{center} is \code{"mean"} or the name of a level to report against. \code{"estimate"}
-draws the coding rather than fixing it, which is the parameter expansion of
-Hahn, Murray and Carvalho (2020); see Details, and note that it needs a
-covariate with between two and twenty distinct values rather than a
-continuous one.}
+\item{center}{the value of \code{x} at which the control function is read, given as
+either a string or a number. Allowable options include \code{"auto"} (the
+default), \code{"mean"}, \code{"zero"}, \code{"mid"}, and \code{"estimate"}. \code{"mean"} centers
+\code{x}, \code{"zero"} leaves it alone, \code{"mid"} uses the midpoint of its range, a
+number uses that number, and \code{"auto"} picks between \code{"zero"} and \code{"mean"} by
+the covariate. For a factor, \code{center} is \code{"mean"} or the name of a level to
+report against. \code{"estimate"} draws the coding rather than fixing it, and
+needs a covariate with between two and twenty distinct values. See Details.}
 }
 \value{
 Nothing; \code{vc()} is never evaluated, and calling it directly is an error.
@@ -51,96 +45,57 @@ with a forest for the control function \eqn{f_0} and one for each varying
 coefficient \eqn{f_j}. Every forest is fitted at once, so the coefficient has
 a prior of its own rather than being whatever difference a single forest with
 \code{x} among its predictors happens to produce.
-\subsection{Which Predictors a Coefficient May Vary With}{
+\subsection{Setting \code{modifiers}}{
 
-By default every predictor in the model except \code{x} itself. The \code{modifiers}
-argument narrows that, and naming something that is not a predictor is an
-error rather than a silent restriction.
+By default a coefficient may vary with every predictor in the model except
+\code{x} itself, and \code{modifiers} narrows that.
 
-\strong{A varying covariate may not modify the control function.} With \code{z} among
-\eqn{f_0}'s predictors, \eqn{f_0(Z) + z f_1(Z)} is not identified: any
-function of \code{z} moves between the two. Reached through \code{.}, the covariate is
-dropped from the control function without comment, since \code{.} did not name it.
-Named outright, the model is fitted as asked and a warning says why that is a
+A covariate with a varying coefficient is kept out of the control function,
+since \eqn{f_0(Z) + z f_1(Z)} is not identified when \code{z} is among
+\eqn{f_0}'s predictors: any function of \code{z} moves between the two. Reached
+through \code{.} it is dropped quietly, because \code{.} did not name it; named
+outright, the model is fitted as asked and a warning says why that is a
 choice.
 
-\strong{A numeric covariate may modify its own coefficient, and doing so is how the
-effect stops being linear.} \code{vc(z, ~ z + x1)} fits \eqn{z f_1(z, x_1)}, so
-the slope itself moves across \code{z}'s range and the dose response is a curve
-rather than a line. This is worth reaching for whenever the effect of a
-continuous predictor might not be proportional to it. On a simulation where
-the truth is \eqn{y = 2x_1 + z^2}, letting \eqn{f_1} split on \code{z} recovers
-the fitted surface to a root mean squared error of 0.099 where forbidding it
-gives 1.187, and the fitted coefficient traces the truth: -1.15, 0.15 and 1.09
-at \code{z} of -1, 0 and 1, where the slope of \eqn{z^2} is -1, 0 and 1.
-
-\strong{A categorical covariate may not}, and is removed from its own forests
-quietly. A level's indicator is nonzero only on the rows where that level
-holds, and the variable is constant on exactly those rows, so such a split
-separates rows that contribute from rows that contribute nothing. It is wasted
-rather than unidentified.
+A numeric covariate may modify its own coefficient, and that is how the effect
+stops being linear in it. \code{vc(z, ~ z + x1)} fits \eqn{z f_1(z, x_1)}, so the
+slope moves across \code{z}'s range and the dose response is a curve rather than a
+line, which is worth reaching for whenever the effect of a continuous
+predictor might not be proportional to it. A categorical covariate is removed
+from its own forests instead: a level's indicator is nonzero only on the rows
+where that level holds, and the variable is constant on exactly those rows, so
+such a split separates rows that contribute from rows that contribute nothing.
 }
 
-\subsection{Where the Control Function Sits}{
+\subsection{Setting \code{center}}{
 
 Centering is a reparameterization of \eqn{f_0} alone: every coefficient and
 every estimand is identical under any choice, and what changes is what the
-control function means. \code{"auto"} picks by the covariate, because neither
-answer wins everywhere. For a \code{0}/\code{1} covariate it uses zero, so \eqn{f_0} is
-the surface among the untreated (a quantity with its own meaning, and the one
-that recovers the coefficient best). For any other numeric covariate it uses
-the mean, because zero may be nowhere near the data: with a covariate around
-50 the control function at zero is an extrapolation and recovery collapses to
-a correlation of 0.42.
+control function means. \code{"auto"} picks by the covariate. For a \code{0}/\code{1}
+covariate it uses zero, so \eqn{f_0} is the surface among the untreated,
+which is a quantity with its own meaning. For any other numeric covariate it
+uses the mean, because zero may be nowhere near the data and the control
+function there would be an extrapolation.
 
 A factor is always fitted mean-centered and gets one forest per level, coded
-symmetrically the way \code{\link[=multinomial]{multinomial()}} codes its predictors rather than as
-contrasts against a level that happened to sort first. That coding carries one
-spare function-valued dimension, which is what makes the reference a reporting
-choice: \code{center} names the level \code{\link[=coef]{coef()}} reports against, and no refit is
-needed to change it.
+symmetrically rather than as contrasts against a level that happened to sort
+first. That coding leaves the reference a reporting choice: \code{center} names the
+level \code{\link[=coef]{coef()}} reports against, and no refit is needed to change it.
 }
 
-\subsection{Drawing the Coding Instead of Fixing It}{
+\subsection{Drawing the Coding (\code{center = "estimate"})}{
 
-\code{center = "estimate"} is different in kind from the choices above. Rather than
-subtract a number from \code{x}, it gives each of \code{x}'s values a coefficient of its
-own and draws it: the model is
+This is different in kind from the choices above. Rather than subtract a
+number from \code{x}, it gives each of \code{x}'s values a coefficient of its own and
+draws it, so that every contrast carries the same prior whatever the number of
+values and no value is a reference. \code{\link[=coef]{coef()}} returns the identified contrasts.
 
-\deqn{g(\mu_i) = f_0(Z_i) + b_{x_i}\, \tilde f(Z_i), \qquad
-      b_k \sim \mathrm{N}(0, 1/2)}
-
-so the effect of moving from value \eqn{j} to value \eqn{k} is
-\eqn{(b_k - b_j)\tilde f(Z)}, and because \eqn{b_k - b_j} is marginally
-standard normal every contrast carries the same prior whatever the number of
-values and no value is a reference. This is the parameter expansion of Hahn,
-Murray and Carvalho (2020, section 5.3), whose point is that a fixed coding is
-never neutral: coding a treatment \code{0}/\code{1}, \code{1}/\code{0} or \eqn{\pm 1/2} makes the
-control function carry a different part of the fit each time, and the prior on
-the effect moves with it. \code{\link[=coef]{coef()}} returns the identified contrasts, never the
-raw \eqn{\tilde f}.
-
-It needs between two and twenty distinct values, and a continuous covariate is
-refused rather than quietly binned.
-
-\strong{At two values it is free, and it is what \code{\link[=bcf]{bcf()}} uses.} What it buys is
-that the answer stops depending on which level was written as 1. Fitting the
-same data with the treatment coded \code{0}/\code{1} and again \code{1}/\code{0} and adding the
-two effects, which is zero if the coding does not matter, gives 0.0045 under
-a drawn coding against 0.0125 under a fixed zero; on weak data, where the
-prior has more to say, 0.0389 against 0.0830.
-
-\strong{Above two values it stops being free, and the restriction is a real one.}
-Every contrast is then the same \eqn{\tilde f} times a scalar, so the levels
-share one shape of heterogeneity where the symmetric coding gives each its
-own. That is worth a great deal when it holds and expensive when it does not:
-on a three-level covariate, \code{"estimate"} takes about a quarter off the error
-when every level really does share a shape, and nearly triples it when they do
-not.
-
-So the two are what they look like: \code{"estimate"} is the parsimonious model and
-the default is the general one. Reach for it when the levels plausibly differ
-in degree rather than in kind.
+At two values it restricts nothing, and it is what \code{\link[=bcf]{bcf()}} uses: what it buys
+is that the answer stops depending on which level was written as 1. Above two
+values every contrast becomes one shared shape times a scalar, where the
+symmetric coding gives each level its own, so it is the parsimonious model
+against a general one. Reach for it when the levels plausibly differ in degree
+rather than in kind.
 }
 
 \subsection{Families with Several Additive Predictors}{
@@ -207,11 +162,6 @@ fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
 
 head(coef(fit2))
 
-}
-\references{
-Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian regression tree
-models for causal inference: regularization, confounding, and heterogeneous
-effects. \emph{Bayesian Analysis}, 15(3), 965--1056. \doi{10.1214/19-BA1195}
 }
 \seealso{
 \itemize{

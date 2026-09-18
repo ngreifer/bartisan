@@ -39,13 +39,12 @@
 #' draw*. The interval is then a quantile of those averages, so it is an interval
 #' on the average prediction and not on any one unit's.
 #'
-#' What this is and is not worth reading as a description of the fit is the same
-#' caveat that applies to any partial dependence plot. Averaging over the other
-#' predictors evaluates the model at covariate combinations that may not occur,
-#' so a curve over a region where the predictor's values are sparse says more
-#' about the prior than about the data. It is a summary of the fitted function
-#' rather than a causal claim; for a contrast that is meant causally, see
-#' [estimate_effect()].
+#' The usual caveat on a partial dependence plot applies. Averaging over the
+#' other predictors evaluates the model at covariate combinations that may not
+#' occur, so a curve over a region where the predictor's values are sparse says
+#' more about the prior than about the data, and the result summarizes the fitted
+#' function rather than supporting a causal claim; [estimate_effect()] is for a
+#' contrast that is meant causally.
 #'
 #' @seealso [estimate_effect()] for treatment effects rather than fitted
 #'   surfaces; [variable_importance()] for which predictors the forest uses;

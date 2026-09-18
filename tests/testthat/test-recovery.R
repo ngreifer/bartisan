@@ -359,7 +359,7 @@ test_that("the augmented survival models target the same posterior", {
                        family = family, control = ctrl(FALSE))
     set.seed(5)
     imputed <- bartisan(survival::Surv(time, status) ~ x1 + x2 + x3, dd,
-                        family = family, control = ctrl("aft"))
+                        family = family, control = ctrl(TRUE))
 
     label <- family[["link"]]
 

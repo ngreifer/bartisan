@@ -16,17 +16,13 @@ variable_importance(object, level = 0.95, draws = FALSE, plot = FALSE)
 Default is .95 for a 95\% interval.}
 
 \item{draws}{\code{logical}; whether to return the splitting counts of every
-posterior draw rather than a summary of them, which is what to use for a
-comparison the summary does not offer (e.g., the posterior probability that
-one predictor takes more rules than another). Default is \code{FALSE} to return
-the summary. Cannot be combined with \code{plot}.}
+posterior draw rather than a summary of them, for a comparison the summary
+does not offer. Default is \code{FALSE}. Cannot be combined with \code{plot}.}
 
-\item{plot}{\code{logical}; whether to return a plot of the table instead of the
-table, as a \CRANpkg{ggplot2} object showing \code{splits} and its interval for
-each predictor. Default is \code{FALSE}. Equivalent to calling \code{plot()} on the
-result, which is usually the more convenient of the two since the table can
-be subset first (e.g., \code{plot(head(imp, 10))} for a wide model).
-\pkg{ggplot2} must be installed for either.}
+\item{plot}{\code{logical}; whether to return a \CRANpkg{ggplot2} plot of \code{splits}
+and its interval for each predictor instead of the table. Default is
+\code{FALSE}. Equivalent to calling \code{plot()} on the result, which is usually more
+convenient since the table can be subset first.}
 
 \item{x}{a \verb{<bartisan_importance>} object; the output of a call to
 \code{variable_importance()}.}
@@ -64,70 +60,45 @@ for a BART model. This is the table \code{\link[=summary.bartisan_fit]{summary.b
 as a data frame rather than displayed (i.e., ready to sort, filter, or plot).
 }
 \details{
-\subsection{Which Column Answers Which Question}{
+\subsection{Reading the Columns}{
 
-\code{prop_used} (the proportion of posterior draws in which the predictor
-received at least one splitting rule) is the one to read first. It behaves
-like a posterior probability that the predictor belongs in the model, and it
-separates signal from noise sharply once \code{sparsity = TRUE} in
-\code{\link[=bartisan_control]{bartisan_control()}}, which puts a Dirichlet prior on how the rules are shared
-out and lets unused predictors be dropped rather than merely used rarely. With
+\code{prop_used} is the one to read first. It behaves like a posterior probability
+that the predictor belongs in the model, and it separates signal from noise
+sharply once \code{sparsity = TRUE} in \code{\link[=bartisan_control]{bartisan_control()}}. With
 \code{sparsity = FALSE} every predictor keeps a share of the rules and \code{prop_used}
-sits near 1 throughout, so the \code{print()} method says so rather than leaving
-the column to be misread.
+sits near 1 throughout, which the \code{print()} method notes.
 
-\code{prop_splits} is the one to reach for when two fits are being compared.
-\code{splits} counts rules, so it scales with \code{num_trees} and a fit of 40 trees
-will report four times the count of a fit of 10 without being four times as
-informative; the share is computed within each draw before averaging, so the
-shares add to one whatever the forest size. Note that the share is a property
-of the forest and not only of the predictor, so it can still shift when the
-forest size changes how the rules are allocated; the ranking is the stable
-part.
-
-\code{splits}, the mean number of rules per draw, says how much of the forest's
-structure a predictor accounts for. It is the more familiar number and the
-easier one to over-read.
+\code{prop_splits} is the one to reach for when two fits are being compared. The
+share is computed within each draw before averaging, so the shares add to one
+whatever the forest size, where \code{splits} counts rules and so scales with
+\code{num_trees}. \code{splits} itself, the mean number of rules per draw, says how much
+of the forest's structure a predictor accounts for, and is the easier of the
+three to over-read.
 }
 
-\subsection{Three Things This Is Not}{
+\subsection{Limits of a Usage Ranking}{
 
-\strong{It is not an effect size.} A predictor can be split on constantly and move
-the prediction very little, and the reverse happens too. If the question is
-how much a predictor moves the outcome, that is a job for
-\pkgfun{marginaleffects}{avg_comparisons} on the fitted model, not for this
-table. See \link{bartisan-marginaleffects}.
-
-\strong{It is not stable under correlated predictors.} When two predictors carry
-the same information the trees split on whichever is convenient, and the usage
-distributes between them more or less arbitrarily. A predictor can matter and
-still show a low \code{prop_used} because a collinear partner absorbed it, so a
-group of correlated predictors is best read as a group.
-
-\strong{It is not causal.} A ranking of predictors by usage is a description of
-this fitted function, not of what would happen if any of them were changed.
+Usage is not effect size: a predictor can be split on constantly and move the
+prediction very little. Where the question is how much a predictor moves the
+outcome, \pkgfun{marginaleffects}{avg_comparisons} on the fitted model
+answers it; see \link{bartisan-marginaleffects}. Where two predictors carry the
+same information the trees split on whichever is convenient and the usage
+distributes between them arbitrarily, so a group of correlated predictors is
+best read as a group. And a ranking by usage describes this fitted function
+rather than what would happen if a predictor were changed.
 }
 
 \subsection{Reading It as Variable Selection}{
 
-With \code{sparsity = TRUE}, \code{prop_used} is usable as a selection rule: predictors
-the forest genuinely needs sit near 1 and the rest fall near 0, usually with a
-wide gap rather than a continuum. It is the posterior inclusion probability
-that the Dirichlet prior was introduced to make readable (Linero, 2018), and
-cutting it at .5 gives the median probability model, which Barbieri and Berger
-(2004) show is often a better predictive submodel under squared error loss
-than the model of highest posterior probability. That is the same quantity and
-the same cut \pkg{SoftBart} reports from a soft BART fit, computed from the
-same splitting counts. No threshold is correct in general, though, so the gap
-is the thing to look at, and a conclusion worth reporting will not depend on
-where in it the cut is made.
-
-The .5 cut chooses a predictive submodel and is not a test, and it does not
-behave like one. On data where no predictor matters at all, at \eqn{n = 300}
-with 25 predictors and 20 trees, it selected 7 of the 25 on average with
-\code{sparsity = TRUE} and all 25 with \code{sparsity = FALSE}. A forest asked to fit
-noise still puts its rules somewhere, and \code{prop_used} reports where they went
-rather than whether they were needed.
+With \code{sparsity = TRUE}, \code{prop_used} is usable as a selection rule: the
+predictors the forest genuinely needs sit near 1 and the rest fall near 0,
+usually with a wide gap rather than a continuum, and cutting that gap at .5
+gives the median probability model. No threshold is correct in general, so the
+gap is the thing to look at, and a conclusion worth reporting will not depend
+on where in it the cut is made. A forest asked to fit noise still puts its
+rules somewhere, so the cut chooses a predictive submodel rather than testing
+one. \code{vignette("importance")} calibrates it against noise predictors and works
+through correlated ones.
 }
 }
 \examples{
@@ -163,18 +134,6 @@ mean(counts[, "aps"] > counts[, "meanbp"])
 # The ranking, drawn. Subsetting first is what keeps a wide model readable.
 plot(head(imp, 8))
 
-}
-\references{
-Barbieri, M. M., & Berger, J. O. (2004). Optimal predictive model selection.
-\emph{The Annals of Statistics}, 32(3). \doi{10.1214/009053604000000238}
-
-Bleich, J., Kapelner, A., George, E. I., & Jensen, S. T. (2014). Variable
-selection for BART: an application to gene regulation. \emph{The Annals of Applied
-Statistics}, 8(3). \doi{10.1214/14-AOAS755}
-
-Linero, A. R. (2018). Bayesian regression trees for high-dimensional
-prediction and variable selection. \emph{Journal of the American Statistical
-Association}, 113(522), 626--636. \doi{10.1080/01621459.2016.1264957}
 }
 \seealso{
 \code{\link[=summary.bartisan_fit]{summary.bartisan_fit()}}, which prints the same table;

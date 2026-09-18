@@ -21,6 +21,9 @@
 # Run with: Rscript _dev/diagnose-timing.R
 # Writes:   _dev/diagnose-timing.rds
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 if (!requireNamespace("future", quietly = TRUE) ||
@@ -45,7 +48,26 @@ sim <- function(n) {
   d
 }
 
+OUT <- "_dev/diagnose-timing.rds"
+
+# One fit per size, then a pass of `reps` diagnose() calls per worker count.
+n_total <- length(sizes) * (1L + length(worker_counts))
+
+pr <- prog_init(total = n_total, title = "diagnose() across worker counts",
+                unit = "step", kind = "benchmark")
+on.exit(prog_end(pr, "failed", "aborted before the last size"), add = TRUE)
+
 out <- list()
+done <- 0L
+
+# Written after every worker count rather than at the end, so a run that is
+# killed leaves its finished cells readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete, done = done,
+               total = n_total, reps = reps, sizes = sizes,
+               worker_counts = worker_counts), OUT)
+}
 
 for (n in sizes) {
   set.seed(1)
@@ -61,6 +83,9 @@ for (n in sizes) {
                                                num_draws = 400L,
                                                gate = "hard"))
   )[["elapsed"]]
+
+  done <- done + 1L
+  prog_tick(pr, i = done, secs = fit_seconds, label = sprintf("fit n=%d", n))
 
   draws_mb <- as.numeric(utils::object.size(fit[["eta"]])) / 1e6
 
@@ -89,14 +114,21 @@ for (n in sizes) {
     cat(sprintf("n = %5d  workers = %d  diagnose() %5.2fs  (fit was %5.2fs, %5.1f MB of draws)\n",
                 n, workers, stats::median(seconds), fit_seconds, draws_mb))
     utils::flush.console()
+
+    done <- done + 1L
+    prog_tick(pr, i = done, secs = sum(seconds),
+              label = sprintf("diagnose() n=%d workers=%d", n, workers))
+    checkpoint(FALSE)
   }
 }
 
 future::plan(future::sequential)
 
+checkpoint(TRUE)
 results <- do.call(rbind, out)
 
-saveRDS(results, "_dev/diagnose-timing.rds")
+on.exit()
+prog_end(pr, "done", sprintf("%d cells", nrow(results)))
 
 cat("\nspeedup against one worker, by size:\n")
 

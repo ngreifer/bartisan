@@ -188,28 +188,26 @@ model fit. There is nothing to set up: load the other package and call its
 function on the fit.
 }
 \details{
-\subsection{What Is Available}{
+\subsection{Available Methods}{
 
-\strong{Posterior predictions.} \pkgfun{rstantools}{posterior_predict} draws
-replicate outcomes from the fitted model,
-\pkgfun{rstantools}{posterior_epred} gives their mean and
+\pkgfun{rstantools}{posterior_predict} draws replicate outcomes from the
+fitted model, \pkgfun{rstantools}{posterior_epred} gives their mean and
 \pkgfun{rstantools}{posterior_linpred} the additive predictor, following the
 \pkg{rstantools} conventions that \pkg{brms} and \pkg{rstanarm} follow, and
 \code{\link[stats:simulate]{stats::simulate()}} is the same thing in the shape base R expects.
-\strong{Pointwise likelihood.} \pkgfun{rstantools}{log_lik} returns the
-draws-by-observations matrix of log-likelihood contributions, which is what
-\pkgfun{loo}{loo} and \pkgfun{loo}{waic} need; both have methods here.
+\pkgfun{rstantools}{log_lik} returns the draws-by-observations matrix of
+log-likelihood contributions, which is what \pkgfun{loo}{loo} and
+\pkgfun{loo}{waic} need.
 
-\strong{Graphical checks.} \code{pp_check()} runs any of the \pkg{bayesplot}
-posterior-predictive checks on the fit. \strong{Summaries.}
-\pkgfun{performance}{model_performance} collects the fit statistics in one
-table, \pkgfun{performance}{r2} gives the Bayesian \eqn{R^2}, and
+\code{pp_check()} runs any of the \pkg{bayesplot} posterior-predictive checks on
+the fit, \pkgfun{performance}{model_performance} collects the fit statistics
+in one table, \pkgfun{performance}{r2} gives the Bayesian \eqn{R^2}, and
 \pkgfun{posterior}{as_draws} hands the scalar parameters to
 \pkgfun{posterior}{summarise_draws} or to the \pkg{bayesplot} MCMC
-diagnostics. \strong{The prior.} \pkgfun{rstantools}{prior_summary} writes out
-every prior the fit was given, on the scale it was given on, which is the
-companion to \code{prior_only = TRUE} in \code{\link[=bartisan]{bartisan()}}: one says what the prior is
-and the other says what it implies about the outcome. \strong{Basic accessors.} \code{\link[stats:fitted]{stats::fitted()}}, \code{\link[stats:residuals]{stats::residuals()}},
+diagnostics. \pkgfun{rstantools}{prior_summary} writes out every prior the fit
+was given, on the scale it was given on, which is the companion to
+\code{prior_only = TRUE} in \code{\link[=bartisan]{bartisan()}}: one says what the prior is and the other
+what it implies about the outcome. \code{\link[stats:fitted]{stats::fitted()}}, \code{\link[stats:residuals]{stats::residuals()}},
 \code{\link[stats:weights]{stats::weights()}} and \code{\link[stats:sigma]{stats::sigma()}} do what they do for a \code{glm}, which is
 also most of what \pkg{insight} needs to make the fit legible to the
 \pkg{easystats} packages.
@@ -220,38 +218,29 @@ also most of what \pkg{insight} needs to make the fit legible to the
 \pkgfun{loo}{loo} estimates the leave-one-out predictive density by importance
 sampling from the full-data posterior, and the estimate is trustworthy only
 when the importance weights have a finite variance, which is what the Pareto
-\eqn{k} diagnostic reports on. The worry for a forest is that it is a very
-flexible function of the predictors, so one observation might carry enough
-influence over the leaves it lands in that dropping it cannot be approximated
-from the fit in hand.
+\eqn{k} diagnostic reports on. A forest is a flexible function of the
+predictors, so the worry is that one observation carries enough influence over
+the leaves it lands in that dropping it cannot be approximated from the fit in
+hand. In practice it rarely does: the leaf prior shrinks every leaf toward zero
+and the fit is a sum over many trees, so no single observation dominates.
 
-Measured, it usually does not. Over nine fits (\code{gaussian()} at \eqn{n = 100}
-with 200 trees, \code{gaussian_ls()}, \code{poisson()}, \code{binomial()}, \code{dpm()}, and
-\code{\link[=bcf]{bcf()}} on \code{lalonde} with both \code{gaussian()} and \code{tweedie()}), at most 0.2\% of
-observations exceeded \eqn{k = 0.7} and the median \eqn{k} ran between 0.03
-and 0.32. The leaf prior is what makes the difference: it shrinks every leaf
-towards zero and the fit is a sum over many trees, so no single observation
-dominates the leaves it reaches. The exceptions that did turn up were about
-the likelihood rather than the trees, and are the ones worth having; fitting
-\eqn{t_2} errors with \code{gaussian()} left one observation of 400 at
-\eqn{k = 2.4}.
-
-So the warning \pkg{loo} prints there is worth reading rather than expecting.
-When it names a handful of observations, those are the influential ones, and
-refitting without them is what shows how badly they are predicted. A log
-score on data the model has not seen is available directly:
+The warning \pkg{loo} prints there is therefore worth reading rather than
+expecting, and the exceptions that do turn up are usually about the likelihood
+rather than the trees. When it names a handful of observations, those are the
+influential ones, and refitting without them shows how badly they are
+predicted. A log score on data the model has not seen is available directly:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{predict(fit, newdata = held_out, type = "density", log = TRUE)
 }\if{html}{\out{</div>}}
 }
 
-\subsection{Cross-Validation Without the Approximation}{
+\subsection{Cross-Validation (\code{kfold()})}{
 
-\code{loo()} estimates the leave-one-out density by importance sampling from one
-fit. \code{kfold()} does not estimate it: it splits the sample, refits \eqn{K}
-times, and scores each part under a fit that never saw it. That costs \eqn{K}
-fits and owes nothing to an approximation, which makes it the thing to reach
-for when the Pareto diagnostics say the weights cannot be trusted.
+Where \code{loo()} estimates the leave-one-out density from one fit, \code{kfold()}
+splits the sample, refits \eqn{K} times, and scores each part under a fit that
+never saw it. That costs \eqn{K} fits and owes nothing to an approximation,
+which makes it the thing to reach for when the Pareto diagnostics say the
+weights cannot be trusted.
 
 It returns a \verb{<kfold>} object that \pkgfun{loo}{loo_compare} accepts beside a
 \verb{<loo>} one, so two models can be compared on one split by passing the folds
@@ -264,103 +253,92 @@ loo_compare(list(full = kfold(fit, folds = folds),
 }\if{html}{\out{</div>}}
 
 The refits run under a \code{future} plan when one is set, and one \code{set.seed()}
-reproduces them either way. Each is refitted from the original call, so a fit
-whose \code{data} argument no longer names the data it was made from is an error
-rather than a wrong answer; prior weights and an offset are carried into both
-the refits and the held-out scores, since a score taken without them is wrong
-rather than approximate.
-
+reproduces them either way. Each is refitted from the original call, so the
+\code{data} argument has to still name the data the fit was made from. Prior weights
+and an offset are carried into both the refits and the held-out scores.
 \code{p_kfold} is the gap between what the model predicts for an observation it was
-fitted to and what it predicts for the same one held out, which is the price
-of having used it. \code{vignette("comparison")} reads an example.
+fitted to and what it predicts for the same one held out, which is the price of
+having used it. \code{vignette("comparison")} reads an example.
 }
 
-\subsection{Comparing Survival Families}{
+\subsection{Setting \code{scale} for Survival Families}{
 
 The accelerated failure time families report the density of \eqn{\log T} and
 \code{\link[=ph]{ph()}} the density of \eqn{T}. Both are correct for the model that produced
-them, and neither is comparable with the other: they differ by the Jacobian of
-the change of variable, so a log score taken across that boundary is off by
-\eqn{\sum \log t} over the events, which runs to thousands of points on a
-sample of any size and can reverse which family looks better.
+them, and they differ by the Jacobian of the change of variable, so a log score
+taken across that boundary is off by \eqn{\sum \log t} over the events, which
+can reverse which family looks better.
 
-\code{scale} puts them on one measure. It is not applied on its own initiative,
-because \code{loo()} would then stop reporting the model's own predictive density,
-would no longer agree with \code{log_lik()}, and would silently carry the same
-error into a comparison against a proportional hazards fit from another
-package. It reads the same from either side, since a fit already on the scale
-named is returned untouched:
+\code{scale} puts them on one measure, and reads the same from either side, since a
+fit already on the scale named is returned untouched:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{loo_compare(list(aft = loo(aft_fit, scale = "time"),
                  ph = loo(ph_fit, scale = "time")))
 }\if{html}{\out{</div>}}
 
-Censored observations are not adjusted, since a survival probability is a
-probability on either scale. \code{vignette("comparison")} works through the
+It is left to the caller rather than applied automatically so that \code{loo()}
+keeps reporting the model's own predictive density and keeps agreeing with
+\code{log_lik()}. Censored observations are not adjusted, a survival probability
+being a probability on either scale. \code{vignette("comparison")} works through the
 comparison and \code{vignette("survival")} through the families.
+}
+
+\subsection{Posterior Predictive Checks}{
 
 The seven \verb{ppc_loo_*} checks reweight the replicates towards the
-leave-one-out predictive instead of comparing them with the response
-directly, so they need those same weights. \code{pp_check()} computes them from
-the fit's own pointwise log likelihood and passes them on, and \code{ndraws} does
-not apply to those checks, because the weights and the replicates have to
-line up draw for draw; supplying \code{lw} or \code{psis_object} takes over from it.
-\pkgfun{bayesplot}{ppc_loo_calibration} wants a binary response besides,
-which is its own requirement rather than this package's.
+leave-one-out predictive, so they need those weights. \code{pp_check()} computes
+them from the fit's own pointwise log likelihood and passes them on, and
+\code{ndraws} does not apply to those checks, because the weights and the
+replicates have to line up draw for draw; supplying \code{lw} or \code{psis_object}
+takes over from it.
 
 The two calibration checks are the ones to reach for when the response is
 binary, since the default check compares two distributions that can only take
-two values and so finds nothing. \code{type = "loo_calibration"} is the honest
-one, holding each observation out of the probability it is judged against;
+two values. \code{type = "loo_calibration"} is the honest one, holding each
+observation out of the probability it is judged against, where
 \code{type = "calibration"} is its in-sample counterpart and reads optimistically.
-A binned residual plot (\code{type = "error_binned"}) and either calibration check
-are about the predicted probabilities rather than replicate outcomes, so they
-are passed the mean of the predictive distribution instead of a draw from it.
+Those two and a binned residual plot (\code{type = "error_binned"}) are about the
+predicted probabilities rather than replicate outcomes, so they are passed the
+mean of the predictive distribution instead of a draw from it.
 }
 
-\subsection{What a Posterior Predictive Draw Is On}{
+\subsection{The Scale of a Posterior Predictive Draw}{
 
-The replicate outcomes are on the scale the likelihood was written on, which
-is the scale \code{\link[=bartisan]{bartisan()}} stored the response on. A \strong{binomial} response is a
+Replicate outcomes are on the scale the likelihood was written on, which is
+the scale \code{\link[=bartisan]{bartisan()}} stored the response on. A binomial response is a
 proportion, so binary data come back as 0 and 1, and data given as two columns
 or with prior weights come back as a fraction of the trials. A response with
-\strong{categories} comes back as an integer category index, from 1 to the number
-of categories, because a matrix cannot hold a factor; \code{fit$levels} names them,
-and \code{\link[stats:simulate]{stats::simulate()}} returns factors instead, since its result is a data
-frame and can. An \strong{accelerated failure time} response comes back as a time
-rather than a log time, and it is an event time: the predictive distribution
-of the outcome does not know about the censoring that may have hidden it, so
-comparing replicates against censored observations is not like for like, and
-\code{pp_check()} says so. A \code{\link[=custom_family]{custom_family()}} fit has \strong{no posterior predictive
-distribution at all}, because a log density supplies no way to draw from it,
-so those methods error.
+categories comes back as an integer category index, since a matrix cannot hold
+a factor; \code{fit$levels} names them, and \code{\link[stats:simulate]{stats::simulate()}} returns factors
+instead, its result being a data frame. An accelerated failure time response
+comes back as an event time rather than a log time, and the predictive
+distribution of the outcome knows nothing of the censoring that may have hidden
+it, so \code{pp_check()} says so when replicates are compared against censored
+observations. A \code{\link[=custom_family]{custom_family()}} fit supplies a log density and no way to draw
+from it, so these methods error on one.
 }
 
-\subsection{What Is Deliberately Absent}{
+\subsection{AIC, BIC and Normality Checks}{
 
-There is no \code{logLik()} method, and that is a choice rather than a gap. The
-generic exists so that \code{\link[stats:AIC]{stats::AIC()}} and \code{\link[stats:BIC]{stats::BIC()}} can be computed, and
-both need a count of parameters, which a forest does not have, since the
-number of leaves is itself drawn from the posterior. \pkgfun{loo}{loo} and
-\pkgfun{loo}{waic} are the corresponding quantities for a model like this
-one, and they are computed from the posterior rather than from a parameter
-count.
-
-For the same reason \pkgfun{performance}{check_normality} and
-\pkgfun{performance}{check_outliers} do not work: they ask for a
-likelihood-ratio test and for Cook's distance, neither of which is defined
-here. \pkgfun{performance}{check_predictions} does work, through
-\code{\link[stats:simulate]{stats::simulate()}}.
+\code{\link[stats:AIC]{stats::AIC()}} and \code{\link[stats:BIC]{stats::BIC()}} need a count of parameters, which a forest
+does not have, since the number of leaves is itself drawn from the posterior;
+there is accordingly no \code{logLik()} method. \pkgfun{loo}{loo} and
+\pkgfun{loo}{waic} are the corresponding quantities for a model like this one,
+computed from the posterior rather than from a parameter count. For the same
+reason \pkgfun{performance}{check_normality} and
+\pkgfun{performance}{check_outliers}, which ask for a likelihood-ratio test
+and for Cook's distance, are unavailable, where
+\pkgfun{performance}{check_predictions} works through \code{\link[stats:simulate]{stats::simulate()}}.
 }
 
 \subsection{The Bayesian R-Squared}{
 
-\pkgfun{performance}{r2} returns the quantity of Gelman et al. (2019): per
-draw, the variance of the fitted means across observations divided by that
-variance plus the variance of the residuals. Being a per-draw quantity it has a
-posterior, which is why it is reported with an interval and why it can fall as
-the model is made more flexible. It needs a mean, so it is not available for
-\code{ordinal()} or \code{multinomial()}.
+\pkgfun{performance}{r2} returns, per draw, the variance of the fitted means
+across observations divided by that variance plus the variance of the
+residuals. Being a per-draw quantity it has a posterior, which is why it is
+reported with an interval and why it can fall as the model is made more
+flexible. It needs a mean, so it is available for every family except
+\code{ordinal()} and \code{multinomial()}.
 }
 }
 \examples{
@@ -392,14 +370,6 @@ if (rlang::is_installed("posterior")) {
   posterior::summarise_draws(posterior::as_draws(fit))
 }
 \dontshow{\}) # examplesIf}
-}
-\references{
-Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). R-squared for
-Bayesian regression models. \emph{The American Statistician}, 73(3), 307--309.
-
-Vehtari, A., Gelman, A., & Gabry, J. (2017). Practical Bayesian model
-evaluation using leave-one-out cross-validation and WAIC. \emph{Statistics and
-Computing}, 27(5), 1413--1432.
 }
 \seealso{
 \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for the predictions these methods are built on;

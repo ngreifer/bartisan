@@ -12,6 +12,9 @@
 # Paired within replicate; the standard error reported is of the paired
 # difference, not of either method's own spread.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 suppressMessages(library(VCBART))
 
@@ -72,6 +75,8 @@ run_rep <- function(rep) {
                     verbose = FALSE)
   })[["elapsed"]]
 
+  prog_tick(pr, secs = t_bartisan, label = sprintf("bartisan rep %d", rep))
+
   # The control function is the prediction with every covariate at zero, which
   # is what `center = "zero"` makes it.
   at_zero <- frame
@@ -91,6 +96,8 @@ run_rep <- function(rep) {
                                verbose = FALSE)
   })[["elapsed"]]
 
+  prog_tick(pr, secs = t_vcbart, label = sprintf("VCBART rep %d", rep))
+
   b_vcbart <- asplit(vfit[["betahat.train"]], 3L)
 
   out <- vapply(seq_len(5L), function(j) {
@@ -102,7 +109,31 @@ run_rep <- function(rep) {
   list(scores = out, time = c(bartisan = t_bartisan, VCBART = t_vcbart))
 }
 
-results <- lapply(seq_len(REPS), run_rep)
+OUT <- "_dev/vcbart-benchmark.rds"
+
+# Two fits per replicate, one from each package.
+pr <- prog_init(total = REPS * 2L, title = "bartisan against VCBART",
+                unit = "fit", kind = "benchmark")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+results <- list()
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(scores = simplify2array(lapply(results, `[[`, "scores")),
+               times = vapply(results, `[[`, numeric(2L), "time"),
+               complete = complete, done = length(results), total = REPS,
+               n = N, num_trees = TREES, num_draws = DRAWS), OUT)
+}
+
+for (r in seq_len(REPS)) {
+  results[[r]] <- run_rep(r)
+  checkpoint(FALSE)
+}
+
 scores <- simplify2array(lapply(results, `[[`, "scores"))
 times <- vapply(results, `[[`, numeric(2L), "time")
 
@@ -129,4 +160,7 @@ for (metric in c("rmse", "coverage", "width")) {
 cat(sprintf("\nElapsed seconds per fit: bartisan %.1f, VCBART %.1f\n",
             mean(times["bartisan", ]), mean(times["VCBART", ])))
 
-saveRDS(list(scores = scores, times = times), "_dev/vcbart-benchmark.rds")
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d replicates", length(results)))
+cat("wrote", OUT, "\n")

@@ -2,7 +2,12 @@
 # Read straight off fitted trees: a partition of the levels is what the leaves
 # induce, and with no signal in the data the fit is drawing close to the prior.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
+
+OUT <- "_dev/categorical-check.rds"
 
 set.seed(1)
 n <- 800
@@ -10,14 +15,21 @@ K <- 5
 g <- factor(sample(letters[seq_len(K)], n, TRUE))
 d <- data.frame(y = stats::rnorm(n), g = g)
 
+pr <- prog_init(total = 1L, title = "Categorical rule: the partitions reached",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the fit finished"), add = TRUE)
+
 # The partition each draw's forest induces over the levels, read off predictions:
 # two levels are in the same cell of a single tree's partition exactly when that
 # tree predicts the same value for them. Using a one-tree forest makes the
 # forest's partition the tree's.
+t0 <- Sys.time()
 fit <- bartisan(y ~ g, data = d, family = gaussian(),
                 control = bartisan_control(num_trees = 1, num_burn = 500,
                                            num_draws = 4000, gate = "hard",
                                            sparsity = FALSE))
+prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+          label = "one-tree forest on pure noise")
 
 one <- d[match(levels(g), d$g), , drop = FALSE]
 draws <- predict(fit, newdata = one, type = "link", summary = FALSE,
@@ -58,3 +70,14 @@ cat(sprintf("of those, %d are partitions one-hot encoding cannot form at all\n",
             sum(non_onehot)))
 cat(sprintf("share of draws in such a partition: %.3f\n",
             mean(labels %in% unique(labels)[non_onehot])))
+
+saveRDS(list(K = K, draws = nrow(draws), labels = labels, co = co,
+             seen = seen, onehot_reach = 2^K - K, bell = bell(K),
+             non_onehot = sum(non_onehot),
+             share_non_onehot = mean(labels %in% unique(labels)[non_onehot]),
+             complete = TRUE),
+        OUT)
+
+on.exit()
+prog_end(pr, "done")
+cat("wrote", OUT, "\n")

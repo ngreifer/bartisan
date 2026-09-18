@@ -81,13 +81,25 @@ settings <- list(
 
 shapes <- c("smooth", "step")
 
-pr <- prog_init(total = length(shapes) * length(settings) * REPS,
+n_total <- length(shapes) * length(settings) * REPS
+
+pr <- prog_init(total = n_total,
                 title = "Bandwidth update frequency", unit = "fit",
                 kind = "simulation")
 on.exit(prog_end(pr, "failed"), add = TRUE)
 
 rows <- list()
 k <- 0L
+
+# Written after every fit rather than after the last one, so a run that is
+# killed still leaves its finished fits on disk. `complete` is what tells a
+# reader which of the two it has.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, rows), complete = complete, done = k,
+               total = n_total, reps = REPS, n_train = N_TRAIN,
+               n_test = N_TEST, chains = CHAINS, num_burn = NUM_BURN,
+               num_draws = NUM_DRAWS), OUT)
+}
 
 for (shape in shapes) {
   test <- make(N_TEST, 10L, shape, seed = 77L + match(shape, shapes))
@@ -129,16 +141,16 @@ for (shape in shapes) {
 
       prog_tick(pr, i = k, secs = secs,
                 label = sprintf("%s %s rep %d", shape, st$label, r))
+      checkpoint(FALSE)
     }
   }
 }
 
+checkpoint(TRUE)
 res <- do.call(rbind, rows)
-saveRDS(list(res = res, reps = REPS, n_train = N_TRAIN, n_test = N_TEST,
-             chains = CHAINS, num_burn = NUM_BURN, num_draws = NUM_DRAWS), OUT)
 
 on.exit()
-prog_end(pr, "done")
+prog_end(pr, "done", sprintf("%d fits", k))
 
 agg <- aggregate(cbind(secs, rmse, coverage, width, ess_min, ess_per_sec,
                        rhat_max, bandwidth) ~ shape + setting,

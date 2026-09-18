@@ -19,51 +19,34 @@
 #'   \describe{
 #'     \item{`"link"`}{the additive predictor, one column per predictor for
 #'       families that have more than one.}
-#'     \item{`"response"`}{the mean of the response; the median survival time
-#'       for every survival family, [ph()] included; and, for a response with
-#'       categories, the category probabilities, since there is no single mean
-#'       to report.}
+#'     \item{`"response"`}{the mean of the response; the median survival time for
+#'       every survival family, [ph()] included; and, for a response with
+#'       categories, the category probabilities, there being no single mean to
+#'       report.}
 #'     \item{`"prob"`}{category probabilities, for the binomial, ordinal and
 #'       multinomial families.}
 #'     \item{`"class"`}{the most probable category, as a factor, for the same
 #'       families.}
 #'     \item{`"mean"`}{the mean of the response with the category labels read as
-#'       numbers, for the same families, so that `"4"` counts as four. This is
-#'       the summary an ordinal outcome with numeric labels usually wants, and it
-#'       needs no assumption at the modeling stage: the model is still ordinal
-#'       and only the reporting treats the categories as numbers. `values` says
-#'       what the categories are worth when the labels are not numbers, or are
-#'       not the numbers intended.}
-#'     \item{`"stdlv"`}{the additive predictor divided by the standard deviation
-#'       of the latent variable it indexes, for the ordinal and binomial
-#'       families. Either response can be written as a threshold crossing of a
-#'       continuous `y* = eta + e`, and the link fixes the distribution of `e`
-#'       and so its variance; dividing by the standard deviation of `y*` puts
-#'       fits with different links, or different amounts of signal, on one
-#'       scale, which is what a standardized effect size on such an outcome
-#'       needs. Available for the probit, logit and complementary log-log links,
-#'       which are the ones with a latent distribution to name. See Details.}
+#'       numbers, for the same families, so that `"4"` counts as four. `values`
+#'       says what the categories are worth where the labels are not the numbers
+#'       intended.}
+#'     \item{`"stdlv"`}{the additive predictor on the scale of the latent
+#'       variable it indexes, for the ordinal and binomial families under the
+#'       probit, logit and complementary log-log links. This puts fits with
+#'       different links, or different amounts of signal, on one scale. See
+#'       Details.}
 #'     \item{`"density"`}{the conditional density of the outcome given the
-#'       predictors, evaluated at the observed outcome. This requires the
-#'       outcome, so `newdata` must contain it; leaving `newdata` empty uses the
-#'       data the model was fit to. The value is the likelihood contribution of
-#'       the observation, so it is a density for a continuous response, a
-#'       probability for a discrete one, and a survival probability for a
-#'       censored survival time. Useful for held-out log scores and for
-#'       posterior predictive checks. **The measure differs across the survival
-#'       families**: the accelerated failure time families, `dpm_aft()` included,
-#'       report the density of \eqn{\log T}, while `ph()` reports the density of
-#'       \eqn{T}. The two differ by \eqn{\sum \log t}, so log
-#'       scores are comparable within each group and not across them;
-#'       `type = "survival"` is comparable throughout.}
+#'       predictors, evaluated at the observed outcome, so `newdata` must carry
+#'       the outcome and leaving it empty uses the fitted data. This is the
+#'       observation's likelihood contribution, so it is a probability for a
+#'       discrete response and a survival probability for a censored time. See
+#'       Details.}
 #'     \item{`"survival"`}{the survival function \eqn{S(t \mid x)} at the times
-#'       given in `times`, for the accelerated failure time families and `ph()`.
-#'       This is the predictive distribution of a survival response, and the
-#'       analogue of `"prob"` for a categorical one: `"response"` reports only the
-#'       median. Returns one column per time, or a draws by rows by times array
-#'       when `draws = TRUE`. It is also what makes the usual survival estimand
-#'       (a contrast in \eqn{t}-year survival) reachable through
-#'       \pkg{marginaleffects}; see [bartisan-marginaleffects].}
+#'       given in `times`, for the accelerated failure time families and [ph()].
+#'       Returns one column per time, or a draws by rows by times array when
+#'       `draws = TRUE`. This is what makes the usual survival estimand reachable
+#'       through \pkg{marginaleffects}; see [bartisan-marginaleffects].}
 #'   }
 #' @param draws `logical`; whether to return every posterior draw rather than
 #'   the posterior mean. Default is `FALSE` to return the mean. If `TRUE`, the
@@ -127,59 +110,44 @@
 #' is per posterior draw and averages down over them, which makes `draws = FALSE`
 #' much more accurate than any single row of `draws = TRUE`.
 #'
-#' ## The Standardized Latent Variable
+#' ## Setting `type = "stdlv"`
 #'
-#' `type = "stdlv"` reports `(eta - E[e]) / sd(y*)` for the latent
-#' `y* = eta + e`, following
-#' \pkgfun{WeightIt}{predict.ordinal_weightit}. Three parts of that need saying.
+#' This reports `(eta - E[e]) / sd(y*)` for the latent `y* = eta + e`, following
+#' \pkgfun{WeightIt}{predict.ordinal_weightit}, and is what makes an ordinal or
+#' binary fit comparable across links.
 #'
-#' The **scale** is `sd(y*) = sqrt(var(eta) + var(e))`, where `var(eta)` is taken
+#' The scale is `sd(y*) = sqrt(var(eta) + var(e))`, where `var(eta)` is taken
 #' over the sample the model was fitted to, per draw, so it is a property of the
-#' model rather than of whatever is being predicted; the same divisor is used when
-#' predicting new data. `var(e)` is whatever the link implies: 1 for the probit
-#' link, \eqn{\pi^2 / 3} for the logit, \eqn{\pi^2 / 6} for the complementary log-log.
-#'
-#' The **location** subtracts the latent error's mean, which shifts `y*` so that
-#' its error is centered. That is invisible for the logit and probit links, whose
-#' errors are already centered, and is the whole of the difference for the
-#' complementary log-log link, whose error is a smallest extreme value variate.
-#'
-#' The sign of that shift differs between the two families, and only for the
-#' complementary log-log link. A normal or logistic error is symmetric, so it does
-#' not matter whether `e` or `-e` is the thing added to the index. A smallest
-#' extreme value error is not symmetric, and the two families add it with opposite
-#' signs: an ordinal model has `P(Y <= k) = G(c_k - eta)`, which is
-#' `P(eta + e <= c_k)`, so its error has mean `-gamma`; a binomial model has
-#' `P(Y = 1) = G(eta)`, which is `P(e <= eta)`, so its latent is `eta - e` and the
-#' error has mean `+gamma`. The two are different models rather than the same one
-#' written twice, which is also why a two-category ordinal complementary log-log
-#' fit is not the same as a binomial one.
+#' model rather than of whatever is being predicted and the same divisor is used
+#' for new data. `var(e)` is whatever the link implies: 1 for the probit link,
+#' \eqn{\pi^2 / 3} for the logit, \eqn{\pi^2 / 6} for the complementary
+#' log-log. The location subtracts the latent error's mean, which is invisible
+#' for the logit and probit links, whose errors are already centered, and is the
+#' whole of the difference for the complementary log-log.
 #'
 #' Such a model is identified only up to a common shift of its thresholds and its
-#' predictor, so the location of this quantity is a convention rather than a fact,
-#' and the one used here is the same one the cutpoints use: a predictor centered
-#' over the fitted sample. Against \pkg{WeightIt}, which identifies by dropping the
-#' intercept column instead, the two agree on the scale and differ by a constant;
-#' measured on a linear truth, the standard deviations agree to under 1% and the
-#' difference is constant to three decimals. Differences on this scale, which is
-#' what a standardized quantity is for, are unaffected.
+#' predictor, so the location here is a convention, and the one used is the same
+#' the cutpoints use: a predictor centered over the fitted sample. Differences on
+#' this scale, which is what a standardized quantity is for, are unaffected by
+#' that choice.
 #'
-#' ## When the Density Is Undefined
+#' ## Setting `type = "density"`
 #'
-#' `type = "density"` returns `NaN` for an observation whose density is
-#' undefined at any of the draws, which happens when a link the package does not
-#' compile has been composed onto the family's own scale and its inverse does not
-#' cover the whole additive predictor (e.g., `poisson("identity")`, which gives a
-#' positive mean only where the predictor is positive). A saved draw can imply a
-#' parameter outside the family's support at a predictor the forest extrapolates
-#' to, even though [bartisan()] warns about such a link at fit time and rejects
-#' such proposals while sampling. The value stays `NaN` rather than becoming
-#' zero, which would assert that the outcome is impossible and would read as a
-#' legitimately terrible fit rather than an undefined one once logged, and a
-#' warning reports how many draw-by-observation values were undefined and how
-#' many returned values that made `NaN`. Note that the draws are averaged before
-#' the log is taken, so one undefined draw is enough to make an observation
-#' `NaN`.
+#' The measure differs across the survival families: the accelerated failure time
+#' families, `dpm_aft()` included, report the density of \eqn{\log T}, where
+#' [ph()] reports the density of \eqn{T}. The two differ by \eqn{\sum \log t},
+#' so log scores are comparable within each group rather than across them, and
+#' `type = "survival"` is comparable throughout. [loo()][bartisan-interop] takes a
+#' `scale` argument that puts them on one measure.
+#'
+#' `type = "density"` returns `NaN` for an observation whose density is undefined
+#' at any of the draws, which happens when a link the package does not compile
+#' has been composed onto the family's own scale and its inverse does not cover
+#' the whole additive predictor (e.g., `poisson("identity")`, which gives a
+#' positive mean only where the predictor is positive). A warning reports how
+#' many draw-by-observation values were undefined and how many returned values
+#' that made `NaN`. The draws are averaged before the log is taken, so one
+#' undefined draw is enough to make an observation `NaN`.
 #'
 #' @seealso
 #' [bartisan()] for fitting the model; [bartisan-marginaleffects] for averages

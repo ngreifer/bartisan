@@ -7,7 +7,12 @@
 #
 # Prototyped through custom_family() so the model can be checked against a known
 # truth before any of it is written in C++.
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages(library(bartisan))
+
+OUT <- "_dev/zero-augmented-prototype.rds"
 
 logdens <- function(y, eta, aux) {
   e <- eta[, 1L]
@@ -40,11 +45,16 @@ fam <- custom_family(logdens, num_predictors = 1L, start = mean(log(y[y > 0])),
                      aux_names = c("cut", "log_shape"),
                      aux_start = c(0, 0), name = "zagamma")
 
+pr <- prog_init(total = 1L, title = "A zero-augmented family in R", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the fit finished"), add = TRUE)
+
 t0 <- Sys.time()
 set.seed(1)
 fit <- bartisan(y ~ ., data = d, family = fam, chains = 2,
                 num_burn = 400, num_draws = 400, verbose = FALSE)
 secs <- as.numeric(Sys.time() - t0, units = "secs")
+prog_tick(pr, secs = secs, label = "zero-augmented gamma")
 
 eta_hat <- colMeans(fit[["eta"]][[1L]])
 aux <- colMeans(fit[["aux"]])
@@ -61,4 +71,11 @@ mu_true <- stats::plogis(truth - CUT) * exp(truth)
 cat(sprintf("E[y|x]:     cor with truth %.3f, RMSE %.1f (sd of truth %.1f)\n",
             stats::cor(mu_hat, mu_true), sqrt(mean((mu_hat - mu_true)^2)),
             stats::sd(mu_true)))
-cat("DONE\n")
+saveRDS(list(secs = secs, eta_hat = eta_hat, truth = truth, aux = aux,
+             cut_truth = CUT, shape_truth = K, mu_hat = mu_hat,
+             mu_true = mu_true, complete = TRUE),
+        OUT)
+
+on.exit()
+prog_end(pr, "done")
+cat("wrote", OUT, "\n")

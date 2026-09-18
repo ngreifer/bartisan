@@ -17,6 +17,9 @@
 #
 # Usage: Rscript _dev/share-sparsity-sim.R <reps> <family>
 options(parallelly.availableCores.fallback = 4, parallelly.maxWorkers.localhost = Inf)
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages({
   library(bartisan); library(future)
 })
@@ -90,7 +93,25 @@ cells <- expand.grid(p = c(5L, 25L, 100L), agree = c(TRUE, FALSE),
 # With disjoint sets the truth needs ten predictors, so P = 5 cannot hold it.
 cells <- cells[!(cells[["p"]] == 5L & !cells[["agree"]]), ]
 
+OUT <- file.path(ROOT, sprintf("_dev/share-sparsity-%s.rds", FAM))
+n_total <- nrow(cells) * REPS * 2L
+
+pr <- prog_init(total = n_total, unit = "fit", kind = "simulation",
+                title = sprintf("Shared sparsity: %s", FAM))
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
 out <- list()
+done <- 0L
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete, done = done,
+               total = n_total, reps = REPS, family = FAM, cells = cells), OUT)
+}
+
 for (i in seq_len(nrow(cells))) {
   p <- cells[["p"]][i]
   agree <- cells[["agree"]][i]
@@ -102,17 +123,28 @@ for (i in seq_len(nrow(cells))) {
 
     for (share in c(FALSE, TRUE)) {
       set.seed(seed + 900000L)
+      t0 <- Sys.time()
       got <- runner(train, test, share)
       out[[length(out) + 1L]] <- data.frame(
         p = p, agree = agree, rep = r, share = share,
         component = names(got), rmse = as.vector(got))
+
+      done <- done + 1L
+      prog_tick(pr, i = done,
+                secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+                label = sprintf("p=%d agree=%s %s rep %d", p, agree,
+                                if (share) "shared" else "separate", r))
     }
+
+    checkpoint(FALSE)
   }
-  cat(sprintf("p = %3d agree = %-5s done\n", p, agree))
-  utils::flush.console()
 }
+
+checkpoint(TRUE)
 res <- do.call(rbind, out)
-saveRDS(res, file.path(ROOT, sprintf("_dev/share-sparsity-%s.rds", FAM)))
+
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
 
 cat(sprintf("\n%s: RMSE on the held-out truth, mean over %d reps, n = 400\n\n",
             FAM, REPS))

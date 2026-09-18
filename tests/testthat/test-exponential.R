@@ -61,7 +61,7 @@ test_that("the exponential shortcut reproduces the general path", {
          y = stats::rgamma(250, 3, rate = 3 / exp(linear)), tol = 1e-10),
     list(label = "negbin augmented", family = negbin(),
          y = stats::rnbinom(250, mu = exp(linear), size = 2),
-         augment = "negbin", tol = 1e-3))
+         augment = TRUE, tol = 1e-3))
 
   # The two families the *rate* unlocked, which the form could not reach while it
   # was fixed at exp(+-eta). Both carry a rate that is not +-1, and the Weibull's
@@ -152,15 +152,15 @@ test_that("the statically dispatched accumulators match the virtual ones", {
          list(augment = TRUE, gate = "hard")),
     list("negbin augmented", negbin(),
          stats::rnbinom(200, mu = exp(linear), size = 2),
-         list(augment = "negbin", gate = "hard")),
+         list(augment = TRUE, gate = "hard")),
     list("lognormal AFT augmented", lognormal_aft(),
          cbind(exp(pmin(linear + stats::rnorm(200, sd = 0.5), 3)),
                as.numeric(linear + stats::rnorm(200, sd = 0.5) <= 3)),
-         list(augment = "aft")),
+         list(augment = TRUE)),
     list("loglogistic AFT augmented", loglogistic_aft(),
          cbind(exp(pmin(linear + 0.5 * stats::rlogis(200), 3)),
                as.numeric(linear + 0.5 * stats::rlogis(200) <= 3)),
-         list(augment = "aft")))
+         list(augment = TRUE)))
 
   for (s in settings) {
     dd <- d
@@ -304,7 +304,7 @@ test_that("the augmented negative binomial targets the same posterior", {
   direct <- bartisan(y ~ ., data = d, family = negbin(), control = ctrl(FALSE))
   set.seed(5)
   rewritten <- bartisan(y ~ ., data = d, family = negbin(),
-                        control = ctrl("negbin"))
+                        control = ctrl(TRUE))
 
   a <- predict(direct, type = "link")
   b <- predict(rewritten, type = "link")

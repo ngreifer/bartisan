@@ -327,8 +327,8 @@ test_that("`gate` covers both kinds of rule and `sparsity` sets the DART prior",
                   bartisan_control(gate = "hard")[["augment"]])
 
   # The survival rewriting pays under both kinds of rule, so it is on either way.
-  expect_true(all(c("aft") %in% bartisan_control()[["augment"]]))
-  expect_identical(bartisan_control(augment = "aft")[["augment"]], "aft")
+  expect_true("aft" %in% bartisan_control()[["augment"]])
+  expect_identical(bartisan_control(augment = FALSE)[["augment"]], character())
 
   on <- bartisan_control(sparsity = TRUE)
   off <- bartisan_control(sparsity = FALSE)

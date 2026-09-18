@@ -242,7 +242,7 @@ Conditional on which component each observation belongs to, the model is Gaussia
 
 ### Missing Predictor Values
 
-Missing predictor values are handled natively, by treating missingness as something to split on [@twala2008]. A rule can send missing values left, send them right, or split on missingness itself, and which of these is used is part of the posterior. No imputation is required and rows are not dropped.
+Missing predictor values are handled natively, by treating missingness as something to split on [@twala2008; for BART, @kapelner2015]. A rule can send missing values left, send them right, or split on missingness itself, and which of these is used is part of the posterior. No imputation is required and rows are not dropped.
 
 ```{r missing}
 d_miss <- train
@@ -315,31 +315,33 @@ A non-conjugate sampler costs more than a conjugate one, and it is worth being p
 
 A major contributor to *bartisan*'s speed is data augmentation. Where the rewriting reaches a Gaussian conditional the Laplace approximation stops being an approximation at all, which is the largest of the gains: `augment` uses @albert1993 for a probit link and for an ordinal probit, Pólya-Gamma augmentation [@polson2013] for a logit link, an ordinal logit, or a multinomial, and imputation of the censored failure times for the log-normal and log-logistic survival models. The negative binomial and the zero-inflated families are rewritten too, but to a Poisson rather than to a Gaussian, and the two paragraphs after the table say what that costs them.
 
-Each of them is faster, from 1.2 times for the negative binomial under soft rules to 31 for an ordinal probit with hard rules, with a median of 8.8. What each costs in mixing is the question, and the answer is not that they all cost something: over 15 replicate datasets the worst-mixing quantity's effective sample size came out a median of 1.05 times what the direct likelihood gives, and of the seventeen cases below, seven have an 80% interval lying entirely below 1, two lie entirely above it, and eight include it. Effective draws per second, which is the ratio to judge, favors augmentation in all seventeen:
+Each of them is faster, from 1.2 times for the negative binomial under soft rules to 31 for an ordinal probit with hard rules, with a median of 8.7. What each costs in mixing is the question, and the answer is not that they all cost something: over 15 replicate datasets the worst-mixing quantity's effective sample size came out a median of 0.89 times what the direct likelihood gives, and of the seventeen cases below, seven have an 80% interval lying entirely below 1, three lie entirely above it, and seven include it. Effective draws per second, which is the ratio to judge, favors augmentation in fifteen of the seventeen, the two negative-binomial rows being the exceptions:
 
 | Family | Speed | ESS, worst quantity | ESS, median quantity | ESS per second |
 |-----------------------|-------|--------------------|-----------|-----------|
-| `ordinal("probit")`, hard rules | 31x | 0.72x [0.54, 0.95] | 0.73x | **22x** |
-| `ordinal("probit")`, soft rules | 24x | 0.65x [0.52, 0.84] | 0.61x | **16x** |
-| `multinomial()`, hard rules | 12x | 1.06x [0.73, 1.48] | 0.97x | **13x** |
-| `lognormal_aft()`, soft rules | 11x | 1.09x [0.62, 1.95] | 1.05x | **12x** |
-| `loglogistic_aft()`, hard rules | 8.8x | 1.34x [0.72, 2.41] | 0.96x | **12x** |
-| `multinomial()`, soft rules | 8.2x | 1.43x [1.00, 1.96] | 0.91x | **12x** |
-| `binomial("probit")` | 9.7x | 1.19x [0.77, 2.01] | 1.12x | **12x** |
-| `lognormal_aft()`, hard rules | 14x | 0.74x [0.57, 0.97] | 0.96x | **10x** |
-| `binomial("logit")` | 6.7x | 1.44x [1.02, 1.98] | 1.11x | **9.6x** |
-| `zi_poisson()`, hard rules | 5.8x | 1.58x [1.12, 2.09] | 1.05x | **9.1x** |
-| `ordinal("logit")`, soft rules | 12x | 0.57x [0.45, 0.76] | 0.65x | **7.1x** |
-| `zi_negbin()`, hard rules | 6.7x | 1.04x [0.81, 1.37] | 0.99x | **6.9x** |
-| `ordinal("logit")`, hard rules | 15x | 0.37x [0.30, 0.46] | 0.52x | **5.5x** |
-| `zi_poisson()`, soft rules | 3.7x | 1.24x [0.86, 1.79] | 1.15x | **4.6x** |
-| `loglogistic_aft()`, soft rules | 6.9x | 0.58x [0.46, 0.80] | 0.69x | **4.0x** |
-| `negbin()`, soft rules | 1.2x | 1.11x [0.68, 1.64] | 0.86x | 1.3x |
-| `negbin()`, hard rules | 1.8x | 0.61x [0.47, 0.79] | 0.84x | 1.1x |
+| `lognormal_aft()`, soft rules | 11x | 1.49x [1.14, 1.68] | 1.06x | **16x** |
+| `ordinal("probit")`, hard rules | 31x | 0.50x [0.37, 0.84] | 0.53x | **16x** |
+| `ordinal("probit")`, soft rules | 24x | 0.64x [0.50, 0.67] | 0.57x | **15x** |
+| `multinomial()`, soft rules | 8.1x | 1.49x [1.33, 2.04] | 0.87x | **12x** |
+| `loglogistic_aft()`, hard rules | 8.7x | 1.21x [0.96, 2.56] | 0.98x | **11x** |
+| `binomial("probit")` | 9.8x | 1.13x [0.97, 1.27] | 1.09x | **10x** |
+| `multinomial()`, hard rules | 12x | 0.89x [0.81, 0.99] | 0.84x | **10x** |
+| `lognormal_aft()`, hard rules | 14x | 0.61x [0.45, 1.22] | 0.88x | **8.8x** |
+| `binomial("logit")` | 6.7x | 1.31x [1.04, 1.99] | 1.11x | **8.8x** |
+| `zi_negbin()`, hard rules | 6.7x | 1.02x [0.79, 1.22] | 1.02x | **6.6x** |
+| `ordinal("logit")`, hard rules | 15x | 0.43x [0.38, 0.64] | 0.49x | **6.5x** |
+| `ordinal("logit")`, soft rules | 12x | 0.50x [0.46, 0.65] | 0.61x | **6.3x** |
+| `zi_poisson()`, hard rules | 5.8x | 1.15x [0.74, 1.42] | 1.13x | **5.9x** |
+| `loglogistic_aft()`, soft rules | 6.9x | 0.67x [0.54, 0.87] | 0.74x | **4.6x** |
+| `zi_poisson()`, soft rules | 3.7x | 1.14x [0.96, 2.25] | 1.30x | **4.5x** |
+| `negbin()`, hard rules | 1.8x | 0.52x [0.47, 0.97] | 0.84x | 1.0x |
+| `negbin()`, soft rules | 1.2x | 0.66x [0.49, 1.06] | 0.83x | 0.8x |
 
-The bracketed range is an 80% bootstrap interval over the replicates, and it is in the table because without it the column invites conclusions it cannot support: at three replicates the same quantity varied by a median factor of 4.5 within a single cell, since the worst-quantity effective sample size is a minimum over many quantities and so is a high-variance thing to estimate. The median quantity is the stabler reading, and comparing the two columns is informative on its own: those ratios run .52 to 1.15 where the worst-quantity ones run .37 to 1.58, so a family whose worst corner mixes noticeably better or worse under augmentation has usually moved less than that as a whole.
+Every cell is the median over replicates of the ratio *within* a replicate, which is the reading the design supports: both arms see the same data, so the paired ratio is the quantity with the least noise in it, and a median rather than a mean because a wall-clock timing can be disturbed by work outside the fit (see below). The bracketed range is an 80% bootstrap interval over the replicates, and it is in the table because without it the column invites conclusions it cannot support: at three replicates the same quantity varied by a median factor of 4.5 within a single cell, since the worst-quantity effective sample size is a minimum over many quantities and so is a high-variance thing to estimate. The median quantity is the stabler reading, and comparing the two columns is informative on its own: those ratios run .49 to 1.30 where the worst-quantity ones run .43 to 1.49, so a family whose worst corner mixes noticeably better or worse under augmentation has usually moved less than that as a whole.
 
-`augment` is on by default for every family that has a rewriting: the binomial, ordinal, multinomial, negative binomial, zero-inflated, and survival families. The negative binomial's is a Poisson whose rate comes from a gamma, which needs one gamma draw per observation rather than a Pólya-Gamma one, and it is the one family whose two rows differ in kind rather than degree. Under hard rules the target reaches the exponential form and the rewriting buys time at a real cost in mixing; under soft rules it cannot, and the rewriting instead buys a little time at no measurable cost in mixing. Both come out ahead on effective draws per second, but by the least of any family here, so `augment = FALSE` is worth trying if a negative binomial fit's diagnostics look poor.
+These are wall-clock timings, so they are only as good as the machine was quiet. An earlier measurement of the four ordinal rows recorded one `augment = FALSE` fit at 3882 seconds against 30 to 43 for the other fourteen replicates of its cell, and two more at about 600 against 51 to 65. Re-running the four cells with the machine to itself returned all 120 fits' effective sample sizes unchanged to the last recorded digit, so those three had done identical work; they came back at 34, 65 and 65 seconds, and each had overlapped another job on the same machine. The rows above are that clean run, in which the un-augmented fits take 32 to 38 seconds under hard rules and 61 to 69 under soft. Medians are used throughout regardless, since they are what keeps a table of timings robust to that kind of accident.
+
+`augment` is on by default for every family that has a rewriting: the binomial, ordinal, multinomial, negative binomial, zero-inflated, and survival families. The negative binomial's is a Poisson whose rate comes from a gamma, which needs one gamma draw per observation rather than a Pólya-Gamma one, and it is the one family whose two rows differ in kind rather than degree. Under hard rules the target reaches the exponential form and the rewriting buys time at a real cost in mixing; under soft rules it cannot, and the rewriting instead buys a little time at no measurable cost in mixing. Neither comes out ahead on effective draws per second, at 1.0 and 0.8 times, which makes the negative binomial the one family whose rewriting does not pay for itself; `augment = FALSE` is worth trying whenever a negative binomial fit's diagnostics look poor.
 
 The survival families are the clearest case of what the rewriting is for. Right-censoring is what makes their likelihood expensive: an observed failure contributes a density in the additive predictor and a censored one contributes a survival function, and the two have different shapes, so nothing about the target is exploitable. Imputing each censored failure time above its censoring time replaces the survival term with a density, and then every observation contributes the same quadratic shape. `weibull_aft()` is absent from the table because it needs none of this, its likelihood being already exponential in the sense above, censoring included, which also makes it the slowest of the three at the default soft gate, where that form cannot be used.
 
@@ -423,7 +425,7 @@ Three more packages are single-purpose rather than general, so they are not colu
 
 Soft rules cost more per iteration than hard ones, because an observation near a cutpoint has to be followed down both sides of it rather than into one cell, so a leaf that a hard rule would skip still has to be evaluated. The gap is about a factor of $B$, the number of leaves, and the reason it comes out near three rather than near a hundred is the tree prior: it keeps trees to about two and a half leaves on average, so there is not much for the softening to multiply.
 
-Absolute timings are machine- and load-dependent, so these are indicative rather than exact; repeated runs on the same laptop varied by about 20%. As an anchor, a Gaussian response with 10 predictors, 50 soft trees, and the default 200 warmup plus 800 saved draws takes about a second at $n = 500$ and about ten seconds at $n = 5000$, measured at steady state on one core of an M-series Mac. Hard rules are about 3 times faster (2.9 times at $n = 500$ and 3.2 at $n = 5000$), and doubling the tree count roughly doubles the cost.
+Absolute timings are machine- and load-dependent, so these are indicative rather than exact; repeated runs on the same laptop varied by about 20%. As an anchor, a Gaussian response with 10 predictors, 50 soft trees, and the default 200 warmup plus 800 saved draws takes about three quarters of a second at $n = 500$ and about eight and a half seconds at $n = 5000$, measured at steady state on one core of an M-series Mac. Hard rules are about 3 times faster (2.9 times at $n = 500$ and 3.1 at $n = 5000$), and doubling the tree count roughly doubles the cost.
 
 The ratios are stabler than the absolute times. Cost relative to a Gaussian fit at the same size is set by how expensive the family's log density and its derivatives are:
 
@@ -431,25 +433,26 @@ The ratios are stabler than the absolute times. Cost relative to a Gaussian fit 
 |----------------------------------|---------------|
 | `gaussian()`                     | 1x            |
 | `binomial()`, either link        | 1.1x          |
-| `dpm()`                          | 1.2x          |
-| `ordinal()`, logit or probit     | 1.2x          |
-| `poisson()`                      | 3.6x          |
-| `Gamma("log")`                   | 5.6x          |
-| `tweedie()`                      | 6.5x          |
-| `negbin()`                       | 6.8x          |
-| `gaussian_ls()`                  | 7.8x          |
-| `zi_poisson()`                   | 8.5x          |
-| `tweedie()`, with `power` drawn  | 9.1x          |
-| `Beta()`                         | 18x           |
-| `ordbeta()`                      | 23x           |
+| `ordinal("probit")`              | 1.2x          |
+| `dpm()`                          | 1.3x          |
+| `ordinal("logit")`               | 1.3x          |
+| `poisson()`                      | 3.5x          |
+| `Gamma("log")`                   | 5.5x          |
+| `negbin()`                       | 5.8x          |
+| `tweedie()`                      | 6.7x          |
+| `zi_poisson()`                   | 7.9x          |
+| `gaussian_ls()`                  | 8.0x          |
+| `tweedie()`, with `power` drawn  | 9.7x          |
+| `Beta()`                         | 17x           |
+| `ordbeta()`                      | 22x           |
 
-`tweedie()` earns a note because it looks as though it should be far worse: its density has no closed form at a positive response, and normalizing it takes an infinite series. Measured against a Gaussian fit of the same size it costs 6.5 times as much where `Gamma("log")` costs 5.6, so the series is not visible in the total. The reason is where the series sits. Writing the log density in exponential-dispersion form separates it into a part that moves with the predictor, which is closed form, and a normalizing term that does not depend on the predictor at all; the second goes in the eta-free part, which is evaluated once per sweep rather than at every leaf, and cancels from every acceptance ratio in between. Its length depends on the response and the dispersion but never on the mean, so it does not grow as the forest moves. Drawing `power` costs about 40% again, because the slice sampler has to re-sum the series at each candidate value and cannot use the table of log-gammas that a fixed power allows.
+`tweedie()` earns a note because it looks as though it should be far worse: its density has no closed form at a positive response, and normalizing it takes an infinite series. Measured against a Gaussian fit of the same size it costs 6.7 times as much where `Gamma("log")` costs 5.5, so the series is not visible in the total. The reason is where the series sits. Writing the log density in exponential-dispersion form separates it into a part that moves with the predictor, which is closed form, and a normalizing term that does not depend on the predictor at all; the second goes in the eta-free part, which is evaluated once per sweep rather than at every leaf, and cancels from every acceptance ratio in between. Its length depends on the response and the dispersion but never on the mean, so it does not grow as the forest moves. Drawing `power` costs about 45% again, because the slice sampler has to re-sum the series at each candidate value and cannot use the table of log-gammas that a fixed power allows.
 
 `ordbeta()` and `Beta()` are the expensive ones because every evaluation of their log density needs two log-gamma calls that no amount of restructuring removes. `ordinal()` is at the other end, and only because of augmentation: all three of its links have a latent-variable representation that the sampler uses by default (a normal for the probit, a normal with a Pólya-Gamma precision for the logit, and an exponential waiting time for the complementary log-log), which is what puts it beside `binomial()` here. `augment = FALSE` turns them off, and the table above is then no guide at all; the augmentation table earlier in this section is.
 
 An ordinal model is identified only up to a common shift of its cutpoints and its predictor. With three or more categories the draws are reported in the chart where **the predictor has mean zero over the fitted sample and every cutpoint is free**, which makes the cutpoints readable as category boundaries. With two categories the single boundary is folded into the intercept instead, so the fit is on the same scale as `binomial()`.
 
-That is `MASS::polr()`'s chart with its predictors centered. `polr()` identifies the location by leaving the intercept out of the design matrix rather than by centering, so its `zeta` is shifted by the mean of its own linear predictor. Either of these lines puts the two side by side, and on a linear truth they agree to Monte Carlo error:
+That is `MASS::polr()`'s chart [@venables2002] with its predictors centered. `polr()` identifies the location by leaving the intercept out of the design matrix rather than by centering, so its `zeta` is shifted by the mean of its own linear predictor. Either of these lines puts the two side by side, and on a linear truth they agree to Monte Carlo error:
 
 ``` r
 p <- MASS::polr(y ~ x1 + x2, data = d, method = "probit")

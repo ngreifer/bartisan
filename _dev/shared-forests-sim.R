@@ -22,6 +22,9 @@
 #
 # Usage: Rscript _dev/shared-forests-sim.R <reps> <arms>
 options(parallelly.availableCores.fallback = 4, parallelly.maxWorkers.localhost = Inf)
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages({
   library(bartisan); library(future)
 })
@@ -79,7 +82,25 @@ fit_arm <- function(arm, train, test, p) {
 cells <- expand.grid(p = c(5L, 20L, 50L, 100L, 250L), signal = 1,
                      KEEP.OUT.ATTRS = FALSE)
 
+OUT <- file.path(ROOT, "_dev/shared-forests-sim.rds")
+n_total <- nrow(cells) * REPS * length(ARMS)
+
+pr <- prog_init(total = n_total, title = "Shared forests: the prize",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
 out <- list()
+done <- 0L
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete, done = done,
+               total = n_total, reps = REPS, arms = ARMS, cells = cells), OUT)
+}
+
 for (i in seq_len(nrow(cells))) {
   p <- cells[["p"]][i]
   signal <- cells[["signal"]][i]
@@ -91,17 +112,25 @@ for (i in seq_len(nrow(cells))) {
     for (arm in ARMS) {
       t0 <- Sys.time()
       est <- fit_arm(arm, train, test, p)
+      secs <- as.numeric(Sys.time() - t0, units = "secs")
       out[[length(out) + 1L]] <- data.frame(
         p = p, signal = signal, rep = r, arm = arm,
-        loss = cross_entropy(test[["pi"]], est),
-        secs = as.numeric(Sys.time() - t0, units = "secs"))
+        loss = cross_entropy(test[["pi"]], est), secs = secs)
+
+      done <- done + 1L
+      prog_tick(pr, i = done, secs = secs,
+                label = sprintf("p=%d %s rep %d", p, arm, r))
     }
+
+    checkpoint(FALSE)
   }
-  cat(sprintf("p = %3d done (%d reps x %d arms)\n", p, REPS, length(ARMS)))
-  utils::flush.console()
 }
+
+checkpoint(TRUE)
 res <- do.call(rbind, out)
-saveRDS(res, file.path(ROOT, "_dev/shared-forests-sim.rds"))
+
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
 
 agg <- aggregate(loss ~ p + arm, data = res, FUN = mean)
 wide <- reshape(agg, idvar = "p", timevar = "arm", direction = "wide")

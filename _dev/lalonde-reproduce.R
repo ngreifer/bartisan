@@ -13,6 +13,9 @@
 #
 # Usage: Rscript _dev/lalonde-reproduce.R [seeds]
 options(parallelly.availableCores.fallback = 4, parallelly.maxWorkers.localhost = Inf)
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages({
   library(bartisan); library(future)
 })
@@ -35,7 +38,25 @@ cells <- data.frame(chains = c(6L, 4L, 12L), burn = c(20000L, 30000L, 30000L),
 
 args2 <- if (length(args) > 1) as.integer(strsplit(args[[2]], ",")[[1]]) else seq_len(nrow(cells))
 
+OUT <- file.path(ROOT, sprintf("_dev/lalonde-reproduce-%s.rds",
+                               paste(args2, collapse = "-")))
+n_total <- length(args2) * SEEDS
+
+pr <- prog_init(total = n_total, title = "lalonde: reproducing the warning",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last fit"), add = TRUE)
+
 out <- list()
+
+# Written after every fit rather than at the end, so a run that is killed
+# leaves its finished fits readable. `complete` is what tells a reader which of
+# the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete,
+               done = length(out), total = n_total, seeds = SEEDS,
+               cells = cells[args2, ]), OUT)
+}
+
 for (i in args2) {
   for (s in seq_len(SEEDS)) {
     ch <- cells[["chains"]][i]
@@ -68,9 +89,17 @@ for (i in args2) {
                 if (length(warned) == 0L) "PASSED" else paste("warned:", paste(warned, collapse = ", "))))
     utils::flush.console()
     rm(fit); invisible(gc())
+
+    prog_tick(pr, i = length(out), secs = secs,
+              label = sprintf("%d chains x %d draws, seed %d", ch,
+                              cells[["draws"]][i], 2000L + s))
+    checkpoint(FALSE)
   }
 }
+
+checkpoint(TRUE)
 res <- do.call(rbind, out)
-saveRDS(res, file.path(ROOT, sprintf("_dev/lalonde-reproduce-%s.rds",
-                                     paste(args2, collapse = "-"))))
-cat("\nDONE\n")
+
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", length(out)))
+cat("wrote", OUT, "\n")

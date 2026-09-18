@@ -24,7 +24,29 @@
 # it establishes is whether the sampler moves the two forests correctly when
 # one of them is scaled by a covariate. See `_dev/bcf-interfaces.md`.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
+
+OUT <- "_dev/bcf-proof.rds"
+
+# Two arms on the Gaussian design, a propensity fit and the BCF that uses it,
+# and two arms on the binary one.
+pr <- prog_init(total = 6L, title = "BCF as two forests", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last arm"), add = TRUE)
+
+rows <- list()
+section <- ""
+
+# Written after every arm rather than at the end, so a run that is killed
+# leaves its finished arms readable. `complete` is what tells a reader which of
+# the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, rows), complete = complete,
+               done = length(rows), total = 5L), OUT)
+}
 
 # ---- data ---------------------------------------------------------------
 
@@ -100,17 +122,25 @@ x_form <- ~ x1 + x2 + x3 + x4 + x5
 
 fit_bcf <- function(d, family, packed) {
   d$packed <- packed
-  bartisan(stats::update(x_form, packed ~ .), data = d,
-           family = family, control = ctrl, chains = 2)
+  t0 <- Sys.time()
+  fit <- bartisan(stats::update(x_form, packed ~ .), data = d,
+                  family = family, control = ctrl, chains = 2)
+  prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = paste(section, "BCF"))
+  fit
 }
 
 # The comparison: one forest with `z` among its predictors. This is what a user
 # would do today, and the difference between the two forests it implies is the
 # thing BCF replaces with an explicit one.
 fit_s <- function(d, family) {
-  bartisan(stats::update(x_form, y ~ z + .), data = d, family = family,
-           control = bartisan_control(num_burn = 750, num_draws = 750),
-           chains = 2)
+  t0 <- Sys.time()
+  fit <- bartisan(stats::update(x_form, y ~ z + .), data = d, family = family,
+                  control = bartisan_control(num_burn = 750, num_draws = 750),
+                  chains = 2)
+  prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = paste(section, "one forest with z"))
+  fit
 }
 
 rhat_detail <- function(fit) {
@@ -129,6 +159,13 @@ report <- function(label, tau_draws, d) {
               sqrt(mean((tau_hat - d$tau)^2)),
               mean(ate), quantile(ate, 0.025), quantile(ate, 0.975),
               mean(d$tau)))
+
+  rows[[paste(section, label)]] <<- data.frame(
+    design = section, arm = label, cor = cor(tau_hat, d$tau),
+    rmse = sqrt(mean((tau_hat - d$tau)^2)), ate = mean(ate),
+    lo = quantile(ate, 0.025, names = FALSE),
+    hi = quantile(ate, 0.975, names = FALSE), truth = mean(d$tau))
+  checkpoint(FALSE)
   invisible(tau_hat)
 }
 
@@ -136,6 +173,7 @@ report <- function(label, tau_draws, d) {
 
 set.seed(20260831)
 dg <- sim(1000)
+section <- "gaussian"
 
 set.seed(1)
 g_bcf <- fit_bcf(dg, bcf_gaussian, dg$y + SHIFT * dg$z)
@@ -160,21 +198,28 @@ report("one forest with z", s_draws, dg)
 # forest. Nothing here can give a covariate to one forest and not the other, so
 # this gives it to both, which is the closest a user could come today.
 set.seed(1)
+t0 <- Sys.time()
 dg$ps_hat <- predict(bartisan(z ~ x1 + x2 + x3 + x4 + x5, data = dg,
                               family = binomial(), chains = 2,
                               control = bartisan_control(num_burn = 500,
                                                          num_draws = 500)))
+prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+          label = "gaussian propensity score")
 
 set.seed(1)
 dg$packed <- dg$y + SHIFT * dg$z
+t0 <- Sys.time()
 g_ps <- bartisan(packed ~ x1 + x2 + x3 + x4 + x5 + ps_hat, data = dg,
                  family = bcf_gaussian, control = ctrl, chains = 2)
+prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+          label = "gaussian BCF + ps")
 cat("\nworst rhat, BCF + propensity score:",
     round(max(g_ps$rhat$rhat, na.rm = TRUE), 3), "\n")
 report("BCF + ps", g_ps$eta[[2]], dg)
 
 set.seed(20260831)
 db <- sim(1500, binary_outcome = TRUE)
+section <- "binomial"
 
 set.seed(1)
 b_bcf <- fit_bcf(db, bcf_binomial, db$y + 2L * db$z)
@@ -191,3 +236,8 @@ d0 <- transform(db, z = 0)
 s_draws <- predict(b_s, newdata = d1, type = "link", summary = FALSE, draws = TRUE) -
   predict(b_s, newdata = d0, type = "link", summary = FALSE, draws = TRUE)
 report("one forest with z", s_draws, db)
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d arms", length(rows)))
+cat("\nwrote", OUT, "\n")

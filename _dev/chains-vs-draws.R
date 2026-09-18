@@ -14,6 +14,9 @@
 #
 # Usage: Rscript _dev/chains-vs-draws.R [seeds]
 options(parallelly.availableCores.fallback = 4, parallelly.maxWorkers.localhost = Inf)
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages({
   library(bartisan); library(future)
 })
@@ -60,20 +63,44 @@ cells <- rbind(
              draws = c(1000L, 2000L, 4000L, 8000L, 16000L),
              burn = c(1000L, 2000L, 4000L, 8000L, 16000L)))
 
+OUT <- file.path(ROOT, "_dev/chains-vs-draws.rds")
+n_total <- SEEDS * nrow(cells)
+
+pr <- prog_init(total = n_total, title = "Chains against draws", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last cell"), add = TRUE)
+
 out <- list()
+
+# Written after every cell rather than at the end, so a run that is killed
+# leaves its finished cells readable. `complete` is what tells a reader which of
+# the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete,
+               done = length(out), total = n_total, seeds = SEEDS,
+               cells = cells), OUT)
+}
+
 for (s in seq_len(SEEDS)) {
   for (i in seq_len(nrow(cells))) {
     r <- one_cell(cells[["chains"]][i], cells[["draws"]][i], cells[["burn"]][i],
                   1000L + s)
     r[["part"]] <- cells[["part"]][i]
     out[[length(out) + 1L]] <- r
-    cat(sprintf("part %d  %2d chains x %5d draws  seed %d  %5.0fs\n",
-                r[["part"]], r[["chains"]], r[["draws"]], r[["seed"]], r[["secs"]]))
-    utils::flush.console()
+
+    prog_tick(pr, i = length(out), secs = r[["secs"]],
+              label = sprintf("part %d, %d chains x %d draws, seed %d",
+                              r[["part"]], r[["chains"]], r[["draws"]],
+                              r[["seed"]]))
+    checkpoint(FALSE)
   }
 }
+
+checkpoint(TRUE)
 res <- do.call(rbind, out)
-saveRDS(res, file.path(ROOT, "_dev/chains-vs-draws.rds"))
+
+on.exit()
+prog_end(pr, "done", sprintf("%d cells", length(out)))
 
 agg <- function(d) {
   a <- aggregate(cbind(secs, eta_rhat_worst5, eta_rhat_median, eta_share_bad,

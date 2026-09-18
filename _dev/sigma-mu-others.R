@@ -14,8 +14,12 @@
 # problem is the parameter and not the step. stochtree is the decisive case: its
 # prior is conjugate, so its draw is exact.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
+OUT <- "_dev/sigma-mu-others.rds"
 CHAINS <- 4
 BURN <- 750
 SAVE <- 750
@@ -35,16 +39,43 @@ report <- function(label, per_chain, note = "") {
     cat(sprintf("%-34s %s\n", label, note))
     return(invisible(NULL))
   }
-  cat(sprintf("%-34s rhat %5.3f  ess %6.1f  %s\n", label,
-              bartisan:::split_rhat(per_chain),
-              bartisan:::ess_bulk(per_chain), note))
+
+  rhat <- bartisan:::split_rhat(per_chain)
+  ess <- bartisan:::ess_bulk(per_chain)
+  cat(sprintf("%-34s rhat %5.3f  ess %6.1f  %s\n", label, rhat, ess, note))
+
+  rows[[label]] <<- data.frame(quantity = label, rhat = rhat, ess = ess,
+                               note = note)
+  checkpoint(FALSE)
+  invisible(NULL)
+}
+
+# One bartisan fit of four chains, then one chain per call from each of the two
+# other packages.
+pr <- prog_init(total = 1L + 2L * CHAINS,
+                title = "The leaf scale in other packages", unit = "fit",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last fit"), add = TRUE)
+
+rows <- list()
+
+# Written as each row is computed rather than at the end, so a run that is
+# killed leaves the packages it got through on disk. `complete` is what tells a
+# reader which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, rows), complete = complete,
+               done = length(rows), total = 4L, chains = CHAINS,
+               num_burn = BURN, num_draws = SAVE), OUT)
 }
 
 # ---- bartisan -----------------------------------------------------------
 
 set.seed(2)
+t0 <- Sys.time()
 fit <- bartisan(y ~ ., data = d, family = gaussian(), chains = CHAINS,
                 control = bartisan_control(num_burn = BURN, num_draws = SAVE))
+prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+          label = "bartisan, 4 chains")
 report("bartisan sigma_mu", matrix(fit$sigma_mu[, 1], ncol = CHAINS),
        "(half-Cauchy, independence MH)")
 report("bartisan sd(eta), for contrast",
@@ -61,9 +92,12 @@ dk <- vapply(seq_len(CHAINS), function(i) {
   kprior <- methods::new(
     methods::getClass("dbartsChiHyperprior", where = asNamespace("dbarts")),
     degreesOfFreedom = 1.25, scale = Inf)
+  t0 <- Sys.time()
   f <- dbarts::bart2(y ~ ., data = d, k = kprior,
                      n.burn = BURN, n.samples = SAVE, n.chains = 1L,
                      n.trees = 50L, verbose = FALSE, keepTrees = FALSE)
+  prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = sprintf("dbarts, chain %d", i))
   as.numeric(f$k)
 }, numeric(SAVE))
 report("dbarts k", dk, "(chi hyperprior, slice)")
@@ -74,11 +108,14 @@ report("dbarts k", dk, "(chi hyperprior, slice)")
 # by a Gibbs step rather than by a Metropolis step.
 sk <- vapply(seq_len(CHAINS), function(i) {
   set.seed(200 + i)
+  t0 <- Sys.time()
   f <- stochtree::bart(
     X_train = as.data.frame(x), y_train = y,
     num_gfr = 0L, num_burnin = BURN, num_mcmc = SAVE,
     general_params = list(num_chains = 1L, verbose = FALSE),
     mean_forest_params = list(num_trees = 50L, sample_sigma2_leaf = TRUE))
+  prog_tick(pr, secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = sprintf("stochtree, chain %d", i))
   as.numeric(f$sigma2_leaf_samples)
 }, numeric(SAVE))
 report("stochtree sigma2_leaf", sk, "(inverse-gamma, Gibbs)")
@@ -86,3 +123,8 @@ report("stochtree sigma2_leaf", sk, "(inverse-gamma, Gibbs)")
 # ---- BART ---------------------------------------------------------------
 
 report("BART k", NULL, "not drawn: k = 2 is fixed, so no diagnostic exists")
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done")
+cat("\nwrote", OUT, "\n")

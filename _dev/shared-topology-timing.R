@@ -146,17 +146,33 @@ pr <- prog_init(total = N_FITS, title = "Shared forests: timing",
                 unit = "fit", kind = "benchmark")
 on.exit(prog_end(pr, "failed"), add = TRUE)
 
-res <- do.call(rbind, lapply(seq_len(nrow(grid)), function(i) {
+# Written after every grid row and every width rather than once at the end, so
+# a run that is killed still leaves its finished rows on disk. `complete` is
+# what tells a reader which of the two it has.
+grid_rows <- list()
+wide_rows <- list()
+
+checkpoint <- function(complete) {
+  saveRDS(list(grid = do.call(rbind, grid_rows),
+               vc_wide = if (length(wide_rows)) do.call(rbind, wide_rows),
+               reps = REPS, complete = complete,
+               done = length(grid_rows) + length(wide_rows),
+               total = nrow(grid) + 3L), OUT)
+}
+
+for (i in seq_len(nrow(grid))) {
   g <- grid[i, ]
-  cat(sprintf("%2d/%d  %s n=%d p=%d trees=%d every=%d %s\n", i, nrow(grid),
-              g$model, g$n, g$p, g$num_trees, g$bandwidth_every, g$gate))
   r <- time_cell(pr, g$model, g$n, g$p, g$num_trees, num_burn = 200L,
                  num_draws = 400L, g$bandwidth_every, g$gate,
                  seed = 4000L + i)
-  cat(sprintf("       separate %.2fs  shared %.2fs  ->  %.2fx\n",
-              r$separate, r$shared, r$speedup))
-  r
-}))
+  cat(sprintf("%2d/%d  %s n=%d p=%d trees=%d every=%d %s: separate %.2fs  shared %.2fs  ->  %.2fx\n",
+              i, nrow(grid), g$model, g$n, g$p, g$num_trees,
+              g$bandwidth_every, g$gate, r$separate, r$shared, r$speedup))
+  grid_rows[[i]] <- r
+  checkpoint(FALSE)
+}
+
+res <- do.call(rbind, grid_rows)
 
 # A varying-coefficient model with several coefficients, where the number of
 # forests is larger than two and the saving should be correspondingly bigger.
@@ -176,7 +192,7 @@ many_vc <- function(n, p, n_slope, seed) {
   d
 }
 
-vc_wide <- do.call(rbind, lapply(c(1L, 3L, 7L), function(n_slope) {
+for (n_slope in c(1L, 3L, 7L)) {
   d <- many_vc(400L, 20L, n_slope, seed = 8000L + n_slope)
   rhs <- paste(paste0("x", 1:20), collapse = " + ")
   vc <- paste(sprintf("vc(z%d)", seq_len(n_slope)), collapse = " + ")
@@ -199,14 +215,17 @@ vc_wide <- do.call(rbind, lapply(c(1L, 3L, 7L), function(n_slope) {
   cat(sprintf("vc with %d coefficients (%d forests): separate %.2fs  shared %.2fs  ->  %.2fx\n",
               n_slope, n_slope + 1L, out[1], out[2], out[1] / out[2]))
 
-  data.frame(forests = n_slope + 1L, separate = out[1], shared = out[2],
-             speedup = out[1] / out[2])
-}))
+  wide_rows[[length(wide_rows) + 1L]] <-
+    data.frame(forests = n_slope + 1L, separate = out[1], shared = out[2],
+               speedup = out[1] / out[2])
+  checkpoint(FALSE)
+}
 
-saveRDS(list(grid = res, vc_wide = vc_wide, reps = REPS), OUT)
+vc_wide <- do.call(rbind, wide_rows)
+checkpoint(TRUE)
 
 on.exit()
-prog_end(pr, "done")
+prog_end(pr, "done", sprintf("%d cells", nrow(grid) + length(wide_rows)))
 
 cat("\nwrote", OUT, "\n")
 print(res)

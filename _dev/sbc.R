@@ -35,6 +35,8 @@
 # mapped to [0, 1] before fitting, so the simulation works on that scale
 # directly and the mapping introduces nothing.
 
+source(path.expand("~/.claude/skills/live-progress/assets/progress.R"))
+
 library(bartisan)
 
 # `Rscript _dev/sbc.R <reps> <n> <gate>`. Naming an n and a gate runs that cell
@@ -141,8 +143,26 @@ control <- bartisan_control(num_trees = TREES, num_burn = 400L,
 ranks <- integer(0)
 truths <- widths <- covered <- numeric(0)
 
+OUT <- sprintf("_dev/sbc-%s-%d.rds", GATE, N)
+
+pr <- prog_init(total = reps, title = sprintf("SBC: %s rules, n = %d", GATE, N),
+                unit = "replicate", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+# Written after every replicate rather than after the last one, so a run that
+# is killed leaves its finished replicates readable. `complete` is what tells a
+# reader which of the two it is looking at.
+checkpoint <- function(complete, done) {
+  saveRDS(list(res = data.frame(rank = ranks, truth = truths, width = widths,
+                                covered = covered, n = N, gate = GATE),
+               complete = complete, done = done, total = reps, draws = L),
+          OUT)
+}
+
 for (r in seq_len(reps)) {
   set.seed(5000L + r)
+  t0 <- Sys.time()
 
   eta <- draw_forest(u)
   truth <- eta[A] - eta[B]
@@ -151,7 +171,11 @@ for (r in seq_len(reps)) {
   d$y <- stats::rbinom(N, 1L, stats::plogis(eta))
 
   # A response with no variation carries no likelihood and the fit refuses it.
-  if (length(unique(d$y)) < 2L) next
+  if (length(unique(d$y)) < 2L) {
+    prog_tick(pr, i = r, ok = FALSE, label = sprintf("replicate %d", r),
+              msg = "response had no variation")
+    next
+  }
 
   fit <- bartisan(y ~ ., data = d, family = stats::binomial(), control = control)
 
@@ -165,15 +189,17 @@ for (r in seq_len(reps)) {
   widths <- c(widths, ci[2L] - ci[1L])
   covered <- c(covered, as.numeric(ci[1L] <= truth && truth <= ci[2L]))
 
-  if (r %% 25L == 0L) {
-    cat(sprintf("  %d of %d\n", r, reps))
-    utils::flush.console()
-  }
+  prog_tick(pr, i = r, label = sprintf("replicate %d", r),
+            secs = as.numeric(difftime(Sys.time(), t0, units = "secs")))
+  checkpoint(FALSE, r)
 }
 
+checkpoint(TRUE, reps)
 out <- data.frame(rank = ranks, truth = truths, width = widths,
                   covered = covered, n = N, gate = GATE)
-saveRDS(out, sprintf("_dev/sbc-%s-%d.rds", GATE, N))
+
+on.exit()
+prog_end(pr, "done", sprintf("%d replicates", nrow(out)))
 
 # ---- the report --------------------------------------------------------------
 

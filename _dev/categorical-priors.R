@@ -22,6 +22,9 @@
 #   ordertree the same, reshuffled for every tree, so the ensemble mixes orders
 #            even though each tree sees only one.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 GAMMA <- 0.95
 BETA <- 2
 
@@ -80,7 +83,11 @@ make_order_rule <- function(order) {
 
 # --- measurement ----------------------------------------------------------
 
-co_cluster <- function(K, rule_factory, draws = 20000) {
+# A prior draw is far too fast to tick one at a time, so the report goes out a
+# block of them at a time instead.
+BLOCK <- 1000L
+
+co_cluster <- function(K, rule_factory, draws = 20000, label = "") {
   out <- matrix(0, K, K)
   leaves <- numeric(draws)
   singles <- numeric(draws)
@@ -90,6 +97,12 @@ co_cluster <- function(K, rule_factory, draws = 20000) {
     leaves[b] <- length(parts)
     singles[b] <- sum(lengths(parts) == 1L)
     for (p in parts) out[p, p] <- out[p, p] + 1
+
+    if (b %% BLOCK == 0L) {
+      done <<- done + 1L
+      prog_tick(pr, i = done,
+                label = sprintf("%s, draws %d of %d", label, b, draws))
+    }
   }
 
   list(kernel = out / draws, leaves = mean(leaves), singles = mean(singles))
@@ -109,10 +122,16 @@ report <- function(K, draws = 20000) {
               "scheme", "leaves", "singles", "co-clust", "spread"))
 
   for (nm in names(schemes)) {
-    r <- co_cluster(K, schemes[[nm]], draws)
+    r <- co_cluster(K, schemes[[nm]], draws, sprintf("K = %d, %s", K, nm))
     off <- r$kernel[upper.tri(r$kernel)]
     cat(sprintf("%-10s %8.2f %8.2f %10.3f %10.3f\n",
                 nm, r$leaves, r$singles, mean(off), stats::sd(off)))
+
+    rows[[sprintf("K = %d, %s", K, nm)]] <<- data.frame(
+      K = K, scheme = nm, draws = draws, leaves = r$leaves,
+      singles = r$singles, co_cluster = mean(off), spread = stats::sd(off))
+    kernels[[sprintf("K = %d, %s", K, nm)]] <<- r$kernel
+    checkpoint(FALSE)
   }
 }
 
@@ -134,4 +153,34 @@ for (K in c(3, 5, 10, 20)) {
               K, 2^K - K, 2^(K - 1), "all", bell(K)))
 }
 
-for (K in c(5L, 10L)) report(K)
+K_GRID <- c(5L, 10L)
+DRAWS <- 20000L
+OUT <- "_dev/categorical-priors.rds"
+
+# Four schemes at each width, reported a block of draws at a time.
+n_total <- length(K_GRID) * 4L * (DRAWS %/% BLOCK)
+
+pr <- prog_init(total = n_total, unit = "block of 1000 draws",
+                title = "The decision-rule prior over a factor's levels",
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last scheme"), add = TRUE)
+
+rows <- list()
+kernels <- list()
+done <- 0L
+
+# Written after every scheme rather than at the end, so a run that is killed
+# leaves its finished schemes readable. `complete` is what tells a reader which
+# of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, rows), kernels = kernels,
+               complete = complete, done = done, total = n_total,
+               draws = DRAWS), OUT)
+}
+
+for (K in K_GRID) report(K, DRAWS)
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d schemes", length(rows)))
+cat("\nwrote", OUT, "\n")

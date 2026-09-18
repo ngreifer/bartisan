@@ -47,13 +47,10 @@ test_that("augment resolves to the families it says it does", {
                   every)
   expect_identical(bartisan_control(augment = FALSE)[["augment"]],
                    character())
-  expect_identical(bartisan_control(augment = "multinomial")[["augment"]],
-                   "multinomial")
-  expect_setequal(bartisan_control(augment = c("binomial", "negbin"))[["augment"]],
-                  c("binomial", "negbin"))
-  expect_setequal(bartisan_control(augment = c("zip", "zinb"))[["augment"]],
-                  c("zip", "zinb"))
-  expect_error(bartisan_control(augment = "poisson"), "must be one of")
+  # The engine takes a list of family names, and a fit has one family, so the
+  # argument is the flag that produces the list rather than the list itself.
+  expect_error(bartisan_control(augment = "multinomial"), "must be")
+  expect_error(bartisan_control(augment = c(TRUE, FALSE)), "must be")
 })
 
 test_that("the reported log likelihood is the probit one, not the augmented one", {
@@ -185,7 +182,7 @@ test_that("the negative binomial rewriting reports its own log likelihood", {
   d$y <- stats::rnbinom(120, mu = exp(1 + d$x1), size = 3)
 
   fit <- bartisan(y ~ ., data = d, family = negbin(theta = 3),
-                  control = quick_control(augment = "negbin"))
+                  control = quick_control(augment = TRUE))
 
   eta <- predict(fit, type = "link", draws = TRUE)
   by_hand <- apply(eta, 1L, function(e) {
@@ -197,7 +194,7 @@ test_that("the negative binomial rewriting reports its own log likelihood", {
 
   # The dispersion is still drawn when it is not fixed.
   drawn <- bartisan(y ~ ., data = d, family = negbin(),
-                    control = quick_control(augment = "negbin"))
+                    control = quick_control(augment = TRUE))
   expect_identical(colnames(drawn[["aux"]]), "theta")
   expect_true(all(drawn[["aux"]][, "theta"] > 0))
 })
@@ -209,7 +206,7 @@ test_that("the multinomial rewriting reports its own log likelihood", {
   for (reference in list(NULL, "a")) {
     fit <- bartisan(y ~ ., data = d,
                     family = multinomial(reference = reference),
-                   control = quick_control(augment = "multinomial"))
+                   control = quick_control(augment = TRUE))
 
     probs <- predict(fit, type = "prob", draws = TRUE)
     observed <- match(d$y, dimnames(probs)[[3L]])
@@ -232,7 +229,7 @@ test_that("a rewriting is declined where it cannot apply", {
   w <- stats::runif(80, 0.5, 1.5)
   d$y <- stats::rpois(80, 2)
   fit <- bartisan(y ~ ., data = d, family = negbin(), weights = w,
-                  control = quick_control(augment = "negbin"))
+                  control = quick_control(augment = TRUE))
   expect_true(all(is.finite(fit[["loglik"]])))
 
   # A cloglog link has no Polya-Gamma form, so asking for the binomial
@@ -338,7 +335,7 @@ test_that("the ordinal probit augmentation targets the same posterior as the dir
   }
 
   direct <- fit(FALSE)
-  aug <- fit("ordinal")
+  aug <- fit(TRUE)
 
   # The two samplers explore the same target, so their posterior means agree to
   # Monte Carlo error. The predictor is only identified up to what the cutpoints
@@ -369,9 +366,9 @@ test_that("the ordinal augmentation applies only where it is exact", {
   # A logit link has no Gaussian margin, so it falls back on the direct family
   # rather than silently fitting a probit.
   logit <- bartisan(y ~ ., d, family = ordinal("logit"), control = quick_control(),
-                    augment = "ordinal")
+                    augment = TRUE)
   probit <- bartisan(y ~ ., d, family = ordinal("probit"),
-                     control = quick_control(), augment = "ordinal")
+                     control = quick_control(), augment = TRUE)
 
   expect_s3_class(logit, "bartisan_fit")
   expect_s3_class(probit, "bartisan_fit")
@@ -382,14 +379,15 @@ test_that("the ordinal augmentation applies only where it is exact", {
   # fall back too.
   w <- rep(c(1, 2), length.out = nrow(d))
   weighted <- bartisan(y ~ ., d, family = ordinal("probit"), weights = w,
-                       control = quick_control(), augment = "ordinal")
+                       control = quick_control(), augment = TRUE)
   expect_s3_class(weighted, "bartisan_fit")
   expect_predictor_invariant(weighted, d)
 
-  # "ordinal" is in the default set, and is accepted by name.
+  # "ordinal" is in the set `augment = TRUE` asks the engine for, whatever the
+  # rules.
   expect_true("ordinal" %in% bartisan_control(gate = "smoothstep")$augment)
   expect_true("ordinal" %in% bartisan_control(gate = "hard")$augment)
-  expect_identical(bartisan_control(augment = "ordinal")$augment, "ordinal")
+  expect_identical(bartisan_control(augment = FALSE)$augment, character())
 })
 
 test_that("the ordinal augmentation recovers known cutpoints", {
@@ -406,7 +404,7 @@ test_that("the ordinal augmentation recovers known cutpoints", {
 
   fit <- bartisan(y ~ ., d, family = ordinal("probit"), gate = "hard",
                   num_trees = 20, num_burn = 400, num_draws = 400,
-                 augment = "ordinal")
+                 augment = TRUE)
 
   # The cutpoints are reported in the chart where the predictor has mean zero
   # over the sample, so the truth has to be moved into the same chart before it
@@ -465,7 +463,7 @@ test_that("the ordinal logit augmentation targets the same posterior as the dire
   }
 
   direct <- fit(FALSE)
-  aug <- fit("ordinal")
+  aug <- fit(TRUE)
 
   expect_gt(stats::cor(colMeans(direct[["eta"]][[1L]]),
                        colMeans(aug[["eta"]][[1L]])), 0.95)
@@ -504,7 +502,7 @@ test_that("both ordinal links are augmented, and only where it is exact", {
   w <- rep(c(1, 2), length.out = nrow(d))
   weighted <- bartisan(y ~ ., d, family = ordinal("logit"), weights = w,
                        control = quick_control(update_sigma_mu = FALSE),
-                      augment = "ordinal")
+                      augment = TRUE)
   expect_s3_class(weighted, "bartisan_fit")
   expect_predictor_invariant(weighted, d)
 })
@@ -522,7 +520,7 @@ test_that("the ordinal logit augmentation recovers known cutpoints", {
 
   fit <- bartisan(y ~ ., d, family = ordinal("logit"), gate = "hard",
                   num_trees = 20, num_burn = 400, num_draws = 400,
-                 augment = "ordinal")
+                 augment = TRUE)
 
   expect_equal(colMeans(fit[["aux"]]), truth - mean(lin), tolerance = 0.3,
                ignore_attr = TRUE)
@@ -537,7 +535,7 @@ test_that("the zero-inflated rewriting reports its own log likelihood", {
   d$y <- ifelse(structural, 0L, stats::rpois(nrow(d), exp(0.7 + d$x1)))
 
   fit <- bartisan(y ~ ., data = d, family = zi_poisson(),
-                  control = quick_control(augment = "zip"))
+                  control = quick_control(augment = TRUE))
 
   # The sampler works with the two latent variables; the likelihood it reports
   # has to be the mixture the caller asked for, with both integrated out.
@@ -559,7 +557,7 @@ test_that("the zero-inflated rewriting reports its own log likelihood", {
                   stats::rnbinom(nrow(d), mu = exp(0.7 + d$x1), size = 3))
 
   fixed <- bartisan(ynb ~ x1 + x2 + x3, data = d, family = zi_negbin(theta = 3),
-                    control = quick_control(augment = "zinb"))
+                    control = quick_control(augment = TRUE))
 
   eta <- predict(fixed, type = "link", draws = TRUE)
   by_hand <- vapply(seq_len(nrow(eta[[1L]])), function(s) {
@@ -573,7 +571,7 @@ test_that("the zero-inflated rewriting reports its own log likelihood", {
   expect_equal(fixed[["loglik"]], by_hand, tolerance = 1e-8)
 
   drawn <- bartisan(ynb ~ x1 + x2 + x3, data = d, family = zi_negbin(),
-                    control = quick_control(augment = "zinb"))
+                    control = quick_control(augment = TRUE))
   expect_identical(colnames(drawn[["aux"]]), "theta")
   expect_true(all(drawn[["aux"]][, "theta"] > 0))
 })
@@ -602,7 +600,7 @@ test_that("the zero-inflated rewriting targets the same posterior", {
                      control = ctrl(FALSE))
   set.seed(5)
   rewritten <- bartisan(y ~ ., data = d, family = zi_poisson(),
-                        control = ctrl("zip"))
+                        control = ctrl(TRUE))
 
   mean_direct <- predict(direct, type = "response")
   mean_rewritten <- predict(rewritten, type = "response")
@@ -626,7 +624,7 @@ test_that("the multinomial rewriting works under either kind of rule", {
 
   for (gate in c("smoothstep", "hard")) {
     fit <- bartisan(y ~ ., data = d, family = multinomial(),
-                    control = quick_control(augment = "multinomial",
+                    control = quick_control(augment = TRUE,
                                             gate = gate))
 
     probs <- predict(fit, type = "prob", draws = TRUE)

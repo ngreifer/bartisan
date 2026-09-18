@@ -42,6 +42,9 @@
 #
 # See _dev/SIMULATION.md for the design this shares with the other benches.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -152,11 +155,35 @@ spec <- {
   }
 }
 
+n_total <- length(spec$settings) * spec$sims * length(configurations)
+
 cat(sprintf("%d settings x %d sims x %d configurations = %d fits\n\n",
             length(spec$settings), spec$sims, length(configurations),
-            length(spec$settings) * spec$sims * length(configurations)))
+            n_total))
+
+tag <- if (identical(mode, "smoke")) {
+  "smoke"
+} else {
+  paste(range(spec$settings), collapse = "-")
+}
+
+OUT <- sprintf("_dev/acic2016-results-%s.rds", tag)
 
 out <- list()
+done <- 0L
+
+pr <- prog_init(total = n_total, title = "ACIC 2016 configurations",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last dataset"), add = TRUE)
+
+# Written after every dataset rather than after the last one, so a run that is
+# killed leaves its finished datasets readable. `complete` is what tells a
+# reader which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = do.call(rbind, out), complete = complete, done = done,
+               total = n_total, settings = spec$settings, sims = spec$sims),
+          OUT)
+}
 
 for (p in spec$settings) {
   for (s in seq_len(spec$sims)) {
@@ -172,23 +199,21 @@ for (p in spec$settings) {
       out[[length(out) + 1L]] <- data.frame(
         as.list(score(fit, d)), configuration = nm, parameter = p, sim = s,
         seconds = elapsed, grid[p, , drop = FALSE], row.names = NULL)
+
+      done <- done + 1L
+      prog_tick(pr, i = done, secs = elapsed,
+                label = sprintf("setting %d sim %d / %s", p, s, nm))
     }
 
-    cat(sprintf("  setting %d (%s, overlap %s, align %.2f), sim %d done\n", p,
-                as.character(grid$model.rsp[p]), as.character(grid$overlap.trt[p]),
-                grid$alignment[p], s))
-    utils::flush.console()
+    checkpoint(FALSE)
   }
 }
 
+checkpoint(TRUE)
 results <- do.call(rbind, out)
 
-tag <- {
-  if (identical(mode, "smoke")) "smoke"
-  else paste(range(spec$settings), collapse = "-")
-}
-
-saveRDS(results, sprintf("_dev/acic2016-results-%s.rds", tag))
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
 
 # ---- the report -------------------------------------------------------------
 #

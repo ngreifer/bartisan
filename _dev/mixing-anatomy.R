@@ -10,6 +10,9 @@
 #
 # Usage: Rscript _dev/mixing-anatomy.R <draws> [family]
 options(parallelly.availableCores.fallback = 4, parallelly.maxWorkers.localhost = Inf)
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 suppressMessages({
   library(bartisan); library(future)
 })
@@ -24,13 +27,38 @@ CHAINS <- 4L
 data("lalonde", package = "cobalt")
 family <- switch(FAM, dpm = dpm(), gaussian = gaussian(), stop("family?"))
 
+OUT <- file.path(ROOT, sprintf("_dev/mixing-anatomy-%s-%d.rds", FAM, DRAWS))
+
+# The fit, then the unit blocks twice over -- once for the effect and once for
+# the per-unit statistics -- and the two passes of column statistics.
+N_BLOCKS <- ceiling(nrow(lalonde) / 100L)
+
+pr <- prog_init(total = 1L + 2L * N_BLOCKS + 2L, unit = "step",
+                title = sprintf("Mixing anatomy: %s, %d draws", FAM, DRAWS),
+                kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last step"), add = TRUE)
+
+# Grown as each piece is computed and written whenever it grows, so that a run
+# killed in the post-processing still leaves the fit's own diagnostics on disk.
+# `complete` is what tells a reader which of the two it is looking at.
+saved <- list(draws = DRAWS, family = FAM)
+
+checkpoint <- function(complete) {
+  saveRDS(c(saved, list(complete = complete)), OUT)
+}
+
 set.seed(20260905)
 t0 <- Sys.time()
 fit <- bartisan(re78 ~ ., data = lalonde, family = family, chains = CHAINS,
                 num_burn = DRAWS, num_draws = DRAWS, verbose = FALSE)
 secs <- as.numeric(Sys.time() - t0, units = "secs")
 
+prog_tick(pr, secs = secs, label = "the fit")
+
 d <- diagnose(fit)
+saved[["secs"]] <- secs
+saved[["table"]] <- d[["table"]]
+checkpoint(FALSE)
 cat(sprintf("\n=== lalonde, family = %s, %d chains x %d draws (burn %d), %.0fs\n\n",
             FAM, CHAINS, DRAWS, DRAWS, secs))
 print(d)
@@ -47,6 +75,7 @@ for (b in blocks) {
   d1[["treat"]] <- 1
   ate <- ate + rowSums(predict(fit, newdata = d1, draws = TRUE) -
                        predict(fit, newdata = d0, draws = TRUE))
+  prog_tick(pr, label = "effect, one block of units")
 }
 ate <- ate / nrow(lalonde)
 
@@ -57,13 +86,16 @@ ate <- ate / nrow(lalonde)
 eta <- fit[["eta"]][[1L]]
 by_column <- function(m) vapply(seq_len(ncol(m)), function(j) stats(m[, j]), numeric(4L))
 pc_eta <- by_column(eta)
+prog_tick(pr, label = "column statistics on eta")
 
 # One prediction per block, used twice: for the per-unit statistics and for the
 # running total that gives the average fitted value. Predicting a second time to
 # get the average would double the most expensive step here.
 by_block <- lapply(blocks, function(b) {
   m <- predict(fit, newdata = lalonde[b, , drop = FALSE], draws = TRUE)
-  list(pc = by_column(m), total = rowSums(m))
+  out <- list(pc = by_column(m), total = rowSums(m))
+  prog_tick(pr, label = "fitted means, one block of units")
+  out
 })
 pc_resp <- do.call(cbind, lapply(by_block, `[[`, "pc"))
 avg_fitted <- Reduce(`+`, lapply(by_block, `[[`, "total")) / nrow(lalonde)
@@ -79,6 +111,7 @@ spread <- function(m) {
   }, numeric(1L))
 }
 sp_eta <- spread(eta)
+prog_tick(pr, label = "chain spread on eta")
 
 worst5 <- function(pc) c(stats::quantile(pc[1L, ], 0.95, names = FALSE),
                          stats::quantile(pc[2L, ], 0.95, names = FALSE),
@@ -112,9 +145,11 @@ cat(sprintf("     spread of chain means / posterior sd = %.3f\n",
 cat(sprintf("     95%% interval: [%.0f, %.0f]\n",
             stats::quantile(ate, 0.025), stats::quantile(ate, 0.975)))
 
-saveRDS(list(draws = DRAWS, family = FAM, secs = secs, table = d[["table"]],
-             rows = rows, ate = ate, by_chain = by_chain,
-             pc_eta = pc_eta, pc_resp = pc_resp, sp_eta = sp_eta,
-             avg_eta = rowMeans(eta), loglik = fit[["loglik"]]),
-        file.path(ROOT, sprintf("_dev/mixing-anatomy-%s-%d.rds", FAM, DRAWS)))
-cat("\nDONE\n")
+saved <- c(saved, list(rows = rows, ate = ate, by_chain = by_chain,
+                       pc_eta = pc_eta, pc_resp = pc_resp, sp_eta = sp_eta,
+                       avg_eta = rowMeans(eta), loglik = fit[["loglik"]]))
+checkpoint(TRUE)
+
+on.exit()
+prog_end(pr, "done")
+cat("\nwrote", OUT, "\n")

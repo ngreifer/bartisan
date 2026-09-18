@@ -14,6 +14,9 @@
 #   iid       level effects are independent normal draws
 #   clustered level effects take one of four values, five levels each
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 K <- 20L
@@ -21,6 +24,28 @@ REPS <- 10L
 BURN <- 500L
 DRAWS <- 500L
 TREES <- 50L
+OUT <- "_dev/factor-random-vs-fixed.rds"
+
+# Four ways of carrying the factor, per replicate, at each of two sizes under
+# each of two truths.
+N_FITS <- 2L * 2L * REPS * 4L
+
+pr <- prog_init(total = N_FITS, title = "A factor: random against fixed",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+results <- list()
+section <- ""
+done <- 0L
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = results, complete = complete, done = done,
+               total = N_FITS, reps = REPS, levels = K), OUT)
+}
 
 # The level effects belong to the replicate, not to the dataset: train and test
 # have to share them or no method can recover anything. Drawing them inside
@@ -55,10 +80,15 @@ rmse <- function(pred, test) sqrt(mean((pred - test$truth)^2))
 
 fit_one <- function(form, tr, te, ...) {
   set.seed(7)
+  t0 <- Sys.time()
   f <- bartisan(form, data = tr, family = gaussian(),
                 control = bartisan_control(num_trees = TREES, num_burn = BURN,
                                            num_draws = DRAWS, verbose = FALSE,
                                            ...))
+  done <<- done + 1L
+  prog_tick(pr, i = done,
+            secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = paste(section, deparse1(form)))
   rmse(as.numeric(predict(f, newdata = te)), te)
 }
 
@@ -80,8 +110,18 @@ cat("paired difference from the best method, which is what the gaps have to beat
 
 for (truth in c("iid", "clustered")) {
   for (n in c(200L, 1000L)) {
-    each <- vapply(seq_len(REPS), function(r) run(n, truth, r),
-                   numeric(4L))
+    key <- sprintf("%s truth, n = %d", truth, n)
+    each <- matrix(NA_real_, 4L, REPS)
+
+    for (r in seq_len(REPS)) {
+      section <- sprintf("%s rep %d", key, r)
+      got <- run(n, truth, r)
+      rownames(each) <- names(got)
+      each[, r] <- got
+      results[[key]] <- each
+      checkpoint(FALSE)
+    }
+
     means <- rowMeans(each)
     best <- which.min(means)
 
@@ -95,3 +135,8 @@ for (truth in c("iid", "clustered")) {
     }
   }
 }
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
+cat("\nwrote", OUT, "\n")

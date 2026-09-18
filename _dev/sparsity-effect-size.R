@@ -10,6 +10,9 @@
 # interval's coverage? The first is a reporting quirk. The second is a reason to
 # change the default.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 library(marginaleffects)
 
@@ -17,6 +20,25 @@ LEVELS <- c("none", "moderate", "strong")
 TAUS <- c(0.05, 0.10, 0.20, 0.50)
 REPS <- 5
 P <- 20
+OUT <- "_dev/sparsity-effect-size.rds"
+
+N_FITS <- length(TAUS) * length(LEVELS) * REPS
+
+pr <- prog_init(total = N_FITS, title = "Sparsity against the effect size",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last cell"), add = TRUE)
+
+results <- list()
+done <- 0L
+
+# Written after every cell rather than at the end, so a run that is killed
+# leaves its finished cells readable. `complete` is what tells a reader which of
+# the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = results, complete = complete, done = done,
+               total = N_FITS, reps = REPS, taus = TAUS, levels = LEVELS,
+               p = P), OUT)
+}
 
 friedman <- function(x) {
   10 * sin(pi * x[, 1] * x[, 2]) + 20 * (x[, 3] - 0.5)^2 + 10 * x[, 4]
@@ -30,9 +52,15 @@ one <- function(tau, lv, rep) {
   d <- data.frame(y = friedman(x) / 5 + tau * z + rnorm(n), z = z, x)
 
   set.seed(7)
+  t0 <- Sys.time()
   fit <- bartisan(y ~ ., data = d, family = gaussian(),
                   control = bartisan_control(sparsity = lv, chains = 2,
                                              verbose = FALSE))
+  done <<- done + 1L
+  prog_tick(pr, i = done,
+            secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = sprintf("tau = %.2f / %s rep %d", tau, lv, rep))
+
   a <- avg_comparisons(fit, variables = "z")
   post <- attr(a, "posterior_draws")
   vi <- variable_importance(fit)
@@ -52,10 +80,26 @@ cat(sprintf("%6s %-10s %7s %7s %7s %7s %7s %9s\n",
 
 for (tau in TAUS) {
   for (lv in LEVELS) {
-    m <- rowMeans(vapply(seq_len(REPS), function(r) one(tau, lv, r), numeric(6)))
+    key <- sprintf("tau = %.2f, %s", tau, lv)
+    each <- matrix(NA_real_, 6L, REPS)
+
+    for (r in seq_len(REPS)) {
+      got <- one(tau, lv, r)
+      rownames(each) <- names(got)
+      each[, r] <- got
+      results[[key]] <- each
+      checkpoint(FALSE)
+    }
+
+    m <- rowMeans(each)
     cat(sprintf("%6.2f %-10s %7.3f %+7.3f %7.3f %7.2f %7.2f %9.3f\n",
                 tau, lv, m[["est"]], m[["est"]] - tau, m[["atom"]],
                 m[["lo_is_zero"]], m[["covers"]], m[["prop_used"]]))
   }
   cat("\n")
 }
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
+cat("wrote", OUT, "\n")

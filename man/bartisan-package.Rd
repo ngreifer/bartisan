@@ -13,20 +13,20 @@ generalized linear model: a formula, a data frame, and a family. The forest
 replaces the linear predictor, so nothing has to be said about which terms
 enter the model, which are curved, or which interact.
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{fit <- bartisan(y ~ ., data = d)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{fit <- bartisan(y ~ x1 + x2 + x3, data = d)
 }\if{html}{\out{</div>}}
-\subsection{What to Reach For}{
+\subsection{Common Tasks}{
 
 Most of what a fitted model is used for is handled by a package that already
 does that job well, and \pkg{bartisan} registers the methods those packages
-need rather than reimplementing them. This table is the map.\tabular{ll}{
+need. This table is the map.\tabular{ll}{
    Task \tab Use \cr
    fit a model \tab \code{\link[=bartisan]{bartisan()}} \cr
    choose a likelihood \tab \link{bartisan-families}, \code{vignette("families")} \cr
    change the sampler's settings \tab \code{\link[=bartisan_control]{bartisan_control()}} \cr
    predict for new data \tab \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} \cr
-   a prediction \strong{with an interval} \tab \code{marginaleffects::predictions()} \cr
-   an interval for a \strong{new observation}, noise included \tab \link[=bartisan-interop]{posterior_predict()} \cr
+   a prediction with an interval \tab \code{marginaleffects::predictions()} \cr
+   an interval for a new observation, noise included \tab \link[=bartisan-interop]{posterior_predict()} \cr
    how much a predictor moves the outcome \tab \code{marginaleffects::avg_comparisons()} \cr
    a partial dependence plot \tab \code{\link[=partial_dependence]{partial_dependence()}}, or \code{marginaleffects::plot_predictions()} for more control over the grid \cr
    which predictors the forest uses \tab \code{\link[=variable_importance]{variable_importance()}} \cr
@@ -51,34 +51,34 @@ need rather than reimplementing them. This table is the map.\tabular{ll}{
 Three things are worth knowing first, and none of them requires knowing
 anything about Bayesian statistics.
 
-\strong{There are no coefficients.} A forest has no slope to read off, so the
-effect of a predictor is found by asking the fitted model what it predicts
-under one value of that predictor and under another, and taking the
-difference. \code{marginaleffects::avg_comparisons(fit, variables = "x")} does
-exactly that, and reports an interval with it. This is a better habit than
-reading coefficients even where coefficients exist (i.e., in a linear model),
-and here it is the only habit available.
+A forest has no slope to read off, so the effect of a predictor is found by
+asking the fitted model what it predicts under one value of that predictor
+and under another, and taking the difference.
+\code{marginaleffects::avg_comparisons(fit, variables = "x")} does exactly that,
+and reports an interval with it. This is a better habit than reading
+coefficients even where coefficients exist (i.e., in a linear model), and
+here it is the only habit available.
 
-\strong{The intervals mean what they appear to mean.} A 95\% interval from any of
-the above is the range the model considers most plausible given the data and
-the model. It already includes the uncertainty from not knowing the shape of
-the relationship, which is the part a linear model leaves out by assuming it
-away.
+A 95\% interval from any of the above is the range the model considers most
+plausible given the data and the model. It already includes the uncertainty
+from not knowing the shape of the relationship, which is the part a linear
+model leaves out by assuming it away.
 
-\strong{The defaults are meant to be used.} The settings in \code{\link[=bartisan_control]{bartisan_control()}}
+The defaults are meant to be used. The settings in \code{\link[=bartisan_control]{bartisan_control()}}
 are there for the analyses that need them; the priors and the number of trees
 are chosen to work across a wide range of problems, and tuning them is rarely
 where the gains are. Choosing the right \link[=bartisan-families]{family} matters
 much more.
 }
 
-\subsection{What the Fit Does Not Do}{
+\subsection{Flexibility and Its Limits}{
 
 The model is flexible about the shape of the relationship and about nothing
-else. It will not establish that a predictor is a cause, that the sample
-represents the population, or that the outcome was measured well. Note that a
-forest fitted to confounded data returns a confounded answer with a tight
-interval around it.
+else. Whether a predictor is a cause, whether the sample represents the
+population, and whether the outcome was measured well are assumptions the
+analysis brings to the model rather than things it can supply: a forest
+fitted to confounded data returns a confounded answer with a tight interval
+around it.
 }
 }
 \seealso{

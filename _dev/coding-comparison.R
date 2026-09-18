@@ -10,16 +10,70 @@
 #
 # Paired within replicate, so the standard error is of the paired difference.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 REPS <- 12L
 BURN <- 500L
 DRAWS <- 500L
+OUT <- "_dev/coding-comparison.rds"
+
+# 4 codings on the binary design, 3 codings on each of two invariance designs
+# fitted both ways round, and 2 codings on each of two categorical truths.
+N_FITS <- REPS * (4L + 2L * 3L * 2L + 2L * 2L)
+
+pr <- prog_init(total = N_FITS, title = "Coding of a moderated predictor",
+                unit = "fit", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+results <- list()
+section <- ""
+done <- 0L
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = results, complete = complete, done = done,
+               total = N_FITS, reps = REPS), OUT)
+}
 
 fit_one <- function(form, d, n_trees = 50L, ...) {
   set.seed(7)
-  bartisan(form, data = d, family = gaussian(), num_trees = n_trees,
-           num_burn = BURN, num_draws = DRAWS, verbose = FALSE, ...)
+  t0 <- Sys.time()
+  fit <- bartisan(form, data = d, family = gaussian(), num_trees = n_trees,
+                  num_burn = BURN, num_draws = DRAWS, verbose = FALSE, ...)
+  done <<- done + 1L
+  prog_tick(pr, i = done,
+            secs = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+            label = paste(section, sub(".*(vc\\(.*\\))$", "\\1",
+                                       deparse1(form))))
+  fit
+}
+
+# Every replicate goes through here so that the partial matrix reaches disk
+# before the next one starts.
+run_reps <- function(key, f) {
+  each <- NULL
+
+  for (r in seq_len(REPS)) {
+    section <<- sprintf("%s rep %d", key, r)
+    got <- f(r)
+
+    if (is.null(each)) {
+      each <- matrix(NA_real_, length(got), REPS,
+                     dimnames = list(names(got), NULL))
+    }
+
+    each[, r] <- got
+    results[[key]] <<- each
+    checkpoint(FALSE)
+  }
+
+  each
 }
 
 report <- function(title, each) {
@@ -54,7 +108,7 @@ binary_rep <- function(rep) {
 }
 
 report("Binary moderated predictor, RMSE of the effect function",
-       vapply(seq_len(REPS), binary_rep, numeric(4L)))
+       run_reps("binary", binary_rep))
 
 # ---- binary: the invariance the estimated coding exists to buy -------------
 
@@ -83,9 +137,9 @@ invariance <- function(n, effect_size, noise, rep) {
 
 for (design in list(list(lab = "n = 800, effect 1.0, noise 1", n = 800L, e = 1, s = 1),
                     list(lab = "n = 150, effect 0.2, noise 2", n = 150L, e = 0.2, s = 2))) {
-  each <- vapply(seq_len(REPS), function(r) {
+  each <- run_reps(design[["lab"]], function(r) {
     invariance(design[["n"]], design[["e"]], design[["s"]], r)
-  }, numeric(3L))
+  })
   cat(sprintf("\n  %s -- mean |ATE(0/1) + ATE(1/0)|, which is 0 if the coding does not matter\n",
               design[["lab"]]))
   for (i in seq_len(nrow(each))) {
@@ -134,6 +188,12 @@ categorical_rep <- function(rep, shared_shape) {
 }
 
 report("Categorical, truth is rank one (every level the same shape)",
-       vapply(seq_len(REPS), function(r) categorical_rep(r, TRUE), numeric(2L)))
+       run_reps("categorical, rank one", function(r) categorical_rep(r, TRUE)))
 report("Categorical, truth is not rank one (each level its own shape)",
-       vapply(seq_len(REPS), function(r) categorical_rep(r, FALSE), numeric(2L)))
+       run_reps("categorical, not rank one",
+                function(r) categorical_rep(r, FALSE)))
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", done))
+cat("\nwrote", OUT, "\n")

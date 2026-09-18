@@ -8,6 +8,9 @@
 # whether that matters is observations per level: with plenty, each level's mean
 # is estimated well on its own and there is nothing to pool.
 
+A <- path.expand("~/.claude/skills/live-progress/assets")
+source(file.path(A, "progress.R"))
+
 library(bartisan)
 
 CLUSTERS <- 4L
@@ -56,6 +59,9 @@ run <- function(n_train, rep) {
                        if (gate == "hard") "hard" else "soft")
       out[[label]] <-
         c(rmse = rmse(as.numeric(predict(f, newdata = te)), te), secs = secs)
+
+      prog_tick(pr, secs = secs,
+                label = sprintf("n=%d rep %d / %s", n_train, rep, label))
     }
   }
 
@@ -73,6 +79,9 @@ run <- function(n_train, rep) {
   out[["flexBART"]] <- c(rmse = rmse(as.numeric(fb$yhat.test.mean), te),
                          secs = secs)
 
+  prog_tick(pr, secs = secs,
+            label = sprintf("n=%d rep %d / flexBART", n_train, rep))
+
   do.call(rbind, out)
 }
 
@@ -85,8 +94,38 @@ cat(sprintf("%d trees, %d warmup, %d draws, one chain, mean of %d replicates.\n"
 # paired and the standard error of the paired difference is what a gap has to
 # beat. Reporting the means alone made a difference look established that the
 # replicate-to-replicate variation does not support.
-for (n_train in c(200L, 500L, 2000L)) {
-  each <- lapply(seq_len(REPS), function(r) run(n_train, r))
+N_TRAIN <- c(200L, 500L, 2000L)
+OUT <- "_dev/categorical-benchmark.rds"
+
+# Four bartisan arms and flexBART, per replicate, at each training size.
+N_FITS <- length(N_TRAIN) * REPS * 5L
+
+pr <- prog_init(total = N_FITS, title = "Categorical rules against flexBART",
+                unit = "fit", kind = "benchmark")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+results <- list()
+
+# Written after every replicate rather than at the end, so a run that is killed
+# leaves its finished replicates readable. `complete` is what tells a reader
+# which of the two it is looking at.
+checkpoint <- function(complete) {
+  saveRDS(list(res = results, complete = complete,
+               done = sum(lengths(results)), total = N_FITS / 5L,
+               reps = REPS, n_train = N_TRAIN, levels = K), OUT)
+}
+
+for (n_train in N_TRAIN) {
+  key <- sprintf("n = %d", n_train)
+  each <- list()
+
+  for (r in seq_len(REPS)) {
+    each[[r]] <- run(n_train, r)
+    results[[key]] <- each
+    checkpoint(FALSE)
+  }
+
   labels <- rownames(each[[1L]])
   rmses <- vapply(each, function(m) m[, "rmse"], numeric(length(labels)))
   secs <- rowMeans(vapply(each, function(m) m[, "secs"],
@@ -106,3 +145,8 @@ for (n_train in c(200L, 500L, 2000L)) {
                 secs[i]))
   }
 }
+
+checkpoint(TRUE)
+on.exit()
+prog_end(pr, "done", sprintf("%d replicates", sum(lengths(results))))
+cat("\nwrote", OUT, "\n")

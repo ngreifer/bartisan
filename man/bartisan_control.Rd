@@ -139,17 +139,14 @@ which draws a subset of the levels still available at the node and sends
 those left, and \code{"onehot"}, which is what most BART implementations do: it
 splits on one indicator column, peeling a single level off the rest.}
 
-\item{augment}{\emph{Advanced.} \code{logical} or \code{character}; whether to rewrite the
-likelihood as the margin of a Gaussian or a Poisson one, which makes the
-target a shape the sampler can exploit. The posterior is the same either
-way, so this is a sampling setting and not a modeling one. Default is
-\code{TRUE}, which rewrites wherever a rewriting exists: the binomial, ordinal,
-multinomial, negative binomial, zero-inflated, and survival families.
-\code{FALSE} never does, and a character vector of engine family names
-(\code{"binomial"}, \code{"ordinal"}, \code{"multinomial"}, \code{"negbin"}, \code{"zip"}, \code{"zinb"},
-\code{"aft"}) asks for exactly those. A rewriting is always faster and has not
-been measured to mix worse per second, so the default is rarely worth
-changing; see \code{vignette("implementation")}.}
+\item{augment}{\emph{Advanced.} \code{logical}; whether to rewrite the likelihood as the
+margin of a Gaussian or a Poisson one, which makes the target a shape the
+sampler can exploit. The posterior is the same either way, so this is a
+sampling setting rather than a modeling one. Default is \code{TRUE}, which
+rewrites wherever a rewriting exists: the binomial, ordinal, multinomial,
+negative binomial, zero-inflated, and survival families. A rewriting is
+faster and has not been measured to mix worse per second, so the default is
+rarely worth changing; see \code{vignette("implementation")}.}
 
 \item{gamma, beta}{\emph{Advanced.} \code{numeric}; the branching probability at depth
 \code{d} is \code{gamma * (1 + d)^(-beta)}. Defaults are .95 and 2.}

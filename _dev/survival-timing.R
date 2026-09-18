@@ -14,7 +14,29 @@ eval(parse(text = paste(src[1:(cut - 1)], collapse = "\n")), envir = globalenv()
 
 N_TIME_REP <- 3L
 
+# The head of survival-sim.R, evaluated above, brings progress.R with it along
+# with its own `OUT`.
+OUT <- "_dev/survival-timing.rds"
+N_FITS <- N_TIME_REP * (length(FAMILIES) + 1L)
+
 out <- list()
+
+pr <- prog_init(total = N_FITS, title = "Survival families: clean timing",
+                unit = "fit", kind = "benchmark")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+# `survival-results.R` reads this file as a data frame, so how far the run got
+# is carried in attributes rather than by wrapping it in a list. Written after
+# every replicate, so a killed run still leaves its finished ones readable.
+checkpoint <- function(complete, done) {
+  res <- do.call(rbind, out)
+  attr(res, "complete") <- complete
+  attr(res, "done") <- done
+  attr(res, "total") <- N_FITS
+  saveRDS(res, OUT)
+}
+
 for (r in seq_len(N_TIME_REP)) {
   set.seed(4242L + r)
   train <- make_x(N_TRAIN)
@@ -30,6 +52,8 @@ for (r in seq_len(N_TIME_REP)) {
       family = nm, rep = r, secs = proc.time()[["elapsed"]] - tick)
     cat(sprintf("[time] rep %d %-18s %.2fs\n", r, nm,
                 out[[length(out)]]$secs)); flush(stdout())
+    prog_tick(pr, i = length(out), secs = out[[length(out)]]$secs,
+              label = sprintf("%s rep %d", nm, r))
   }
 
   # The discrete-time route, whose cost is the expansion rather than the family.
@@ -44,7 +68,13 @@ for (r in seq_len(N_TIME_REP)) {
   cat(sprintf("[time] rep %d %-18s %.2fs (%d rows)\n", r,
               "discrete-time probit", out[[length(out)]]$secs, nrow(long)))
   flush(stdout())
+  prog_tick(pr, i = length(out), secs = out[[length(out)]]$secs,
+            label = sprintf("discrete time rep %d", r))
+
+  checkpoint(FALSE, length(out))
 }
 
-saveRDS(do.call(rbind, out), "_dev/survival-timing.rds")
-cat("wrote _dev/survival-timing.rds\n")
+checkpoint(TRUE, length(out))
+on.exit()
+prog_end(pr, "done", sprintf("%d fits", length(out)))
+cat("wrote", OUT, "\n")
