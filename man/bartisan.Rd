@@ -71,8 +71,8 @@ response given as proportions, these are the numbers of trials, as in
 \code{glm()}.}
 
 \item{offset}{optional; a known component of the additive predictor, on the
-link scale, given as one value per observation. A family with more than one
-additive predictor receives the same offset on each; see Details.}
+link scale. One value per observation, or a matrix with one column per
+additive predictor to give each its own; see Details.}
 
 \item{subset}{optional; a vector specifying the subset of rows to use.}
 
@@ -229,14 +229,19 @@ scale and not estimated: the log of an exposure for a count, say. It is
 given as one value per observation, through \code{offset} or as an \code{offset()}
 term in the formula.
 
-A family with several additive predictors receives the same offset on each
-of them, which is worth knowing before reaching for one. Under
-\code{\link[=multinomial]{multinomial()}} with the default symmetric coding, a shift common to every
-category cancels out of the softmax, so an offset leaves the fitted
-probabilities unchanged; with \code{reference} set it does not cancel, and moves
-every non-reference category against the reference one. A per-forest offset,
-which is what a category-specific exposure would need, is not available when
-fitting. \code{predict()} accepts one, as a matrix with a column per forest.
+A family with several additive predictors takes the same offset on each of
+them, unless it is given a matrix with one column per predictor, which
+offsets each separately: a category-specific exposure for \code{\link[=multinomial]{multinomial()}},
+say, or an offset on the count part of \code{\link[=zi_poisson]{zi_poisson()}} and not on its
+zero-inflation part. \code{?bartisan-families} lists each family's forests in
+order, which is the column order. \code{predict()} takes the same two forms.
+
+A vector is worth thinking about before reaching for under \code{\link[=multinomial]{multinomial()}},
+because the default symmetric coding gives every category a forest and a
+shift common to all of them cancels out of the softmax. A vector offset
+there leaves the fitted probabilities unchanged; with \code{reference} set it
+does not cancel, and moves every non-reference category against the
+reference one. A matrix is what expresses a per-category offset either way.
 
 An offset is not a function of the predictors, so it cannot be rebuilt for
 rows the fit has not seen: a model fitted with one requires \code{offset} at

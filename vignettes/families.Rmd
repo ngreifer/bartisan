@@ -376,8 +376,8 @@ So the prior goes there and is pulled back through the change of variables. This
 is the induced-Dirichlet construction [@betancourt2019; @betancourt2025], used
 for ordinal meta-analysis by @cerullo2025:
 
-$$p(\mathbf{c} \mid \boldsymbol\alpha, \varphi) =
-\mathrm{Dir}\big(\mathbf{P}(\mathbf{c}, \varphi) \mid \boldsymbol\alpha\big)
+$$p(\mathbf{c} \mid \alpha, \varphi) =
+\mathrm{Dir}\big(\mathbf{P}(\mathbf{c}, \varphi) \mid \alpha\big)
 \cdot \big|\mathbf{J}_{\mathbf{c} \to \mathbf{P}}\big|$$
 
 The Jacobian is what makes it cheap. Each $c_k$ appears in exactly two of the

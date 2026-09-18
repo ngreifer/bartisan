@@ -62,8 +62,8 @@
 #'   response given as proportions, these are the numbers of trials, as in
 #'   `glm()`.
 #' @param offset optional; a known component of the additive predictor, on the
-#'   link scale, given as one value per observation. A family with more than one
-#'   additive predictor receives the same offset on each; see Details.
+#'   link scale. One value per observation, or a matrix with one column per
+#'   additive predictor to give each its own; see Details.
 #' @param subset optional; a vector specifying the subset of rows to use.
 #' @param na.action how missing values are handled. Default is [`stats::na.pass`],
 #'   which keeps rows whose *predictors* are missing and lets the splitting rules
@@ -181,14 +181,19 @@
 #' given as one value per observation, through `offset` or as an `offset()`
 #' term in the formula.
 #'
-#' A family with several additive predictors receives the same offset on each
-#' of them, which is worth knowing before reaching for one. Under
-#' [multinomial()] with the default symmetric coding, a shift common to every
-#' category cancels out of the softmax, so an offset leaves the fitted
-#' probabilities unchanged; with `reference` set it does not cancel, and moves
-#' every non-reference category against the reference one. A per-forest offset,
-#' which is what a category-specific exposure would need, is not available when
-#' fitting. `predict()` accepts one, as a matrix with a column per forest.
+#' A family with several additive predictors takes the same offset on each of
+#' them, unless it is given a matrix with one column per predictor, which
+#' offsets each separately: a category-specific exposure for [multinomial()],
+#' say, or an offset on the count part of [zi_poisson()] and not on its
+#' zero-inflation part. `?bartisan-families` lists each family's forests in
+#' order, which is the column order. `predict()` takes the same two forms.
+#'
+#' A vector is worth thinking about before reaching for under [multinomial()],
+#' because the default symmetric coding gives every category a forest and a
+#' shift common to all of them cancels out of the softmax. A vector offset
+#' there leaves the fitted probabilities unchanged; with `reference` set it
+#' does not cancel, and moves every non-reference category against the
+#' reference one. A matrix is what expresses a per-category offset either way.
 #'
 #' An offset is not a function of the predictors, so it cannot be rebuilt for
 #' rows the fit has not seen: a model fitted with one requires `offset` at
@@ -501,7 +506,14 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   y <- stats::model.response(mf, "any")
   model_weights <- as.vector(stats::model.weights(mf))
-  model_offset <- as.vector(stats::model.offset(mf))
+  # A matrix offset carries one column per additive predictor and has to keep
+  # its shape; `as.vector()` would flatten it to length n * n_forest and
+  # `build_offset()` would then see a vector of the wrong length.
+  model_offset <- stats::model.offset(mf)
+
+  if (!is.matrix(model_offset)) {
+    model_offset <- as.vector(model_offset)
+  }
 
   family <- as_bartisan_family(family %or% default_family(y, model_weights))
 

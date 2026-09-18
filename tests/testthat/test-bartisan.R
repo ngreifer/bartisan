@@ -411,3 +411,106 @@ test_that("naming the family silences the message", {
   expect_silent(bartisan(y ~ x1 + x2, d, family = "gaussian",
                          control = quick_control()))
 })
+
+test_that("a matrix offset gives one column per additive predictor", {
+  d <- sim_x(n = 120, seed = 771)
+  set.seed(771)
+  d$off <- stats::rnorm(nrow(d))
+  d$y <- stats::rnorm(nrow(d), 1 + d$x1 + d$off, 0.5)
+
+  # One forest: the vector and the one-column matrix are the same model.
+  set.seed(2)
+  vec <- bartisan(y ~ x1 + x2, d, family = stats::gaussian(),
+                  control = quick_control(), offset = d$off)
+  set.seed(2)
+  mat <- bartisan(y ~ x1 + x2, d, family = stats::gaussian(),
+                  control = quick_control(),
+                  offset = matrix(d$off, nrow(d), 1L))
+
+  expect_equal(fitted(vec), fitted(mat))
+
+  # Two forests: a vector is the same offset on each, so repeating the column
+  # reproduces it, and changing one column does not.
+  set.seed(3)
+  ls_vec <- bartisan(y ~ x1 + x2, d, family = gaussian_ls(),
+                     control = quick_control(), offset = d$off)
+  set.seed(3)
+  ls_both <- bartisan(y ~ x1 + x2, d, family = gaussian_ls(),
+                      control = quick_control(),
+                      offset = cbind(d$off, d$off))
+  set.seed(3)
+  ls_mean <- bartisan(y ~ x1 + x2, d, family = gaussian_ls(),
+                      control = quick_control(), offset = cbind(d$off, 0))
+
+  expect_equal(fitted(ls_vec), fitted(ls_both))
+  expect_false(isTRUE(all.equal(fitted(ls_vec), fitted(ls_mean))))
+
+  expect_error(
+    bartisan(y ~ x1 + x2, d, family = gaussian_ls(),
+             control = quick_control(), offset = cbind(d$off, d$off, d$off)),
+    "must be a matrix with 120 rows and 2 columns")
+})
+
+test_that("a multinomial takes a per-category offset", {
+  d <- sim_x(n = 150, seed = 772)
+  set.seed(772)
+  lp <- cbind(0, 0.8 * d$x1, -0.5 + d$x2)
+  p <- exp(lp) / rowSums(exp(lp))
+  d$g <- factor(apply(p, 1L, function(pr) sample(3L, 1L, prob = pr)),
+                labels = c("a", "b", "c"))
+
+  # Symmetric coding fits one forest per category, reference coding one fewer,
+  # and the offset has to match whichever is in use.
+  off3 <- matrix(stats::rnorm(nrow(d) * 3L), nrow(d), 3L)
+
+  expect_no_error(
+    sym <- bartisan(g ~ x1 + x2, d, family = multinomial(),
+                    control = quick_control(), offset = off3))
+  expect_length(sym[["eta"]], 3L)
+
+  expect_error(
+    bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
+             control = quick_control(), offset = off3),
+    "must be a matrix with 150 rows and 2 columns")
+
+  expect_no_error(
+    bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
+             control = quick_control(), offset = off3[, 1:2, drop = FALSE]))
+})
+
+test_that("a common offset cancels out of a symmetric multinomial", {
+  skip_on_cran()
+
+  d <- sim_x(n = 300, seed = 773)
+  set.seed(773)
+  lp <- cbind(0, 0.8 * d$x1, -0.5 + d$x2)
+  p <- exp(lp) / rowSums(exp(lp))
+  d$g <- factor(apply(p, 1L, function(pr) sample(3L, 1L, prob = pr)),
+                labels = c("a", "b", "c"))
+  off <- stats::rnorm(nrow(d))
+
+  ctrl <- quick_control(num_trees = 10L, num_burn = 100L, num_draws = 100L)
+
+  # A shift common to every category leaves the softmax alone, so a vector
+  # offset is a no-op here. This is surprising enough to pin: a user wanting a
+  # category-specific exposure has to pass a matrix.
+  set.seed(5)
+  plain <- bartisan(g ~ x1 + x2, d, family = multinomial(), control = ctrl)
+  set.seed(5)
+  shifted <- bartisan(g ~ x1 + x2, d, family = multinomial(), control = ctrl,
+                      offset = off)
+
+  expect_equal(predict(plain, type = "response"),
+               predict(shifted, type = "response"), tolerance = 1e-8)
+
+  # Under reference coding it does not cancel, the reference being pinned.
+  set.seed(5)
+  ref_plain <- bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
+                        control = ctrl)
+  set.seed(5)
+  ref_shift <- bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
+                        control = ctrl, offset = off)
+
+  expect_false(isTRUE(all.equal(predict(ref_plain, type = "response"),
+                                predict(ref_shift, type = "response"))))
+})

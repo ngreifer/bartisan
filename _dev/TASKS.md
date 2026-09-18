@@ -105,33 +105,32 @@ package claims to support, which is what puts them here.
 - [ ] Missing data, further work: nothing forces the three missing-value rules to be equally likely, and a variable with a handful of missing values probably does not want a third of its rules spent on splitting by missingness. A prior weight on the third rule is a one-line change and an open question.
 - [ ] A `quasi()` family parameterized by link, variance function and dispersion update rule. Needs a documented weakening of the exactness claim.
 - [ ] A lighter-tailed prior on the leaf scale, or an upper bound, would remove the separation pathology at the cost of changing the default prior. Not done unilaterally; the warning is the interim measure.
-- [ ] **A per-forest offset at fitting time.** `build_offset()` already has a
-  branch for an `n` by `n_forest` matrix, and `predict()` reaches its
-  equivalent through `as_offset_matrix()`, but the branch is unreachable from
-  `bartisan()`: `model_offset <- as.vector(stats::model.offset(mf))` at
-  `R/bartisan.R:483` flattens the matrix before `build_offset()` sees it, so a
-  matrix offset fails with "must have one value per observation". The two sides
-  of the package therefore disagree -- you can predict with a per-forest offset
-  but not fit with one.
+- [x] **A per-forest offset at fitting time.** *(done 2026-09-18.)*
+  `build_offset()` had a branch for an `n` by `n_forest` matrix and
+  `predict()` reached its equivalent through `as_offset_matrix()`, but the
+  branch was unreachable: `as.vector(stats::model.offset(mf))` flattened the
+  matrix before `build_offset()` saw it, so a matrix offset failed with "must
+  have one value per observation". The package could predict with a per-forest
+  offset and not fit with one.
 
-  The fix is small in the middle and not at the edges: keep the matrix when
-  `model.offset()` returns one, then check that `drop_unusable_rows()` and
-  `prepare_response()` handle a matrix where they currently handle a vector.
-  Worth doing because the feature is genuinely wanted: a category-specific
-  exposure for `multinomial()`, or an offset on the count part of
-  `zi_poisson()` but not the zero-inflation part.
+  The fix was the one line, and the reason it was only one line is worth
+  recording, because the rest was checked rather than assumed:
+  `prepare_response()` takes `offset` and never reads it, `has_offset` is a
+  null check, and `drop_unusable_rows()` handles a matrix column already --
+  `complete.cases()` flags the row and `mf[keep, ]` keeps the matrix shape.
+  So `build_offset()` was the only consumer that mattered.
 
-  While it is broken, note what a *vector* offset does to a multinomial. Under
-  the symmetric coding it is a no-op, silently: a shift common to every
-  category cancels out of the softmax, measured at a maximum probability change
-  of 1.2e-14. Under `reference` it does not cancel. `?bartisan` now says so.
+  Verified by three invariants, now tests: a one-column matrix equals the
+  vector on a one-forest family; repeating the column across a two-forest
+  family equals the vector; and changing one column alone does not. Plus the
+  shape errors, and the symmetric-multinomial no-op below.
 
-- [ ] **A test for `offset` beyond one forest.** There is none. The offset
-  tests cover `poisson()` and `tweedie()`, and `test-invariants.R`'s
-  "vc + offset" cell passes a *vector* to a two-forest model, so nothing
-  exercises the matrix form or any multinomial. Whatever is decided about the
-  item above, the no-op under symmetric multinomial coding deserves a test that
-  pins it, since it is surprising and currently silent.
+- [x] **A test for `offset` beyond one forest.** *(done 2026-09-18.)* Three
+  tests in `test-bartisan.R`. The third pins the surprise: under
+  `multinomial()`'s default symmetric coding a *vector* offset is a silent
+  no-op, a shift common to every category cancelling out of the softmax, while
+  under `reference` it does not cancel. Measured at 1.2e-14 before the fix and
+  asserted at 1e-8 now.
 
 - [ ] **`fc()` for a fixed coefficient**, as a companion to `vc()`. `vc(z, ~ 1)`
   already fits a constant coefficient, so `fc(z)` would begin as a synonym for
