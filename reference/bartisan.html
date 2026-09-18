@@ -91,7 +91,7 @@ counterpart for documented at <a href="bartisan-families.html">bartisan-families
 <dl><dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
 <dd><p>a model formula. The right-hand side lists candidate
 predictors; the model finds interactions and nonlinearity on its own, so
-<code>y ~ .</code> is usually the right specification. Survival families take a
+<code>y ~ x1 + x2 + x3</code> is usually the right specification. Survival families take a
 <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code>
  object on the left. A <code>(1 | group)</code> term adds a
 group-level random intercept, in the notation of <span class="pkg">lme4</span>; see Details.</p>
@@ -101,26 +101,17 @@ the model for the main parameter and carries the response; the rest need no
 response, and follow the order in <a href="bartisan-families.html">bartisan-families</a>, under "Several
 additive predictors", which also gives the name of each forest so the list
 can be named instead of ordered:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
+<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x2</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
 <span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>One formula applies to every forest, which is the ordinary case. A predictor
 left out of one forest's formula is still in the data and is never split on
 by that forest.</p>
-<p><strong>A formula naming no predictor at all makes that parameter a constant.</strong>
+<p>A formula naming no predictor at all makes that parameter a constant.
 <code>~ 1</code> leaves its forest nothing to split on, so every tree in it is a stump
 and the forest is a single drawn scalar rather than a function of the
-predictors. This works for every family that takes more than one formula, and
-it is how a nuisance parameter is asked for without a family that has one
-built in: <code><a href="bartisan-families.html">gaussian_ls()</a></code> with <code>~ 1</code> on its scale is <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> with its
-drawn <code>sigma</code>, <code><a href="bartisan-families.html">Gamma_ls()</a></code> with <code>~ 1</code> is <code>Gamma("log")</code> with its drawn
-shape, and <code><a href="bartisan-families.html">zi_poisson()</a></code> with <code>~ 1</code> on its inflation part is the ordinary
-zero-inflated Poisson with one structural-zero probability. The scalar is
-drawn under the leaf prior rather than under the prior the built-in family
-would use, so the two agree to within that difference rather than exactly.</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="co"># the scale free to vary, then held constant</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="fl">1</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+predictors.</p>
 <p><code><a href="vc.html">vc()</a></code> terms are read out of each formula in turn, so a parameter has the
 varying coefficients its own formula asks for and no others, which makes the
 forests two-dimensional (one axis the parameter, the other the coefficient).
@@ -193,10 +184,7 @@ rather than being silently ignored.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>&lt;bartisan_fit&gt;</code> object, a list with the following components among others.
-Note that convergence diagnostics are not among them: computing R-hat and the
-effective sample sizes for every observation costs more than the sampling
-does, so it is <code><a href="diagnose.html">diagnose()</a></code>'s work and happens when it is asked for.</p>
+    <p>A <code>&lt;bartisan_fit&gt;</code> object, a list with the following components among others.</p>
 <dl><dt><code>eta</code></dt>
 <dd><p>a list with one matrix per additive predictor, each of
 posterior draws by observation, on the link scale.</p></dd>
@@ -226,22 +214,19 @@ for soft rules, the per-tree gate bandwidths.</p></dd>
 
 <dt><code>control</code></dt>
 <dd><p>the <code>&lt;bartisan_control&gt;</code> object the fit used, with any
-settings given in <code>...</code> merged in. Its <code>augment</code> element is a <code>logical</code>
-saying whether a rewriting of the likelihood was applied to this fit,
-rather than the families one was permitted for; what was asked for
-remains in <code>attr(control, "supplied")</code>.</p></dd>
+settings given in <code>...</code> merged in.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
 
 <div class="section">
-<h3 id="what-the-sampler-does">What the Sampler Does<a class="anchor" aria-label="anchor" href="#what-the-sampler-does"></a></h3>
+<h3 id="the-sampler">The Sampler<a class="anchor" aria-label="anchor" href="#the-sampler"></a></h3>
 
 
 <p>Standard BART relies on the leaf parameters being integrable in closed form,
 which restricts it to a Gaussian response, or to models that can be reduced to
-one by data augmentation. Linero's algorithm removes that restriction. At each
+one by data augmentation. Linero's (2025) algorithm removes that restriction. At each
 candidate move it builds a Gaussian approximation to the conditional posterior
 of the affected leaf parameters, by Fisher scoring, and uses that
 approximation as the proposal in a reversible-jump Metropolis step. The
@@ -262,14 +247,10 @@ the derivatives.</p>
 
 <p><code>family</code> may be left alone, in which case it is read off the response:</p><table class="table table"><tr><td>Response</td><td>Family</td></tr><tr><td><code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or a two-column matrix of times and events</td><td><code><a href="bartisan-families.html">dpm_aft()</a></code></td></tr><tr><td>ordered factor</td><td><code><a href="bartisan-families.html">ordinal()</a></code></td></tr><tr><td>logical, or two levels, or numeric zeros and ones</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>factor or character with more than two levels</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>two-column matrix of successes and failures</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>anything else</td><td><code><a href="bartisan-families.html">dpm()</a></code></td></tr></table><p>A message reports the choice, and naming <code>family</code> is what silences it, which
 is also what changes it.</p>
-<p>Two of these are worth saying out loud. A <strong>count</strong> is not inferred as
-<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>: a non-negative integer response is often Poisson and often not,
-and the Poisson variance assumption is strong enough that making it silently
-would be a modeling decision taken on the caller's behalf. Gaussian is the
-weaker guess and the one whose failure is easy to see. And a numeric response
-with exactly two values that are <em>not</em> zero and one (e.g., <code>c(1, 2)</code>) is
-Gaussian rather than binomial, because which of the two counts as the success
-is not something to guess at.</p>
+<p>Two scenarios are worth noting. A count is read as a numeric variable and therefore has <code><a href="bartisan-families.html">dpm()</a></code> as its default. And a
+numeric response with exactly two values other than zero and one (e.g.,
+<code>c(1, 2)</code>) is also given <code><a href="bartisan-families.html">dpm()</a></code> as its default rather than <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, which of the two counts as the
+success not being something to guess at.</p>
 </div>
 
 <div class="section">
@@ -314,15 +295,11 @@ exactly; a slope is a different shape of parameter. A variable whose effect
 varies by group belongs in the fixed part of the formula, where a tree can
 split on the group and on the variable together and get an interaction of any
 shape.</p>
-<p><strong>When to reach for this rather than putting the group in as a predictor.</strong> A
-grouping factor can also go in the fixed part, where a tree splits on it like
-anything else, and with few large groups that is the better choice; measured,
-it beats a random intercept, because the group means are well determined
-without pooling and a split can interact the group with the covariates. The
-random intercept wins when there are many small groups, which is where partial
-pooling earns its keep: at 250 groups of four observations it cut held-out
-error by 30% against the factor route, and at five groups of a hundred it lost
-to it.</p>
+<p>A grouping factor can also go in the fixed part, where a tree splits on it
+like anything else, and with few large groups that is the better choice: the
+group means are well determined without pooling and a split can interact the
+group with the covariates. The random intercept wins where there are many
+small groups, which is where partial pooling earns its keep.</p>
 <p>A level of <code>group</code> that was not present at fitting time is given the prior
 mean of zero when predicting, with a warning.</p>
 </div>
@@ -338,24 +315,15 @@ rule on a variable that has missing values is drawn as one of three, with
 equal probability:</p><ul><li><p><code>x &lt; c</code>, or missing, goes left;</p></li>
 <li><p><code>x &lt; c</code> goes left, missing goes right;</p></li>
 <li><p>missing goes left, present goes right.</p></li>
-</ul><p>This is <em>missingness incorporated in attributes</em> (Twala, Jones and Hand 2008;
-for BART, Kapelner and Bleich 2015). The third rule is what lets the model
-split on missingness itself, so a variable whose <em>absence</em> carries the signal
-is usable even if its observed values say nothing. Since the choice is drawn
-from its prior along with the variable and the cutpoint, it cancels from every
-acceptance ratio, and a variable with no missing values is not given the extra
-draw at all: complete data reproduces the sampler exactly as it was.</p>
-<p>A missing value takes a hard path through the tree even when the rules are
-soft (there being nothing about absence to smooth over), which keeps the leaf
-weights summing to one.</p>
+</ul><p>This is missingness incorporated in attributes, and the third rule is what
+lets the model split on missingness itself, so a variable whose absence
+carries the signal is usable even where its observed values say nothing.</p>
 <p>Two consequences are worth being clear about. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing
-values only in columns that had them at fitting time, because only those
-columns' rules carry an answer; elsewhere every rule would send the value the
-same arbitrary way, so a missing value is an error instead. And what the model
-estimates is the mean of the response given the predictors <em>and the pattern of
-missingness</em>, which is the quantity prediction calls for. Note that if the
-estimand is a regression or causal effect defined on complete data, multiple
-imputation is the right tool and this is not.</p>
+values in a column that had them at fitting time, those being the columns
+whose rules carry an answer. And what the model estimates is the mean of the
+response given the predictors and the pattern of missingness, which is the
+quantity prediction calls for; where the estimand is a regression or causal
+effect defined on complete data, multiple imputation is the right tool.</p>
 </div>
 
 <div class="section">
@@ -364,7 +332,7 @@ imputation is the right tool and this is not.</p>
 
 <p>Predictors are mapped to the unit interval, because the cutpoint prior is
 uniform on a node's live range and the soft-rule bandwidth is measured on the
-predictor scale. Factors are expanded to an indicator per level and share a
+predictor scale. Factors share a
 single weight in the sparsity prior, so that a factor is selected or not as a
 whole rather than one level at a time. The additive predictor starts from an
 intercept-only fit, so the leaf prior describes departures from that fit
@@ -375,38 +343,13 @@ for the zero-inflated and ordered beta families, it is a moment
 approximation, which the sampler then moves away from.</p>
 </div>
 
-    </div>
-    <div class="section level2">
-    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
-beyond conditional conjugacy. <em>Journal of the American Statistical
-Association</em>, 120(549), 356–369. <a href="https://doi.org/10.1080/01621459.2024.2337156" class="external-link">doi:10.1080/01621459.2024.2337156</a></p>
-<p>Linero, A. R., &amp; Yang, Y. (2018). Bayesian regression tree ensembles that
-adapt to smoothness and sparsity. <em>Journal of the Royal Statistical Society
-Series B</em>, 80(5), 1087–1110. <a href="https://doi.org/10.1111/rssb.12293" class="external-link">doi:10.1111/rssb.12293</a></p>
-<p>Albert, J. H., &amp; Chib, S. (1993). Bayesian analysis of binary and
-polychotomous response data. <em>Journal of the American Statistical
-Association</em>, 88(422), 669–679. <a href="https://doi.org/10.1080/01621459.1993.10476321" class="external-link">doi:10.1080/01621459.1993.10476321</a></p>
-<p>Polson, N. G., Scott, J. G., &amp; Windle, J. (2013). Bayesian inference for
-logistic models using Polya-Gamma latent variables. <em>Journal of the American
-Statistical Association</em>, 108(504), 1339–1349.
-<a href="https://doi.org/10.1080/01621459.2013.829001" class="external-link">doi:10.1080/01621459.2013.829001</a></p>
-<p>Kapelner, A., &amp; Bleich, J. (2015). Prediction with missing data via Bayesian
-additive regression trees. <em>Canadian Journal of Statistics</em>, 43(2), 224–239.
-<a href="https://doi.org/10.1002/cjs.11248" class="external-link">doi:10.1002/cjs.11248</a></p>
-<p>Vehtari, A., Gelman, A., Simpson, D., Carpenter, B., &amp; Buerkner, P.-C. (2021).
-Rank-normalization, folding, and localization: an improved \(\widehat{R}\)
-for assessing convergence of MCMC. <em>Bayesian Analysis</em>, 16(2), 667–718.
-<a href="https://doi.org/10.1214/20-BA1221" class="external-link">doi:10.1214/20-BA1221</a></p>
-<p>Twala, B. E. T. H., Jones, M. C., &amp; Hand, D. J. (2008). Good methods for
-coping with missing data in decision trees. <em>Pattern Recognition Letters</em>,
-29(7), 950–956. <a href="https://doi.org/10.1016/j.patrec.2008.01.010" class="external-link">doi:10.1016/j.patrec.2008.01.010</a></p><div class="section">
+<div class="section">
 <h3 id="drawing-from-the-prior-prior-only-">Drawing From the Prior (<code>prior_only</code>)<a class="anchor" aria-label="anchor" href="#drawing-from-the-prior-prior-only-"></a></h3>
 
 
 <p><code>prior_only = TRUE</code> fits the same model to no data. Every observation is given
 a weight of zero, and since the weight multiplies that observation's log
-density, its gradient and its curvature, the likelihood is flat: each tree
+density, its gradient, and its curvature, the likelihood is flat: each tree
 move is accepted or rejected on the prior alone and each leaf is drawn from
 its prior. A family that draws an auxiliary parameter from the response
 directly rather than through the weighted density (the mixture atoms under
@@ -418,41 +361,35 @@ so what comes back is an ordinary fit whose draws are prior draws, and
  on it gives the prior predictive
 distribution.</p>
 <p>It answers a question the priors themselves cannot. <code>k</code>, <code>gamma</code> and <code>beta</code>
-are statements about trees and leaves, and nobody has intuition for what they
-imply about an outcome. The replicates put that on the response's own scale,
+are statements about trees and leaves, and what they
+imply about an outcome is opaque. The replicates put that on the response's own scale,
 where it can be judged: a prior predictive that puts its mass where the
 outcome cannot go, or spread over an implausible range, is a prior worth
 changing before the data are seen and before any of their information is
 spent.</p>
-<p><strong>What the prior is still conditioned on.</strong> The additive predictor is anchored
-at an intercept-only fit on the link scale, and the leaf scale is calibrated
-from the response, which is how a BART prior is specified and not a leak.
-So the replicates take their <em>location and scale</em> from the response and
-everything else from the prior: which predictors are split on, how deep, how
-much the fitted function departs from that anchor. Read them for shape and
-spread rather than for level.</p>
-<p><strong>The two families that refuse it.</strong> <code><a href="bartisan-families.html">ordinal()</a></code> and <code><a href="bartisan-families.html">ordbeta()</a></code> draw their
-cutpoints from the likelihood alone, with no prior term to fall back on, so at
-zero weight the target is not flattened but empty and the cutpoints wander out
-to the bound. The replicates would pile at one end of the scale with nothing
-in the fit to say so, which is why this is an error rather than a warning. The
-gap is in the model and not in the mechanism; it would close if a prior over
-ordered cutpoints were specified. Every other family allows it, and for an
-ordered outcome with few enough categories <code><a href="bartisan-families.html">multinomial()</a></code> is the nearest
-substitute.</p>
-<p>Note that the wider a prior is, the wider its replicates, and that is a
-finding rather than a fault. <code><a href="bartisan-families.html">gaussian_ls()</a></code> and <code><a href="bartisan-families.html">Gamma_ls()</a></code> put a log scale
-in a second forest, and a scale drawn from the leaf prior sends their
-replicates far wider than the response ever runs. That is the prior the
-defaults specify, shown on the scale where it can be judged, which is what
-the check is for.</p>
-<p>Nothing that scores a fit against data will run on one. <code>loo()</code>, <code>waic()</code> and
-<code>kfold()</code> refuse, and
-<code><a href="https://easystats.github.io/performance/reference/model_performance.html" class="external-link">performance::model_performance()</a></code>
- leaves out the three columns built on
-them.</p>
+<p>The additive predictor is anchored at an intercept-only fit on the link scale
+and the leaf scale is calibrated from the response, which is how a BART prior
+is specified. The replicates therefore take their location and scale from the
+response and everything else from the prior: which predictors are split on,
+how deep, how far the fitted function departs from that anchor. Read them for
+shape and spread rather than for level, and note that the wider a prior is the
+wider its replicates, so <code><a href="bartisan-families.html">gaussian_ls()</a></code> and <code><a href="bartisan-families.html">Gamma_ls()</a></code>, which put a log
+scale in a second forest, run far wider than the response ever does.</p>
+<p><code>loo()</code>, <code>waic()</code> and <code>kfold()</code> score a fit against data, so they refuse a
+prior-only fit, and <code><a href="https://easystats.github.io/performance/reference/model_performance.html" class="external-link">performance::model_performance()</a></code>
+ leaves out the
+three columns built on them.</p>
 </div>
 
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
+beyond conditional conjugacy. <em>Journal of the American Statistical
+Association</em>, 120(549), 356–369. <a href="https://doi.org/10.1080/01621459.2024.2337156" class="external-link">doi:10.1080/01621459.2024.2337156</a></p>
+<p>Linero, A. R., &amp; Yang, Y. (2018). Bayesian regression tree ensembles that
+adapt to smoothness and sparsity. <em>Journal of the Royal Statistical Society
+Series B</em>, 80(5), 1087–1110. <a href="https://doi.org/10.1111/rssb.12293" class="external-link">doi:10.1111/rssb.12293</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

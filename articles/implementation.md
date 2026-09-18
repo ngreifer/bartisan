@@ -185,12 +185,92 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.416     1.3
+#> 1 smoothstep     0.416     1.2
 #> 2       hard     1.079     0.4
 ```
 
 The true function has a standard deviation of about 4.9, so both are
 fitting real structure and the soft fit is the more accurate.
+
+### The Predictor Transform (`x_transform`)
+
+Numeric predictors are mapped to \\\[0, 1\]\\ before any rule sees them,
+and the map is not cosmetic. A cutpoint is drawn uniformly on a node’s
+live range in the transformed coordinate, so the map decides where a
+rule *can* split, and under soft rules it is also the scale on which
+\\\tau\\ is measured. The `x_transform` argument of
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+chooses it. The three options fail in different places, which is the
+whole of the choice between them.
+
+`"range"` rescales linearly, \\T(x) = (x - \min x) / (\max x - \min
+x)\\, and so preserves the original spacing. That makes it the most
+accurate of the three on a well-behaved predictor, and, being the only
+affine map among them, the only one a derivative passes through cleanly.
+Its failure is a predictor whose bulk sits inside a sliver of its range,
+which a few extreme values are enough to produce: a cutpoint drawn
+uniformly on the range then almost never lands where the structure is.
+In a simulation with 1% of a predictor at 300 times the scale of the
+rest and a truth that oscillates within the bulk, it was 4 times worse
+than the alternatives at \\n = 500\\ and 6 times worse at \\n = 2000\\,
+with 95% intervals covering .24 rather than .95. The deterioration with
+\\n\\ is the signature: the extremes grow with the sample, so the bulk
+occupies an ever smaller share of the range.
+
+`"quantile"` maps each predictor through its own empirical distribution
+function, which is what `SoftBart::softbart()` does. It cannot fail that
+way, because it places cutpoints by rank and knows nothing about
+spacing. It fails instead by being a step function, so the fit is a step
+function of the original predictor: there is no derivative to take, and
+a relationship that is straight in the predictor becomes a staircase
+wherever the data are gappy. On two tight clusters with a linear truth
+it was nearly three times worse than the alternatives.
+
+`"smoothcdf"`, the default, smooths that same distribution function and
+so does neither. The estimate is
+
+\\\hat F_h(x) = \frac{1}{n} \sum\_{i=1}^n K\left(\frac{x -
+x_i}{h}\right),\\
+
+where \\K\\ is the integrated Epanechnikov kernel and \\h = 2.1
+\hat\sigma n^{-1/3}\\, with \\\hat\sigma\\ the smaller of the standard
+deviation and the interquartile range over 1.349 so that a long tail
+sets the bandwidth from the bulk rather than from itself. The
+\\n^{-1/3}\\ rate is the one for a distribution function rather than the
+\\n^{-1/5}\\ that is right for a density ([Tenreiro
+2006](#ref-tenreiro2006)), a rate Azzalini ([1981](#ref-azzalini1981))
+had pointed out for a second-order approximation. The result is
+stretched affinely so that the smallest and largest observations land on
+0 and 1, as they do under the other two maps; normalizing on the
+smoothed values instead would leave a few percent of the coordinate
+outside the data, where no cutpoint can be useful. Cutpoints then land
+where the data are, as under `"quantile"`, and the map is strictly
+increasing and differentiable, as under `"range"`. Across eight
+data-generating processes it was never the most accurate and never far
+from it, where each of the other two was badly wrong somewhere.
+
+It is not a free lunch for slopes. Writing the fit as \\f(T(x))\\, a
+derivative in the original coordinate is \\f'(T(x)) T'(x)\\: an affine
+\\T\\ has a known constant derivative, so only \\f'\\ is estimated,
+where a smoothed distribution function contributes an estimated density
+and the two errors multiply.
+[`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
+measures what that costs and recommends refitting with `"range"` when a
+slope is the quantity being reported.
+
+The kernel is Epanechnikov rather than Gaussian because its support is
+bounded, which is what makes the estimate cheap to compute exactly.
+Written directly, \\\hat F_h\\ on a grid of \\m\\ points is \\nm\\
+kernel evaluations, tens of millions per predictor on a large fit.
+Almost all of that work is avoidable, because almost every weight is a 0
+or a 1 rather than something in between: an observation further below a
+grid point than the kernel reaches has passed it entirely and
+contributes 1, one further above contributes 0, and only those within
+\\h\\ need evaluating. With the data and the grid both sorted, the two
+ends of that window advance monotonically, so each is found by a pointer
+that never goes back and the sweep costs \\O(n + m)\\. For ten
+predictors at \\n = 10{,}000\\ that is 6 ms rather than 4.4 seconds, and
+unlike a Gaussian truncated at five bandwidths it is exact.
 
 ### Sparsity (`sparsity`)
 
@@ -376,10 +456,11 @@ component, it costs little when a single normal was right.
 ### Missing Predictor Values
 
 Missing predictor values are handled natively, by treating missingness
-as something to split on ([Twala et al. 2008](#ref-twala2008)). A rule
-can send missing values left, send them right, or split on missingness
-itself, and which of these is used is part of the posterior. No
-imputation is required and rows are not dropped.
+as something to split on ([Twala et al. 2008](#ref-twala2008); for BART,
+[Kapelner and Bleich 2015](#ref-kapelner2015)). A rule can send missing
+values left, send them right, or split on missingness itself, and which
+of these is used is part of the posterior. No imputation is required and
+rows are not dropped.
 
 ``` r
 
@@ -527,6 +608,7 @@ worth it:
 | `num_burn`, `num_draws` | when `rhat` says the chain has not converged |
 | `num_trees` | more for a complex function and a large sample; fewer to speed up |
 | `gate` | `"hard"` when the truth really is a step function, or for speed |
+| `x_transform` | `"range"` when a slope is the quantity being reported |
 | `sparsity` | `FALSE` to recover classic BART, which is rarely the goal |
 | `k` | to shrink harder toward the mean, in a very small sample |
 
@@ -566,44 +648,63 @@ costs them.
 
 Each of them is faster, from 1.2 times for the negative binomial under
 soft rules to 31 for an ordinal probit with hard rules, with a median of
-8.8. What each costs in mixing is the question, and the answer is not
+8.7. What each costs in mixing is the question, and the answer is not
 that they all cost something: over 15 replicate datasets the
-worst-mixing quantity’s effective sample size came out a median of 1.05
+worst-mixing quantity’s effective sample size came out a median of 0.89
 times what the direct likelihood gives, and of the seventeen cases
-below, seven have an 80% interval lying entirely below 1, two lie
-entirely above it, and eight include it. Effective draws per second,
-which is the ratio to judge, favors augmentation in all seventeen:
+below, seven have an 80% interval lying entirely below 1, three lie
+entirely above it, and seven include it. Effective draws per second,
+which is the ratio to judge, favors augmentation in fifteen of the
+seventeen, the two negative-binomial rows being the exceptions:
 
 | Family | Speed | ESS, worst quantity | ESS, median quantity | ESS per second |
 |----|----|----|----|----|
-| `ordinal("probit")`, hard rules | 31x | 0.72x \[0.54, 0.95\] | 0.73x | **22x** |
-| `ordinal("probit")`, soft rules | 24x | 0.65x \[0.52, 0.84\] | 0.61x | **16x** |
-| [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 12x | 1.06x \[0.73, 1.48\] | 0.97x | **13x** |
-| [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 11x | 1.09x \[0.62, 1.95\] | 1.05x | **12x** |
-| [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 8.8x | 1.34x \[0.72, 2.41\] | 0.96x | **12x** |
-| [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 8.2x | 1.43x \[1.00, 1.96\] | 0.91x | **12x** |
-| `binomial("probit")` | 9.7x | 1.19x \[0.77, 2.01\] | 1.12x | **12x** |
-| [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 14x | 0.74x \[0.57, 0.97\] | 0.96x | **10x** |
-| `binomial("logit")` | 6.7x | 1.44x \[1.02, 1.98\] | 1.11x | **9.6x** |
-| [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 5.8x | 1.58x \[1.12, 2.09\] | 1.05x | **9.1x** |
-| `ordinal("logit")`, soft rules | 12x | 0.57x \[0.45, 0.76\] | 0.65x | **7.1x** |
-| [`zi_negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 6.7x | 1.04x \[0.81, 1.37\] | 0.99x | **6.9x** |
-| `ordinal("logit")`, hard rules | 15x | 0.37x \[0.30, 0.46\] | 0.52x | **5.5x** |
-| [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 3.7x | 1.24x \[0.86, 1.79\] | 1.15x | **4.6x** |
-| [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 6.9x | 0.58x \[0.46, 0.80\] | 0.69x | **4.0x** |
-| [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 1.2x | 1.11x \[0.68, 1.64\] | 0.86x | 1.3x |
-| [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 1.8x | 0.61x \[0.47, 0.79\] | 0.84x | 1.1x |
+| [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 11x | 1.49x \[1.14, 1.68\] | 1.06x | **16x** |
+| `ordinal("probit")`, hard rules | 31x | 0.50x \[0.37, 0.84\] | 0.53x | **16x** |
+| `ordinal("probit")`, soft rules | 24x | 0.64x \[0.50, 0.67\] | 0.57x | **15x** |
+| [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 8.1x | 1.49x \[1.33, 2.04\] | 0.87x | **12x** |
+| [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 8.7x | 1.21x \[0.96, 2.56\] | 0.98x | **11x** |
+| `binomial("probit")` | 9.8x | 1.13x \[0.97, 1.27\] | 1.09x | **10x** |
+| [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 12x | 0.89x \[0.81, 0.99\] | 0.84x | **10x** |
+| [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 14x | 0.61x \[0.45, 1.22\] | 0.88x | **8.8x** |
+| `binomial("logit")` | 6.7x | 1.31x \[1.04, 1.99\] | 1.11x | **8.8x** |
+| [`zi_negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 6.7x | 1.02x \[0.79, 1.22\] | 1.02x | **6.6x** |
+| `ordinal("logit")`, hard rules | 15x | 0.43x \[0.38, 0.64\] | 0.49x | **6.5x** |
+| `ordinal("logit")`, soft rules | 12x | 0.50x \[0.46, 0.65\] | 0.61x | **6.3x** |
+| [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 5.8x | 1.15x \[0.74, 1.42\] | 1.13x | **5.9x** |
+| [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 6.9x | 0.67x \[0.54, 0.87\] | 0.74x | **4.6x** |
+| [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 3.7x | 1.14x \[0.96, 2.25\] | 1.30x | **4.5x** |
+| [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), hard rules | 1.8x | 0.52x \[0.47, 0.97\] | 0.84x | 1.0x |
+| [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), soft rules | 1.2x | 0.66x \[0.49, 1.06\] | 0.83x | 0.8x |
 
-The bracketed range is an 80% bootstrap interval over the replicates,
-and it is in the table because without it the column invites conclusions
-it cannot support: at three replicates the same quantity varied by a
-median factor of 4.5 within a single cell, since the worst-quantity
-effective sample size is a minimum over many quantities and so is a
-high-variance thing to estimate. The median quantity is the stabler
-reading, and comparing the two columns is informative on its own: those
-ratios run .52 to 1.15 where the worst-quantity ones run .37 to 1.58, so
-a family whose worst corner mixes noticeably better or worse under
-augmentation has usually moved less than that as a whole.
+Every cell is the median over replicates of the ratio *within* a
+replicate, which is the reading the design supports: both arms see the
+same data, so the paired ratio is the quantity with the least noise in
+it, and a median rather than a mean because a wall-clock timing can be
+disturbed by work outside the fit (see below). The bracketed range is an
+80% bootstrap interval over the replicates, and it is in the table
+because without it the column invites conclusions it cannot support: at
+three replicates the same quantity varied by a median factor of 4.5
+within a single cell, since the worst-quantity effective sample size is
+a minimum over many quantities and so is a high-variance thing to
+estimate. The median quantity is the stabler reading, and comparing the
+two columns is informative on its own: those ratios run .49 to 1.30
+where the worst-quantity ones run .43 to 1.49, so a family whose worst
+corner mixes noticeably better or worse under augmentation has usually
+moved less than that as a whole.
+
+These are wall-clock timings, so they are only as good as the machine
+was quiet. An earlier measurement of the four ordinal rows recorded one
+`augment = FALSE` fit at 3882 seconds against 30 to 43 for the other
+fourteen replicates of its cell, and two more at about 600 against 51 to
+65. Re-running the four cells with the machine to itself returned all
+120 fits’ effective sample sizes unchanged to the last recorded digit,
+so those three had done identical work; they came back at 34, 65 and 65
+seconds, and each had overlapped another job on the same machine. The
+rows above are that clean run, in which the un-augmented fits take 32 to
+38 seconds under hard rules and 61 to 69 under soft. Medians are used
+throughout regardless, since they are what keeps a table of timings
+robust to that kind of accident.
 
 `augment` is on by default for every family that has a rewriting: the
 binomial, ordinal, multinomial, negative binomial, zero-inflated, and
@@ -613,9 +714,10 @@ Pólya-Gamma one, and it is the one family whose two rows differ in kind
 rather than degree. Under hard rules the target reaches the exponential
 form and the rewriting buys time at a real cost in mixing; under soft
 rules it cannot, and the rewriting instead buys a little time at no
-measurable cost in mixing. Both come out ahead on effective draws per
-second, but by the least of any family here, so `augment = FALSE` is
-worth trying if a negative binomial fit’s diagnostics look poor.
+measurable cost in mixing. Neither comes out ahead on effective draws
+per second, at 1.0 and 0.8 times, which makes the negative binomial the
+one family whose rewriting does not pay for itself; `augment = FALSE` is
+worth trying whenever a negative binomial fit’s diagnostics look poor.
 
 The survival families are the clearest case of what the rewriting is
 for. Right-censoring is what makes their likelihood expensive: an
@@ -833,11 +935,12 @@ on average, so there is not much for the softening to multiply.
 Absolute timings are machine- and load-dependent, so these are
 indicative rather than exact; repeated runs on the same laptop varied by
 about 20%. As an anchor, a Gaussian response with 10 predictors, 50 soft
-trees, and the default 200 warmup plus 800 saved draws takes about a
-second at \\n = 500\\ and about ten seconds at \\n = 5000\\, measured at
-steady state on one core of an M-series Mac. Hard rules are about 3
-times faster (2.9 times at \\n = 500\\ and 3.2 at \\n = 5000\\), and
-doubling the tree count roughly doubles the cost.
+trees, and the default 200 warmup plus 800 saved draws takes about three
+quarters of a second at \\n = 500\\ and about eight and a half seconds
+at \\n = 5000\\, measured at steady state on one core of an M-series
+Mac. Hard rules are about 3 times faster (2.9 times at \\n = 500\\ and
+3.1 at \\n = 5000\\), and doubling the tree count roughly doubles the
+cost.
 
 The ratios are stabler than the absolute times. Cost relative to a
 Gaussian fit at the same size is set by how expensive the family’s log
@@ -847,23 +950,24 @@ density and its derivatives are:
 |----|----|
 | [`gaussian()`](https://rdrr.io/r/stats/family.html) | 1x |
 | [`binomial()`](https://rdrr.io/r/stats/family.html), either link | 1.1x |
-| [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 1.2x |
-| [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), logit or probit | 1.2x |
-| [`poisson()`](https://rdrr.io/r/stats/family.html) | 3.6x |
-| `Gamma("log")` | 5.6x |
-| [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 6.5x |
-| [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 6.8x |
-| [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 7.8x |
-| [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 8.5x |
-| [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), with `power` drawn | 9.1x |
-| [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 18x |
-| [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 23x |
+| `ordinal("probit")` | 1.2x |
+| [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 1.3x |
+| `ordinal("logit")` | 1.3x |
+| [`poisson()`](https://rdrr.io/r/stats/family.html) | 3.5x |
+| `Gamma("log")` | 5.5x |
+| [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 5.8x |
+| [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 6.7x |
+| [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 7.9x |
+| [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 8.0x |
+| [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), with `power` drawn | 9.7x |
+| [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 17x |
+| [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 22x |
 
 [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 earns a note because it looks as though it should be far worse: its
 density has no closed form at a positive response, and normalizing it
 takes an infinite series. Measured against a Gaussian fit of the same
-size it costs 6.5 times as much where `Gamma("log")` costs 5.6, so the
+size it costs 6.7 times as much where `Gamma("log")` costs 5.5, so the
 series is not visible in the total. The reason is where the series sits.
 Writing the log density in exponential-dispersion form separates it into
 a part that moves with the predictor, which is closed form, and a
@@ -872,7 +976,7 @@ second goes in the eta-free part, which is evaluated once per sweep
 rather than at every leaf, and cancels from every acceptance ratio in
 between. Its length depends on the response and the dispersion but never
 on the mean, so it does not grow as the forest moves. Drawing `power`
-costs about 40% again, because the slice sampler has to re-sum the
+costs about 45% again, because the slice sampler has to re-sum the
 series at each candidate value and cannot use the table of log-gammas
 that a fixed power allows.
 
@@ -900,11 +1004,11 @@ is folded into the intercept instead, so the fit is on the same scale as
 [`binomial()`](https://rdrr.io/r/stats/family.html).
 
 That is [`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html)’s chart
-with its predictors centered. `polr()` identifies the location by
-leaving the intercept out of the design matrix rather than by centering,
-so its `zeta` is shifted by the mean of its own linear predictor. Either
-of these lines puts the two side by side, and on a linear truth they
-agree to Monte Carlo error:
+([Venables and Ripley 2002](#ref-venables2002)) with its predictors
+centered. `polr()` identifies the location by leaving the intercept out
+of the design matrix rather than by centering, so its `zeta` is shifted
+by the mean of its own linear predictor. Either of these lines puts the
+two side by side, and on a linear truth they agree to Monte Carlo error:
 
 ``` r
 
@@ -975,6 +1079,10 @@ Binary and Polychotomous Response Data.” *Journal of the American
 Statistical Association* 88 (422): 669–79.
 <https://doi.org/10.1080/01621459.1993.10476321>.
 
+Azzalini, A. 1981. “A Note on the Estimation of a Distribution Function
+and Quantiles by a Kernel Method.” *Biometrika* 68 (1): 326–28.
+<https://doi.org/10.1093/biomet/68.1.326>.
+
 Barbieri, Maria Maddalena, and James O. Berger. 2004. “Optimal
 Predictive Model Selection.” *The Annals of Statistics* 32 (3).
 <https://doi.org/10.1214/009053604000000238>.
@@ -1018,6 +1126,10 @@ Additive Regression Trees: A Review and Look Forward.” *Annual Review of
 Statistics and Its Application* 7 (1): 251–78.
 <https://doi.org/10.1146/annurev-statistics-031219-041110>.
 
+Kapelner, Adam, and Justin Bleich. 2015. “Prediction with Missing Data
+via Bayesian Additive Regression Trees.” *Canadian Journal of
+Statistics* 43 (2): 224–39. <https://doi.org/10.1002/cjs.11248>.
+
 Linero, Antonio R. 2018. “Bayesian Regression Trees for High-Dimensional
 Prediction and Variable Selection.” *Journal of the American Statistical
 Association* 113 (522): 626–36.
@@ -1043,6 +1155,11 @@ Inference for Logistic Models Using Pólya–Gamma Latent Variables.”
 *Journal of the American Statistical Association* 108 (504): 1339–49.
 <https://doi.org/10.1080/01621459.2013.829001>.
 
+Tenreiro, Carlos. 2006. “Asymptotic Behaviour of Multistage Plug-in
+Bandwidth Selections for Kernel Distribution Function Estimators.”
+*Journal of Nonparametric Statistics* 18 (1): 101–16.
+<https://doi.org/10.1080/10485250600578334>.
+
 Twala, B. E. T. H., M. C. Jones, and D. J. Hand. 2008. “Good Methods for
 Coping with Missing Data in Decision Trees.” *Pattern Recognition
 Letters* 29 (7): 950–56. <https://doi.org/10.1016/j.patrec.2008.01.010>.
@@ -1051,6 +1168,9 @@ van Dyk, David A., and Taeyoung Park. 2008. “Partially Collapsed Gibbs
 Samplers: Theory and Methods.” *Journal of the American Statistical
 Association* 103 (482): 790–96.
 <https://doi.org/10.1198/016214508000000409>.
+
+Venables, W. N., and B. D. Ripley. 2002. *Modern Applied Statistics with
+s*. 4th ed. Springer.
 
 [^1]: *BART*’s support is a set of binary fits rather than a multinomial
     model, which is worth knowing before the checkmark is read as a

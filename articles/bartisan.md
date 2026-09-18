@@ -169,9 +169,9 @@ diagnose(fit)
 #>   what makes it readable, and that grows with the total number of draws; using
 #>   fewer chains lowers the bar as well, since R-hat's null rises with the number
 #>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`. A smaller forest has fewer
-#>   ways to represent the same fit, so the sampler has less room to move between
-#>   them.
+#> • If that does not settle it, reduce `num_trees`, which was `50`. A smaller
+#>   forest has fewer ways to represent the same fit, so the sampler has less room
+#>   to move between them.
 #> • Then check the family. A likelihood that fits the data badly can give a
 #>   posterior with no single place to be; `bayesplot::pp_check()` is the
 #>   diagnostic.
@@ -240,9 +240,9 @@ diagnose(estimate_effect(fit, treat = "rhc"))
 #>   what makes it readable, and that grows with the total number of draws; using
 #>   fewer chains lowers the bar as well, since R-hat's null rises with the number
 #>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`. A smaller forest has fewer
-#>   ways to represent the same fit, so the sampler has less room to move between
-#>   them.
+#> • If that does not settle it, reduce `num_trees`, which was `50`. A smaller
+#>   forest has fewer ways to represent the same fit, so the sampler has less room
+#>   to move between them.
 #> • Then check the family. A likelihood that fits the data badly can give a
 #>   posterior with no single place to be; `bayesplot::pp_check()` is the
 #>   diagnostic.

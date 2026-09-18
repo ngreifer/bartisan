@@ -46,9 +46,9 @@ draws-by-observations matrices, one per coefficient.
 
 ## Details
 
-The control function is not among them. It is the surface at the value
-each covariate was centered on, which is a prediction rather than a
-coefficient; `predict(object)` is what reports predictions.
+The coefficients are the varying ones alone. The control function is the
+surface at the value each covariate was centered on, which is a
+prediction rather than a coefficient, and `predict(object)` reports it.
 
 For a factor the coefficients are recentered to sum to zero across its
 levels, which is what makes them the deviations they are reported as.

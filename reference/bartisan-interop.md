@@ -245,9 +245,8 @@ The accessors return what their names suggest.
 
 ## Details
 
-### What Is Available
+### Available Methods
 
-**Posterior predictions.**
 [`rstantools::posterior_predict()`](https://mc-stan.org/rstantools/reference/posterior_predict.html)
 draws replicate outcomes from the fitted model,
 [`rstantools::posterior_epred()`](https://mc-stan.org/rstantools/reference/posterior_epred.html)
@@ -256,16 +255,15 @@ gives their mean and
 the additive predictor, following the rstantools conventions that brms
 and rstanarm follow, and
 [`stats::simulate()`](https://rdrr.io/r/stats/simulate.html) is the same
-thing in the shape base R expects. **Pointwise likelihood.**
+thing in the shape base R expects.
 [`rstantools::log_lik()`](https://mc-stan.org/rstantools/reference/log_lik.html)
 returns the draws-by-observations matrix of log-likelihood
 contributions, which is what
 [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html) and
-[`loo::waic()`](https://mc-stan.org/loo/reference/waic.html) need; both
-have methods here.
+[`loo::waic()`](https://mc-stan.org/loo/reference/waic.html) need.
 
-**Graphical checks.** `pp_check()` runs any of the bayesplot
-posterior-predictive checks on the fit. **Summaries.**
+`pp_check()` runs any of the bayesplot posterior-predictive checks on
+the fit,
 [`performance::model_performance()`](https://easystats.github.io/performance/reference/model_performance.html)
 collects the fit statistics in one table,
 [`performance::r2()`](https://easystats.github.io/performance/reference/r2.html)
@@ -273,13 +271,13 @@ gives the Bayesian \\R^2\\, and
 [`posterior::as_draws()`](https://mc-stan.org/posterior/reference/draws.html)
 hands the scalar parameters to
 [`posterior::summarise_draws()`](https://mc-stan.org/posterior/reference/draws_summary.html)
-or to the bayesplot MCMC diagnostics. **The prior.**
+or to the bayesplot MCMC diagnostics.
 [`rstantools::prior_summary()`](https://mc-stan.org/rstantools/reference/prior_summary.html)
 writes out every prior the fit was given, on the scale it was given on,
 which is the companion to `prior_only = TRUE` in
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md):
-one says what the prior is and the other says what it implies about the
-outcome. **Basic accessors.**
+one says what the prior is and the other what it implies about the
+outcome.
 [`stats::fitted()`](https://rdrr.io/r/stats/fitted.values.html),
 [`stats::residuals()`](https://rdrr.io/r/stats/residuals.html),
 [`stats::weights()`](https://rdrr.io/r/stats/weights.html) and
@@ -293,46 +291,29 @@ legible to the easystats packages.
 leave-one-out predictive density by importance sampling from the
 full-data posterior, and the estimate is trustworthy only when the
 importance weights have a finite variance, which is what the Pareto
-\\k\\ diagnostic reports on. The worry for a forest is that it is a very
-flexible function of the predictors, so one observation might carry
-enough influence over the leaves it lands in that dropping it cannot be
-approximated from the fit in hand.
+\\k\\ diagnostic reports on. A forest is a flexible function of the
+predictors, so the worry is that one observation carries enough
+influence over the leaves it lands in that dropping it cannot be
+approximated from the fit in hand. In practice it rarely does: the leaf
+prior shrinks every leaf toward zero and the fit is a sum over many
+trees, so no single observation dominates.
 
-Measured, it usually does not. Over nine fits
-([`gaussian()`](https://rdrr.io/r/stats/family.html) at \\n = 100\\ with
-200 trees,
-[`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-[`poisson()`](https://rdrr.io/r/stats/family.html),
-[`binomial()`](https://rdrr.io/r/stats/family.html),
-[`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-and [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) on
-`lalonde` with both [`gaussian()`](https://rdrr.io/r/stats/family.html)
-and
-[`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)),
-at most 0.2% of observations exceeded \\k = 0.7\\ and the median \\k\\
-ran between 0.03 and 0.32. The leaf prior is what makes the difference:
-it shrinks every leaf towards zero and the fit is a sum over many trees,
-so no single observation dominates the leaves it reaches. The exceptions
-that did turn up were about the likelihood rather than the trees, and
-are the ones worth having; fitting \\t_2\\ errors with
-[`gaussian()`](https://rdrr.io/r/stats/family.html) left one observation
-of 400 at \\k = 2.4\\.
-
-So the warning loo prints there is worth reading rather than expecting.
-When it names a handful of observations, those are the influential ones,
-and refitting without them is what shows how badly they are predicted. A
-log score on data the model has not seen is available directly:
+The warning loo prints there is therefore worth reading rather than
+expecting, and the exceptions that do turn up are usually about the
+likelihood rather than the trees. When it names a handful of
+observations, those are the influential ones, and refitting without them
+shows how badly they are predicted. A log score on data the model has
+not seen is available directly:
 
     predict(fit, newdata = held_out, type = "density", log = TRUE)
 
-### Cross-Validation Without the Approximation
+### Cross-Validation (`kfold()`)
 
-`loo()` estimates the leave-one-out density by importance sampling from
-one fit. `kfold()` does not estimate it: it splits the sample, refits
-\\K\\ times, and scores each part under a fit that never saw it. That
-costs \\K\\ fits and owes nothing to an approximation, which makes it
-the thing to reach for when the Pareto diagnostics say the weights
-cannot be trusted.
+Where `loo()` estimates the leave-one-out density from one fit,
+`kfold()` splits the sample, refits \\K\\ times, and scores each part
+under a fit that never saw it. That costs \\K\\ fits and owes nothing to
+an approximation, which makes it the thing to reach for when the Pareto
+diagnostics say the weights cannot be trusted.
 
 It returns a `<kfold>` object that
 [`loo::loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
@@ -346,132 +327,110 @@ by passing the folds from the first to the second:
 
 The refits run under a `future` plan when one is set, and one
 [`set.seed()`](https://rdrr.io/r/base/Random.html) reproduces them
-either way. Each is refitted from the original call, so a fit whose
-`data` argument no longer names the data it was made from is an error
-rather than a wrong answer; prior weights and an offset are carried into
-both the refits and the held-out scores, since a score taken without
-them is wrong rather than approximate.
-
+either way. Each is refitted from the original call, so the `data`
+argument has to still name the data the fit was made from. Prior weights
+and an offset are carried into both the refits and the held-out scores.
 `p_kfold` is the gap between what the model predicts for an observation
 it was fitted to and what it predicts for the same one held out, which
 is the price of having used it.
 [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
 reads an example.
 
-### Comparing Survival Families
+### Setting `scale` for Survival Families
 
 The accelerated failure time families report the density of \\\log T\\
 and
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 the density of \\T\\. Both are correct for the model that produced them,
-and neither is comparable with the other: they differ by the Jacobian of
-the change of variable, so a log score taken across that boundary is off
-by \\\sum \log t\\ over the events, which runs to thousands of points on
-a sample of any size and can reverse which family looks better.
+and they differ by the Jacobian of the change of variable, so a log
+score taken across that boundary is off by \\\sum \log t\\ over the
+events, which can reverse which family looks better.
 
-`scale` puts them on one measure. It is not applied on its own
-initiative, because `loo()` would then stop reporting the model's own
-predictive density, would no longer agree with `log_lik()`, and would
-silently carry the same error into a comparison against a proportional
-hazards fit from another package. It reads the same from either side,
+`scale` puts them on one measure, and reads the same from either side,
 since a fit already on the scale named is returned untouched:
 
     loo_compare(list(aft = loo(aft_fit, scale = "time"),
                      ph = loo(ph_fit, scale = "time")))
 
-Censored observations are not adjusted, since a survival probability is
-a probability on either scale.
+It is left to the caller rather than applied automatically so that
+`loo()` keeps reporting the model's own predictive density and keeps
+agreeing with `log_lik()`. Censored observations are not adjusted, a
+survival probability being a probability on either scale.
 [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
 works through the comparison and
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
 through the families.
 
+### Posterior Predictive Checks
+
 The seven `ppc_loo_*` checks reweight the replicates towards the
-leave-one-out predictive instead of comparing them with the response
-directly, so they need those same weights. `pp_check()` computes them
-from the fit's own pointwise log likelihood and passes them on, and
-`ndraws` does not apply to those checks, because the weights and the
-replicates have to line up draw for draw; supplying `lw` or
-`psis_object` takes over from it.
-[`bayesplot::ppc_loo_calibration()`](https://mc-stan.org/bayesplot/reference/PPC-calibration.html)
-wants a binary response besides, which is its own requirement rather
-than this package's.
+leave-one-out predictive, so they need those weights. `pp_check()`
+computes them from the fit's own pointwise log likelihood and passes
+them on, and `ndraws` does not apply to those checks, because the
+weights and the replicates have to line up draw for draw; supplying `lw`
+or `psis_object` takes over from it.
 
 The two calibration checks are the ones to reach for when the response
 is binary, since the default check compares two distributions that can
-only take two values and so finds nothing. `type = "loo_calibration"` is
-the honest one, holding each observation out of the probability it is
-judged against; `type = "calibration"` is its in-sample counterpart and
-reads optimistically. A binned residual plot (`type = "error_binned"`)
-and either calibration check are about the predicted probabilities
-rather than replicate outcomes, so they are passed the mean of the
-predictive distribution instead of a draw from it.
+only take two values. `type = "loo_calibration"` is the honest one,
+holding each observation out of the probability it is judged against,
+where `type = "calibration"` is its in-sample counterpart and reads
+optimistically. Those two and a binned residual plot
+(`type = "error_binned"`) are about the predicted probabilities rather
+than replicate outcomes, so they are passed the mean of the predictive
+distribution instead of a draw from it.
 
-### What a Posterior Predictive Draw Is On
+### The Scale of a Posterior Predictive Draw
 
-The replicate outcomes are on the scale the likelihood was written on,
-which is the scale
+Replicate outcomes are on the scale the likelihood was written on, which
+is the scale
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-stored the response on. A **binomial** response is a proportion, so
-binary data come back as 0 and 1, and data given as two columns or with
-prior weights come back as a fraction of the trials. A response with
-**categories** comes back as an integer category index, from 1 to the
-number of categories, because a matrix cannot hold a factor;
-`fit$levels` names them, and
+stored the response on. A binomial response is a proportion, so binary
+data come back as 0 and 1, and data given as two columns or with prior
+weights come back as a fraction of the trials. A response with
+categories comes back as an integer category index, since a matrix
+cannot hold a factor; `fit$levels` names them, and
 [`stats::simulate()`](https://rdrr.io/r/stats/simulate.html) returns
-factors instead, since its result is a data frame and can. An
-**accelerated failure time** response comes back as a time rather than a
-log time, and it is an event time: the predictive distribution of the
-outcome does not know about the censoring that may have hidden it, so
-comparing replicates against censored observations is not like for like,
-and `pp_check()` says so. A
+factors instead, its result being a data frame. An accelerated failure
+time response comes back as an event time rather than a log time, and
+the predictive distribution of the outcome knows nothing of the
+censoring that may have hidden it, so `pp_check()` says so when
+replicates are compared against censored observations. A
 [`custom_family()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-fit has **no posterior predictive distribution at all**, because a log
-density supplies no way to draw from it, so those methods error.
+fit supplies a log density and no way to draw from it, so these methods
+error on one.
 
-### What Is Deliberately Absent
+### AIC, BIC and Normality Checks
 
-There is no [`logLik()`](https://rdrr.io/r/stats/logLik.html) method,
-and that is a choice rather than a gap. The generic exists so that
 [`stats::AIC()`](https://rdrr.io/r/stats/AIC.html) and
-[`stats::BIC()`](https://rdrr.io/r/stats/AIC.html) can be computed, and
-both need a count of parameters, which a forest does not have, since the
-number of leaves is itself drawn from the posterior.
+[`stats::BIC()`](https://rdrr.io/r/stats/AIC.html) need a count of
+parameters, which a forest does not have, since the number of leaves is
+itself drawn from the posterior; there is accordingly no
+[`logLik()`](https://rdrr.io/r/stats/logLik.html) method.
 [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html) and
 [`loo::waic()`](https://mc-stan.org/loo/reference/waic.html) are the
-corresponding quantities for a model like this one, and they are
-computed from the posterior rather than from a parameter count.
-
-For the same reason
+corresponding quantities for a model like this one, computed from the
+posterior rather than from a parameter count. For the same reason
 [`performance::check_normality()`](https://easystats.github.io/performance/reference/check_normality.html)
 and
 [`performance::check_outliers()`](https://easystats.github.io/performance/reference/check_outliers.html)
-do not work: they ask for a likelihood-ratio test and for Cook's
-distance, neither of which is defined here.
+, which ask for a likelihood-ratio test and for Cook's distance, are
+unavailable, where
 [`performance::check_predictions()`](https://easystats.github.io/performance/reference/check_predictions.html)
-does work, through
+works through
 [`stats::simulate()`](https://rdrr.io/r/stats/simulate.html).
 
 ### The Bayesian R-Squared
 
 [`performance::r2()`](https://easystats.github.io/performance/reference/r2.html)
-returns the quantity of Gelman et al. (2019): per draw, the variance of
-the fitted means across observations divided by that variance plus the
-variance of the residuals. Being a per-draw quantity it has a posterior,
-which is why it is reported with an interval and why it can fall as the
-model is made more flexible. It needs a mean, so it is not available for
+returns, per draw, the variance of the fitted means across observations
+divided by that variance plus the variance of the residuals. Being a
+per-draw quantity it has a posterior, which is why it is reported with
+an interval and why it can fall as the model is made more flexible. It
+needs a mean, so it is available for every family except
 [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-or
+and
 [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
-
-## References
-
-Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). R-squared for
-Bayesian regression models. *The American Statistician*, 73(3), 307–309.
-
-Vehtari, A., Gelman, A., & Gabry, J. (2017). Practical Bayesian model
-evaluation using leave-one-out cross-validation and WAIC. *Statistics
-and Computing*, 27(5), 1413–1432.
 
 ## See also
 

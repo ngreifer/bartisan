@@ -203,23 +203,22 @@ below the contrasts unless <code>potential_outcomes = FALSE</code>. <code><a hre
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
 
 <div class="section">
-<h3 id="why-the-response-scale">Why the Response Scale<a class="anchor" aria-label="anchor" href="#why-the-response-scale"></a></h3>
+<h3 id="setting-type">Setting <code>type</code><a class="anchor" aria-label="anchor" href="#setting-type"></a></h3>
 
 
-<p>A varying coefficient is a contrast on the <em>link</em> scale: on a
-<code>binomial("logit")</code> fit, <code>coef(object)</code> is a per-unit difference in log odds.
-The average of those is the average conditional log odds ratio, which is not
-the marginal log odds ratio and is not usually the quantity a treatment
-question asks for. So the default here is <code>type = "response"</code>, where every
-unit's contrast is on the scale the response is measured on and averaging
-them is the marginal effect.</p>
-<p><code>type = "link"</code> is still available and is the right choice for looking at how
-the effect <em>varies</em>, since that is the scale the forest models it on. It is
-the wrong choice for reporting an average.</p>
+<p>A varying coefficient is a contrast on the link scale: on a
+<code>binomial("logit")</code> fit, <code>coef(object)</code> is a per-unit difference in log odds,
+and the average of those is the average conditional log odds ratio rather than
+the marginal one a treatment question usually asks for. The default is
+therefore <code>type = "response"</code>, where every unit's contrast is on the scale the
+response is measured on and averaging them gives the marginal effect.</p>
+<p><code>type = "link"</code> is the right choice for looking at how the effect varies,
+since that is the scale the forest models it on, and the wrong one for
+reporting an average.</p>
 </div>
 
 <div class="section">
-<h3 id="marginal-rather-than-average-conditional">Marginal Rather Than Average Conditional<a class="anchor" aria-label="anchor" href="#marginal-rather-than-average-conditional"></a></h3>
+<h3 id="setting-comparison">Setting <code>comparison</code><a class="anchor" aria-label="anchor" href="#setting-comparison"></a></h3>
 
 
 <p>For <code>"ratio"</code>, <code>"lnratio"</code>, <code>"or"</code> and <code>"lnor"</code> the potential outcomes are
@@ -236,7 +235,7 @@ of <code>"ratio"</code> against <code>"lnratio"</code>.</p>
 </div>
 
 <div class="section">
-<h3 id="which-level-is-treated">Which Level Is Treated<a class="anchor" aria-label="anchor" href="#which-level-is-treated"></a></h3>
+<h3 id="setting-focal">Setting <code>focal</code><a class="anchor" aria-label="anchor" href="#setting-focal"></a></h3>
 
 
 <p>With a binary treatment and no <code>focal</code>, which level is the treated one is
@@ -267,9 +266,9 @@ default is to show only the contrasts involving it, matching how
 <code><a href="https://ngreifer.github.io/WeightIt/reference/weightit.html" class="external-link">WeightIt::weightit()</a></code>
  and <code><a href="https://ngreifer.github.io/cobalt/reference/bal.tab.html" class="external-link">cobalt::bal.tab()</a></code>
  use <code>focal</code>.</p>
-<p>A continuous treatment is not currently supported, because the effect of a continuous
-treatment is a slope or a dose-response curve rather than a contrast of
-levels. See the <a href="https://CRAN.R-project.org/package=adrftools" class="external-link"><span class="pkg">adrftools</span></a> package for tools to visualize and summarize the effect of a continuous treatment.</p>
+<p>The effect of a continuous treatment is a slope or a dose-response curve
+rather than a contrast of levels, and the <a href="https://CRAN.R-project.org/package=adrftools" class="external-link"><span class="pkg">adrftools</span></a> package has
+tools for summarizing and visualizing one.</p>
 </div>
 
     </div>

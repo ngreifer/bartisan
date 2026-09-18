@@ -78,7 +78,7 @@ this package's own spelling and resolves to the log link; see Details.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">negbin</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span>, theta <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">ordinal</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"logit"</span><span class="op">)</span></span>
+<span><span class="fu">ordinal</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"logit"</span>, cut_alpha <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">multinomial</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"logit"</span>, reference <span class="op">=</span> <span class="cn">NULL</span>, replicates <span class="op">=</span> <span class="fl">200L</span><span class="op">)</span></span>
 <span></span>
@@ -111,7 +111,7 @@ this package's own spelling and resolves to the log link; see Details.</p>
 <span></span>
 <span><span class="fu">Beta</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"logit"</span>, phi <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">ordbeta</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"logit"</span>, phi <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="fu">ordbeta</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"logit"</span>, phi <span class="op">=</span> <span class="cn">NULL</span>, cut_alpha <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">tweedie</span><span class="op">(</span>link <span class="op">=</span> <span class="st">"log"</span>, power <span class="op">=</span> <span class="fl">1.5</span>, phi <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
@@ -148,6 +148,13 @@ the dispersion parameter, which must be positive. Default is <code>NULL</code> t
 it along with everything else.</p></dd>
 
 
+<dt id="arg-cut-alpha">cut_alpha<a class="anchor" aria-label="anchor" href="#arg-cut-alpha"></a></dt>
+<dd><p><code>numeric</code>; for <code>ordinal()</code> and <code>ordbeta()</code>, the
+concentration of the induced-Dirichlet prior on the cutpoints. Default is 1,
+which says the category probabilities they imply are uniform over the
+simplex; larger values pull them toward equal shares. See Details.</p></dd>
+
+
 <dt id="arg-reference">reference<a class="anchor" aria-label="anchor" href="#arg-reference"></a></dt>
 <dd><p>for <code>multinomial()</code>, the response category to hold as the
 reference, given as a single value naming one of the response's levels.
@@ -168,9 +175,9 @@ longer.</p></dd>
 <dd><p><code>numeric</code>; for <code>dpm()</code> and <code>dpm_aft()</code>, the degrees of freedom of
 the baseline's inverse-chi-square prior on a component's variance and the
 quantile of that prior placed at a rough estimate of the residual standard
-deviation. Defaults are 10 and .95, following George et al. (2019), and are
-tighter than BART's own 3 and .90 because the mixture covers small errors
-with extra components rather than with one component's left tail.</p></dd>
+deviation. Defaults are 10 and .95, which are tighter than BART's own 3 and
+.90 because the mixture covers small errors with extra components rather
+than with one component's left tail.</p></dd>
 
 
 <dt id="arg-k-s">k_s<a class="anchor" aria-label="anchor" href="#arg-k-s"></a></dt>
@@ -197,7 +204,7 @@ are <code>NULL</code> to use a tenth of the sample size, and .5.</p></dd>
 baseline hazard has, with the edges at evenly spaced quantiles of the
 observed times. Must be 2 or greater. Default is <code>NULL</code> to use about the
 cube root of the sample size, which is the order the Freedman-Diaconis rule
-gives for a histogram. <strong>This should not need to be set</strong>: the estimates are
+gives for a histogram. This should not need to be set: the estimates are
 flat in it over a sixty-fold range, and it is here for checking that rather
 than for tuning. See Details.</p></dd>
 
@@ -304,7 +311,7 @@ each family is and is not for. What follows is the short version, and the
 points that could lead to output being misread.</p>
 <p>The supported families and links are:</p><table class="table table"><tr><td>Family</td><td>Links</td><td>Additive predictors</td><td>Drawn nuisance parameters</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code></td><td><code>identity</code></td><td>1</td><td>residual standard deviation</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>none</td></tr><tr><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code></td><td><code>log</code></td><td>1</td><td>none</td></tr><tr><td><code>negbin()</code></td><td><code>log</code></td><td>1</td><td>dispersion</td></tr><tr><td><code>Gamma("log")</code></td><td><code>log</code>; any other link is ignored</td><td>1</td><td>shape</td></tr><tr><td><code>ordinal()</code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>cutpoints</td></tr><tr><td><code>multinomial()</code></td><td><code>logit</code>, <code>probit</code></td><td>one per category, or per non-reference level</td><td>latent covariance, for the probit link</td></tr><tr><td><code>weibull_aft()</code>, <code>loglogistic_aft()</code>, <code>lognormal_aft()</code></td><td>none</td><td>1</td><td>scale</td></tr><tr><td><code>ph()</code></td><td>none</td><td>1</td><td>baseline hazard per bin</td></tr><tr><td><code>dpm_aft()</code></td><td>none</td><td>1</td><td>error mixture, concentration</td></tr><tr><td><code>gaussian_ls()</code></td><td><code>identity</code></td><td>2</td><td>none</td></tr><tr><td><code>Gamma_ls()</code></td><td><code>log</code></td><td>2</td><td>none</td></tr><tr><td><code>zi_poisson()</code></td><td><code>log</code></td><td>2</td><td>none</td></tr><tr><td><code>zi_negbin()</code></td><td><code>log</code></td><td>2</td><td>dispersion</td></tr><tr><td><code>Beta()</code></td><td><code>logit</code>, <code>probit</code>, <code>cloglog</code></td><td>1</td><td>precision</td></tr><tr><td><code>ordbeta()</code></td><td><code>logit</code></td><td>1</td><td>2 cutpoints, precision</td></tr><tr><td><code>tweedie()</code></td><td><code>log</code></td><td>1</td><td>dispersion, and the power if it is drawn</td></tr><tr><td><code>dpm()</code></td><td><code>identity</code></td><td>1</td><td>error mixture, concentration</td></tr></table><p>A family with more than one additive predictor fits one forest per predictor.
 Nuisance parameters are drawn alongside the trees and reported in <code>fit$aux</code>.</p><div class="section">
-<h3 id="links-the-engine-does-not-compile">Links the Engine Does Not Compile<a class="anchor" aria-label="anchor" href="#links-the-engine-does-not-compile"></a></h3>
+<h3 id="setting-link">Setting <code>link</code><a class="anchor" aria-label="anchor" href="#setting-link"></a></h3>
 
 
 <p>The links listed above are the ones the sampler evaluates in compiled code.
@@ -334,40 +341,47 @@ the way to reach anything else.</p>
 </div>
 
 <div class="section">
-<h3 id="if-no-family-is-given">If No Family Is Given<a class="anchor" aria-label="anchor" href="#if-no-family-is-given"></a></h3>
+<h3 id="omitting-family">Omitting <code>family</code><a class="anchor" aria-label="anchor" href="#omitting-family"></a></h3>
 
 
 <p><code>family</code> may be omitted, in which case it is read off the response's type and
 the choice reported with a message; <code><a href="bartisan.html">bartisan()</a></code> tabulates the lookup, since
-<code>family</code> is its argument. Two things about it are worth knowing here, because
-both are deliberate rather than oversights: a count is <em>not</em> given <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>
-and a numeric response taking two values other than 0 and 1 is <em>not</em> given
-<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, either being a modeling decision rather than a reading of the
-response's type. <code>dpm()</code> cannot take prior weights, so a weighted fit with no
-family named is an error rather than a silent substitution.</p>
+<code>family</code> is its argument. A count is read as <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> rather than
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>, and a numeric response taking two values other than 0 and 1 as
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> rather than <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, both being modeling decisions rather
+than readings of the response's type.</p>
 </div>
 
 <div class="section">
-<h3 id="what-to-know-before-reading-the-output">What to Know Before Reading the Output<a class="anchor" aria-label="anchor" href="#what-to-know-before-reading-the-output"></a></h3>
+<h3 id="reading-the-output">Reading the Output<a class="anchor" aria-label="anchor" href="#reading-the-output"></a></h3>
 
 
 <p><code>ordinal()</code> accepts a numeric response as well as an ordered factor, taking
-its sorted unique values as the categories, and that is <strong>a method rather than
-a fallback</strong>: the cutpoints absorb the marginal distribution of the response
+its sorted unique values as the categories, and that is a method rather than
+a fallback: the cutpoints absorb the marginal distribution of the response
 and the forest explains only the ordering, so nothing is assumed about the
 error distribution and the model for \(P(Y \le y \mid x)\) is invariant to
 any monotone transformation of the response. Predict with
-<code>type = "mean"</code>. Bin the response onto twenty-odd quantiles first: one
-cutpoint per distinct value costs 73 seconds against 2.7 for <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> at
-1000 observations, and twenty-five bins was both sixteen times faster and
-slightly more accurate. See the vignette.</p>
+<code>type = "mean"</code>. Bin the response onto twenty-odd quantiles first, since one
+cutpoint per distinct value is both far slower and slightly less accurate than
+twenty-five bins; <code><a href="../articles/families.html">vignette("families")</a></code> works it through.</p>
+<p>The cutpoints of <code>ordinal()</code> and <code>ordbeta()</code> carry an induced-Dirichlet prior,
+which puts the prior on the category probabilities the cutpoints imply rather
+than on the cutpoints themselves. <code>cut_alpha</code> is its concentration, and it
+regularizes a thinly observed category without disturbing a well observed one.</p>
+<p>A level of an ordered factor that nobody selected is kept rather than dropped,
+so a rating scale with an unused point is fitted on all of its points. A
+numeric response is read as the distinct values it takes, so such a scale has
+to be given as an ordered factor for the unused point to be modeled, and a
+warning says so. <code><a href="../articles/families.html">vignette("families")</a></code> derives the prior and works both
+through.</p>
 <p><code>ordinal()</code> uses the cumulative-link parameterization of <code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code>
 ,
 in which \(P(Y \le k) = F(c_k - \eta)\), so larger values of the additive
 predictor shift mass toward higher categories. Only the differences
 \(c_k - \eta_i\) are identified, so one location has to be pinned: with three
-or more categories the draws are reported in the chart where <strong>the additive
-predictor has mean zero over the fitted sample and every cutpoint is free</strong>,
+or more categories the draws are reported in the chart where the additive
+predictor has mean zero over the fitted sample and every cutpoint is free,
 which is the chart <code>polr()</code> reports in when its predictors are centered. With
 exactly two categories the single boundary is folded into the intercept
 instead, so a two-category response is exactly binary regression with the
@@ -375,33 +389,29 @@ matching link and on the same scale. <code>cut1</code> is therefore a free param
 rather than a constant zero, which is a change from earlier versions.</p>
 <p><code>multinomial()</code> by default fits one forest per category and leaves the model
 unidentified, since adding any function of the predictors to every category's
-forest leaves the probabilities alone. This is the parameterization of Murray
-(2021), whose point is that the prior is then symmetric in the categories;
-every identified quantity is recovered from the draws. Passing <code>reference</code>
+forest leaves the probabilities alone. The point of that parameterization is
+that the prior is then symmetric in the categories, and every identified
+quantity is recovered from the draws. Passing <code>reference</code>
 instead pins that category at zero and fits one fewer forest, giving log odds
 against it.</p>
 <p><code>multinomial("probit")</code> lets the latent utilities correlate, which a
 multinomial logit cannot express at all. \(\Sigma\) is normalized by the
-trace constraint \(\mathrm{tr}(\Sigma) = C\) (Burgette and Nordheim 2012),
-and its lower triangle appears in <code>fit$aux</code> as <code>sigma11</code>, <code>sigma21</code> and so on.
-<strong>Those correlations are weakly identified: read the fitted probabilities, not
-the covariance.</strong> They enter the likelihood only through orthant probabilities
-of a distribution whose location is a sum of trees, so a flexible mean absorbs
-much of the dependence they are meant to measure. At 900 observations a true
-correlation of zero came back as -0.57, and posterior intervals ran up to 1.07
-wide on a parameter confined to \((-1, 1)\); at 3000 observations the
-posterior tracks the truth to within about 0.2. Two further consequences: the
-likelihood has <strong>no closed form</strong>, so it and every category probability are
-simulated with <code>replicates</code> draws, and <code>augment</code> does not apply, because the
-latent variables are the model rather than a rewriting of it. The sampler is
-Algorithm P2 of Xu et al. (2025).</p>
-<p><code>dpm()</code> is not a distribution but a way of not choosing one. It is DPMBART
-(George et al. 2019): a numeric response with the sum of trees for its mean, as
+trace constraint \(\mathrm{tr}(\Sigma) = C\), and its lower triangle appears
+in <code>fit$aux</code> as <code>sigma11</code>, <code>sigma21</code> and so on. Read the fitted probabilities
+rather than the covariance: the correlations enter the likelihood only through
+orthant probabilities of a distribution whose location is a sum of trees, so a
+flexible mean absorbs much of the dependence they are meant to measure and
+they are weakly identified until the sample is large. The likelihood has no
+closed form, so it and every category probability are simulated with
+<code>replicates</code> draws, and <code>augment</code> does not apply, the latent variables being
+the model rather than a rewriting of it.</p>
+<p><code>dpm()</code> is not a distribution but a way of not choosing one. It is DPMBART: a
+numeric response with the sum of trees for its mean, as
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> has, and a Dirichlet process mixture of normals for its errors
 instead of a single normal, so the error distribution comes out as whatever
 mixture the data ask for. <code><a href="error_density.html">error_density()</a></code> gives that density, which is the
 object the method exists to produce.</p>
-<p><strong>It is the family to reach for by default on a numeric response</strong>, because it
+<p>It is the family to reach for by default on a numeric response, because it
 does not pay for its flexibility: on normal errors, where <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> is
 exactly right, it came out slightly ahead on both held-out error and log score
 at the same time to one decimal place, and on heavy-tailed, skewed and bimodal
@@ -409,14 +419,14 @@ errors it was ahead by a great deal (on bimodal errors at a thousand
 observations, 0.050 against 0.154 in held-out RMSE, a factor of three, at the
 same time to a tenth of a second). So it is the family a numeric response gets
 when none is named. The reasons to prefer <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> are not statistical:
-it takes <strong>prior weights</strong>, which <code>dpm()</code> refuses, and it reports one
+it takes prior weights, which <code>dpm()</code> refuses, and it reports one
 interpretable <code>sigma</code> where <code>dpm()</code> has a mixture. It is also faster, by 1.4
 times at a thousand observations. The vignette has the comparison.</p>
-<p>Two things to know about <code>dpm()</code> itself. <strong>It does not buy
-heteroskedasticity</strong>: the error distribution is flexible but it is the same
+<p>Two things to know about <code>dpm()</code> itself. It does not buy
+heteroskedasticity: the error distribution is flexible but it is the same
 distribution at every \(x\), and <code>gaussian_ls()</code> is the family for a
-spread that depends on the predictors. And <strong>the additive predictor is the
-conditional mean</strong>, as it is for <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>: nothing in the model forces the
+spread that depends on the predictors. And the additive predictor is the
+conditional mean, as it is for <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>: nothing in the model forces the
 mixture to be centered, so the sampler works in a chart where only the sum of
 the predictor and the error mean is identified, but reporting is done in the
 chart where the mixture has mean zero and the whole conditional mean sits on
@@ -428,16 +438,15 @@ since a weight would have to be a multiplicity in the Dirichlet process.</p>
 acts as the inverse dispersion; it does <em>not</em> regress the shape on the
 predictors. <code>negbin()</code> and <code>ordbeta()</code> take <code>theta</code> and <code>phi</code> to fix their
 equivalents, and the gamma shape has no such argument because a caller who
-knows it is rare. <strong>The link is where the care is needed.</strong> Only <code>log</code> is
+knows it is rare. The link is where the care is needed. Only <code>log</code> is
 compiled, and the base R default of <code>inverse</code> is the worst case for this
 sampler: its inverse maps a negative predictor to a negative mean, whose log
-is not a number, so the proposal is rejected, dozens of times per fit.
-Measured on 600 observations and 50 trees, <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::Gamma()</a></code> took 7.2 seconds
-against 3.8 for <code>Gamma("log")</code> and fitted the mean slightly worse. So write
-the link, or name the family as the string <code>"Gamma"</code>, which resolves to the
-log link; base R's own function is left as base R defines it, so that
-attaching <span class="pkg">bartisan</span> cannot change what <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> does. Any composed link
-whose inverse has a restricted range is reported when the fit starts.</p>
+is not a number, so the proposal is rejected, dozens of times per fit, and the
+fit is both slower and slightly worse for it. So write the link, or name the
+family as the string <code>"Gamma"</code>, which resolves to the log link; base R's own
+function is left as base R defines it, so that attaching <span class="pkg">bartisan</span> cannot
+change what <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> does. Any composed link whose inverse has a restricted
+range is reported when the fit starts.</p>
 <p>The accelerated failure time families expect a right-censored response,
 supplied either as a <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code>
  object or as a two-column matrix
@@ -445,8 +454,8 @@ of times and event indicators. They model \(\log T = \eta + \sigma\epsilon\)
 with \(\epsilon\) a standard smallest extreme value, logistic or normal
 variate respectively, giving
 Weibull, log-logistic and log-normal survival times.</p>
-<p><strong>A contrast in the predictor is a log time ratio in all of them, and in
-<code>dpm_aft()</code> too</strong>, because with \(\epsilon\) independent of \(x\) every
+<p>A contrast in the predictor is a log time ratio in all of them, and in
+<code>dpm_aft()</code> too, because with \(\epsilon\) independent of \(x\) every
 quantile and both means of \(T\) scale by \(e^{\Delta\eta}\) whatever
 shape the error has. What differs is what \(e^{\eta}\) is on its own, each
 family pinning its error's location differently: the median of \(T\) for
@@ -474,15 +483,10 @@ observations through risk sets and so does not decompose into a sum over the
 observations reaching a leaf. The full likelihood of the piecewise-exponential
 model does decompose, and it approaches the partial likelihood as the bins
 shrink, which is how <code>ph()</code> reaches proportional hazards without it.</p>
-<p><strong><code>num_bins</code> is not a modeling decision, and its default should be left
-alone.</strong> It is exposed for checking that rather than for tuning: swept over a
-sixty-fold range the estimates move by less than the spread between
-replicates, with no trend. What the bin count does change is the effective
-number of parameters, which grows with it, and that is what makes the default
-matter for <a href="bartisan-interop.html">loo()</a> and <code>waic()</code> rather than for the
-estimates: one parameter per event time would leave each observation's density
-inflated by a parameter only it informs, and leave-one-out unable to do its
-job. <code><a href="../articles/survival.html">vignette("survival")</a></code> has the sweep.</p>
+<p><code>num_bins</code> should be left at its default. The estimates are insensitive to it,
+and what it does change is the effective number of parameters, which grows
+with the bin count and so matters for <a href="bartisan-interop.html">loo()</a> and <code>waic()</code>.
+<code><a href="../articles/survival.html">vignette("survival")</a></code> sweeps it.</p>
 <p>The three differ in cost, though not enough to decide a model on.
 <code>lognormal_aft()</code> and <code>loglogistic_aft()</code> impute each censored failure time
 above its censoring time, which makes their targets quadratic and is worth a
@@ -497,15 +501,12 @@ log-times imputed. It is <code>dpm()</code>'s error model with censoring, so its
 is the conditional mean of \(\log T\) and a contrast in it is a log time
 ratio exactly as for the three parametric families above, <code><a href="error_density.html">error_density()</a></code>
 reports the fitted error density, and prior weights are refused for the same
-reason <code>dpm()</code> refuses them. Following Henderson, Louis, Rosner and Varadhan
-(2020).</p>
+reason <code>dpm()</code> refuses them.</p>
 <p>Reach for it when the shape of the error is in doubt and there is no reason to
-assert one. Measured against a two-component error it was worth 210 held-out
-log points and a third of the error in \(S(t \mid x)\) over the best
-fixed-error family; against a log-normal error, where <code>lognormal_aft()</code> is
-correctly specified, the two were within 0.1 log points of each other. So it
-gains where the assumption would have been wrong and costs nothing where it
-would have been right, which is the property <code>dpm()</code> has against <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>.</p>
+assert one. It gains substantially where a fixed-error family would have been
+wrong and costs next to nothing where one would have been right, which is the
+property <code>dpm()</code> has against <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>; <code><a href="../articles/survival.html">vignette("survival")</a></code> measures
+both cases.</p>
 <p><code>gaussian_ls()</code> regresses the mean and the log standard deviation of a
 normal response on separate forests, so the variance is an unrestricted
 function of the predictors.</p>
@@ -529,7 +530,7 @@ reported as the <code>count</code> and <code>zero</code> predictors.</p>
 a forest on the link of the mean, and a precision drawn alongside it. A
 response <em>at</em> either endpoint has no beta density, so it is an error rather
 than something to nudge inward.</p>
-<p><code>ordbeta()</code> is the ordered beta regression of Kubinec (2023), for a response on
+<p><code>ordbeta()</code> is ordered beta regression, for a response on
 the closed unit interval with point masses at zero and one. One predictor
 drives both the probability of landing on an endpoint, through a pair of
 cutpoints as in an ordinal model, and the mean of the beta density in between.
@@ -578,7 +579,7 @@ second predictor means more spread. <code>count</code> is the linear predictor o
 count component and <code>zero</code> that of the inflation component. A custom family's
 nuisance parameters are not on this list: they are carried as trailing forests
 pinned to a single leaf, and nothing about them is set per forest.</p>
-<p><strong>A forest whose formula names no predictor is a constant.</strong> <code>~ 1</code> leaves that
+<p>A forest whose formula names no predictor is a constant. <code>~ 1</code> leaves that
 forest nothing to split on, so every tree in it is a stump and the parameter is
 one drawn scalar. Every family here that takes more than one formula accepts
 that, which is what makes the distinction between a nuisance parameter and an
@@ -593,7 +594,7 @@ multinomial families are the exception, for the reason given below.</p>
 set of predictors for it:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span>, log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x1</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
 <span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span>, num_trees <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fl">50</span>, log_sd <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
-<p><strong>The multinomial families are the exception.</strong> Their forests are the levels of
+<p>The multinomial families are the exception. Their forests are the levels of
 one categorical parameter and act together rather than describing separate
 components of the response distribution, so there is nothing a caller could
 mean by giving one level a different prior or a different set of predictors
@@ -645,34 +646,6 @@ density is, <code>predict(type = "response")</code> returns the additive predict
 rather than a fitted mean.</p>
 </div>
 
-    </div>
-    <div class="section level2">
-    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Burgette, L. F., &amp; Nordheim, E. V. (2012). The trace restriction: an
-alternative identification strategy for the Bayesian multinomial probit
-model. <em>Journal of Business &amp; Economic Statistics</em>, 30(3), 404–410.
-<a href="https://doi.org/10.1080/07350015.2012.680416" class="external-link">doi:10.1080/07350015.2012.680416</a></p>
-<p>George, E., Laud, P., Logan, B., McCulloch, R., &amp; Sparapani, R. (2019). Fully
-nonparametric Bayesian additive regression trees. In <em>Topics in
-Identification, Limited Dependent Variables, Partial Observability,
-Experimentation, and Flexible Modeling: Part B</em> (Advances in Econometrics,
-vol. 40B, pp. 89–110). Emerald Publishing.
-<a href="https://doi.org/10.1108/S0731-90532019000040B006" class="external-link">doi:10.1108/S0731-90532019000040B006</a></p>
-<p>Henderson, N. C., Louis, T. A., Rosner, G. L., &amp; Varadhan, R. (2020).
-Individualized treatment effects with censored data via fully nonparametric
-Bayesian accelerated failure time models. <em>Biostatistics</em>, 21(1), 50–68.
-<a href="https://doi.org/10.1093/biostatistics/kxy028" class="external-link">doi:10.1093/biostatistics/kxy028</a></p>
-<p>Kubinec, R. (2023). Ordered beta regression: a parsimonious, well-fitting
-model for continuous data with lower and upper bounds. <em>Political Analysis</em>,
-31(4), 519–536. <a href="https://doi.org/10.1017/pan.2022.20" class="external-link">doi:10.1017/pan.2022.20</a></p>
-<p>Murray, J. S. (2021). Log-linear Bayesian additive regression trees for
-multinomial logistic and count regression models. <em>Journal of the American
-Statistical Association</em>, 116(534), 756–769.
-<a href="https://doi.org/10.1080/01621459.2020.1813587" class="external-link">doi:10.1080/01621459.2020.1813587</a></p>
-<p>Xu, Y., Hogan, J., Daniels, M., Kantor, R., &amp; Mwangi, A. (2025). Augmentation
-samplers for multinomial probit Bayesian additive regression trees. <em>Journal
-of Computational and Graphical Statistics</em>, 34(2), 498–508.
-<a href="https://doi.org/10.1080/10618600.2024.2388605" class="external-link">doi:10.1080/10618600.2024.2388605</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

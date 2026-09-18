@@ -24,13 +24,13 @@ linear model: a formula, a data frame, and a family. The forest replaces
 the linear predictor, so nothing has to be said about which terms enter
 the model, which are curved, or which interact.
 
-    fit <- bartisan(y ~ ., data = d)
+    fit <- bartisan(y ~ x1 + x2 + x3, data = d)
 
-### What to Reach For
+### Common Tasks
 
 Most of what a fitted model is used for is handled by a package that
 already does that job well, and bartisan registers the methods those
-packages need rather than reimplementing them. This table is the map.
+packages need. This table is the map.
 
 |  |  |
 |----|----|
@@ -39,8 +39,8 @@ packages need rather than reimplementing them. This table is the map.
 | choose a likelihood | [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md) |
 | change the sampler's settings | [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md) |
 | predict for new data | [`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md) |
-| a prediction **with an interval** | [`marginaleffects::predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html) |
-| an interval for a **new observation**, noise included | [posterior_predict()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
+| a prediction with an interval | [`marginaleffects::predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html) |
+| an interval for a new observation, noise included | [posterior_predict()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
 | how much a predictor moves the outcome | [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html) |
 | a partial dependence plot | [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md), or [`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html) for more control over the grid |
 | which predictors the forest uses | [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md) |
@@ -62,21 +62,20 @@ packages need rather than reimplementing them. This table is the map.
 Three things are worth knowing first, and none of them requires knowing
 anything about Bayesian statistics.
 
-**There are no coefficients.** A forest has no slope to read off, so the
-effect of a predictor is found by asking the fitted model what it
-predicts under one value of that predictor and under another, and taking
-the difference. `marginaleffects::avg_comparisons(fit, variables = "x")`
-does exactly that, and reports an interval with it. This is a better
-habit than reading coefficients even where coefficients exist (i.e., in
-a linear model), and here it is the only habit available.
+A forest has no slope to read off, so the effect of a predictor is found
+by asking the fitted model what it predicts under one value of that
+predictor and under another, and taking the difference.
+`marginaleffects::avg_comparisons(fit, variables = "x")` does exactly
+that, and reports an interval with it. This is a better habit than
+reading coefficients even where coefficients exist (i.e., in a linear
+model), and here it is the only habit available.
 
-**The intervals mean what they appear to mean.** A 95% interval from any
-of the above is the range the model considers most plausible given the
-data and the model. It already includes the uncertainty from not knowing
-the shape of the relationship, which is the part a linear model leaves
-out by assuming it away.
+A 95% interval from any of the above is the range the model considers
+most plausible given the data and the model. It already includes the
+uncertainty from not knowing the shape of the relationship, which is the
+part a linear model leaves out by assuming it away.
 
-**The defaults are meant to be used.** The settings in
+The defaults are meant to be used. The settings in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 are there for the analyses that need them; the priors and the number of
 trees are chosen to work across a wide range of problems, and tuning
@@ -84,13 +83,14 @@ them is rarely where the gains are. Choosing the right
 [family](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 matters much more.
 
-### What the Fit Does Not Do
+### Flexibility and Its Limits
 
 The model is flexible about the shape of the relationship and about
-nothing else. It will not establish that a predictor is a cause, that
-the sample represents the population, or that the outcome was measured
-well. Note that a forest fitted to confounded data returns a confounded
-answer with a tight interval around it.
+nothing else. Whether a predictor is a cause, whether the sample
+represents the population, and whether the outcome was measured well are
+assumptions the analysis brings to the model rather than things it can
+supply: a forest fitted to confounded data returns a confounded answer
+with a tight interval around it.
 
 ## See also
 

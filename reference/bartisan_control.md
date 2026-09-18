@@ -1,20 +1,10 @@
 # Sampler and prior settings for `bartisan()`
 
 Collects the tuning constants of the sampler and the hyperparameters of
-the tree prior. The defaults follow Linero (2025) and, for the soft
-decision rules, Linero and Yang (2018), and are intended to be usable
-without adjustment.
-
-The arguments fall into three groups and are ordered by how often they
-are worth changing. Everything from `chains` to `x_transform` is a
-**modeling decision**, in that changing one changes what is fitted or
-how long it is fitted for; the chain lengths and `num_trees` come first
-because they are adjusted most. Everything from `gamma` to `num_print`
-is an **advanced setting**: a hyperparameter of a prior the first group
-summarizes, or a switch whose default is almost always right. The last
-three (`block_eval`, `exact_quadratic`, and `generic_accumulate`) exist
-**for internal validation**; they compute the same posterior more slowly
-and are documented so that the checks using them can be read.
+the tree prior, for passing to the `control` argument of
+[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md).
+The defaults follow Linero (2025) and, for the soft decision rules,
+Linero and Yang (2018), and are meant to be usable without adjustment.
 
 ## Usage
 
@@ -24,16 +14,16 @@ bartisan_control(
   num_burn = 200L,
   num_draws = 800L,
   num_thin = 1L,
-  num_trees = NULL,
+  num_trees = 50L,
   gate = "smoothstep",
   sparsity = TRUE,
+  split_prior = NULL,
+  x_transform = "smoothcdf",
   k = 2,
   bandwidth = 0.1,
-  split_prior = NULL,
   share_sparsity = FALSE,
   categorical = "subset",
   augment = TRUE,
-  x_transform = "smoothcdf",
   gamma = 0.95,
   beta = 2,
   sigma_mu = NULL,
@@ -88,9 +78,8 @@ bartisan_control(
 
   `numeric`; the number of draws to keep. Default is 800. These are what
   every estimate and interval is computed from, so raising it narrows
-  Monte Carlo error and does nothing about convergence: increase it when
-  `ess_bulk` or `ess_tail` is small relative to what the reported
-  quantity needs.
+  Monte Carlo error; increase it when `ess_bulk` or `ess_tail` is small
+  relative to what the reported quantity needs.
 
 - num_thin:
 
@@ -98,28 +87,27 @@ bartisan_control(
   1 to keep every draw. Thinning discards draws to make the kept ones
   less correlated, which costs information and is worth it only to hold
   down the memory a long chain would otherwise take: for a given amount
-  of computing, more draws beat fewer less-correlated ones.
+  of computing, more draws beat fewer less-correlated ones, so it is
+  best to avoid setting `num_thin`.
 
 - num_trees:
 
   `numeric`; the number of trees, as one number for every forest or one
-  per additive predictor. Default is `NULL`, which is 50 whatever the
-  decision rules. A family with more than one additive predictor takes a
-  vector, which is worth using because the forests are neither equally
-  expensive nor in need of equal capacity. See Details.
+  per additive predictor. Default is 50. A family with more than one
+  additive predictor takes a vector, which can be worth using because
+  the forests are neither equally expensive nor in need of equal
+  capacity. See Details.
 
 - gate:
 
-  string; the shape of a decision rule, which is also how hard and soft
-  rules are chosen between. Allowable options include `"smoothstep"`
-  (the default), `"smootherstep"`, `"logistic"`, and `"hard"` (or
-  equivalently `"step"`). `"hard"` gives the step functions of standard
-  BART; the other three give soft rules, in which every observation
-  reaches every leaf with some weight and the fit is smooth. Soft rules
-  cost several times as much per iteration and cut held-out error
-  substantially, so they are the accuracy argument rather than a tax;
-  which soft gate is chosen matters much less than that one is. See
-  Details.
+  string; the shape of the decision rule at each node. Allowable options
+  include `"smoothstep"` (the default), `"smootherstep"`, `"logistic"`,
+  and `"hard"` (or equivalently `"step"`). `"hard"` gives the step
+  functions of standard BART; the other three give soft rules, in which
+  every observation reaches every leaf with some weight and the fit is
+  smooth. Soft rules are slower but improve predictive performance and
+  yield smooth fits. Which soft gate is chosen matters much less than
+  that one is. See Details.
 
 - sparsity:
 
@@ -134,20 +122,6 @@ bartisan_control(
   supplying any of those overrides it. Read the trade-off in Details
   before turning it off.
 
-- k:
-
-  `numeric`; controls the leaf prior. The prior standard deviation of a
-  forest is `3 / k` times the natural scale of its additive predictor,
-  so larger values shrink the fit harder toward the intercept-only
-  model. Default is 2.
-
-- bandwidth:
-
-  `numeric`; the prior mean of the gate bandwidth of a soft rule, on the
-  scale of the transformed predictors, which lie in `[0, 1]`. Smaller
-  values approach hard rules. Default is .1. Ignored when
-  `gate = "hard"`.
-
 - split_prior:
 
   `numeric`; a named vector of relative prior weights on the predictors,
@@ -158,68 +132,67 @@ bartisan_control(
   have is an error. Default is `NULL` to weight every predictor equally.
   Note that setting this overrides `sparsity`; see Details.
 
+- x_transform:
+
+  string; how numeric predictors are mapped to `[0, 1]` before any rule
+  sees them. Allowable options include `"smoothcdf"` (the default),
+  `"quantile"`, and `"range"`. The map decides where a cutpoint can
+  fall, the cutpoint prior being uniform on a node's live range in the
+  transformed coordinate, and for soft rules it is also the scale
+  `bandwidth` is measured on. `"smoothcdf"` smooths the empirical
+  distribution function with an Epanechnikov kernel, `"quantile"` uses
+  the empirical distribution function itself, and `"range"` rescales
+  linearly. Note that `"range"` is the one to use when a slope is the
+  quantity of interest, being the only affine map of the three; see
+  [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md).
+  Where the other two fail, and why the default is the default, is in
+  [`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md).
+
+- k:
+
+  *Advanced.* `numeric`; controls the leaf prior. The prior standard
+  deviation of a forest is `3 / k` times the natural scale of its
+  additive predictor, so larger values shrink the fit harder toward the
+  intercept-only model. Default is 2.
+
+- bandwidth:
+
+  *Advanced.* `numeric`; the prior mean of the gate bandwidth of a soft
+  rule, on the scale of the transformed predictors, which lie in
+  `[0, 1]`. Smaller values approach hard rules. Default is .1. Ignored
+  when `gate = "hard"`. See also `update_bandwidth` and
+  `bandwidth_every`.
+
 - share_sparsity:
 
-  `logical`; for a family with more than one additive predictor, whether
-  the forests draw their splitting proportions from one pooled Dirichlet
-  rather than one each. Default is `FALSE`. `TRUE` is an assumption
-  about the data rather than a free improvement, and requires that the
-  proportions be drawn at all and over the same predictors, so
-  `sparsity` must not be `FALSE` for the forests that are to share.
-  Ignored for a family with a single forest. See Details.
+  *Advanced.* `logical`; for a family with more than one additive
+  predictor, whether the forests draw their splitting proportions from
+  one pooled Dirichlet rather than one each. Default is `FALSE`. `TRUE`
+  is an assumption about the data rather than a free improvement, and
+  requires that the proportions be drawn at all and over the same
+  predictors, so `sparsity` must not be `FALSE` for the forests that are
+  to share. Ignored for a family with a single forest. See Details.
 
 - categorical:
 
-  string; how a splitting rule divides the levels of a factor. Allowable
-  options include `"subset"` (the default), which draws a subset of the
-  levels still available at the node and sends those left, and
-  `"onehot"`, which is what most BART implementations do: it splits on
-  one indicator column, peeling a single level off the rest. `"subset"`
-  is right about the prior and never loses beyond noise; see Details.
+  *Advanced.* string; how a splitting rule divides the levels of a
+  factor. Allowable options include `"subset"` (the default), which
+  draws a subset of the levels still available at the node and sends
+  those left, and `"onehot"`, which is what most BART implementations
+  do: it splits on one indicator column, peeling a single level off the
+  rest.
 
 - augment:
 
-  *Advanced.* `logical` or `character`; whether to rewrite the
-  likelihood as the margin of a Gaussian or a Poisson one, which makes
-  the target a shape the sampler can exploit. **The posterior is the
-  same either way**, so this is a sampling setting and not a modeling
-  one. Default is `TRUE`, which rewrites wherever a rewriting exists:
-  the binomial, ordinal, multinomial, negative binomial, zero-inflated,
-  and survival families. `FALSE` never does, and a character vector of
-  engine family names (`"binomial"`, `"ordinal"`, `"multinomial"`,
-  `"negbin"`, `"zip"`, `"zinb"`, `"aft"`) asks for exactly those. A
-  rewriting is always faster and has not been measured to mix worse per
+  *Advanced.* `logical`; whether to rewrite the likelihood as the margin
+  of a Gaussian or a Poisson one, which makes the target a shape the
+  sampler can exploit. The posterior is the same either way, so this is
+  a sampling setting rather than a modeling one. Default is `TRUE`,
+  which rewrites wherever a rewriting exists: the binomial, ordinal,
+  multinomial, negative binomial, zero-inflated, and survival families.
+  A rewriting is faster and has not been measured to mix worse per
   second, so the default is rarely worth changing; see
   [`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md).
-
-- x_transform:
-
-  string; how numeric predictors are mapped to `[0, 1]`. Allowable
-  options include `"smoothcdf"` (the default), `"quantile"`, and
-  `"range"`. The choice places the cutpoint prior and, for soft rules,
-  sets the scale the gate's width is measured on, and each has a failure
-  it is worth knowing about; see Details.
-
-  `"smoothcdf"` uses a kernel-smoothed estimate of each predictor's
-  distribution function, with an Epanechnikov kernel and a plug-in
-  bandwidth at the `n^(-1/3)` rate that is right for a distribution
-  function rather than the `n^(-1/5)` that is right for a density
-  (Tenreiro, 2006; the rate was pointed out for a second-order
-  approximation by Azzalini, 1981). Cutpoints land where the data are,
-  as under `"quantile"`, and the map is strictly increasing and
-  differentiable, as under `"range"`.
-
-  `"quantile"` uses the empirical distribution function, which is what
-  `SoftBart::softbart()` does. It is a step function, so the fit is a
-  step function of the predictor: it has no derivative, and a
-  relationship that is straight in the predictor becomes a jump wherever
-  the data are gappy.
-
-  `"range"` rescales linearly and preserves the original spacing. It is
-  the most accurate of the three on well-behaved predictors and the
-  right choice when a derivative is the quantity of interest, and it
-  fails where a few extreme values leave the bulk of a predictor inside
-  a sliver of its range.
 
 - gamma, beta:
 
@@ -344,7 +317,17 @@ argument of
 
 ## Details
 
-### How Long Warmup Needs to Be
+The arguments are roughly ordered by how often they are worth changing.
+Those from `chains` to `x_transform` are modeling decisions, in that
+changing one changes what is fitted or how long it is fitted for, and
+the chain lengths and `num_trees` come first because they are adjusted
+most. Those marked *Advanced.* are hyperparameters of a prior that one
+of the first group summarizes, or switches whose default is almost
+always right. The three marked *Validation.* compute the same posterior
+more slowly, and are documented so that the checks using them can be
+read.
+
+### Setting `num_burn`
 
 The default is comfortably longer than the transient in every family
 measured, so raising `num_burn` buys convergence rather than precision:
@@ -352,90 +335,147 @@ raise it when
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
 says the chains have not agreed.
 [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-is the exception, its mixture carrying a component-count state that
+is the exception, as its mixture carries a component-count state that
 settles more slowly than a forest does, so a longer warmup is worth
 having there and especially when the error distribution itself is the
 object of interest.
 
-### How Many Trees, and How Many per Forest
+### Setting `num_trees`
 
-**Soft rules need far fewer trees than hard ones**, and can get worse as
-trees are added, which makes the count most BART packages default to
-actively wrong here. The default is the same for both anyway, because a
-smaller forest mixes worse: chains can disagree markedly on an average
-contrast at a small forest where they agree at the default, for only a
-slight gain in point accuracy. Drop below it if prediction is the only
-goal and the fit is soft; raise it with hard rules if it is not.
+The performance of the BART model is relatively insensitive to the
+number of trees. More trees create a more complicated model, which can
+mix poorly. A model with soft trees needs fewer trees than one with hard
+trees, but the default is the same for both. Generally, you don't need
+to change the number of trees for a model with a single forest; the
+defaults tend to do well, which is a strength of BART. The leaf prior
+scale divides by the square root of a forest's own tree count, so
+shrinking one forest does not change the prior on the sum.
 
-**A vector is worth using when the family has more than one forest.**
-The scale forest of
-[`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-dominates the run time, its target not being quadratic, and a variance
-surface carries much less information than a mean surface, so giving it
-fewer trees runs substantially faster at the same accuracy. It is not
-the default because how much resolution a variance surface needs depends
-on the surface, and quietly under-parameterizing it would show up as
-intervals that are wrong, which is what
-[`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-exists to get right. The leaf prior scale divides by the square root of
-each forest's own tree count, so shrinking one forest does not change
-the prior on the sum.
+`num_trees` can be supplied as a vector when the family has more than
+one forest, where each value corresponds to the number of trees for that
+forest. The scale forest of location-scale models (e.g.,
+`family = gaussian_ls()`) dominates the run time, its target not being
+quadratic, and a variance surface carries much less information than a
+mean surface, so giving it fewer trees runs substantially faster at the
+same accuracy. It is not the default because how much resolution a
+variance surface needs depends on the surface, and quietly
+under-parameterizing it would show up as intervals that are wrong.
 
-### The Sparsity Prior, and What It Costs
+### Choosing a gate type with `gate`
 
-`sparsity = TRUE` is the Dirichlet prior of Linero (2018) on the
-splitting proportions, and it is a genuine variable-selection prior: it
-can and does drop a predictor from every tree at once, which is the
-point of it in the high-dimensional problems it was built for.
+A gate determines how much of each branch of a tree an observation
+contributes to, based on its value of the numeric predictor the rule
+splits on. For a predictor \\x\\ and a threshold \\c\\, the contribution
+of the observation to the right-hand branch is \\w_R(x; c)\\, and the
+contribution to the left branch is \\w_L(x; c) = 1 - w_R(x; c)\\.
 
-That has a consequence which is easy to misread. **A contrast on a
-predictor the prior has dropped is exactly zero, not nearly zero**,
-because in that draw the fit does not depend on that predictor at all,
-so the posterior of a contrast has an atom at zero whose mass is one
-minus the predictor's inclusion probability; any summary reporting a
-median lands on it once it holds half the mass. More trees does not fix
-it, because a predictor whose splitting proportion has gone small is
-rarely proposed and so is hard to get back in.
+#### Hard Gates
 
-Which way to throw the switch follows from the estimand, and the
-strength barely matters either way. **For prediction or variable
-selection**, keep the default; reaching past `TRUE` is warranted only
-when the predictors are many and nearly all are expected to be
-irrelevant. **For a contrast, a partial effect, or a treatment effect**,
-set `sparsity = FALSE`, or use `split_prior`, which cannot drop
-anything: on a weak signal the prior attenuates the estimate
-substantially and its interval covers below its nominal rate, while a
-strong effect is untouched.
+For a hard gate (`gate = "hard"`), which is what is used in traditional
+BART and most other tree-based models,
+
+\$\$w_R(x; c) = \mathbb{I}(x \> c)\$\$
+
+where \\\mathbb{I}(\cdot)\\ is the indicator function. An observation
+contributes only to one branch. This is the fastest to compute but
+cannot capture smooth functions well, yielding jagged fits.
+
+#### Soft Gates
+
+For a soft gate, used in the SoftBart model of Linero and Yang (2018),
+
+\$\$w_R(x; c) = F\left(\frac{x - c}{h}\right)\$\$
+
+for some S-shaped function \\F(\cdot)\\ with a bandwidth \\h\\.
+
+The options for \\F(\cdot)\\ are the different values `gate` can take.
+Computing the contribution weights for soft gates is slower than for
+hard gates, and the bandwidth is itself a parameter with a Metropolis
+step per tree per sweep, each rebuilding every membership weight in the
+tree, which is the single largest item in a soft-rule fit. These
+features make models with soft gates slower to compute than models with
+hard gates. The difference among the soft gates (`"smoothstep"`,
+`"smootherstep"`, and `"logistic"`) is negligible in predictive
+performance. `"smoothstep"` is computationally fastest and lets some
+observations have weights of exactly 0 or 1, which is why it is the
+default; `"logistic"` is the one Linero and Yang (2018) originally
+describe.
+
+`bandwidth_every` controls how often the bandwidth is updated from its
+starting value specified by `bandwidth` for a soft gate when
+`update_bandwidth = TRUE` (the default). Drawing the bandwidth is what
+lets a rule sharpen toward a step, so setting `update_bandwidth = FALSE`
+is faster and tends to be more accurate on smooth functions, but is much
+worse on nonsmooth ones. Raising `bandwidth_every` is the middle course,
+recovering some speed while keeping soft rules, at a real cost in mixing
+and a small one in accuracy where the mean function jumps.
+
+### Controlling Sparsity
+
+`sparsity = TRUE` (the default) is the Dirichlet prior of Linero (2018)
+on the splitting proportions, and it is a genuine variable-selection
+prior: it can and does drop a predictor from every tree at once, which
+is the point of it in the high-dimensional problems it was built for.
+
+That has a consequence which is easy to misread. A contrast on a
+predictor the prior has dropped is exactly zero because in that draw the
+fit does not depend on that predictor at all, so the posterior of a
+contrast has an atom at zero whose mass is one minus the predictor's
+inclusion probability; any summary reporting a median lands on it once
+it holds half the mass. More trees does not fix it, because a predictor
+whose splitting proportion has gone small is rarely proposed and so is
+hard to get back in.
+
+How to specify `sparsity` follows from the estimand. For prediction or
+variable selection, keep the default; reaching past `TRUE` is warranted
+only when the predictors are many and nearly all are expected to be
+irrelevant. For a contrast, a partial effect, or a treatment effect, set
+`sparsity = FALSE`, or use `split_prior`, which cannot drop anything: on
+a weak signal the sparsity prior attenuates the estimate substantially
+and its interval covers below its nominal rate, while a strong effect is
+untouched.
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
 works this through and
 [bartisan-marginaleffects](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md)
 covers the atom.
 
-**For a varying-coefficient model the two answers can differ by
-forest.** What the prior can drop is a predictor a forest splits on, and
-in a [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) model
-the treatment is the coefficient rather than one of those, carried by a
+For a varying-coefficient model, the sparsity choice can differ by
+forest (see more details below). What the prior can drop is a predictor
+a forest splits on, and in a
+[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) model the
+treatment is the coefficient rather than one of those, carried by a
 forest of its own, so no splitting proportion can drop it; the prior on
 that forest selects among the moderators instead. So
-`sparsity = c(FALSE, TRUE)` is coherent, and in
+`sparsity = c(FALSE, TRUE)`, which disables the sparsity prior for the
+control function forest and enables it for the varying coefficient
+forest, is coherent, and in
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) it is
 the asymmetry worth considering.
 
-### Sharing the Sparsity Prior Across Forests
+Sparsity can also be controlled by choosing the sparsity parameter
+`alpha` or drawing it from a prior determined by the parameters
+`alpha_scale`, `alpha_shape_1`, and `alpha_shape_2`. The `sparsity`
+argument is a shortcut to setting these, since the relationship between
+them and the sparsity they induce is a bit opaque.
 
-The trade is asymmetric, which is what makes `share_sparsity = TRUE`
-worth taking: nothing to gain when the predictors are few and there is
-no selection problem to transfer, a real gain for the weaker component
-when they are many, and a comparatively small cost when the components
-turn out to depend on different predictors.
-[`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
-shows it in use and
-[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
-is where to check it. This is the variable-selection content of the
-shared forests of Linero et al. (2020) and not their model, which shares
-the tree *topology* and so fixes the cut points too;
-[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) sits at
-the other extreme, sharing an entire function rather than a prior.
+#### Telling the Prior What Is Already Known
+
+`sparsity` and `split_prior` answer different questions and cannot both
+be in force, so giving `split_prior` turns `sparsity` off. `sparsity` is
+for when which predictors matter is unknown and the prior is to work it
+out from the data, and a predictor can be dropped entirely;
+`split_prior` is for when something is known and is to be honored, with
+the proportions held at the supplied values.
+
+A weight is a statement about relative attention, not about effect size.
+It changes how often a split on a predictor is proposed, which is a
+prior, so the data can still overrule it in either direction. Because
+the weights are fixed, `split_prior` does not accumulate the
+atom-at-zero mass above, which makes it a reasonable middle course when
+a particular contrast is the estimand but the predictors are too many to
+treat alike. One weight per term in the formula, not per column of the
+design matrix, so a factor is named once and its levels share the
+weight.
 
 ### Arguments That Vary by Forest
 
@@ -459,122 +499,14 @@ The multinomial families are the exception, for the reason given in
 [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md):
 their forests act as one, so these arguments take a single value.
 
-### The Predictor Transform (`x_transform`)
-
-Numeric predictors are mapped to `[0, 1]` before any rule sees them, and
-the map does two jobs at once: cutpoints are uniform on a node's live
-range in that coordinate, and for soft rules the gate's bandwidth is
-measured there too. The three options fail in different places, which is
-the whole of the choice between them.
-
-`"range"` is the most accurate on well-behaved predictors and the only
-one that supports a derivative, since it is the only affine map of the
-three. Its failure is a predictor whose bulk sits inside a sliver of its
-range, which a few extreme values are enough to produce: a cutpoint
-drawn uniformly on a node's live range then almost never lands where the
-structure is. Measured over a simulation with 1% of a predictor at 300
-times the scale and a truth that oscillates within the bulk, it was 4
-times worse than the alternatives at `n = 500` and 6 times worse at
-`n = 2000`, with 95% intervals covering .24 rather than .95. The
-deterioration with `n` is the signature: the extremes grow with the
-sample, so the bulk occupies an ever smaller share.
-
-`"quantile"` cannot fail that way, since it places cutpoints by rank. It
-fails instead by being a step function, so the fit is a step function of
-the predictor: there is no derivative to take, and a relationship that
-is straight in the predictor becomes a jump wherever the data are gappy.
-On two tight clusters with a linear truth it was nearly three times
-worse than the alternatives.
-
-`"smoothcdf"`, the default, smooths the same distribution function and
-so does neither. Across eight data-generating processes it was never the
-most accurate and never far from it, where each of the other two was
-badly wrong somewhere. It is not a free lunch: a derivative taken
-through it is the derivative of the fitted function times an estimated
-density, so `"range"` remains the better choice when a slope is the
-quantity of interest rather than a prediction.
-
-The bandwidth is a plug-in rather than one chosen from the data. The
-data-based selectors of Bergmann and Zaehle (2026) were measured here
-and are not used, because they optimize a different thing: they minimize
-the error in the estimated distribution function, where this map exists
-to place cutpoints and keep the coordinate smooth. The two come apart
-exactly where it matters. Given two tight clusters with a gap between
-them, they correctly choose a much narrower bandwidth, the distribution
-function really being flat in the gap; that returns the coordinate to
-nearly the step `"quantile"` would have given, and doubled the error of
-the fit.
-
-### Splitting a Factor
-
-What `"onehot"` costs is partial pooling. A rule on one indicator column
-can only peel a single level off the rest, so the partitions it reaches
-are a small fraction of those available and none divides the bulk of the
-levels; a typical tree leaves one level alone and the rest together,
-whether the data want that or not. A rule on a subset of the levels
-reaches every partition.
-
-Under hard rules `"subset"` is better at every sample size, clearly so
-when levels are thinly observed; under soft rules, which is the default,
-**the two are indistinguishable**. So `"subset"` is the default because
-it is right about the prior and never loses beyond noise, not because it
-will visibly improve a fit. Note that a rule on a factor is always hard
-even in a soft tree, since a gate is a function of the distance from a
-cutpoint and there is no distance between two levels; and that a
-two-level factor is unaffected either way.
-
-### Telling the Prior What Is Already Known
-
-`sparsity` and `split_prior` answer different questions and cannot both
-be in force, so giving `split_prior` turns `sparsity` off. `sparsity` is
-for when which predictors matter is unknown and the prior is to work it
-out from the data, and a predictor can be dropped entirely;
-`split_prior` is for when something is known and is to be honored, with
-the proportions held at the supplied weights. Neither is about a forest
-being held to the predictors its own formula names: a
-[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) term whose
-moderators are only some of the covariates still draws its splitting
-proportions, over those moderators.
-
-A weight is a statement about relative attention, not about effect size.
-It changes how often a split on a predictor is proposed, which is a
-prior, so the data can still overrule it in either direction. Because
-the weights are fixed, `split_prior` does not accumulate the
-atom-at-zero mass above, which makes it a reasonable middle course when
-a particular contrast is the estimand but the predictors are too many to
-treat alike. One weight per term in the formula, not per column of the
-design matrix, so a factor is named once and its levels share the
-weight.
-
-### What `augment` Does Not Cover
-
-[`Gamma()`](https://rdrr.io/r/stats/family.html) and
-[`poisson()`](https://rdrr.io/r/stats/family.html) need no rewriting,
-their targets being already in the exponential form the sampler
-exploits, and none is known for the accelerated failure time, ordered
-beta, or location-scale families, so `augment` is silent for all of
-them. Which families it does cover, what each rewriting is, and what
-each buys are in
-[`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md).
-
-### Rare Events Mix Slowly
-
-With very few events the whole fit mixes slowly, augmented or not, and
-the effective sample size of the level of the predictor can fall to a
-small fraction of what a balanced response gives. That is the
-information in a handful of events rather than a fault of the
-rewritings, and dbarts, an independent implementation of the same latent
-normal, reproduces it. Lengthen the chain, and read
-[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)'s
-`rhat`.
-
 ### Progress
 
 `verbose = TRUE` prints a line every `num_print` iterations, which is
 the whole of what this package decides about progress. A progress bar is
 [progressr](https://CRAN.R-project.org/package=progressr)'s business,
 and the sampler reports to it unconditionally: nothing is shown unless a
-handler is active, so there is no argument to switch on.
+handler is active, so there is no argument to switch on. To request a
+progress bar, use one of the calls below:
 
     progressr::with_progress(
       bartisan(y ~ ., data = d, family = gaussian())
@@ -586,78 +518,25 @@ handler is active, so there is no argument to switch on.
 The bar is sized for the whole fit, so `chains = 4` fills one bar once
 rather than four in sequence, and chains running in parallel under
 [future](https://CRAN.R-project.org/package=future) relay their progress
-back as it arrives. Convergence diagnostics are not included because
-they are not part of a fit; they run in
-[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md),
-which reports its own progress the same way. Progress does not touch the
-draws.
+back as it arrives.
 
-### What Else Runs in Parallel, and One Limit on It
+### Parallelization with future
 
-A `future` plan is used by three things, and only the first is the
-sampler: the chains of a fit, the per-observation pass in
-[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md),
-and the repeated predictions in
-[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
-and
-[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md).
-The sampler has no other axis, since a sweep conditions on the one
-before it. Measured on 1500 observations with a 25-point grid, the
-predictions run about three times faster on four workers.
+To request parallel processing, specify a future plan, e.g., using
 
-The limit worth knowing is future's, not this package's. Anything that
-predicts on a worker has to be sent the fit, and a fit is mostly its
-stored predictor and flattened forests, which grow with the draws and
-the sample: at 1500 observations and 3200 draws one serializes to about
-70 MB, so four workers move 280 MB.
-[`future::plan()`](https://future.futureverse.org/reference/plan.html)
-refuses a single export above `future.globals.maxSize`, 500 MB by
-default, and a fit large enough on both counts will trip it. The error
-names the option; raising it is the fix, and running sequentially is the
-alternative.
+    future::plan("multisession")
 
-### Soft Rules and the Cost of a Gate
+Parallelization only works with multiple chains (i.e., `chains` set to
+greater than 1), and each chain is run in parallel. With large fits
+(many draws or a large sample size), an error might be thrown by
+[`future::plan()`](https://future.futureverse.org/reference/plan.html) ,
+which refuses a single export above `future.globals.maxSize`, 500 MB by
+default. The error names the option; raising it is the fix, and running
+sequentially is the alternative.
 
-A soft rule is charged for in two places: every observation reaches more
-than one leaf, so a pass over a node covers several times the sample,
-and the bandwidth is itself a parameter with a Metropolis step per tree
-per sweep, each rebuilding every membership weight in the tree, which is
-the single largest item in a soft-rule fit.
-
-A bounded gate addresses the first: past its half-width from the
-cutpoint the gate is exactly zero or one, so the observation takes one
-side outright and the gate is a polynomial rather than an
-[`exp()`](https://rdrr.io/r/base/Log.html). Most of what that saves is
-the [`exp()`](https://rdrr.io/r/base/Log.html) rather than the work past
-the cutpoint, which is why *which* bounded gate is chosen makes almost
-no difference; prefer `"smootherstep"` because it gives a
-twice-differentiable fit. Its half-width is `pi * sqrt((2a + 1) / 3)`
-times `bandwidth` for the Beta(a, a) gate, which equates the gates'
-standard deviations so that `bandwidth` means the same amount of
-smoothing whichever is chosen.
-
-`bandwidth_every` addresses the second. Drawing the bandwidth is what
-lets a rule sharpen toward a step, so fixing it
-(`update_bandwidth = FALSE`) is faster still and *more* accurate on
-smooth functions and much worse on nonsmooth ones. Raising
-`bandwidth_every` is the middle course, recovering some speed while
-keeping soft rules, at a real cost in mixing and a small one in accuracy
-where the mean function jumps.
+Parallelization can be used with a progressr progress bar.
 
 ## References
-
-Azzalini, A. (1981). A note on the estimation of a distribution function
-and quantiles by a kernel method. *Biometrika*, 68(1), 326–328.
-[doi:10.1093/biomet/68.1.326](https://doi.org/10.1093/biomet/68.1.326)
-
-Bergmann, T., & Zaehle, H. (2026). Data-based bandwidth selection for
-kernel smoothing of empirical distribution functions. *Metrika*.
-[doi:10.1007/s00184-026-01025-6](https://doi.org/10.1007/s00184-026-01025-6)
-
-Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in
-bandwidth selections for kernel distribution function estimators.
-*Journal of Nonparametric Statistics*, 18(1), 101–116.
-[doi:10.1080/10485250600578334](https://doi.org/10.1080/10485250600578334)
 
 Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 prediction and variable selection. *Journal of the American Statistical
@@ -667,14 +546,16 @@ Association*, 113(522), 626–636.
 Linero, A. R. (2025). Generalized Bayesian additive regression trees
 models: beyond conditional conjugacy. *Journal of the American
 Statistical Association*, 120(549), 356–369.
-
-Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles
-that adapt to smoothness and sparsity. *Journal of the Royal Statistical
-Society Series B*, 80(5), 1087–1110.
+[doi:10.1080/01621459.2024.2337156](https://doi.org/10.1080/01621459.2024.2337156)
 
 Linero, A. R., Sinha, D., & Lipsitz, S. R. (2020). Semiparametric
 mixed-scale models using shared Bayesian forests. *Biometrics*, 76(1),
 131–144. [doi:10.1111/biom.13107](https://doi.org/10.1111/biom.13107)
+
+Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles
+that adapt to smoothness and sparsity. *Journal of the Royal Statistical
+Society Series B*, 80(5), 1087–1110.
+[doi:10.1111/rssb.12293](https://doi.org/10.1111/rssb.12293)
 
 ## See also
 
@@ -683,10 +564,14 @@ which takes the result as its `control` argument;
 [bartisan-families](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 for the forest names the per-forest arguments are keyed by
 
+[`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md)
+for more details on the BART implementation.
+
 ## Examples
 
 ``` r
 data("rhc")
+set.seed(123)
 
 # Settings can be built up once and reused across fits
 ctrl <- bartisan_control(num_trees = 20, gate = "hard", num_burn = 50,
@@ -825,7 +710,7 @@ bartisan_control(num_trees = c(mean = 50, log_sd = 10))
 # prior would otherwise be free to drop
 bartisan_control(split_prior = c(rhc = 10))
 #> $num_trees
-#> NULL
+#> [1] 50
 #> 
 #> $gate
 #> [1] "smoothstep"

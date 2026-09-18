@@ -6,32 +6,12 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Sampler and prior settings for bartisan() — bartisan_control"><meta name="description" content="Collects the tuning constants of the sampler and the hyperparameters of the
-tree prior. The defaults follow Linero (2025) and, for the soft decision
-rules, Linero and Yang (2018), and are intended to be usable without
-adjustment.
-The arguments fall into three groups and are ordered by how often they are
-worth changing. Everything from chains to x_transform is a modeling
-decision, in that changing one changes what is fitted or how long it is
-fitted for; the chain lengths and num_trees come first because they are
-adjusted most. Everything from gamma to num_print is an advanced
-setting: a hyperparameter of a prior the first group summarizes, or a switch
-whose default is almost always right. The last three (block_eval,
-exact_quadratic, and generic_accumulate) exist for internal
-validation; they compute the same posterior more slowly and are documented
-so that the checks using them can be read."><meta property="og:description" content="Collects the tuning constants of the sampler and the hyperparameters of the
-tree prior. The defaults follow Linero (2025) and, for the soft decision
-rules, Linero and Yang (2018), and are intended to be usable without
-adjustment.
-The arguments fall into three groups and are ordered by how often they are
-worth changing. Everything from chains to x_transform is a modeling
-decision, in that changing one changes what is fitted or how long it is
-fitted for; the chain lengths and num_trees come first because they are
-adjusted most. Everything from gamma to num_print is an advanced
-setting: a hyperparameter of a prior the first group summarizes, or a switch
-whose default is almost always right. The last three (block_eval,
-exact_quadratic, and generic_accumulate) exist for internal
-validation; they compute the same posterior more slowly and are documented
-so that the checks using them can be read."></head><body>
+tree prior, for passing to the control argument of bartisan(). The
+defaults follow Linero (2025) and, for the soft decision rules, Linero and
+Yang (2018), and are meant to be usable without adjustment."><meta property="og:description" content="Collects the tuning constants of the sampler and the hyperparameters of the
+tree prior, for passing to the control argument of bartisan(). The
+defaults follow Linero (2025) and, for the soft decision rules, Linero and
+Yang (2018), and are meant to be usable without adjustment."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -74,19 +54,9 @@ so that the checks using them can be read."></head><body>
 
     <div class="ref-description section level2">
     <p>Collects the tuning constants of the sampler and the hyperparameters of the
-tree prior. The defaults follow Linero (2025) and, for the soft decision
-rules, Linero and Yang (2018), and are intended to be usable without
-adjustment.</p>
-<p>The arguments fall into three groups and are ordered by how often they are
-worth changing. Everything from <code>chains</code> to <code>x_transform</code> is a <strong>modeling
-decision</strong>, in that changing one changes what is fitted or how long it is
-fitted for; the chain lengths and <code>num_trees</code> come first because they are
-adjusted most. Everything from <code>gamma</code> to <code>num_print</code> is an <strong>advanced
-setting</strong>: a hyperparameter of a prior the first group summarizes, or a switch
-whose default is almost always right. The last three (<code>block_eval</code>,
-<code>exact_quadratic</code>, and <code>generic_accumulate</code>) exist <strong>for internal
-validation</strong>; they compute the same posterior more slowly and are documented
-so that the checks using them can be read.</p>
+tree prior, for passing to the <code>control</code> argument of <code><a href="bartisan.html">bartisan()</a></code>. The
+defaults follow Linero (2025) and, for the soft decision rules, Linero and
+Yang (2018), and are meant to be usable without adjustment.</p>
     </div>
 
     <div class="section level2">
@@ -96,16 +66,16 @@ so that the checks using them can be read.</p>
 <span>  num_burn <span class="op">=</span> <span class="fl">200L</span>,</span>
 <span>  num_draws <span class="op">=</span> <span class="fl">800L</span>,</span>
 <span>  num_thin <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  num_trees <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  num_trees <span class="op">=</span> <span class="fl">50L</span>,</span>
 <span>  gate <span class="op">=</span> <span class="st">"smoothstep"</span>,</span>
 <span>  sparsity <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  split_prior <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  x_transform <span class="op">=</span> <span class="st">"smoothcdf"</span>,</span>
 <span>  k <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  bandwidth <span class="op">=</span> <span class="fl">0.1</span>,</span>
-<span>  split_prior <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  share_sparsity <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  categorical <span class="op">=</span> <span class="st">"subset"</span>,</span>
 <span>  augment <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  x_transform <span class="op">=</span> <span class="st">"smoothcdf"</span>,</span>
 <span>  gamma <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  beta <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  sigma_mu <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -154,11 +124,10 @@ does. See Details.</p></dd>
 
 
 <dt id="arg-num-draws">num_draws<a class="anchor" aria-label="anchor" href="#arg-num-draws"></a></dt>
-<dd><p><code>numeric</code>; the number of draws to keep. Default is 800. These
-are what every estimate and interval is computed from, so raising it narrows
-Monte Carlo error and does nothing about convergence: increase it when
-<code>ess_bulk</code> or <code>ess_tail</code> is small relative to what the reported quantity
-needs.</p></dd>
+<dd><p><code>numeric</code>; the number of draws to keep. Default is 800.
+These are what every estimate and interval is computed from, so raising it
+narrows Monte Carlo error; increase it when <code>ess_bulk</code> or <code>ess_tail</code> is
+small relative to what the reported quantity needs.</p></dd>
 
 
 <dt id="arg-num-thin">num_thin<a class="anchor" aria-label="anchor" href="#arg-num-thin"></a></dt>
@@ -166,27 +135,27 @@ needs.</p></dd>
 Default is 1 to keep every draw. Thinning discards draws to make the kept
 ones less correlated, which costs information and is worth it only to hold
 down the memory a long chain would otherwise take: for a given amount of
-computing, more draws beat fewer less-correlated ones.</p></dd>
+computing, more draws beat fewer less-correlated ones, so it is best to
+avoid setting <code>num_thin</code>.</p></dd>
 
 
 <dt id="arg-num-trees">num_trees<a class="anchor" aria-label="anchor" href="#arg-num-trees"></a></dt>
 <dd><p><code>numeric</code>; the number of trees, as one number for every
-forest or one per additive predictor. Default is <code>NULL</code>, which is 50
-whatever the decision rules. A family with more than one additive predictor
-takes a vector, which is worth using because the forests are neither
-equally expensive nor in need of equal capacity. See Details.</p></dd>
+forest or one per additive predictor. Default is 50. A family with more
+than one additive predictor takes a vector, which can be worth using
+because the forests are neither equally expensive nor in need of equal
+capacity. See Details.</p></dd>
 
 
 <dt id="arg-gate">gate<a class="anchor" aria-label="anchor" href="#arg-gate"></a></dt>
-<dd><p>string; the shape of a decision rule, which is also how hard and
-soft rules are chosen between. Allowable options include <code>"smoothstep"</code>
-(the default), <code>"smootherstep"</code>, <code>"logistic"</code>, and <code>"hard"</code> (or
-equivalently <code>"step"</code>). <code>"hard"</code> gives the step functions of standard BART;
-the other three give soft rules, in which every observation reaches every
-leaf with some weight and the fit is smooth. Soft rules cost several times
-as much per iteration and cut held-out error substantially, so they are the
-accuracy argument rather than a tax; which soft gate is chosen matters much
-less than that one is. See Details.</p></dd>
+<dd><p>string; the shape of the decision rule at each node. Allowable
+options include <code>"smoothstep"</code> (the default), <code>"smootherstep"</code>,
+<code>"logistic"</code>, and <code>"hard"</code> (or equivalently <code>"step"</code>). <code>"hard"</code> gives the
+step functions of standard BART; the other three give soft rules, in which
+every observation reaches every leaf with some weight and the fit is
+smooth. Soft rules are slower but improve predictive performance and yield
+smooth fits. Which soft gate is chosen matters much less than that one is.
+See Details.</p></dd>
 
 
 <dt id="arg-sparsity">sparsity<a class="anchor" aria-label="anchor" href="#arg-sparsity"></a></dt>
@@ -201,20 +170,6 @@ Note that this sets <code>update_s</code>, <code>update_alpha</code>, <code>alph
 Read the trade-off in Details before turning it off.</p></dd>
 
 
-<dt id="arg-k">k<a class="anchor" aria-label="anchor" href="#arg-k"></a></dt>
-<dd><p><code>numeric</code>; controls the leaf prior. The prior standard deviation of a
-forest is <code>3 / k</code> times the natural scale of its additive predictor, so
-larger values shrink the fit harder toward the intercept-only model. Default
-is 2.</p></dd>
-
-
-<dt id="arg-bandwidth">bandwidth<a class="anchor" aria-label="anchor" href="#arg-bandwidth"></a></dt>
-<dd><p><code>numeric</code>; the prior mean of the gate bandwidth of a soft
-rule, on the scale of the transformed predictors, which lie in <code>[0, 1]</code>.
-Smaller values approach hard rules. Default is .1. Ignored when
-<code>gate = "hard"</code>.</p></dd>
-
-
 <dt id="arg-split-prior">split_prior<a class="anchor" aria-label="anchor" href="#arg-split-prior"></a></dt>
 <dd><p><code>numeric</code>; a named vector of relative prior weights on the
 predictors, keyed by their names in the formula. A predictor not named gets
@@ -225,62 +180,62 @@ error. Default is <code>NULL</code> to weight every predictor equally. Note that
 setting this overrides <code>sparsity</code>; see Details.</p></dd>
 
 
+<dt id="arg-x-transform">x_transform<a class="anchor" aria-label="anchor" href="#arg-x-transform"></a></dt>
+<dd><p>string; how numeric predictors are mapped to <code>[0, 1]</code>
+before any rule sees them. Allowable options include <code>"smoothcdf"</code> (the
+default), <code>"quantile"</code>, and <code>"range"</code>. The map decides where a cutpoint can
+fall, the cutpoint prior being uniform on a node's live range in the
+transformed coordinate, and for soft rules it is also the scale <code>bandwidth</code>
+is measured on. <code>"smoothcdf"</code> smooths the empirical distribution function
+with an Epanechnikov kernel, <code>"quantile"</code> uses the empirical distribution
+function itself, and <code>"range"</code> rescales linearly. Note that <code>"range"</code> is
+the one to use when a slope is the quantity of interest, being the only
+affine map of the three; see <code><a href="../articles/effects.html">vignette("effects")</a></code>. Where the other two
+fail, and why the default is the default, is in
+<code><a href="../articles/implementation.html">vignette("implementation")</a></code>.</p></dd>
+
+
+<dt id="arg-k">k<a class="anchor" aria-label="anchor" href="#arg-k"></a></dt>
+<dd><p><em>Advanced.</em> <code>numeric</code>; controls the leaf prior. The prior standard
+deviation of a forest is <code>3 / k</code> times the natural scale of its additive
+predictor, so larger values shrink the fit harder toward the intercept-only
+model. Default is 2.</p></dd>
+
+
+<dt id="arg-bandwidth">bandwidth<a class="anchor" aria-label="anchor" href="#arg-bandwidth"></a></dt>
+<dd><p><em>Advanced.</em> <code>numeric</code>; the prior mean of the gate bandwidth
+of a soft rule, on the scale of the transformed predictors, which lie in
+<code>[0, 1]</code>. Smaller values approach hard rules. Default is .1. Ignored when
+<code>gate = "hard"</code>. See also <code>update_bandwidth</code> and <code>bandwidth_every</code>.</p></dd>
+
+
 <dt id="arg-share-sparsity">share_sparsity<a class="anchor" aria-label="anchor" href="#arg-share-sparsity"></a></dt>
-<dd><p><code>logical</code>; for a family with more than one additive
-predictor, whether the forests draw their splitting proportions from one
-pooled Dirichlet rather than one each. Default is <code>FALSE</code>. <code>TRUE</code> is an
-assumption about the data rather than a free improvement, and requires that
-the proportions be drawn at all and over the same predictors, so <code>sparsity</code>
-must not be <code>FALSE</code> for the forests that are to share. Ignored for a family
-with a single forest. See Details.</p></dd>
+<dd><p><em>Advanced.</em> <code>logical</code>; for a family with more than one
+additive predictor, whether the forests draw their splitting proportions
+from one pooled Dirichlet rather than one each. Default is <code>FALSE</code>. <code>TRUE</code>
+is an assumption about the data rather than a free improvement, and
+requires that the proportions be drawn at all and over the same predictors,
+so <code>sparsity</code> must not be <code>FALSE</code> for the forests that are to share.
+Ignored for a family with a single forest. See Details.</p></dd>
 
 
 <dt id="arg-categorical">categorical<a class="anchor" aria-label="anchor" href="#arg-categorical"></a></dt>
-<dd><p>string; how a splitting rule divides the levels of a
-factor. Allowable options include <code>"subset"</code> (the default), which draws a
-subset of the levels still available at the node and sends those left, and
-<code>"onehot"</code>, which is what most BART implementations do: it splits on one
-indicator column, peeling a single level off the rest. <code>"subset"</code> is right
-about the prior and never loses beyond noise; see Details.</p></dd>
+<dd><p><em>Advanced.</em> string; how a splitting rule divides the
+levels of a factor. Allowable options include <code>"subset"</code> (the default),
+which draws a subset of the levels still available at the node and sends
+those left, and <code>"onehot"</code>, which is what most BART implementations do: it
+splits on one indicator column, peeling a single level off the rest.</p></dd>
 
 
 <dt id="arg-augment">augment<a class="anchor" aria-label="anchor" href="#arg-augment"></a></dt>
-<dd><p><em>Advanced.</em> <code>logical</code> or <code>character</code>; whether to rewrite the
-likelihood as the margin of a Gaussian or a Poisson one, which makes the
-target a shape the sampler can exploit. <strong>The posterior is the same either
-way</strong>, so this is a sampling setting and not a modeling one. Default is
-<code>TRUE</code>, which rewrites wherever a rewriting exists: the binomial, ordinal,
-multinomial, negative binomial, zero-inflated, and survival families.
-<code>FALSE</code> never does, and a character vector of engine family names
-(<code>"binomial"</code>, <code>"ordinal"</code>, <code>"multinomial"</code>, <code>"negbin"</code>, <code>"zip"</code>, <code>"zinb"</code>,
-<code>"aft"</code>) asks for exactly those. A rewriting is always faster and has not
-been measured to mix worse per second, so the default is rarely worth
-changing; see <code><a href="../articles/implementation.html">vignette("implementation")</a></code>.</p></dd>
-
-
-<dt id="arg-x-transform">x_transform<a class="anchor" aria-label="anchor" href="#arg-x-transform"></a></dt>
-<dd><p>string; how numeric predictors are mapped to <code>[0, 1]</code>.
-Allowable options include <code>"smoothcdf"</code> (the default), <code>"quantile"</code>, and
-<code>"range"</code>. The choice places the cutpoint prior and, for soft rules, sets
-the scale the gate's width is measured on, and each has a failure it is
-worth knowing about; see Details.</p>
-<p><code>"smoothcdf"</code> uses a kernel-smoothed estimate of each predictor's
-distribution function, with an Epanechnikov kernel and a plug-in bandwidth
-at the <code>n^(-1/3)</code> rate that is right for a distribution function rather than
-the <code>n^(-1/5)</code> that is right for a density (Tenreiro, 2006; the rate was
-pointed out for a second-order approximation by Azzalini, 1981). Cutpoints
-land where the data are, as under <code>"quantile"</code>, and the map is strictly
-increasing and differentiable, as under <code>"range"</code>.</p>
-<p><code>"quantile"</code> uses the empirical distribution function, which is what
-<code>SoftBart::softbart()</code>
- does. It is a step function, so the fit is a
-step function of the predictor: it has no derivative, and a relationship
-that is straight in the predictor becomes a jump wherever the data are
-gappy.</p>
-<p><code>"range"</code> rescales linearly and preserves the original spacing. It is the
-most accurate of the three on well-behaved predictors and the right choice
-when a derivative is the quantity of interest, and it fails where a few
-extreme values leave the bulk of a predictor inside a sliver of its range.</p></dd>
+<dd><p><em>Advanced.</em> <code>logical</code>; whether to rewrite the likelihood as the
+margin of a Gaussian or a Poisson one, which makes the target a shape the
+sampler can exploit. The posterior is the same either way, so this is a
+sampling setting rather than a modeling one. Default is <code>TRUE</code>, which
+rewrites wherever a rewriting exists: the binomial, ordinal, multinomial,
+negative binomial, zero-inflated, and survival families. A rewriting is
+faster and has not been measured to mix worse per second, so the default is
+rarely worth changing; see <code><a href="../articles/implementation.html">vignette("implementation")</a></code>.</p></dd>
 
 
 <dt id="arg-gamma-beta">gamma, beta<a class="anchor" aria-label="anchor" href="#arg-gamma-beta"></a></dt>
@@ -352,15 +307,15 @@ to use the number of predictor groups; the two shapes default to whatever
 
 <dt id="arg-update-s-update-alpha">update_s, update_alpha<a class="anchor" aria-label="anchor" href="#arg-update-s-update-alpha"></a></dt>
 <dd><p><em>Advanced.</em> <code>logical</code>; whether to draw the
-splitting proportions and their concentration. Defaults are <code>NULL</code> to follow
-<code>sparsity</code>. Turning both off recovers a uniform prior over predictors, which
-is what <code>sparsity = FALSE</code> does.</p></dd>
+splitting proportions and their concentration. Defaults are <code>NULL</code> to
+follow <code>sparsity</code>. Turning both off recovers a uniform prior over
+predictors, which is what <code>sparsity = FALSE</code> does.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
-<dd><p><em>Advanced.</em> <code>logical</code>; whether to print progress to the console
-while sampling. Default is <code>FALSE</code>. For a progress bar instead, see the
-Progress section below, which needs no argument here.</p></dd>
+<dd><p><em>Advanced.</em> <code>logical</code>; whether to print progress to the
+console while sampling. Default is <code>FALSE</code>. For a progress bar instead, see
+the Progress section below, which needs no argument here.</p></dd>
 
 
 <dt id="arg-num-print">num_print<a class="anchor" aria-label="anchor" href="#arg-num-print"></a></dt>
@@ -389,184 +344,149 @@ on the general path; the two agree, at greater cost.</p></dd>
 <dt id="arg-generic-accumulate">generic_accumulate<a class="anchor" aria-label="anchor" href="#arg-generic-accumulate"></a></dt>
 <dd><p><em>Validation.</em> <code>logical</code>; whether to accumulate a
 leaf's sums through the family's virtual interface rather than through its
-own statically dispatched loop. Default is <code>FALSE</code>. The two compute the same
-thing; the second lets the compiler inline the family's arithmetic, which is
-most of the remaining per-observation cost.</p></dd>
+own statically dispatched loop. Default is <code>FALSE</code>. The two compute the
+same thing; the second lets the compiler inline the family's arithmetic,
+which is most of the remaining per-observation cost.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>&lt;bartisan_control&gt;</code> object, a list containing the supplied settings and the
-defaults for those not supplied, for passing to the <code>control</code> argument of
+    <p>A <code>&lt;bartisan_control&gt;</code> object, a list containing the supplied settings and
+the defaults for those not supplied, for passing to the <code>control</code> argument of
 <code><a href="bartisan.html">bartisan()</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The arguments are roughly ordered by how often they are worth changing. Those
+from <code>chains</code> to <code>x_transform</code> are modeling decisions, in that changing one
+changes what is fitted or how long it is fitted for, and the chain lengths
+and <code>num_trees</code> come first because they are adjusted most. Those marked
+<em>Advanced.</em> are hyperparameters of a prior that one of the first group
+summarizes, or switches whose default is almost always right. The three
+marked <em>Validation.</em> compute the same posterior more slowly, and are
+documented so that the checks using them can be read.</p><div class="section">
+<h3 id="setting-num-burn">Setting <code>num_burn</code><a class="anchor" aria-label="anchor" href="#setting-num-burn"></a></h3>
 
-<div class="section">
-<h3 id="how-long-warmup-needs-to-be">How Long Warmup Needs to Be<a class="anchor" aria-label="anchor" href="#how-long-warmup-needs-to-be"></a></h3>
 
-
-<p>The default is comfortably longer than the transient in every family measured,
-so raising <code>num_burn</code> buys convergence rather than precision: raise it when
-<code><a href="diagnose.html">diagnose()</a></code> says the chains have not agreed. <code><a href="bartisan-families.html">dpm()</a></code> is the exception, its
-mixture carrying a component-count state that settles more slowly than a
-forest does, so a longer warmup is worth having there and especially when the
-error distribution itself is the object of interest.</p>
+<p>The default is comfortably longer than the transient in every family
+measured, so raising <code>num_burn</code> buys convergence rather than precision: raise
+it when <code><a href="diagnose.html">diagnose()</a></code> says the chains have not agreed. <code><a href="bartisan-families.html">dpm()</a></code> is the
+exception, as its mixture carries a component-count state that settles more
+slowly than a forest does, so a longer warmup is worth having there and
+especially when the error distribution itself is the object of interest.</p>
 </div>
 
 <div class="section">
-<h3 id="how-many-trees-and-how-many-per-forest">How Many Trees, and How Many per Forest<a class="anchor" aria-label="anchor" href="#how-many-trees-and-how-many-per-forest"></a></h3>
+<h3 id="setting-num-trees">Setting <code>num_trees</code><a class="anchor" aria-label="anchor" href="#setting-num-trees"></a></h3>
 
 
-<p><strong>Soft rules need far fewer trees than hard ones</strong>, and can get worse as trees
-are added, which makes the count most BART packages default to actively wrong
-here. The default is the same for both anyway, because a smaller forest mixes
-worse: chains can disagree markedly on an average contrast at a small forest
-where they agree at the default, for only a slight gain in point accuracy.
-Drop below it if prediction is the only goal and the fit is soft; raise it
-with hard rules if it is not.</p>
-<p><strong>A vector is worth using when the family has more than one forest.</strong> The
-scale forest of <code><a href="bartisan-families.html">gaussian_ls()</a></code> dominates the run time, its target not being
-quadratic, and a variance surface carries much less information than a mean
-surface, so giving it fewer trees runs substantially faster at the same
-accuracy. It is not the default because how much resolution a variance surface
-needs depends on the surface, and quietly under-parameterizing it would show
-up as intervals that are wrong, which is what <code><a href="bartisan-families.html">gaussian_ls()</a></code> exists to get
-right. The leaf prior scale divides by the square root of each forest's own
-tree count, so shrinking one forest does not change the prior on the sum.</p>
+<p>The performance of the BART model is relatively insensitive to the number of
+trees. More trees create a more complicated model, which can mix poorly. A
+model with soft trees needs fewer trees than one with hard trees, but the
+default is the same for both. Generally, you don't need to change the number
+of trees for a model with a single forest; the defaults tend to do well,
+which is a strength of BART. The leaf prior scale divides by the square root
+of a forest's own tree count, so shrinking one forest does not change the
+prior on the sum.</p>
+<p><code>num_trees</code> can be supplied as a vector when the family has more than one
+forest, where each value corresponds to the number of trees for that forest.
+The scale forest of location-scale models (e.g., <code>family = gaussian_ls()</code>)
+dominates the run time, its target not being quadratic, and a variance
+surface carries much less information than a mean surface, so giving it fewer
+trees runs substantially faster at the same accuracy. It is not the default
+because how much resolution a variance surface needs depends on the surface,
+and quietly under-parameterizing it would show up as intervals that are
+wrong.</p>
 </div>
 
 <div class="section">
-<h3 id="the-sparsity-prior-and-what-it-costs">The Sparsity Prior, and What It Costs<a class="anchor" aria-label="anchor" href="#the-sparsity-prior-and-what-it-costs"></a></h3>
+<h3 id="choosing-a-gate-type-with-gate">Choosing a gate type with <code>gate</code><a class="anchor" aria-label="anchor" href="#choosing-a-gate-type-with-gate"></a></h3>
 
 
-<p><code>sparsity = TRUE</code> is the Dirichlet prior of Linero (2018) on the splitting
-proportions, and it is a genuine variable-selection prior: it can and does
-drop a predictor from every tree at once, which is the point of it in the
-high-dimensional problems it was built for.</p>
-<p>That has a consequence which is easy to misread. <strong>A contrast on a predictor
-the prior has dropped is exactly zero, not nearly zero</strong>, because in that draw
-the fit does not depend on that predictor at all, so the posterior of a
-contrast has an atom at zero whose mass is one minus the predictor's inclusion
-probability; any summary reporting a median lands on it once it holds half the
-mass. More trees does not fix it, because a predictor whose splitting
-proportion has gone small is rarely proposed and so is hard to get back in.</p>
-<p>Which way to throw the switch follows from the estimand, and the strength
-barely matters either way. <strong>For prediction or variable selection</strong>, keep the
-default; reaching past <code>TRUE</code> is warranted only when the predictors are many
-and nearly all are expected to be irrelevant. <strong>For a contrast, a partial
-effect, or a treatment effect</strong>, set <code>sparsity = FALSE</code>, or use <code>split_prior</code>,
-which cannot drop anything: on a weak signal the prior attenuates the estimate
-substantially and its interval covers below its nominal rate, while a strong
-effect is untouched. <code><a href="../articles/effects.html">vignette("effects")</a></code> works this through and
-<a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a> covers the atom.</p>
-<p><strong>For a varying-coefficient model the two answers can differ by forest.</strong> What
-the prior can drop is a predictor a forest splits on, and in a <code><a href="vc.html">vc()</a></code> model the
-treatment is the coefficient rather than one of those, carried by a forest of
-its own, so no splitting proportion can drop it; the prior on that forest
-selects among the moderators instead. So <code>sparsity = c(FALSE, TRUE)</code> is
+<p>A gate determines how much of each branch of a tree an observation
+contributes to, based on its value of the numeric predictor the rule splits
+on. For a predictor \(x\) and a threshold \(c\), the contribution of the
+observation to the right-hand branch is \(w_R(x; c)\), and the contribution
+to the left branch is \(w_L(x; c) = 1 - w_R(x; c)\).</p><div class="section">
+<h4 id="hard-gates">Hard Gates<a class="anchor" aria-label="anchor" href="#hard-gates"></a></h4>
+
+
+<p>For a hard gate (<code>gate = "hard"</code>), which is what is used in traditional BART
+and most other tree-based models,</p>
+<p>$$w_R(x; c) = \mathbb{I}(x &gt; c)$$</p>
+<p>where \(\mathbb{I}(\cdot)\) is the indicator function. An observation
+contributes only to one branch. This is the fastest to compute but cannot
+capture smooth functions well, yielding jagged fits.</p>
+</div>
+
+<div class="section">
+<h4 id="soft-gates">Soft Gates<a class="anchor" aria-label="anchor" href="#soft-gates"></a></h4>
+
+
+<p>For a soft gate, used in the SoftBart model of Linero and Yang (2018),</p>
+<p>$$w_R(x; c) = F\left(\frac{x - c}{h}\right)$$</p>
+<p>for some S-shaped function \(F(\cdot)\) with a bandwidth \(h\).</p>
+<p>The options for \(F(\cdot)\) are the different values <code>gate</code> can take.
+Computing the contribution weights for soft gates is slower than for hard
+gates, and the bandwidth is itself a parameter with a Metropolis step per
+tree per sweep, each rebuilding every membership weight in the tree, which is
+the single largest item in a soft-rule fit. These features make models with
+soft gates slower to compute than models with hard gates. The difference
+among the soft gates (<code>"smoothstep"</code>, <code>"smootherstep"</code>, and <code>"logistic"</code>) is
+negligible in predictive performance. <code>"smoothstep"</code> is computationally
+fastest and lets some observations have weights of exactly 0 or 1, which is
+why it is the default; <code>"logistic"</code> is the one Linero and Yang (2018)
+originally describe.</p>
+<p><code>bandwidth_every</code> controls how often the bandwidth is updated from its
+starting value specified by <code>bandwidth</code> for a soft gate when
+<code>update_bandwidth = TRUE</code> (the default). Drawing the bandwidth is what lets a
+rule sharpen toward a step, so setting <code>update_bandwidth = FALSE</code> is faster
+and tends to be more accurate on smooth functions, but is much worse on
+nonsmooth ones. Raising <code>bandwidth_every</code> is the middle course, recovering
+some speed while keeping soft rules, at a real cost in mixing and a small one
+in accuracy where the mean function jumps.</p>
+</div>
+
+
+</div>
+
+<div class="section">
+<h3 id="controlling-sparsity">Controlling Sparsity<a class="anchor" aria-label="anchor" href="#controlling-sparsity"></a></h3>
+
+
+<p><code>sparsity = TRUE</code> (the default) is the Dirichlet prior of Linero (2018) on
+the splitting proportions, and it is a genuine variable-selection prior: it
+can and does drop a predictor from every tree at once, which is the point of
+it in the high-dimensional problems it was built for.</p>
+<p>That has a consequence which is easy to misread. A contrast on a predictor
+the prior has dropped is exactly zero because in that draw the fit does not
+depend on that predictor at all, so the posterior of a contrast has an atom
+at zero whose mass is one minus the predictor's inclusion probability; any
+summary reporting a median lands on it once it holds half the mass. More
+trees does not fix it, because a predictor whose splitting proportion has
+gone small is rarely proposed and so is hard to get back in.</p>
+<p>How to specify <code>sparsity</code> follows from the estimand. For prediction or
+variable selection, keep the default; reaching past <code>TRUE</code> is warranted only
+when the predictors are many and nearly all are expected to be irrelevant.
+For a contrast, a partial effect, or a treatment effect, set <code>sparsity = FALSE</code>, or use <code>split_prior</code>, which cannot drop anything: on a weak signal
+the sparsity prior attenuates the estimate substantially and its interval
+covers below its nominal rate, while a strong effect is untouched.
+<code><a href="../articles/effects.html">vignette("effects")</a></code> works this through and <a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>
+covers the atom.</p>
+<p>For a varying-coefficient model, the sparsity choice can differ by forest
+(see more details below). What the prior can drop is a predictor a forest
+splits on, and in a <code><a href="vc.html">vc()</a></code> model the treatment is the coefficient rather than
+one of those, carried by a forest of its own, so no splitting proportion can
+drop it; the prior on that forest selects among the moderators instead. So
+<code>sparsity = c(FALSE, TRUE)</code>, which disables the sparsity prior for the
+control function forest and enables it for the varying coefficient forest, is
 coherent, and in <code><a href="bcf.html">bcf()</a></code> it is the asymmetry worth considering.</p>
-</div>
-
-<div class="section">
-<h3 id="sharing-the-sparsity-prior-across-forests">Sharing the Sparsity Prior Across Forests<a class="anchor" aria-label="anchor" href="#sharing-the-sparsity-prior-across-forests"></a></h3>
-
-
-<p>The trade is asymmetric, which is what makes <code>share_sparsity = TRUE</code> worth
-taking: nothing to gain when the predictors are few and there is no selection
-problem to transfer, a real gain for the weaker component when they are many,
-and a comparatively small cost when the components turn out to depend on
-different predictors. <code><a href="../articles/families.html">vignette("families")</a></code> shows it in use and
-<code><a href="variable_importance.html">variable_importance()</a></code> is where to check it. This is the variable-selection
-content of the shared forests of Linero et al. (2020) and not their model,
-which shares the tree <em>topology</em> and so fixes the cut points too; <code><a href="bcf.html">bcf()</a></code> sits
-at the other extreme, sharing an entire function rather than a prior.</p>
-</div>
-
-<div class="section">
-<h3 id="arguments-that-vary-by-forest">Arguments That Vary by Forest<a class="anchor" aria-label="anchor" href="#arguments-that-vary-by-forest"></a></h3>
-
-
-<p>A family with several additive predictors has one forest per predictor, each
-with its own prior. Every argument that could mean something different for one
-of them may be given once, to apply to all, or once per forest, either
-positionally or keyed by the forest names listed in <a href="bartisan-families.html">bartisan-families</a>. A
-forest a named argument does not mention keeps that argument's default rather
-than borrowing another forest's value. That covers <code>num_trees</code>, <code>k</code>,
-<code>sigma_mu</code>, <code>sparsity</code>, <code>split_prior</code>, <code>bandwidth</code>, <code>gamma</code>, <code>beta</code>, the four
-<code>alpha</code> arguments, and the three <code>update_</code> flags; <code>formula</code> works the same way,
-as <code><a href="bartisan.html">bartisan()</a></code> describes.</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fl">50</span>, log_sd <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>,</span>
-<span>                 sparsity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="cn">TRUE</span>, log_sd <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
-<p>The multinomial families are the exception, for the reason given in
-<a href="bartisan-families.html">bartisan-families</a>: their forests act as one, so these arguments take a
-single value.</p>
-</div>
-
-<div class="section">
-<h3 id="the-predictor-transform-x-transform-">The Predictor Transform (<code>x_transform</code>)<a class="anchor" aria-label="anchor" href="#the-predictor-transform-x-transform-"></a></h3>
-
-
-<p>Numeric predictors are mapped to <code>[0, 1]</code> before any rule sees them, and the
-map does two jobs at once: cutpoints are uniform on a node's live range in
-that coordinate, and for soft rules the gate's bandwidth is measured there
-too. The three options fail in different places, which is the whole of the
-choice between them.</p>
-<p><code>"range"</code> is the most accurate on well-behaved predictors and the only one
-that supports a derivative, since it is the only affine map of the three. Its
-failure is a predictor whose bulk sits inside a sliver of its range, which a
-few extreme values are enough to produce: a cutpoint drawn uniformly on a
-node's live range then almost never lands where the structure is. Measured
-over a simulation with 1% of a predictor at 300 times the scale and a truth
-that oscillates within the bulk, it was 4 times worse than the alternatives
-at <code>n = 500</code> and 6 times worse at <code>n = 2000</code>, with 95% intervals covering .24
-rather than .95. The deterioration with <code>n</code> is the signature: the extremes
-grow with the sample, so the bulk occupies an ever smaller share.</p>
-<p><code>"quantile"</code> cannot fail that way, since it places cutpoints by rank. It
-fails instead by being a step function, so the fit is a step function of the
-predictor: there is no derivative to take, and a relationship that is
-straight in the predictor becomes a jump wherever the data are gappy. On two
-tight clusters with a linear truth it was nearly three times worse than the
-alternatives.</p>
-<p><code>"smoothcdf"</code>, the default, smooths the same distribution function and so
-does neither. Across eight data-generating processes it was never the most
-accurate and never far from it, where each of the other two was badly wrong
-somewhere. It is not a free lunch: a derivative taken through it is the
-derivative of the fitted function times an estimated density, so <code>"range"</code>
-remains the better choice when a slope is the quantity of interest rather
-than a prediction.</p>
-<p>The bandwidth is a plug-in rather than one chosen from the data. The
-data-based selectors of Bergmann and Zaehle (2026) were measured here and are
-not used, because they optimize a different thing: they minimize the error in
-the estimated distribution function, where this map exists to place cutpoints
-and keep the coordinate smooth. The two come apart exactly where it matters.
-Given two tight clusters with a gap between them, they correctly choose a much
-narrower bandwidth, the distribution function really being flat in the gap;
-that returns the coordinate to nearly the step <code>"quantile"</code> would have given,
-and doubled the error of the fit.</p>
-</div>
-
-<div class="section">
-<h3 id="splitting-a-factor">Splitting a Factor<a class="anchor" aria-label="anchor" href="#splitting-a-factor"></a></h3>
-
-
-<p>What <code>"onehot"</code> costs is partial pooling. A rule on one indicator column can
-only peel a single level off the rest, so the partitions it reaches are a small
-fraction of those available and none divides the bulk of the levels; a typical
-tree leaves one level alone and the rest together, whether the data want that
-or not. A rule on a subset of the levels reaches every partition.</p>
-<p>Under hard rules <code>"subset"</code> is better at every sample size, clearly so when
-levels are thinly observed; under soft rules, which is the default, <strong>the two
-are indistinguishable</strong>. So <code>"subset"</code> is the default because it is right about
-the prior and never loses beyond noise, not because it will visibly improve a
-fit. Note that a rule on a factor is always hard even in a soft tree, since a
-gate is a function of the distance from a cutpoint and there is no distance
-between two levels; and that a two-level factor is unaffected either way.</p>
-</div>
-
-<div class="section">
-<h3 id="telling-the-prior-what-is-already-known">Telling the Prior What Is Already Known<a class="anchor" aria-label="anchor" href="#telling-the-prior-what-is-already-known"></a></h3>
+<p>Sparsity can also be controlled by choosing the sparsity parameter <code>alpha</code> or
+drawing it from a prior determined by the parameters <code>alpha_scale</code>,
+<code>alpha_shape_1</code>, and <code>alpha_shape_2</code>. The <code>sparsity</code> argument is a shortcut
+to setting these, since the relationship between them and the sparsity they
+induce is a bit opaque.</p><div class="section">
+<h4 id="telling-the-prior-what-is-already-known">Telling the Prior What Is Already Known<a class="anchor" aria-label="anchor" href="#telling-the-prior-what-is-already-known"></a></h4>
 
 
 <p><code>sparsity</code> and <code>split_prior</code> answer different questions and cannot both be in
@@ -574,40 +494,38 @@ force, so giving <code>split_prior</code> turns <code>sparsity</code> off. <code
 which predictors matter is unknown and the prior is to work it out from the
 data, and a predictor can be dropped entirely; <code>split_prior</code> is for when
 something is known and is to be honored, with the proportions held at the
-supplied weights. Neither is about a forest being held to the predictors its
-own formula names: a <code><a href="vc.html">vc()</a></code> term whose moderators are only some of the
-covariates still draws its splitting proportions, over those moderators.</p>
+supplied values.</p>
 <p>A weight is a statement about relative attention, not about effect size. It
-changes how often a split on a predictor is proposed, which is a prior, so the
-data can still overrule it in either direction. Because the weights are fixed,
-<code>split_prior</code> does not accumulate the atom-at-zero mass above, which makes it
-a reasonable middle course when a particular contrast is the estimand but the
-predictors are too many to treat alike. One weight per term in the formula,
-not per column of the design matrix, so a factor is named once and its levels
-share the weight.</p>
+changes how often a split on a predictor is proposed, which is a prior, so
+the data can still overrule it in either direction. Because the weights are
+fixed, <code>split_prior</code> does not accumulate the atom-at-zero mass above, which
+makes it a reasonable middle course when a particular contrast is the
+estimand but the predictors are too many to treat alike. One weight per term
+in the formula, not per column of the design matrix, so a factor is named
+once and its levels share the weight.</p>
+</div>
+
+
 </div>
 
 <div class="section">
-<h3 id="what-augment-does-not-cover">What <code>augment</code> Does Not Cover<a class="anchor" aria-label="anchor" href="#what-augment-does-not-cover"></a></h3>
+<h3 id="arguments-that-vary-by-forest">Arguments That Vary by Forest<a class="anchor" aria-label="anchor" href="#arguments-that-vary-by-forest"></a></h3>
 
 
-<p><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">Gamma()</a></code> and <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code> need no rewriting, their targets being already in
-the exponential form the sampler exploits, and none is known for the
-accelerated failure time, ordered beta, or location-scale families, so
-<code>augment</code> is silent for all of them. Which families it does cover, what each
-rewriting is, and what each buys are in <code><a href="../articles/implementation.html">vignette("implementation")</a></code>.</p>
-</div>
-
-<div class="section">
-<h3 id="rare-events-mix-slowly">Rare Events Mix Slowly<a class="anchor" aria-label="anchor" href="#rare-events-mix-slowly"></a></h3>
-
-
-<p>With very few events the whole fit mixes slowly, augmented or not, and the
-effective sample size of the level of the predictor can fall to a small
-fraction of what a balanced response gives. That is the information in a
-handful of events rather than a fault of the rewritings, and <span class="pkg">dbarts</span>, an
-independent implementation of the same latent normal, reproduces it. Lengthen
-the chain, and read <code><a href="diagnose.html">diagnose()</a></code>'s <code>rhat</code>.</p>
+<p>A family with several additive predictors has one forest per predictor, each
+with its own prior. Every argument that could mean something different for
+one of them may be given once, to apply to all, or once per forest, either
+positionally or keyed by the forest names listed in <a href="bartisan-families.html">bartisan-families</a>. A
+forest a named argument does not mention keeps that argument's default rather
+than borrowing another forest's value. That covers <code>num_trees</code>, <code>k</code>,
+<code>sigma_mu</code>, <code>sparsity</code>, <code>split_prior</code>, <code>bandwidth</code>, <code>gamma</code>, <code>beta</code>, the four
+<code>alpha</code> arguments, and the three <code>update_</code> flags; <code>formula</code> works the same
+way, as <code><a href="bartisan.html">bartisan()</a></code> describes.</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fl">50</span>, log_sd <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>,</span>
+<span>                 sparsity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="cn">TRUE</span>, log_sd <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>The multinomial families are the exception, for the reason given in
+<a href="bartisan-families.html">bartisan-families</a>: their forests act as one, so these arguments take a
+single value.</p>
 </div>
 
 <div class="section">
@@ -618,7 +536,7 @@ the chain, and read <code><a href="diagnose.html">diagnose()</a></code>'s <code>
 whole of what this package decides about progress. A progress bar is
 <a href="https://CRAN.R-project.org/package=progressr" class="external-link"><span class="pkg">progressr</span></a>'s business, and the sampler reports to it
 unconditionally: nothing is shown unless a handler is active, so there is no
-argument to switch on.</p>
+argument to switch on. To request a progress bar, use one of the calls below:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu">progressr</span><span class="fu">::</span><span class="fu"><a href="https://progressr.futureverse.org/reference/with_progress.html" class="external-link">with_progress</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
@@ -627,93 +545,53 @@ argument to switch on.</p>
 <span><span class="fu">progressr</span><span class="fu">::</span><span class="fu"><a href="https://progressr.futureverse.org/reference/handlers.html" class="external-link">handlers</a></span><span class="op">(</span>global <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>The bar is sized for the whole fit, so <code>chains = 4</code> fills one bar once rather
 than four in sequence, and chains running in parallel under <a href="https://CRAN.R-project.org/package=future" class="external-link"><span class="pkg">future</span></a>
-relay their progress back as it arrives. Convergence diagnostics are not
-included because they are not part of a fit; they run in <code><a href="diagnose.html">diagnose()</a></code>, which
-reports its own progress the same way. Progress does not touch the draws.</p>
+relay their progress back as it arrives.</p>
 </div>
 
 <div class="section">
-<h3 id="what-else-runs-in-parallel-and-one-limit-on-it">What Else Runs in Parallel, and One Limit on It<a class="anchor" aria-label="anchor" href="#what-else-runs-in-parallel-and-one-limit-on-it"></a></h3>
+<h3 id="parallelization-with-future">Parallelization with <span class="pkg">future</span><a class="anchor" aria-label="anchor" href="#parallelization-with-future"></a></h3>
 
 
-<p>A <code>future</code> plan is used by three things, and only the first is the sampler:
-the chains of a fit, the per-observation pass in <code><a href="diagnose.html">diagnose()</a></code>, and the
-repeated predictions in <code><a href="partial_dependence.html">partial_dependence()</a></code> and <code><a href="estimate_effect.html">estimate_effect()</a></code>. The
-sampler has no other axis, since a sweep conditions on the one before it.
-Measured on 1500 observations with a 25-point grid, the predictions run about
-three times faster on four workers.</p>
-<p>The limit worth knowing is <span class="pkg">future</span>'s, not this package's. Anything that
-predicts on a worker has to be sent the fit, and a fit is mostly its stored
-predictor and flattened forests, which grow with the draws and the sample: at
-1500 observations and 3200 draws one serializes to about 70 MB, so four
-workers move 280 MB. <code><a href="https://future.futureverse.org/reference/plan.html" class="external-link">future::plan()</a></code>
- refuses a single export above
-<code>future.globals.maxSize</code>, 500 MB by default, and a fit large enough on both
-counts will trip it. The error names the option; raising it is the fix, and
-running sequentially is the alternative.</p>
-</div>
-
-<div class="section">
-<h3 id="soft-rules-and-the-cost-of-a-gate">Soft Rules and the Cost of a Gate<a class="anchor" aria-label="anchor" href="#soft-rules-and-the-cost-of-a-gate"></a></h3>
-
-
-<p>A soft rule is charged for in two places: every observation reaches more than
-one leaf, so a pass over a node covers several times the sample, and the
-bandwidth is itself a parameter with a Metropolis step per tree per sweep,
-each rebuilding every membership weight in the tree, which is the single
-largest item in a soft-rule fit.</p>
-<p>A bounded gate addresses the first: past its half-width from the cutpoint the
-gate is exactly zero or one, so the observation takes one side outright and
-the gate is a polynomial rather than an <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code>. Most of what that saves is
-the <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code> rather than the work past the cutpoint, which is why <em>which</em>
-bounded gate is chosen makes almost no difference; prefer <code>"smootherstep"</code>
-because it gives a twice-differentiable fit. Its half-width is
-<code>pi * sqrt((2a + 1) / 3)</code> times <code>bandwidth</code> for the Beta(a, a) gate, which
-equates the gates' standard deviations so that <code>bandwidth</code> means the same
-amount of smoothing whichever is chosen.</p>
-<p><code>bandwidth_every</code> addresses the second. Drawing the bandwidth is what lets a
-rule sharpen toward a step, so fixing it (<code>update_bandwidth = FALSE</code>) is
-faster still and <em>more</em> accurate on smooth functions and much worse on
-nonsmooth ones. Raising <code>bandwidth_every</code> is the middle course, recovering
-some speed while keeping soft rules, at a real cost in mixing and a small one
-in accuracy where the mean function jumps.</p>
+<p>To request parallel processing, specify a future plan, e.g., using</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu">future</span><span class="fu">::</span><span class="fu"><a href="https://future.futureverse.org/reference/plan.html" class="external-link">plan</a></span><span class="op">(</span><span class="st">"multisession"</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>Parallelization only works with multiple chains (i.e., <code>chains</code> set to
+greater than 1), and each chain is run in parallel. With large fits (many
+draws or a large sample size), an error might be thrown by
+<code><a href="https://future.futureverse.org/reference/plan.html" class="external-link">future::plan()</a></code>
+, which refuses a single export above
+<code>future.globals.maxSize</code>, 500 MB by default. The error names the option;
+raising it is the fix, and running sequentially is the alternative.</p>
+<p>Parallelization can be used with a <span class="pkg">progressr</span> progress bar.</p>
 </div>
 
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Azzalini, A. (1981). A note on the estimation of a distribution function and
-quantiles by a kernel method. <em>Biometrika</em>, 68(1), 326–328.
-<a href="https://doi.org/10.1093/biomet/68.1.326" class="external-link">doi:10.1093/biomet/68.1.326</a></p>
-<p>Bergmann, T., &amp; Zaehle, H. (2026). Data-based bandwidth selection for kernel
-smoothing of empirical distribution functions. <em>Metrika</em>.
-<a href="https://doi.org/10.1007/s00184-026-01025-6" class="external-link">doi:10.1007/s00184-026-01025-6</a></p>
-<p>Tenreiro, C. (2006). Asymptotic behaviour of multistage plug-in bandwidth
-selections for kernel distribution function estimators. <em>Journal of
-Nonparametric Statistics</em>, 18(1), 101–116.
-<a href="https://doi.org/10.1080/10485250600578334" class="external-link">doi:10.1080/10485250600578334</a></p>
-<p>Linero, A. R. (2018). Bayesian regression trees for high-dimensional
+    <p>Linero, A. R. (2018). Bayesian regression trees for high-dimensional
 prediction and variable selection. <em>Journal of the American Statistical
 Association</em>, 113(522), 626–636. <a href="https://doi.org/10.1080/01621459.2016.1264957" class="external-link">doi:10.1080/01621459.2016.1264957</a></p>
 <p>Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
 beyond conditional conjugacy. <em>Journal of the American Statistical
-Association</em>, 120(549), 356–369.</p>
-<p>Linero, A. R., &amp; Yang, Y. (2018). Bayesian regression tree ensembles that
-adapt to smoothness and sparsity. <em>Journal of the Royal Statistical Society
-Series B</em>, 80(5), 1087–1110.</p>
+Association</em>, 120(549), 356–369. <a href="https://doi.org/10.1080/01621459.2024.2337156" class="external-link">doi:10.1080/01621459.2024.2337156</a></p>
 <p>Linero, A. R., Sinha, D., &amp; Lipsitz, S. R. (2020). Semiparametric mixed-scale
 models using shared Bayesian forests. <em>Biometrics</em>, 76(1), 131–144.
 <a href="https://doi.org/10.1111/biom.13107" class="external-link">doi:10.1111/biom.13107</a></p>
+<p>Linero, A. R., &amp; Yang, Y. (2018). Bayesian regression tree ensembles that
+adapt to smoothness and sparsity. <em>Journal of the Royal Statistical Society
+Series B</em>, 80(5), 1087–1110. <a href="https://doi.org/10.1111/rssb.12293" class="external-link">doi:10.1111/rssb.12293</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="bartisan.html">bartisan()</a></code>, which takes the result as its <code>control</code> argument;
-<a href="bartisan-families.html">bartisan-families</a> for the forest names the per-forest arguments are keyed by</p></div>
+<a href="bartisan-families.html">bartisan-families</a> for the forest names the per-forest arguments are keyed
+by</p>
+<p><code><a href="../articles/implementation.html">vignette("implementation")</a></code> for more details on the BART implementation.</p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Settings can be built up once and reused across fits</span></span></span>
 <span class="r-in"><span><span class="va">ctrl</span> <span class="op">&lt;-</span> <span class="fu">bartisan_control</span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">20</span>, gate <span class="op">=</span> <span class="st">"hard"</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
@@ -852,7 +730,7 @@ models using shared Bayesian forests. <em>Biometrics</em>, 76(1), 131–144.
 <span class="r-in"><span><span class="co"># prior would otherwise be free to drop</span></span></span>
 <span class="r-in"><span><span class="fu">bartisan_control</span><span class="op">(</span>split_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>rhc <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $num_trees</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 50</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $gate</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "smoothstep"</span>

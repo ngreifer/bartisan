@@ -97,9 +97,9 @@ matrices, one per coefficient.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The control function is not among them. It is the surface at the value each
-covariate was centered on, which is a prediction rather than a coefficient;
-<code>predict(object)</code> is what reports predictions.</p>
+    <p>The coefficients are the varying ones alone. The control function is the
+surface at the value each covariate was centered on, which is a prediction
+rather than a coefficient, and <code>predict(object)</code> reports it.</p>
 <p>For a factor the coefficients are recentered to sum to zero across its levels,
 which is what makes them the deviations they are reported as. The symmetric
 coding carries one spare function-valued dimension, so this is exact rather

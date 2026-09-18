@@ -82,19 +82,15 @@ Default is .95 for a 95% interval.</p></dd>
 
 <dt id="arg-draws">draws<a class="anchor" aria-label="anchor" href="#arg-draws"></a></dt>
 <dd><p><code>logical</code>; whether to return the splitting counts of every
-posterior draw rather than a summary of them, which is what to use for a
-comparison the summary does not offer (e.g., the posterior probability that
-one predictor takes more rules than another). Default is <code>FALSE</code> to return
-the summary. Cannot be combined with <code>plot</code>.</p></dd>
+posterior draw rather than a summary of them, for a comparison the summary
+does not offer. Default is <code>FALSE</code>. Cannot be combined with <code>plot</code>.</p></dd>
 
 
 <dt id="arg-plot">plot<a class="anchor" aria-label="anchor" href="#arg-plot"></a></dt>
-<dd><p><code>logical</code>; whether to return a plot of the table instead of the
-table, as a <a href="https://CRAN.R-project.org/package=ggplot2" class="external-link"><span class="pkg">ggplot2</span></a> object showing <code>splits</code> and its interval for
-each predictor. Default is <code>FALSE</code>. Equivalent to calling <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the
-result, which is usually the more convenient of the two since the table can
-be subset first (e.g., <code>plot(head(imp, 10))</code> for a wide model).
-<span class="pkg">ggplot2</span> must be installed for either.</p></dd>
+<dd><p><code>logical</code>; whether to return a <a href="https://CRAN.R-project.org/package=ggplot2" class="external-link"><span class="pkg">ggplot2</span></a> plot of <code>splits</code>
+and its interval for each predictor instead of the table. Default is
+<code>FALSE</code>. Equivalent to calling <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the result, which is usually more
+convenient since the table can be subset first.</p></dd>
 
 
 <dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
@@ -132,84 +128,52 @@ named list of them when there is more than one forest. With <code>plot = TRUE</c
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
 
 <div class="section">
-<h3 id="which-column-answers-which-question">Which Column Answers Which Question<a class="anchor" aria-label="anchor" href="#which-column-answers-which-question"></a></h3>
+<h3 id="reading-the-columns">Reading the Columns<a class="anchor" aria-label="anchor" href="#reading-the-columns"></a></h3>
 
 
-<p><code>prop_used</code> (the proportion of posterior draws in which the predictor
-received at least one splitting rule) is the one to read first. It behaves
-like a posterior probability that the predictor belongs in the model, and it
-separates signal from noise sharply once <code>sparsity = TRUE</code> in
-<code><a href="bartisan_control.html">bartisan_control()</a></code>, which puts a Dirichlet prior on how the rules are shared
-out and lets unused predictors be dropped rather than merely used rarely. With
+<p><code>prop_used</code> is the one to read first. It behaves like a posterior probability
+that the predictor belongs in the model, and it separates signal from noise
+sharply once <code>sparsity = TRUE</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>. With
 <code>sparsity = FALSE</code> every predictor keeps a share of the rules and <code>prop_used</code>
-sits near 1 throughout, so the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method says so rather than leaving
-the column to be misread.</p>
-<p><code>prop_splits</code> is the one to reach for when two fits are being compared.
-<code>splits</code> counts rules, so it scales with <code>num_trees</code> and a fit of 40 trees
-will report four times the count of a fit of 10 without being four times as
-informative; the share is computed within each draw before averaging, so the
-shares add to one whatever the forest size. Note that the share is a property
-of the forest and not only of the predictor, so it can still shift when the
-forest size changes how the rules are allocated; the ranking is the stable
-part.</p>
-<p><code>splits</code>, the mean number of rules per draw, says how much of the forest's
-structure a predictor accounts for. It is the more familiar number and the
-easier one to over-read.</p>
+sits near 1 throughout, which the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method notes.</p>
+<p><code>prop_splits</code> is the one to reach for when two fits are being compared. The
+share is computed within each draw before averaging, so the shares add to one
+whatever the forest size, where <code>splits</code> counts rules and so scales with
+<code>num_trees</code>. <code>splits</code> itself, the mean number of rules per draw, says how much
+of the forest's structure a predictor accounts for, and is the easier of the
+three to over-read.</p>
 </div>
 
 <div class="section">
-<h3 id="three-things-this-is-not">Three Things This Is Not<a class="anchor" aria-label="anchor" href="#three-things-this-is-not"></a></h3>
+<h3 id="limits-of-a-usage-ranking">Limits of a Usage Ranking<a class="anchor" aria-label="anchor" href="#limits-of-a-usage-ranking"></a></h3>
 
 
-<p><strong>It is not an effect size.</strong> A predictor can be split on constantly and move
-the prediction very little, and the reverse happens too. If the question is
-how much a predictor moves the outcome, that is a job for
-<code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code>
- on the fitted model, not for this
-table. See <a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>.</p>
-<p><strong>It is not stable under correlated predictors.</strong> When two predictors carry
-the same information the trees split on whichever is convenient, and the usage
-distributes between them more or less arbitrarily. A predictor can matter and
-still show a low <code>prop_used</code> because a collinear partner absorbed it, so a
-group of correlated predictors is best read as a group.</p>
-<p><strong>It is not causal.</strong> A ranking of predictors by usage is a description of
-this fitted function, not of what would happen if any of them were changed.</p>
+<p>Usage is not effect size: a predictor can be split on constantly and move the
+prediction very little. Where the question is how much a predictor moves the
+outcome, <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code>
+ on the fitted model
+answers it; see <a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a>. Where two predictors carry the
+same information the trees split on whichever is convenient and the usage
+distributes between them arbitrarily, so a group of correlated predictors is
+best read as a group. And a ranking by usage describes this fitted function
+rather than what would happen if a predictor were changed.</p>
 </div>
 
 <div class="section">
 <h3 id="reading-it-as-variable-selection">Reading It as Variable Selection<a class="anchor" aria-label="anchor" href="#reading-it-as-variable-selection"></a></h3>
 
 
-<p>With <code>sparsity = TRUE</code>, <code>prop_used</code> is usable as a selection rule: predictors
-the forest genuinely needs sit near 1 and the rest fall near 0, usually with a
-wide gap rather than a continuum. It is the posterior inclusion probability
-that the Dirichlet prior was introduced to make readable (Linero, 2018), and
-cutting it at .5 gives the median probability model, which Barbieri and Berger
-(2004) show is often a better predictive submodel under squared error loss
-than the model of highest posterior probability. That is the same quantity and
-the same cut <span class="pkg">SoftBart</span> reports from a soft BART fit, computed from the
-same splitting counts. No threshold is correct in general, though, so the gap
-is the thing to look at, and a conclusion worth reporting will not depend on
-where in it the cut is made.</p>
-<p>The .5 cut chooses a predictive submodel and is not a test, and it does not
-behave like one. On data where no predictor matters at all, at \(n = 300\)
-with 25 predictors and 20 trees, it selected 7 of the 25 on average with
-<code>sparsity = TRUE</code> and all 25 with <code>sparsity = FALSE</code>. A forest asked to fit
-noise still puts its rules somewhere, and <code>prop_used</code> reports where they went
-rather than whether they were needed.</p>
+<p>With <code>sparsity = TRUE</code>, <code>prop_used</code> is usable as a selection rule: the
+predictors the forest genuinely needs sit near 1 and the rest fall near 0,
+usually with a wide gap rather than a continuum, and cutting that gap at .5
+gives the median probability model. No threshold is correct in general, so the
+gap is the thing to look at, and a conclusion worth reporting will not depend
+on where in it the cut is made. A forest asked to fit noise still puts its
+rules somewhere, so the cut chooses a predictive submodel rather than testing
+one. <code><a href="../articles/importance.html">vignette("importance")</a></code> calibrates it against noise predictors and works
+through correlated ones.</p>
 </div>
 
-    </div>
-    <div class="section level2">
-    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Barbieri, M. M., &amp; Berger, J. O. (2004). Optimal predictive model selection.
-<em>The Annals of Statistics</em>, 32(3). <a href="https://doi.org/10.1214/009053604000000238" class="external-link">doi:10.1214/009053604000000238</a></p>
-<p>Bleich, J., Kapelner, A., George, E. I., &amp; Jensen, S. T. (2014). Variable
-selection for BART: an application to gene regulation. <em>The Annals of Applied
-Statistics</em>, 8(3). <a href="https://doi.org/10.1214/14-AOAS755" class="external-link">doi:10.1214/14-AOAS755</a></p>
-<p>Linero, A. R. (2018). Bayesian regression trees for high-dimensional
-prediction and variable selection. <em>Journal of the American Statistical
-Association</em>, 113(522), 626–636. <a href="https://doi.org/10.1080/01621459.2016.1264957" class="external-link">doi:10.1080/01621459.2016.1264957</a></p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

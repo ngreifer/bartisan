@@ -157,21 +157,21 @@ their names suggest.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
 
 <div class="section">
-<h3 id="how-the-uncertainty-is-computed">How the Uncertainty Is Computed<a class="anchor" aria-label="anchor" href="#how-the-uncertainty-is-computed"></a></h3>
+<h3 id="uncertainty">Uncertainty<a class="anchor" aria-label="anchor" href="#uncertainty"></a></h3>
 
 
 <p>A forest has no coefficient vector and no variance-covariance matrix, so the
-delta method <span class="pkg">marginaleffects</span> uses for a frequentist model has nothing
-to work with. It has something better here: the posterior draws. Every
-estimand is computed by pushing all of the draws through the same
-transformation and summarizing at the end, so an interval is a posterior
-quantile rather than a normal approximation, and a nonlinear estimand needs no
-approximation at all. This is the same path <span class="pkg">marginaleffects</span> takes for
-<span class="pkg">brms</span> and <span class="pkg">rstanarm</span> fits.</p>
-<p>One consequence worth knowing: <span class="pkg">marginaleffects</span> centers a posterior at
-its <strong>median</strong>, where <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports its <strong>mean</strong>. The two are
-summarizing the same draws, so a difference between them is the skewness of
-the posterior and not a disagreement.</p>
+delta method <span class="pkg">marginaleffects</span> uses for a frequentist model has nothing to
+work with. It has the posterior draws instead: every estimand is computed by
+pushing all of the draws through the same transformation and summarizing at
+the end, so an interval is a posterior quantile rather than a normal
+approximation, and a nonlinear estimand needs no approximation at all. This is
+the same path <span class="pkg">marginaleffects</span> takes for <span class="pkg">brms</span> and <span class="pkg">rstanarm</span>
+fits.</p>
+<p>One consequence is worth knowing: <span class="pkg">marginaleffects</span> centers a posterior at
+its median, where <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports its mean. The two summarize
+the same draws, so a difference between them is the skewness of the posterior
+rather than a disagreement.</p>
 </div>
 
 <div class="section">
@@ -179,45 +179,30 @@ the posterior and not a disagreement.</p>
 
 
 <p><code>avg_comparisons()</code> reporting an estimate of exactly <code>0</code> is the most common
-surprise here, and it is neither package computing anything wrong. Two facts
-meet to produce it.</p>
-<p>The posterior of a contrast has an <strong>atom at exactly zero</strong>. In any draw where
-no tree in the forest splits on the variable being contrasted, the fit does not
-depend on that variable at all, so the two counterfactual predictions are
-identical to the last bit and their difference is exactly zero. That is not a
-near-zero value that rounding flattered; it is a point mass. The Dirichlet
-sparsity prior on the splitting proportions, <code>sparsity</code> in
-<code><a href="bartisan_control.html">bartisan_control()</a></code>, is what makes those draws common: it is a variable
-selection prior, and dropping a weak predictor from every tree is what it is
-for.</p>
-<p>And <span class="pkg">marginaleffects</span> centers a posterior at its <strong>median</strong>. So once the
-atom holds more than half the mass, the reported estimate is exactly zero
-however large the rest of the posterior is, which is a thing that happens on
-real data rather than a curiosity: the median can land on the atom while the
-posterior mean and the upper limit of the interval are both far from zero.</p>
-<p>Four things are worth doing about it, in the order given.</p>
-<p><strong>Look at the inclusion probability</strong>, which is what the zero reports.
-<code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> gives it as <code>prop_used</code>: the posterior probability that each
-predictor group appears anywhere in the forest. A contrast whose median is
-zero is a predictor the model is not sure belongs.</p>
-<p><strong>Ask for the mean instead</strong>, with
-<code>options(marginaleffects_posterior_center = mean)</code>. The mean is the summary
-<code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports, and it is the one that behaves sensibly
-against an atom.</p>
-<p><strong>Reconsider the sparsity prior</strong> when variable selection is not what the fit
-is for. <code>sparsity = FALSE</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code> removes the atom almost
-entirely, where a larger <code>num_trees</code> does <em>not</em>, which is worth stating
-because it looks as though it should. Turning the prior off is a modeling
-choice rather than a fix, so it wants a reason; it is the right one when a
-contrast on a particular predictor is the estimand, and the wrong one when
-there are many predictors and most are irrelevant. <code><a href="../articles/effects.html">vignette("effects")</a></code>
-works the choice through.</p>
-<p><strong>Run several chains and compare them.</strong> The variable selection state mixes
-slowly, because a predictor whose splitting proportion has gone small is
-rarely proposed and so is hard to get back in. On the example above, four
-chains disagreed by more than 100% of the estimate at every tree count from 20
-to 200 with the prior on; with <code>sparsity = FALSE</code> and 50 trees they agreed to
-within 9%. A single chain can look much more settled than the posterior is.</p>
+surprise here, and two facts meet to produce it.</p>
+<p>The posterior of a contrast has an atom at exactly zero. In any draw where no
+tree splits on the variable being contrasted, the fit does not depend on that
+variable at all, so the two counterfactual predictions are identical to the
+last bit and their difference is exactly zero. The Dirichlet sparsity prior,
+<code>sparsity</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>, is what makes those draws common, since
+dropping a weak predictor from every tree is what a variable selection prior
+is for. And <span class="pkg">marginaleffects</span> centers a posterior at its median, so once
+the atom holds more than half the mass the reported estimate is exactly zero
+however large the rest of the posterior is: the median can land on the atom
+while the posterior mean and the upper limit of the interval are both far from
+zero.</p>
+<p>Four things are worth doing about it, in the order given. Look at
+<code>prop_used</code> in <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, the posterior probability that the predictor
+appears anywhere in the forest, which is what the zero reports. Ask for the
+mean instead, with <code>options(marginaleffects_posterior_center = mean)</code>, which
+is the summary <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports and the one that behaves
+sensibly against an atom. Reconsider the sparsity prior, since
+<code>sparsity = FALSE</code> removes the atom almost entirely where a larger <code>num_trees</code>
+leaves it in place; that is a modeling choice rather than a fix, and it is the
+right one when a contrast on a particular predictor is the estimand. And run
+several chains and compare them, because the variable selection state mixes
+slowly and a single chain can look much more settled than the posterior is.
+<code><a href="../articles/effects.html">vignette("effects")</a></code> works the choice through.</p>
 </div>
 
 <div class="section">
@@ -225,36 +210,18 @@ within 9%. A single chain can look much more settled than the posterior is.</p>
 
 
 <p>A slope is a numerical derivative, and taking one requires the fitted function
-to be differentiable in the predictor <em>as the caller supplies it</em>. Whether it
-is depends on <code>x_transform</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>, because the fit is a
-smooth function of the transformed predictor rather than of the original one.</p>
-<p>The three options behave differently, and the way to see it is to shrink the
-step. On a smooth surface whose average slope over the sample is .5485:</p><table class="table table"><tr><td>step</td><td><code>"smoothcdf"</code></td><td><code>"quantile"</code></td><td><code>"range"</code></td></tr><tr><td>1e-1</td><td>.553</td><td>.577</td><td>.544</td></tr><tr><td>1e-2</td><td>.559</td><td>.882</td><td>.543</td></tr><tr><td>1e-3</td><td>.560</td><td>3.73</td><td>.543</td></tr><tr><td>1e-4</td><td>.561</td><td>31.8</td><td>.543</td></tr><tr><td>1e-5</td><td>.561</td><td>311.</td><td>.543</td></tr></table><p><code>"quantile"</code> has no derivative at all. It maps each predictor through its
-empirical distribution function, which is a step, so the fit is a step
-function of the original predictor whatever the decision rules are, and the
-difference quotient grows without bound as the step shrinks. The number it
-returns at any particular step is an artifact of that step.</p>
-<p>The other two converge, and <code>"range"</code> converges closer. That is not an
-accident of this example. Writing the fit as <code>f(T(x))</code>, a slope is
-<code>f'(T(x))</code> times <code>T'(x)</code>. Under <code>"range"</code> the map is affine, so <code>T'</code> is a known
-constant and the only estimated quantity is <code>f'</code>. Under <code>"smoothcdf"</code> the map
-is an estimated distribution function, so <code>T'</code> is an estimated <em>density</em> and
-the slope is a product of two estimates whose relative errors add. On the fit
-above that density factor is off by a median of 6% and by as much as 40% in
-the sparse upper tail, which is most of the gap between the two columns.</p>
-<p>Two details make that worse rather than better. The bandwidth is chosen at the
-rate that is right for a distribution function, which is smaller than the rate
-that is right for a density, so the density implied by the map is
-undersmoothed for the purpose a slope puts it to. And the leaf prior acts on
-<code>f</code> in the transformed coordinate, where a constant slope in <code>x</code> requires
-<code>f'</code> to grow like one over the density; the prior shrinks that, which pulls
-slopes in sparse regions toward zero on top of the estimation error.</p>
-<p>So <strong><code>x_transform = "range"</code> is what slopes want</strong>, and refitting with it is
+to be differentiable in the predictor as the caller supplies it. Whether it is
+depends on <code>x_transform</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>, because the fit is a smooth
+function of the transformed predictor rather than of the original one.</p>
+<p><code>x_transform = "range"</code> is what slopes want, and refitting with it is
 worthwhile when a derivative is the quantity being reported rather than a
-prediction. The default is <code>"smoothcdf"</code> because it is the better bet for
-everything else; see <code><a href="bartisan_control.html">bartisan_control()</a></code>. Hard rules give a
-piecewise-constant fit under any transform, and a derivative of one is not a
-meaningful quantity however it is computed.</p>
+prediction. It is the only affine map of the three, so it is the only one
+through which a slope of the fit is a slope of the original predictor. The
+default, <code>"smoothcdf"</code>, carries an estimated density along with it and lands
+close; <code>"quantile"</code> maps each predictor through a step function and so has no
+derivative to take, and the number returned there is a property of the step
+size rather than of the fit. <code><a href="../articles/effects.html">vignette("effects")</a></code> shows what each does as the
+step shrinks.</p>
 <p>None of this affects <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::predictions()</a></code>
  or
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::comparisons()</a></code>
@@ -279,20 +246,17 @@ result is correct.</p>
 </div>
 
 <div class="section">
-<h3 id="what-is-not-covered">What Is Not Covered<a class="anchor" aria-label="anchor" href="#what-is-not-covered"></a></h3>
+<h3 id="prediction-types">Prediction Types<a class="anchor" aria-label="anchor" href="#prediction-types"></a></h3>
 
 
-<p><code>type = "class"</code> and <code>type = "density"</code> are not available, because
-neither is one number per observation that an average or a contrast could be
-taken of: a class is a factor, and a density needs the outcome, which a
-counterfactual grid does not have. <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> computes those.</p>
-<p><code>type = "link"</code> is refused for a family with more than one additive predictor
-(<code><a href="bartisan-families.html">gaussian_ls()</a></code>, the zero-inflated families, <code><a href="bartisan-families.html">multinomial()</a></code>), because
-there is no single link there to be talking about. Those families work on the
-response scale, which is one number per observation whatever the family, and
-<code><a href="bartisan-families.html">multinomial()</a></code> and <code><a href="bartisan-families.html">ordinal()</a></code> work on the probability scale, which gives one
-group per category. To reach a <em>particular</em> predictor of a multi-predictor
-family, call <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> directly.</p>
+<p><code>type = "link"</code> needs a family with a single additive predictor, since there
+is no one link to be talking about in <code><a href="bartisan-families.html">gaussian_ls()</a></code>, the zero-inflated
+families or <code><a href="bartisan-families.html">multinomial()</a></code>. Those families work on the response scale, which
+is one number per observation whatever the family, and <code><a href="bartisan-families.html">multinomial()</a></code> and
+<code><a href="bartisan-families.html">ordinal()</a></code> work on the probability scale, which gives one group per category.
+<code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reaches a particular predictor of a multi-predictor
+family, and computes <code>type = "class"</code> and <code>type = "density"</code>, which are not
+one number per observation that an average could be taken of.</p>
 <p>Extrapolation is worth keeping in mind for <code>comparisons()</code>: a forest is
 constant outside the range of the predictor it was fitted on, so a contrast
 that steps a predictor beyond that range reports the boundary value rather

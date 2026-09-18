@@ -49,9 +49,8 @@ Because each prediction from the model has a posterior, any quantity
 derived from the predictions, like average marginal effects, has one
 too. These can be used as part of a modern regression workflow through
 tools like *marginaleffects* ([Arel-Bundock et al.
-2024](#ref-arel-bundockHowInterpretStatistical2024)), which produce
-interpretable estimates from regression models in model-agnostic ways
-([Rohrer and Arel-Bundock
+2024](#ref-arelbundock2024)), which produce interpretable estimates from
+regression models in model-agnostic ways ([Rohrer and Arel-Bundock
 2026](#ref-rohrerModelsPredictionMachines2026)). These tools make the
 black-box nature of machine learning models no longer problematic for
 arriving at interpretable model summaries, and the posteriors of these
@@ -158,14 +157,13 @@ guaranteed.
 
 Yes! BART or a related method won the American Causal Inference
 Conference Data Competition in both of the years whose results have been
-written up ([Dorie et al.
-2019](#ref-dorieAutomatedDoityourselfMethods2019); [Hahn et al.
+written up ([Dorie et al. 2019](#ref-dorie2019); [Hahn et al.
 2019](#ref-hahnAtlanticCausalInference2019)). This is a competition to
 see which method can estimate treatment effects as accurately as
 possible (including with accurate inference) across a wide variety of
 data-generating processes. For general prediction, BART has been shown
 to do as well or better than popular methods like GBM and random forests
-([Chipman et al. 2010](#ref-chipmanBARTBayesianAdditive2010)).
+([Chipman et al. 2010](#ref-chipman2010)).
 
 ## How can BART be used for causal inference?
 
@@ -175,9 +173,8 @@ the data. It works like any other regression method as part of a causal
 effect estimator. The award-winning use of BART often involves
 BART-based g-computation ([Hill 2011](#ref-hill2011); [Snowden et al.
 2011](#ref-snowdenImplementationGComputationSimulated2011); [Dorie et
-al. 2019](#ref-dorieAutomatedDoityourselfMethods2019); [Carnegie
-2019](#ref-carnegieCommentContributionsModel2019)), which involves
-modeling the relationship between the outcome, treatment, and
+al. 2019](#ref-dorie2019); [Carnegie 2019](#ref-carnegie2019)), which
+involves modeling the relationship between the outcome, treatment, and
 confounders, and using that model to predict the counterfactual outcomes
 under each treatment for each unit. See
 [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
@@ -201,11 +198,11 @@ addition to flexibly modeling the relationship between the outcome and
 the covariates, it also flexibly models the relationship between the
 *magnitude of the treatment effect* and the covariates. In this way, BCF
 is a varying-coefficient model ([Deshpande et al.
-2026](#ref-deshpandeVCBARTBayesianTrees2026)). Compared to traditional
-BART, BCF tends to have better calibrated intervals and regularization
-of heterogeneous treatment effects. BCF tends to outperform traditional
-BART in most causal inference contexts. It also tends to outperform
-generalized random forests (GRF), which serve a similar function.
+2026](#ref-deshpande2026)). Compared to traditional BART, BCF tends to
+have better calibrated intervals and regularization of heterogeneous
+treatment effects. BCF tends to outperform traditional BART in most
+causal inference contexts. It also tends to outperform generalized
+random forests (GRF), which serve a similar function.
 
 ## How do I get a treatment effect?
 
@@ -243,12 +240,11 @@ into a causal effect, which no model supplies.
 
 BART has a growing literature spread across multiple fields. We
 recommend reading the original BART paper by Chipman et al.
-([2010](#ref-chipmanBARTBayesianAdditive2010)), the paper introducing
-BART for causal inference by Hill ([2011](#ref-hill2011)), an accessible
-paper on BART for social scientists Green and Kern
+([2010](#ref-chipman2010)), the paper introducing BART for causal
+inference by Hill ([2011](#ref-hill2011)), an accessible paper on BART
+for social scientists Green and Kern
 ([2012](#ref-greenModelingHeterogeneousTreatment2012)), and the Annual
-Reviews paper on BART by Hill et al.
-([2020](#ref-hillBayesianAdditiveRegression2020)).
+Reviews paper on BART by Hill et al. ([2020](#ref-hill2020)).
 
 ## What does the name “bartisan” mean?
 
@@ -361,8 +357,8 @@ n.d. *Modified BART for Learning Heterogeneous Effects in Regression
 Discontinuity Designs*. <https://doi.org/10.48550/arXiv.2407.14365>.
 
 Arel-Bundock, Vincent, Noah Greifer, and Andrew Heiss. 2024. “How to
-Interpret Statistical Models Using Marginaleffects for r and Python.”
-*Journal of Statistical Software* 111 (November): 1–32.
+Interpret Statistical Models Using marginaleffects for R and Python.”
+*Journal of Statistical Software* 111 (9): 1–32.
 <https://doi.org/10.18637/jss.v111.i09>.
 
 Carnegie, Nicole Bohme. 2019. “Comment: Contributions of Model Features
@@ -409,7 +405,7 @@ Inference.” *Journal of Computational and Graphical Statistics* 20 (1):
 
 Hill, Jennifer, Antonio Linero, and Jared Murray. 2020. “Bayesian
 Additive Regression Trees: A Review and Look Forward.” *Annual Review of
-Statistics and Its Application* 7 (1): annurev-statistics-031219-041110.
+Statistics and Its Application* 7 (1): 251–78.
 <https://doi.org/10.1146/annurev-statistics-031219-041110>.
 
 Hill, Jennifer, Christopher Weiss, and Fuhua Zhai. 2011. “Challenges

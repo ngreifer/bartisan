@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-17</h4>
+            <h4 data-toc-skip class="date">2026-09-18</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/diagnostics.Rmd" class="external-link"><code>vignettes/diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>diagnostics.Rmd</code></div>
@@ -160,9 +160,9 @@ it needs no other package.</p>
 <span><span class="co">#&gt;   what makes it readable, and that grows with the total number of draws; using</span></span>
 <span><span class="co">#&gt;   fewer chains lowers the bar as well, since R-hat's null rises with the number</span></span>
 <span><span class="co">#&gt;   of chains being compared.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`. A smaller forest has fewer</span></span>
-<span><span class="co">#&gt;   ways to represent the same fit, so the sampler has less room to move between</span></span>
-<span><span class="co">#&gt;   them.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `50`. A smaller</span></span>
+<span><span class="co">#&gt;   forest has fewer ways to represent the same fit, so the sampler has less room</span></span>
+<span><span class="co">#&gt;   to move between them.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span></span>
 <span><span class="co">#&gt;   posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
 <span><span class="co">#&gt;   diagnostic.</span></span>
@@ -597,9 +597,9 @@ and every prior setting are identical between the two, and only
 <span><span class="co">#&gt;   what makes it readable, and that grows with the total number of draws; using</span></span>
 <span><span class="co">#&gt;   fewer chains lowers the bar as well, since R-hat's null rises with the number</span></span>
 <span><span class="co">#&gt;   of chains being compared.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`. A smaller forest has fewer</span></span>
-<span><span class="co">#&gt;   ways to represent the same fit, so the sampler has less room to move between</span></span>
-<span><span class="co">#&gt;   them.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `50`. A smaller</span></span>
+<span><span class="co">#&gt;   forest has fewer ways to represent the same fit, so the sampler has less room</span></span>
+<span><span class="co">#&gt;   to move between them.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span></span>
 <span><span class="co">#&gt;   posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
 <span><span class="co">#&gt;   diagnostic.</span></span>
@@ -630,18 +630,18 @@ supplied:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.01      1.01      645     1092</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.00      1.01     2313     5161</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    16106    25219</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01      999     2235</span></span>
+<span><span class="co">#&gt;                               loglik 1.01      1.01      611      842</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.00      1.01     2776     5906</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    15660    24055</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01      932     2243</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 32000 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 throughout</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 645 everywhere, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 1092 everywhere, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 2.0 effective draws</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 611 everywhere, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 842 everywhere, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 1.9 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Nothing to change.</span></span></code></pre></div>

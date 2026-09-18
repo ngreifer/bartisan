@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-17</h4>
+            <h4 data-toc-skip class="date">2026-09-18</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/implementation.Rmd" class="external-link"><code>vignettes/implementation.Rmd</code></a></small>
       <div class="d-none name"><code>implementation.Rmd</code></div>
@@ -247,10 +247,90 @@ usually worth it:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu">timed</span><span class="op">(</span><span class="st">"smoothstep"</span><span class="op">)</span>, <span class="fu">timed</span><span class="op">(</span><span class="st">"hard"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        rules test_rmse seconds</span></span>
-<span><span class="co">#&gt; 1 smoothstep     0.416     1.3</span></span>
+<span><span class="co">#&gt; 1 smoothstep     0.416     1.2</span></span>
 <span><span class="co">#&gt; 2       hard     1.079     0.4</span></span></code></pre></div>
 <p>The true function has a standard deviation of about 4.9, so both are
 fitting real structure and the soft fit is the more accurate.</p>
+</div>
+<div class="section level3">
+<h3 id="the-predictor-transform-x_transform">The Predictor Transform (<code>x_transform</code>)<a class="anchor" aria-label="anchor" href="#the-predictor-transform-x_transform"></a>
+</h3>
+<p>Numeric predictors are mapped to <span class="math inline">\([0,
+1]\)</span> before any rule sees them, and the map is not cosmetic. A
+cutpoint is drawn uniformly on a node’s live range in the transformed
+coordinate, so the map decides where a rule <em>can</em> split, and
+under soft rules it is also the scale on which <span class="math inline">\(\tau\)</span> is measured. The
+<code>x_transform</code> argument of <code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>
+chooses it. The three options fail in different places, which is the
+whole of the choice between them.</p>
+<p><code>"range"</code> rescales linearly, <span class="math inline">\(T(x) = (x - \min x) / (\max x - \min x)\)</span>,
+and so preserves the original spacing. That makes it the most accurate
+of the three on a well-behaved predictor, and, being the only affine map
+among them, the only one a derivative passes through cleanly. Its
+failure is a predictor whose bulk sits inside a sliver of its range,
+which a few extreme values are enough to produce: a cutpoint drawn
+uniformly on the range then almost never lands where the structure is.
+In a simulation with 1% of a predictor at 300 times the scale of the
+rest and a truth that oscillates within the bulk, it was 4 times worse
+than the alternatives at <span class="math inline">\(n = 500\)</span>
+and 6 times worse at <span class="math inline">\(n = 2000\)</span>, with
+95% intervals covering .24 rather than .95. The deterioration with <span class="math inline">\(n\)</span> is the signature: the extremes grow
+with the sample, so the bulk occupies an ever smaller share of the
+range.</p>
+<p><code>"quantile"</code> maps each predictor through its own empirical
+distribution function, which is what <code>SoftBart::softbart()</code>
+does. It cannot fail that way, because it places cutpoints by rank and
+knows nothing about spacing. It fails instead by being a step function,
+so the fit is a step function of the original predictor: there is no
+derivative to take, and a relationship that is straight in the predictor
+becomes a staircase wherever the data are gappy. On two tight clusters
+with a linear truth it was nearly three times worse than the
+alternatives.</p>
+<p><code>"smoothcdf"</code>, the default, smooths that same distribution
+function and so does neither. The estimate is</p>
+<p><span class="math display">\[\hat F_h(x) = \frac{1}{n} \sum_{i=1}^n
+K\left(\frac{x - x_i}{h}\right),\]</span></p>
+<p>where <span class="math inline">\(K\)</span> is the integrated
+Epanechnikov kernel and <span class="math inline">\(h = 2.1 \hat\sigma
+n^{-1/3}\)</span>, with <span class="math inline">\(\hat\sigma\)</span>
+the smaller of the standard deviation and the interquartile range over
+1.349 so that a long tail sets the bandwidth from the bulk rather than
+from itself. The <span class="math inline">\(n^{-1/3}\)</span> rate is
+the one for a distribution function rather than the <span class="math inline">\(n^{-1/5}\)</span> that is right for a density
+<span class="citation">(<a href="#ref-tenreiro2006">Tenreiro
+2006</a>)</span>, a rate <span class="citation">Azzalini (<a href="#ref-azzalini1981">1981</a>)</span> had pointed out for a
+second-order approximation. The result is stretched affinely so that the
+smallest and largest observations land on 0 and 1, as they do under the
+other two maps; normalizing on the smoothed values instead would leave a
+few percent of the coordinate outside the data, where no cutpoint can be
+useful. Cutpoints then land where the data are, as under
+<code>"quantile"</code>, and the map is strictly increasing and
+differentiable, as under <code>"range"</code>. Across eight
+data-generating processes it was never the most accurate and never far
+from it, where each of the other two was badly wrong somewhere.</p>
+<p>It is not a free lunch for slopes. Writing the fit as <span class="math inline">\(f(T(x))\)</span>, a derivative in the original
+coordinate is <span class="math inline">\(f'(T(x))
+T'(x)\)</span>: an affine <span class="math inline">\(T\)</span> has
+a known constant derivative, so only <span class="math inline">\(f'\)</span> is estimated, where a smoothed
+distribution function contributes an estimated density and the two
+errors multiply. <code><a href="../articles/effects.html">vignette("effects")</a></code> measures what that
+costs and recommends refitting with <code>"range"</code> when a slope is
+the quantity being reported.</p>
+<p>The kernel is Epanechnikov rather than Gaussian because its support
+is bounded, which is what makes the estimate cheap to compute exactly.
+Written directly, <span class="math inline">\(\hat F_h\)</span> on a
+grid of <span class="math inline">\(m\)</span> points is <span class="math inline">\(nm\)</span> kernel evaluations, tens of millions
+per predictor on a large fit. Almost all of that work is avoidable,
+because almost every weight is a 0 or a 1 rather than something in
+between: an observation further below a grid point than the kernel
+reaches has passed it entirely and contributes 1, one further above
+contributes 0, and only those within <span class="math inline">\(h\)</span> need evaluating. With the data and the
+grid both sorted, the two ends of that window advance monotonically, so
+each is found by a pointer that never goes back and the sweep costs
+<span class="math inline">\(O(n + m)\)</span>. For ten predictors at
+<span class="math inline">\(n = 10{,}000\)</span> that is 6 ms rather
+than 4.4 seconds, and unlike a Gaussian truncated at five bandwidths it
+is exact.</p>
 </div>
 <div class="section level3">
 <h3 id="sparsity-sparsity">Sparsity (<code>sparsity</code>)<a class="anchor" aria-label="anchor" href="#sparsity-sparsity"></a>
@@ -468,10 +548,10 @@ when a single normal was right.</p>
 <h3 id="missing-predictor-values">Missing Predictor Values<a class="anchor" aria-label="anchor" href="#missing-predictor-values"></a>
 </h3>
 <p>Missing predictor values are handled natively, by treating
-missingness as something to split on <span class="citation">(<a href="#ref-twala2008">Twala et al. 2008</a>)</span>. A rule can send
-missing values left, send them right, or split on missingness itself,
-and which of these is used is part of the posterior. No imputation is
-required and rows are not dropped.</p>
+missingness as something to split on <span class="citation">(<a href="#ref-twala2008">Twala et al. 2008</a>; for BART, <a href="#ref-kapelner2015">Kapelner and Bleich 2015</a>)</span>. A rule
+can send missing values left, send them right, or split on missingness
+itself, and which of these is used is part of the posterior. No
+imputation is required and rows are not dropped.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d_miss</span> <span class="op">&lt;-</span> <span class="va">train</span></span>
 <span><span class="va">d_miss</span><span class="op">$</span><span class="va">x1</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">60</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
@@ -617,12 +697,18 @@ up</td>
 speed</td>
 </tr>
 <tr class="even">
+<td><code>x_transform</code></td>
+<td>
+<code>"range"</code> when a slope is the quantity being
+reported</td>
+</tr>
+<tr class="odd">
 <td><code>sparsity</code></td>
 <td>
 <code>FALSE</code> to recover classic BART, which is rarely the
 goal</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>k</code></td>
 <td>to shrink harder toward the mean, in a very small sample</td>
 </tr>
@@ -659,13 +745,14 @@ to a Poisson rather than to a Gaussian, and the two paragraphs after the
 table say what that costs them.</p>
 <p>Each of them is faster, from 1.2 times for the negative binomial
 under soft rules to 31 for an ordinal probit with hard rules, with a
-median of 8.8. What each costs in mixing is the question, and the answer
+median of 8.7. What each costs in mixing is the question, and the answer
 is not that they all cost something: over 15 replicate datasets the
-worst-mixing quantity’s effective sample size came out a median of 1.05
+worst-mixing quantity’s effective sample size came out a median of 0.89
 times what the direct likelihood gives, and of the seventeen cases
-below, seven have an 80% interval lying entirely below 1, two lie
-entirely above it, and eight include it. Effective draws per second,
-which is the ratio to judge, favors augmentation in all seventeen:</p>
+below, seven have an 80% interval lying entirely below 1, three lie
+entirely above it, and seven include it. Effective draws per second,
+which is the ratio to judge, favors augmentation in fifteen of the
+seventeen, the two negative-binomial rows being the exceptions:</p>
 <table class="table">
 <colgroup>
 <col width="31%">
@@ -684,150 +771,167 @@ which is the ratio to judge, favors augmentation in all seventeen:</p>
 <tbody>
 <tr class="odd">
 <td>
-<code>ordinal("probit")</code>, hard rules</td>
-<td>31x</td>
-<td>0.72x [0.54, 0.95]</td>
-<td>0.73x</td>
-<td><strong>22x</strong></td>
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, soft rules</td>
+<td>11x</td>
+<td>1.49x [1.14, 1.68]</td>
+<td>1.06x</td>
+<td><strong>16x</strong></td>
 </tr>
 <tr class="even">
 <td>
-<code>ordinal("probit")</code>, soft rules</td>
-<td>24x</td>
-<td>0.65x [0.52, 0.84]</td>
-<td>0.61x</td>
+<code>ordinal("probit")</code>, hard rules</td>
+<td>31x</td>
+<td>0.50x [0.37, 0.84]</td>
+<td>0.53x</td>
 <td><strong>16x</strong></td>
 </tr>
 <tr class="odd">
 <td>
-<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, hard rules</td>
-<td>12x</td>
-<td>1.06x [0.73, 1.48]</td>
-<td>0.97x</td>
-<td><strong>13x</strong></td>
+<code>ordinal("probit")</code>, soft rules</td>
+<td>24x</td>
+<td>0.64x [0.50, 0.67]</td>
+<td>0.57x</td>
+<td><strong>15x</strong></td>
 </tr>
 <tr class="even">
 <td>
-<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, soft rules</td>
-<td>11x</td>
-<td>1.09x [0.62, 1.95]</td>
-<td>1.05x</td>
+<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, soft rules</td>
+<td>8.1x</td>
+<td>1.49x [1.33, 2.04]</td>
+<td>0.87x</td>
 <td><strong>12x</strong></td>
 </tr>
 <tr class="odd">
 <td>
 <code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, hard rules</td>
-<td>8.8x</td>
-<td>1.34x [0.72, 2.41]</td>
-<td>0.96x</td>
-<td><strong>12x</strong></td>
+<td>8.7x</td>
+<td>1.21x [0.96, 2.56]</td>
+<td>0.98x</td>
+<td><strong>11x</strong></td>
 </tr>
 <tr class="even">
-<td>
-<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, soft rules</td>
-<td>8.2x</td>
-<td>1.43x [1.00, 1.96]</td>
-<td>0.91x</td>
-<td><strong>12x</strong></td>
+<td><code>binomial("probit")</code></td>
+<td>9.8x</td>
+<td>1.13x [0.97, 1.27]</td>
+<td>1.09x</td>
+<td><strong>10x</strong></td>
 </tr>
 <tr class="odd">
-<td><code>binomial("probit")</code></td>
-<td>9.7x</td>
-<td>1.19x [0.77, 2.01]</td>
-<td>1.12x</td>
-<td><strong>12x</strong></td>
+<td>
+<code><a href="../reference/bartisan-families.html">multinomial()</a></code>, hard rules</td>
+<td>12x</td>
+<td>0.89x [0.81, 0.99]</td>
+<td>0.84x</td>
+<td><strong>10x</strong></td>
 </tr>
 <tr class="even">
 <td>
 <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, hard rules</td>
 <td>14x</td>
-<td>0.74x [0.57, 0.97]</td>
-<td>0.96x</td>
-<td><strong>10x</strong></td>
+<td>0.61x [0.45, 1.22]</td>
+<td>0.88x</td>
+<td><strong>8.8x</strong></td>
 </tr>
 <tr class="odd">
 <td><code>binomial("logit")</code></td>
 <td>6.7x</td>
-<td>1.44x [1.02, 1.98]</td>
+<td>1.31x [1.04, 1.99]</td>
 <td>1.11x</td>
-<td><strong>9.6x</strong></td>
-</tr>
-<tr class="even">
-<td>
-<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code>, hard rules</td>
-<td>5.8x</td>
-<td>1.58x [1.12, 2.09]</td>
-<td>1.05x</td>
-<td><strong>9.1x</strong></td>
-</tr>
-<tr class="odd">
-<td>
-<code>ordinal("logit")</code>, soft rules</td>
-<td>12x</td>
-<td>0.57x [0.45, 0.76]</td>
-<td>0.65x</td>
-<td><strong>7.1x</strong></td>
+<td><strong>8.8x</strong></td>
 </tr>
 <tr class="even">
 <td>
 <code><a href="../reference/bartisan-families.html">zi_negbin()</a></code>, hard rules</td>
 <td>6.7x</td>
-<td>1.04x [0.81, 1.37]</td>
-<td>0.99x</td>
-<td><strong>6.9x</strong></td>
+<td>1.02x [0.79, 1.22]</td>
+<td>1.02x</td>
+<td><strong>6.6x</strong></td>
 </tr>
 <tr class="odd">
 <td>
 <code>ordinal("logit")</code>, hard rules</td>
 <td>15x</td>
-<td>0.37x [0.30, 0.46]</td>
-<td>0.52x</td>
-<td><strong>5.5x</strong></td>
+<td>0.43x [0.38, 0.64]</td>
+<td>0.49x</td>
+<td><strong>6.5x</strong></td>
 </tr>
 <tr class="even">
 <td>
-<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code>, soft rules</td>
-<td>3.7x</td>
-<td>1.24x [0.86, 1.79]</td>
-<td>1.15x</td>
+<code>ordinal("logit")</code>, soft rules</td>
+<td>12x</td>
+<td>0.50x [0.46, 0.65]</td>
+<td>0.61x</td>
+<td><strong>6.3x</strong></td>
+</tr>
+<tr class="odd">
+<td>
+<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code>, hard rules</td>
+<td>5.8x</td>
+<td>1.15x [0.74, 1.42]</td>
+<td>1.13x</td>
+<td><strong>5.9x</strong></td>
+</tr>
+<tr class="even">
+<td>
+<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, soft rules</td>
+<td>6.9x</td>
+<td>0.67x [0.54, 0.87]</td>
+<td>0.74x</td>
 <td><strong>4.6x</strong></td>
 </tr>
 <tr class="odd">
 <td>
-<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, soft rules</td>
-<td>6.9x</td>
-<td>0.58x [0.46, 0.80]</td>
-<td>0.69x</td>
-<td><strong>4.0x</strong></td>
+<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code>, soft rules</td>
+<td>3.7x</td>
+<td>1.14x [0.96, 2.25]</td>
+<td>1.30x</td>
+<td><strong>4.5x</strong></td>
 </tr>
 <tr class="even">
 <td>
-<code><a href="../reference/bartisan-families.html">negbin()</a></code>, soft rules</td>
-<td>1.2x</td>
-<td>1.11x [0.68, 1.64]</td>
-<td>0.86x</td>
-<td>1.3x</td>
+<code><a href="../reference/bartisan-families.html">negbin()</a></code>, hard rules</td>
+<td>1.8x</td>
+<td>0.52x [0.47, 0.97]</td>
+<td>0.84x</td>
+<td>1.0x</td>
 </tr>
 <tr class="odd">
 <td>
-<code><a href="../reference/bartisan-families.html">negbin()</a></code>, hard rules</td>
-<td>1.8x</td>
-<td>0.61x [0.47, 0.79]</td>
-<td>0.84x</td>
-<td>1.1x</td>
+<code><a href="../reference/bartisan-families.html">negbin()</a></code>, soft rules</td>
+<td>1.2x</td>
+<td>0.66x [0.49, 1.06]</td>
+<td>0.83x</td>
+<td>0.8x</td>
 </tr>
 </tbody>
 </table>
-<p>The bracketed range is an 80% bootstrap interval over the replicates,
-and it is in the table because without it the column invites conclusions
-it cannot support: at three replicates the same quantity varied by a
-median factor of 4.5 within a single cell, since the worst-quantity
-effective sample size is a minimum over many quantities and so is a
-high-variance thing to estimate. The median quantity is the stabler
-reading, and comparing the two columns is informative on its own: those
-ratios run .52 to 1.15 where the worst-quantity ones run .37 to 1.58, so
-a family whose worst corner mixes noticeably better or worse under
-augmentation has usually moved less than that as a whole.</p>
+<p>Every cell is the median over replicates of the ratio <em>within</em>
+a replicate, which is the reading the design supports: both arms see the
+same data, so the paired ratio is the quantity with the least noise in
+it, and a median rather than a mean because a wall-clock timing can be
+disturbed by work outside the fit (see below). The bracketed range is an
+80% bootstrap interval over the replicates, and it is in the table
+because without it the column invites conclusions it cannot support: at
+three replicates the same quantity varied by a median factor of 4.5
+within a single cell, since the worst-quantity effective sample size is
+a minimum over many quantities and so is a high-variance thing to
+estimate. The median quantity is the stabler reading, and comparing the
+two columns is informative on its own: those ratios run .49 to 1.30
+where the worst-quantity ones run .43 to 1.49, so a family whose worst
+corner mixes noticeably better or worse under augmentation has usually
+moved less than that as a whole.</p>
+<p>These are wall-clock timings, so they are only as good as the machine
+was quiet. An earlier measurement of the four ordinal rows recorded one
+<code>augment = FALSE</code> fit at 3882 seconds against 30 to 43 for
+the other fourteen replicates of its cell, and two more at about 600
+against 51 to 65. Re-running the four cells with the machine to itself
+returned all 120 fits’ effective sample sizes unchanged to the last
+recorded digit, so those three had done identical work; they came back
+at 34, 65 and 65 seconds, and each had overlapped another job on the
+same machine. The rows above are that clean run, in which the
+un-augmented fits take 32 to 38 seconds under hard rules and 61 to 69
+under soft. Medians are used throughout regardless, since they are what
+keeps a table of timings robust to that kind of accident.</p>
 <p><code>augment</code> is on by default for every family that has a
 rewriting: the binomial, ordinal, multinomial, negative binomial,
 zero-inflated, and survival families. The negative binomial’s is a
@@ -836,10 +940,11 @@ observation rather than a Pólya-Gamma one, and it is the one family
 whose two rows differ in kind rather than degree. Under hard rules the
 target reaches the exponential form and the rewriting buys time at a
 real cost in mixing; under soft rules it cannot, and the rewriting
-instead buys a little time at no measurable cost in mixing. Both come
-out ahead on effective draws per second, but by the least of any family
-here, so <code>augment = FALSE</code> is worth trying if a negative
-binomial fit’s diagnostics look poor.</p>
+instead buys a little time at no measurable cost in mixing. Neither
+comes out ahead on effective draws per second, at 1.0 and 0.8 times,
+which makes the negative binomial the one family whose rewriting does
+not pay for itself; <code>augment = FALSE</code> is worth trying
+whenever a negative binomial fit’s diagnostics look poor.</p>
 <p>The survival families are the clearest case of what the rewriting is
 for. Right-censoring is what makes their likelihood expensive: an
 observed failure contributes a density in the additive predictor and a
@@ -1462,13 +1567,12 @@ much for the softening to multiply.</p>
 <p>Absolute timings are machine- and load-dependent, so these are
 indicative rather than exact; repeated runs on the same laptop varied by
 about 20%. As an anchor, a Gaussian response with 10 predictors, 50 soft
-trees, and the default 200 warmup plus 800 saved draws takes about a
-second at <span class="math inline">\(n = 500\)</span> and about ten
-seconds at <span class="math inline">\(n = 5000\)</span>, measured at
-steady state on one core of an M-series Mac. Hard rules are about 3
-times faster (2.9 times at <span class="math inline">\(n = 500\)</span>
-and 3.2 at <span class="math inline">\(n = 5000\)</span>), and doubling
-the tree count roughly doubles the cost.</p>
+trees, and the default 200 warmup plus 800 saved draws takes about three
+quarters of a second at <span class="math inline">\(n = 500\)</span> and
+about eight and a half seconds at <span class="math inline">\(n =
+5000\)</span>, measured at steady state on one core of an M-series Mac.
+Hard rules are about 3 times faster (2.9 times at <span class="math inline">\(n = 500\)</span> and 3.1 at <span class="math inline">\(n = 5000\)</span>), and doubling the tree count
+roughly doubles the cost.</p>
 <p>The ratios are stabler than the absolute times. Cost relative to a
 Gaussian fit at the same size is set by how expensive the family’s log
 density and its derivatives are:</p>
@@ -1488,58 +1592,61 @@ density and its derivatives are:</p>
 <td>1.1x</td>
 </tr>
 <tr class="odd">
+<td><code>ordinal("probit")</code></td>
+<td>1.2x</td>
+</tr>
+<tr class="even">
 <td><code><a href="../reference/bartisan-families.html">dpm()</a></code></td>
-<td>1.2x</td>
-</tr>
-<tr class="even">
-<td>
-<code><a href="../reference/bartisan-families.html">ordinal()</a></code>, logit or probit</td>
-<td>1.2x</td>
+<td>1.3x</td>
 </tr>
 <tr class="odd">
+<td><code>ordinal("logit")</code></td>
+<td>1.3x</td>
+</tr>
+<tr class="even">
 <td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code></td>
-<td>3.6x</td>
-</tr>
-<tr class="even">
-<td><code>Gamma("log")</code></td>
-<td>5.6x</td>
+<td>3.5x</td>
 </tr>
 <tr class="odd">
-<td><code><a href="../reference/bartisan-families.html">tweedie()</a></code></td>
-<td>6.5x</td>
+<td><code>Gamma("log")</code></td>
+<td>5.5x</td>
 </tr>
 <tr class="even">
 <td><code><a href="../reference/bartisan-families.html">negbin()</a></code></td>
-<td>6.8x</td>
+<td>5.8x</td>
 </tr>
 <tr class="odd">
-<td><code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code></td>
-<td>7.8x</td>
+<td><code><a href="../reference/bartisan-families.html">tweedie()</a></code></td>
+<td>6.7x</td>
 </tr>
 <tr class="even">
 <td><code><a href="../reference/bartisan-families.html">zi_poisson()</a></code></td>
-<td>8.5x</td>
+<td>7.9x</td>
 </tr>
 <tr class="odd">
-<td>
-<code><a href="../reference/bartisan-families.html">tweedie()</a></code>, with <code>power</code> drawn</td>
-<td>9.1x</td>
+<td><code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code></td>
+<td>8.0x</td>
 </tr>
 <tr class="even">
-<td><code><a href="../reference/bartisan-families.html">Beta()</a></code></td>
-<td>18x</td>
+<td>
+<code><a href="../reference/bartisan-families.html">tweedie()</a></code>, with <code>power</code> drawn</td>
+<td>9.7x</td>
 </tr>
 <tr class="odd">
+<td><code><a href="../reference/bartisan-families.html">Beta()</a></code></td>
+<td>17x</td>
+</tr>
+<tr class="even">
 <td><code><a href="../reference/bartisan-families.html">ordbeta()</a></code></td>
-<td>23x</td>
+<td>22x</td>
 </tr>
 </tbody>
 </table>
 <p><code><a href="../reference/bartisan-families.html">tweedie()</a></code> earns a note because it looks as though it
 should be far worse: its density has no closed form at a positive
 response, and normalizing it takes an infinite series. Measured against
-a Gaussian fit of the same size it costs 6.5 times as much where
-<code>Gamma("log")</code> costs 5.6, so the series is not visible in the
+a Gaussian fit of the same size it costs 6.7 times as much where
+<code>Gamma("log")</code> costs 5.5, so the series is not visible in the
 total. The reason is where the series sits. Writing the log density in
 exponential-dispersion form separates it into a part that moves with the
 predictor, which is closed form, and a normalizing term that does not
@@ -1547,7 +1654,7 @@ depend on the predictor at all; the second goes in the eta-free part,
 which is evaluated once per sweep rather than at every leaf, and cancels
 from every acceptance ratio in between. Its length depends on the
 response and the dispersion but never on the mean, so it does not grow
-as the forest moves. Drawing <code>power</code> costs about 40% again,
+as the forest moves. Drawing <code>power</code> costs about 45% again,
 because the slice sampler has to re-sum the series at each candidate
 value and cannot use the table of log-gammas that a fixed power
 allows.</p>
@@ -1568,12 +1675,12 @@ fitted sample and every cutpoint is free</strong>, which makes the
 cutpoints readable as category boundaries. With two categories the
 single boundary is folded into the intercept instead, so the fit is on
 the same scale as <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>.</p>
-<p>That is <code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code>’s chart with its predictors
-centered. <code>polr()</code> identifies the location by leaving the
-intercept out of the design matrix rather than by centering, so its
-<code>zeta</code> is shifted by the mean of its own linear predictor.
-Either of these lines puts the two side by side, and on a linear truth
-they agree to Monte Carlo error:</p>
+<p>That is <code><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">MASS::polr()</a></code>’s chart <span class="citation">(<a href="#ref-venables2002">Venables and Ripley 2002</a>)</span> with its
+predictors centered. <code>polr()</code> identifies the location by
+leaving the intercept out of the design matrix rather than by centering,
+so its <code>zeta</code> is shifted by the mean of its own linear
+predictor. Either of these lines puts the two side by side, and on a
+linear truth they agree to Monte Carlo error:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu">MASS</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/MASS/man/polr.html" class="external-link">polr</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, method <span class="op">=</span> <span class="st">"probit"</span><span class="op">)</span></span>
 <span><span class="va">p</span><span class="op">$</span><span class="va">zeta</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">p</span><span class="op">$</span><span class="va">lp</span><span class="op">)</span>                      <span class="co"># same chart as colMeans(fit$aux)</span></span></code></pre></div>
@@ -1634,6 +1741,11 @@ Albert, James H., and Siddhartha Chib. 1993. <span>“Bayesian Analysis of
 Binary and Polychotomous Response Data.”</span> <em>Journal of the
 American Statistical Association</em> 88 (422): 669–79. <a href="https://doi.org/10.1080/01621459.1993.10476321" class="external-link">https://doi.org/10.1080/01621459.1993.10476321</a>.
 </div>
+<div id="ref-azzalini1981" class="csl-entry">
+Azzalini, A. 1981. <span>“A Note on the Estimation of a Distribution
+Function and Quantiles by a Kernel Method.”</span> <em>Biometrika</em>
+68 (1): 326–28. <a href="https://doi.org/10.1093/biomet/68.1.326" class="external-link">https://doi.org/10.1093/biomet/68.1.326</a>.
+</div>
 <div id="ref-barbieri2004" class="csl-entry">
 Barbieri, Maria Maddalena, and James O. Berger. 2004. <span>“Optimal
 Predictive Model Selection.”</span> <em>The Annals of Statistics</em> 32
@@ -1684,6 +1796,11 @@ Hill, Jennifer, Antonio Linero, and Jared Murray. 2020. <span>“Bayesian
 Additive Regression Trees: A Review and Look Forward.”</span> <em>Annual
 Review of Statistics and Its Application</em> 7 (1): 251–78. <a href="https://doi.org/10.1146/annurev-statistics-031219-041110" class="external-link">https://doi.org/10.1146/annurev-statistics-031219-041110</a>.
 </div>
+<div id="ref-kapelner2015" class="csl-entry">
+Kapelner, Adam, and Justin Bleich. 2015. <span>“Prediction with Missing
+Data via Bayesian Additive Regression Trees.”</span> <em>Canadian
+Journal of Statistics</em> 43 (2): 224–39. <a href="https://doi.org/10.1002/cjs.11248" class="external-link">https://doi.org/10.1002/cjs.11248</a>.
+</div>
 <div id="ref-linero2018sparse" class="csl-entry">
 Linero, Antonio R. 2018. <span>“Bayesian Regression Trees for
 High-Dimensional Prediction and Variable Selection.”</span> <em>Journal
@@ -1712,6 +1829,12 @@ Polson, Nicholas G., James G. Scott, and Jesse Windle. 2013.
 Variables.”</span> <em>Journal of the American Statistical
 Association</em> 108 (504): 1339–49. <a href="https://doi.org/10.1080/01621459.2013.829001" class="external-link">https://doi.org/10.1080/01621459.2013.829001</a>.
 </div>
+<div id="ref-tenreiro2006" class="csl-entry">
+Tenreiro, Carlos. 2006. <span>“Asymptotic Behaviour of Multistage
+Plug-in Bandwidth Selections for Kernel Distribution Function
+Estimators.”</span> <em>Journal of Nonparametric Statistics</em> 18 (1):
+101–16. <a href="https://doi.org/10.1080/10485250600578334" class="external-link">https://doi.org/10.1080/10485250600578334</a>.
+</div>
 <div id="ref-twala2008" class="csl-entry">
 Twala, B. E. T. H., M. C. Jones, and D. J. Hand. 2008. <span>“Good
 Methods for Coping with Missing Data in Decision Trees.”</span>
@@ -1722,6 +1845,10 @@ Methods for Coping with Missing Data in Decision Trees.”</span>
 <span>“Partially Collapsed Gibbs Samplers: Theory and Methods.”</span>
 <em>Journal of the American Statistical Association</em> 103 (482):
 790–96. <a href="https://doi.org/10.1198/016214508000000409" class="external-link">https://doi.org/10.1198/016214508000000409</a>.
+</div>
+<div id="ref-venables2002" class="csl-entry">
+Venables, W. N., and B. D. Ripley. 2002. <em>Modern Applied Statistics
+with s</em>. 4th ed. Springer.
 </div>
 </div>
 </div>

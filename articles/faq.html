@@ -69,7 +69,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-17</h4>
+            <h4 data-toc-skip class="date">2026-09-18</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/faq.Rmd" class="external-link"><code>vignettes/faq.Rmd</code></a></small>
       <div class="d-none name"><code>faq.Rmd</code></div>
@@ -131,9 +131,9 @@ aspects of the machine learning model.</p>
 <p>Because each prediction from the model has a posterior, any quantity
 derived from the predictions, like average marginal effects, has one
 too. These can be used as part of a modern regression workflow through
-tools like <em>marginaleffects</em> <span class="citation">(<a href="#ref-arel-bundockHowInterpretStatistical2024">Arel-Bundock et al.
-2024</a>)</span>, which produce interpretable estimates from regression
-models in model-agnostic ways <span class="citation">(<a href="#ref-rohrerModelsPredictionMachines2026">Rohrer and Arel-Bundock
+tools like <em>marginaleffects</em> <span class="citation">(<a href="#ref-arelbundock2024">Arel-Bundock et al. 2024</a>)</span>, which
+produce interpretable estimates from regression models in model-agnostic
+ways <span class="citation">(<a href="#ref-rohrerModelsPredictionMachines2026">Rohrer and Arel-Bundock
 2026</a>)</span>. These tools make the black-box nature of machine
 learning models no longer problematic for arriving at interpretable
 model summaries, and the posteriors of these quantities allow for
@@ -237,14 +237,13 @@ of these intervals are not guaranteed.</p>
 </h2>
 <p>Yes! BART or a related method won the American Causal Inference
 Conference Data Competition in both of the years whose results have been
-written up <span class="citation">(<a href="#ref-dorieAutomatedDoityourselfMethods2019">Dorie et al. 2019</a>;
-<a href="#ref-hahnAtlanticCausalInference2019">Hahn et al.
+written up <span class="citation">(<a href="#ref-dorie2019">Dorie et al.
+2019</a>; <a href="#ref-hahnAtlanticCausalInference2019">Hahn et al.
 2019</a>)</span>. This is a competition to see which method can estimate
 treatment effects as accurately as possible (including with accurate
 inference) across a wide variety of data-generating processes. For
 general prediction, BART has been shown to do as well or better than
-popular methods like GBM and random forests <span class="citation">(<a href="#ref-chipmanBARTBayesianAdditive2010">Chipman et al.
-2010</a>)</span>.</p>
+popular methods like GBM and random forests <span class="citation">(<a href="#ref-chipman2010">Chipman et al. 2010</a>)</span>.</p>
 </div>
 <div class="section level2">
 <h2 id="how-can-bart-be-used-for-causal-inference">How can BART be used for causal inference?<a class="anchor" aria-label="anchor" href="#how-can-bart-be-used-for-causal-inference"></a>
@@ -254,14 +253,12 @@ effect estimation, i.e., estimating causal effects given causal
 assumptions on the data. It works like any other regression method as
 part of a causal effect estimator. The award-winning use of BART often
 involves BART-based g-computation <span class="citation">(<a href="#ref-hill2011">Hill 2011</a>; <a href="#ref-snowdenImplementationGComputationSimulated2011">Snowden et
-al. 2011</a>; <a href="#ref-dorieAutomatedDoityourselfMethods2019">Dorie
-et al. 2019</a>; <a href="#ref-carnegieCommentContributionsModel2019">Carnegie
-2019</a>)</span>, which involves modeling the relationship between the
-outcome, treatment, and confounders, and using that model to predict the
-counterfactual outcomes under each treatment for each unit. See
-<code><a href="../articles/causal.html">vignette("causal")</a></code> for a walkthrough with
-<em>bartisan</em>. BART can also be used to estimate propensity scores
-<span class="citation">(<a href="#ref-hillChallengesPropensityScore2011">Hill et al.
+al. 2011</a>; <a href="#ref-dorie2019">Dorie et al. 2019</a>; <a href="#ref-carnegie2019">Carnegie 2019</a>)</span>, which involves
+modeling the relationship between the outcome, treatment, and
+confounders, and using that model to predict the counterfactual outcomes
+under each treatment for each unit. See <code><a href="../articles/causal.html">vignette("causal")</a></code>
+for a walkthrough with <em>bartisan</em>. BART can also be used to
+estimate propensity scores <span class="citation">(<a href="#ref-hillChallengesPropensityScore2011">Hill et al.
 2011</a>)</span>, which, together with a BART outcome model, can be used
 in doubly robust estimators like DML and TMLE. BART can also be used in
 instrumental variables analysis <span class="citation">(<a href="#ref-mccullochCausalInferenceInstrumental2021">McCulloch et al.,
@@ -277,12 +274,12 @@ estimate treatment effects <span class="citation">(<a href="#ref-hahn2020">Hahn 
 flexibly modeling the relationship between the outcome and the
 covariates, it also flexibly models the relationship between the
 <em>magnitude of the treatment effect</em> and the covariates. In this
-way, BCF is a varying-coefficient model <span class="citation">(<a href="#ref-deshpandeVCBARTBayesianTrees2026">Deshpande et al.
-2026</a>)</span>. Compared to traditional BART, BCF tends to have better
-calibrated intervals and regularization of heterogeneous treatment
-effects. BCF tends to outperform traditional BART in most causal
-inference contexts. It also tends to outperform generalized random
-forests (GRF), which serve a similar function.</p>
+way, BCF is a varying-coefficient model <span class="citation">(<a href="#ref-deshpande2026">Deshpande et al. 2026</a>)</span>. Compared to
+traditional BART, BCF tends to have better calibrated intervals and
+regularization of heterogeneous treatment effects. BCF tends to
+outperform traditional BART in most causal inference contexts. It also
+tends to outperform generalized random forests (GRF), which serve a
+similar function.</p>
 </div>
 <div class="section level2">
 <h2 id="how-do-i-get-a-treatment-effect">How do I get a treatment effect?<a class="anchor" aria-label="anchor" href="#how-do-i-get-a-treatment-effect"></a>
@@ -312,11 +309,11 @@ supplies.</p>
 <h2 id="what-papers-should-i-read-to-better-understand-bart">What papers should I read to better understand BART?<a class="anchor" aria-label="anchor" href="#what-papers-should-i-read-to-better-understand-bart"></a>
 </h2>
 <p>BART has a growing literature spread across multiple fields. We
-recommend reading the original BART paper by <span class="citation">Chipman et al. (<a href="#ref-chipmanBARTBayesianAdditive2010">2010</a>)</span>, the paper
-introducing BART for causal inference by <span class="citation">Hill (<a href="#ref-hill2011">2011</a>)</span>, an accessible paper on BART for
+recommend reading the original BART paper by <span class="citation">Chipman et al. (<a href="#ref-chipman2010">2010</a>)</span>, the paper introducing BART for
+causal inference by <span class="citation">Hill (<a href="#ref-hill2011">2011</a>)</span>, an accessible paper on BART for
 social scientists <span class="citation">Green and Kern (<a href="#ref-greenModelingHeterogeneousTreatment2012">2012</a>)</span>,
 and the Annual Reviews paper on BART by <span class="citation">Hill et
-al. (<a href="#ref-hillBayesianAdditiveRegression2020">2020</a>)</span>.</p>
+al. (<a href="#ref-hill2020">2020</a>)</span>.</p>
 </div>
 <div class="section level2">
 <h2 id="what-does-the-name-bartisan-mean">What does the name “bartisan” mean?<a class="anchor" aria-label="anchor" href="#what-does-the-name-bartisan-mean"></a>
@@ -435,33 +432,35 @@ Alcantara, Rafael, Meijia Wang, P. Richard Hahn, and Hedibert Lopes.
 n.d. <em>Modified BART for Learning Heterogeneous Effects in Regression
 Discontinuity Designs</em>. <a href="https://doi.org/10.48550/arXiv.2407.14365" class="external-link">https://doi.org/10.48550/arXiv.2407.14365</a>.
 </div>
-<div id="ref-arel-bundockHowInterpretStatistical2024" class="csl-entry">
+<div id="ref-arelbundock2024" class="csl-entry">
 Arel-Bundock, Vincent, Noah Greifer, and Andrew Heiss. 2024. <span>“How
-to Interpret Statistical Models Using Marginaleffects for r and
-Python.”</span> <em>Journal of Statistical Software</em> 111 (November):
-1–32. <a href="https://doi.org/10.18637/jss.v111.i09" class="external-link">https://doi.org/10.18637/jss.v111.i09</a>.
+to Interpret Statistical Models Using <span class="nocase">marginaleffects</span> for <span>R</span> and
+<span>Python</span>.”</span> <em>Journal of Statistical Software</em>
+111 (9): 1–32. <a href="https://doi.org/10.18637/jss.v111.i09" class="external-link">https://doi.org/10.18637/jss.v111.i09</a>.
 </div>
-<div id="ref-carnegieCommentContributionsModel2019" class="csl-entry">
+<div id="ref-carnegie2019" class="csl-entry">
 Carnegie, Nicole Bohme. 2019. <span>“Comment: Contributions of Model
-Features to BART Causal Inference Performance Using ACIC 2016
-Competition Data.”</span> <em>Statistical Science</em> 34 (1): 90–93. <a href="https://doi.org/10.1214/18-STS682" class="external-link">https://doi.org/10.1214/18-STS682</a>.
+Features to <span>BART</span> Causal Inference Performance Using
+<span>ACIC</span> 2016 Competition Data.”</span> <em>Statistical
+Science</em> 34 (1): 90–93. <a href="https://doi.org/10.1214/18-STS682" class="external-link">https://doi.org/10.1214/18-STS682</a>.
 </div>
 <div id="ref-chernozhukov2018" class="csl-entry">
 Chernozhukov, Victor, Denis Chetverikov, Mert Demirer, et al. 2018.
 <span>“Double/Debiased Machine Learning for Treatment and Structural
 Parameters.”</span> <em>The Econometrics Journal</em> 21 (1): C1–68. <a href="https://doi.org/10.1111/ectj.12097" class="external-link">https://doi.org/10.1111/ectj.12097</a>.
 </div>
-<div id="ref-chipmanBARTBayesianAdditive2010" class="csl-entry">
+<div id="ref-chipman2010" class="csl-entry">
 Chipman, Hugh A., Edward I. George, and Robert E. McCulloch. 2010.
-<span>“BART: Bayesian Additive Regression Trees.”</span> <em>The Annals
-of Applied Statistics</em> 4 (1): 266–98. <a href="https://doi.org/10.1214/09-AOAS285" class="external-link">https://doi.org/10.1214/09-AOAS285</a>.
+<span>“<span>BART</span>: Bayesian Additive Regression Trees.”</span>
+<em>The Annals of Applied Statistics</em> 4 (1): 266–98. <a href="https://doi.org/10.1214/09-AOAS285" class="external-link">https://doi.org/10.1214/09-AOAS285</a>.
 </div>
-<div id="ref-deshpandeVCBARTBayesianTrees2026" class="csl-entry">
+<div id="ref-deshpande2026" class="csl-entry">
 Deshpande, Sameer K., Ray Bai, Cecilia Balocchi, Jennifer E. Starling,
-and Jordan Weiss. 2026. <span>“VCBART: Bayesian Trees for Varying
-Coefficients.”</span> <em>Bayesian Analysis</em> 21 (1): 281–308. <a href="https://doi.org/10.1214/24-BA1470" class="external-link">https://doi.org/10.1214/24-BA1470</a>.
+and Jordan Weiss. 2026. <span>“<span>VCBART</span>: Bayesian Trees for
+Varying Coefficients.”</span> <em>Bayesian Analysis</em> 21 (1):
+281–308. <a href="https://doi.org/10.1214/24-BA1470" class="external-link">https://doi.org/10.1214/24-BA1470</a>.
 </div>
-<div id="ref-dorieAutomatedDoityourselfMethods2019" class="csl-entry">
+<div id="ref-dorie2019" class="csl-entry">
 Dorie, Vincent, Jennifer Hill, Uri Shalit, Marc Scott, and Dan Cervone.
 2019. <span>“Automated Versus Do-It-Yourself Methods for Causal
 Inference: Lessons Learned from a Data Analysis Competition.”</span>
@@ -489,11 +488,10 @@ Hill, Jennifer L. 2011. <span>“Bayesian Nonparametric Modeling for
 Causal Inference.”</span> <em>Journal of Computational and Graphical
 Statistics</em> 20 (1): 217–40. <a href="https://doi.org/10.1198/jcgs.2010.08162" class="external-link">https://doi.org/10.1198/jcgs.2010.08162</a>.
 </div>
-<div id="ref-hillBayesianAdditiveRegression2020" class="csl-entry">
+<div id="ref-hill2020" class="csl-entry">
 Hill, Jennifer, Antonio Linero, and Jared Murray. 2020. <span>“Bayesian
 Additive Regression Trees: A Review and Look Forward.”</span> <em>Annual
-Review of Statistics and Its Application</em> 7 (1):
-annurev-statistics-031219-041110. <a href="https://doi.org/10.1146/annurev-statistics-031219-041110" class="external-link">https://doi.org/10.1146/annurev-statistics-031219-041110</a>.
+Review of Statistics and Its Application</em> 7 (1): 251–78. <a href="https://doi.org/10.1146/annurev-statistics-031219-041110" class="external-link">https://doi.org/10.1146/annurev-statistics-031219-041110</a>.
 </div>
 <div id="ref-hillChallengesPropensityScore2011" class="csl-entry">
 Hill, Jennifer, Christopher Weiss, and Fuhua Zhai. 2011.

@@ -71,10 +71,9 @@ bcf(
   what to do about the probability of treatment, given as either a
   logical value, a numeric vector or matrix, or a one-sided formula.
   Default is `TRUE` to fit a model for it and add the fitted values to
-  the **control function only**. `FALSE` fits nothing; a numeric vector
-  or matrix is used as given; and a one-sided formula fits it with the
-  predictors that formula names rather than with the outcome's
-  covariates. Note that a continuous treatment has no propensity score
+  the control function. `FALSE` fits nothing, a numeric vector or matrix
+  is used as given, and a one-sided formula fits it with the predictors
+  that formula names. A continuous treatment has no propensity score
   that is a probability, so `TRUE` is refused for one; see Details.
 
 - propensity_args:
@@ -109,65 +108,46 @@ the average; see
 
 ## Details
 
-### What the Wrapper Decides
+### The Model
 
-Five things, all of which can be written out in
+`bcf()` writes five things into a
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-directly.
-
-**The treatment gets a
-[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) term**, so
+call, all of which can be written out there directly. The treatment gets
+a [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) term, so
 the effect is a forest of its own with its own prior rather than
 whatever difference a single forest with the treatment among its
-predictors happens to produce. **The propensity score goes in the
-control function and not in the effect forest**, which is Hahn et al.'s
-recommendation and the flag bcf, stochtree and this package all provide;
-the point is to let the control function absorb the selection without
-letting the effect vary with it. **The effect forest gets fewer trees
-than the control function**, since patterns of effect heterogeneity are
-usually simpler than prognostic surfaces.
-
-**A binary treatment has its coding drawn rather than fixed**, which is
+predictors happens to produce. The propensity score goes in the control
+function and not in the effect forest, so that the control function
+absorbs the selection while the effect stays free of it. The effect
+forest gets fewer trees than the control function, since patterns of
+effect heterogeneity are usually simpler than prognostic surfaces. A
+binary treatment has its coding drawn rather than fixed, which is
 `center = "estimate"` in
-[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) and the
-parameter expansion of Hahn et al.'s section 5.3. At two levels it
-restricts nothing and costs nothing in recovery, and it removes the
-dependence on which level was written as 1. A treatment with more levels
-keeps the symmetric per-level coding, because there the drawn coding
-gives every contrast one shared shape;
-[`?vc`](https://ngreifer.github.io/bartisan/reference/vc.md) has the
-numbers on both.
+[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) and makes
+the answer the same whichever level was written as 1; a treatment with
+more levels keeps the symmetric per-level coding. And `sparsity` is left
+at its default, which is on.
 
-**The sparsity prior is left at its default**, which is on. Turning it
-off is what a contrast on a predictor calls for, because a
-variable-selection prior can drop that predictor from the forest
-entirely and put a point mass at exactly zero in the posterior of the
-effect; see the measurements in
-[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md).
-That is a reason to reach for `sparsity = FALSE` when the treatment is
-one predictor among many in a single forest, which is how a contrast is
-written without
-[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md).
+### Setting `sparsity`
 
-It is not the situation here. The treatment is not split on at all: it
-is the coefficient, carried by a forest of its own, so no splitting
-proportion can drop it and there is no mass to pile at zero. What the
-prior selects among on that forest is the moderators, and dropping all
-of them leaves an effect that does not vary rather than one that is
-zero, which is the ordinary shrinkage a heterogeneity model wants.
-Measured on a truth with one moderator among twenty covariates, the
-point mass is absent at every setting, the average effect is recovered
-either way, and the conditional effect is recovered better with the
-prior on than off.
+A variable-selection prior can drop a predictor from the forest entirely
+and put a point mass at exactly zero in the posterior of a contrast on
+it, which is why `sparsity = FALSE` is the setting to reach for when a
+treatment is one predictor among many in a single forest.
 
-Either forest can still be set on its own, `sparsity = c(FALSE, TRUE)`
-leaving the control function every predictor and asking only the effect
-forest to select.
+Here the treatment is the coefficient rather than a predictor the forest
+splits on, so no splitting proportion can drop it and there is no mass
+to pile at zero. What the prior selects among on the effect forest is
+the moderators, and dropping all of them leaves an effect that does not
+vary rather than one that is zero, which is the shrinkage a
+heterogeneity model wants. Either forest can still be set on its own,
+`sparsity = c(FALSE, TRUE)` leaving the control function every predictor
+and asking only the effect forest to select.
 
-### The Treatment's Type
+### Setting `treat`
 
 The treatment decides the model for the propensity score and what that
-score even is.
+score is.
 
 |  |  |  |
 |----|----|----|
@@ -177,47 +157,37 @@ score even is.
 | continuous | a conditional density, not a regression | not fitted |
 
 For a treatment with more than two categories the balancing score is the
-*vector* of assignment probabilities (Imbens, 2000; Imai and van Dyk,
-2004), not any one of them, so all of them go into the control function.
-They sum to one and are therefore collinear, which costs a tree ensemble
-nothing.
+whole vector of assignment probabilities rather than any one of them, so
+all of them go into the control function. They sum to one and are
+therefore collinear, which costs a tree ensemble nothing.
 
-For a continuous treatment the analogue is the conditional density of
-the treatment given the covariates evaluated at the observed dose
-(Hirano and Imbens, 2004), which needs a density model rather than a
-regression, so `propensity = TRUE` is refused and a score supplied as a
-number is used as given.
+### Continuous Treatments
 
-### The Assumption a Continuous Treatment Carries
+For a continuous treatment the balancing score is the conditional
+density of the treatment given the covariates at the observed dose,
+which needs a density model rather than a regression, so
+`propensity = TRUE` is refused for one and a score supplied as a number
+is used as given.
 
-With a continuous treatment this fits `f0(x) + z * f1(x)`: a dose
-response that is **linear in the dose**, with a slope that varies. For a
-binary treatment that is no assumption at all. For a continuous one it
-is a real one, and it is the assumption Woody et al. (2020) make and
-diagnose. If the dose response itself might be curved, either put the
-treatment in as an ordinary predictor or give `f1` the treatment among
-its moderators (i.e., write the term as `vc(z, ~ z + ...)` in
+A continuous treatment also carries an assumption. This fits
+`f0(x) + z * f1(x)`, a dose response that is linear in the dose with a
+slope that varies with the covariates, which for a binary treatment is
+no assumption at all and for a continuous one is a real one. Where the
+dose response itself might be curved, either put the treatment in as an
+ordinary predictor or give `f1` the treatment among its moderators by
+writing the term as `vc(z, ~ z + ...)` in
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-directly), which makes the effect vary across the dose; see
+directly, which lets the effect vary across the dose; see
 [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md).
 
 ### Predicting for New Data
 
-The propensity score is a predictor of the control function, and it is
-one the caller never named, so `newdata` taken from their own frame does
-not carry it. [`predict()`](https://rdrr.io/r/stats/predict.html)
-rebuilds it from the model this kept, which is what makes that work at
-all.
-
-One consequence is worth knowing. A predictor goes through the quantile
-transform, which is a step function, so a score that rebuilds to within
-1e-11 can still land on the other side of a step: predictions for the
-*training* data come back to within a few percent of the response's
-spread rather than exactly. Passing the stored score in `newdata` (it is
-in `fit$bcf$propensity`) removes the reconstruction and reproduces the
-fit to machine precision. Supplying `propensity` as a number rather than
-fitting it has the same effect, and then `newdata` must carry the
-column.
+The propensity score is a predictor of the control function and one the
+caller never named, so `newdata` taken from their own frame does not
+carry it. [`predict()`](https://rdrr.io/r/stats/predict.html) rebuilds
+it from the model the fit kept, which is what makes that work. Supplying
+`propensity` as a number rather than fitting it removes the
+reconstruction, and `newdata` then has to carry the column itself.
 
 ## References
 
@@ -225,13 +195,6 @@ Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian
 regression tree models for causal inference: regularization,
 confounding, and heterogeneous effects. *Bayesian Analysis*, 15(3),
 965–1056. [doi:10.1214/19-BA1195](https://doi.org/10.1214/19-BA1195)
-
-Imai, K., & van Dyk, D. A. (2004). Causal inference with general
-treatment regimes: generalizing the propensity score. *Journal of the
-American Statistical Association*, 99(467), 854–866.
-
-Imbens, G. W. (2000). The role of the propensity score in estimating
-dose-response functions. *Biometrika*, 87(3), 706–710.
 
 Woody, S., Carvalho, C. M., Hahn, P. R., & Murray, J. S. (2020).
 Estimating heterogeneous effects of continuous exposures using Bayesian
