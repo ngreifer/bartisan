@@ -1,7 +1,7 @@
 #' Response families for generalized BART
 #'
 #' @description
-#' [bartisan()] accepts the [stats::family] objects used by [stats::glm()], so
+#' [bartisan()] accepts the [`stats::family`] objects used by [stats::glm()], so
 #' `gaussian()`, `binomial("probit")`, `poisson()` and [stats::Gamma()] all work
 #' unchanged. The functions documented here supply the additional families that
 #' have no `glm()` counterpart, in the same style, so that they can be passed to
@@ -48,41 +48,6 @@
 #'   draws to use for the category probabilities, which have no closed form.
 #'   Default is 200. More is always better but resulting calculations will take
 #'   longer.
-#' @param logdens for `custom_family()`, the log density, given as a function of
-#'   the response and the additive predictors, `function(y, eta)`, where `y` is a
-#'   numeric vector of length `n` and `eta` an `n` by `num_predictors` matrix,
-#'   returning a numeric vector of length `n`. With nuisance parameters it takes
-#'   a third argument, `function(y, eta, aux)`, where `aux` is a numeric vector
-#'   of their current values. It is the log density of *one unit of prior
-#'   weight*, so that `weights` behave as they do elsewhere, and terms free of
-#'   `eta` may be dropped.
-#' @param num_predictors `numeric`; for `custom_family()`, how many additive
-#'   predictors the density has (i.e., how many forests to fit). Default is 1.
-#' @param start `numeric`; for `custom_family()`, the value each additive
-#'   predictor starts at, in place of the intercept-only fit the compiled
-#'   families use. One value or one per predictor. Default is 0.
-#' @param derivatives for `custom_family()`, optional; a `function(y, eta, h)`
-#'   returning a list with elements `score` and `info`, the first derivative of
-#'   `logdens` with respect to the `h`th predictor and minus its second
-#'   derivative, each a vector of length `n`. Default is `NULL` to take central
-#'   differences of `logdens`. It covers the additive predictors only: a nuisance
-#'   parameter is always differenced, which costs three calls per sweep rather
-#'   than three per leaf.
-#' @param aux_names optional `character`; for `custom_family()`, the names of the
-#'   nuisance parameters to draw, if any. Naming them is what declares them,
-#'   because the names label the columns of `fit$aux` and are what `summary()`
-#'   and [diagnose()] report them under. They must be distinct and non-empty.
-#'   Default is `NULL` for none, unless `aux_start` is given, in which case the
-#'   parameters are named by `names(aux_start)` when it carries names and
-#'   positionally (`"aux1"`, `"aux2"`, and so on) when it does not.
-#' @param aux_start optional `numeric`; for `custom_family()`, the value each
-#'   nuisance parameter starts at, given as one value or one per parameter.
-#'   Default is `NULL`, which is 0 for each. The sampler will walk to the
-#'   posterior from a poor start, so this need only be the right order of
-#'   magnitude. Supplying it is a second way to declare the parameters, so
-#'   `aux_start = c(shape = 1)` both names one and starts it at 1.
-#' @param name string; for `custom_family()`, a label used when printing the fit.
-#'   Default is `"custom"`.
 #' @param num_bins *Advanced.* `numeric`; for `ph()`, how many pieces the
 #'   baseline hazard has, with the edges at evenly spaced quantiles of the
 #'   observed times. Must be 2 or greater. Default is `NULL` to use about the
@@ -116,7 +81,7 @@
 #' @returns
 #' A `<bartisan_family>` object, which is a list containing at least the elements
 #' `family` and `link` and which inherits from `family`, so that [bartisan()]
-#' recognizes it wherever it recognizes an ordinary [stats::family] object.
+#' recognizes it wherever it recognizes an ordinary [`stats::family`] object.
 #'
 #' @details
 #' Every family reduces to a scalar additive predictor, or to several of them,
@@ -338,7 +303,7 @@
 #'
 #' `num_bins` should be left at its default. The estimates are insensitive to it,
 #' and what it does change is the effective number of parameters, which grows
-#' with the bin count and so matters for [loo()][bartisan-interop] and `waic()`.
+#' with the bin count and so matters for [`loo()`][bartisan-interop] and `waic()`.
 #' `vignette("survival")` sweeps it.
 #'
 #' The three differ in cost, though not enough to decide a model on.
@@ -484,57 +449,14 @@
 #'
 #' ## Supplying a Likelihood
 #'
-#' `custom_family()` takes the log density itself, as an R function, and fits the
-#' model that goes with it. Nothing else about the sampler changes: the
-#' leaf-level Laplace proposal needs the first two derivatives of the log density
-#' with respect to each additive predictor and nothing more, and central
-#' differences of the supplied function produce both.
-#'
-#' ```r
-#' # A Poisson model written out by hand. Terms free of eta may be dropped;
-#' # they cancel from every acceptance ratio.
-#' pois <- custom_family(function(y, eta) y * eta[, 1] - exp(eta[, 1]),
-#'                       start = log(mean(d$y)))
-#'
-#' # Two predictors: a mean and a log standard deviation.
-#' ls <- custom_family(function(y, eta) dnorm(y, eta[, 1], exp(eta[, 2]),
-#'                                            log = TRUE),
-#'                     num_predictors = 2, start = c(0, 0))
-#' ```
-#'
-#' The function is called once per leaf per Fisher-scoring step with the
-#' observations reaching that leaf, so it must be vectorized over `y` and the
-#' rows of `eta`; it must not be vectorized *within* an observation, and it must
-#' return exactly one value per row. Supplying `derivatives` cuts three calls to
-#' one and removes the differencing error.
-#'
-#' Nuisance parameters are drawn alongside the trees when `aux_names` names
-#' them, and `logdens` then takes a third argument holding their current values:
-#'
-#' ```r
-#' # A Gaussian written out by hand, with its scale drawn rather than fixed.
-#' by_hand <- custom_family(
-#'   logdens = function(y, eta, aux) dnorm(y, eta[, 1], exp(aux[1]), log = TRUE),
-#'   aux_names = "log_sigma", aux_start = 0)
-#' ```
-#'
-#' They are reported in `fit$aux` under those names, and covered by `summary()`
-#' and [diagnose()] like any other family's. There is no prior argument and no
-#' bounds argument, because a nuisance parameter here is carried as an additive
-#' predictor whose forest is pinned at depth zero (one tree that can never
-#' split, so the forest is a single scalar), and it is drawn by the same
-#' Laplace-plus-Metropolis step as any leaf, under that step's Gaussian leaf
-#' prior. So a parameter with a restricted range is handled the way it would be
-#' for a real predictor, by writing the transform into `logdens`: the `exp()`
-#' above is what keeps the scale positive.
-#'
-#' What `custom_family()` does not do: the response must be numeric, so a factor
-#' has to be coded first; and since the package cannot know what the mean of the
-#' density is, `predict(type = "response")` returns the additive predictors
-#' rather than a fitted mean.
+#' When none of the families above is the right one, [custom_family()] takes the
+#' log density itself, as an R function, and fits the model that goes with it.
+#' Its page has the details, including the two things a log density cannot
+#' supply: a posterior predictive distribution, and a fitted mean.
 #'
 #' @seealso
 #' [bartisan()] for fitting a model with one of these families;
+#' [custom_family()] for a likelihood none of them covers;
 #' [error_density()] for the error distribution a `dpm()` or `dpm_aft()` fit
 #' estimates; `vignette("families", package = "bartisan")` for the long form
 #'
@@ -831,7 +753,138 @@ tweedie <- function(link = "log", power = 1.5, phi = NULL) {
   new_bartisan_family("tweedie", link, power = power, phi = phi)
 }
 
-#' @rdname bartisan-families
+#' Fit a model to a likelihood written in R
+#'
+#' @description
+#' `custom_family()` takes the log density itself, as an R function, and returns
+#' a family object [bartisan()] fits the model for. It is the route to a
+#' response distribution none of the compiled families in
+#' [`bartisan-families`] covers.
+#'
+#' @param logdens the log density, given as a function of the response and the
+#'   additive predictors, `function(y, eta)`, where `y` is a numeric vector of
+#'   length `n` and `eta` an `n` by `num_predictors` matrix, returning a numeric
+#'   vector of length `n`. With nuisance parameters it takes a third argument,
+#'   `function(y, eta, aux)`, where `aux` is a numeric vector of their current
+#'   values. It is the log density of *one unit of prior weight*, so that
+#'   `weights` behave as they do elsewhere, and terms free of `eta` may be
+#'   dropped.
+#' @param num_predictors `numeric`; how many additive predictors the density has
+#'   (i.e., how many forests to fit). Default is 1.
+#' @param start `numeric`; the value each additive predictor starts at, in place
+#'   of the intercept-only fit the compiled families use. One value or one per
+#'   predictor. Default is 0.
+#' @param derivatives optional; a `function(y, eta, h)` returning a list with
+#'   elements `score` and `info`, the first derivative of `logdens` with respect
+#'   to the `h`th predictor and minus its second derivative, each a vector of
+#'   length `n`. Default is `NULL` to take central differences of `logdens`. It
+#'   covers the additive predictors only: a nuisance parameter is always
+#'   differenced, which costs three calls per sweep rather than three per leaf.
+#' @param aux_names optional `character`; the names of the nuisance parameters
+#'   to draw, if any. Naming them is what declares them, because the names label
+#'   the columns of `fit$aux` and are what `summary()` and [diagnose()] report
+#'   them under. They must be distinct and non-empty. Default is `NULL` for
+#'   none, unless `aux_start` is given, in which case the parameters are named
+#'   by `names(aux_start)` when it carries names and positionally (`"aux1"`,
+#'   `"aux2"`, and so on) when it does not.
+#' @param aux_start optional `numeric`; the value each nuisance parameter starts
+#'   at, given as one value or one per parameter. Default is `NULL`, which is 0
+#'   for each. The sampler will walk to the posterior from a poor start, so this
+#'   need only be the right order of magnitude. Supplying it is a second way to
+#'   declare the parameters, so `aux_start = c(shape = 1)` both names one and
+#'   starts it at 1.
+#' @param name string; a label used when printing the fit. Default is
+#'   `"custom"`.
+#'
+#' @returns
+#' A `<bartisan_family>` object, which is a list containing at least the
+#' elements `family` and `link` and which inherits from `family`, so that
+#' [bartisan()] recognizes it wherever it recognizes an ordinary
+#' [`stats::family`] object.
+#'
+#' @details
+#' Nothing else about the sampler changes: the leaf-level Laplace proposal needs
+#' the first two derivatives of the log density with respect to each additive
+#' predictor and nothing more, and central differences of the supplied function
+#' produce both.
+#'
+#' ```r
+#' # A Poisson model written out by hand. Terms free of eta may be dropped;
+#' # they cancel from every acceptance ratio.
+#' pois <- custom_family(function(y, eta) y * eta[, 1] - exp(eta[, 1]),
+#'                       start = log(mean(d$y)))
+#'
+#' # Two predictors: a mean and a log standard deviation.
+#' ls <- custom_family(function(y, eta) dnorm(y, eta[, 1], exp(eta[, 2]),
+#'                                            log = TRUE),
+#'                     num_predictors = 2, start = c(0, 0))
+#' ```
+#'
+#' The function is called once per leaf per Fisher-scoring step with the
+#' observations reaching that leaf, so it must be vectorized over `y` and the
+#' rows of `eta`; it must not be vectorized *within* an observation, and it must
+#' return exactly one value per row. Supplying `derivatives` cuts three calls to
+#' one and removes the differencing error.
+#'
+#' ## Nuisance Parameters
+#'
+#' These are drawn alongside the trees when `aux_names` names them, and
+#' `logdens` then takes a third argument holding their current values:
+#'
+#' ```r
+#' # A Gaussian written out by hand, with its scale drawn rather than fixed.
+#' by_hand <- custom_family(
+#'   logdens = function(y, eta, aux) dnorm(y, eta[, 1], exp(aux[1]), log = TRUE),
+#'   aux_names = "log_sigma", aux_start = 0)
+#' ```
+#'
+#' They are reported in `fit$aux` under those names, and covered by `summary()`
+#' and [diagnose()] like any other family's. There is no prior argument and no
+#' bounds argument, because a nuisance parameter here is carried as an additive
+#' predictor whose forest is pinned at depth zero (one tree that can never
+#' split, so the forest is a single scalar), and it is drawn by the same
+#' Laplace-plus-Metropolis step as any leaf, under that step's Gaussian leaf
+#' prior. So a parameter with a restricted range is handled the way it would be
+#' for a real predictor, by writing the transform into `logdens`: the `exp()`
+#' above is what keeps the scale positive.
+#'
+#' ## What a Log Density Cannot Supply
+#'
+#' A density says how likely an observed value is, not how to draw a new one, so
+#' a `custom_family()` fit has no posterior predictive distribution. That is
+#' what [`simulate()`][bartisan-interop], [`pp_check()`][bartisan-interop] and
+#' [`r2()`][bartisan-interop] rest on, and each of them errors on such a fit
+#' rather than returning something it cannot support. [loo()][bartisan-interop]
+#' and [`waic()`][bartisan-interop] are unaffected, since both read the
+#' pointwise log likelihood the family already computes.
+#'
+#' Two smaller limits. The response must be numeric, so a factor has to be coded
+#' first. And since the package cannot know what the mean of the density is,
+#' `predict(type = "response")` returns the additive predictors rather than a
+#' fitted mean.
+#'
+#' @seealso
+#' [`bartisan-families`] for the compiled families, one of which is usually the
+#' better answer; [bartisan()] for fitting a model with the result;
+#' `vignette("families", package = "bartisan")` for the long form
+#'
+#' @examples
+#' set.seed(123)
+#'
+#' d <- data.frame(x1 = runif(200), x2 = runif(200))
+#' d$y <- rpois(200, exp(1 + sin(pi * d$x1)))
+#'
+#' # A Poisson likelihood written out by hand. Terms free of eta may be
+#' # dropped, since they cancel from every acceptance ratio.
+#' pois <- custom_family(function(y, eta) y * eta[, 1] - exp(eta[, 1]),
+#'                       start = log(mean(d$y)))
+#'
+#' fit <- bartisan(y ~ x1 + x2, data = d, family = pois,
+#'                 num_trees = 20, num_burn = 100, num_draws = 100,
+#'                 verbose = FALSE)
+#'
+#' fit
+#'
 #' @export
 custom_family <- function(logdens, num_predictors = 1L, start = 0,
                           derivatives = NULL, aux_names = NULL, aux_start = NULL,

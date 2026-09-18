@@ -46,7 +46,7 @@
 #'       given in `times`, for the accelerated failure time families and [ph()].
 #'       Returns one column per time, or a draws by rows by times array when
 #'       `draws = TRUE`. This is what makes the usual survival estimand reachable
-#'       through \pkg{marginaleffects}; see [bartisan-marginaleffects].}
+#'       through \pkg{marginaleffects}; see [`bartisan-marginaleffects`].}
 #'   }
 #' @param draws `logical`; whether to return every posterior draw rather than
 #'   the posterior mean. Default is `FALSE` to return the mean. If `TRUE`, the
@@ -137,7 +137,7 @@
 #' families, `dpm_aft()` included, report the density of \eqn{\log T}, where
 #' [ph()] reports the density of \eqn{T}. The two differ by \eqn{\sum \log t},
 #' so log scores are comparable within each group rather than across them, and
-#' `type = "survival"` is comparable throughout. [loo()][bartisan-interop] takes a
+#' `type = "survival"` is comparable throughout. [`loo()`][bartisan-interop] takes a
 #' `scale` argument that puts them on one measure.
 #'
 #' `type = "density"` returns `NaN` for an observation whose density is undefined
@@ -150,8 +150,8 @@
 #' undefined draw is enough to make an observation `NaN`.
 #'
 #' @seealso
-#' [bartisan()] for fitting the model; [bartisan-marginaleffects] for averages
-#' and contrasts of these predictions; [bartisan-interop] for the methods that
+#' [bartisan()] for fitting the model; [`bartisan-marginaleffects`] for averages
+#' and contrasts of these predictions; [`bartisan-interop`] for the methods that
 #' let other packages assess the fit
 #'
 #' @examples
@@ -1447,7 +1447,7 @@ plot.bartisan_error_density <- function(x, y, ...) {
     ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
                          fill = "grey85") +
     ggplot2::geom_line(linewidth = 0.5) +
-    ggplot2::labs(x = "error", y = "density") +
+    ggplot2::labs(x = "Error", y = "Density") +
     ggplot2::theme_bw()
 }
 

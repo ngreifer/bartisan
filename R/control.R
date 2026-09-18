@@ -281,7 +281,7 @@
 #' FALSE`, or use `split_prior`, which cannot drop anything: on a weak signal
 #' the sparsity prior attenuates the estimate substantially and its interval
 #' covers below its nominal rate, while a strong effect is untouched.
-#' `vignette("effects")` works this through and [bartisan-marginaleffects]
+#' `vignette("effects")` works this through and [`bartisan-marginaleffects`]
 #' covers the atom.
 #'
 #' For a varying-coefficient model, the sparsity choice can differ by forest
@@ -322,7 +322,7 @@
 #' A family with several additive predictors has one forest per predictor, each
 #' with its own prior. Every argument that could mean something different for
 #' one of them may be given once, to apply to all, or once per forest, either
-#' positionally or keyed by the forest names listed in [bartisan-families]. A
+#' positionally or keyed by the forest names listed in [`bartisan-families`]. A
 #' forest a named argument does not mention keeps that argument's default rather
 #' than borrowing another forest's value. That covers `num_trees`, `k`,
 #' `sigma_mu`, `sparsity`, `split_prior`, `bandwidth`, `gamma`, `beta`, the four
@@ -335,7 +335,7 @@
 #' ```
 #'
 #' The multinomial families are the exception, for the reason given in
-#' [bartisan-families]: their forests act as one, so these arguments take a
+#' [`bartisan-families`]: their forests act as one, so these arguments take a
 #' single value.
 #'
 #' ## Progress
@@ -394,7 +394,7 @@
 #'
 #' @seealso
 #' [bartisan()], which takes the result as its `control` argument;
-#' [bartisan-families] for the forest names the per-forest arguments are keyed
+#' [`bartisan-families`] for the forest names the per-forest arguments are keyed
 #' by
 #'
 #' `vignette("implementation")` for more details on the BART implementation.

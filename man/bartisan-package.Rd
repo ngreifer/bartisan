@@ -22,24 +22,24 @@ does that job well, and \pkg{bartisan} registers the methods those packages
 need. This table is the map.\tabular{ll}{
    Task \tab Use \cr
    fit a model \tab \code{\link[=bartisan]{bartisan()}} \cr
-   choose a likelihood \tab \link{bartisan-families}, \code{vignette("families")} \cr
+   choose a likelihood \tab \code{\link{bartisan-families}}, \code{vignette("families")} \cr
    change the sampler's settings \tab \code{\link[=bartisan_control]{bartisan_control()}} \cr
    predict for new data \tab \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} \cr
-   a prediction with an interval \tab \code{marginaleffects::predictions()} \cr
-   an interval for a new observation, noise included \tab \link[=bartisan-interop]{posterior_predict()} \cr
-   how much a predictor moves the outcome \tab \code{marginaleffects::avg_comparisons()} \cr
-   a partial dependence plot \tab \code{\link[=partial_dependence]{partial_dependence()}}, or \code{marginaleffects::plot_predictions()} for more control over the grid \cr
+   a prediction with an interval \tab \pkgfun{marginaleffects}{predictions} \cr
+   an interval for a new observation, noise included \tab \code{\link[=bartisan-interop]{posterior_predict()}} \cr
+   how much a predictor moves the outcome \tab \pkgfun{marginaleffects}{avg_comparisons} \cr
+   a partial dependence plot \tab \code{\link[=partial_dependence]{partial_dependence()}}, or \pkgfun{marginaleffects}{plot_predictions} for more control over the grid \cr
    which predictors the forest uses \tab \code{\link[=variable_importance]{variable_importance()}} \cr
    to tell the prior which predictors matter \tab \code{split_prior} in \code{\link[=bartisan_control]{bartisan_control()}} \cr
-   to see what prior a fit was given \tab \link[=bartisan-interop]{prior_summary()} \cr
+   to see what prior a fit was given \tab \code{\link[=bartisan-interop]{prior_summary()}} \cr
    to see what that prior implies about the outcome \tab \code{prior_only} in \code{\link[=bartisan]{bartisan()}} \cr
-   to give one forest its own predictors or settings \tab a list of formulas, and per-forest arguments; see \link{bartisan-families} \cr
+   to give one forest its own predictors or settings \tab a list of formulas, and per-forest arguments; see \code{\link{bartisan-families}} \cr
    a coefficient that varies with the other predictors \tab \code{\link[=vc]{vc()}} in the formula, then \code{\link[=coef]{coef()}} \cr
    a treatment effect with its own prior \tab \code{\link[=bcf]{bcf()}}, \code{vignette("causal")} \cr
    the ATE, ATT or the effect for each unit \tab \code{\link[=estimate_effect]{estimate_effect()}} \cr
-   to check it converged and mixed \tab \code{\link[=diagnose]{diagnose()}}, then \link[=bartisan-interop]{as_draws()} with \pkg{bayesplot} \cr
-   to check it fits \tab \link[=bartisan-interop]{pp_check()}, \link[=bartisan-interop]{residuals()} \cr
-   to compare two models \tab \link[=bartisan-interop]{loo()} \cr
+   to check it converged and mixed \tab \code{\link[=diagnose]{diagnose()}}, then \code{\link[=bartisan-interop]{as_draws()}} with \pkg{bayesplot} \cr
+   to check it fits \tab \code{\link[=bartisan-interop]{pp_check()}}, \code{\link[=bartisan-interop]{residuals()}} \cr
+   to compare two models \tab \code{\link[=bartisan-interop]{loo()}} \cr
    survival data \tab \code{\link[=ph]{ph()}}, \code{\link[=dpm_aft]{dpm_aft()}}, \code{vignette("survival")} \cr
    a likelihood of one's own \tab \code{\link[=custom_family]{custom_family()}} \cr
 }
@@ -82,8 +82,8 @@ around it.
 }
 }
 \seealso{
-\code{\link[=bartisan]{bartisan()}} to fit a model; \link{bartisan-families} to choose a likelihood;
-\link{bartisan-marginaleffects} and \link{bartisan-interop} for the packages that read a
+\code{\link[=bartisan]{bartisan()}} to fit a model; \code{\link{bartisan-families}} to choose a likelihood;
+\code{\link{bartisan-marginaleffects}} and \code{\link{bartisan-interop}} for the packages that read a
 fit; \code{vignette("bartisan")} for a worked analysis and
 \code{vignette("implementation")} for how the sampler works.
 }
@@ -101,4 +101,3 @@ Other contributors:
 }
 
 }
-\keyword{internal}

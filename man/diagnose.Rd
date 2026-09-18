@@ -102,7 +102,7 @@ disagree about how large the forest is are exploring different tree
 structures.
 
 The leaf scale \code{sigma_mu} is left out of the table, and is in \code{fit$sigma_mu}
-and \link[=bartisan-interop]{as_draws()} for anyone who wants to look.
+and \code{\link[=bartisan-interop]{as_draws()}} for anyone who wants to look.
 }
 
 \subsection{Setting \code{rhat_max} and \code{ess_min}}{
@@ -162,7 +162,7 @@ diagnose(fit, ess_min = 1000)
 }
 \seealso{
 \code{\link[=bartisan_control]{bartisan_control()}} for the settings the advice names;
-\link[=bartisan-interop]{as_draws()} for handing the draws to \CRANpkg{bayesplot}
+\code{\link[=bartisan-interop]{as_draws()}} for handing the draws to \CRANpkg{bayesplot}
 or \CRANpkg{posterior}; \code{vignette("diagnostics")} for the fuller treatment,
 including posterior predictive checks
 }

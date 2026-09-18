@@ -1,5 +1,7 @@
 ---
 output: github_document
+bibliography: vignettes/references.bib
+link-citations: true
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -30,9 +32,13 @@ if (interactive() && rlang::is_installed("progressr")) {
 Bayesian additive regression trees (BART) estimate a regression function as a
 sum of small trees, so nonlinearity and interactions are found rather than
 specified. *bartisan* does that for response distributions that standard BART
-cannot reach, using the Laplace-approximation reversible-jump sampler of Linero
-(2025), which relaxes the requirement that the leaf parameters be integrable in
-closed form.
+cannot reach, using the Laplace-approximation reversible-jump sampler of
+@linero2025, which relaxes the requirement that the leaf parameters be
+integrable in closed form. That requirement is what ties standard BART to a
+Gaussian likelihood, and lifting it is the sense in which the model here is
+*generalized*: the same sense a generalized linear model is, in which the
+response distribution is a choice the analyst makes rather than an assumption
+the sampler imposes.
 
 A model is written the way it is in `glm()`, with a formula, a data
 frame, and a family, and the `stats::family` objects `glm()` takes are accepted
@@ -41,8 +47,8 @@ negative binomial, ordinal, multinomial, beta and ordered beta, zero-inflated
 counts, a Tweedie compound Poisson, accelerated failure time and proportional
 hazards models for right-censored times, location-scale regression, a Dirichlet
 process mixture for the error distribution, and a log density written as an R
-function. Decision rules are smooth by default, in the manner of Linero and Yang
-(2018), which fits a smoother function than the step functions of standard BART.
+function. Decision rules are smooth by default, in the manner of @linero2018,
+which fits a smoother function than the step functions of standard BART.
 
 *bartisan* supports varying-coefficient models, where the effect of a predictor receives its own forest, a special case of which is the Bayesian causal forest (BCF) model for estimating treatment effects. Along with this is an interface for estimating average treatment effects from BART and BCF models. In addition, *bartisan* supports random intercepts BART models.
 
@@ -65,7 +71,7 @@ Installation compiles C++, so it needs a C++17 toolchain.
 `rhc` holds 1500 critically ill patients from the SUPPORT study, recording
 whether each was given right heart catheterization on admission to intensive
 care, whether they died during follow-up, and thirteen covariates measured
-beforehand (Connors et al., 1996). Fitting a model to it takes one call, and the
+beforehand [@connors1996]. Fitting a model to it takes one call, and the
 family is the one `glm()` would be given:
 
 ```{r fit}
@@ -131,21 +137,15 @@ up.
 
 ## Citing *bartisan*
 
-*bartisan* implements the sampler of Linero (2025), and its MCMC engine is
+*bartisan* implements the sampler of @linero2025, and its MCMC engine is
 adapted from that paper's `FlexBart` reference implementation. Please cite the
 method and the package both, the latter with its version number, which
-`citation("bartisan")` supplies:
-
-Linero, A. R. (2025). Generalized Bayesian additive regression trees models:
-beyond conditional conjugacy. *Journal of the American Statistical
-Association*, 120(549), 356–369.
-<https://doi.org/10.1080/01621459.2024.2337156>
-
-Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles that adapt
-to smoothness and sparsity. *Journal of the Royal Statistical Society Series B*,
-80(5), 1087–1110. <https://doi.org/10.1111/rssb.12293>
+`citation("bartisan")` supplies. The smooth decision rules are those of
+@linero2018. Both papers are listed under References below.
 
 ## Questions and Bug Reports
 
 Please file an issue at <https://github.com/ngreifer/bartisan/issues>, with a
 reproducible example where the report concerns a fit.
+
+## References

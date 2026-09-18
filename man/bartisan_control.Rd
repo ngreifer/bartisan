@@ -353,7 +353,7 @@ when the predictors are many and nearly all are expected to be irrelevant.
 For a contrast, a partial effect, or a treatment effect, set \code{sparsity = FALSE}, or use \code{split_prior}, which cannot drop anything: on a weak signal
 the sparsity prior attenuates the estimate substantially and its interval
 covers below its nominal rate, while a strong effect is untouched.
-\code{vignette("effects")} works this through and \link{bartisan-marginaleffects}
+\code{vignette("effects")} works this through and \code{\link{bartisan-marginaleffects}}
 covers the atom.
 
 For a varying-coefficient model, the sparsity choice can differ by forest
@@ -396,7 +396,7 @@ once and its levels share the weight.
 A family with several additive predictors has one forest per predictor, each
 with its own prior. Every argument that could mean something different for
 one of them may be given once, to apply to all, or once per forest, either
-positionally or keyed by the forest names listed in \link{bartisan-families}. A
+positionally or keyed by the forest names listed in \code{\link{bartisan-families}}. A
 forest a named argument does not mention keeps that argument's default rather
 than borrowing another forest's value. That covers \code{num_trees}, \code{k},
 \code{sigma_mu}, \code{sparsity}, \code{split_prior}, \code{bandwidth}, \code{gamma}, \code{beta}, the four
@@ -408,7 +408,7 @@ way, as \code{\link[=bartisan]{bartisan()}} describes.
 }\if{html}{\out{</div>}}
 
 The multinomial families are the exception, for the reason given in
-\link{bartisan-families}: their forests act as one, so these arguments take a
+\code{\link{bartisan-families}}: their forests act as one, so these arguments take a
 single value.
 }
 
@@ -493,7 +493,7 @@ Series B}, 80(5), 1087--1110. \doi{10.1111/rssb.12293}
 }
 \seealso{
 \code{\link[=bartisan]{bartisan()}}, which takes the result as its \code{control} argument;
-\link{bartisan-families} for the forest names the per-forest arguments are keyed
+\code{\link{bartisan-families}} for the forest names the per-forest arguments are keyed
 by
 
 \code{vignette("implementation")} for more details on the BART implementation.

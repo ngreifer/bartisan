@@ -7,7 +7,7 @@
 #' may be soft, as in Linero and Yang (2018), which gives smoother fits than the
 #' step functions of standard BART. The interface mirrors that of [stats::glm()]:
 #' a formula, a data frame, and a family, with the families that `glm()` has no
-#' counterpart for documented at [bartisan-families].
+#' counterpart for documented at [`bartisan-families`].
 #'
 #' @param formula a model formula. The right-hand side lists candidate
 #'   predictors; the model finds interactions and nonlinearity on its own, so
@@ -18,7 +18,7 @@
 #'   For a family with more than one additive predictor this may be a *list* of
 #'   formulas, one per forest, to give each one its own predictors. The first is
 #'   the model for the main parameter and carries the response; the rest need no
-#'   response, and follow the order in [bartisan-families], under "Several
+#'   response, and follow the order in [`bartisan-families`], under "Several
 #'   additive predictors", which also gives the name of each forest so the list
 #'   can be named instead of ordered:
 #'
@@ -43,12 +43,12 @@
 #'   forests two-dimensional (one axis the parameter, the other the coefficient).
 #'   [vc()] documents how they are then named and keyed.
 #' @param data a data frame containing the variables named in `formula`.
-#' @param family the response distribution, given as a [stats::family] object,
-#'   as one of the families in [bartisan-families], or as the name of either. A
+#' @param family the response distribution, given as a [`stats::family`] object,
+#'   as one of the families in [`bartisan-families`], or as the name of either. A
 #'   `family` object is accepted when the distribution it names is one this
 #'   package implements, since the likelihood is the package's rather than the
 #'   object's: a `family` object carries a link and a variance function and not a
-#'   density, so one naming anything else (e.g., [stats::inverse.gaussian], or a
+#'   density, so one naming anything else (e.g., [`stats::inverse.gaussian`], or a
 #'   Tweedie from another package) is an error rather than something a likelihood
 #'   can be built from, and [custom_family()] is the route for those. Links are
 #'   used as supplied, and a link the package does not compile is composed onto
@@ -64,10 +64,10 @@
 #' @param offset optional; a known component of the additive predictor, on the
 #'   link scale.
 #' @param subset optional; a vector specifying the subset of rows to use.
-#' @param na.action how missing values are handled. Default is [stats::na.pass],
+#' @param na.action how missing values are handled. Default is [`stats::na.pass`],
 #'   which keeps rows whose *predictors* are missing and lets the splitting rules
 #'   decide where they go, which is something the trees can do and `lm()` and
-#'   `glm()` cannot; see Details. Pass [stats::na.omit] to drop any row with a
+#'   `glm()` cannot; see Details. Pass [`stats::na.omit`] to drop any row with a
 #'   missing value anywhere instead. Note that rows with a missing response,
 #'   weight, or offset are dropped either way, with a warning, since there is
 #'   nothing to fit them to.
@@ -276,9 +276,9 @@
 #'
 #' @seealso
 #' [bartisan_control()] for the sampler and prior settings;
-#' [predict.bartisan_fit()] for prediction; [bartisan-families] for the
+#' [predict.bartisan_fit()] for prediction; [`bartisan-families`] for the
 #' likelihoods, and `vignette("families")` for a family-by-family guide;
-#' [bartisan-marginaleffects] for reading effects off a fit
+#' [`bartisan-marginaleffects`] for reading effects off a fit
 #'
 #' @examples
 #' data("rhc")

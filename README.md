@@ -13,8 +13,13 @@ Bayesian additive regression trees (BART) estimate a regression function
 as a sum of small trees, so nonlinearity and interactions are found
 rather than specified. *bartisan* does that for response distributions
 that standard BART cannot reach, using the Laplace-approximation
-reversible-jump sampler of Linero (2025), which relaxes the requirement
-that the leaf parameters be integrable in closed form.
+reversible-jump sampler of Linero ([2025](#ref-linero2025)), which
+relaxes the requirement that the leaf parameters be integrable in closed
+form. That requirement is what ties standard BART to a Gaussian
+likelihood, and lifting it is the sense in which the model here is
+*generalized*: the same sense a generalized linear model is, in which
+the response distribution is a choice the analyst makes rather than an
+assumption the sampler imposes.
 
 A model is written the way it is in `glm()`, with a formula, a data
 frame, and a family, and the `stats::family` objects `glm()` takes are
@@ -24,8 +29,9 @@ beta, zero-inflated counts, a Tweedie compound Poisson, accelerated
 failure time and proportional hazards models for right-censored times,
 location-scale regression, a Dirichlet process mixture for the error
 distribution, and a log density written as an R function. Decision rules
-are smooth by default, in the manner of Linero and Yang (2018), which
-fits a smoother function than the step functions of standard BART.
+are smooth by default, in the manner of Linero and Yang
+([2018](#ref-linero2018)), which fits a smoother function than the step
+functions of standard BART.
 
 *bartisan* supports varying-coefficient models, where the effect of a
 predictor receives its own forest, a special case of which is the
@@ -56,9 +62,9 @@ Installation compiles C++, so it needs a C++17 toolchain.
 `rhc` holds 1500 critically ill patients from the SUPPORT study,
 recording whether each was given right heart catheterization on
 admission to intensive care, whether they died during follow-up, and
-thirteen covariates measured beforehand (Connors et al., 1996). Fitting
-a model to it takes one call, and the family is the one `glm()` would be
-given:
+thirteen covariates measured beforehand ([Connors et al.
+1996](#ref-connors1996)). Fitting a model to it takes one call, and the
+family is the one `glm()` would be given:
 
 ``` r
 library(bartisan)
@@ -155,22 +161,48 @@ to set up.
 
 ## Citing *bartisan*
 
-*bartisan* implements the sampler of Linero (2025), and its MCMC engine
-is adapted from that paper’s `FlexBart` reference implementation. Please
-cite the method and the package both, the latter with its version
-number, which `citation("bartisan")` supplies:
-
-Linero, A. R. (2025). Generalized Bayesian additive regression trees
-models: beyond conditional conjugacy. *Journal of the American
-Statistical Association*, 120(549), 356–369.
-<https://doi.org/10.1080/01621459.2024.2337156>
-
-Linero, A. R., & Yang, Y. (2018). Bayesian regression tree ensembles
-that adapt to smoothness and sparsity. *Journal of the Royal Statistical
-Society Series B*, 80(5), 1087–1110.
-<https://doi.org/10.1111/rssb.12293>
+*bartisan* implements the sampler of Linero ([2025](#ref-linero2025)),
+and its MCMC engine is adapted from that paper’s `FlexBart` reference
+implementation. Please cite the method and the package both, the latter
+with its version number, which `citation("bartisan")` supplies. The
+smooth decision rules are those of Linero and Yang
+([2018](#ref-linero2018)). Both papers are listed under References
+below.
 
 ## Questions and Bug Reports
 
 Please file an issue at <https://github.com/ngreifer/bartisan/issues>,
 with a reproducible example where the report concerns a fit.
+
+## References
+
+<div id="refs" class="references csl-bib-body hanging-indent">
+
+<div id="ref-connors1996" class="csl-entry">
+
+Connors, Alfred F., Theodore Speroff, Neal V. Dawson, et al. 1996. “The
+Effectiveness of Right Heart Catheterization in the Initial Care of
+Critically Ill Patients.” *JAMA* 276 (11): 889–97.
+<https://doi.org/10.1001/jama.1996.03540110043030>.
+
+</div>
+
+<div id="ref-linero2025" class="csl-entry">
+
+Linero, Antonio R. 2025. “Generalized Bayesian Additive Regression Trees
+Models: Beyond Conditional Conjugacy.” *Journal of the American
+Statistical Association* 120 (549): 356–69.
+<https://doi.org/10.1080/01621459.2024.2337156>.
+
+</div>
+
+<div id="ref-linero2018" class="csl-entry">
+
+Linero, Antonio R., and Yun Yang. 2018. “Bayesian Regression Tree
+Ensembles That Adapt to Smoothness and Sparsity.” *Journal of the Royal
+Statistical Society Series B: Statistical Methodology* 80 (5): 1087–110.
+<https://doi.org/10.1111/rssb.12293>.
+
+</div>
+
+</div>

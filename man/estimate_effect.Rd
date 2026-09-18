@@ -199,7 +199,7 @@ estimate_effect(fit, by = ~ sex)
 }
 \seealso{
 \code{\link[=bcf]{bcf()}}, which fits the model this is usually called on;
-\code{\link[=print.bcf_fit]{print.bcf_fit()}} for its other methods; \link{bartisan-marginaleffects} for the
+\code{\link[=print.bcf_fit]{print.bcf_fit()}} for its other methods; \code{\link{bartisan-marginaleffects}} for the
 same estimands through
 \pkg{marginaleffects}, which also covers the ones not offered here
 }

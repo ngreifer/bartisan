@@ -6,7 +6,7 @@ This file is organized by subject, not by session. Each entry states the problem
 
 ## Status
 
-463 tests and 2312 expectations passing, 0 failures, 0 warnings and 0 skips when the `skip_on_cran()` fits are run locally with `NOT_CRAN=true`. `R CMD check` on the built tarball, with examples, tests and all ten vignette rebuilds, reports `Status: OK` with no notes and no warnings; inside it the suite skips 67 and passes 1560, which is the configuration a CRAN machine runs. `--as-cran` has not been made to complete on this machine, for a reason that looks environmental rather than packaged; see the pre-submission report at the end of this file.
+477 tests and 2430 expectations passing, 0 failures, 0 warnings and 0 skips when the `skip_on_cran()` fits are run locally with `NOT_CRAN=true` (2026-09-17, 39 files, 18m 24s). `R CMD check` on the built tarball, with examples, tests and all ten vignette rebuilds, reports `Status: OK` with no notes and no warnings; inside it the suite skips 91 and passes 1898, which is the configuration a CRAN machine runs. Those 91 are every `skip_on_cran()`, and they include all four ordinal tests, all four `prior_only` ones and nine in `test-augment.R`, so a green check is not on its own evidence that this session's work holds; the `NOT_CRAN=true` run is. `--as-cran` has not been made to complete on this machine, for a reason that looks environmental rather than packaged; see the pre-submission report at the end of this file.
 
 **What exists.** A C++ engine (`utils`, `slice`, `hypers`, `family`, `polyagamma`, `node`, `mcmc`, `model`) and an R interface following `glm()`: `bartisan()`, `bartisan_control()`, `predict()`, `print()`, `summary()`, family normalization, parallel chains with convergence diagnostics, and `custom_family()` for a likelihood written in R. Families: Gaussian, binomial (logit/probit/cloglog/any link from R), Poisson, negative binomial, gamma, ordinal (logit/probit/cloglog), multinomial (symmetric or reference-coded), multinomial probit with a drawn latent covariance, three AFT variants, location-scale, zero-inflated Poisson and negative binomial, ordered beta, and a Dirichlet process mixture for the error distribution. Missing predictors handled natively by MIA and kept by default. Data augmentations, on by default, for the binomial, ordinal, multinomial and zero-inflated families, and for the negative binomial under hard rules. `marginaleffects` support, so counterfactual estimands come with posterior intervals. Group-level random intercepts through lme4's `(1 | group)` notation, on every additive predictor. Posterior predictive draws for every family that has a sampler, and with them the interfaces to `loo`, `bayesplot`, `performance` and `posterior`. `bartisan_control()` organized into modeling decisions, advanced settings and validation toggles, with a per-forest `num_trees` vector, one `gate` argument covering hard and soft rules, and a `sparsity` argument standing in for the four DART hyperparameters. Documentation, `README.Rmd`, ten vignettes with a shared `references.bib`, and `_dev/benchmark.Rmd`. No `NEWS.md`: nothing has been released, so there is no previous version for a user to have seen.
 
@@ -88,6 +88,8 @@ each other, which is the sort of thing to check rather than read.
 - [ ] **Give the package a release version.** `--as-cran` notes that `0.0.0.9000` "contains large components", which is its way of saying a development version should not be submitted. `0.1.0` is the obvious choice.
 
 - [ ] `vignette("bartisan")` does not cover the bounded gates or either ordinal augmentation; `vignette("families")` covers the augmentations but not the gates. The first runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
+
+- [ ] **A hex logo.** There is none, so `_pkgdown.yml` has no `logo`, the site falls back to the package name as text, and `README.Rmd` has no badge row to hang one on. Cosmetic and no part of a CRAN requirement, but it is a release artifact rather than a post-release one: the site and the README are both already built, and adding it later means regenerating both. `usethis::use_logo()` wires up `man/figures/logo.png`, the pkgdown favicons and the README line once a 1200x1390 image exists.
 
 ### After submission
 
@@ -8362,7 +8364,7 @@ for it rather than a slot to fill, which is the useful kind of orphan.
 
 Checked against the source before writing it, because the comment and the code
 disagree on their face: R sets `nu = m$num_cat` while the comment says `C + 1`.
-They agree once `C` is read as the dimension of \eqn{\Sigma}, which is
+They agree once `C` is read as the dimension of $\Sigma$, which is
 `num_cat - 1`; `src/family.cpp` sets `Psi` to the identity and the degrees of
 freedom to `nu` plus the weights. Inverse Wishart with the identity scale and
 one degree of freedom more than the dimension is the standard choice that makes

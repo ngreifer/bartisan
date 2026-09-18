@@ -39,6 +39,72 @@ green. What is left is neither a feature nor a fix: a `NEWS.md`, a version that
 is not `0.0.0.9000`, and one cross-reference on the `custom_family()` page.
 "What to do next" at the bottom has them in order.
 
+## Re-read 2026-09-18: what is left, item by item
+
+The section above is the read from 2026-09-15. Every open item in it was checked
+again against the tree rather than against its own description, which is the
+only way this list stays worth anything. Nothing that was closed has reopened.
+What follows supersedes the table above where the two disagree.
+
+| Item | State on 2026-09-18 |
+| --- | --- |
+| Version is `0.0.0.9000` | **Open.** `DESCRIPTION` unchanged. This is the one thing `--as-cran` actually objects to. |
+| No `NEWS.md` | **Open.** Still absent. Nothing says what 0.1.0 is. |
+| `custom_family()` caveat not on its own page | **Open.** The sentence lives in `R/interop.R` alone; `grep` finds it nowhere in `R/families.R`, which is where `custom_family()` is documented and where a reader meets it. Still one cross-reference, not new prose. |
+| `vignette("bartisan")` gaps | **Open.** The file contains zero occurrences of `gate` or `augment`. |
+| `--as-cran` never completed | **Open, and the reason to care has not changed.** It hangs at `checking use of S3 registration` on this machine, which looks like a network wait rather than the package. Needs one run somewhere unrestricted. |
+| A second platform, and the spell check | **Open.** win-builder, macbuilder and R-devel have still never seen this package. |
+| Two `tweedie()` references | **Open.** Jorgensen for the compound Poisson-gamma and Dunn and Smyth for the series, neither in the library, so per `PAPERS.md` the prose carries no citation rather than an invented one. |
+| A hex logo | **Open, newly listed.** None exists; `_pkgdown.yml` has no `logo` key and `README.Rmd` has no badge row. |
+| `VarCorr()` | Post-1.0, unchanged. |
+
+### Three findings that are new since 2026-09-15
+
+**The counts in this file and in `TASKS.md` were both stale, in the same
+direction.** The suite is now 477 tests and 2430 expectations over 39 files with
+`NOT_CRAN=true`, 0 failures and 0 skips; inside `R CMD check` it is 1898 passing
+and **91** skipped. This file said "39 files / 2300 assertions" and `TASKS.md`
+said "463 tests and 2312 expectations ... skips 67 and passes 1560". Both are
+corrected.
+
+The 91 matter more than the drift does. They are every `skip_on_cran()`, and
+they include all four ordinal tests, all four `prior_only` tests and nine of
+`test-augment.R` -- precisely the code that changed most recently. `Status: OK`
+from a plain check is therefore not evidence that the induced-Dirichlet prior,
+the empty-category handling or the `augment` flag work; the `NOT_CRAN=true` run
+is the evidence, and it is clean.
+
+**`ordinal("probit")` with `augment = FALSE` occasionally stalls.** Over 15
+replicates at n = 400, fourteen un-augmented hard-rule fits took 30 to 43
+seconds and one took **3882**; under soft rules, thirteen took 51 to 65 seconds
+and two took about 600. Every augmented fit and both `ordinal("logit")` arms are
+tight to a second, so it is specific to the un-augmented cutpoint sampler. That
+is a supported, documented setting, which is what makes this the one genuinely
+new candidate blocker rather than a curiosity. Under investigation in its own
+session; the measurements are in `TASKS.md` under "stalls".
+
+**Nothing is committed.** 35 modified files sit in the working tree against
+`faff724`, including the induced-Dirichlet prior across four ordinal families
+and `ordbeta()`, the `augment` flag change, ordinal level preservation, the
+13-page documentation pass, the vignette table updates, the bibliography
+de-duplication and today's link and README work. The last full check predates
+some of it. Nothing here is a code defect; it is a statement about what a
+submission would currently be built from.
+
+### What that adds up to
+
+The 2026-09-15 judgment holds and gets one qualification: **the code is
+submittable, the paperwork is not, and one measurement now wants explaining.**
+The paperwork is unchanged in kind -- a version, a `NEWS.md`, one
+cross-reference, a logo -- and none of it is work. The qualification is the
+probit stall, which should be understood before a release rather than after,
+because `augment = FALSE` is a setting the documentation tells people to try
+when a fit's diagnostics look poor.
+
+Two pieces of verification are owed that no amount of local checking supplies:
+`--as-cran` on an unrestricted network, and one other platform. Both were owed
+on 2026-09-15 too.
+
 ## Part 1: what is actually missing
 
 ### Blocking
@@ -505,7 +571,14 @@ worth remembering: `.gitignore` keeps it out of the repository and
 4. ~~**Re-run `_dev/check.sh` to a clean bill.**~~ Done: `Status: OK`. Worth
    re-running before submission itself, since the last three findings all
    arrived from a source the suite and the knit cannot see.
-5. Post-1.0, in no order: `VarCorr()`, the `loo_*` prediction wrappers,
+5. **Understand the `ordinal("probit")` stall under `augment = FALSE`**, or
+   decide it is acceptable and say so on the help page. New on 2026-09-18; see
+   the re-read section near the top.
+6. **A hex logo**, which wires into `_pkgdown.yml` and `README.Rmd` and so is
+   cheaper before the site and README are final than after.
+7. **Commit.** 35 files are uncommitted, and a submission tarball would be built
+   from them.
+8. Post-1.0, in no order: `VarCorr()`, the `loo_*` prediction wrappers,
    `posterior_vs_prior()`, an `rng` for `custom_family()`, and the DART
    inclusion probability as a stored quantity (`TASKS.md` has why it is a C++
    change).

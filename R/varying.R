@@ -148,7 +148,7 @@
 #' * [bcf()] for the causal case, which is this term with the priors and the
 #'   propensity score set up for it
 #' * [coef.bartisan_fit()] for reading the coefficients out
-#' * [bartisan-families] for the order the forests come in
+#' * [`bartisan-families`] for the order the forests come in
 #'
 #' @examples
 #' data("rhc")

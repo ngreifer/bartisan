@@ -108,7 +108,7 @@ plot(fit, ~ meanbp + sex)
 \seealso{
 \code{\link[=estimate_effect]{estimate_effect()}} for treatment effects rather than fitted
 surfaces; \code{\link[=variable_importance]{variable_importance()}} for which predictors the forest uses;
-\link{bartisan-marginaleffects}, since
+\code{\link{bartisan-marginaleffects}}, since
 \pkgfun{marginaleffects}{plot_predictions} draws the same thing with more
 control over the grid
 }

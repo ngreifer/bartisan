@@ -48,7 +48,7 @@
 #'
 #' @seealso [estimate_effect()] for treatment effects rather than fitted
 #'   surfaces; [variable_importance()] for which predictors the forest uses;
-#'   [bartisan-marginaleffects], since
+#'   [`bartisan-marginaleffects`], since
 #'   \pkgfun{marginaleffects}{plot_predictions} draws the same thing with more
 #'   control over the grid
 #'

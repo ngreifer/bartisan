@@ -131,7 +131,7 @@
 #' tools for summarizing and visualizing one.
 #'
 #' @seealso [bcf()], which fits the model this is usually called on;
-#'   [print.bcf_fit()] for its other methods; [bartisan-marginaleffects] for the
+#'   [print.bcf_fit()] for its other methods; [`bartisan-marginaleffects`] for the
 #'   same estimands through
 #'   \pkg{marginaleffects}, which also covers the ones not offered here
 #'

@@ -169,6 +169,6 @@ head(coef(fit2))
 \item \code{\link[=bcf]{bcf()}} for the causal case, which is this term with the priors and the
 propensity score set up for it
 \item \code{\link[=coef.bartisan_fit]{coef.bartisan_fit()}} for reading the coefficients out
-\item \link{bartisan-families} for the order the forests come in
+\item \code{\link{bartisan-families}} for the order the forests come in
 }
 }

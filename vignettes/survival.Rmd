@@ -173,8 +173,8 @@ ggplot(ed, aes(at, mean)) +
   geom_line(linewidth = 0.5) +
   stat_function(fun = dnorm, args = list(sd = sd_fitted),
                 linetype = 2, color = "#B2182B") +
-  labs(x = "error in log T", y = "density",
-       subtitle = "fitted error density (solid) against the normal of the same spread (dashed)")
+  labs(x = "Error in log T", y = "Density",
+       subtitle = "Fitted error density (solid) against the normal of the same spread (dashed)")
 ```
 
 Because the mixture can collapse to a single component, it costs almost nothing when a single normal was the right answer, which is the property that makes it a reasonable default rather than a specialist tool. Nor does it cost much time: conditional on which component each observation sits in, the model is Gaussian, so it takes the same fast path `lognormal_aft()` does and the mixture update on top is cheap. It runs at about two and a half times `lognormal_aft()`'s cost and a third of `weibull_aft()`'s, though what the mixture update costs depends on how many components the data ask for.
@@ -275,8 +275,8 @@ ggplot(haz, aes(t, h, group = interaction(family, label))) +
   facet_wrap(~ family, nrow = 1) +
   scale_color_manual(values = fam_colors, guide = "none") +
   coord_cartesian(ylim = c(0, 2.6)) +
-  labs(x = "time", y = "hazard",
-       subtitle = "the Weibull hazard cannot turn around; the other two can turn over exactly once; ph()'s can do anything")
+  labs(x = "Time", y = "Hazard",
+       subtitle = "The Weibull hazard cannot turn around; the other two can turn over exactly once; ph()'s can do anything")
 ```
 
 `dpm_aft()` is not in the figure because its hazard shape is whatever the fitted error mixture implies, which can be multi-modal (i.e., have more than one peak), something none of the three parametric families can produce.
@@ -357,8 +357,8 @@ ggplot(cv, aes(time, surv, color = subject)) +
                                  "typical" = "#999999",
                                  "good prognosis" = "#2166AC")) +
   coord_cartesian(ylim = c(0, 1)) +
-  labs(x = "time", y = expression(S(t*"|"*x)),
-       subtitle = "three held-out subjects: the truth in the first column, four fits beside it")
+  labs(x = "Time", y = expression(S(t*"|"*x)),
+       subtitle = "Three held-out subjects: the truth in the first column, four fits beside it")
 ```
 
 In the top row every fit recovers the separation between the three subjects; they differ in the level. `weibull_aft()` sends the good-prognosis curve to zero well before the truth does, because a monotone hazard cannot flatten out the way this baseline does; `ph()` and `dpm_aft()` track it, and the discrete-time fit is visibly steppy at this grid resolution.
@@ -377,9 +377,9 @@ ggplot(agg, aes(rank, family, color = family)) +
   facet_wrap(~ truth, ncol = 3) +
   scale_color_manual(values = fam_colors, guide = "none") +
   scale_y_discrete(limits = rev(fam_levels)) +
-  labs(x = "mean Spearman correlation with the true S(t | x)  (higher is better)",
+  labs(x = "Mean Spearman correlation with the true S(t | x)  (higher is better)",
        y = NULL,
-       subtitle = "how well the ordering of subjects by survival is recovered")
+       subtitle = "How well the ordering of subjects by survival is recovered")
 ```
 
 On all five truths where the covariate effect is constant in time, every family recovers the ordering at a correlation between .91 and .99, whether or not it has the shape right. The spread across families is a few hundredths where the spread in the survival curve was a factor of three.
@@ -407,7 +407,7 @@ ggplot(dn, aes(at, mean)) +
   geom_line(color = "#2166AC", linewidth = 0.6) +
   geom_line(data = truthdens, color = "black", linetype = 2, linewidth = 0.5) +
   facet_wrap(~ truth, scales = "free") +
-  labs(x = "error in log T", y = "density",
+  labs(x = "Error in log T", y = "Density",
        subtitle = "dpm_aft()'s fitted error density (blue, with interval) against the truth (dashed)")
 ```
 
@@ -442,8 +442,8 @@ ggplot(sw, aes(censor, s_rmse, color = family)) +
   geom_point(size = 1.6) +
   scale_color_manual(values = fam_colors) +
   scale_x_continuous(labels = function(z) paste0(100 * z, "%")) +
-  labs(x = "fraction censored", y = expression(RMSE~of~S(t*"|"*x)),
-       subtitle = "turning-over baseline, censoring swept from none to 70% (note the y axis does not start at zero)")
+  labs(x = "Fraction censored", y = expression(RMSE~of~S(t*"|"*x)),
+       subtitle = "Turning-over baseline, censoring swept from none to 70% (note the y axis does not start at zero)")
 ```
 
 **`ph()` is best at every level**, from no censoring to 70%, and no parametric family overtakes it at any point on this truth. So the recommendation is stable in the amount of censoring, which is the question that mattered.
@@ -571,7 +571,7 @@ ggplot(tm, aes(secs, family, fill = family)) +
   geom_col(width = 0.6) +
   scale_fill_manual(values = fam_colors, guide = "none") +
   scale_y_discrete(limits = rev(fam_levels)) +
-  labs(x = "seconds per fit", y = NULL,
+  labs(x = "Seconds per fit", y = NULL,
        subtitle = "700 observations, 50 trees, 500 draws after 500 warmup")
 ```
 

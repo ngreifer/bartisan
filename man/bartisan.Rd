@@ -27,7 +27,7 @@ group-level random intercept, in the notation of \pkg{lme4}; see Details.
 For a family with more than one additive predictor this may be a \emph{list} of
 formulas, one per forest, to give each one its own predictors. The first is
 the model for the main parameter and carries the response; the rest need no
-response, and follow the order in \link{bartisan-families}, under "Several
+response, and follow the order in \code{\link{bartisan-families}}, under "Several
 additive predictors", which also gives the name of each forest so the list
 can be named instead of ordered:
 
@@ -53,12 +53,12 @@ forests two-dimensional (one axis the parameter, the other the coefficient).
 
 \item{data}{a data frame containing the variables named in \code{formula}.}
 
-\item{family}{the response distribution, given as a \link[stats:family]{stats::family} object,
-as one of the families in \link{bartisan-families}, or as the name of either. A
+\item{family}{the response distribution, given as a \code{\link[stats:family]{stats::family}} object,
+as one of the families in \code{\link{bartisan-families}}, or as the name of either. A
 \code{family} object is accepted when the distribution it names is one this
 package implements, since the likelihood is the package's rather than the
 object's: a \code{family} object carries a link and a variance function and not a
-density, so one naming anything else (e.g., \link[stats:inverse.gaussian]{stats::inverse.gaussian}, or a
+density, so one naming anything else (e.g., \code{\link[stats:inverse.gaussian]{stats::inverse.gaussian}}, or a
 Tweedie from another package) is an error rather than something a likelihood
 can be built from, and \code{\link[=custom_family]{custom_family()}} is the route for those. Links are
 used as supplied, and a link the package does not compile is composed onto
@@ -75,10 +75,10 @@ link scale.}
 
 \item{subset}{optional; a vector specifying the subset of rows to use.}
 
-\item{na.action}{how missing values are handled. Default is \link[stats:na.pass]{stats::na.pass},
+\item{na.action}{how missing values are handled. Default is \code{\link[stats:na.pass]{stats::na.pass}},
 which keeps rows whose \emph{predictors} are missing and lets the splitting rules
 decide where they go, which is something the trees can do and \code{lm()} and
-\code{glm()} cannot; see Details. Pass \link[stats:na.omit]{stats::na.omit} to drop any row with a
+\code{glm()} cannot; see Details. Pass \code{\link[stats:na.omit]{stats::na.omit}} to drop any row with a
 missing value anywhere instead. Note that rows with a missing response,
 weight, or offset are dropped either way, with a warning, since there is
 nothing to fit them to.}
@@ -123,7 +123,7 @@ Laplace-approximation reversible-jump sampler of Linero (2025). Decision rules
 may be soft, as in Linero and Yang (2018), which gives smoother fits than the
 step functions of standard BART. The interface mirrors that of \code{\link[stats:glm]{stats::glm()}}:
 a formula, a data frame, and a family, with the families that \code{glm()} has no
-counterpart for documented at \link{bartisan-families}.
+counterpart for documented at \code{\link{bartisan-families}}.
 }
 \details{
 \subsection{The Sampler}{
@@ -331,7 +331,7 @@ Series B}, 80(5), 1087--1110. \doi{10.1111/rssb.12293}
 }
 \seealso{
 \code{\link[=bartisan_control]{bartisan_control()}} for the sampler and prior settings;
-\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for prediction; \link{bartisan-families} for the
+\code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for prediction; \code{\link{bartisan-families}} for the
 likelihoods, and \code{vignette("families")} for a family-by-family guide;
-\link{bartisan-marginaleffects} for reading effects off a fit
+\code{\link{bartisan-marginaleffects}} for reading effects off a fit
 }

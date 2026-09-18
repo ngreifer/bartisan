@@ -6,6 +6,13 @@ template:
   math-rendering: mathjax
 
 reference:
+- title: Overview
+  desc: >
+    The package's own page: what it fits, and a table pointing from the task at
+    hand to the function that does it.
+  contents:
+  - bartisan-package
+
 - title: Fitting a Model
   desc: >
     `bartisan()` is the entry point and `bcf()` is its counterpart for a
@@ -15,6 +22,7 @@ reference:
   contents:
   - bartisan
   - bartisan-families
+  - custom_family
   - bartisan_control
   - bcf
   - vc

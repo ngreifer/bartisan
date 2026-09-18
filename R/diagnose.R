@@ -99,7 +99,7 @@
 #' structures.
 #'
 #' The leaf scale `sigma_mu` is left out of the table, and is in `fit$sigma_mu`
-#' and [as_draws()][bartisan-interop] for anyone who wants to look.
+#' and [`as_draws()`][bartisan-interop] for anyone who wants to look.
 #'
 #' ## Setting `rhat_max` and `ess_min`
 #'
@@ -140,7 +140,7 @@
 #'
 #' @seealso
 #' [bartisan_control()] for the settings the advice names;
-#' [as_draws()][bartisan-interop] for handing the draws to \CRANpkg{bayesplot}
+#' [`as_draws()`][bartisan-interop] for handing the draws to \CRANpkg{bayesplot}
 #' or \CRANpkg{posterior}; `vignette("diagnostics")` for the fuller treatment,
 #' including posterior predictive checks
 #'

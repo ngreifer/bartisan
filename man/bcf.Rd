@@ -26,12 +26,12 @@ what the propensity score is and how it is modeled; see Details.}
 
 \item{data}{a data frame containing the variables named in \code{formula}.}
 
-\item{family}{the response distribution, given as a \link[stats:family]{stats::family} object,
-as one of the families in \link{bartisan-families}, or as the name of either. A
+\item{family}{the response distribution, given as a \code{\link[stats:family]{stats::family}} object,
+as one of the families in \code{\link{bartisan-families}}, or as the name of either. A
 \code{family} object is accepted when the distribution it names is one this
 package implements, since the likelihood is the package's rather than the
 object's: a \code{family} object carries a link and a variance function and not a
-density, so one naming anything else (e.g., \link[stats:inverse.gaussian]{stats::inverse.gaussian}, or a
+density, so one naming anything else (e.g., \code{\link[stats:inverse.gaussian]{stats::inverse.gaussian}}, or a
 Tweedie from another package) is an error rather than something a likelihood
 can be built from, and \code{\link[=custom_family]{custom_family()}} is the route for those. Links are
 used as supplied, and a link the package does not compile is composed onto
@@ -64,7 +64,7 @@ treatment. Everything that works on a \verb{<bartisan_fit>} works here unchanged
 the class exists so that methods needing a named treatment have something to
 dispatch on. \code{\link[=coef]{coef()}} gives the conditional effect for each observation and
 \pkgfun{marginaleffects}{avg_comparisons} the average; see
-\link{bartisan-marginaleffects}.
+\code{\link{bartisan-marginaleffects}}.
 }
 \description{
 Fits a varying-coefficient model set up for estimating a treatment effect: a

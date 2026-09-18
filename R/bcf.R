@@ -37,7 +37,7 @@
 #' the class exists so that methods needing a named treatment have something to
 #' dispatch on. [coef()] gives the conditional effect for each observation and
 #' \pkgfun{marginaleffects}{avg_comparisons} the average; see
-#' [bartisan-marginaleffects].
+#' [`bartisan-marginaleffects`].
 #'
 #' @details
 #' ## The Model

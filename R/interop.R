@@ -246,7 +246,7 @@
 #' @seealso
 #' [predict.bartisan_fit()] for the predictions these methods are built on;
 #' [diagnose()] for the convergence and mixing diagnostics;
-#' [bartisan-marginaleffects] for reading effects off a fit;
+#' [`bartisan-marginaleffects`] for reading effects off a fit;
 #' `vignette("diagnostics")` for the fuller treatment
 #'
 #' @examplesIf rlang::is_installed(c("loo", "rstantools"))
@@ -870,7 +870,7 @@ estimated_phrase <- function(flags, forests) {
   }
 
   sprintf("estimated for %s and held fixed for the rest",
-          paste(forests[flags], collapse = ", "))
+          toString(forests[flags]))
 }
 
 # A per-forest setting written into the prose: the number itself when every

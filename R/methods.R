@@ -408,7 +408,7 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
 #'
 #' Only the intercepts are returned. The standard deviation each grouping factor
 #' was drawn under is in `object$tau`, one column per factor and one matrix per
-#' additive predictor, and [prior_summary()][bartisan-interop] reports the prior
+#' additive predictor, and [`prior_summary()`][bartisan-interop] reports the prior
 #' it was drawn from.
 #'
 #' A posterior mean is the wrong summary for a level with few observations, which
@@ -424,7 +424,7 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
 #'
 #' @seealso
 #' [bartisan()] for the `(1 | group)` syntax and what it fits;
-#' [prior_summary()][bartisan-interop] for the prior on these
+#' [`prior_summary()`][bartisan-interop] for the prior on these
 #'
 #' @examplesIf rlang::is_installed("nlme")
 #' set.seed(123)

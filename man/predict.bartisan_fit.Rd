@@ -61,7 +61,7 @@ Details.}
 given in \code{times}, for the accelerated failure time families and \code{\link[=ph]{ph()}}.
 Returns one column per time, or a draws by rows by times array when
 \code{draws = TRUE}. This is what makes the usual survival estimand reachable
-through \pkg{marginaleffects}; see \link{bartisan-marginaleffects}.}
+through \pkg{marginaleffects}; see \code{\link{bartisan-marginaleffects}}.}
 }}
 
 \item{draws}{\code{logical}; whether to return every posterior draw rather than
@@ -168,7 +168,7 @@ The measure differs across the survival families: the accelerated failure time
 families, \code{dpm_aft()} included, report the density of \eqn{\log T}, where
 \code{\link[=ph]{ph()}} reports the density of \eqn{T}. The two differ by \eqn{\sum \log t},
 so log scores are comparable within each group rather than across them, and
-\code{type = "survival"} is comparable throughout. \link[=bartisan-interop]{loo()} takes a
+\code{type = "survival"} is comparable throughout. \code{\link[=bartisan-interop]{loo()}} takes a
 \code{scale} argument that puts them on one measure.
 
 \code{type = "density"} returns \code{NaN} for an observation whose density is undefined
@@ -201,7 +201,7 @@ sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
 
 }
 \seealso{
-\code{\link[=bartisan]{bartisan()}} for fitting the model; \link{bartisan-marginaleffects} for averages
-and contrasts of these predictions; \link{bartisan-interop} for the methods that
+\code{\link[=bartisan]{bartisan()}} for fitting the model; \code{\link{bartisan-marginaleffects}} for averages
+and contrasts of these predictions; \code{\link{bartisan-interop}} for the methods that
 let other packages assess the fit
 }

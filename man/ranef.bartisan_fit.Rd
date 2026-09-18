@@ -37,7 +37,7 @@ predictors instead; \code{vignette("families")} lists them per family.
 
 Only the intercepts are returned. The standard deviation each grouping factor
 was drawn under is in \code{object$tau}, one column per factor and one matrix per
-additive predictor, and \link[=bartisan-interop]{prior_summary()} reports the prior
+additive predictor, and \code{\link[=bartisan-interop]{prior_summary()}} reports the prior
 it was drawn from.
 
 A posterior mean is the wrong summary for a level with few observations, which
@@ -72,5 +72,5 @@ apply(nlme::ranef(fit, draws = TRUE)$site[["(Intercept)"]], 2L, quantile,
 }
 \seealso{
 \code{\link[=bartisan]{bartisan()}} for the \code{(1 | group)} syntax and what it fits;
-\link[=bartisan-interop]{prior_summary()} for the prior on these
+\code{\link[=bartisan-interop]{prior_summary()}} for the prior on these
 }

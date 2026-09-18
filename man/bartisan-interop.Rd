@@ -374,6 +374,6 @@ if (rlang::is_installed("posterior")) {
 \seealso{
 \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for the predictions these methods are built on;
 \code{\link[=diagnose]{diagnose()}} for the convergence and mixing diagnostics;
-\link{bartisan-marginaleffects} for reading effects off a fit;
+\code{\link{bartisan-marginaleffects}} for reading effects off a fit;
 \code{vignette("diagnostics")} for the fuller treatment
 }

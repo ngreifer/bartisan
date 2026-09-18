@@ -147,7 +147,7 @@
 #' @seealso
 #' [predict.bartisan_fit()] for the prediction scales these estimands are
 #' computed on; [bartisan_control()] for `sparsity` and `x_transform`;
-#' [bartisan-interop] for the methods that let other packages assess the fit
+#' [`bartisan-interop`] for the methods that let other packages assess the fit
 #'
 #' @examplesIf rlang::is_installed("marginaleffects")
 #' data("rhc")

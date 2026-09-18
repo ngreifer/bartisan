@@ -81,7 +81,7 @@ three to over-read.
 Usage is not effect size: a predictor can be split on constantly and move the
 prediction very little. Where the question is how much a predictor moves the
 outcome, \pkgfun{marginaleffects}{avg_comparisons} on the fitted model
-answers it; see \link{bartisan-marginaleffects}. Where two predictors carry the
+answers it; see \code{\link{bartisan-marginaleffects}}. Where two predictors carry the
 same information the trees split on whichever is convenient and the usage
 distributes between them arbitrarily, so a group of correlated predictors is
 best read as a group. And a ranking by usage describes this fitted function
@@ -137,6 +137,6 @@ plot(head(imp, 8))
 }
 \seealso{
 \code{\link[=summary.bartisan_fit]{summary.bartisan_fit()}}, which prints the same table;
-\code{\link[=bartisan_control]{bartisan_control()}} for \code{sparsity}; \link{bartisan-marginaleffects} for effects
+\code{\link[=bartisan_control]{bartisan_control()}} for \code{sparsity}; \code{\link{bartisan-marginaleffects}} for effects
 rather than usage
 }

@@ -219,5 +219,5 @@ options(op)
 \seealso{
 \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} for the prediction scales these estimands are
 computed on; \code{\link[=bartisan_control]{bartisan_control()}} for \code{sparsity} and \code{x_transform};
-\link{bartisan-interop} for the methods that let other packages assess the fit
+\code{\link{bartisan-interop}} for the methods that let other packages assess the fit
 }

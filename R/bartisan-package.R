@@ -1,5 +1,3 @@
-#' @keywords internal
-#'
 #' @details
 #' Fits Bayesian additive regression trees (BART) the way [stats::glm()] fits a
 #' generalized linear model: a formula, a data frame, and a family. The forest
@@ -19,24 +17,24 @@
 #' | Task | Use |
 #' | --- | --- |
 #' | fit a model | [bartisan()] |
-#' | choose a likelihood | [bartisan-families], `vignette("families")` |
+#' | choose a likelihood | [`bartisan-families`], `vignette("families")` |
 #' | change the sampler's settings | [bartisan_control()] |
 #' | predict for new data | [predict.bartisan_fit()] |
-#' | a prediction with an interval | `marginaleffects::predictions()` |
-#' | an interval for a new observation, noise included | [posterior_predict()][bartisan-interop] |
-#' | how much a predictor moves the outcome | `marginaleffects::avg_comparisons()` |
-#' | a partial dependence plot | [partial_dependence()], or `marginaleffects::plot_predictions()` for more control over the grid |
+#' | a prediction with an interval | \pkgfun{marginaleffects}{predictions} |
+#' | an interval for a new observation, noise included | [`posterior_predict()`][bartisan-interop] |
+#' | how much a predictor moves the outcome | \pkgfun{marginaleffects}{avg_comparisons} |
+#' | a partial dependence plot | [partial_dependence()], or \pkgfun{marginaleffects}{plot_predictions} for more control over the grid |
 #' | which predictors the forest uses | [variable_importance()] |
 #' | to tell the prior which predictors matter | `split_prior` in [bartisan_control()] |
-#' | to see what prior a fit was given | [prior_summary()][bartisan-interop] |
+#' | to see what prior a fit was given | [`prior_summary()`][bartisan-interop] |
 #' | to see what that prior implies about the outcome | `prior_only` in [bartisan()] |
-#' | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [bartisan-families] |
+#' | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [`bartisan-families`] |
 #' | a coefficient that varies with the other predictors | [vc()] in the formula, then [coef()] |
 #' | a treatment effect with its own prior | [bcf()], `vignette("causal")` |
 #' | the ATE, ATT or the effect for each unit | [estimate_effect()] |
-#' | to check it converged and mixed | [diagnose()], then [as_draws()][bartisan-interop] with \pkg{bayesplot} |
-#' | to check it fits | [pp_check()][bartisan-interop], [residuals()][bartisan-interop] |
-#' | to compare two models | [loo()][bartisan-interop] |
+#' | to check it converged and mixed | [diagnose()], then [`as_draws()`][bartisan-interop] with \pkg{bayesplot} |
+#' | to check it fits | [`pp_check()`][bartisan-interop], [`residuals()`][bartisan-interop] |
+#' | to compare two models | [`loo()`][bartisan-interop] |
 #' | survival data | [ph()], [dpm_aft()], `vignette("survival")` |
 #' | a likelihood of one's own | [custom_family()] |
 #'
@@ -74,8 +72,8 @@
 #' around it.
 #'
 #' @seealso
-#' [bartisan()] to fit a model; [bartisan-families] to choose a likelihood;
-#' [bartisan-marginaleffects] and [bartisan-interop] for the packages that read a
+#' [bartisan()] to fit a model; [`bartisan-families`] to choose a likelihood;
+#' [`bartisan-marginaleffects`] and [`bartisan-interop`] for the packages that read a
 #' fit; `vignette("bartisan")` for a worked analysis and
 #' `vignette("implementation")` for how the sampler works.
 #'

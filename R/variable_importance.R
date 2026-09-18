@@ -57,7 +57,7 @@
 #' Usage is not effect size: a predictor can be split on constantly and move the
 #' prediction very little. Where the question is how much a predictor moves the
 #' outcome, \pkgfun{marginaleffects}{avg_comparisons} on the fitted model
-#' answers it; see [bartisan-marginaleffects]. Where two predictors carry the
+#' answers it; see [`bartisan-marginaleffects`]. Where two predictors carry the
 #' same information the trees split on whichever is convenient and the usage
 #' distributes between them arbitrarily, so a group of correlated predictors is
 #' best read as a group. And a ranking by usage describes this fitted function
@@ -76,7 +76,7 @@
 #' through correlated ones.
 #'
 #' @seealso [summary.bartisan_fit()], which prints the same table;
-#'   [bartisan_control()] for `sparsity`; [bartisan-marginaleffects] for effects
+#'   [bartisan_control()] for `sparsity`; [`bartisan-marginaleffects`] for effects
 #'   rather than usage
 #'
 #' @examples
