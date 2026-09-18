@@ -62,7 +62,8 @@
 #'   response given as proportions, these are the numbers of trials, as in
 #'   `glm()`.
 #' @param offset optional; a known component of the additive predictor, on the
-#'   link scale.
+#'   link scale, given as one value per observation. A family with more than one
+#'   additive predictor receives the same offset on each; see Details.
 #' @param subset optional; a vector specifying the subset of rows to use.
 #' @param na.action how missing values are handled. Default is [`stats::na.pass`],
 #'   which keeps rows whose *predictors* are missing and lets the splitting rules
@@ -172,6 +173,26 @@
 #'
 #' A level of `group` that was not present at fitting time is given the prior
 #' mean of zero when predicting, with a warning.
+#'
+#' ## Offsets
+#'
+#' An offset is a known part of the additive predictor, supplied on the link
+#' scale and not estimated: the log of an exposure for a count, say. It is
+#' given as one value per observation, through `offset` or as an `offset()`
+#' term in the formula.
+#'
+#' A family with several additive predictors receives the same offset on each
+#' of them, which is worth knowing before reaching for one. Under
+#' [multinomial()] with the default symmetric coding, a shift common to every
+#' category cancels out of the softmax, so an offset leaves the fitted
+#' probabilities unchanged; with `reference` set it does not cancel, and moves
+#' every non-reference category against the reference one. A per-forest offset,
+#' which is what a category-specific exposure would need, is not available when
+#' fitting. `predict()` accepts one, as a matrix with a column per forest.
+#'
+#' An offset is not a function of the predictors, so it cannot be rebuilt for
+#' rows the fit has not seen: a model fitted with one requires `offset` at
+#' `predict()` time.
 #'
 #' ## Missing Predictor Values
 #'

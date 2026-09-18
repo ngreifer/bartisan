@@ -365,7 +365,7 @@ That is the usual outcome, and it is worth knowing before spending a grid on it.
 
 ## A Constant Coefficient Against a Varying One (`vc()`)
 
-`vc(z)` gives `z` a coefficient that is itself a forest, free to vary with the other predictors. Naming no modifier, `vc(z, ~ 1)`, leaves that forest nothing to split on: every tree in it is a stump, so the coefficient is a single drawn number and `z` enters the model as a linear term while everything else stays nonparametric. That is the semiparametric case of the General BART model of @tan2019, a forest and a parametric part taking disjoint sets of predictors, and it is the shape *stan4bart* fits.
+`vc(z)` gives `z` a coefficient that is itself a forest, free to vary with the other predictors. Naming no modifier, `vc(z, ~ 1)`, leaves that forest nothing to split on: every tree in it is a stump, so the coefficient is a single drawn number and `z` enters the model as a linear term while everything else stays nonparametric. That is the semiparametric case of the General BART model of @tan2019, a forest and a parametric part taking disjoint sets of predictors, and it is the shape *stan4bart* and *flexBART* fit; *flexBART*'s formula interface writes it as `y ~ bart(x1 + x2) + x3`, with `x3` linear, and a varying coefficient as `x4 * bart(x1 + x2)`.
 
 Comparing the two by `loo_compare()` asks a question neither variable importance nor a dropped predictor answers: not whether `z` matters, but whether what it does depends on anything else.
 

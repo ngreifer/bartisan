@@ -105,6 +105,50 @@ package claims to support, which is what puts them here.
 - [ ] Missing data, further work: nothing forces the three missing-value rules to be equally likely, and a variable with a handful of missing values probably does not want a third of its rules spent on splitting by missingness. A prior weight on the third rule is a one-line change and an open question.
 - [ ] A `quasi()` family parameterized by link, variance function and dispersion update rule. Needs a documented weakening of the exactness claim.
 - [ ] A lighter-tailed prior on the leaf scale, or an upper bound, would remove the separation pathology at the cost of changing the default prior. Not done unilaterally; the warning is the interim measure.
+- [ ] **A per-forest offset at fitting time.** `build_offset()` already has a
+  branch for an `n` by `n_forest` matrix, and `predict()` reaches its
+  equivalent through `as_offset_matrix()`, but the branch is unreachable from
+  `bartisan()`: `model_offset <- as.vector(stats::model.offset(mf))` at
+  `R/bartisan.R:483` flattens the matrix before `build_offset()` sees it, so a
+  matrix offset fails with "must have one value per observation". The two sides
+  of the package therefore disagree -- you can predict with a per-forest offset
+  but not fit with one.
+
+  The fix is small in the middle and not at the edges: keep the matrix when
+  `model.offset()` returns one, then check that `drop_unusable_rows()` and
+  `prepare_response()` handle a matrix where they currently handle a vector.
+  Worth doing because the feature is genuinely wanted: a category-specific
+  exposure for `multinomial()`, or an offset on the count part of
+  `zi_poisson()` but not the zero-inflation part.
+
+  While it is broken, note what a *vector* offset does to a multinomial. Under
+  the symmetric coding it is a no-op, silently: a shift common to every
+  category cancels out of the softmax, measured at a maximum probability change
+  of 1.2e-14. Under `reference` it does not cancel. `?bartisan` now says so.
+
+- [ ] **A test for `offset` beyond one forest.** There is none. The offset
+  tests cover `poisson()` and `tweedie()`, and `test-invariants.R`'s
+  "vc + offset" cell passes a *vector* to a two-forest model, so nothing
+  exercises the matrix form or any multinomial. Whatever is decided about the
+  item above, the no-op under symmetric multinomial coding deserves a test that
+  pins it, since it is surprising and currently silent.
+
+- [ ] **`fc()` for a fixed coefficient**, as a companion to `vc()`. `vc(z, ~ 1)`
+  already fits a constant coefficient, so `fc(z)` would begin as a synonym for
+  it, which is a weak reason to add a function. The reason to consider it is
+  what it could express that `vc()` cannot: `fc(z1 * z2)` or `fc(poly(z, 2))`,
+  a parametric sub-model with its own design matrix sitting alongside the
+  forest, which is the `h(w, Theta)` of Tan and Roy's General BART model in
+  full rather than the one-column case of it.
+
+  Against: the leaf prior is the wrong prior for a regression coefficient and
+  is what a pinned forest necessarily gets, so a real `fc()` wants a prior
+  argument, which is a new prior to design, document and default. It also
+  invites the question of what `summary()` and `coef()` should print for a
+  parametric block, and the package's answer to "I want a linear term" is
+  currently one that costs nothing to maintain. Out of scope for 1.0; worth
+  revisiting if users ask for interactions among the parametric part.
+
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
 
 ## Speeding up the survival models
