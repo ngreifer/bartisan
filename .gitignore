@@ -65,6 +65,16 @@ _dev/*
 !_dev/parity-benchmark.R
 !_dev/positive-sim.R
 !_dev/diagnose-timing.R
+!_dev/transient-scaling.R
+!_dev/transient-trace.R
+!_dev/chains-vs-length.R
+!_dev/chains-convergence.R
+!_dev/mixing-against-n.R
+!_dev/ordinal-cut-chart.R
+!_dev/ordinal-cut-chart-results.R
+!_dev/ordinal-cut-chart-table.R
+!_dev/ordinal-cut-reversed.R
+!_dev/ordinal-cut-reaches.R
 
 # Side effect of rendering README.Rmd to github_document.
 README.html
@@ -106,3 +116,7 @@ docs
 # than from `vignettes/` puts them one level up.
 vignettes/figure/
 figure/
+!_dev/XBART.md
+!_dev/gibbs-prior-smoke.R
+!_dev/gibbs-recall.R
+!_dev/gibbs-prior.patch

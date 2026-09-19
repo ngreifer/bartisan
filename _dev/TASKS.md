@@ -148,6 +148,23 @@ package claims to support, which is what puts them here.
   currently one that costs nothing to maintain. Out of scope for 1.0; worth
   revisiting if users ask for interactions among the parametric part.
 
+- [ ] **The Gibbs prior of Linero and Du (2023), as `sparsity = "gibbs"`.** Built,
+  measured, and **removed before 0.1.0**. The code is not gone: it is
+  `_dev/gibbs-prior.patch`, which applies cleanly to the tree it was cut from and
+  carries all five source files plus its test file. Restore with
+  `git apply _dev/gibbs-prior.patch`, then `rm src/random.o` before rebuilding --
+  `random.cpp` constructs a `Hypers` and its object file goes stale against the
+  changed constructor signature without its source changing, which `R CMD INSTALL`
+  will not notice.
+
+  **Why it is not in 0.1.0.** Not because it does not work. Its measured benefit
+  is concentrated in variable *selection* on near-null designs, and the function
+  that would use it -- the formal selection test three items above -- is unbuilt.
+  Shipping the ingredient without the dish invites its use for prediction, which
+  is the one thing it is not measured to be good at, since no arm of either
+  simulation scored held-out error at all. See the two Log entries below for the
+  full working; what is needed before it returns is in "What is still owed" there.
+
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
 
 ## Speeding up the survival models
@@ -1575,6 +1592,132 @@ The mechanism is **bias, not mixing**. The posterior mean sits about 0.77 poster
 
 The one lever that did work is getting the mean-variance relation right; see the quasi-likelihood entry.
 
+### Many chains against one long chain: a large effect, and it is an artifact
+
+The entry above rules out mixing at n = 250, where four chains and a fourfold longer chain each move coverage by 0.005. That is not the regime Krantsevich, He and Hahn work in, and their protocol is not four chains: they pool $s - b$ *separately initialized* chains against one chain for BCF, and their own 20000-after-20000 run still does not match it. So the question was whether between-chain diversity, which `chains` already provides and which needs no grow-from-root anywhere, is what widened their intervals.
+
+**It is, and it overshoots.** `_dev/chains-vs-length.R`, Friedman at n = 4000 with 25 of 30 predictors irrelevant, coverage of the true regression function at 500 held-out points, nominal 95%, 20 replicates. The first four arms spend the same 4800 sweeps and differ only in how the budget is cut up; `pooled` is what survives warmup:
+
+| arm | chains | warmup | draws | pooled | coverage | width | abs bias | post sd | ratio |
+|---|---|---|---|---|---|---|---|---|---|
+| A | 1 | 200 | 4600 | 4600 | 0.949 | 0.538 | 0.108 | 0.137 | 0.78 |
+| B | 4 | 200 | 1000 | 4000 | 0.975 | 0.636 | 0.104 | 0.158 | 0.66 |
+| D | 16 | 200 | 100 | 1600 | 0.986 | 0.742 | 0.104 | 0.182 | 0.57 |
+| E | 16 | 50 | 250 | 4000 | 0.994 | 0.734 | 0.101 | 0.208 | 0.49 |
+
+Paired against A, coverage rises by 0.026, 0.037 and 0.045 with $t$ of 8.0, 9.3 and 10.3, and the posterior standard deviation by 0.021, 0.044 and 0.071 with $t$ of 2.3, 3.8 and 6.4. Chain count at fixed draws per chain says the same thing twice as loudly: 16 chains of 400 against one chain of 400 is +0.080 coverage ($t$ = 14.3). The effect is real, it is large, and it needs nothing from He and Hahn.
+
+**But A is the best-calibrated arm in the table.** It sits at 0.949 against a nominal 0.95; every multi-chain arm over-covers, and arm E reaches 0.994 by carrying intervals 36% wider. Read as a way to fix under-coverage this is a failure, because there was no under-coverage at n = 4000 to fix. Read as a warning it is useful: **coverage bought with chain count is bought with width, and chasing it will sail past nominal.**
+
+**No arm in that table is converged by this package's own standard.** `diagnose()` defaults to `rhat_max = 1.01` and the log likelihood runs 1.13 to 1.52 across the arms, the splitting proportions 1.27 to 2.03. So it compares differently-unconverged fits, and the next entry resolves what that means. The short version is that the table above is a Monte Carlo artifact and should not be quoted as a property of chain count.
+
+### The chain-count effect is Monte Carlo error, measured
+
+Two readings of the table above, implying opposite actions. *Artifact*: the arms are differently-wrong rather than differently-informative, two estimates of one posterior disagreeing is what non-convergence looks like, and the gap must close when the chains are run longer. *Real*: a single chain settles into one variable-selection state and reports the spread within it while several find several, which is multimodality in the sparsity prior and does not go away with run length.
+
+`_dev/chains-convergence.R` tests both. Same design, and a ladder that raises total sweeps at a **constant** 800 stored draws per chain by thinning at 1, 4, 16 and 64, so Monte Carlo error from the draw count is held fixed and a change in width is a change in the posterior being sampled. `sparsity = FALSE` tests the named mechanism directly, since it removes the prior over which predictors the forest may reach for. Four replicates, the one-chain-minus-four-chain width gap paired within replicate:
+
+| sweeps past warmup | gap, sparsity on | gap, sparsity off |
+|---|---|---|
+| 800 | +10.8% ($t$ = 3.4) | +29.7% ($t$ = 10.3) |
+| 3200 | +5.9% ($t$ = 3.0) | +14.9% ($t$ = 5.7) |
+| 12800 | +3.2% ($t$ = 2.4) | +8.1% ($t$ = 2.9) |
+
+**It is Monte Carlo error.** Regressing the gap on sweeps gives an exponent of −0.44 with sparsity on and −0.47 with it off, against the −0.5 that Monte Carlo error predicts. A real posterior feature would plateau; this decays at the textbook rate. The widths converge from both sides to the same place, and the coverage gap decays with it, 0.041 to 0.024 to 0.015:
+
+| sweeps | 1 chain | 4 chains |
+|---|---|---|
+| 800 | 0.5270 | 0.5838 |
+| 3200 | 0.5270 | 0.5578 |
+| 12800 | 0.5209 | 0.5373 |
+| 51200 | 0.5009 | — |
+
+**The sparsity hypothesis is refuted, and backwards.** Turning the Dirichlet prior off makes the gap two to three times *larger* at every rung, absolute bias worse (0.132 against 0.108 at the shortest run) and R-hat on the predictor worse. So the slow state is not the variable-selection state here, and — worth recording against the propensity entry below, which found `sparsity = FALSE` worth about 2x on mixing — **that finding does not generalize to a design with genuinely irrelevant predictors.** With 25 of 30 carrying no signal, the DART prior earns its keep by concentrating splits, and removing it costs mixing rather than buying it.
+
+**The converged answer, from the deep rung** (one chain, 51200 sweeps, 398 s): coverage 0.9575, width 0.5009, absolute bias 0.0943 against a posterior standard deviation of 0.1282, so a ratio of 0.74 — the same 0.77 the entry above this one reports at n = 250. R-hat reaches 1.020 on the log likelihood, 1.097 on the predictor and 1.120 on the splitting proportions. **51200 sweeps does not reach `rhat_max = 1.01`**, which is a fact about the default threshold rather than about this design.
+
+**So: `chains = 1` stays, and nothing here argues for more chains.** The apparent gain was the shorter-run arms overstating interval width, the multi-chain ones more than the single-chain one. The grow-from-root question closes the same way it did before, and more firmly: the one part of Krantsevich's protocol that survived the transient measurement turns out not to be a real effect at all.
+
+### What this says about the defaults and about `diagnose()`
+
+Both were called into question by the table two entries above; the ladder answers both, and mostly in their favor.
+
+**The defaults are optimistic for intervals and defensible for prediction.** At the default 800 post-warmup sweeps a single chain reports width 0.527 and coverage 0.938; at 51200 it reports 0.501 and 0.958. So the default overstates interval width by about 5% and gives up two points of coverage, for 1/64 of the compute. That is a reasonable trade and it is also not what the default was chosen on: the entry that lowered `num_burn` from 500 to 200 measured out-of-sample error and effective sample size per second, which is a different criterion and agrees with the current default. `?bartisan_control` should say that intervals want more sweeps than point predictions do; the default should not move on this evidence.
+
+**`diagnose()` is not failing, and the earlier reading of it was a mistake worth recording.** Three things looked wrong in that table: a failing R-hat alongside nominal coverage, effective sample size running opposite to calibration, and one chain disagreeing with four. None of them is a defect.
+
+- R-hat and effective sample size bound *Monte Carlo error in estimating the posterior*. Coverage also depends on whether the posterior describes the truth, which is bias, and the entry above this one establishes that coverage here is bias-limited. A diagnostic that cannot see bias cannot predict coverage, and should not be expected to.
+- Every arm in that table failed `rhat_max = 1.01`, including the one whose coverage came out at 0.949. The diagnostic said do not trust any of them and was right: that arm's nominal coverage was understated variance offsetting bias, which the ladder shows by moving both when the run is lengthened. Reading a coincidence as a diagnostic success was the error.
+- The one-against-four disagreement was the most informative number in the table and it was read as noise. It is a direct comparison of two estimates of the same functional, and it decays at the Monte Carlo rate. That makes it a sharper convergence statement than R-hat gave, and the lesson is to treat it as one rather than to doubt R-hat.
+
+What is genuinely worth changing is guidance on **which row to act on**. On the design in this entry `splits.eta` runs worse than the `eta` rows at every setting (1.25 against 1.12 at 12800 sweeps, 2.03 against 1.57 in the 16-chain arm above), because the splitting proportions are a nuisance state that the reported quantities integrate over. A user who acts on the worst row will run a model for hours that was usable much earlier.
+
+**That last reading generalized from one design and the next entry measures it not to hold.** This design is 25 of 30 predictors irrelevant, which is what makes the splitting proportions the worst-behaved thing in the fit. Off that design they are middling, and the row worth acting on is a different one.
+
+### Mixing against sample size, against Tan et al. (2026), and the row that is actually worst
+
+Two claims, one borrowed and one local. `_dev/mixing-against-n.R`: `gaussian()`, `binomial("probit")` and `ordinal()` on 20 categories, hard and soft rules, n of 500, 2000 and 8000, eight chains of 1000 draws after 200 warmup, eight replicates, `num_trees` at the default throughout. 144 fits, 3h 50m. The primary statistic is Tan et al.'s: the held-out root mean squared error of each draw against the truth, one scalar per draw, reshaped into chains and passed through this package's own `diagnosis_stats()`.
+
+**The borrowed claim holds in substance and not in signature.** Tan, Ronen, Saarinen and Yu (2026, arXiv:2406.19958) prove the hitting time for a high posterior density set grows with n from posterior multimodality, and report R-hat rising with n across every dataset they test. R-hat does rise here, for the Gaussian by a log-log slope of +0.38 under hard rules and +0.26 under soft. But **every cell of the design sits at or below its own null** `1 + chains/ess`, the largest excess being +0.008:
+
+| family | rules | R-hat at n = 500 / 2000 / 8000 | null at the same ESS |
+|---|---|---|---|
+| gaussian | hard | 1.071 / 1.129 / 1.205 | 1.082 / 1.173 / 1.235 |
+| gaussian | soft | 1.055 / 1.102 / 1.114 | 1.052 / 1.126 / 1.153 |
+| probit | hard | 1.134 / 1.070 / 1.093 | 1.167 / 1.067 / 1.109 |
+| ordinal | hard | 1.056 / 1.089 / 1.072 | 1.048 / 1.107 / 1.088 |
+
+So the rise is what falling effective sample size produces on its own, not chains occupying different modes. And the effective sample size does fall: log-log slopes against n of −0.38 and −0.39 for the Gaussian, −0.22 and −0.25 for the ordinal, −0.25 for probit under soft rules. **Mixing degrades with n exactly as their theory says; what it does not do here is look like multimodality.** The caveat is power: at eight chains and effective sample sizes in the tens, an excess of a few hundredths would not be detected, so this is no detectable excess rather than no multimodality.
+
+**Soft rules mix better, modestly.** Effective sample size for the functional, soft over hard: 1.58, 1.38 and 1.54 for the Gaussian across the three sizes; 2.53, 1.43 and 0.82 for probit; 1.07, 1.76 and 1.01 for the ordinal. Better or equal in eight of nine cells. This is a mitigation their paper does not cover, since they study hard rules only, and it agrees in direction with the transient measurement. It is not large enough to carry the default on its own, which the accuracy measurements already do.
+
+**The local claim is where this run earns its time, and it corrects the entry above.** The grading added to `diagnosis_checks()` reads R-hat and effective sample size on the reported quantities and gives the splitting rules their own check. The entry above motivated that by the splitting rules being the worst row. **Across 144 fits they were the worst row in 8.** A reported quantity carried the worst R-hat in the other 136: `aux.cut1` in 48, the predictor's worst 5% in 50, the log likelihood in 38. Their gap over the averaged predictor is +0.130 for the Gaussian, +0.048 for probit and +0.026 for the ordinal, which is real, small, and smaller than the worst-5% row's.
+
+**The wide gap in a fit is within the reported rows, not between them and the nuisance one.** The predictor averaged over observations carried a median of **93 times** the effective sample size of its own worst 5%, 7815 against 52, in the same fit. That is the "settles the total within a sweep or two and takes much longer to settle which observation gets which share" point the roxygen already makes, and it is an order of magnitude larger than anything the splits row contributes.
+
+**The code change is kept and its documentation corrected.** The structural argument stands, the change is close to inert off a sparse design, since it can only change a verdict in the 8 fits of 144 where the splits row led, and it helps on the sparse designs where that row genuinely dominates. What was wrong was the stated reason, so `?diagnose` now carries the 8-of-144 count, the three per-family gaps and the 93-fold figure, and says plainly that the row is graded apart because of how the model is parameterized rather than because it is the worst one.
+
+**`ordinal()` was in the design to test whether "reported against internal" is the right cut, and it says the cut is not wrong but is not where the action is.** The record's cutpoint entry reports "a median effective sample size of only 7 to 21 per 100 draws", measured at K = n on a response ranked into n categories. At K = 20 the cutpoints mix *well*: R-hat 1.04 and effective sample sizes of 603 to 787, better than the log likelihood and better than the predictor's worst 5%. So that finding is specific to the many-threshold case and does not describe a realistic ordinal fit. One exception, and it is sharp enough to chase separately: mixing degrades steeply toward the low end of the scale, `aux.cut1` reaching R-hat 1.31 on 23 effective draws against `aux.cut6`'s 1.01 on 978, which makes the first reported cutpoint the worst-mixing quantity in the whole model. Chased in the next entry, which finds that `aux.cut1` is not a cutpoint at all.
+
+### The worst row in an ordinal fit is the threshold the sampler never updates
+
+Two statements in this file could not both be about the same quantity. The diagnostics entry said an ordinal model's first cutpoint "is pinned at zero for identifiability, so there is nothing to diagnose" and that both statistics return `NA` for it. The entry above reports `aux.cut1` carrying a finite R-hat of 1.31 on 23 effective draws, the worst row in all 48 ordinal fits. `_dev/ordinal-cut-chart.R`, `-reversed.R` and `-reaches.R` settle it, and the first half needed no fits at all.
+
+**`aux.cut1` is not a cutpoint.** Three lines of source say so. `update_ordinal_cuts()` loops `for (int k = 1; k < num_cat - 1; k++)`, so `cuts(0)` is never written; `prepare_ordered()` starts it at `raw - raw[1L]`, so it is zero for the whole run; and `report_shift()` returns `mean(eta.row(0))` while `aux_values_shifted()` returns `cuts - shift(0)`. The reported first cutpoint is therefore `-mean(eta)` exactly, the level of the fitted function with no threshold in it, and every other reported cutpoint is its distance from the pinned threshold minus that same level. Checked from the other side on real fits, the recorded predictor has mean zero to 5e-15 at n = 500 and 2e-14 at n = 8000, in every draw. The three `set_aux()` callers are replay entry points for prediction and derivatives, so nothing writes `cuts(0)` while the sampler runs.
+
+So the pinning note describes the sampler's chart and the measurement reads the reported one. Only the prose was ever wrong: `test-bartisan.R` asserts `sd(fit$aux[, "cut1"]) > 0` on a four-category fit, and the `NA` test in `test-chains.R` uses two categories deliberately, with a comment saying that three or more would no longer be a test of a constant.
+
+**The obvious explanation was measured and is wrong, which is what makes the rest of this entry worth reading.** If every reported cutpoint is a sampled one minus a common shift, the natural reading is that one slow scalar has been smeared across 19 rows and the diagnostic is at fault. The sampled cutpoints come back from the reported draws exactly, `c_k = aux.cutk - aux.cut1`, so the comparison costs nothing beyond the fits. It says the opposite. 18 fits, 20 categories, hard and soft rules, n of 500, 2000 and 8000, eight chains of 1000 draws after 200 warmup:
+
+| k | reported `aux.cutk` | sampled `c_k` | gap `c_k - c_{k-1}` | cor with `aux.cut1` |
+|---|---|---|---|---|
+| 1 | 23 | pinned at 0 | -- | 1.00 |
+| 2 | 52 | 49 | 49 | 0.73 |
+| 3 | 104 | 32 | 146 | 0.60 |
+| 4 | 244 | 27 | 411 | 0.51 |
+| 6 | 994 | 23 | 1173 | 0.37 |
+| 10 | 1649 | 21 | 2044 | 0.17 |
+| 14 | 391 | 21 | 2633 | 0.01 |
+| 19 | 818 | 34 | 8091 | -0.08 |
+
+**The reported chart is the mitigation, not the defect.** Every sampled cutpoint carries the slow scalar and mixes at 21 to 49 effective draws whatever its index; subtracting the mean predictor cancels it, and cancels it better the further the row sits from the pin. `aux.cut1` is the one row where nothing cancels, because it is the scalar. Had the package reported the sampler's own cutpoints, the 18 free rows would read between 21 and 49 and the first would be a constant, rather than one row reading 23 and the middle of the scale reaching 1764. It holds in every cell rather than on average: at `cut19` the reported row runs 384 to 1355 across the six combinations of rule and sample size while the sampled one runs 21 to 61. Note that sampled `c_2` and the first gap are the same quantity, which is why the table repeats 49.
+
+R-hat says the same thing, and reads the more alarming way round. The reported cutpoints run from 1.298 at k = 1 down to 1.004 at k = 8; the sampled ones never fall below 1.136 and reach 1.345 in the middle of the scale, where the reported chart is at its best. Both sit below their own nulls throughout, so the whole difference between the two charts is effective sample size.
+
+**What is slow is the pinned threshold, and the reversal test is what says so.** Two mechanisms predict a bad low end: the pin, threshold 1 being the only one that receives no update of its own, or the response, the lowest category being the least informed end of the latent scale. Fitting the same data with the category order reversed separates them, since reversal carries the original bottom boundary onto index 19 while the pin stays on index 1. It does not move: 26 against 28 at k = 1, 59 against 75 at k = 2, 1893 against 2182 at k = 10, and 550 against 527 at k = 19, over three replicates. The worst index is 1 in both codings and the 21-fold gap between the ends stays where the pin is.
+
+The caveat is that 20 equal-probability categories of a logistic latent are symmetric, so reversal maps index k onto 20 - k and cannot attribute anything symmetric about the profile. It attributes the sharp asymmetric feature, not the gentle inverse-U whose ends are 818 at k = 19 against 1764 in the middle. That one tracks the posterior standard deviation rather than any leak from the pin, `cor(aux.cutk, aux.cut1)` being about zero across the upper third, so the reading that costs nothing is that a threshold in the tail of the latent distribution is less determined. An asymmetric design would settle it and none was run.
+
+**R-hat is not the column to read, and the 1.31 that prompted this was never evidence of anything.** Against this package's own null of `1 + chains/ess`, every cutpoint index sits at or near it: 1.298 against 1.347 at k = 1, 1.111 against 1.154 at k = 2, and within 0.007 of the null from k = 5 up. Eight chains at 23 effective draws produce 1.30 when they agree perfectly. There is no sign anywhere in the cutpoint block of chains occupying different modes; there is one quantity carrying few effective draws, which is the benign case and wants more draws rather than more chains.
+
+**It reaches what a user reports, diluted about eightfold.** The reported predictor has the level subtracted out, so neither `eta` row can show it, which leaves open whether it matters. At n = 500 the probability of the lowest category carries a median of 298 effective draws over held-out observations, against 1472 for a middle category and 594 for the highest, while `aux.cut1` on that fit carries 35. So the level does reach a reported quantity, and `aux.cut1` overstates the cost of it, being the only place it appears undiluted. It is still the row to watch: it carried the lowest effective sample size of any row in 17 of the 18 fits, a median of 21 against 70 for the log likelihood and 96 for the predictor's worst 5%.
+
+**One defect found along the way, and it was in `diagnose()`.** Because the recorded predictor is centered in every draw, `eta.eta (average over observations)` is zero by construction for an ordinal fit with three or more categories, and what is left is the rounding error of the subtraction. The guard that returns `NA` for a quantity the sampler holds fixed did not catch it, for the reason already recorded in the rank-normalized diagnostics entry: it recognizes an exact constant, and a sequence of 1e-16 is not one. The row came back with an effective sample size equal to the draw count, a median of 7981 over the 48 fits, and stood as the best-mixing quantity in the table. Worse, the note comparing the two rows was written from it, so `diagnose()` printed "The chains disagree about individual observations and agree about their average (R-hat 1.00, 1148 effective draws)" about a series whose standard deviation is 6.18e-16.
+
+`zero_if_centered()` restores the exact zero when the average sits at the rounding floor of the draws it came from, which sends it down the path that already existed rather than adding a second one, and the note now requires a finite R-hat before it is written. `dpm()` is the other family with a nonzero `report_shift` and is untouched, its shift being the error mean rather than a centering; a test covers both. Every file that exercises `diagnose()` passes, 464 assertions.
+
+**The sampler was not changed and this is not evidence that it should be.** One candidate is worth recording. The slow coordinate is `aux.cut1`, a free parameter in the reported chart with no update of its own, so the reparameterization that would reach it is to stop pinning `cuts(0)`, pin the location by centering the predictor inside the sweep instead, and slice-sample all `K - 1` cutpoints. The machinery exists, `encode_tree()` already subtracting a shift from every leaf at report time. Against it: unmeasured, it would change the random-number stream in every ordinal fit, and what it buys is effective draws on the one row that overstates its own importance by about eight times. The tridiagonal joint update is a fix for a different problem and does not reach this one, since at K = 20 the adjacent gaps already mix from 49 effective draws to 8091.
+
 ### Quasi-likelihood (Linero 2026): a clean extension, with a caveat
 
 Linero, "Bayesian Nonparametric Quasi Likelihood", JASA 2026, replaces the log density with Wedderburn's quasi-deviance, so the only distributional assumption is a mean-variance relation `var = phi * V(mu) / w`. The existing `Family` interface covers it: the score is `(w / phi) * (y - mu) * mu'(eta) / V(mu)` and the information `(w / phi) * mu'(eta)^2 / V(mu)`, which is the GLM working weight and slots straight into the three-quantity contract. Prior weights are already Linero's `omega`, and `1 / phi` is a uniform temper of all three quantities.
@@ -1687,6 +1830,7 @@ Three cautions found along the way.
 
 - **An earlier reading of this was wrong.** Comparing K = 4 against K = n at the same n suggested the cutpoints were 77% of runtime. They were not: a finely graded response supports deeper trees, so that comparison confounds cutpoint cost with tree cost. Direct instrumentation settled it. The superlinear growth in n at K = n is tree work.
 - **The computational barrier is gone; the mixing one is not.** Adjacent cutpoints are tightly coupled, and updating them one at a time gives a median effective sample size of only 7 to 21 per 100 draws. The regression function itself mixes fine, so this matters for inference on the thresholds — which for a continuous response *are* the baseline distribution function. The natural fix is again `orm()`'s: the cutpoints' information matrix is **tridiagonal**, so a joint Newton step and a joint Gaussian proposal both cost O(K) by the Thomas algorithm. The obstacle is the ordering constraint, which a Gaussian proposal does not respect; the usual reparameterization to log-gaps destroys the banded structure.
+- **At 20 categories the coupling is not what binds, and a joint update would not reach what does.** Measured in the entry above on the pinned threshold: the adjacent gaps `c_{k+1} - c_k` mix well at K = 20, from 49 effective draws at the bottom of the scale to 8091 at the top, so one-at-a-time updating is not costing much there. What is slow is the position of the *pinned* threshold against the fitted function, which no cutpoint update of any kind would touch, since it moves only when the forest's level moves. A tridiagonal joint update remains the right fix for the many-threshold case this entry is about, where K is of order n and the gaps really are the problem. It is the wrong fix for a realistic ordinal fit.
 - Storage grows as `num_draws * K`. At n = K = 3200 with 1000 draws the cutpoint matrix alone is 26 MB.
 
 ## Log: features and interfaces
@@ -2363,7 +2507,9 @@ Why each piece is there. **Rank-normalization** replaces the draws by the normal
 
 Validation, since a diagnostic that is quietly wrong is worse than none. Split R-hat matches the textbook formula computed by hand to 1e-10 on four cases, two of them cases the diagnostic is supposed to flag. ESS matches the `posterior` package — the authors' own implementation — to within 1.6% on five cases spanning iid, heavy-tailed and autocorrelated chains. And ESS matches the closed form `MN(1-rho)/(1+rho)` for an AR(1) chain to within 10%, on the conservative side, which is the intended behavior of Geyer's initial positive sequence with the monotonicity correction.
 
-**One bug this surfaced.** An ordinal model's first cutpoint is pinned at zero for identifiability, so there is nothing to diagnose — and the code reported an R-hat of `-Inf` with a warning and a fabricated effective sample size of about 6. The variance guard did not catch it because the sample autocovariance of a constant is a rounding error rather than exactly zero. Both now return `NA`, silently, with a test.
+**One bug this surfaced.** A quantity the sampler holds fixed has no between-chain variance to compare, and the code reported an R-hat of `-Inf` with a warning and a fabricated effective sample size of about 6. The variance guard did not catch it because the sample autocovariance of a constant is a rounding error rather than exactly zero. Both now return `NA`, silently, with a test.
+
+**The case it was found on is narrower than this entry used to say.** It read "an ordinal model's first cutpoint is pinned at zero for identifiability, so there is nothing to diagnose". That is true of the *sampler's* chart and false of the one a user sees. The reporting chart added in "Ordinal: a third link, and the chart the cutpoints are reported in" subtracts the mean of the predictor from every cutpoint, so with three or more categories `aux.cut1` is a free quantity with a finite R-hat, and the guard cannot fire for it. It fires for a two-category ordinal fit, where the single boundary is folded into the intercept and stays constant, and that is the case the test uses — deliberately, and with a comment saying so. What `aux.cut1` reports instead, and why it is the worst-mixing row in the model, is the entry above on the pinned threshold.
 
 One trap worth recording: comparing against `posterior` initially looked like a disagreement on R-hat, including `posterior` reporting 1.00 for four identical monotonically drifting chains. It was the harness — `posterior` was not splitting the input it was handed. Hand computation settled it. **Compare implementations on inputs where you can also work out the answer yourself.**
 
@@ -2375,15 +2521,32 @@ The profile argues against it. The work is spread across many small per-leaf loo
 
 There is also a portability obstacle specific to this package. Every family calls into R's math library (`lgammafn`, `digamma`, `dnorm4`), which is not documented as thread-safe; XBART sidesteps this by using `std::random` and its own numerics and touching no R API inside a thread. Doing the same here would mean replacing R's special functions, and OpenMP on macOS additionally needs `libomp`.
 
-### XBART (He and Hahn 2021)
+### XBART (He and Hahn 2021), and XBCF (Krantsevich, He and Hahn 2023)
 
-Their grow-from-root sweep replaces the reversible-jump tree moves with a recursive pass that samples a cutpoint proportional to the marginal likelihood of the resulting split, and gets 20–28x over BART MCMC. Three findings decided against porting it:
+Their grow-from-root sweep replaces the reversible-jump tree moves with a recursive pass that samples a cutpoint proportional to the marginal likelihood of the resulting split, and gets 20–28x over BART MCMC. Reassessed against both papers and the source; still not adopted, but two of the reasons below are new and the third has changed shape. Five findings:
 
 - **It is a hard-rule technique.** Its speed comes from presorting each predictor once and maintaining sorted index vectors, so all candidate cutpoints for a variable share a single cumulative-sum pass and each child's statistics follow from the parent's by subtraction. Under soft rules there is no partition to sort: every observation reaches every leaf with a weight that itself depends on the candidate cutpoint. All of it dies, and soft rules are the default.
 - **It is not a posterior sampler**, and its authors say so: the grow-from-root step is "not a proper full conditional" and the estimator is "a greedy stochastic approximation". Their only theorem establishes that *a* stationary distribution exists for a modified version, not that it is the BART posterior. Their own tables show 95% intervals covering as little as 0.50.
-- **The conjugacy substitution is possible but limited.** A one-step Laplace expansion about the parent's mode gives a criterion structurally identical to theirs with the count and residual sum replaced by the information and score sums, which are still additive and still prefix-summable. But iterating Fisher scoring per candidate would cost a factor of the grid size, so the criterion would have to stay one-step, and it would still only serve the hard-rule path.
+- **The conjugacy substitution reaches further than this entry first said.** `Target1` in `src/mcmc.cpp` determines the whole log target over a leaf from three sums at a reference point: value, score and information. All three are additive over observations, so all three prefix-sum exactly as their residual sum does, and three sums instead of two is the only difference. Where the target is `TARGET_EXP_UP` or `TARGET_EXP_DOWN` the mode then comes from `exponential_mode()`, a scalar Newton loop that touches no data, so iterating per candidate costs scalar arithmetic rather than a factor of the grid size. That splits the family list three ways. Exact and closed form, where the target is quadratic: gaussian, binomial under both links with `augment = TRUE`, multinomial logit and probit, ordinal probit and logit, zero-inflated, lognormal and loglogistic AFT, `dpm()`. Exact up to the same Laplace the leaf updates already take: `poisson()`, `Gamma()`, negative binomial, ordinal cloglog, `ph()`, and the log-scale predictor of `gaussian_ls()`. One-step only: `Beta()`, `ordbeta()`, `tweedie()`, `custom_family()`, `gamma_ls()`'s shape, and every family under `augment = FALSE`. So the criterion is limited, but the limit is further out than one-step, and it still only serves the hard-rule path.
+- **There is no cutpoint grid to normalize over.** `Node::draw_rule()` in `src/node.cpp` ends `val = lower + (upper - lower) * unif_rand()`: the cutpoint prior is continuous on the node's live range. Grow-from-root needs a finite candidate set, and its null-cutpoint weight $|\mathcal{C}|((1 + d)^\beta / \alpha - 1)$ is calibrated to that set's size, which is how it reproduces BART's $\alpha (1 + d)^{-\beta}$ branching probability. Introducing a grid means grow-from-root draws from a different tree prior than the sampler targets, so a warm start would place the chain at a draw from the wrong model. The default `x_transform = "smoothcdf"` makes the mismatch mild, since uniform cutpoints in a smoothed-CDF coordinate are already close to quantile-spaced in $x$, which is what a data-defined grid gives. Mild is not none, and it would have to be measured rather than assumed.
+- **`encode_tree()` is one-way.** There is no decoder in `src/model.cpp`, so a warm start cannot go through the saved `forest_flat`. It has to build `Node`s in process and hand them to `update_forest()`. That direction is easy given `birth_leaves()`, `split_support()` and the node pool, but it puts the whole feature in C++ with no R prototype.
 
-What *is* worth taking is their warm start, which does not touch the transition kernel. It is in the To Do list.
+**Krantsevich, He and Hahn add a protocol rather than an algorithm.** Their grow-from-root is He and Hahn's applied tree by tree to two forests, and their parameter updates (the $a$, $b_0$, $b_1$ rescaling and separate $\sigma_0$, $\sigma_1$) are not this package's parameterization, since `bcf()` puts the effect in a coefficient forest inside the H-component framework. What is new is that the $s - b$ post-burn-in XBCF forests initialize $s - b$ *independent* MCMC chains run in parallel, so the warm start buys chain diversity rather than one starting point. Parallel chains are already here, so that part composes.
+
+Their tables are also independent support for the decomposition under "Why credible intervals miss nominal coverage". At n = 5000, p = 50, warm-start BCF against BCF(20) is ATE and CATE coverage 0.96 and 0.92 against 0.90 and 0.73. At n = 500 the same comparison is 0.90 and 0.90 against 0.90 and 0.86. The win is a large-n win, which is what the coverage entry already says about He and Hahn's n = 10000.
+
+**The variant that is neither of the two assessed options.** Both of those either change the starting point or replace the kernel, and the coverage entry's finding is that what binds is effective sample size per sweep, which neither touches. A third option does: use the grow-from-root criterion as an informed proposal for the existing birth move rather than as a replacement for it. Draw the cutpoint proportional to $L(c)$ over the candidate set and correct with the Hastings ratio, whose normalizing constant $\sum_c L(c)$ falls out of the same pass. That stays an exact sampler, raises birth acceptance from about a third toward one, and puts the rule where the likelihood wants it rather than where the prior put it. It costs $O(n_b p)$ per birth against $O(n_b)$ now for a node supporting $n_b$ observations, so it is a win only if acceptance and placement beat a factor of $p$; it needs the same presorting; and it is still hard-rules-only, so it does nothing for the default configuration. Not measured. It is the only one of the three that addresses the constraint the coverage entry identifies.
+
+Their warm start was carried on the To Do list and is struck; see "Assessment: the two warm-start items, and what to do instead" below. The scaling measurement under it is what settles the regime question this entry used to leave open.
+
+**And the neighboring literature settles it from outside this package.** Tan, Ronen, Saarinen and Yu (2026, arXiv:2406.19958, `tanComputationalEfficiencyBayesian2026`) run the experiment this entry would have had to run: among the eight factors they vary, one is initialization, and they find that **"initializing the chains from a fitted XGBoost ensemble (rather than the default trivial ensemble) or simply increasing the number of burn-in iterations can increase $\hat R$ values and exaggerate their increasing trend"**, which they read as the chains becoming stuck around different local maxima. A grow-from-root warm start is the same move with a different ensemble. So the case against it no longer rests on this package's own transient being short: a warm start is measured elsewhere to make between-chain agreement *worse*, which is the opposite of what it was wanted for, and for a reason that applies here.
+
+Two other things from the same paper belong on the record.
+
+- **Temperature is the better-supported idea, and it is not implemented.** Raising the temperature on the tree-structure acceptance ratio alone -- their equation for $\widetilde\alpha_{r,T}$, which leaves the leaf and variance draws untouched -- "dampens the increasing trend for $\hat R$, improves coverage, and sometimes even RMSE", with a linear schedule from 3 to 1 doing best. That is a change to one exponent in the Metropolis filter rather than a new data structure, it serves the constraint the coverage entry identifies, and it does not need presorting or hard rules. It is the one item from this literature worth costing out. Note it is a tempered kernel and so not a sampler from the posterior at $T > 1$, which puts it in the same class as grow-from-root on that axis and means a schedule ending at $T = 1$ is the only form worth considering.
+- **The applied BART literature reads R-hat at 1.1, not 1.01.** They use "$\hat R = 1.1$ being the conventional threshold below which a Markov chain is considered to have 'mixed well'", citing Gelman and Rubin (1992). `diagnose()` defaults to 1.01, which is Vehtari et al. (2021) and is right as a statement about Monte Carlo error. The gap is worth knowing before a reader is told their fit failed: see "Setting `rhat_max` and `ess_min`" in `?diagnose` for why the threshold is not the part that needed fixing.
+
+Ronen, Saarinen, Tan, Duncan and Yu (2022, arXiv:2210.09352, `ronenMixingTimeLower2022`) is the matching theory, an exponential mixing-time lower bound for a single-tree simplification, and it closes by recommending more chains as n grows. Whether either finding transfers to this sampler is measured under "Mixing against sample size" below; the short answer is that mixing does degrade with n here and does not do it by looking like multimodality.
 
 ### Ultimate Polya-Gamma samplers (Zens, Fruhwirth-Schnatter and Wagner 2024)
 
@@ -4884,6 +5047,69 @@ had become the binding constraint on an ordinal fit once the augmentations
 landed. Burn-in length is not binding: it is already five to ten times longer
 than the transient. What binds is effective sample size per sweep, which a warm
 start does not touch, since it changes the starting point and not the kernel.
+
+### The transient does not grow with n, and the statistic above does
+
+The entry above is measured at package scale: `rhc` ships at n = 1500 and
+`_dev/benchmark.Rmd` runs n = 5000. He and Hahn's warm start moved coverage from
+0.74 to 0.96 at n = 10000, p = 30, and Krantsevich, He and Hahn's at n = 5000,
+p = 50, so the measurement and the claim were in different regimes and the
+5% figure had not been checked in theirs.
+
+There was also a mechanism predicting it should grow. `P_BIRTH_DEATH = 0.7`
+gives 0.35 birth attempts per tree per sweep and `src/node.h` puts birth
+acceptance near a third, so a tree gains about 0.12 internal nodes per sweep
+before deaths, and the number of internal nodes the data supports grows with n.
+It does grow: measured over 800 retained sweeps, internal nodes per tree go 2.1,
+3.9, 7.4 under hard rules at n = 1500, 10000, 50000, and 1.5, 1.7, 2.4 under
+soft ones. **The transient does not follow it.** `_dev/transient-scaling.R`,
+Friedman, p = 10 and p = 30, three replicates, and `_dev/transient-trace.R` for
+the traces. Log likelihood as a fraction of its total rise:
+
+| sweep | 1500 hard | 10000 hard | 50000 hard | 1500 soft | 10000 soft | 50000 soft |
+|---|---|---|---|---|---|---|
+| 10 | 0.55 | 0.51 | 0.49 | 0.71 | 0.83 | 0.65 |
+| 25 | 0.78 | 0.75 | 0.75 | 0.94 | 0.96 | 0.88 |
+| 36 | 0.86 | 0.81 | 0.84 | 0.98 | 0.98 | 0.97 |
+| 61 | 0.93 | 0.90 | 0.92 | 0.97 | 0.99 | 0.99 |
+| 100 | 0.95 | 0.95 | 0.96 | 0.99 | 1.00 | 1.00 |
+| 200 | 0.97 | 0.98 | 0.98 | 0.98 | 1.00 | 1.00 |
+
+Reading down a sweep row, n changes nothing. At sweep 36 hard rules stand at
+0.86, 0.81 and 0.84 of their rise across a 33-fold range of n, and soft rules,
+which are the default, are at 0.97 or better everywhere. Trees get bigger with n
+and the fit does not take longer to arrive, because the log likelihood is
+dominated by the first few splits of each tree: going from two internal nodes to
+seven buys accuracy slowly, and 50 trees reach their first few splits at the
+same rate whatever n is. **So the regime gap is closed in the 5% figure's favor,
+and the mechanism above is wrong.** Whatever moved coverage in those two papers,
+burn-in length is not it here; the part of their protocol that is not about
+burn-in is the chain diversity of $s - b$ separately initialized chains, which
+`chains` already gives. That part was then measured and does reproduce, without
+any grow-from-root; see "Many chains against one long chain" above.
+
+**The recorded statistic is not scale-free, which is worth knowing before it is
+quoted again.** "Within two standard deviations of its eventual level" takes the
+level and the spread from the last half of the draws, and the log likelihood
+keeps creeping up by a couple of percent long after the fit has arrived. A longer
+run therefore raises the level, shrinks the spread, and pushes the threshold
+toward the end of the run. The same fits, with the same statistic, truncated at
+three run lengths:
+
+| n | rules | at 200 | at 400 | at 800 |
+|---|---|---|---|---|
+| 1500 | hard | 92 | 146 | 148 |
+| 10000 | hard | 102 | 200 | 331 |
+| 50000 | hard | 102 | 203 | 396 |
+| 1500 | soft | 49 | 50 | 71 |
+| 10000 | soft | 90 | 92 | 110 |
+| 50000 | soft | 108 | 142 | 233 |
+
+At the two larger sizes it returns about half the run whatever the run is, which
+is a property of the estimator and not of the chain. This is why an 800-sweep
+version of the measurement first looked like a transient of 150 to 400 sweeps and
+a contradiction of the entry above. It is not one. Use the fraction-of-rise table
+instead, or fix the run length and say what it was.
 
 ### What the random-feature prototype is actually worth
 
@@ -8601,3 +8827,517 @@ explaining them was.
 the prior width, so it would cost mixing rather than time, and the counters above
 show `prob` never reached even the `1e-300` guard in 200 million calls per fit.
 Left alone; recorded so it is not rediscovered as a stall.
+
+## Five papers from the 2026 literature sweep, read and assessed
+
+A Claude Science sweep of 2021–2026 BART and Bayesian-computation literature
+returned 328 papers, of which the citation-graph snowball pass was the useful
+half: it found work that cites the BART canon but does not phrase its abstract in
+BART's vocabulary, which is where the relevant methodology was hiding. Most of
+the topical half was already cited here, already assessed, or already rejected —
+the report's "number of trees" thread names McCartan and Huang and Battiston and
+Luo as open questions when both are measured entries above, and its "categorical
+predictors" thread calls native handling the highest-value gap when subset
+splitting rules shipped.
+
+Five papers were read in full. One changes a decision, one closes an item by
+being worse than its own abstract, and three are narrower than the report
+suggested. XBART and its derivatives are in `_dev/XBART.md` rather than here.
+
+Citation keys are the Better BibTeX keys from the library, so they can go into
+`vignettes/references.bib` unchanged.
+
+### Linero and Du (2023): the Gibbs prior, and the failure it explains
+
+`lineroGibbsPriorsBayesian2023`, *Gibbs Priors for Bayesian Nonparametric
+Variable Selection with Weak Learners*, JCGS 32(3) 1046–1059. By the author of
+the sampler this package implements, and cited nowhere here.
+
+**What it is.** A prior on the *partition of branches by splitting variable*
+rather than on the splitting proportions. The hierarchy is `D ~ pi_D`,
+`[S | D]` uniform over subsets of size `D`, and `[s | S] ~ Dirichlet(alpha
+gamma_1, ..., alpha gamma_P)` with `gamma_j = I(j in S)`. DART is the `D = P`
+case and the spike-and-forest prior of Rockova and van der Pas is the
+`alpha -> infinity` case, so the two existing sparsity priors are the endpoints
+of one family and everything between them is available.
+
+**Why it matters here, which is not what the abstract says.** It explains a
+failure this package measured independently. `_dev/varsel-check.R` found the
+median probability model firing on *every replicate* of a pure null, 7.1 of 25
+predictors selected with `sparsity = TRUE`, and recorded that the `.5` cut "is
+not a test and must not be documented as one." That is not a defect in Barbieri
+and Berger's rule. It is a documented property of DART, and the paper names the
+mechanism: DART "provides only indirect control on the number of variables
+included in the model, and is more tolerant of variables which have miniscule
+impact on the outcome than the spike-and-forest or Gibbs priors."
+
+Their Table 1, at `P = 7` and `sigma = 3`, 200 replications (verified against the
+rendered page, not the text layer):
+
+| method | Prec, T = 50 | T = 200 | T = 500 | F1, T = 50 | T = 200 | T = 500 |
+|---|---|---|---|---|---|---|
+| DART | 0.79 | 0.75 | 0.72 | 0.88 | 0.85 | 0.84 |
+| Gibbs | **0.98** | **0.98** | **0.98** | **0.99** | **0.99** | **0.99** |
+| spike-and-forest | 0.95 | 0.71 | 0.71 | 0.97 | 0.83 | 0.83 |
+
+Recall is 1.00 for DART and Gibbs throughout, so the whole difference is false
+positives, which is the failure mode measured here. DART's precision also decays
+in the tree count while the Gibbs prior's is flat, because DART's variable count
+grows logarithmically in the number of branches and reaches all `P` predictors as
+that goes to infinity. The Gibbs prior decouples the two.
+
+Two further claims worth checking against what is already here. Their Figure 3
+shows DART loading most of its weight onto a *single* predictor even when several
+are relevant, because the sparsity-inducing Dirichlet decays exponentially in the
+order statistics of `s`; `alpha = 1` in their hierarchy spreads it evenly. That is
+a claim about the rankings `variable_importance()` prints. And the spike-and-forest
+column collapsing at large `T` is a mixing failure, not a model failure — their
+sampler cannot remove a variable once it is in — which is the reason to take the
+Gibbs prior rather than the spike-and-slab it generalizes.
+
+**The implementation is confined to the proposal.** This is the part that decides
+it. Because the Polya urn of their Proposition 2 goes *into* the birth, death and
+prior proposals, the whole prior structure cancels out of the acceptance ratio,
+which reduces to Kapelner and Bleich's. Their words: "implementing the Gibbs
+prior only requires modifying the proposal distribution `q(T | T')` in the BIRTH,
+DEATH, and PRIOR moves of existing BART implementations."
+
+For this package that means `Hypers::sample_var()` and nothing else in the
+kernel. The derivation uses conjugacy only for the integrated likelihood, which
+is exactly the object Linero (2025) already replaces with a Laplace fit, so the
+cancellation is orthogonal to what makes this sampler different. There is no `s`
+vector to draw at all under the Gibbs prior: it is marginalized into the urn.
+
+Cost, from their Table 2: 1.18 to 1.28 times DART, measured at `T` of 50 and 200
+and `P` of 100 and 1000.
+
+**Caveats.** The gain concentrates at small and moderate `P`; by `P = 400` to
+1000 DART and Gibbs are within a point of each other on F1. The argument is about
+`p = 10` to `p = 50`, which is where this package's defaults, examples and tests
+live, but it is not where DART was designed to be good. And the claim that the
+prior change is orthogonal to the Laplace step is read off the structure of their
+Proposition 4; they demonstrate nothing outside the conjugate Gaussian case.
+
+Prototyped behind `sparsity = "gibbs"`, measured, and removed before 0.1.0. The
+two entries below are the working and the rebuild recipe.
+
+### Jacobs, van Wieringen and van der Pas (2026): horseshoe leaves, and the sampler is already here
+
+`jacobsHorseshoeForestsHighDimensional2026`, *Horseshoe Forests for
+High-Dimensional Causal Survival Analysis*, Bayesian Analysis.
+
+Leaf heights get `h_l | lambda_l, tau, omega ~ N(0, omega lambda_l^2 tau^2)` with
+half-Cauchy priors on the global `tau` and on a *per-leaf local* `lambda_l`. They
+then say the quiet part: the prior "breaks the conjugacy used in the original
+BART algorithm," so they move to reversible-jump-within-Gibbs and update
+structure and heights jointly, with new-leaf proposals drawn from "pseudo-Gibbs
+updates informed by the parent node."
+
+**That is this engine.** Three papers now rebuild BART's sampler for the same
+reason and reach the same place: Linero (2025) for non-conjugate likelihoods,
+Jacobs for a non-conjugate leaf prior, Chipman et al. for a constrained leaf
+space. The rebuild is already done here, which makes this cheaper here than
+anywhere else.
+
+Cheaper still than it looks, because **conditional on the scales the leaf prior is
+Gaussian** with a per-leaf variance. The existing leaf draw works unchanged; what
+is added is a draw of `lambda_l` per leaf and `tau` per forest, plus something for
+the two leaves a birth creates that have no `lambda` yet.
+
+**It also diagnoses the `sigma_mu` problem, though not in the direction the To Do
+item assumes.** That item asks for a *lighter*-tailed leaf prior; the horseshoe is
+heavier-tailed. But the pathology recorded here is a single global scale being
+dragged by a few leaves, which is precisely what a global-local prior exists to
+fix: the local `lambda` absorbs the large leaves so `tau` is not dragged. Whether
+that removes the separation warning is a measurement and not a reading, and it
+would be the first thing to check.
+
+### Prado et al. (2025): a real fix, for the stump case
+
+`pradoAccountingSharedCovariates2025`, *Accounting for shared covariates in
+semiparametric Bayesian additive regression trees*, AoAS 19(1) 302–328.
+
+Two paired moves. A **double-grow** fires only when growing a *stump* whose rule
+is on a shared covariate, forcing a second simultaneous split on a different
+variable, so a tree touching a shared covariate can only ever represent an
+interaction and never a main effect. A **double-prune** prunes all the way to a
+stump rather than leaving a tree defined by a shared covariate alone. Both are
+accepted or rejected whole. Trees whose every split is on one shared covariate
+are auto-rejected, and the parametric block carries no intercept, which would
+otherwise conflate with the leaf constants.
+
+The logic is that a linear term can represent only a main effect, so barring the
+forest from main effects in the shared covariate partitions the work cleanly.
+
+**It maps onto `vc(z, ~ 1)` and not onto `vc()` generally.** The stump case is the
+one `vignette("comparison")` already identifies as the General BART semiparametric
+shape, and there the fix is exact. With a real modifier forest, `f_0(Z) + z
+f_1(Z)`, there is no main-effects-only restriction left to exploit, because
+`f_1` is not restricted to a main effect either. So this would convert the
+warning at `R/varying.R:371` into a supported configuration for a constant
+coefficient, and leave the varying case where it is.
+
+**It also answers the design question blocking `fc()`.** That item objects that "a
+real `fc()` wants a prior argument, which is a new prior to design, document and
+default." Prado supplies one: `beta ~ MVN(b, Sigma_beta)` with
+`Sigma_beta ~ IW(I, p_1)`, chosen explicitly so the coefficients may correlate
+rather than being independent and equivariant.
+
+### Chipman, George, McCulloch and Shively (2022): monotonicity is per-tree and topological
+
+`chipmanMBARTMultidimensionalMonotone2022`, *mBART: Multidimensional Monotone
+BART*, Bayesian Analysis 17(2) 515–544.
+
+Two facts make this implementable here, and they are the two that were unknown
+before reading it.
+
+**The constraint factors over trees.** "A sum-of-trees function will be monotone
+in S whenever each of the component trees is monotone in S. Thus it suffices to
+focus on the conditions for a single tree function to be monotone in S. As we'll
+see, this will only entail providing constraints on the set of terminal node
+constants M; constraints determined by the tree T." So the constraint is per-tree,
+determined entirely by topology, and expressed as bounds on leaf values. Nothing
+couples across trees.
+
+**Their sampler is shaped like this one.** The constraint makes the leaves
+dependent and kills conditional conjugacy, so they do the conditional integrals
+numerically and restrict moves to "one or two of the `mu` values at a time so
+that the appropriate conditional integrals can easily be done numerically." That
+is `Target1` and `Target2`. They also tighten the prior for constrained leaves,
+using a smaller scale `c sigma_mu`.
+
+So the change here is a truncation interval on the existing leaf draw, computed
+from the tree, rather than a new sampler.
+
+**Why it is distinctive for this package specifically.** Every existing monotone
+BART is single-family: mBART is Gaussian, Probit Monotone BART is binary, Mork et
+al. is the zero-inflated lag case, one paper per family. Constrain the *additive
+predictor* instead and any monotone link carries the constraint to the mean, so
+one `monotone =` argument reaches every family at once. No other package can make
+that trade because no other package has the family interface.
+
+Reported gains are smoother fits, better out-of-sample prediction, and less
+posterior uncertainty.
+
+### Castillo and Rockova (2021): a citation, with a caveat large enough to state
+
+`castilloUncertaintyQuantificationBayesian2021`, *Uncertainty quantification for
+Bayesian CART*, AoS 49(6) 3482–3509. Adaptive confidence bands with uniform
+coverage **under self-similarity**, plus a nonparametric Bernstein-von Mises
+giving efficient confidence sets for smooth functionals.
+
+Two things follow if it holds up on a closer read, and both bear on documentation
+rather than on code.
+
+The coverage guarantee carries a condition, and `_dev/coverage-calibration.R` is
+40 replicates of one data-generating process, which structurally cannot see a
+condition. "Conservative, not deficient" is the right reading of that measurement
+and is not the same claim as coverage holding generally.
+
+And the theory makes **functionals the easy case and pointwise bands the hard
+one**, which is the reverse of how `vignette("diagnostics")` and
+`vignette("causal")` currently order them. An ATE is a smooth functional.
+
+**The caveat is that this is Bayesian CART — a single tree — not a sum-of-trees
+ensemble.** The extension is not automatic and the paper does not claim it. Cite
+it for the shape of the result, not as a guarantee about this package.
+
+### What changed on the To Do list
+
+- **The formal variable-selection test.** The design constraint recorded under
+  "The permutation test is worth having" was that the two corrections do not
+  compose, so any implementation must refit both observed and permuted forests
+  with `sparsity = FALSE`, and that refit is the cost obstacle at `ordbeta()`'s
+  22.6x. The Gibbs prior changes the problem rather than the solution: exclusion
+  becomes a posterior event with a probability, not a threshold on a share. Ye et
+  al. (2025), arXiv 2509.07121, is the other route, a tuning-free summary with a
+  clustering-based threshold and no refit. Neither is built.
+- **A lighter-tailed prior on the leaf scale.** Reframed by Jacobs above: the
+  diagnosis is a global scale dragged by a few leaves, and global-local is the
+  standard fix for that shape. Still not done unilaterally, and still a default
+  prior change.
+- **`fc()` for a fixed coefficient.** Prado supplies the missing prior design.
+  Still out of scope for 1.0.
+
+### Read and declined
+
+- **ASBART** (`Ran and Bai 2023`). Verified as XBART's grow-from-root with a
+  bandwidth pass bolted on, and the 10x is 40 iterations against 4000. Full
+  working in `_dev/XBART.md` §2.5.
+- The report's **"Anytime Monte Carlo" thread**, which calls wall-clock chain
+  termination "a bug class, not a caveat" because it length-biases tree-space
+  chains toward cheap states, meaning small trees. Checked rather than assumed:
+  `grep` for `Sys.time`, `proc.time`, `difftime` and `timeout` across `R/` and
+  `src/` returns nothing outside progress reporting. Chains stop on iteration
+  count. Does not apply.
+
+## `sparsity = "gibbs"`: built, measured, and removed before 0.1.0
+
+Linero and Du's Gibbs prior (`lineroGibbsPriorsBayesian2023`), behind an
+experimental `sparsity` level. Built because their claim is that it fixes a
+failure this package measured on its own in `_dev/varsel-check.R`, and because
+their Proposition 4 says the change is confined to the proposal. Both held.
+
+**It is not in the package.** The working tree was reverted and
+`_dev/gibbs-prior.patch` holds the whole thing -- five source files and one test
+file -- against the tree it was cut from. It was never committed, so that patch
+and this entry are the only record; treat them as the source of truth rather than
+looking for a branch.
+
+Everything below is written so it can be rebuilt without re-reading the paper.
+
+### The two equations, verified against the rendered page
+
+**Do not take these from a PDF text layer.** The extractor inverted the `!= 0`
+condition in (5) to `= 0`, which reverses which branch of the urn reinforces an
+already-used predictor and would have produced a prior that is wrong in a way no
+test here would catch. `PAPERS.md` has the general rule; this is a live instance
+of it. Both were read off the rendered page 1051 with the Read tool.
+
+Equation (4), the weights, summed over the model size `d`:
+
+    V_B(t) = sum_{d = t}^{P}  d! / (d - t)!  *  Gamma(alpha d) / Gamma(alpha d + B)  *  pi_D(d)
+
+Equation (5), the Polya urn for the splitting variable of branch `b`:
+
+    pi(j_b = j | J_b) =  V_B(Q_b) / V_{B-1}(Q_b) * (alpha + m_j^{-b})     if m_j^{-b} != 0
+                         V_B(Q_b + 1) / ((P - Q_b) V_{B-1}(Q_b)) * alpha  otherwise
+
+`m_j^{-b}` counts branches splitting on `j` excluding `b`, `Q_b` is how many
+groups have any, `B` counts the branch being drawn as well, and `P` is the number
+of groups the forest may use. The default prior on model size is a truncated
+zeta, `pi_D(d) propto d^(-zeta)` over `1..P`, with `zeta = 1` and `alpha = 1`.
+
+Three implementation facts that are not obvious from the equations:
+
+- **`V_{B-1}(Q_b)` cancels.** It is common to both branches, so a draw needs only
+  `V_B(Q_b)` and `V_B(Q_b + 1)`: two memo lookups and a normalization, not a sum
+  over anything.
+- **Both must be computed in logs.** The paper writes them linearly. The
+  factorial ratio overflows and the gamma ratio underflows well inside the range
+  of `P` and `B` a real fit reaches. `pi_D`'s normalizing constant drops out with
+  the ratios, so it need not be formed.
+- **The sum starts at `max(t, 1)`**, since `D` is supported on `1..P` and `t = 0`
+  is a legitimate argument -- it is what an empty ensemble asks for.
+
+### What was built
+
+**`src/hypers.{h,cpp}`.** `Hypers` gains `gibbs` and `zeta`, a live count vector
+over groups, and a memoized `log_v(t, branches)`. `sample_var()` branches on
+`gibbs` and otherwise is untouched, so the Dirichlet path is the same code it
+was.
+
+`log_v()` is equation (4) in logs, without pi_D's normalizing constant, which
+cancels from every ratio the urn takes. Logs are not optional here: the
+factorial ratio overflows and the gamma ratio underflows well inside the range
+of `P` and `B` a real fit reaches, and the paper writes both in linear form.
+
+`sample_var_gibbs()` is equation (5) with `V_{B-1}(Q)` dropped, since it is
+common to both branches of the expression. What is left is two numbers per
+draw -- `log_v(q, b)` for a group the ensemble already splits on and
+`log_v(q + 1, b) - log(P - Q)` for one it does not -- and then a categorical
+draw. So the urn costs two memo lookups and a normalization, not a sum over
+anything.
+
+**`src/node.cpp`.** `draw_rule()` takes a `replacing` flag. A rule change
+conditions on every branch but the one being replaced, so the urn has to take
+that branch's group back out of the counts; a birth adds a branch and takes
+nothing out. `birth_leaves()` passes `false` and `resample_rule()` passes `true`.
+This matters because `birth_leaves()` sets `is_leaf = false` before calling
+`draw_rule()`, so the flag cannot be inferred from the node.
+
+**`src/mcmc.cpp`.** `update_forest()` refreshes the counts at the top of each
+tree's turn. At most one branch moves per tree per sweep, so this is **exact**
+rather than approximate, which is what lets the prior cancel from the acceptance
+ratio the way Proposition 4 requires. It costs one walk of the forest per tree.
+
+**`R/control.R`.** `sparsity = "gibbs"` as a fifth level, plus `zeta`. It sets
+`update_s` and `update_alpha` off, because there is no `s` to draw, and the C++
+constructor turns them off again so the guarantee does not depend on R.
+
+### What it measures
+
+`_dev/gibbs-prior-smoke.R`, 6 replicates, n = 400, 20 trees, median probability
+model. False positives, and real predictors recovered:
+
+| design | DART noise | Gibbs noise | DART recovered | Gibbs recovered |
+|---|---|---|---|---|
+| sparse, p = 20, 5 real | 1.00 | 0.67 | 5.0 | **4.5** |
+| sparse, p = 7, 5 real | 0.83 | **0.17** | 5.0 | 5.0 |
+| null, p = 15, none real | 8.50 | **3.00** | -- | -- |
+
+**The null row is the one this was built for.** DART selects 8.5 of 15
+predictors when nothing matters, which is `_dev/varsel-check.R`'s finding
+reproduced at a different size; the Gibbs prior selects 3.0. Still not a test,
+and still not zero, but 65% fewer false selections from a prior change alone.
+
+**The p = 7 row is the paper's own worst case for DART** and it reproduces in
+the right direction, 0.83 against 0.17 at equal recovery.
+
+**The p = 20 row costs half a real predictor**, 5.0 down to 4.5, and that is the
+open question rather than a result to report. It is consistent with the paper,
+whose recall does start slipping at larger `P` -- 0.94 against DART's 0.96 at
+`P = 50`, `sigma = 5` -- but six replicates cannot tell that from
+over-penalization at `zeta = 1`, and it needs its own measurement before
+anything about a default is said.
+
+**A design that could not discriminate, recorded rather than swapped out.** The
+first attempt was Friedman at p = 20 with a strong signal, where both priors
+scored a clean 5 of 5 with no false positives. There was nothing to improve. The
+lesson is the paper's: DART fails at *small* `p` and on a null, not on a
+well-identified sparse problem, and a smoke test aimed at the wrong regime would
+have read as "the wiring does not work."
+
+Guards fire on `split_prior` and on `share_sparsity`, and the same seed gives the
+same fitted values. `test-control.R` and `test-bartisan.R` pass unchanged, 92 and
+166 expectations, which is the check that the Dirichlet path was not disturbed.
+
+### Three combinations refused, and why each is a refusal rather than a gap
+
+- **`split_prior`.** It fixes the splitting proportions and the Gibbs prior has no
+  proportions to fix. Checked in `bartisan_control()` *before* the existing
+  `split_prior` override sets `sparsity <- FALSE`, or there is nothing left to
+  detect.
+- **`share_sparsity`.** It pools counts behind one Dirichlet draw and there is no
+  such draw. A shared urn would be well defined, so this one is a prototype limit
+  rather than a modeling obstacle.
+- **`share_forests`.** Refused in C++, in the guard block in `src/model.cpp`.
+  `update_shared_forests()` draws one rule for a whole group of trees and never
+  refreshes the urn counts, so without the guard the urn reads all zeros and
+  returns a uniform draw -- not an error, just the wrong prior, which is the worst
+  of the three outcomes. Underneath it is a real modeling question: each forest
+  carries its own urn, and one shared rule has no way to say which drew it.
+
+### What is still owed before this returns
+
+In the order that would settle the decision:
+
+1. **A `num_trees` sweep at 20 / 50 / 200, scoring held-out error alongside
+   selection.** This is the gap that matters most. Every number measured so far is
+   about *selection*, and `sparsity`'s primary documented use is prediction. Both
+   simulations ran at 20 trees, which is near DART's best: Linero and Du's Table 1
+   has DART's precision decaying in the tree count (0.79 to 0.72 from T = 50 to
+   500 at P = 7) while the Gibbs prior's stays flat. The package defaults to 50,
+   so the comparison at the actual default is unmeasured and is the one that
+   decides whether this is worth carrying.
+2. **`zeta` against `p`.** Whether one value can serve across `p` at all. The
+   recall measurement below shows recall degrading with `p` at fixed `zeta` even
+   though the zeta prior's implied mean model size already grows with `p`, which
+   suggests it may need to scale. That would be a worse problem than the default
+   sitting two notches high, and it is unverified.
+3. **The formal selection test.** The thing the prior was actually taken for.
+   Exclusion becoming a posterior event with a probability, rather than a
+   threshold on a share, is the property that would change the design constraint
+   recorded under "The permutation test is worth having". No column in either
+   simulation measures it.
+
+Smaller items: the count refresh is O(trees x branches) per sweep where it could
+be incremental, and was never timed against the Dirichlet path (the paper's own
+overhead is 1.18x to 1.28x, and this should be cheaper since the urn *replaces* a
+Dirichlet draw rather than adding to one); `alpha` is fixed at 1 and neither
+exposed nor swept.
+
+`_dev/gibbs-prior-smoke.R` and `_dev/gibbs-recall.R` are kept as the provenance of
+every number in these two entries. **Neither runs against the shipped package** --
+both pass `sparsity = "gibbs"`, so the patch has to go back on first.
+
+## The Gibbs prior's recall loss is real, `zeta = 1` is the wrong default here, and the headline was overstated
+
+`_dev/gibbs-recall.R`, 600 fits, 40 replicates across p in {7, 20, 50} and five
+arms, 1m 36s, no failed units. Run to settle whether the smoke test's 4.5 of 5
+recovery at p = 20 was noise.
+
+**It was not noise, and it reproduces to two decimal places**: 4.525 against
+DART's 5.000, paired t = -2.71.
+
+### Recovery and false positives, 40 replicates
+
+| p | arm | recovered (of 5) | noise |
+|---|---|---|---|
+| 7 | dart | 5.000 | 0.375 |
+| 7 | gibbs z=0 | 5.000 | **0.100** |
+| 7 | gibbs z=0.5 | 5.000 | **0.125** |
+| 7 | gibbs z=1 | 4.900 | 0.150 |
+| 7 | gibbs z=2 | 3.925 | 0.275 |
+| 20 | dart | 5.000 | 0.250 |
+| 20 | gibbs z=0 | 5.000 | 0.450 |
+| 20 | gibbs z=0.5 | 5.000 | 0.250 |
+| 20 | gibbs z=1 | **4.525** | 0.200 |
+| 20 | gibbs z=2 | 3.250 | 0.325 |
+| 50 | dart | 4.850 | 0.700 |
+| 50 | gibbs z=0 | 4.825 | **0.450** |
+| 50 | gibbs z=0.5 | 4.400 | 0.325 |
+| 50 | gibbs z=1 | **3.025** | 0.425 |
+| 50 | gibbs z=2 | 0.850 | 0.950 |
+
+Paired against DART within replicate, recovery at `zeta = 1`: -0.10 (t = -1.00)
+at p = 7, **-0.47 (t = -2.71)** at p = 20, **-1.82 (t = -5.35)** at p = 50. The
+loss is real and grows sharply with p.
+
+**The mechanism is confirmed, which was the testable half of the prediction.**
+Recovery is monotone in `zeta` at every p, and `zeta = 0` restores it fully
+(5.000, 5.000, 4.825 against DART's 5.000, 5.000, 4.850). So the lost predictors
+are the model-size penalty doing its job too hard, not a defect in the urn. The
+"flat in zeta" branch, which would have sent this back to the code, did not
+happen.
+
+### The claim that was overstated, and the correction
+
+The entry above reports the smoke test's null design -- DART selecting 8.5 of 15
+predictors where nothing matters against the Gibbs prior's 3.0 -- as the headline,
+and that number was quoted onward as the case for the prior. **It does not
+survive contact with a design that has signal in it.**
+
+On this design DART's false-positive rate is already low, 0.25 to 0.70, and at
+*matched recall* the Gibbs advantage is modest at p = 7 (0.375 to 0.125), absent
+at p = 20 (0.250 against 0.250), and modest again at p = 50 (0.700 to 0.450).
+Nothing here resembles 8.5 against 3.0.
+
+The two results are the same behavior seen from two sides, and this is the
+synthesis worth keeping: **`zeta = 1` shrinks the model, which reads as precision
+when every selection is false and reads as lost recall when some are not.** The
+null design cannot tell those apart, because on a null there is no recall to
+lose. A measurement that can only reward shrinkage will always reward the most
+shrinking prior, and that is what the smoke test was.
+
+### `zeta = 0` is not a sparsity prior, which explains the one anomaly
+
+`gibbs z=0` at p = 20 has *worse* false positives than DART, 0.450 against 0.250,
+which looks wrong until the prior is read: `pi_D(d) propto d^0` is uniform on the
+model size over `1..p`, so at p = 20 it puts prior mean 10.5 on the number of
+predictors admitted. That is an anti-sparsity prior. `zeta = 0` is the right arm
+for isolating the recall mechanism and the wrong one to ship.
+
+So the useful range is strictly between 0 and 1, and `zeta = 0.5` is the only
+candidate in this table: it holds full recovery at p = 7 and p = 20, beats DART
+on noise at p = 7 (0.125 against 0.375), ties it at p = 20, and starts paying
+recall by p = 50 (4.400 against 4.850).
+
+### What this settles and what it does not
+
+**No single `zeta` dominates DART across p on this design.** `zeta = 1`, the
+paper's own default, is clearly wrong here and would lose a real predictor in
+about half of p = 20 fits and nearly two of five at p = 50. `zeta = 0.5` is
+defensible up to p = 20 and starts costing recall beyond it.
+
+**The design is favorable to DART in one respect that should be stated.** These
+fits use 20 trees, and Linero and Du's Table 1 has DART's precision *decaying in
+the tree count* -- 0.79 to 0.72 from T = 50 to T = 500 at P = 7 -- while the Gibbs
+prior's is flat. At 20 trees DART is near its best. A sweep over `num_trees` is
+the obvious next measurement and would move the comparison in the Gibbs prior's
+favor if their finding transfers.
+
+**Not settled, and out of scope for this run:** whether the prior helps the thing
+it was actually taken for, which is a *formal selection test* rather than a
+better point estimate of the active set. Exclusion being a posterior event with a
+probability is the property that matters there, and none of the columns above
+measure it.
+
+**No default change, and in the end no option either.** `sparsity = TRUE` stays
+DART. `zeta` was not retuned on one design. And the whole level came out of the
+package before 0.1.0 rather than shipping as experimental: its measured benefit
+is in selection on near-null designs, the selection function that would use it is
+unbuilt, and an experimental option whose only documented advantage is on a
+criterion the package does not yet expose would mostly be used for the criterion
+it is *not* measured on. The code is `_dev/gibbs-prior.patch`; the entry above
+says how to put it back and what to measure first.

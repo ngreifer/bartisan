@@ -151,6 +151,59 @@ test_that("the advice follows which statistic failed, not merely that one did", 
 
   expect_length(diagnosis_advice(data.frame(check = "rhat", status = "ok",
                                             detail = "")), 0L)
+
+  # The forest's own size takes advice of its own, which names what it does bind
+  # on rather than sending the reader up the ladder above.
+  forest <- diagnosis_advice(checks("forest size"))
+  expect_length(forest, 1L)
+  expect_match(forest, "variable_importance", fixed = TRUE)
+  expect_false(any(grepl("num_trees", forest, fixed = TRUE)))
+})
+
+# A sum of trees reaches one function through many partitions, so the number of
+# splitting rules is not pinned down the way a fitted value is. The checks on
+# R-hat and effective sample size read the reported quantities, and that row
+# gets its own check -- separated rather than suppressed, since it still binds on
+# anything computed from the split counts.
+test_that("the internal states are graded apart from the reported quantities", {
+  row <- function(quantity, rhat, ess, bad) {
+    data.frame(quantity = quantity, rhat = rhat, rhat_late = rhat,
+               ess_bulk = ess, ess_tail = ess, ess_frac = 0.5,
+               rhat_bad = bad, late_bad = bad)
+  }
+
+  # Everything reported is fine; only the forest disagrees.
+  table <- rbind(row("loglik", 1.002, 900, 0),
+                 row("splits.eta", 1.900, 6, 1),
+                 row("eta.eta (average over observations)", 1.001, 950, 0))
+
+  checks <- diagnosis_checks(table, chains = 4L, draws = 4000L,
+                             rhat_max = 1.01, ess_min = 400)
+
+  status <- function(name) checks[["status"]][checks[["check"]] == name]
+
+  expect_identical(status("rhat"), "ok")
+  expect_identical(status("bulk ESS"), "ok")
+  expect_identical(status("tail ESS"), "ok")
+  expect_identical(status("forest size"), "warn")
+
+  # The reported rows are what the R-hat and ESS lines quote, so the nuisance
+  # row's 1.900 and its 6 effective draws appear on the forest line and nowhere
+  # else.
+  expect_false(any(grepl("splits.eta",
+                         checks[["detail"]][checks[["check"]] != "forest size"],
+                         fixed = TRUE)))
+
+  # And a reported quantity failing is still caught with the forest fine, so the
+  # separation does not swallow the case it is not for.
+  other <- rbind(row("loglik", 1.500, 8, 1),
+                 row("splits.eta", 1.002, 900, 0))
+
+  expect_identical(
+    diagnosis_checks(other, chains = 4L, draws = 4000L, rhat_max = 1.01,
+                     ess_min = 400) |>
+      subset(check == "rhat", "status", drop = TRUE),
+    "warn")
 })
 
 # An estimand is a contrast, and a contrast can mix badly where the function it

@@ -1303,9 +1303,12 @@ rhat_rank <- function(x, normalized = NULL) {
     rank_normalize() |>
     split_rhat()
 
-  # A quantity the sampler holds fixed -- an ordinal model's first cutpoint, say
-  # -- has no between-chain variance to compare, so both are NA. Reducing that
-  # with `na.rm` returns -Inf and warns; there is simply nothing to diagnose.
+  # A quantity the sampler holds fixed has no between-chain variance to compare,
+  # so both are NA. Reducing that with `na.rm` returns -Inf and warns; there is
+  # simply nothing to diagnose. A two-category ordinal model's single cutpoint is
+  # the case this was found on. With three or more the reported cutpoints are all
+  # free, the predictor carrying the location instead, so this does not fire for
+  # them; see `zero_if_centered()` for the row that it should have.
   if (is.na(bulk) && is.na(folded)) {
     return(NA_real_)
   }

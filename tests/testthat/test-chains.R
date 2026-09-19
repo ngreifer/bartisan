@@ -345,6 +345,68 @@ test_that("the diagnostics table survives a pinned cutpoint", {
   expect_true(all(is.finite(rest$rhat)))
 })
 
+test_that("an average that is zero by construction is not diagnosed", {
+  set.seed(52)
+  wide <- matrix(stats::rnorm(200L * 40L), 200L, 40L)
+
+  # A real average survives untouched, whatever its size: what matters is its
+  # size against the draws it came from, not against one.
+  expect_identical(zero_if_centered(rowMeans(wide), wide), rowMeans(wide))
+  expect_identical(zero_if_centered(rowMeans(wide) / 1e6, wide),
+                   rowMeans(wide) / 1e6)
+
+  # Centering every draw leaves an average of rounding error, which has a
+  # perfectly well-behaved autocovariance and so passes every guard downstream.
+  centered <- wide - rowMeans(wide)
+  avg <- rowMeans(centered)
+
+  expect_gt(stats::sd(avg), 0)
+  expect_identical(zero_if_centered(avg, centered), rep.int(0, 200L))
+  expect_identical(ess_bulk(as_chains(zero_if_centered(avg, centered), 4L)),
+                   NA_real_)
+
+  # One column is its own average, so there is nothing to have been centered.
+  one <- wide[, 1L, drop = FALSE]
+  expect_identical(zero_if_centered(rowMeans(one), one), rowMeans(one))
+})
+
+test_that("an ordinal fit reports no average for its centered predictor", {
+  skip_on_cran()
+
+  d <- sim_x(n = 200, seed = 42)
+  set.seed(1042)
+  z <- 2 * d$x1 - d$x2 + stats::rlogis(nrow(d))
+
+  # Four categories, so the predictor is centered in every draw and the first
+  # cutpoint carries its level; see ?bartisan-families.
+  d$y <- ordered(findInterval(z, stats::quantile(z, c(.25, .5, .75))))
+
+  fit <- bartisan(y ~ ., d, family = ordinal(), gate = "hard", chains = 2L,
+                  control = quick_control())
+
+  expect_true(all(abs(rowMeans(fit[["eta"]][[1L]])) < 1e-8))
+
+  diagnosis <- diagnose(fit)
+  table <- diagnosis[["table"]]
+  avg <- table[table$quantity == "eta.eta (average over observations)", ]
+
+  expect_identical(nrow(avg), 1L)
+  expect_true(is.na(avg$rhat))
+  expect_true(is.na(avg$ess_bulk))
+  expect_true(is.na(avg$ess_tail))
+
+  # The worst 5% row is about the shape of the fitted function rather than its
+  # level, so it is unaffected, and the first cutpoint is free.
+  worst <- table[table$quantity == "eta.eta (worst 5% of observations)", ]
+  expect_true(is.finite(worst$rhat))
+  expect_gt(stats::sd(fit[["aux"]][, "cut1"]), 0)
+
+  # The note comparing the two rows would otherwise be written from the rounding
+  # error, and reducing an all-NA set with `na.rm` would warn on the way.
+  checks <- diagnosis[["checks"]]
+  expect_identical(nrow(checks[checks$check == "where it is", ]), 0L)
+})
+
 test_that("the autocovariance matches the acf it replaced", {
   # `ess_from_split()` used to call `stats::acf()` once per chain. The FFT route
   # is the same estimator -- biased, demeaned, every lag -- and this is what says

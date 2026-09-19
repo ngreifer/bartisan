@@ -86,6 +86,20 @@
 #' which share of it, so an average or a contrast of averages is governed by the
 #' average row and a prediction for one observation by the worst 5%.
 #'
+#' An `ordinal()` fit with three or more categories is the exception, and which
+#' of the two rows to read is different there. Only the differences between the
+#' cutpoints and the additive predictor are identified, so the draws are recorded
+#' in the chart where the predictor has mean zero over the fitted sample and
+#' every cutpoint is free (see [`bartisan-families`]). The average over
+#' observations is then zero in every draw, which leaves it nothing to diagnose,
+#' and it is reported as `NA`. The level of the fitted function has not gone
+#' anywhere: the sampler pins the first threshold, so `aux.cut1` is that level
+#' rather than a cutpoint, and it is the row to read wherever the level is what
+#' matters, as it is for a probability in the lowest categories. It is usually
+#' the slowest row in such a fit, and the most pessimistic one, since it carries
+#' the level on its own where every quantity computed from the draws mixes the
+#' level with faster-moving ones.
+#'
 #' `rhat` is split-R-hat, so drift inside a chain counts as disagreement rather
 #' than hiding inside a chain mean. `rhat_late` is that same statistic on the
 #' second half of the retained draws alone, which separates the two reasons
@@ -97,6 +111,32 @@
 #' through the total number of splitting rules at each draw, since chains that
 #' disagree about how large the forest is are exploring different tree
 #' structures.
+#'
+#' That last row is graded apart from the others, and the distinction is worth
+#' understanding before acting on either. A sum of trees represents one function
+#' through many different partitions, so the number of splitting rules is not
+#' pinned down by the fit the way a fitted value is: two chains can agree to
+#' three figures about every value of the additive predictor while using forests
+#' of different sizes. The quantities a fit reports are integrals over the tree
+#' structure, so their convergence is a separate question from its convergence.
+#' The checks on R-hat and effective sample size therefore read the reported
+#' quantities, and the splitting rules get a check and a remedy of their own. It
+#' is separated rather than suppressed, because it does bind on anything computed
+#' from the split counts themselves, which is [variable_importance()] and
+#' `vignette("importance")`.
+#'
+#' The grading rests on how the model is parameterized and not on that row being
+#' the worst one, which it usually is not. Measured over 144 fits spanning three
+#' families, hard and soft rules and sample sizes from 500 to 8000, the splitting
+#' rules carried the highest R-hat in 8 of them; a reported quantity carried it in
+#' the other 136. Its R-hat runs above the averaged predictor's by 0.13 on a
+#' Gaussian fit, 0.05 on a probit one and 0.03 on an ordinal one, which is real
+#' and small. **The wide gap in a fit is not between the reported rows and this
+#' one, but within the reported rows**: the predictor averaged over observations
+#' carried a median of 93 times the effective sample size of its own worst 5%,
+#' 7815 against 52. Which of those two governs a given summary is the question the
+#' table is for, and the note about individual observations against their average
+#' is the line to read.
 #'
 #' The leaf scale `sigma_mu` is left out of the table, and is in `fit$sigma_mu`
 #' and [`as_draws()`][bartisan-interop] for anyone who wants to look.
@@ -525,6 +565,31 @@ diagnosis_columns <- function(wide, chains, budget) {
   do_cbind(blocks)
 }
 
+# An ordinal fit with three or more categories records its predictor in the chart
+# where it has mean zero over the fitted sample, so the average over observations
+# is zero by construction and all that is left of it is the rounding error of the
+# subtraction. `diagnosis_stats()` already returns NA for a quantity the sampler
+# holds fixed, but it recognizes an exact constant, and a rounding error is not
+# one: the autocovariance of a sequence of 1e-16 is a perfectly well-behaved
+# autocovariance, so the row came back with an effective sample size equal to the
+# draw count and stood as the best-mixing quantity in the table. The note about
+# the chains agreeing on the average was then written from it.
+#
+# Restoring the exact zero sends it down the path that already exists rather than
+# adding a second one. The scale the rounding has to be judged against is the
+# spread of the draws that were averaged, and `sqrt(.Machine$double.eps)` sits
+# about seven orders above that floor and seven below any average a fit reports.
+zero_if_centered <- function(avg, wide) {
+  scale <- stats::sd(wide[1L, ])
+
+  if (is.finite(scale) && scale > 0 &&
+        stats::sd(avg) < sqrt(.Machine$double.eps) * scale) {
+    return(rep.int(0, length(avg)))
+  }
+
+  avg
+}
+
 diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
   parts <- list(list(draws = object[["eta"]], stem = "eta", over = "observations"),
                 list(draws = object[["ranef"]], stem = "ranef", over = "levels"))
@@ -553,7 +618,7 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
       out[[at]] <- diagnosis_row(
         sprintf("%s.%s (average over %s)", part[["stem"]],
                 names(part[["draws"]])[h], part[["over"]]),
-        as_chains(rowMeans(wide), chains), rhat_max)
+        as_chains(zero_if_centered(rowMeans(wide), wide), chains), rhat_max)
 
       # The worst 5% boundary rather than the single worst column, because the
       # worst of a thousand values is extreme even when every chain has
@@ -635,6 +700,31 @@ rhat_late <- function(x) {
 # 95% critical value even when every chain is stationary -- with room to spare.
 FAIL_SHARE <- 0.2
 
+# Which rows are quantities a fit reports and which are internal states that the
+# reported ones integrate over.
+#
+# A sum of trees represents one function through many different partitions, so
+# the number of splitting rules is not pinned down by the fit the way a fitted
+# value is: two chains can agree to three figures about every `eta` and still be
+# using forests of different sizes, and that is the model rather than the
+# sampler. This is a statement about the parameterization and not a measured
+# claim -- the reported quantities are integrals over the tree structure, so
+# their convergence is a separate question from its convergence.
+#
+# Keeping the two apart is what stops one row that may never clear the threshold
+# from condemning a usable fit, and from sending a reader up an escalation ladder
+# it does not climb. The nuisance row still gets its own check and its own
+# advice; it is separated, not suppressed.
+NUISANCE_PREFIX <- "splits."
+
+is_nuisance <- function(quantity) {
+  startsWith(quantity, NUISANCE_PREFIX)
+}
+
+reported_rows <- function(table) {
+  table[!is_nuisance(table[["quantity"]]), , drop = FALSE]
+}
+
 # "bulk ESS" reads as a subject at the head of a sentence only with its first
 # letter raised, and the labels are written lowercase because they are also keys.
 upper_first <- function(x) {
@@ -662,29 +752,34 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
                         draws))
   }
 
-  worst_at <- function(column, f) {
-    v <- table[[column]]
+  # The generic checks read the quantities a fit reports; the internal states
+  # get their own check below, because the advice for them is different and the
+  # advice here would be wrong for them. See `reported_rows()`.
+  reported <- reported_rows(table)
+
+  worst_at <- function(column, f, from = reported) {
+    v <- from[[column]]
 
     if (!any(is.finite(v))) {
       return(NULL)
     }
 
     i <- which(v == f(v, na.rm = TRUE) & is.finite(v))[1L]
-    list(value = v[i], quantity = table[["quantity"]][i])
+    list(value = v[i], quantity = from[["quantity"]][i])
   }
 
   # Keyed to the share of each row's components that failed, not to the
   # percentile shown in the table; see `FAIL_SHARE`.
-  worst_share <- function(column) {
-    v <- table[[column]]
+  worst_share <- function(column, from = reported) {
+    v <- from[[column]]
 
     if (!any(is.finite(v))) {
       return(NULL)
     }
 
     i <- which(v == max(v, na.rm = TRUE) & is.finite(v))[1L]
-    list(share = v[i], quantity = table[["quantity"]][i],
-         ess = table[["ess_bulk"]][i])
+    list(share = v[i], quantity = from[["quantity"]][i],
+         ess = from[["ess_bulk"]][i])
   }
 
   bad_rhat <- worst_share("rhat_bad")
@@ -700,7 +795,8 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   }
   else {
     rows <- add(rows, "rhat", "ok",
-                sprintf("R-hat is below %.2f throughout", rhat_max))
+                sprintf("R-hat is below %.2f for every reported quantity",
+                        rhat_max))
   }
 
   # R-hat is a ratio of two variance estimates taken from the same draws, so with
@@ -758,8 +854,9 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
 
   # The forest's own size gets its own line, because it is the one signal that
   # points at warmup rather than at the number of draws and a reader will not
-  # think to look for it.
-  forest <- table[startsWith(table[["quantity"]], "splits."), , drop = FALSE]
+  # think to look for it -- and because it is the internal state the checks above
+  # deliberately leave out, so this is the only place it is reported.
+  forest <- table[is_nuisance(table[["quantity"]]), , drop = FALSE]
 
   if (nrow(forest) > 0L && any(is.finite(forest[["rhat"]]))) {
     at <- which.max(forest[["rhat"]])
@@ -790,7 +887,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     }
     else {
       rows <- add(rows, label, "ok",
-                  sprintf("%s is at least %.0f everywhere, above %.0f",
+                  sprintf("%s is at least %.0f for every reported quantity, above %.0f",
                           upper_first(label), lo[["value"]], ess_min))
     }
   }
@@ -803,7 +900,13 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   worst <- table[grepl("(worst 5% of", table[["quantity"]], fixed = TRUE), ,
                  drop = FALSE]
 
+  # The averaged row has to carry a finite R-hat for the note to be about
+  # anything. An ordinal fit centers its predictor, so that row is a quantity the
+  # fit holds at zero and reports as NA; reducing an all-NA set with `na.rm`
+  # returns an infinity and warns, and the sentence would be written about
+  # nothing. See `zero_if_centered()`.
   if (nrow(averaged) > 0L && nrow(worst) > 0L &&
+        any(is.finite(averaged[["rhat"]])) &&
         any(worst[["rhat_bad"]] > FAIL_SHARE, na.rm = TRUE) &&
         all(averaged[["rhat_bad"]] == 0, na.rm = TRUE)) {
     rows <- add(rows, "where it is", "note",
@@ -922,6 +1025,20 @@ diagnosis_advice <- function(checks, control = NULL) {
       "Then check the family. A likelihood that fits the data badly can give a",
       "posterior with no single place to be; `bayesplot::pp_check()` is the",
       "diagnostic."))
+  }
+
+  if (failed("forest size")) {
+    out <- c(out, paste(
+      "The forest's own size is a different kind of failure from the others and",
+      "does not take the same advice. A sum of trees represents one function",
+      "through many different partitions, so two chains can agree about every",
+      "fitted value while disagreeing about how many rules they used to get",
+      "there, and the quantities a fit reports are integrals over that",
+      "structure. Raising `num_draws` moves this row slowly and may not clear",
+      "the threshold at any affordable length. Act on it when split counts are",
+      "themselves what gets reported -- `variable_importance()` and",
+      "`vignette(\"importance\")` -- and not when fitted values, predictions or",
+      "effects are."))
   }
 
   if (noted("where it is")) {
