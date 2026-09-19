@@ -190,6 +190,30 @@
 #' slowly than a forest does, so a longer warmup is worth having there and
 #' especially when the error distribution itself is the object of interest.
 #'
+#' ## Setting `num_draws`: intervals want more than point predictions do
+#'
+#' The defaults were chosen on out-of-sample error and effective sample size per
+#' second. Those are the right criteria for a posterior mean and they are not the
+#' binding ones for an interval, because an interval endpoint is a quantile of
+#' the draws and a short run places it too far out. The effect is Monte Carlo
+#' error and it shrinks at the usual rate, so it is a question of how much rather
+#' than whether.
+#'
+#' Measured on one design, a Friedman function at n = 4000 with 25 of 30
+#' predictors irrelevant, comparing the default against a run 64 times longer:
+#' pointwise 95% intervals for the regression function came out about 5% wider at
+#' the default and covered 0.938 against 0.958. Halving the excess width took
+#' about four times the sweeps, which is what an error decaying as the square
+#' root of the run predicts.
+#'
+#' Two draws to take from this rather than a number to apply. Raise `num_draws`
+#' when an interval, a tail quantile or a posterior probability is the
+#' deliverable and the cost is affordable, and leave it alone when a posterior
+#' mean or a held-out prediction is. And read the width rather than the coverage
+#' when checking whether a run was long enough, since a short run errs by being
+#' too wide and that is visible without knowing the truth. The magnitude above is
+#' one design and one family; the direction is general.
+#'
 #' ## Setting `num_trees`
 #'
 #' The performance of the BART model is relatively insensitive to the number of
