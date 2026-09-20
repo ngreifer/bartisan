@@ -1,0 +1,675 @@
+diff --git a/R/control.R b/R/control.R
+index badf279..6e9276e 100644
+--- a/R/control.R
++++ b/R/control.R
+@@ -52,6 +52,19 @@
+ #'   Note that this sets `update_s`, `update_alpha`, `alpha_shape_1` and
+ #'   `alpha_shape_2` together, and that supplying any of those overrides it.
+ #'   Read the trade-off in Details before turning it off.
++#'
++#'   `"gibbs"` is **experimental** and is the Gibbs prior of Linero and Du
++#'   (2023), which puts the prior on the partition of splitting rules by
++#'   predictor rather than on the splitting proportions. It penalizes the number
++#'   of predictors in the model directly, where the Dirichlet prior reaches
++#'   sparsity only indirectly, and so makes fewer false selections when the
++#'   number of predictors is small. `zeta` controls it.
++#'
++#'   Its recall is sensitive to `zeta` in a way the Dirichlet prior's is not.
++#'   Measured on a Friedman design with five real predictors, the default
++#'   `zeta = 1` recovers 4.5 of them at `p = 20` and 3.0 at `p = 50`, against 5.0
++#'   and 4.9 under `sparsity = TRUE`. The default is Linero and Du's; a smaller
++#'   value holds recall, and `zeta = 0.5` recovers all five up to `p = 20`.
+ #' @param k *Advanced.* `numeric`; controls the leaf prior. The prior standard
+ #'   deviation of a forest is `3 / k` times the natural scale of its additive
+ #'   predictor, so larger values shrink the fit harder toward the intercept-only
+@@ -139,6 +152,11 @@
+ #'   Beta(`alpha_shape_1`, `alpha_shape_2`). Default for `alpha_scale` is `NULL`
+ #'   to use the number of predictor groups; the two shapes default to whatever
+ #'   `sparsity` implies.
++#' @param zeta *Advanced.* `numeric`; the truncated zeta prior on the number of
++#'   predictors the forest may split on, used only when `sparsity = "gibbs"`.
++#'   The prior probability of admitting `d` predictors is proportional to
++#'   `d^-zeta` over `1` to `p`, so larger values prefer fewer predictors and `0`
++#'   is uniform. Default is 1, which is Linero and Du's.
+ #' @param update_s,update_alpha *Advanced.* `logical`; whether to draw the
+ #'   splitting proportions and their concentration. Defaults are `NULL` to
+ #'   follow `sparsity`. Turning both off recovers a uniform prior over
+@@ -443,6 +461,7 @@ bartisan_control <- function(chains = 1L,
+                              alpha = NULL, alpha_scale = NULL,
+                              alpha_shape_1 = NULL, alpha_shape_2 = NULL,
+                              update_s = NULL, update_alpha = NULL,
++                             zeta = 1,
+                              verbose = FALSE, num_print = 100L,
+                              block_eval = FALSE,
+                              exact_quadratic = TRUE,
+@@ -547,6 +566,20 @@ bartisan_control <- function(chains = 1L,
+   # the supplied weights would answer neither question, so the weights are held
+   # fixed and `sparsity` is ignored. Said out loud only when the caller asked
+   # for both, since `sparsity = TRUE` is the default and is not a request.
++  gibbs_any <- any(resolve_sparsity(sparsity)[["gibbs"]])
++
++  # Checked before the override below, which would otherwise turn `sparsity`
++  # off and leave nothing to detect. The two are the same kind of statement
++  # about different objects and neither can absorb the other: `split_prior`
++  # fixes the splitting proportions, and the Gibbs prior does not have
++  # proportions to fix.
++  if (gibbs_any && !is_null(split_prior)) {
++    arg::err(c("{.code sparsity = \"gibbs\"} and {.arg split_prior} cannot both
++                be in force.",
++               i = "The Gibbs prior marginalizes the splitting proportions out,
++                    so there is nothing for {.arg split_prior} to fix."))
++  }
++
+   if (!is_null(split_prior)) {
+     if (!missing(sparsity) && !isFALSE(sparsity)) {
+       arg::wrn(c("{.arg split_prior} overrides {.arg sparsity}, which is ignored.",
+@@ -556,9 +589,24 @@ bartisan_control <- function(chains = 1L,
+   }
+ 
+   arg::arg_flag(share_sparsity)
++  arg::arg_number(zeta)
++
++  if (zeta < 0) {
++    arg::err("{.arg zeta} must be non-negative; it is the exponent of a
++              decreasing prior on the number of predictors")
++  }
+ 
+   # Nothing to pool when the proportions are not drawn at all, and saying so is
+   # better than accepting a setting that does nothing.
++  if (share_sparsity && gibbs_any) {
++    arg::err(c("{.arg share_sparsity} is not available under
++                {.code sparsity = \"gibbs\"}.",
++               i = "It pools counts behind one Dirichlet draw, and the Gibbs
++                    prior has no such draw to pool them behind.",
++               i = "This is a limit of the prototype rather than of the model;
++                    a shared urn would be well defined."))
++  }
++
+   if (share_sparsity && !any(resolve_sparsity(sparsity)[["update_s"]])) {
+     arg::err(c("{.arg share_sparsity} has nothing to share when the splitting
+                 proportions are not drawn.",
+@@ -626,6 +674,8 @@ bartisan_control <- function(chains = 1L,
+               alpha_shape_2 = alpha_shape_2 %or% sparse[["alpha_shape_2"]],
+               update_s = update_s %or% sparse[["update_s"]],
+               update_alpha = update_alpha %or% sparse[["update_alpha"]],
++              gibbs = sparse[["gibbs"]],
++              zeta = zeta,
+               verbose = verbose,
+               num_print = as.integer(num_print),
+               block_eval = block_eval,
+@@ -666,7 +716,7 @@ resolve_sparsity <- function(sparsity) {
+ 
+     if (isTRUE(one)) "moderate"
+     else if (isFALSE(one)) "none"
+-    else arg::match_arg(one, c("none", "weak", "moderate", "strong"),
++    else arg::match_arg(one, c("none", "weak", "moderate", "strong", "gibbs"),
+                         .arg = "sparsity")
+   }, character(1L))
+ 
+@@ -674,17 +724,25 @@ resolve_sparsity <- function(sparsity) {
+                    none = c(0.5, 1),
+                    weak = c(1, 1),
+                    moderate = c(0.5, 1),
+-                   strong = c(0.5, 3))
++                   strong = c(0.5, 3),
++                   gibbs = c(0.5, 1))
+ 
+   keep <- function(x) {
+     setNames(x, names(sparsity))
+   }
+ 
+-  list(update_s = keep(levels != "none"),
+-       update_alpha = keep(levels != "none"),
++  # `"gibbs"` draws neither the proportions nor the concentration, because it
++  # has neither: the Gibbs prior marginalizes `s` out and reaches the same
++  # sparsity through the urn its proposals draw from. `alpha` means something
++  # different there too -- it is the Dirichlet shape *within* the selected set,
++  # and Linero and Du recommend 1, which spreads weight evenly across the
++  # predictors that are in rather than concentrating it on one of them.
++  list(update_s = keep(levels %in% c("weak", "moderate", "strong")),
++       update_alpha = keep(levels %in% c("weak", "moderate", "strong")),
+        alpha = keep(rep.int(1, length(levels))),
+        alpha_shape_1 = keep(shapes[1L, ]),
+-       alpha_shape_2 = keep(shapes[2L, ]))
++       alpha_shape_2 = keep(shapes[2L, ]),
++       gibbs = keep(levels == "gibbs"))
+ }
+ 
+ # Relative prior weights on the predictors, keyed by the name each has in the
+diff --git a/src/hypers.cpp b/src/hypers.cpp
+index eee48e5..e347485 100644
+--- a/src/hypers.cpp
++++ b/src/hypers.cpp
+@@ -10,7 +10,8 @@ Hypers::Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
+                bool soft_, double bandwidth_scale_, bool update_bandwidth_,
+                int bandwidth_every_, int gate_,
+                const arma::vec& split_prior_,
+-               const arma::vec& split_mask_) {
++               const arma::vec& split_mask_,
++               bool gibbs_, double zeta_) {
+ 
+   group_probs_ = group_probs;
+   num_groups_ = static_cast<int>(group_probs_.n_cols);
+@@ -62,6 +63,21 @@ Hypers::Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
+   gate = gate_;
+   adapt = false;
+ 
++  gibbs = gibbs_;
++  zeta = zeta_;
++
++  urn_counts_ = arma::zeros<arma::vec>(num_groups_);
++  num_branches_ = 0.0;
++
++  // The Gibbs prior marginalizes the proportions out, so there is nothing for
++  // `update_s_param()` to draw and `s_` is never read while it is on. Held here
++  // rather than only in R so the guarantee survives whatever reaches the
++  // constructor, which is the same reason `split_prior_` does it below.
++  if (gibbs) {
++    update_s = false;
++    update_alpha = false;
++  }
++
+   // A single group carries no sparsity information, so leave s at its prior.
+   // Counted over the groups this forest may actually use: a forest held to one
+   // predictor has nothing to select between, whatever the model as a whole has.
+@@ -80,7 +96,11 @@ Hypers::Hypers(const arma::sp_mat& group_probs, double sigma_mu_, double gamma_,
+   }
+ }
+ 
+-arma::uvec Hypers::sample_var() const {
++arma::uvec Hypers::sample_var(int exclude_group) const {
++  if (gibbs) {
++    return sample_var_gibbs(exclude_group);
++  }
++
+   arma::uvec group_var(2);
+   int group = sample_class(s_);
+   group_var(0) = static_cast<arma::uword>(group);
+@@ -88,6 +108,117 @@ arma::uvec Hypers::sample_var() const {
+   return group_var;
+ }
+ 
++void Hypers::set_urn_counts(const arma::uvec& counts) {
++  if (!gibbs) {
++    return;
++  }
++
++  urn_counts_ = arma::conv_to<arma::vec>::from(counts);
++  num_branches_ = arma::accu(urn_counts_.elem(allowed_));
++}
++
++// log V_B(t), Linero and Du (2023) equation (4):
++//
++//   V_B(t) = sum_{d = max(t, 1)}^{P} d! / (d - t)! * Gamma(alpha d) /
++//            Gamma(alpha d + B) * pi_D(d)
++//
++// computed in logs because both factorial ratios overflow and both gamma ratios
++// underflow well inside the range of P and B a real fit reaches. pi_D's
++// normalizing constant is dropped: the urn only ever takes ratios of V at a
++// fixed B, so it cancels.
++//
++// The sum starts at 1 rather than 0 because D is supported on {1, ..., P}, and
++// t = 0 is a legitimate argument -- it is what an empty ensemble asks for.
++double Hypers::log_v(int t, int branches) const {
++  std::pair<int, int> key(t, branches);
++  std::map<std::pair<int, int>, double>::const_iterator hit =
++    log_v_cache_.find(key);
++
++  if (hit != log_v_cache_.end()) {
++    return hit->second;
++  }
++
++  int p = static_cast<int>(allowed_.n_elem);
++  double b = static_cast<double>(branches);
++
++  arma::vec terms(static_cast<arma::uword>(std::max(0, p - std::max(t, 1) + 1)));
++  arma::uword k = 0;
++
++  for (int d = std::max(t, 1); d <= p; d++) {
++    double dd = static_cast<double>(d);
++    terms(k++) = R::lgammafn(dd + 1.0) - R::lgammafn(dd - t + 1.0) +
++      R::lgammafn(alpha * dd) - R::lgammafn(alpha * dd + b) -
++      zeta * std::log(dd);
++  }
++
++  double out = k == 0 ? R_NegInf : log_sum_exp(terms.head(k));
++  log_v_cache_[key] = out;
++  return out;
++}
++
++// The Polya urn of Linero and Du (2023) Proposition 2, equation (5). Dropping
++// V_{B-1}(Q), which is common to both branches and so cancels, the unnormalized
++// weight on group j is
++//
++//   V_B(Q) * (alpha + m_j)                 when m_j != 0,
++//   V_B(Q + 1) * alpha / (P - Q)           when m_j == 0,
++//
++// where m_j counts the branches already splitting on j, Q is how many groups
++// have any, and B counts the branch being drawn as well as those.
++//
++// So a group the ensemble already uses is reinforced by its own count and a
++// fresh one shares alpha across the groups not yet used, which is where the
++// sparsity comes from: V_B(Q + 1) / V_B(Q) is the price of widening the model.
++arma::uvec Hypers::sample_var_gibbs(int exclude_group) const {
++  arma::vec counts = urn_counts_;
++  double branches = num_branches_;
++
++  // A rule change replaces a branch rather than adding one, so that branch
++  // belongs to neither m_j nor B: equation (5) conditions on every branch *but*
++  // the one being drawn.
++  if (exclude_group >= 0 && exclude_group < num_groups_ &&
++      counts(static_cast<arma::uword>(exclude_group)) > 0.0) {
++    counts(static_cast<arma::uword>(exclude_group)) -= 1.0;
++    branches -= 1.0;
++  }
++
++  arma::vec live = counts.elem(allowed_);
++  int p = static_cast<int>(allowed_.n_elem);
++  int q = static_cast<int>(arma::accu(live > 0.0));
++  int b = static_cast<int>(branches) + 1;
++
++  double log_used = log_v(q, b);
++  double log_fresh = q < p
++    ? log_v(q + 1, b) - std::log(static_cast<double>(p - q))
++    : R_NegInf;
++
++  arma::vec log_w(static_cast<arma::uword>(p));
++
++  for (arma::uword i = 0; i < live.n_elem; i++) {
++    log_w(i) = live(i) > 0.0
++      ? log_used + std::log(alpha + live(i))
++      : log_fresh + std::log(alpha);
++  }
++
++  // Every group fresh and none available is unreachable -- p >= 1 and q <= p, so
++  // q == p means live is strictly positive and the first branch above fired --
++  // but a guard is cheaper than a silent NaN if that ever stops holding.
++  if (!log_w.is_finite() && !arma::any(arma::find_finite(log_w))) {
++    log_w.fill(0.0);
++  }
++
++  arma::vec w = arma::exp(log_w - log_w.max());
++  w /= arma::accu(w);
++
++  int which = sample_class(w);
++  int group = static_cast<int>(allowed_(static_cast<arma::uword>(which)));
++
++  arma::uvec group_var(2);
++  group_var(0) = static_cast<arma::uword>(group);
++  group_var(1) = static_cast<arma::uword>(sample_class_col(group_probs_, group));
++  return group_var;
++}
++
+ // Sample s from its Dirichlet full conditional. The shape parameters are often
+ // small, so draw log-gamma variates directly and normalize with log-sum-exp
+ // rather than forming gamma draws that would underflow to zero.
+diff --git a/src/hypers.h b/src/hypers.h
+index 72c6ea2..ec7b889 100644
+--- a/src/hypers.h
++++ b/src/hypers.h
+@@ -2,6 +2,8 @@
+ #define GENBART_HYPERS_H
+ 
+ #include <RcppArmadillo.h>
++#include <map>
++#include <utility>
+ #include "utils.h"
+ 
+ namespace bartisan {
+@@ -47,6 +49,20 @@ struct Hypers {
+   // rules are hard.
+   int gate;
+ 
++  // The Gibbs prior on the partition of branches by splitting variable (Linero
++  // and Du 2023). DART and the spike-and-forest prior are its two extremes and
++  // this is the interior. There is no `s_` to draw under it: the proportions are
++  // marginalized out and the splitting variable comes from a Polya urn over the
++  // live branch counts instead, which is why `update_s` is off whenever this is
++  // on. Their Proposition 4 shows the prior then cancels out of the acceptance
++  // ratio, so this touches the proposal and nothing else in the kernel.
++  //
++  // `zeta` is the truncated zeta prior on the model size D, pi_D(d) propto
++  // d^(-zeta) over {1, ..., P}. Larger prefers fewer predictors; 0 is uniform.
++  // Their default, and ours, is 1.
++  bool gibbs;
++  double zeta;
++
+   // True during warmup only, while the bandwidth proposal is being tuned.
+   bool adapt;
+ 
+@@ -66,12 +82,22 @@ struct Hypers {
+          bool update_alpha_, bool soft_, double bandwidth_scale_,
+          bool update_bandwidth_, int bandwidth_every_, int gate_,
+          const arma::vec& split_prior_ = arma::vec(),
+-         const arma::vec& split_mask_ = arma::vec());
++         const arma::vec& split_mask_ = arma::vec(),
++         bool gibbs_ = false, double zeta_ = 1.0);
+ 
+   // Draw a (group, variable) pair: the group from s, then the variable from
+   // that group's column of group_probs. Grouping lets the dummy columns of one
+   // factor share a single sparsity weight.
+-  arma::uvec sample_var() const;
++  //
++  // Under the Gibbs prior the group instead comes from the urn of Linero and Du
++  // (2023, Proposition 2), which needs the counts of every *other* branch in the
++  // ensemble. `exclude_group` is the group of the branch being replaced, for a
++  // rule change, and -1 for a birth, which adds a branch rather than moving one.
++  arma::uvec sample_var(int exclude_group = -1) const;
++
++  // The live ensemble branch counts the urn reads, refreshed once per tree
++  // update from `get_var_counts()`. A no-op unless `gibbs`.
++  void set_urn_counts(const arma::uvec& counts);
+ 
+   void update_alpha_param();
+   void update_s_param(const arma::uvec& counts);
+@@ -88,10 +114,25 @@ struct Hypers {
+   const arma::vec& log_s() const { return log_s_; }
+ 
+ private:
++  // The Gibbs prior's weights V_B(t) of Linero and Du (2023, equation 4), in
++  // logs and without pi_D's normalizing constant, which cancels from every ratio
++  // the urn takes. Memoized on (t, B) because the same pair recurs across trees
++  // and sweeps; their own implementation does the same.
++  double log_v(int t, int branches) const;
++
++  arma::uvec sample_var_gibbs(int exclude_group) const;
++
+   arma::vec s_;
+   arma::vec log_s_;
+   int num_groups_;
+ 
++  // Live ensemble branch counts over groups, and their total. Only meaningful
++  // when `gibbs`; `set_urn_counts()` is what keeps them current.
++  arma::vec urn_counts_;
++  double num_branches_;
++
++  mutable std::map<std::pair<int, int>, double> log_v_cache_;
++
+   // The groups this forest may split on, as indices into s_. Every group unless
+   // a mask said otherwise. The Dirichlet is over these and s_ is zero off them,
+   // so `sample_var()` cannot propose one that is not here.
+diff --git a/src/mcmc.cpp b/src/mcmc.cpp
+index 04b3a68..df951f1 100644
+--- a/src/mcmc.cpp
++++ b/src/mcmc.cpp
+@@ -1697,6 +1697,20 @@ void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers,
+     Tree* tree = forest[t];
+     ctx.sigma_mu = hypers.sigma_mu;
+ 
++    // The Gibbs prior's urn conditions on every other branch in the ensemble, so
++    // the counts have to be current when the rule is drawn. At most one branch
++    // moves per tree per sweep, so recomputing here is exact rather than
++    // approximate. It costs one walk of the forest per tree, which is O(trees x
++    // branches) a sweep -- small beside a leaf update, and the obvious thing to
++    // make incremental if this ever leaves prototype status.
++    if (hypers.gibbs) {
++      arma::uvec urn = arma::zeros<arma::uvec>(hypers.num_groups());
++      for (std::size_t k = 0; k < forest.size(); k++) {
++        get_var_counts(forest[k]->root, urn);
++      }
++      hypers.set_urn_counts(urn);
++    }
++
+     if (tree->root->is_leaf) {
+       node_birth(tree, ctx, hypers);
+     }
+diff --git a/src/model.cpp b/src/model.cpp
+index 13162f8..0426be1 100644
+--- a/src/model.cpp
++++ b/src/model.cpp
+@@ -397,7 +397,8 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
+       flag_at("update_bandwidth", h),
+       static_cast<int>(at("bandwidth_every", h)), gate,
+       split_prior.n_cols > 0 ? arma::vec(split_prior.col(h)) : arma::vec(),
+-      split_mask.n_cols > 0 ? arma::vec(split_mask.col(h)) : arma::vec())));
++      split_mask.n_cols > 0 ? arma::vec(split_mask.col(h)) : arma::vec(),
++      flag_at("gibbs", h), at("zeta", h))));
+ 
+     for (int t = 0; t < num_trees[h]; t++) {
+       forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na, &codes,
+@@ -454,6 +455,24 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
+ 
+       const Hypers& lead = *hypers[share_members[0]];
+ 
++      // The Gibbs prior is refused here rather than silently mis-sampled.
++      // `update_shared_forests()` draws one rule for a whole group of trees and
++      // never calls `set_urn_counts()`, so the urn would read all-zero counts
++      // and hand back a uniform draw over the groups nothing has used yet --
++      // not an error, just the wrong prior, which is the worst of the three
++      // outcomes. There is a real modeling question underneath it too: each
++      // forest carries its own urn, and one shared rule has no way to say which
++      // of them drew it.
++      for (std::size_t k = 0; k < share_members.size(); k++) {
++        if (hypers[share_members[k]]->gibbs) {
++          stop("`share_forests` is not available under `sparsity = \"gibbs\"`. "
++               "A shared topology draws one rule for every forest at once, and "
++               "the Gibbs prior draws a rule from an urn each forest keeps "
++               "separately, so there is no single urn to draw the shared rule "
++               "from.");
++        }
++      }
++
+       for (std::size_t k = 1; k < share_members.size(); k++) {
+         int h = share_members[k];
+         const Hypers& other = *hypers[h];
+diff --git a/src/node.cpp b/src/node.cpp
+index c2a73b9..c521c3a 100644
+--- a/src/node.cpp
++++ b/src/node.cpp
+@@ -198,8 +198,11 @@ void Node::available_levels(int group_id, int levels,
+ // birth and change both propose a rule from its prior, so the prior and the
+ // proposal density carry the same factor and it cancels, just as the choice of
+ // variable and cutpoint already do.
+-void Node::draw_rule() {
+-  arma::uvec group_var = tree->hypers->sample_var();
++void Node::draw_rule(bool replacing) {
++  // A rule change conditions on every branch but this one, so the urn under the
++  // Gibbs prior has to be told which group to take back out. A birth adds a
++  // branch instead, and `group` is whatever the node pool last left here.
++  arma::uvec group_var = tree->hypers->sample_var(replacing ? group : -1);
+   group = static_cast<int>(group_var(0));
+   var = static_cast<int>(group_var(1));
+ 
+@@ -304,7 +307,7 @@ void Node::birth_leaves(std::vector<double>* w_left,
+   }
+ 
+   is_leaf = false;
+-  draw_rule();
++  draw_rule(false);
+ 
+   left = tree->take_node(this);
+   right = tree->take_node(this);
+@@ -316,7 +319,7 @@ void Node::resample_rule(std::vector<double>* w_left,
+   if (is_leaf) {
+     return;
+   }
+-  draw_rule();
++  draw_rule(true);
+   split_support(w_left, w_right);
+ }
+ 
+diff --git a/src/node.h b/src/node.h
+index cd34510..320c37b 100644
+--- a/src/node.h
++++ b/src/node.h
+@@ -246,7 +246,7 @@ struct Node {
+ 
+   // Draw a splitting rule from the prior: a variable, what to do with its
+   // missing values if it has any, and a cutpoint.
+-  void draw_rule();
++  void draw_rule(bool replacing = false);
+   void draw_categorical_rule(int levels);
+   void available_levels(int group_id, int levels,
+                         std::vector<std::uint32_t>& out) const;
+diff --git a/tests/testthat/test-gibbs-prior.R b/tests/testthat/test-gibbs-prior.R
+new file mode 100644
+index 0000000..e1bccf9
+--- /dev/null
++++ b/tests/testthat/test-gibbs-prior.R
+@@ -0,0 +1,166 @@
++# The Gibbs prior of Linero and Du (2023), behind `sparsity = "gibbs"`.
++#
++# What is checked here is the wiring, not the statistics. Whether the urn makes
++# fewer false selections than the Dirichlet prior is a claim about fits and is
++# measured in `_dev/gibbs-prior-smoke.R`, where it can afford the replicates;
++# at a size a test can afford, the DART and Gibbs counts overlap on a single
++# seed and an assertion on their difference would be testing the noise.
++#
++# What *is* deterministic enough to assert is that the option is accepted and
++# refused in the right places, that `zeta` reaches the sampler and moves the
++# model size in the documented direction, and that the urn does not disturb the
++# Dirichlet path it sits beside.
++
++sim_null_p <- function(seed, n = 250L, p = 12L) {
++  set.seed(seed)
++  x <- matrix(stats::runif(n * p), n, p,
++              dimnames = list(NULL, paste0("x", seq_len(p))))
++  data.frame(y = stats::rnorm(n, 0, 1), x)
++}
++
++# How many predictors the median probability model keeps.
++n_selected <- function(fit) {
++  imp <- variable_importance(fit)
++  sum(imp[["prop_used"]] >= 0.5)
++}
++
++gibbs_control <- function(...) {
++  quick_control(num_trees = 10L, num_burn = 100L, num_draws = 200L, ...)
++}
++
++test_that("`sparsity = \"gibbs\"` is accepted and turns the Dirichlet draws off", {
++  ctl <- bartisan_control(sparsity = "gibbs")
++
++  expect_true(ctl[["gibbs"]])
++  expect_equal(ctl[["zeta"]], 1)
++
++  # There are no proportions and no concentration under the Gibbs prior: both
++  # are marginalized into the urn, so nothing draws them.
++  expect_false(any(ctl[["update_s"]]))
++  expect_false(any(ctl[["update_alpha"]]))
++
++  # And the levels beside it are untouched.
++  expect_false(any(bartisan_control(sparsity = TRUE)[["gibbs"]]))
++  expect_false(any(bartisan_control(sparsity = FALSE)[["gibbs"]]))
++  expect_true(any(bartisan_control(sparsity = TRUE)[["update_s"]]))
++
++  # Per-forest, like every other `sparsity` value.
++  per <- bartisan_control(sparsity = c("gibbs", "none"))
++  expect_equal(unname(per[["gibbs"]]), c(TRUE, FALSE))
++})
++
++test_that("`zeta` is validated", {
++  expect_equal(bartisan_control(zeta = 2.5)[["zeta"]], 2.5)
++  expect_equal(bartisan_control(zeta = 0)[["zeta"]], 0)
++
++  expect_error(bartisan_control(zeta = -1), "non-negative")
++  expect_error(bartisan_control(zeta = "1"), "number")
++  expect_error(bartisan_control(zeta = c(1, 2)), "number")
++})
++
++test_that("the Gibbs prior is refused where it has nothing to mean", {
++  # `split_prior` fixes the splitting proportions and the Gibbs prior does not
++  # have proportions to fix. Checked before `split_prior` turns `sparsity` off,
++  # which would otherwise leave nothing to detect.
++  expect_error(bartisan_control(sparsity = "gibbs", split_prior = c(x1 = 3)),
++               "cannot both")
++
++  # `share_sparsity` pools counts behind one Dirichlet draw, and there is no
++  # such draw here.
++  expect_error(bartisan_control(sparsity = "gibbs", share_sparsity = TRUE),
++               "not available")
++})
++
++test_that("a shared topology refuses the Gibbs prior rather than mis-sampling", {
++  # `update_shared_forests()` draws one rule for a whole group of trees and
++  # never refreshes the urn counts, so without this guard the urn would read
++  # all zeros and quietly return the wrong prior. The error comes from C++.
++  d <- sim_x(n = 120, p = 4)
++  d[["y"]] <- stats::rnorm(120)
++
++  expect_error(
++    with_shared_forests(
++      bartisan(list(y ~ ., ~ .), d, family = gaussian_ls(),
++               control = gibbs_control(sparsity = "gibbs"))
++    ),
++    "share_forests"
++  )
++})
++
++test_that("a Gibbs fit runs, and is not either Dirichlet path in disguise", {
++  d <- sim_null_p(1L)
++
++  fit_of <- function(sparsity) {
++    set.seed(11L)
++    bartisan(y ~ ., d, family = gaussian(),
++             control = gibbs_control(sparsity = sparsity))
++  }
++
++  gibbs <- fit_of("gibbs")
++  dart <- fit_of(TRUE)
++  flat <- fit_of(FALSE)
++
++  expect_s3_class(gibbs, "bartisan_fit")
++  expect_true(all(is.finite(fitted(gibbs))))
++  expect_predictor_invariant(gibbs, d)
++
++  # Same data, same seed, a different prior over which predictor a rule names,
++  # so the fits must differ. Equality here would mean the urn is never reached.
++  expect_false(isTRUE(all.equal(fitted(gibbs), fitted(dart))))
++  expect_false(isTRUE(all.equal(fitted(gibbs), fitted(flat))))
++})
++
++test_that("`zeta` reaches the sampler and shrinks the model size", {
++  # Calibrated rather than guessed. Over eight seeds on this design, `zeta = 8`
++  # kept exactly one predictor every time (sd 0), while `zeta = 0` ranged from
++  # one to six. The assertions below sit well outside that band: a `zeta = 8`
++  # fit keeping three predictors would be far outside anything observed.
++  for (seed in c(3L, 5L)) {
++    d <- sim_null_p(seed)
++
++    set.seed(2000L + seed)
++    tight <- bartisan(y ~ ., d, family = gaussian(),
++                      control = gibbs_control(sparsity = "gibbs", zeta = 8))
++
++    set.seed(2000L + seed)
++    loose <- bartisan(y ~ ., d, family = gaussian(),
++                      control = gibbs_control(sparsity = "gibbs", zeta = 0))
++
++    expect_lte(n_selected(tight), 3L)
++    expect_lte(n_selected(tight), n_selected(loose))
++  }
++})
++
++test_that("the urn respects a single predictor and an intercept-only forest", {
++  # `log_v()` sums over d in 1..P, so P = 1 is the edge where that sum has one
++  # term and t can be 0 or 1. It must not return a non-finite weight.
++  d <- sim_x(n = 100, p = 1)
++  d[["y"]] <- 2 * d[["x1"]] + stats::rnorm(100, 0, 0.3)
++
++  one <- bartisan(y ~ x1, d, family = gaussian(),
++                  control = gibbs_control(sparsity = "gibbs"))
++  expect_true(all(is.finite(fitted(one))))
++
++  # A pinned forest never births, so the urn is never asked for it. It cannot be
++  # the only forest -- a model with nothing to split on is refused -- so the
++  # case is a second forest held at `~ 1`, which is where `gamma` is zero and
++  # the constructor's `allowed_` fallback runs.
++  d2 <- sim_x(n = 150, p = 2)
++  d2[["y"]] <- 2 * d2[["x1"]] + stats::rnorm(150, 0, 0.3)
++
++  pinned <- bartisan(list(y ~ ., ~ 1), d2, family = gaussian_ls(),
++                     control = gibbs_control(sparsity = "gibbs"))
++  expect_true(all(is.finite(fitted(pinned))))
++})
++
++test_that("a Gibbs fit is reproducible", {
++  d <- sim_null_p(2L)
++
++  draw <- function() {
++    set.seed(707L)
++    bartisan(y ~ ., d, family = gaussian(),
++             control = gibbs_control(sparsity = "gibbs"))
++  }
++
++  expect_equal(fitted(draw()), fitted(draw()))
++})
