@@ -67,6 +67,20 @@
 <p>Every hit is either a violation or LaTeX inside <code>$...$</code>; there is no third case. Roxygen blocks in <code>R/</code> are the only place Rd markup belongs.</p>
 </div>
 <div class="section level2">
+<h2 id="every-simulation-is-described-before-it-is-run">Every simulation is described before it is run<a class="anchor" aria-label="anchor" href="#every-simulation-is-described-before-it-is-run"></a></h2>
+<p><strong>No simulation, benchmark or measurement starts before a written statement of what it is for.</strong> Not afterwards, not alongside: the description is written and shown, then the job is submitted. This holds for a two-minute foreground fit as much as for an hour in <code>pueue</code>.</p>
+<p>It is not a report-writing preference. It is the check that stops a run whose result cannot be acted on, and the cost of skipping it is the whole run. The statement answers three things, and a reader who has seen none of the surrounding work should finish it knowing why anyone would want the number.</p>
+<ol style="list-style-type: decimal"><li>
+<strong>What is being tested.</strong> The claim at stake, and where it comes from: the paper, the <code>_dev/TASKS.md</code> entry, or the earlier result that put it in doubt. State it as a claim that could be false, not as a topic.</li>
+<li>
+<strong>What the outcome measurement is.</strong> The quantity, the design that produces it, and which column is the one to read. Where the decisive endpoint is noisy and something else proxies it with less noise, say which is which and why.</li>
+<li>
+<strong>What each outcome would mean.</strong> Both branches, written down before the numbers exist: if it comes out one way, this follows; if the other way, that does. A run whose two outcomes lead to the same action did not need running, and writing this part is how that gets caught in time.</li>
+</ol><p>Write for a reader with no context. “Coverage of the true regression function at 500 held-out points, nominal 95%, against a fixed total sweep budget” rather than “coverage”. “If pooling 16 chains does not widen the posterior, the mechanism is absent and coverage cannot improve by this route” rather than “we will see whether it helps”.</p>
+<p>The same three things belong in the script’s header comment, so a file in <code>_dev/</code> is still readable once the conversation is gone. <code>_dev/chains-vs-length.R</code>, <code>_dev/transient-scaling.R</code> and <code>_dev/transient-trace.R</code> are the pattern.</p>
+<p><strong>Reporting afterwards states the result against the prediction</strong>, and says so plainly when the prediction was wrong. That case is worth more than a confirmation and is the easiest to quietly drop: <code>_dev/transient-scaling.R</code> was run to test a mechanism by which the burn-in transient should grow with the sample size, and it measured that it does not.</p>
+</div>
+<div class="section level2">
 <h2 id="knit-the-vignettes-against-an-installed-package-not-under-load_all">Knit the vignettes against an installed package, not under <code>load_all()</code>
 <a class="anchor" aria-label="anchor" href="#knit-the-vignettes-against-an-installed-package-not-under-load_all"></a></h2>
 <p><code>kfold()</code> sends its K refits to workers with <code>future.packages = "bartisan"</code>, and the thing it sends is the <code>bartisan</code> function object itself, since <code>kfold_call()</code> rebuilds the original call. Serializing a closure whose environment is a namespace writes a <em>reference</em> to that namespace rather than its contents, so the worker resolves it by loading the package by name, which is the <strong>installed</strong> one. Under <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code> with an install that predates the change in hand, any internal function added since is missing there, and <code><a href="articles/comparison.html">vignette("comparison")</a></code> comes back with</p>

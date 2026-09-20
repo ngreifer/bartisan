@@ -185,7 +185,7 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.416     1.4
+#> 1 smoothstep     0.416     1.2
 #> 2       hard     1.079     0.4
 ```
 

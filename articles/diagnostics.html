@@ -70,7 +70,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-18</h4>
+            <h4 data-toc-skip class="date">2026-09-20</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/diagnostics.Rmd" class="external-link"><code>vignettes/diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>diagnostics.Rmd</code></div>
@@ -436,10 +436,10 @@ causal forest model to estimate the ATE:</p>
 <span><span class="co">#&gt;         Y[1]    1      1.02      633     1055</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 throughout</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 for every reported quantity</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 533 everywhere, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 626 everywhere, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 533 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 626 for every reported quantity, above 400</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Nothing to change.</span></span></code></pre></div>
 <p>Three rows: the contrast, and the two average potential outcomes it
@@ -583,7 +583,7 @@ and every prior setting are identical between the two, and only
 <span><span class="co">#&gt;   draws alone as well</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 49 for eta.eta (worst 5% of observations), below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 402 everywhere, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 402 for every reported quantity, above 400</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span></span>
 <span><span class="co">#&gt;   average (R-hat 1.00, 1568 effective draws)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span></span>
@@ -631,18 +631,18 @@ supplied:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.01      1.01      645     1092</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.00      1.01     2313     5161</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    16106    25219</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01      999     2235</span></span>
+<span><span class="co">#&gt;                               loglik 1.01      1.01      611      842</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.00      1.01     2776     5906</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    15660    24055</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01      932     2243</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 32000 draws kept in total</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 throughout</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 for every reported quantity</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 645 everywhere, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 1092 everywhere, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 2.0 effective draws</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 611 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 842 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 1.9 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Nothing to change.</span></span></code></pre></div>

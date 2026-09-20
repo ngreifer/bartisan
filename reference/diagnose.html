@@ -162,6 +162,19 @@ on what is being reported. A forest settles the level of the fitted function
 within a sweep or two and takes much longer to settle which observation gets
 which share of it, so an average or a contrast of averages is governed by the
 average row and a prediction for one observation by the worst 5%.</p>
+<p>An <code><a href="bartisan-families.html">ordinal()</a></code> fit with three or more categories is the exception, and which
+of the two rows to read is different there. Only the differences between the
+cutpoints and the additive predictor are identified, so the draws are recorded
+in the chart where the predictor has mean zero over the fitted sample and
+every cutpoint is free (see <code><a href="bartisan-families.html">bartisan-families</a></code>). The average over
+observations is then zero in every draw, which leaves it nothing to diagnose,
+and it is reported as <code>NA</code>. The level of the fitted function has not gone
+anywhere: the sampler pins the first threshold, so <code>aux.cut1</code> is that level
+rather than a cutpoint, and it is the row to read wherever the level is what
+matters, as it is for a probability in the lowest categories. It is usually
+the slowest row in such a fit, and the most pessimistic one, since it carries
+the level on its own where every quantity computed from the draws mixes the
+level with faster-moving ones.</p>
 <p><code>rhat</code> is split-R-hat, so drift inside a chain counts as disagreement rather
 than hiding inside a chain mean. <code>rhat_late</code> is that same statistic on the
 second half of the retained draws alone, which separates the two reasons
@@ -173,6 +186,30 @@ and nowhere near enough for an interval endpoint. The forest itself is checked
 through the total number of splitting rules at each draw, since chains that
 disagree about how large the forest is are exploring different tree
 structures.</p>
+<p>That last row is graded apart from the others, and the distinction is worth
+understanding before acting on either. A sum of trees represents one function
+through many different partitions, so the number of splitting rules is not
+pinned down by the fit the way a fitted value is: two chains can agree to
+three figures about every value of the additive predictor while using forests
+of different sizes. The quantities a fit reports are integrals over the tree
+structure, so their convergence is a separate question from its convergence.
+The checks on R-hat and effective sample size therefore read the reported
+quantities, and the splitting rules get a check and a remedy of their own. It
+is separated rather than suppressed, because it does bind on anything computed
+from the split counts themselves, which is <code><a href="variable_importance.html">variable_importance()</a></code> and
+<code><a href="../articles/importance.html">vignette("importance")</a></code>.</p>
+<p>The grading rests on how the model is parameterized and not on that row being
+the worst one, which it usually is not. Measured over 144 fits spanning three
+families, hard and soft rules and sample sizes from 500 to 8000, the splitting
+rules carried the highest R-hat in 8 of them; a reported quantity carried it in
+the other 136. Its R-hat runs above the averaged predictor's by 0.13 on a
+Gaussian fit, 0.05 on a probit one and 0.03 on an ordinal one, which is real
+and small. <strong>The wide gap in a fit is not between the reported rows and this
+one, but within the reported rows</strong>: the predictor averaged over observations
+carried a median of 93 times the effective sample size of its own worst 5%,
+7815 against 52. Which of those two governs a given summary is the question the
+table is for, and the note about individual observations against their average
+is the line to read.</p>
 <p>The leaf scale <code>sigma_mu</code> is left out of the table, and is in <code>fit$sigma_mu</code>
 and <code><a href="bartisan-interop.html">as_draws()</a></code> for anyone who wants to look.</p>
 </div>
@@ -256,7 +293,7 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   1.14)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 5 for loglik, below 400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 13 for splits.eta, below 400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 17 for eta.eta (worst 5% of observations), below 400</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 0.99, 79 effective draws)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws</span>
@@ -277,6 +314,15 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   posterior with no single place to be; `bayesplot::pp_check()` is the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   diagnostic.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> The forest's own size is a different kind of failure from the others and does</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   not take the same advice. A sum of trees represents one function through many</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   different partitions, so two chains can agree about every fitted value while</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   disagreeing about how many rules they used to get there, and the quantities a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   fit reports are integrals over that structure. Raising `num_draws` moves this</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   row slowly and may not clear the threshold at any affordable length. Act on</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   it when split counts are themselves what gets reported --</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   `variable_importance()` and `vignette("importance")` -- and not when fitted</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   values, predictions or effects are.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   observations and not about their average, which is the usual shape of this in</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   a forest. What that means for an estimand cannot be read off this table</span>
@@ -305,7 +351,7 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   1.14)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 5 for loglik, below 1000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 13 for splits.eta, below 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 17 for eta.eta (worst 5% of observations), below 1000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 0.99, 79 effective draws)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws</span>
@@ -326,6 +372,15 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   posterior with no single place to be; `bayesplot::pp_check()` is the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   diagnostic.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> The forest's own size is a different kind of failure from the others and does</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   not take the same advice. A sum of trees represents one function through many</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   different partitions, so two chains can agree about every fitted value while</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   disagreeing about how many rules they used to get there, and the quantities a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   fit reports are integrals over that structure. Raising `num_draws` moves this</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   row slowly and may not clear the threshold at any affordable length. Act on</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   it when split counts are themselves what gets reported --</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   `variable_importance()` and `vignette("importance")` -- and not when fitted</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   values, predictions or effects are.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   observations and not about their average, which is the usual shape of this in</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   a forest. What that means for an estimand cannot be read off this table</span>

@@ -35,6 +35,51 @@ grep -n '\\[A-Za-z]\+{' NEWS.md README.md vignettes/*.Rmd
 Every hit is either a violation or LaTeX inside `$...$`; there is no
 third case. Roxygen blocks in `R/` are the only place Rd markup belongs.
 
+## Every simulation is described before it is run
+
+**No simulation, benchmark or measurement starts before a written
+statement of what it is for.** Not afterwards, not alongside: the
+description is written and shown, then the job is submitted. This holds
+for a two-minute foreground fit as much as for an hour in `pueue`.
+
+It is not a report-writing preference. It is the check that stops a run
+whose result cannot be acted on, and the cost of skipping it is the
+whole run. The statement answers three things, and a reader who has seen
+none of the surrounding work should finish it knowing why anyone would
+want the number.
+
+1.  **What is being tested.** The claim at stake, and where it comes
+    from: the paper, the `_dev/TASKS.md` entry, or the earlier result
+    that put it in doubt. State it as a claim that could be false, not
+    as a topic.
+2.  **What the outcome measurement is.** The quantity, the design that
+    produces it, and which column is the one to read. Where the decisive
+    endpoint is noisy and something else proxies it with less noise, say
+    which is which and why.
+3.  **What each outcome would mean.** Both branches, written down before
+    the numbers exist: if it comes out one way, this follows; if the
+    other way, that does. A run whose two outcomes lead to the same
+    action did not need running, and writing this part is how that gets
+    caught in time.
+
+Write for a reader with no context. “Coverage of the true regression
+function at 500 held-out points, nominal 95%, against a fixed total
+sweep budget” rather than “coverage”. “If pooling 16 chains does not
+widen the posterior, the mechanism is absent and coverage cannot improve
+by this route” rather than “we will see whether it helps”.
+
+The same three things belong in the script’s header comment, so a file
+in `_dev/` is still readable once the conversation is gone.
+`_dev/chains-vs-length.R`, `_dev/transient-scaling.R` and
+`_dev/transient-trace.R` are the pattern.
+
+**Reporting afterwards states the result against the prediction**, and
+says so plainly when the prediction was wrong. That case is worth more
+than a confirmation and is the easiest to quietly drop:
+`_dev/transient-scaling.R` was run to test a mechanism by which the
+burn-in transient should grow with the sample size, and it measured that
+it does not.
+
 ## Knit the vignettes against an installed package, not under `load_all()`
 
 `kfold()` sends its K refits to workers with

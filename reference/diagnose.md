@@ -118,6 +118,24 @@ which observation gets which share of it, so an average or a contrast of
 averages is governed by the average row and a prediction for one
 observation by the worst 5%.
 
+An
+[`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+fit with three or more categories is the exception, and which of the two
+rows to read is different there. Only the differences between the
+cutpoints and the additive predictor are identified, so the draws are
+recorded in the chart where the predictor has mean zero over the fitted
+sample and every cutpoint is free (see
+[`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)).
+The average over observations is then zero in every draw, which leaves
+it nothing to diagnose, and it is reported as `NA`. The level of the
+fitted function has not gone anywhere: the sampler pins the first
+threshold, so `aux.cut1` is that level rather than a cutpoint, and it is
+the row to read wherever the level is what matters, as it is for a
+probability in the lowest categories. It is usually the slowest row in
+such a fit, and the most pessimistic one, since it carries the level on
+its own where every quantity computed from the draws mixes the level
+with faster-moving ones.
+
 `rhat` is split-R-hat, so drift inside a chain counts as disagreement
 rather than hiding inside a chain mean. `rhat_late` is that same
 statistic on the second half of the retained draws alone, which
@@ -129,6 +147,36 @@ a chain can be ample for a posterior mean and nowhere near enough for an
 interval endpoint. The forest itself is checked through the total number
 of splitting rules at each draw, since chains that disagree about how
 large the forest is are exploring different tree structures.
+
+That last row is graded apart from the others, and the distinction is
+worth understanding before acting on either. A sum of trees represents
+one function through many different partitions, so the number of
+splitting rules is not pinned down by the fit the way a fitted value is:
+two chains can agree to three figures about every value of the additive
+predictor while using forests of different sizes. The quantities a fit
+reports are integrals over the tree structure, so their convergence is a
+separate question from its convergence. The checks on R-hat and
+effective sample size therefore read the reported quantities, and the
+splitting rules get a check and a remedy of their own. It is separated
+rather than suppressed, because it does bind on anything computed from
+the split counts themselves, which is
+[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
+and
+[`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md).
+
+The grading rests on how the model is parameterized and not on that row
+being the worst one, which it usually is not. Measured over 144 fits
+spanning three families, hard and soft rules and sample sizes from 500
+to 8000, the splitting rules carried the highest R-hat in 8 of them; a
+reported quantity carried it in the other 136. Its R-hat runs above the
+averaged predictor's by 0.13 on a Gaussian fit, 0.05 on a probit one and
+0.03 on an ordinal one, which is real and small. **The wide gap in a fit
+is not between the reported rows and this one, but within the reported
+rows**: the predictor averaged over observations carried a median of 93
+times the effective sample size of its own worst 5%, 7815 against 52.
+Which of those two governs a given summary is the question the table is
+for, and the note about individual observations against their average is
+the line to read.
 
 The leaf scale `sigma_mu` is left out of the table, and is in
 `fit$sigma_mu` and
@@ -218,7 +266,7 @@ diagnose(fit)
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.14)
 #> ✖ Bulk ESS is 5 for loglik, below 400
-#> ✖ Tail ESS is 13 for splits.eta, below 400
+#> ✖ Tail ESS is 17 for eta.eta (worst 5% of observations), below 400
 #> ℹ The chains disagree about individual observations and agree about their
 #>   average (R-hat 0.99, 79 effective draws)
 #> ℹ Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws
@@ -239,6 +287,15 @@ diagnose(fit)
 #> • Then check the family. A likelihood that fits the data badly can give a
 #>   posterior with no single place to be; `bayesplot::pp_check()` is the
 #>   diagnostic.
+#> • The forest's own size is a different kind of failure from the others and does
+#>   not take the same advice. A sum of trees represents one function through many
+#>   different partitions, so two chains can agree about every fitted value while
+#>   disagreeing about how many rules they used to get there, and the quantities a
+#>   fit reports are integrals over that structure. Raising `num_draws` moves this
+#>   row slowly and may not clear the threshold at any affordable length. Act on
+#>   it when split counts are themselves what gets reported --
+#>   `variable_importance()` and `vignette("importance")` -- and not when fitted
+#>   values, predictions or effects are.
 #> • Note that the chains disagree about the fitted values of individual
 #>   observations and not about their average, which is the usual shape of this in
 #>   a forest. What that means for an estimand cannot be read off this table
@@ -267,7 +324,7 @@ diagnose(fit, ess_min = 1000)
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.14)
 #> ✖ Bulk ESS is 5 for loglik, below 1000
-#> ✖ Tail ESS is 13 for splits.eta, below 1000
+#> ✖ Tail ESS is 17 for eta.eta (worst 5% of observations), below 1000
 #> ℹ The chains disagree about individual observations and agree about their
 #>   average (R-hat 0.99, 79 effective draws)
 #> ℹ Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws
@@ -288,6 +345,15 @@ diagnose(fit, ess_min = 1000)
 #> • Then check the family. A likelihood that fits the data badly can give a
 #>   posterior with no single place to be; `bayesplot::pp_check()` is the
 #>   diagnostic.
+#> • The forest's own size is a different kind of failure from the others and does
+#>   not take the same advice. A sum of trees represents one function through many
+#>   different partitions, so two chains can agree about every fitted value while
+#>   disagreeing about how many rules they used to get there, and the quantities a
+#>   fit reports are integrals over that structure. Raising `num_draws` moves this
+#>   row slowly and may not clear the threshold at any affordable length. Act on
+#>   it when split counts are themselves what gets reported --
+#>   `variable_importance()` and `vignette("importance")` -- and not when fitted
+#>   values, predictions or effects are.
 #> • Note that the chains disagree about the fitted values of individual
 #>   observations and not about their average, which is the usual shape of this in
 #>   a forest. What that means for an estimand cannot be read off this table
