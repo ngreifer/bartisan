@@ -5,3 +5,28 @@
 CXX_STD = CXX17
 
 PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+
+# Not set: `PKG_CPPFLAGS = -DARMA_DONT_CHECK_CONFORMANCE`, which removes
+# Armadillo's bounds check from every element access and, with it, the size
+# checks on whole-matrix operations. Measured in the 2026-09-21 review at 1.006
+# to 1.032 times faster across eleven families -- about 2% -- which is not worth
+# turning a dimension mistake anywhere in the compiled code from an R error into
+# undefined behavior. (`ARMA_NO_DEBUG`, the switch usually cited, does nothing
+# in Armadillo 12+: it only undefines `ARMA_DEBUG`, which is never on.) See
+# _dev/REVIEW.md for the surgical alternative.
+
+# Every object depends on every header. R's own rules track only the source
+# file, so after a header changes an object whose source did not is reused --
+# and links against a signature that no longer exists, or reads a struct whose
+# layout has moved. `random.cpp` has done this twice: it constructs a `Hypers`
+# and a `Tree` and its object file went stale against both constructors while
+# its own source stayed put. `$(OBJECTS)` is set on make's command line by
+# `R CMD INSTALL`, so it is defined by the time this file is read.
+#
+# `all` first, because make takes the first target of the first rule it reads
+# as its default goal and this file is read before R's own `shlib.mk`. Without
+# it the goal became the first object alphabetically, that one object was
+# checked, and the old shared library was installed as it stood.
+all: $(SHLIB)
+
+$(OBJECTS): $(wildcard *.h)
