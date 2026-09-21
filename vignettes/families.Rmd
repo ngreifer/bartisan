@@ -78,14 +78,14 @@ We start from the shape of the response:
 |------------------------------------|------------------------------------|
 | numeric, unbounded | `dpm()`, the default; `gaussian()` if prior weights are needed; `gaussian_ls()` if the spread varies with the predictors |
 | positive and continuous | `Gamma("log")`, or `Gamma_ls()` if the dispersion varies with the predictors |
+| non-negative and continuous, with a point mass at zero | `tweedie()` |
 | a proportion strictly inside $(0, 1)$ | `Beta()` |
 | a proportion that can equal 0 or 1 | `ordbeta()` |
-| non-negative and continuous, with a point mass at zero | `tweedie()` |
 | a 0/1 indicator, or a two-column matrix of successes and failures | `binomial()` |
 | a count | `poisson()`, `negbin()` if overdispersed, or a zero-inflated family if there are more zeros than either can produce |
 | an ordered factor | `ordinal()` |
 | an unordered factor | `multinomial()` |
-| a time with censoring | `weibull_aft()`, `loglogistic_aft()` or `lognormal_aft()`; `ph()` for proportional hazards with a free baseline; `dpm_aft()` if the shape of the error is in doubt |
+| a time with censoring | `dpm_aft()`, the default for survival outcomes; `weibull_aft()`, `loglogistic_aft()` or `lognormal_aft()` if the shape of the error is known; `ph()` for proportional hazards with a free baseline |
 | something else | `custom_family()` |
 
 Two considerations cut across that table.
@@ -94,7 +94,7 @@ The first is whether anything besides the mean varies with the predictors. Every
 
 The second is whether that extra structure is real or a flexible mean would absorb it. A nonparametric mean makes this sharper than it is in a GLM. A sum of trees can produce excess zeros on its own, by driving a Poisson mean very low where the zeros are, so a zero-inflated family is for when the zero mechanism is a *separate process worth modeling*, not merely for when a histogram spikes at zero. The same caution applies to the multinomial probit's latent correlations.
 
-When two families are both defensible, we can compare them rather than argue about them; `loo()` and `waic()` work on a fit:
+When two families are both defensible, we can compare them empirically rather than reason about them; `loo()` and `waic()` work on a fit:
 
 ```{r simdata}
 # The count response used here and through the rest of the vignette
@@ -110,6 +110,8 @@ loo::loo_compare(
 )
 ```
 
+In this case, both models fit the data approximately equally well (i.e., due to the small `elpd_diff` relative to `se_diff`).
+
 ## The Default Family (`family` Omitted)
 
 `family` may be omitted from `bartisan()`, in which case its default value is determined by the response variable:
@@ -123,7 +125,7 @@ loo::loo_compare(
 | a two-column numeric matrix | `binomial()`, read as successes and failures, unless the columns look like non-negative times and 0/1 events, which give `dpm_aft()` |
 | any other numeric | `dpm()` |
 
-The choice is reported when it is made, and naming `family` silences the message. That is the intended way to silence it: an inferred family is a modeling decision taken on the analyst's behalf, so confirming it in the call is a better outcome than suppressing the notice.
+The choice is reported when it is made, and naming `family` silences the message.
 
 ```{r default}
 d$binary <- rbinom(n, 1, 0.4)
@@ -135,7 +137,7 @@ fit
 
 Two boundaries are deliberate. A numeric response taking exactly two values that are *not* 0 and 1 is not read as binomial, because deciding that `c(1, 2)` means failure and success would be a guess about which value is the success. And a count is not read as Poisson, because "the variance equals the mean" is a substantive claim rather than a reading of the response's type.
 
-The number of distinct values does not enter into it: every numeric response gets `dpm()`. A response with only a handful of distinct values probably wants `ordinal()`, but that is a modeling decision, and a threshold would make the default arbitrary and hard to predict.
+The number of distinct values does not enter into it: every numeric response gets `dpm()`. A response with only a handful of distinct values probably wants `ordinal()`, but that is a modeling decision *bartisan* will not make for you.
 
 Prior weights are taken by `gaussian()`, `ordinal()`, and `gaussian_ls()` for a numeric response, and by the three other `*_aft()` families and `ph()` for a censored one. `dpm()` and `dpm_aft()` are the two that cannot, so a fit with weights and no family named is an error rather than a silent substitution.
 
@@ -240,7 +242,7 @@ fit_dpm <- bartisan(heavy ~ x1 + x2, data = d,
 ```
 
 ```{r dpmplot, fig.height = 2.6}
-plot(error_density(fit_dpm))
+error_density(fit_dpm, plot = TRUE)
 ```
 
 ## Positive Continuous Responses
@@ -252,7 +254,7 @@ bartisan(y ~ x1 + x2, data = d, family = Gamma_ls())          # dispersion varie
 bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = Gamma_ls())  # and held constant
 ```
 
-`stats::Gamma()` defaults to `link = "inverse"`, which is the canonical link for the gamma and the wrong one here: the additive predictor is unconstrained, and only the log link's inverse keeps the mean positive over the whole line. A draw that wanders non-positive has no gamma density at all, so it is rejected during fitting and `predict()` returns `NaN` there. So *bartisan* ignores any other link and fits on `"log"`, saying so once; writing `Gamma("log")` silences that. `stats::Gamma()` itself is untouched, so attaching the package cannot change what `glm()` does. If another link for a gamma response is genuinely wanted, `custom_family()` is the route. `Gamma_ls()` defaults to the log link without warning.
+`stats::Gamma()` normally defaults to `link = "inverse"` but *bartisan* fits on `"log"` and ignores any other link, saying so once; writing `Gamma("log")` silences that. If another link for a gamma response is genuinely wanted, `custom_family()` is the route. `Gamma_ls()` defaults to the log link without warning.
 
 We compared `Gamma()`, `Gamma_ls()`, `gaussian()` with a `"log"` link, `dpm()`, and `ordinal()` with a probit link on 800 training and 800 test observations, 50 trees, 500 draws after 500 warmup, four replicates, over four shapes of error around one mean function, with each error centered so that $E[Y \mid x]$ is the same function in every column. `Gamma_ls()` was given `num_trees = c(50, 20)`. `ordinal("probit")` bins the outcome onto 25 quantiles and predicts with `type = "mean"`, so its predictions are on the response's scale even though its density is not, which is why it has no log score. Cells are RMSE / log score, medians over the replicates, and lower RMSE and higher log score are better. A bold cell is one whose lead over the next family holds in every replicate; four replicates separate the families on the log score but often not on RMSE, and the paragraphs below say which is which.
 
@@ -282,17 +284,17 @@ The `binomial()` family accepts a 0/1 numeric response, a logical, a two-level f
 
 `"cloglog"` is the one substantively different choice, because it is not symmetric: swapping the labels of success and failure gives a different model, where for logit and probit it gives the same model with the predictor negated. Use it when that asymmetry is the point: when the outcome is "at least one event occurred" and the underlying count is Poisson, where the complementary log-log model is exactly right, or in discrete time, where the cumulative version *is* the discrete proportional hazards model and the predictor is a log hazard ratio.
 
-With very few events, the whole fit mixes slowly regardless of the link because a handful of events carry little information: at 2000 observations, the effective sample size of the level of the predictor fell from about 860 at half positives to 8 at 0.2%. Lengthen the chain and read `diagnose()`.
+With very few events, the whole fit mixes slowly regardless of the link because a handful of events carry little information: in a simulation with 2000 observations, the effective sample size of the level of the predictor fell from about 860 at half positives to 8 at 0.2%. Lengthen the chain and read `diagnose()`.
 
 ## Counts
 
 The `poisson()` family restricts the conditional variance to equal the conditional mean, and the `negbin()` family adds a dispersion parameter reported as `theta`. The `zi_poisson()` and `zi_negbin()` families mix a point mass at zero (the zero-inflation part) with a count component and give each part its own forest (the first predictor is the log mean of the count, the second the log odds of being a structural zero), so the excess-zero mechanism can depend on the predictors. As with standard GLMs for count variables, these models can include an offset.
 
-To decide which family to use, consider these two questions, in this order.
+To decide which family to use, consider these two questions, in this order:
 
 ### 1. Are there more zeros than the count component can produce?
 
-Not "are there many zeros": a Poisson with a small mean produces plenty, and a forest can drive the mean low exactly where the zeros are. Fit the plain family and the zero-inflated one and compare with `loo()`. Reach for zero inflation when the zero mechanism is itself something to *model*, or when the two processes have different predictors, not merely to improve a fit.
+Not "are there many zeros": a Poisson with a small mean produces plenty, and a forest can drive the mean low exactly where the zeros are. Fit the plain family and the zero-inflated one and compare with `loo()`. Reach for zero inflation when the zero mechanism is itself something to model, or when the two processes have different predictors, not merely to improve a fit.
 
 It is worth seeing how far a marginal look at the response can mislead here. The counts below are Poisson with no inflation whatsoever, but the conditional mean ranges over two orders of magnitude, so the low end of it contributes a large pile of zeros:
 
@@ -355,7 +357,7 @@ Only the differences $c_k - \eta_i$ are identified, so one location has to be pi
 
 [^cloglog-two]: With `"logit"` and `"probit"`, that is exact: their errors are symmetric, so it makes no difference which side of the comparison the error is written on. With `"cloglog"` it is not, and the two families are mirror images rather than the same model.
 
-The three links are read as for the binomial, plus one consideration specific to the ordinal case: the link decides what is held constant across categories. `"logit"` gives the proportional odds model, in which a contrast is a log odds ratio that is the same at every cutpoint. `"probit"` gives the ordered probit, and is the link to choose when the latent variable is the object of interest (e.g., a trait, a utility, an underlying measurement recorded in bins). `"cloglog"` gives the proportional *hazards* model on the categories, so choose it when the categories are ordered durations or stages. Accuracy is much the same across the three; `"probit"` is the fastest by a wide margin.
+The three links are read as for the binomial, plus one consideration specific to the ordinal case: the link decides what is held constant across categories. `"logit"` gives the proportional odds model, in which a contrast is a log odds ratio that is the same at every cutpoint. `"probit"` gives the ordered probit, and is the link to choose when the latent variable is the object of interest (e.g., a trait, a utility, an underlying measurement recorded in bins). `"cloglog"` gives the proportional *hazards* model on the categories, so choose it when the categories are ordered durations or stages. Accuracy is much the same across the three; `"probit"` is the fastest.
 
 Ordered categories can also be treated as unordered categories and fit with `family = multinomial()`, described below; typically this produces more variable predictions as it requires a forest for each category rather than a single forest governing the entire distribution function.
 
@@ -397,7 +399,7 @@ intercept, so the probabilities being described are the ones at the null fit
 rather than at an arbitrary zero, which is also the chart the cutpoints are
 reported in.
 
-`ordbeta()` carries the same prior. It has three probabilities at the anchor, the
+`ordbeta()` (descussed below) carries the same prior. It has three probabilities at the anchor, the
 masses at zero and one and the interior share, and the map from its two cutpoints
 to them has the same bidiagonal shape.
 
@@ -451,7 +453,7 @@ bartisan(score ~ ., data = d, family = ordinal())
 
 `ordinal()` on a numeric response can be a useful way to model it, as demonstrated above. Every distinct value of $Y$ becomes a category, the cutpoints absorb the marginal distribution of $Y$, and the forest is left to explain only the *ordering*. Nothing is assumed about the error, and the model for $P(Y \le y \mid x)$ is invariant to any monotone transformation of $Y$ (i.e., fitting on $Y$, $\log Y$ or $\sqrt Y$ gives the same model). This is the semiparametric ordinal regression `rms::orm()` fits for continuous outcomes, with a forest in place of the linear predictor. Predict with `type = "mean"`, which reads the category labels as numbers and returns $\sum_k y_{(k)} P(Y = y_{(k)} \mid x)$.
 
-It can be useful to bin the outcome first in a smaller number of categories, as one cutpoint per distinct value means $n$ cutpoints: at 1000 observations an unbinned fit took 73 seconds against 2.7 for `gaussian()`. Collapsing onto a grid of quantiles is both faster *and* more accurate, because a cutpoint vector with a thousand weakly-identified entries is worse conditioned than one with 25. Somewhere between 10 and 50 quantile bins is enough, and the choice inside that range hardly matters; 25 bins was sixteen times faster than no binning and slightly more accurate. Keep each bin's mean as its label so that `type = "mean"` still reports on the outcome's scale. See below for an example:
+It can be useful to bin the outcome first in a smaller number of categories, as one cutpoint per distinct value means $n$ cutpoints: at 1000 observations an unbinned fit took 73 seconds against 2.7 for `gaussian()`. Collapsing onto a grid of quantiles is both faster and more accurate, because a cutpoint vector with a thousand weakly-identified entries is worse conditioned than one with 25. Somewhere between 10 and 50 quantile bins is enough, and the choice inside that range hardly matters; 25 bins was sixteen times faster than no binning and slightly more accurate. Keep each bin's mean as its label so that `type = "mean"` still reports on the outcome's scale. See below for an example:
 
 ```{r ordcont}
 # Binning d$heavy
@@ -488,13 +490,15 @@ The `Beta()` family is for beta regression with a response strictly inside the u
 d$rate <- rbeta(n, plogis(1.5 * sin(pi * d$x1)) * 12,
                 12 - plogis(1.5 * sin(pi * d$x1)) * 12)
 
-fit_beta <- bartisan(rate ~ x1 + x2, data = d, family = Beta(), control = ctrl)
+fit_beta <- bartisan(rate ~ x1 + x2, data = d,
+                     family = Beta(), control = ctrl)
+
 mean(fit_beta$aux[, "phi"])
 ```
 
 The `ordbeta()` family requests the ordered beta regression of @kubinec2023, for a response on the *closed* unit interval $[0, 1]$ with point masses at zero and one (e.g., a percentage of a budget, a slider scale). One predictor drives both the probability of landing on an endpoint, through a pair of cutpoints as in an ordinal model, and the mean of the beta density in between.
 
-Choose between `Beta()` and `ordbeta()` based on whether the response *can* reach a boundary, not on whether it happens to in the sample at hand. A response *at* zero or one has no beta density, so `Beta()` errors rather than nudging it inward. In the other direction, `ordbeta()` fitted to a response with no boundary observations leaves its two cutpoints with nothing to identify them; the fit is not much worse for it, but the cutpoints are not interpretable and drift to large magnitudes.
+Choose between `Beta()` and `ordbeta()` based on whether the response can reach a boundary, not on whether it happens to in the sample at hand. A response at zero or one has no beta density, so `Beta()` errors rather than nudging it inward. In the other direction, `ordbeta()` fitted to a response with no boundary observations leaves its two cutpoints with nothing to identify them; the fit is not much worse for it, but the cutpoints are not interpretable and drift to large magnitudes.
 
 ## A Point Mass at Zero and a Continuous Positive Part
 
@@ -517,7 +521,9 @@ d$spend <- ifelse(claims > 0,
                          scale = 4 * (1.5 - 1) * mu^(1.5 - 1)),
                   0)
 
-fit_tw <- bartisan(spend ~ x1 + x2, data = d, family = tweedie(), control = ctrl)
+fit_tw <- bartisan(spend ~ x1 + x2, data = d,
+                   family = tweedie(), control = ctrl)
+
 c(zeros = mean(d$spend == 0), phi = mean(fit_tw$aux[, "phi"]))
 ```
 
@@ -539,7 +545,7 @@ There are five families that can be used with survival time response, all taking
 
 All four accelerated failure time families share the structure $\log T = \eta(x) + W$ with $W$ independent of $x$, and that alone makes a contrast in the predictor a log time ratio: every quantile of $T$, its mean, and its geometric mean all scale by $e^{\Delta\eta}$, whatever shape $W$ has. What differs between them is what $e^{\eta}$ is on its own, since each pins its error's location differently, and `vignette("survival")` gives that per family. `weibull_aft()` is the only one whose predictor also carries a log hazard ratio, of $-\Delta\eta/\sigma$, and that is a property of the smallest extreme value error rather than of the shared structure: it is the only error that makes an accelerated failure time model proportional hazards as well.
 
-The three structured accelerated failure time families (i.e., the first three above) fix the shape of the error and so of the hazard. `lognormal_aft()` and `loglogistic_aft()` are the quickest of the five to fit, since imputing the censored times leaves the sampler a quadratic target; `weibull_aft()`, whose likelihood takes the exponential path instead, is the slowest. `ph()` frees the baseline hazard instead, so it fits a hazard of any shape, at the price of asserting proportionality and of reading the predictor on the hazard scale. `dpm_aft()` frees the error density [@henderson2020], which costs little when a single normal was right and gains a great deal when it was not.
+The three structured accelerated failure time families (i.e., the first three above) fix the shape of the error and so of the hazard. `lognormal_aft()` and `loglogistic_aft()` are the quickest of the five to fit, since imputing the censored times leaves the sampler a quadratic target; `weibull_aft()`, whose likelihood takes the exponential path instead, is the slowest. `ph()` frees the baseline hazard instead, so it fits a hazard of any shape at the price of asserting proportionality and of reading the predictor on the hazard scale. `dpm_aft()` frees the error density [@henderson2020], which costs little when a single normal is right and gains a great deal when it is not.
 
 `dpm_aft()` is the default for a `Surv` response, on the evidence in the survival vignette and because it is one of the cheaper families to fit. `weibull_aft()` is the one family that is both an accelerated failure time and a proportional hazards model, so it is the one to name when a hazard-ratio reading is what we want.
 
@@ -561,7 +567,8 @@ fit_ph <- bartisan(survival::Surv(time, event) ~ x1 + x2,
                    data = d, control = ctrl,
                    family = ph())
 
-head(predict(fit_ph, type = "survival", times = c(1, 2, 5)), 3)
+predict(fit_ph, type = "survival", times = c(1, 2, 5)) |>
+  head(3)
 ```
 
 It is also the estimand we usually want. The question is rarely about the predictor but about survival at a horizon (e.g., the difference in one-year survival between two groups), and that is a contrast of `type = "survival"` at one time.
@@ -626,7 +633,7 @@ summary(fit_gauss$aux[, "sigma"])
 
 There is no prior argument and no bounds argument. A parameter with a restricted range is handled the way it would be for a real predictor, by writing the transform into `logdens`, which is what the `exp(aux[1])` above is doing. `aux_start` need only be the right order of magnitude; the sampler walks to the posterior from a poor start.
 
-What it cannot do: take a non-numeric response, so a factor has to be coded first; or report a fitted mean, since the package cannot know what the mean of a supplied density is, so `predict(type = "response")` returns the additive predictors instead, though `type = "density"` works.
+It cannot take a non-numeric response, so a factor has to be coded first. It also cannot report a fitted mean, since the package cannot know what the mean of a supplied density is, so `predict(type = "response")` returns the additive predictors instead, though `type = "density"` works.
 
 Custom likelihoods are why *bartisan* is named what it is; they support *artisanal* models augmented by BART. Anywhere a linear predictor might otherwise go in a model, it can be estimated flexibly with BART instead.
 

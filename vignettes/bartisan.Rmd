@@ -51,6 +51,30 @@ Most sections point to a vignette that covers the same ground in more depth.
 library(bartisan)
 ```
 
+### Parallelization and Progress Bars
+
+Using parallelization can speed up fitting `bartisan()` models with multiple chains. Parallelization is controlled through the [*future*](https://CRAN.R-project.org/package=future) package. To request multi-session evaluation, one can simply call the following:
+
+```{r, eval = FALSE}
+future::plan("multisession")
+```
+
+The [*future.apply*](https://CRAN.R-project.org/package=future.apply) package must also be installed (installing it also installs *future*).
+
+Some operations in *bartisan* can be take some time, and one can request a progress bar using the [*progressr*](https://CRAN.R-project.org/package=progressr) package. One can request progress bars globally for all functions that produce them using the following:
+
+```{r, eval = FALSE}
+progressr::handlers(global = TRUE)
+```
+
+To request a progress bar for a single call, wrap the function evaluation in `progressr::with_progress()`, e.g.,
+
+```{r, eval = FALSE}
+progressr::with_progress(
+  bartisan(y ~ ., data = d)
+)
+```
+
 ## The Data
 
 `rhc` records a random 1500 of the 5735 patients in the SUPPORT study and whether
@@ -74,14 +98,13 @@ disease was among the diagnoses, and `surv2m`, the study's own estimate of the
 patient's chance of surviving two months. All were recorded before
 catheterization.
 
+
 ## Fitting the Model
+
+To fit the model, we simply call `bartisan::bartisan()` with the same model formula one would use for `glm()` or any other standard mdoel-fitting function, additionally supplying the dataset to `data` and the response family to `family`. Because BART involves random processes, we must also set a seed using `set.seed()` to ensure reproducibility (though not the `kind` does not matter).
+
 ```{r fit}
 set.seed(2026)
-
-# For parallelization; optional
-if (rlang::is_installed(c("future", "future.apply"))) {
-  future::plan(future::multisession)
-}
 
 fit <- bartisan(
   death ~ rhc + age + sex + race + edu + aps + meanbp + resp + hema +
@@ -92,7 +115,7 @@ fit <- bartisan(
 fit
 ```
 
-That is the whole call. `family = binomial()` says the outcome is binary, exactly
+`family = binomial()` says the outcome is binary, exactly
 as in `glm()`. The family may be omitted, in which case it is read off the
 outcome and reported; naming it is clearer and silences the message.
 
@@ -110,12 +133,12 @@ The other decision worth knowing about is the shape of the decision rules. By
 default a rule is soft, so an observation near a split contributes to both sides
 of it and the fitted function comes out smooth rather than piecewise constant;
 `gate` in `bartisan_control()` switches to the hard rules of standard BART,
-which fit faster and less accurately. `vignette("implementation")` has the
+which fit faster but less accurately. `vignette("implementation")` has the
 comparison.
 
 ## Checking the Model
-Two questions are worth separating: whether the sampler converged, and whether
-the model fits.
+
+In a Bayesian analysis, one must first determine whether the sampler converged before moving forward with a model's results. Separately, one should assess whether the model is a good fit to the data.
 
 ### Convergence
 
@@ -182,6 +205,9 @@ continuous; with two values to get right it finds nothing here.
 and what else to check.
 
 ## Which Predictors the Model Uses
+
+A `bartisan()` fit produces no model coefficients; to see which covariates played the biggest role in the fit, we can use `variable_importance()` on its output. This produces statistics about the use of each predictor in the trees.
+
 ```{r varimp}
 variable_importance(fit)
 ```
@@ -191,55 +217,81 @@ predictor per draw, and `prop_used` is the proportion of draws in which the
 predictor received any rule at all.
 
 `surv2m` takes the most rules, which is unsurprising: it is a prognostic score
-built to predict survival. Age follows. At the bottom, `sex` and `race` are used
-in fewer than half the draws, as are several of the physiological measurements,
-which says the model can often do without them.
+built to predict survival. `age` follows. At the bottom, `sex`, `race` and
+several of the physiological measurements are used in little more than half of
+the draws, which says the model can often do without them.
 
-Two cautions. Usage is not effect size: a predictor can be split on constantly
-and still move the prediction very little, and `estimate_effect()` in the next
-section is the better guide to that. And, when predictors are correlated, the usage
+It's important to remember that usage is not effect size: a predictor can be split on constantly
+and still move the prediction very little, and the comparisons in the next
+section are the better guide to that. Also, when predictors are correlated, the usage
 distributes among them more or less arbitrarily.
 
 `vignette("importance")` covers variable importance and selection, including how
 to tell whether a difference in this table means anything.
 
 ## Interpreting the Fit
-A forest has no coefficients, so there is no table of slopes to read. The
-question "what is the effect of catheterization" is answered by asking the fitted
-model what it predicts when every patient receives it, asking again when none
-does, and taking the difference. `estimate_effect()` does this, and needs only to
-be told which predictor is the treatment:
 
-```{r effects}
-eff <- estimate_effect(fit, treat = "rhc")
+A forest has no table of coefficients to read, so a fit is interpreted by
+putting questions to it: what happens to the prediction when a predictor is
+changed, and what shape does the prediction trace as that predictor varies.
+Three functions answer versions of that question, and they differ in what they
+average over rather than in what they are asking.
 
-eff
+### A Table of Average Comparisons
+
+`marginaleffects::avg_comparisons()` is the closest thing to a table of
+regression slopes. For each predictor in turn it changes that predictor, leaves
+the others as they are, predicts every patient twice, and averages the
+difference over the sample.
+
+```{r comparisons, eval = has_me}
+marginaleffects::avg_comparisons(fit)
 ```
 
-Catheterization is associated with an increase of about six percentage points in
-the probability of death. The interval runs from roughly zero to eleven points,
-so the direction is reasonably clear and the size is not.
+`Contrast` says what change was made.^[By default *marginaleffects* reports the
+posterior median as the point estimate, whereas `predict()` and
+`estimate_effect()` report the posterior mean, so the same quantity can differ
+slightly between them. Setting `options(marginaleffects_posterior_center = mean)`
+before the call switches it to the mean; we do this in `vignette("causal")`.]
+For a categorical predictor it is a difference between two levels, and for a
+numeric one it is an increase of one unit, which is a default rather than
+anything the data suggested. The comparisons are on the probability scale, so
+`rhc` reads as an increase of a little over five percentage points in the
+probability of death and `age` as three tenths of a point per year of age. A
+logistic regression would report each of these as one slope on the log-odds
+scale; these are averages over the sample of a quantity the model allows to
+differ from patient to patient.
 
-The lower bound is exactly zero rather than merely close to it, and that is worth
-knowing about. The default splitting prior can drop a predictor from the forest
-entirely, and in a draw where it drops `rhc` the contrast is exactly zero, so the
-posterior has a point mass there. The default settings are not necessarily the
-best ones for estimating a causal effect; more specialized methods, such as
-Bayesian causal forests (BCF) and BART without a sparsity-inducing prior, are
-described in `vignette("causal")`.
+Several rows are exactly zero rather than merely small, which is worth knowing
+about. The default splitting prior can leave a predictor out of the forest
+altogether in a given draw, and in such a draw every comparison involving it is
+exactly zero, so the posterior has a point mass there. Where that mass covers
+the middle of the posterior the median falls inside it and the estimate prints
+as exactly zero, which is what has happened to the predictors at the bottom of
+the importance table. The same mass is why the lower bound for `rhc` is zero
+rather than merely close to it.
 
-Because the outcome is binary, this is a difference in probability, which is
-interpretable without reference to the model. That is usually the number to
-report.
+The one-unit default deserves a second look whenever a predictor does not span a
+unit. `surv2m` is a probability, so an increase of one is wider than its whole
+observed range, and the model holds its prediction flat past the edge of that
+range rather than continuing any trend. Asking instead for a change the data
+contains gives a larger answer:
 
-The two probabilities it is a difference of are printed below it, since the
-difference was computed from them: about 63% of patients would be expected to die
-without catheterization and 69% with it, averaging over the covariates as they
-actually occur in this sample.
+```{r comparisons_iqr, eval = has_me}
+marginaleffects::avg_comparisons(fit, variables = list(surv2m = "iqr"))
+```
 
-### Looking at a Relationship
-Effects averaged over the sample hide the shape of the relationship. To see the
-shape, plot the model's predictions against one predictor.
+Moving a patient from the first quartile of the prognostic score to the third
+lowers the predicted probability of death by about .29, against the .18 the
+one-unit contrast reported.
+
+### The Shape of a Relationship
+
+One number for a predictor hides the shape of the relationship behind it, and
+the two `surv2m` contrasts are what that looks like when the shape matters: the
+answer depends on which change is asked about. Plotting the fit against one
+predictor shows the whole curve, averaging over the other predictors at each
+value.
 
 ```{r pdp, fig.height = 3.0}
 plot(fit, ~ surv2m) +
@@ -248,9 +300,10 @@ plot(fit, ~ surv2m) +
 ```
 
 The fitted probability of death falls from close to .9 to about .5 as the
-prognostic score rises, and the fall is not a straight line. A logistic
-regression reports one slope on the log-odds scale for the whole range. Nothing
-had to be specified to find the shape.
+prognostic score rises, and the fall is not a straight line, which is why the
+two contrasts above disagree about its size. A logistic regression reports one
+slope on the log-odds scale for the whole range. Nothing had to be specified to
+find the shape.
 
 The band is a credible interval on the *average* prediction at each value, not
 on any one patient's, and it widens at the top where few patients were that
@@ -260,7 +313,47 @@ or what is conditioned on needs more control.
 
 `vignette("effects")` covers effects, curves, and interactions.
 
+### The Effect of a Treatment
+
+`rhc` has a row in the table above, so in one sense its effect has already been
+reported. `estimate_effect()` asks the same question in the vocabulary of a
+causal analysis: it takes the treatment as an argument rather than as one
+predictor among many, it names the estimand being averaged, and it reports the
+two potential outcomes the contrast is a difference of.
+
+```{r effects}
+eff <- estimate_effect(fit, treat = "rhc")
+
+eff
+```
+
+Catheterization is associated with an increase of about five percentage points
+in the probability of death. The interval runs from zero to roughly eleven
+points, so the direction is reasonably clear and the size is not. The estimate
+differs a little from the `rhc` row of the comparisons table because it is the
+posterior mean of the same draws rather than their median.
+
+Because the outcome is binary, this is a difference in probability, which is
+interpretable without reference to the model, and it is usually the number to
+report. The two probabilities it is a difference of are printed below it: about
+63% of patients would be expected to die without catheterization and 69% with
+it, averaging over the covariates as they actually occur in this sample.
+
+The treatment has to be categorical, since the contrast is taken between its
+levels. The effect of a continuous treatment is a slope or a dose-response curve
+instead, and `estimate_effect()` says so and names the functions that produce
+one.
+
+The defaults are not necessarily the best settings for estimating a causal
+effect, and the zero at the end of the interval is the first sign of it: a
+sparsity prior that can drop a predictor is reasonable for prediction and poor
+for a treatment whose effect is being reported. More specialized methods, such
+as Bayesian causal forests (BCF) and BART without a sparsity-inducing prior, are
+described in `vignette("causal")`, which also covers what has to be true of the
+data before any of this can be read as an effect of the procedure.
+
 ## Predicting New Observations
+
 `predict()` returns the posterior mean prediction.
 
 ```{r pred}
@@ -270,7 +363,8 @@ new_patient$rhc <- 1
 predict(fit, newdata = new_patient)
 ```
 
-For a prediction with an interval, use `marginaleffects::predictions()`^[Note that by default, *marginaleffects* uses the posterior median as the point estimate, whereas `predict()` uses the posterior mean, so these values may differ slightly. Use `options(marginaleffects_posterior_center = mean)` prior to running `predictions()` to produce the posterior mean. We do this in `vignette("causal")`.]:
+For a prediction with an interval, use `marginaleffects::predictions()`, which
+reports the posterior median rather than the mean `predict()` reports:
 
 ```{r predint, eval = has_me}
 marginaleffects::predictions(fit, newdata = new_patient)
@@ -282,6 +376,7 @@ individual patient will go: the outcome itself is either 0 or 1, and a
 probability of .7 is entirely compatible with survival.
 
 ## Comparing Models
+
 Approximate leave-one-out cross-validation estimates how well a model predicts
 data it has not seen.
 
@@ -318,6 +413,7 @@ the main thing that predicts whether they die.
 leave-one-out fails.
 
 ## What to Be Careful About
+
 The model is flexible about the shape of the relationship and nothing else.
 
 It does not make an association causal. Patients were not randomized to
@@ -337,6 +433,7 @@ It does not fix a badly chosen family. Getting the outcome distribution wrong
 matters more than any sampler setting.
 
 ## Where to Go Next
+
 | Topic | Vignette |
 | --- | --- |
 | How BART works, and the sampler | `vignette("implementation")` |
