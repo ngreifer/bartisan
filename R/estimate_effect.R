@@ -23,7 +23,12 @@
 #'   response is a probability.
 #' @param by optional; a one-sided formula or a variable name naming a grouping
 #'   variable, in which case the effect is averaged within each of its levels
-#'   rather than over the whole sample.
+#'   rather than over the whole sample. A formula is evaluated with
+#'   [stats::model.frame()] rather than read for the names it mentions, so it
+#'   can define a grouping the data has no column for, as in `by = ~ age > 50`
+#'   or `by = ~ interaction(sex, region)`. It must give exactly one grouping
+#'   variable, and the term as written names the column it occupies in the
+#'   output.
 #' @param newdata optional; a data frame of units to average over. Default is
 #'   the data the model was fit to, which is what makes the default estimand the
 #'   sample average effect.
@@ -444,15 +449,16 @@ effect_focal <- function(focal, levs, estimand, treat, z) {
   # `"ATC"` is the effect among the untreated, so its focal group is the other
   # level. Both estimands average over the focal group; only the default
   # differs.
-  chosen <- if (identical(estimand, "ATC")) {
-    levs[[match(as.character(guess), as.character(levs)) %% 2L + 1L]]
-  } else {
-    guess
+  chosen <- {
+    if (identical(estimand, "ATC"))
+      levs[[match(as.character(guess), as.character(levs)) %% 2L + 1L]]
+    else
+      guess
   }
 
   # Said out loud only when the heuristic had to fall back on the level order,
   # since that is the case where it can be wrong.
-  if (is.null(attr(guess, "deduced")) && estimand %in% c("ATT", "ATC")) {
+  if (is_null(attr(guess, "deduced")) && estimand %in% c("ATT", "ATC")) {
     what <- if (identical(estimand, "ATC")) "control" else "treated"
     lab <- as.character(chosen)
     arg::msg("assuming {.val {lab}} is the {what} level of {.var {treat}};
@@ -519,42 +525,67 @@ effect_by <- function(by, newdata) {
     by,
     arg::arg_or(
       arg::arg_formula(one_sided = TRUE),
-      arg::arg_string()
+      arg::arg_string
     ))
 
   if (is_null(by)) {
     return(NULL)
   }
 
-  # The right-hand side is evaluated rather than reduced to the names it
-  # mentions. `all.vars()` read `by = ~ x3 > 0` as `x3` and then grouped by a
-  # continuous predictor, one group per distinct value, which is the wrong
-  # answer and gives no sign of being one.
-  if (rlang::is_formula(by)) {
-    rhs <- rlang::f_rhs(by)
-    label <- rlang::as_label(rhs)
-
-    value <- rlang::try_fetch(
-      rlang::eval_tidy(rhs, data = newdata),
-      error = function(cnd) {
-        arg::err("{.arg by} could not be evaluated in the data the effect is
-                  averaged over: {.code {label}}")
-      })
-
-    if (length(value) != nrow(newdata)) {
-      arg::err("{.arg by} must give one value per unit, and {.code {label}}
-                gave {length(value)} for {nrow(newdata)} units")
+  if (!rlang::is_formula(by)) {
+    if (!by %in% names(newdata)) {
+      arg::err("{.arg by} names {.var {by}}, which is not a column of the data
+                the effect is averaged over")
     }
 
-    return(list(name = label, value = value))
+    return(list(name = by, value = newdata[[by]]))
   }
 
-  if (!by %in% names(newdata)) {
-    arg::err("{.arg by} names {.var {by}}, which is not a column of the data
-              the effect is averaged over")
+  # The formula is evaluated rather than reduced to the names it mentions.
+  # `all.vars()` read `by = ~ x3 > 0` as `x3` and then grouped by a continuous
+  # predictor, one group per distinct value, which is the wrong answer and
+  # gives no sign of being one.
+  #
+  # `model.frame()` does the evaluating, the same way the predictors themselves
+  # are built from the fit's formula in `predict()`. It takes the terms one at
+  # a time, it resolves a name the data does not have in the formula's own
+  # environment rather than in this frame -- so `by = ~ x3 > cutoff` finds a
+  # `cutoff` local to the function the call was written in, which evaluating
+  # the right-hand side here would not -- and it names the column the way the
+  # term reads, which is the name the result carries. `na.pass` because the
+  # default action would drop the units whose group is missing and leave a
+  # value that no longer lines up with the units it groups.
+  label <- rlang::as_label(rlang::f_rhs(by))
+
+  mf <- tryCatch(
+    stats::model.frame(by, data = newdata, na.action = stats::na.pass),
+    error = function(e) {
+      arg::err("{.arg by} could not be evaluated in the data the effect is
+                averaged over: {.code {label}}: {conditionMessage(e)}")
+    })
+
+  # A formula separates terms on `+` and `:`, so `~ sex + region` asks for two
+  # groupings and there is one column here for each. Averaging within one
+  # variable is what the result has a column for.
+  if (ncol(mf) != 1L) {
+    arg::err(c("{.arg by} must name one grouping variable, and {.code {label}}
+                names {ncol(mf)}.",
+               i = "It takes one term: cross two variables with
+                    {.fn interaction}, as in
+                    {.code by = ~ interaction(sex, region)}."))
   }
 
-  list(name = by, value = newdata[[by]])
+  value <- mf[[1L]]
+
+  # A variable taken from the formula's environment rather than from the data
+  # is not length-checked by `model.frame()`: a short one gives a frame whose
+  # column disagrees with its own row names, and only printing it complains.
+  if (length(value) != nrow(newdata)) {
+    arg::err("{.arg by} must give one value per unit, and {.code {label}}
+              gave {length(value)} for {nrow(newdata)} units")
+  }
+
+  list(name = names(mf)[1L], value = value)
 }
 
 # Every ordered pair, reference second, so a label reads "treated - control".
@@ -600,10 +631,10 @@ contrast_label <- function(pair, comparison) {
 contrast_legend <- function(comparison, treat, estimand) {
   what <- if (identical(estimand, "CATE")) {
     sprintf("{.field Y[a]} is the predicted response for that unit with
-             {.val %s} set to {.emph a}", treat)
+             {.var %s} set to {.val a}", treat)
   } else {
-    sprintf("{.field Y[a]} is the average response with {.val %s} set to
-             {.emph a}", treat)
+    sprintf("{.field Y[a]} is the average response with {.var %s} set to
+             {.val a}", treat)
   }
 
   if (comparison %in% c("or", "lnor")) {
@@ -799,7 +830,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
   cli_cat("{.underline {effect_title(estimand, comparison)}}")
   cli::cat_line()
 
-  cli_cat("Treatment: {.val {treat}}")
+  cli_cat("Treatment: {.var {treat}}")
 
   units <- attr(x, "n_units")
 
@@ -812,7 +843,7 @@ print.bartisan_effect <- function(x, digits = 3L, contrasts = NULL,
   }
 
   if (!is_null(by)) {
-    cli_cat("Within levels of {.val {by}}")
+    cli_cat("Within levels of {.var {by}}")
   }
 
   show <- effect_display(x, contrasts, focal)

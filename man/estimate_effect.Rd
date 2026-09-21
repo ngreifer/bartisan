@@ -47,7 +47,12 @@ response is a probability.}
 
 \item{by}{optional; a one-sided formula or a variable name naming a grouping
 variable, in which case the effect is averaged within each of its levels
-rather than over the whole sample.}
+rather than over the whole sample. A formula is evaluated with
+\code{\link[stats:model.frame]{stats::model.frame()}} rather than read for the names it mentions, so it
+can define a grouping the data has no column for, as in \code{by = ~ age > 50}
+or \code{by = ~ interaction(sex, region)}. It must give exactly one grouping
+variable, and the term as written names the column it occupies in the
+output.}
 
 \item{newdata}{optional; a data frame of units to average over. Default is
 the data the model was fit to, which is what makes the default estimand the

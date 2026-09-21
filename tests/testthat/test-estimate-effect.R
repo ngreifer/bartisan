@@ -457,6 +457,42 @@ test_that("with more than two levels ATT and ATC are the same estimand", {
   expect_equal(att[["estimate"]], atc[["estimate"]], tolerance = 1e-12)
 })
 
+test_that("a by formula is evaluated rather than read for the names it mentions", {
+  d <- sim_effect(seed = 18L)
+  fit <- fit_effect(d)
+
+  # `~ x1 > 0.5` groups on the comparison. Reducing the formula to the name it
+  # mentions would group on `x1` itself, one group per distinct value, and a
+  # continuous predictor has as many of those as it has units.
+  cut <- estimate_effect(fit, by = ~ x1 > 0.5)
+
+  expect_identical(nrow(cut), 2L)
+  expect_identical(names(cut)[1L], "x1 > 0.5")
+  expect_identical(attr(cut, "by"), "x1 > 0.5")
+  expect_identical(cut[["n"]], c(sum(d$x1 <= 0.5), sum(d$x1 > 0.5)))
+
+  # The formula is evaluated in its own environment, so a threshold the data
+  # does not carry is looked up where the call was written and not in the
+  # frame that happens to be evaluating it.
+  local({
+    threshold <- 0.25
+    at_local <- estimate_effect(fit, by = ~ x1 > threshold)
+    expect_identical(at_local[["n"]], c(sum(d$x1 <= 0.25), sum(d$x1 > 0.25)))
+  })
+
+  # Naming a column and writing a formula that names it are one grouping.
+  by_string <- estimate_effect(fit, by = "g")
+  by_formula <- estimate_effect(fit, by = ~ g)
+
+  expect_identical(by_string[["g"]], by_formula[["g"]])
+  expect_identical(by_string[["estimate"]], by_formula[["estimate"]])
+
+  # One term, because the result has one column to report it in.
+  expect_error(estimate_effect(fit, by = ~ x1 + g), "must name one grouping")
+  expect_error(estimate_effect(fit, by = ~ nope), "could not be evaluated")
+  expect_error(estimate_effect(fit, by = "nope"), "not a column")
+})
+
 test_that("a newdata holding one arm is still a contrast", {
   d <- sim_effect(seed = 17L)
   fit <- fit_effect(d)

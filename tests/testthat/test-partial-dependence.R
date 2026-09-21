@@ -127,6 +127,45 @@ test_that("the plot argument and the plot method draw the same thing", {
   expect_error(plot(fit), "told which predictors")
 })
 
+test_that("a binary predictor is drawn as two groups however it is coded", {
+  skip_if_not_installed("ggplot2")
+
+  d <- sim_x(n = 80L, p = 2L)
+  d$b <- stats::rbinom(nrow(d), 1L, 0.5)
+  d$g <- factor(ifelse(d$b == 1L, "yes", "no"), levels = c("yes", "no"))
+  d$y <- d$x1 + d$b + stats::rnorm(nrow(d))
+
+  fit <- suppressMessages(suppressWarnings(
+    bartisan(y ~ x1 + x2 + b + g, d, family = stats::gaussian(),
+             control = quick_control())))
+
+  geoms <- function(p) {
+    vapply(p[["layers"]], function(l) class(l[["geom"]])[1L], "") |>
+      unname()
+  }
+
+  # A line and a ribbon over a 0/1 predictor draw a slope across values it
+  # never takes and put a continuous axis under them. The rule is the same
+  # `is_binary()` that reads a 0/1 response as binomial, so `b` is drawn the
+  # way `g` is.
+  coded <- plot(partial_dependence(fit, ~ b))
+
+  expect_identical(geoms(coded), c("GeomErrorbar", "GeomPoint"))
+  expect_s3_class(coded[["data"]][["b"]], "factor")
+  expect_identical(levels(coded[["data"]][["b"]]), c("0", "1"))
+
+  # And the levels are the predictor's own order, not the alphabetical one a
+  # character column would be given.
+  labeled <- plot(partial_dependence(fit, ~ g))
+
+  expect_identical(geoms(labeled), c("GeomErrorbar", "GeomPoint"))
+  expect_identical(levels(labeled[["data"]][["g"]]), c("yes", "no"))
+
+  # More than two values is still a curve, whatever they are.
+  expect_identical(geoms(plot(partial_dependence(fit, ~ x1, grid = 5L))),
+                   c("GeomRibbon", "GeomLine"))
+})
+
 # The grid loop predicts once per point over the whole sample, so it goes to
 # workers when a plan has any. The streams are drawn before the branch, which is
 # what keeps a family whose prediction simulates from depending on whether a

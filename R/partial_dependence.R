@@ -267,7 +267,22 @@ plot.bartisan_partial <- function(x, ...) {
   vars <- attr(x, "variables")
   d <- as.data.frame(x)
   first <- vars[[1L]]
-  discrete <- !is.numeric(d[[first]])
+
+  # A predictor with two values is a pair of groups however it is stored, so a
+  # 0/1 numeric one is drawn the way the same variable coded as a factor is: an
+  # interval at each value and nothing between them. A line and a ribbon there
+  # would draw a slope across values the predictor never takes, under an axis
+  # that labels them. `is_binary()` is the rule, the same one that reads a 0/1
+  # response as binomial, so the two places agree on what binary means.
+  #
+  # The levels are the grid's own order rather than the alphabetical one a
+  # character column would be given, which for a factor is the order its
+  # levels are in.
+  discrete <- !is.numeric(d[[first]]) || is_binary(d[[first]])
+
+  if (discrete && !is.factor(d[[first]])) {
+    d[[first]] <- factor(d[[first]], levels = unique(d[[first]]))
+  }
 
   # The second predictor becomes the grouping, so two numeric predictors give a
   # family of curves rather than a surface nobody can read the uncertainty off.
