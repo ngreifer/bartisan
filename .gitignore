@@ -33,6 +33,8 @@ docs/
 _dev/*
 !_dev/TASKS.md
 !_dev/SHIP.md
+!_dev/REVIEW.md
+!_dev/review-bench.R
 !_dev/benchmark.Rmd
 !_dev/check.sh
 !_dev/survival-sim.R

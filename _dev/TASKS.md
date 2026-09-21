@@ -1572,6 +1572,32 @@ Measured on `lalonde`, 4 chains of 500 draws: 10.14 s sequential, 3.50 s on four
 
 The fiddly part was the stored forests. `tree_start` indexes into a flat vector of tree records at a position running iteration, then forest, then tree, so pooling chains means shifting every chain's offsets past the total length of those before it. `expect_predictor_invariant()` over a three-chain fit is the test that catches getting that wrong.
 
+### Pre-ship review, 2026-09-21
+
+A full pass over the R and C++ for bugs and speed, written up in `_dev/REVIEW.md`
+with the mechanism of each finding. Five sampler changes were kept, every one
+bit-exact against the unmodified build on eleven family configurations and three
+seeds (static dispatch for seven more families, one gate evaluator per pass, a
+has-missing table for the categorical groups, a swap in place of a re-split on a
+rejected change move, scratch vectors for the categorical rule draw), plus a
+rewrite of the `Gamma()` and `negbin()` dispersion updates that reduces the slice
+target to sums over the sample. Measured with builds interleaved per
+configuration: 5-15% on the Gaussian, augmented and hard-rule paths, nothing
+measurable on the non-augmented families, whose time is in the Fisher-scoring
+passes and not in anything these touched. `ARMA_DONT_CHECK_CONFORMANCE` measured
+at 2% and was not taken; `src/Makevars` records why. The stale-object trap from
+the two entries above is closed by a dependency rule in `Makevars`, with the
+first-target pitfall that rule has to step around noted beside it.
+
+Fixed on the R side: `coef(newdata = )` returned `NaN` on every
+varying-coefficient fit; `residuals()` on `dpm_aft()` subtracted a time from a
+log time, and `r2_bayes()` on any survival fit treated censored times as
+observed; `predictions()` on one row with one survival time failed. The larger
+items -- where the non-augmented families' time actually goes, a subtree-length
+field so prediction can skip zero-weight children, seven more nuisance updates
+with the per-observation slice target -- are in the report with enough of the
+mechanism to be picked up cold.
+
 ## Log: statistical behavior
 
 ### Why credible intervals miss nominal coverage
