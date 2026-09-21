@@ -356,9 +356,15 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
 
   arg::arg_flag(draws)
 
+  # Every stored draw. `predict_eta()` takes the iterations already resolved,
+  # as `predict()` hands them to it; passing `NULL` straight through asked the
+  # engine for zero of them and came back with a 0-by-n matrix of draws, so
+  # `coef(fit, newdata = d)` was a column of `NaN`.
   eta <- {
     if (is_null(newdata)) object[["eta"]]
-    else predict_eta(object, newdata, offset = NULL, iterations = NULL)
+    else predict_eta(object, newdata, offset = NULL,
+                     iterations = resolve_iterations(NULL,
+                                                     nrow(object[["sigma_mu"]])))
   }
 
   # The control functions are dropped: one is a prediction, not a coefficient.

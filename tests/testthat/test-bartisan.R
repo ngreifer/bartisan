@@ -463,9 +463,13 @@ test_that("a multinomial takes a per-category offset", {
   # and the offset has to match whichever is in use.
   off3 <- matrix(stats::rnorm(nrow(d) * 3L), nrow(d), 3L)
 
+  # A `quick_control()` fit is long enough to exercise the offset's shape and
+  # not long enough for the leaf scale to settle, so `warn_runaway_scale()`
+  # fires. That is the fixture, not the offset, and it is silenced as such.
   expect_no_error(
-    sym <- bartisan(g ~ x1 + x2, d, family = multinomial(),
-                    control = quick_control(), offset = off3))
+    sym <- suppressWarnings(
+      bartisan(g ~ x1 + x2, d, family = multinomial(),
+               control = quick_control(), offset = off3)))
   expect_length(sym[["eta"]], 3L)
 
   expect_error(
@@ -474,8 +478,9 @@ test_that("a multinomial takes a per-category offset", {
     "must be a matrix with 150 rows and 2 columns")
 
   expect_no_error(
-    bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
-             control = quick_control(), offset = off3[, 1:2, drop = FALSE]))
+    suppressWarnings(
+      bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
+               control = quick_control(), offset = off3[, 1:2, drop = FALSE])))
 })
 
 test_that("a common offset cancels out of a symmetric multinomial", {
@@ -494,22 +499,32 @@ test_that("a common offset cancels out of a symmetric multinomial", {
   # A shift common to every category leaves the softmax alone, so a vector
   # offset is a no-op here. This is surprising enough to pin: a user wanting a
   # category-specific exposure has to pass a matrix.
+  # Ten trees and a hundred warmup sweeps are enough for the identity below
+  # and not enough for the leaf scale to settle, so `warn_runaway_scale()`
+  # fires on every fit here; it is about the fixture and is silenced as such.
+  # Inline rather than through a `...` wrapper: `model.frame()` evaluates
+  # `offset` in the formula's environment, where a forwarded `..5` does not
+  # resolve, as with `lm()`.
   set.seed(5)
-  plain <- bartisan(g ~ x1 + x2, d, family = multinomial(), control = ctrl)
+  plain <- suppressWarnings(
+    bartisan(g ~ x1 + x2, d, family = multinomial(), control = ctrl))
   set.seed(5)
-  shifted <- bartisan(g ~ x1 + x2, d, family = multinomial(), control = ctrl,
-                      offset = off)
+  shifted <- suppressWarnings(
+    bartisan(g ~ x1 + x2, d, family = multinomial(), control = ctrl,
+             offset = off))
 
   expect_equal(predict(plain, type = "response"),
                predict(shifted, type = "response"), tolerance = 1e-8)
 
   # Under reference coding it does not cancel, the reference being pinned.
   set.seed(5)
-  ref_plain <- bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
-                        control = ctrl)
+  ref_plain <- suppressWarnings(
+    bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
+             control = ctrl))
   set.seed(5)
-  ref_shift <- bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
-                        control = ctrl, offset = off)
+  ref_shift <- suppressWarnings(
+    bartisan(g ~ x1 + x2, d, family = multinomial(reference = "a"),
+             control = ctrl, offset = off))
 
   expect_false(isTRUE(all.equal(predict(ref_plain, type = "response"),
                                 predict(ref_shift, type = "response"))))

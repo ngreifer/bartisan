@@ -762,6 +762,15 @@ test_that("loo(scale=) puts the survival families on one measure", {
                            family = stats::gaussian(), control = ctrl)
 
   expect_error(loo::loo(gaussian_fit, scale = "time"), "names the measure")
+
+  # A censored time is a bound rather than a value, so there is no residual on
+  # the response scale to take, and no residual variance for an R2 to rest on.
+  expect_error(stats::residuals(prop_haz), "censored")
+
+  if (rlang::is_installed("performance")) {
+    expect_warning(r2 <- performance::r2_posterior(prop_haz), "censored")
+    expect_null(r2)
+  }
 })
 
 # `loo()` estimates the leave-one-out density from one fit; `kfold()` refits and

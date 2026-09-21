@@ -631,6 +631,19 @@ residuals.bartisan_fit <- function(object, ...) {
     return(object[["y"]] - colMeans(object[["eta"]][[1L]]))
   }
 
+  # The response scale of the other two survival families is a median survival
+  # time, and the observed time is not a draw from it: a censored time is a
+  # bound, not a value. `dpm_aft()` also stores the log time, so the difference
+  # was being taken across two scales.
+  if (family %in% c("dpm_aft", "ph")) {
+    arg::err(c("A censored response has no residual on the response scale: a
+                censored time is a lower bound rather than a value, and the
+                fitted median survival time is not what it is a draw from.",
+               i = "Compare the fit with {.code predict(object, type = \"survival\")}
+                    against a Kaplan-Meier estimate, or with
+                    {.code bayesplot::pp_check(object, type = \"km_overlay\")}."))
+  }
+
   observed_response(object) - stats::predict(object, type = "response")
 }
 
@@ -1635,6 +1648,19 @@ r2_posterior.bartisan_fit <- function(model, verbose = TRUE, ...) {
     return(NULL)
   }
 
+  # A residual variance needs every observed value to be a draw from the fitted
+  # mean, and a censored time is a bound on one. The number this produced was
+  # therefore not an R2, and for `dpm_aft()` it also subtracted a median
+  # survival time from a log time.
+  if (family %in% c("aft", "dpm_aft", "ph")) {
+    if (verbose) {
+      arg::wrn("the {.val {family}} family's response is a censored time, so a
+                residual variance, and with it a Bayesian {.field R2}, is not
+                defined for it")
+    }
+    return(NULL)
+  }
+
   mu <- posterior_epred.bartisan_fit(model)
   y <- observed_response(model)
 
@@ -1722,7 +1748,7 @@ model_performance.bartisan_fit <- function(model, metrics = "all", verbose = TRU
   if (any(c("RMSE", "SIGMA") %in% metrics)) {
     residual <- {
       if (model[["family"]][["family"]] %in%
-          c("ordinal", "multinomial", "mnp", "custom")) NULL
+          c("ordinal", "multinomial", "mnp", "custom", "dpm_aft", "ph")) NULL
       else stats::residuals(model)
     }
 

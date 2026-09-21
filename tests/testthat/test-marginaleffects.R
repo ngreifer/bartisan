@@ -350,6 +350,15 @@ test_that("the estimand functions work for a survival response", {
       marginaleffects::avg_comparisons(fit, variables = "trt",
                                        type = "survival", times = 2))
     expect_lt(abs(at_two[["estimate"]]), abs(at_one[["estimate"]]))
+
+    # One row of `newdata` and one time is one prediction. Reducing the
+    # draws-by-rows-by-times array with `drop = TRUE` dropped the row dimension
+    # with the time, and `predictions()` on a single row failed inside
+    # marginaleffects with a message about the data.
+    one <- suppressWarnings(
+      marginaleffects::predictions(fit, newdata = d[1L, , drop = FALSE],
+                                   type = "survival", times = 1))
+    expect_identical(nrow(one), 1L)
   }
 })
 

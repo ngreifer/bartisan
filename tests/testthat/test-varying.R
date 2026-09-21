@@ -397,6 +397,15 @@ test_that("a factor gets one forest per level and coef recenters them", {
   # deviation it is reported as.
   expect_equal(unname(rowSums(cf)), rep(0, n), tolerance = 1e-10)
 
+  # On new data the same rows give the same coefficients, with every stored draw
+  # behind them. Handing `predict_eta()` unresolved iterations asked the engine
+  # for none of them, and the result was a column of `NaN` over 0 draws.
+  cf_new <- coef(fit, newdata = d[1:5, ])
+  expect_identical(dim(cf_new), c(5L, 3L))
+  expect_equal(cf_new, cf[1:5, ], tolerance = 1e-6)
+  expect_identical(nrow(coef(fit, newdata = d[1:5, ], draws = TRUE)[[1L]]),
+                   nrow(fit[["sigma_mu"]]))
+
   # And the deviations order the way the truth does.
   expect_lt(mean(cf[, "ga"]), mean(cf[, "gc"]))
 })

@@ -286,7 +286,16 @@ me_draws <- function(model, newdata, type, extra = list()) {
   # sends it down the ungrouped path, which is what makes a contrast in t-year
   # survival read like any other contrast.
   if (length(dim(out)) == 3L && dim(out)[3L] == 1L) {
-    out <- out[, , 1L, drop = TRUE]
+    # Not `drop = TRUE`, which with one row of `newdata` drops the row
+    # dimension as well and hands marginaleffects a vector where it needs a
+    # matrix of draws by rows; `predictions()` on a single row then failed.
+    keep <- dimnames(out)
+    out <- out[, , 1L, drop = FALSE]
+    dim(out) <- dim(out)[1:2]
+
+    if (!is_null(keep)) {
+      dimnames(out) <- keep[1:2]
+    }
   }
 
   # A family with several additive predictors returns one matrix per predictor on
