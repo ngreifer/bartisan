@@ -380,6 +380,14 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
   std::vector<std::vector<Tree*>> forests(H);
   ForestGuard guard = {forests};
 
+  // Whether each categorical group has a missing level, asked once here rather
+  // than by every rule proposal; see Tree::codes_has_na.
+  arma::uvec codes_has_na(codes.n_cols, arma::fill::zeros);
+
+  for (arma::uword j = 0; j < codes.n_cols; j++) {
+    codes_has_na(j) = arma::any(codes.col(j) < 0) ? 1u : 0u;
+  }
+
   for (int h = 0; h < H; h++) {
     // A pinned forest gets a branching probability of zero, which makes every
     // birth proposal impossible, and a fixed leaf scale, because one leaf cannot
@@ -401,7 +409,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
 
     for (int t = 0; t < num_trees[h]; t++) {
       forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na, &codes,
-                                    &cat_col, &n_levels));
+                                    &cat_col, &n_levels, &codes_has_na));
     }
   }
 

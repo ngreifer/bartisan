@@ -149,7 +149,7 @@ struct GaussianFamily : Concrete<GaussianFamily> {
 // trials, so Bernoulli data is the special case of unit weights.
 // ---------------------------------------------------------------------------
 
-struct BinomialFamily : Family {
+struct BinomialFamily : Concrete<BinomialFamily> {
   enum Link { LOGIT, PROBIT, CLOGLOG };
   Link link;
 
@@ -159,7 +159,7 @@ struct BinomialFamily : Family {
   static constexpr double PROBIT_DIRECT = 5.0;
 
   BinomialFamily(const arma::vec& y_, const arma::vec& w_, Link link_)
-    : Family(y_, w_, 1), link(link_) {}
+    : Concrete<BinomialFamily>(y_, w_, 1), link(link_) {}
 
   // The weights hold the number of trials, so the binomial coefficient is the
   // piece of the mass function that is not simply the weight times a per-unit
@@ -1234,7 +1234,7 @@ struct PoissonFamily : Concrete<PoissonFamily> {
 // drawn by slice sampling on the log scale.
 // ---------------------------------------------------------------------------
 
-struct NegBinFamily : Family {
+struct NegBinFamily : Concrete<NegBinFamily> {
   double theta;
   double prior_shape;
   double prior_rate;
@@ -1242,12 +1242,15 @@ struct NegBinFamily : Family {
 
   NegBinFamily(const arma::vec& y_, const arma::vec& w_, double theta_,
                double prior_shape_, double prior_rate_, bool update_theta_)
-    : Family(y_, w_, 1), theta(theta_), prior_shape(prior_shape_),
+    : Concrete<NegBinFamily>(y_, w_, 1), theta(theta_), prior_shape(prior_shape_),
       prior_rate(prior_rate_), update_theta(update_theta_) {
     log_theta = std::log(theta);
   }
 
   double log_theta;
+
+  // exp(eta) for every observation, filled at the top of each theta update.
+  std::vector<double> aux_mu;
 
   static double loglik_one(double y, double eta, double theta) {
     double mu = std::exp(eta);
@@ -1296,17 +1299,40 @@ struct NegBinFamily : Family {
       return;
     }
     const arma::rowvec& e = eta.row(0);
+
+    // The slice target is evaluated several times per sweep and each evaluation
+    // is a pass over the sample, so what does not move inside the pass is taken
+    // out of it. `loglik_one()` spends three log-gammas, two logs and an
+    // exponential per observation; of those, lgamma(theta) and theta * log(theta)
+    // depend on theta alone and are one term times the weight total,
+    // lgamma(y + 1) does not depend on theta at all and drops out of a target
+    // the sampler only ever differences, and exp(eta) is fixed for the whole
+    // update and is taken once. What is left per observation is one log-gamma
+    // and one log.
+    aux_mu.resize(N);
+    double sum_w = 0.0;
+    double sum_w_y_eta = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      aux_mu[i] = std::exp(e(i));
+      sum_w += w(i);
+      sum_w_y_eta += w(i) * y(i) * e(i);
+    }
+
     // `lt` rather than `log_theta`, which is the name of the cached member this
     // lambda would otherwise shadow: an edit inside here that meant the cache
     // would silently get the argument instead.
-    auto logf = [this, &e](double lt) {
+    auto logf = [this, sum_w, sum_w_y_eta](double lt) {
       double th = std::exp(lt);
       if (!(th > 0.0) || !std::isfinite(th)) {
         return R_NegInf;
       }
-      double out = prior_shape * lt - prior_rate * th;
+      double out = prior_shape * lt - prior_rate * th +
+        sum_w * (th * lt - R::lgammafn(th)) + sum_w_y_eta;
       for (int i = 0; i < N; i++) {
-        out += w(i) * loglik_one(y(i), e(i), th);
+        double yi = y(i);
+        out += w(i) * (R::lgammafn(yi + th) -
+                       (th + yi) * std::log(th + aux_mu[i]));
       }
       return out;
     };
@@ -1394,16 +1420,34 @@ struct GammaFamily : Concrete<GammaFamily> {
       return;
     }
     const arma::rowvec& e = eta.row(0);
-    auto logf = [this, &e](double log_shape) {
+
+    // The log likelihood in the shape is
+    //   sum_i w_i [shape (log shape - eta_i) - lgamma(shape)
+    //              + (shape - 1) log y_i - shape y_i exp(-eta_i)],
+    // which is a function of four sums over the sample and the shape. The sums
+    // are taken once here, and each of the several slice evaluations per sweep
+    // is then arithmetic on them rather than a pass over the data with a
+    // log-gamma per observation.
+    double sum_w = 0.0;
+    double sum_w_eta = 0.0;
+    double sum_w_log_y = 0.0;
+    double sum_w_y_exp = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      sum_w += w(i);
+      sum_w_eta += w(i) * e(i);
+      sum_w_log_y += w(i) * std::log(y(i));
+      sum_w_y_exp += w(i) * y(i) * std::exp(-e(i));
+    }
+
+    auto logf = [=](double log_shape) {
       double sh = std::exp(log_shape);
       if (!(sh > 0.0) || !std::isfinite(sh)) {
         return R_NegInf;
       }
-      double out = prior_shape * log_shape - prior_rate * sh;
-      for (int i = 0; i < N; i++) {
-        out += w(i) * loglik_one(y(i), e(i), sh);
-      }
-      return out;
+      return prior_shape * log_shape - prior_rate * sh +
+        sum_w * (sh * log_shape - R::lgammafn(sh)) - sh * sum_w_eta +
+        (sh - 1.0) * sum_w_log_y - sh * sum_w_y_exp;
     };
     shape = std::exp(slice_sampler(std::log(shape), logf, 1.0, -20.0, 20.0));
     refresh_eta_free();
@@ -1430,7 +1474,7 @@ struct GammaFamily : Concrete<GammaFamily> {
 // two-category case exactly binary regression with the matching link.
 // ---------------------------------------------------------------------------
 
-struct OrdinalFamily : Family {
+struct OrdinalFamily : Concrete<OrdinalFamily> {
   int link;
   int num_cat;
   arma::vec cuts;   // length num_cat - 1, cuts(0) fixed at 0
@@ -1447,7 +1491,7 @@ struct OrdinalFamily : Family {
                 int num_cat_, const arma::vec& cuts_, bool update_cuts_,
                 double cut_alpha_, double cut_anchor_,
                                bool cut_prior_)
-    : Family(y_, w_, 1), link(link_), num_cat(num_cat_), cuts(cuts_),
+    : Concrete<OrdinalFamily>(y_, w_, 1), link(link_), num_cat(num_cat_), cuts(cuts_),
       update_cuts(update_cuts_), cut_alpha(cut_alpha_),
       cut_anchor(cut_anchor_), cut_prior(cut_prior_) {
     by_cat = group_by_category(y_, num_cat_);
@@ -1579,13 +1623,13 @@ struct OrdinalFamily : Family {
 // over the categories, which is the point.
 // ---------------------------------------------------------------------------
 
-struct MultinomFamily : Family {
+struct MultinomFamily : Concrete<MultinomFamily> {
   int num_cat;
   bool symmetric;
 
   MultinomFamily(const arma::vec& y_, const arma::vec& w_, int num_cat_,
                  bool symmetric_)
-    : Family(y_, w_, symmetric_ ? num_cat_ : num_cat_ - 1), num_cat(num_cat_),
+    : Concrete<MultinomFamily>(y_, w_, symmetric_ ? num_cat_ : num_cat_ - 1), num_cat(num_cat_),
       symmetric(symmetric_) {}
 
   // log sum_j exp(eta_j), shifting out the largest predictor first. Under
@@ -2494,7 +2538,7 @@ double zi_loglik_one(double y_i, const double* eta, double theta,
 
 } // namespace
 
-struct ZeroInflatedFamily : Family {
+struct ZeroInflatedFamily : Concrete<ZeroInflatedFamily> {
   bool negbin;
   double theta;
   double prior_shape;
@@ -2504,7 +2548,7 @@ struct ZeroInflatedFamily : Family {
   ZeroInflatedFamily(const arma::vec& y_, const arma::vec& w_, bool negbin_,
                      double theta_, double prior_shape_, double prior_rate_,
                      bool update_theta_)
-    : Family(y_, w_, 2), negbin(negbin_), theta(theta_),
+    : Concrete<ZeroInflatedFamily>(y_, w_, 2), negbin(negbin_), theta(theta_),
       prior_shape(prior_shape_), prior_rate(prior_rate_),
       update_theta(update_theta_) {}
 
@@ -2655,7 +2699,7 @@ struct ZeroInflatedFamily : Family {
 // nothing to identify them.
 // ---------------------------------------------------------------------------
 
-struct BetaFamily : Family {
+struct BetaFamily : Concrete<BetaFamily> {
   double phi;
   double prior_shape;
   double prior_rate;
@@ -2693,7 +2737,7 @@ struct BetaFamily : Family {
 
   BetaFamily(const arma::vec& y_, const arma::vec& w_, double phi_,
              double prior_shape_, double prior_rate_, bool update_phi_)
-    : Family(y_, w_, 1), phi(phi_), prior_shape(prior_shape_),
+    : Concrete<BetaFamily>(y_, w_, 1), phi(phi_), prior_shape(prior_shape_),
       prior_rate(prior_rate_), update_phi(update_phi_) {
     log_y.set_size(N);
     log1m_y.set_size(N);
@@ -2873,7 +2917,7 @@ struct BetaFamily : Family {
 
 // ---------------------------------------------------------------------------
 
-struct OrdBetaFamily : Family {
+struct OrdBetaFamily : Concrete<OrdBetaFamily> {
   double cut1;
   double cut2;
   double phi;
@@ -2907,7 +2951,7 @@ struct OrdBetaFamily : Family {
                 double cut2_, double phi_, double prior_shape_,
                 double prior_rate_, bool update_phi_,
                 double cut_alpha_, double cut_anchor_, bool cut_prior_)
-    : Family(y_, w_, 1), cut1(cut1_), cut2(cut2_), phi(phi_),
+    : Concrete<OrdBetaFamily>(y_, w_, 1), cut1(cut1_), cut2(cut2_), phi(phi_),
       prior_shape(prior_shape_), prior_rate(prior_rate_),
       update_phi(update_phi_), cut_alpha(cut_alpha_),
       cut_anchor(cut_anchor_), cut_prior(cut_prior_) {

@@ -170,10 +170,11 @@ void Context::make_base_children(const Node* parent, std::vector<double>& base,
   double mu_right = parent->right->mu;
 
   const double* wt = parent->weights();
+  GateEval gate_of(parent);
 
   for (std::size_t k = 0; k < n; k++) {
     int i = parent->idx[k];
-    double g = parent->gate(i);
+    double g = gate_of(i);
     double parent_wt = wt == nullptr ? 1.0 : wt[k];
     double wl = parent_wt * g;
     double wr = parent_wt - wl;
@@ -1479,6 +1480,16 @@ void change_rule(Tree* tree, Context& ctx) {
 
   Node::Rule rule_old = branch->rule();
 
+  // The old supports are kept by swapping them out rather than copying: the new
+  // rule writes fresh ones into whatever the children hold, and a rejection
+  // swaps the old ones back. Both directions are constant time, where
+  // re-splitting on the old rule evaluated every gate in the node a second time
+  // to arrive at exactly the vectors being swapped back.
+  left->idx.swap(ctx.buf_keep_left_idx);
+  right->idx.swap(ctx.buf_keep_right_idx);
+  left->wt.swap(ctx.buf_keep_left_wt);
+  right->wt.swap(ctx.buf_keep_right_wt);
+
   // The predictor still reflects the old rule, so the base computed above is
   // the one to carry forward; only the child weights change, and they come out
   // of the split that the new rule performs anyway.
@@ -1508,7 +1519,10 @@ void change_rule(Tree* tree, Context& ctx) {
   }
   else {
     branch->set_rule(rule_old);
-    branch->split_support();
+    left->idx.swap(ctx.buf_keep_left_idx);
+    right->idx.swap(ctx.buf_keep_right_idx);
+    left->wt.swap(ctx.buf_keep_left_wt);
+    right->wt.swap(ctx.buf_keep_right_wt);
   }
 }
 

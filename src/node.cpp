@@ -4,9 +4,9 @@ namespace bartisan {
 
 Tree::Tree(Hypers* hypers_, const arma::mat* X_, const arma::uvec* has_na_,
            const arma::imat* codes_, const arma::ivec* cat_col_,
-           const arma::ivec* n_levels_)
+           const arma::ivec* n_levels_, const arma::uvec* codes_has_na_)
   : hypers(hypers_), X(X_), has_na(has_na_), codes(codes_), cat_col(cat_col_),
-    n_levels(n_levels_) {
+    n_levels(n_levels_), codes_has_na(codes_has_na_) {
   bandwidth = hypers_->bandwidth_scale;
   log_step = std::log(5.0);
   attempts = 0;
@@ -147,13 +147,16 @@ void Node::get_limits() {
   }
 }
 
-double Node::gate(int i) const {
-  if (is_categorical()) {
-    return left_prob_categorical((*tree->codes)(i, var), mask, na_rule);
-  }
+GateEval::GateEval(const Node* node)
+  : categorical(node->is_categorical()),
+    x(categorical ? nullptr : node->tree->X->colptr(node->var)),
+    codes(categorical ? node->tree->codes->colptr(node->var) : nullptr),
+    mask(&node->mask), val(node->val), bandwidth(node->tree->bandwidth),
+    soft(node->tree->hypers->soft), na_rule(node->na_rule),
+    gate(node->tree->hypers->gate) {}
 
-  return left_prob((*tree->X)(i, var), val, tree->bandwidth,
-                   tree->hypers->soft, na_rule, tree->hypers->gate);
+double Node::gate(int i) const {
+  return GateEval(this)(i);
 }
 
 // The levels of this node's categorical group that can still reach it. Every
@@ -241,8 +244,13 @@ void Node::draw_categorical_rule(int levels) {
     // drawn from its prior exactly as for a numeric column.
     bool any_missing = false;
 
-    for (arma::uword i = 0; i < tree->codes->n_rows && !any_missing; i++) {
-      any_missing = (*tree->codes)(i, var) < 0;
+    if (tree->codes_has_na != nullptr) {
+      any_missing = (*tree->codes_has_na)(var) > 0;
+    }
+    else {
+      for (arma::uword i = 0; i < tree->codes->n_rows && !any_missing; i++) {
+        any_missing = (*tree->codes)(i, var) < 0;
+      }
     }
 
     if (any_missing) {
@@ -250,10 +258,11 @@ void Node::draw_categorical_rule(int levels) {
     }
   }
 
-  std::vector<std::uint32_t> avail;
+  std::vector<std::uint32_t>& avail = tree->scratch_avail;
   available_levels(group, levels, avail);
 
-  std::vector<int> open;
+  std::vector<int>& open = tree->scratch_open;
+  open.clear();
   open.reserve(levels);
 
   for (int k = 0; k < levels; k++) {
@@ -460,13 +469,15 @@ void Node::split_support(std::vector<double>* w_left,
   std::size_t nl = 0;
   std::size_t nr = 0;
 
+  GateEval gate_of(this);
+
   if (!soft) {
     left->wt.clear();
     right->wt.clear();
 
     for (std::size_t k = 0; k < n; k++) {
       int i = idx[k];
-      double g = gate(i);
+      double g = gate_of(i);
 
       if (record) {
         (*w_left)[k] = g;
@@ -491,7 +502,7 @@ void Node::split_support(std::vector<double>* w_left,
 
   for (std::size_t k = 0; k < n; k++) {
     int i = idx[k];
-    double g = gate(i);
+    double g = gate_of(i);
     double wl = wt[k] * g;
     double wr = wt[k] - wl;
 

@@ -99,6 +99,14 @@ struct Tree {
   const arma::ivec* cat_col;
   const arma::ivec* n_levels;
 
+  // Which columns of `codes` hold a missing level, so a categorical rule can ask
+  // in one load whether it needs a missing-value answer. Without this every such
+  // rule scanned its whole column, which for complete data -- the common case --
+  // is a pass over the full sample per proposal, on a node whose own support may
+  // be a hundredth of that. Null means scan, which is what a random-effect
+  // term's private tree passes and never reaches.
+  const arma::uvec* codes_has_na;
+
   int levels_of(int group) const {
     return n_levels == nullptr ? 0 : (*n_levels)(group);
   }
@@ -123,9 +131,15 @@ struct Tree {
   // them again either.
   std::vector<Node*> pool;
 
+  // Working space for drawing a categorical rule, so a proposal does not
+  // allocate two vectors it frees a moment later.
+  std::vector<std::uint32_t> scratch_avail;
+  std::vector<int> scratch_open;
+
   Tree(Hypers* hypers_, const arma::mat* X_, const arma::uvec* has_na_,
        const arma::imat* codes_ = nullptr, const arma::ivec* cat_col_ = nullptr,
-       const arma::ivec* n_levels_ = nullptr);
+       const arma::ivec* n_levels_ = nullptr,
+       const arma::uvec* codes_has_na_ = nullptr);
   ~Tree();
 
   // A fresh child of `parent`, from the pool if one is waiting. Identical in
@@ -366,6 +380,33 @@ inline double left_prob(double x, double val, double bandwidth, bool soft,
 
   return t * t * t * (10.0 + t * (6.0 * t - 15.0));
 }
+
+// The parts of a rule that deciding an observation's side reads, fetched once
+// per pass over a node rather than through three pointers and a bounds check
+// per observation. `Node::gate()` is this for one observation; the loops over a
+// node's support build one of these and call it, which is the same arithmetic
+// in the same order, so the two agree to the last bit.
+struct GateEval {
+  bool categorical;
+  const double* x;
+  const arma::sword* codes;
+  const std::vector<std::uint32_t>* mask;
+  double val;
+  double bandwidth;
+  bool soft;
+  int na_rule;
+  int gate;
+
+  explicit GateEval(const Node* node);
+
+  double operator()(int i) const {
+    if (categorical) {
+      return left_prob_categorical(static_cast<int>(codes[i]), *mask, na_rule);
+    }
+
+    return left_prob(x[i], val, bandwidth, soft, na_rule, gate);
+  }
+};
 
 // Recompute every node's support below this one, for use after the bandwidth
 // changes and every gate along every path moves at once.

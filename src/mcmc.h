@@ -124,6 +124,15 @@ struct Context {
   std::vector<double> buf_left2;
   std::vector<double> buf_right2;
 
+  // The children's supports as they stood before a change proposal, swapped out
+  // before the new rule divides the support and swapped back on rejection. On
+  // acceptance they are left holding the old supports, which the next proposal
+  // overwrites; see change_rule().
+  std::vector<int> buf_keep_left_idx;
+  std::vector<int> buf_keep_right_idx;
+  std::vector<double> buf_keep_left_wt;
+  std::vector<double> buf_keep_right_wt;
+
   // Working space for the bandwidth move, which needs two full-length vectors:
   // the predictor with the tree removed, and the same with the tree put back
   // under the proposed bandwidth.
