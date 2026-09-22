@@ -1,0 +1,22 @@
+/* Wide article tables.
+ *
+ * A handful of tables in the articles carry more columns than the 720px
+ * content column holds: the package comparison in `implementation` is the
+ * widest at eight, and the family sweeps in `families` and `survival` run to
+ * six or seven. pkgdown already gives every table `overflow-x: auto`, so
+ * nothing is lost, but the scrollbar is invisible until it is used and a
+ * reader sees a truncated table rather than a scrollable one.
+ *
+ * Slightly smaller type and tighter cells bring these inside the column, so
+ * they fit outright and there is nothing to scroll. Applied by wrapping the
+ * table in a `::: wide-table` fenced div in the Rmd, so no other table is
+ * touched. The class beats Bootstrap's `.table > :not(caption) > * > *`,
+ * which is why the child selector is spelled out rather than shortened.
+ */
+.wide-table table {
+  font-size: 0.9rem;
+}
+
+.wide-table table > :not(caption) > * > * {
+  padding: 0.35rem 0.4rem;
+}

@@ -312,10 +312,14 @@ ggplot(agg, aes(s_rmse, family, color = family)) +
        subtitle = "held-out error in the survival function, one standard error over replicates")
 ```
 
+
+::: wide-table
 ```{r rmsetable, echo = FALSE}
 knitr::kable(pivot("s_rmse"), digits = 3, row.names = FALSE,
              caption = "RMSE of S(t | x) on held-out data. Lower is better.")
 ```
+:::
+
 
 Five things to read off it.
 
@@ -417,11 +421,15 @@ It finds both components when they are there and collapses to something close to
 
 The log score is the other natural metric, and it can be made comparable across all five families, but only after a correction, which is the subject of [a trap below](#measure). With the correction applied:
 
+
+::: wide-table
 ```{r lstable, echo = FALSE}
 knitr::kable(pivot("logscore", setdiff(fam_levels, "discrete-time probit")),
              digits = 0, row.names = FALSE,
              caption = "Held-out log predictive score on the density of T, summed over the 700 held-out observations. Higher is better.")
 ```
+:::
+
 
 The two metrics agree on which family to prefer on five of the six truths. The exception is the turning-over baseline, where `ph()` leads on the survival curve but sits third on the log score, behind `dpm_aft()` and `loglogistic_aft()` and by three log points, which is inside the noise. The reason is that the log score is evaluated at each subject's own observed time, which is by construction where the data are dense, while the survival RMSE is averaged over a grid that reaches into the tail. Families differ less in the middle than at the edges.
 

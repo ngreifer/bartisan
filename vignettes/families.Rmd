@@ -152,12 +152,16 @@ Four families fit a numeric response by putting a forest on its mean. They diffe
 
 We measured the four on 1000 training and 1000 test observations, 50 trees, 500 draws after 500 warmup, three replicates, with the error centered so that $E[Y \mid x]$ is the same function in every column. RMSE and coverage are for that regression function on held-out data; the log score is the held-out predictive density. Cells in all but the last column are RMSE / log score, where lower RMSE and higher log score are preferred. `ordinal("probit")` is fitted to the response binned onto 25 quantiles and predicted with `type = "mean"`, so its RMSE is on the same scale as the others; its density is on the binned scale and so has no comparable log score. A bold cell is one whose lead holds in every replicate.
 
+
+::: wide-table
 | Family | normal | $t_3$ | skewed | bimodal | heteroskedastic | seconds |
 |---------------|---------------|---------------|---------------|---------------|---------------|---------------|
 | `gaussian()` | 0.029 / -229 | 0.029 / -179 | 0.036 / -8 | 0.037 / -262 | 0.036 / -507 | **3.3** |
 | `dpm()` | 0.029 / -229 | **0.024** / **-64** | **0.022** / **181** | **0.022** / **166** | 0.038 / -487 | 4.0 |
 | `gaussian_ls()` | 0.029 / -231 | 0.030 / -174 | 0.031 / -7 | 0.040 / -265 | 0.032 / **-370** | 19.6 |
 | `ordinal("probit")` | 0.029 | 0.035 | 0.031 | 0.043 | 0.037 | 5.1 |
+:::
+
 
 Coverage was between .89 and 1.00 everywhere, with the four families' medians between .98 and 1.00, so it does not separate them. Four things to take from this:
 
@@ -258,6 +262,8 @@ bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = Gamma_ls())  # and held cons
 
 We compared `Gamma()`, `Gamma_ls()`, `gaussian()` with a `"log"` link, `dpm()`, and `ordinal()` with a probit link on 800 training and 800 test observations, 50 trees, 500 draws after 500 warmup, four replicates, over four shapes of error around one mean function, with each error centered so that $E[Y \mid x]$ is the same function in every column. `Gamma_ls()` was given `num_trees = c(50, 20)`. `ordinal("probit")` bins the outcome onto 25 quantiles and predicts with `type = "mean"`, so its predictions are on the response's scale even though its density is not, which is why it has no log score. Cells are RMSE / log score, medians over the replicates, and lower RMSE and higher log score are better. A bold cell is one whose lead over the next family holds in every replicate; four replicates separate the families on the log score but often not on RMSE, and the paragraphs below say which is which.
 
+
+::: wide-table
 | Family | gamma, constant dispersion | gamma, varying dispersion | lognormal | heavy tail | seconds |
 |---------------|---------------|---------------|---------------|---------------|---------------|
 | `Gamma("log")` | 0.379 / -1940 | 0.530 / -2217 | 0.522 / -2075 | 0.455 / -2097 | 8.5 |
@@ -265,6 +271,8 @@ We compared `Gamma()`, `Gamma_ls()`, `gaussian()` with a `"log"` link, `dpm()`, 
 | `gaussian("log")` | 0.443 / -2098 | 1.645 / -2480 | 0.997 / -2353 | 1.252 / -2289 | 19.1 |
 | `dpm()` | 0.775 / -2007 | 1.449 / -2251 | 0.893 / -2109 | 0.614 / **-2043** | **2.7** |
 | `ordinal("probit")` | 0.440 | 0.857 | **0.415** | 0.418 | 3.5 |
+:::
+
 
 A few things to take from this:
 
@@ -361,6 +369,8 @@ The three links are read as for the binomial, plus one consideration specific to
 
 Ordered categories can also be treated as unordered categories and fit with `family = multinomial()`, described below; typically this produces more variable predictions as it requires a forest for each category rather than a single forest governing the entire distribution function.
 
+Two prediction types exist for reporting an ordinal fit on a single scale, both following *WeightIt*. `predict(type = "mean")` weights the category probabilities by the labels read as numbers, so levels `"1"`, `"2"`, and `"4"` give a mean between one and four, and `values` says what the categories are worth when the labels are not numbers. `predict(type = "stdlv")` divides the predictor by the standard deviation of the latent variable it indexes, which puts fits with different links, or different amounts of signal, on one scale; it works for `binomial()` too, since a binary response is the same construction with one threshold. Note that the complementary log-log error enters the two families with opposite signs, and `?predict.bartisan_fit` says why.
+
 ### The Prior on the Cutpoints (`cut_alpha`)
 
 A cutpoint is an awkward thing to put a prior on. They are ordered, they live on
@@ -372,9 +382,7 @@ induce a vector of category probabilities,
 $$P_1 = F(c_1 - \varphi), \qquad P_k = F(c_k - \varphi) - F(c_{k-1} - \varphi),
 \qquad P_K = 1 - F(c_{K-1} - \varphi)$$
 
-which is a point on the simplex, and beliefs about *those* are easy to state.
-
-So the prior goes there and is pulled back through the change of variables. This
+which is a point on the simplex. The prior goes there and is pulled back through the change of variables. This
 is the induced-Dirichlet construction [@betancourt2019; @betancourt2025], used
 for ordinal meta-analysis by @cerullo2025:
 
@@ -382,7 +390,7 @@ $$p(\mathbf{c} \mid \alpha, \varphi) =
 \mathrm{Dir}\big(\mathbf{P}(\mathbf{c}, \varphi) \mid \alpha\big)
 \cdot \big|\mathbf{J}_{\mathbf{c} \to \mathbf{P}}\big|$$
 
-The Jacobian is what makes it cheap. Each $c_k$ appears in exactly two of the
+The Jacobian makes it cheap. Each $c_k$ appears in exactly two of the
 probabilities, $P_k$ and $P_{k+1}$, so the matrix is bidiagonal and its
 determinant is the product of its diagonal, $\prod_k f(c_k - \varphi)$, with $f$
 the link's density. The log prior is therefore one link density per cutpoint plus
@@ -390,7 +398,7 @@ a Dirichlet term:
 
 $$\log p(\mathbf{c}) = \sum_k (\alpha_k - 1) \log P_k + \sum_k \log f(c_k - \varphi)$$
 
-At the default `cut_alpha = 1` the Dirichlet term drops out and what is left says
+At the default `cut_alpha = 1`, the Dirichlet term drops out and what is left says
 the induced probabilities are uniform over the simplex. That is not the same as a
 flat prior on the cutpoints themselves, which is improper; the Jacobian is exactly
 the difference between the two. Larger values pull the probabilities toward equal
@@ -403,23 +411,6 @@ reported in.
 masses at zero and one and the interior share, and the map from its two cutpoints
 to them has the same bidiagonal shape.
 
-What this buys is regularization where the data are thin. Over 344 paired fits
-with $K$ from 3 to 64, both arms on identical data, cutpoint recovery improved in
-64% of them (median 3.4%, Wilcoxon $p = 2 \times 10^{-9}$), and the gain tracks
-how thinly the categories are observed:
-
-| smallest category | median gain in cutpoint RMSE |
-| --- | --- |
-| 2 observations or fewer | 6.6% |
-| 3 to 15 | 6.2% |
-| 16 to 50 | 2.3% |
-| more than 50 | 0.3% |
-
-That is the shape a regularizer should have: it helps when the likelihood has
-little to say and gets out of the way when it does. It is also what makes
-`prior_only = TRUE` available on these two families, since a flat likelihood now
-leaves a proper density to draw from rather than nothing at all.
-
 ### Categories Nobody Selected
 
 A level of an ordered factor that no observation takes is kept rather than
@@ -429,7 +420,7 @@ points and can still predict one.
 The thresholds either side of such a category remain identified. Each $c_k$
 enters the likelihood through $P(Y = k)$ and $P(Y = k+1)$, so an unused category
 $k$ leaves $c_{k-1}$ informed by the observations in category $k-1$ and $c_k$
-informed by those in category $k+1$. Two *adjacent* unused categories are the
+informed by those in category $k+1$. Two adjacent unused categories are the
 exception: the threshold between them appears only in terms no observation
 contributes to, and it is then drawn from the prior, restricted to the range its
 identified neighbors leave. That is the honest answer for a quantity the data say
