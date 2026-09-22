@@ -266,7 +266,7 @@ up cold.
    `pinvgauss()` at the fixed truncation point, neither exact.
 
 5. **A subclass of a `Concrete<X>` family cannot override a unit method and be
-   heard.** `Concrete`'s loops call `self.Derived::logdens_unit()` with
+   heard.** *(Done 2026-09-21; see the follow-up section.)* `Concrete`'s loops call `self.Derived::logdens_unit()` with
    `Derived = X`, so an override in a further subclass is bypassed by the hot
    path while `Family::logdens()` still sees it -- two answers for one density.
    `DPMAFTFamily : DPMFamily` is the one such subclass and overrides only
@@ -312,6 +312,97 @@ up cold.
   coding even without an offset (item 3 above). Whether the symmetric coding's
   unidentified common shift lets the leaf scale drift on short runs, or the
   fixture is simply too short, was not investigated.
+
+## Follow-up, 2026-09-21: the varying-coefficient family, and item 5
+
+Done after the review above, prompted by a `vc()` fit taking 21 s where a plain
+Gaussian of the same size takes about one.
+
+**The varying-coefficient family was the slowest path in the package for a
+reason that had nothing to do with varying coefficients.**
+`VaryingCoefficientFamily` wraps an inner family and, for each observation,
+assembles that family's predictors from its own. It did so into a
+`std::vector<double> mu(inner->H)` **constructed and destroyed inside every one
+of `logdens_unit()`, `score_info_unit()`, `dlogdens_unit()` and
+`info_unit()`** -- a heap allocation per observation per evaluation, in the
+innermost loop of the sampler. It is now one `mutable` buffer sized once in the
+constructor, which is sound because `combine_all()` writes every entry before
+any is read. The family also derived from `Family` rather than
+`Concrete<VaryingCoefficientFamily>`, so its per-leaf sums went through the
+vtable twice per observation on top of the allocation; it is `Concrete` now.
+This matters more than it looks because the family *does* forward
+`target_form()`, so a `vc()` on a Gaussian is a quadratic target and takes the
+`accumulate1()`/`accumulate2()` path that `Concrete` exists to speed up.
+
+Measured at n = 1000 with 50 trees and 300 + 300 sweeps, three replicates,
+against the build committed earlier the same day. Every configuration is
+**bit-exact**: same seed, same draws to the last bit.
+
+| Configuration | before | after | speedup |
+| --- | --- | --- | --- |
+| `bcf()`, default | 10.83 | 4.27 | **2.54** |
+| `vc()` on a continuous covariate | 10.32 | 4.17 | **2.47** |
+| `vc()` on a binary covariate, Gaussian | 10.01 | 4.16 | **2.41** |
+| `vc()`, `binomial()` | 10.19 | 4.50 | **2.27** |
+| `vc()`, `poisson()` | 24.43 | 11.28 | **2.17** |
+| `vc()`, `gaussian_ls()` | 43.57 | 28.47 | 1.53 |
+| Total over the 18 fits | 329.9 | 172.5 | **1.91** |
+
+`bcf()` is the headline: it is the package's causal entry point and it was
+paying both costs on every observation of every leaf of every sweep.
+
+**`LinkedFamily` and `RFamily` are deliberately left deriving from `Family`,**
+and each now carries a comment saying why. `Concrete` earns its keep only in
+`accumulate1()` and `accumulate2()`, and those are reached only when the target
+is quadratic or exponential -- `Target1` and `Target2` return before calling
+them otherwise. Both families report `TARGET_GENERAL` and answer
+`wants_block()` with true, so the sampler reaches them through
+`logdens_block()` and `score_info_block()`, which they override themselves and
+which cost one virtual call per *leaf*. For `RFamily` the point is sharper than
+neutral: its `score_info_unit()` calls `score_info_block()` on a single
+observation, so the per-observation route is one call into R per observation,
+and `wants_block()` exists precisely to keep the sampler off it.
+
+**Item 5 is fixed by making every `Concrete` leaf `final`** (27 of them), which
+turns the trap from a silent wrong answer into a compile error and costs
+nothing at runtime. A `typeid` check in `Concrete`'s constructor would not have
+worked anyway: during base-class construction `typeid(*this)` is the base being
+constructed, not the final type, so the check would have to run after
+construction and would need a hook to run from.
+
+`DPMFamily` is the one exception, because `DPMAFTFamily` derives from it. It
+keeps a comment stating the constraint -- a subclass must not override a unit
+method -- and naming `DPMAFTFamily` as the one subclass, which overrides
+`update_aux()` and `reported_loglik()` and no unit method. `DPMAFTFamily` is
+itself `final`, so the chain stops there.
+
+Verified: the families, `bcf`, `varying`, `dpm`, `custom`, `interop`,
+`categorical`, `latent`, `mnp`, `newfamilies` and `tweedie` files pass with no
+failures, and the full suite was re-run afterwards. The harness is
+`_dev/review-bench.R`'s sibling logic; the `vc` configurations are not in that
+file and were run from a scratch script, so reproducing this table means
+writing the six configurations above against two libraries.
+
+### Also in the follow-up: modifiers, and a print that could not take a subset
+
+**`vc()` modifiers may now name a variable the fixed part leaves out.** It used
+to be an error, guarding against a typo being silently dropped by
+`intersect(asked, groups)`. Such a modifier is now given a design column of its
+own and reaches the forest that asked for it and no other, which the per-forest
+masks already supported -- they are built from each parameter's own fixed
+formula, so every control function excludes it. `vc_modifiers()` gained
+`slope_groups`, and `bartisan()` appends the terms to the frame, the design and
+the stored formula. The typo guard moved earlier, into `vc_modifier_only()`,
+where the offending `vc()` term is still in hand to be named. Motivated by
+difference-in-differences, where the effect must vary with event time and the
+control function must not see it; see `_dev/DID.md`.
+
+**`print.bartisan_importance()` failed on a column subset.** Subsetting keeps
+the class, so `vi[, c("variable", "prop_used")]` printed through the method,
+which rounded `splits` and `prop_splits` unconditionally: "non-numeric argument
+to mathematical function" on a column that was dropped or was never numeric. It
+now rounds a column only where one is present and numeric. Row subsets always
+worked, which is why this survived.
 
 ## What a future agent should know about this file
 

@@ -73,7 +73,7 @@ double inv_mills(double r) {
 // the point of the package, but it is the reference case for testing.
 // ---------------------------------------------------------------------------
 
-struct GaussianFamily : Concrete<GaussianFamily> {
+struct GaussianFamily final : Concrete<GaussianFamily> {
   double sigma;
   double sigma_hat;
 
@@ -149,7 +149,7 @@ struct GaussianFamily : Concrete<GaussianFamily> {
 // trials, so Bernoulli data is the special case of unit weights.
 // ---------------------------------------------------------------------------
 
-struct BinomialFamily : Concrete<BinomialFamily> {
+struct BinomialFamily final : Concrete<BinomialFamily> {
   enum Link { LOGIT, PROBIT, CLOGLOG };
   Link link;
 
@@ -353,7 +353,7 @@ struct BinomialFamily : Concrete<BinomialFamily> {
 // information, so a binomial-count response uses the direct probit family.
 // ---------------------------------------------------------------------------
 
-struct ProbitAugmentedFamily : Concrete<ProbitAugmentedFamily> {
+struct ProbitAugmentedFamily final : Concrete<ProbitAugmentedFamily> {
   arma::vec success;   // the observed response, 0 or 1
   arma::vec latent;    // z, redrawn every sweep
 
@@ -667,7 +667,7 @@ inline std::vector<std::vector<int> > group_by_category(const arma::vec& y,
 // update_ordinal_cuts() for why, and for what is done instead.
 // ---------------------------------------------------------------------------
 
-struct OrdinalProbitAugmentedFamily : Concrete<OrdinalProbitAugmentedFamily> {
+struct OrdinalProbitAugmentedFamily final : Concrete<OrdinalProbitAugmentedFamily> {
   int num_cat;
   arma::vec cuts;       // length num_cat - 1, cuts(0) fixed at 0
   bool update_cuts;
@@ -841,7 +841,7 @@ struct OrdinalProbitAugmentedFamily : Concrete<OrdinalProbitAugmentedFamily> {
 // straight afterwards.
 // ---------------------------------------------------------------------------
 
-struct OrdinalLogitAugmentedFamily : Concrete<OrdinalLogitAugmentedFamily> {
+struct OrdinalLogitAugmentedFamily final : Concrete<OrdinalLogitAugmentedFamily> {
   int num_cat;
   arma::vec cuts;       // length num_cat - 1, cuts(0) fixed at 0
   bool update_cuts;
@@ -1030,7 +1030,7 @@ struct OrdinalLogitAugmentedFamily : Concrete<OrdinalLogitAugmentedFamily> {
 // order statistics, which pins them to an interval of width O(1/n).
 // ---------------------------------------------------------------------------
 
-struct OrdinalCloglogAugmentedFamily : Concrete<OrdinalCloglogAugmentedFamily> {
+struct OrdinalCloglogAugmentedFamily final : Concrete<OrdinalCloglogAugmentedFamily> {
   int num_cat;
   arma::vec cuts;
   bool update_cuts;
@@ -1191,7 +1191,7 @@ struct OrdinalCloglogAugmentedFamily : Concrete<OrdinalCloglogAugmentedFamily> {
 // Poisson with log link.
 // ---------------------------------------------------------------------------
 
-struct PoissonFamily : Concrete<PoissonFamily> {
+struct PoissonFamily final : Concrete<PoissonFamily> {
   PoissonFamily(const arma::vec& y_, const arma::vec& w_)
     : Concrete<PoissonFamily>(y_, w_, 1) {}
 
@@ -1234,7 +1234,7 @@ struct PoissonFamily : Concrete<PoissonFamily> {
 // drawn by slice sampling on the log scale.
 // ---------------------------------------------------------------------------
 
-struct NegBinFamily : Concrete<NegBinFamily> {
+struct NegBinFamily final : Concrete<NegBinFamily> {
   double theta;
   double prior_shape;
   double prior_rate;
@@ -1361,7 +1361,7 @@ struct NegBinFamily : Concrete<NegBinFamily> {
 // shape, so that shape plays the role of the inverse dispersion.
 // ---------------------------------------------------------------------------
 
-struct GammaFamily : Concrete<GammaFamily> {
+struct GammaFamily final : Concrete<GammaFamily> {
   double shape;
   double prior_shape;
   double prior_rate;
@@ -1474,7 +1474,7 @@ struct GammaFamily : Concrete<GammaFamily> {
 // two-category case exactly binary regression with the matching link.
 // ---------------------------------------------------------------------------
 
-struct OrdinalFamily : Concrete<OrdinalFamily> {
+struct OrdinalFamily final : Concrete<OrdinalFamily> {
   int link;
   int num_cat;
   arma::vec cuts;   // length num_cat - 1, cuts(0) fixed at 0
@@ -1623,7 +1623,7 @@ struct OrdinalFamily : Concrete<OrdinalFamily> {
 // over the categories, which is the point.
 // ---------------------------------------------------------------------------
 
-struct MultinomFamily : Concrete<MultinomFamily> {
+struct MultinomFamily final : Concrete<MultinomFamily> {
   int num_cat;
   bool symmetric;
 
@@ -1687,7 +1687,7 @@ struct MultinomFamily : Concrete<MultinomFamily> {
 // gives log-logistic and normal gives log-normal.
 // ---------------------------------------------------------------------------
 
-struct AFTFamily : Concrete<AFTFamily> {
+struct AFTFamily final : Concrete<AFTFamily> {
   enum Dist { WEIBULL, LOGLOGISTIC, LOGNORMAL };
   Dist dist;
   arma::vec event;
@@ -1873,7 +1873,7 @@ struct AFTFamily : Concrete<AFTFamily> {
 // way.
 // ---------------------------------------------------------------------------
 
-struct LognormalAFTAugmentedFamily : Concrete<LognormalAFTAugmentedFamily> {
+struct LognormalAFTAugmentedFamily final : Concrete<LognormalAFTAugmentedFamily> {
   arma::vec obs;      // log of the observed time, a failure or a censoring
   arma::vec event;    // 1 for an observed failure, 0 for right-censored
   arma::vec latent;   // the imputed log failure time; equal to obs when observed
@@ -1992,7 +1992,7 @@ struct LognormalAFTAugmentedFamily : Concrete<LognormalAFTAugmentedFamily> {
 // b = 2, where the tilting term kappa = a - b / 2 vanishes -- gives each
 // observation its own precision and makes the target quadratic. The same device
 // the ordinal logit uses.
-struct LoglogisticAFTAugmentedFamily
+struct LoglogisticAFTAugmentedFamily final
   : Concrete<LoglogisticAFTAugmentedFamily> {
   arma::vec obs;
   arma::vec event;
@@ -2158,7 +2158,7 @@ struct LoglogisticAFTAugmentedFamily
 // construction, in the relative-survival setting.
 // ---------------------------------------------------------------------------
 
-struct PHFamily : Concrete<PHFamily> {
+struct PHFamily final : Concrete<PHFamily> {
   arma::vec event;
   int num_bins;
   arma::vec edges;        // lower edge of each bin; edges(0) is 0
@@ -2345,7 +2345,7 @@ struct PHFamily : Concrete<PHFamily> {
 // the predictors.
 // ---------------------------------------------------------------------------
 
-struct GaussianLSFamily : Concrete<GaussianLSFamily> {
+struct GaussianLSFamily final : Concrete<GaussianLSFamily> {
 
   // Quadratic in the mean, and in the log standard deviation the *exponential*
   // form at rate -2: the log density is
@@ -2407,7 +2407,7 @@ struct GaussianLSFamily : Concrete<GaussianLSFamily> {
 // the same object either way.
 // ---------------------------------------------------------------------------
 
-struct GammaLSFamily : Concrete<GammaLSFamily> {
+struct GammaLSFamily final : Concrete<GammaLSFamily> {
 
   // In the mean, the exponential form at rate -1, exactly as Gamma("log"):
   // holding eta1 fixed the log density is -s eta0 - s y exp(-eta0), which is
@@ -2538,7 +2538,7 @@ double zi_loglik_one(double y_i, const double* eta, double theta,
 
 } // namespace
 
-struct ZeroInflatedFamily : Concrete<ZeroInflatedFamily> {
+struct ZeroInflatedFamily final : Concrete<ZeroInflatedFamily> {
   bool negbin;
   double theta;
   double prior_shape;
@@ -2699,7 +2699,7 @@ struct ZeroInflatedFamily : Concrete<ZeroInflatedFamily> {
 // nothing to identify them.
 // ---------------------------------------------------------------------------
 
-struct BetaFamily : Concrete<BetaFamily> {
+struct BetaFamily final : Concrete<BetaFamily> {
   double phi;
   double prior_shape;
   double prior_rate;
@@ -2917,7 +2917,7 @@ struct BetaFamily : Concrete<BetaFamily> {
 
 // ---------------------------------------------------------------------------
 
-struct OrdBetaFamily : Concrete<OrdBetaFamily> {
+struct OrdBetaFamily final : Concrete<OrdBetaFamily> {
   double cut1;
   double cut2;
   double phi;
@@ -3293,7 +3293,7 @@ struct OrdBetaFamily : Concrete<OrdBetaFamily> {
 // peak index, so a small dispersion costs little more.
 // ---------------------------------------------------------------------------
 
-struct TweedieFamily : Concrete<TweedieFamily> {
+struct TweedieFamily final : Concrete<TweedieFamily> {
   double phi;
   double power;
   double prior_shape;
@@ -3623,7 +3623,7 @@ arma::vec unit_weights(arma::uword n) {
 
 } // namespace
 
-struct LogitAugmentedFamily : Concrete<LogitAugmentedFamily> {
+struct LogitAugmentedFamily final : Concrete<LogitAugmentedFamily> {
   arma::vec trials;     // the prior weights, which are the binomial denominators
   arma::vec successes;
   arma::vec kappa;
@@ -3713,7 +3713,7 @@ struct LogitAugmentedFamily : Concrete<LogitAugmentedFamily> {
 // lambda is then redrawn given the new theta. Updating a parameter from its
 // collapsed conditional and then the latent variable it was collapsed over is a
 // valid partially collapsed Gibbs step in that order (Van Dyk and Park 2008).
-struct NegBinAugmentedFamily : Concrete<NegBinAugmentedFamily> {
+struct NegBinAugmentedFamily final : Concrete<NegBinAugmentedFamily> {
   arma::vec count;
   arma::vec rate;     // lambda, the Poisson rate, redrawn every sweep
   double theta;
@@ -3851,7 +3851,7 @@ struct NegBinAugmentedFamily : Concrete<NegBinAugmentedFamily> {
 //
 // The rate of a structural zero is never used -- its observation's contribution
 // to the count target is multiplied by (1 - z) -- so it is not drawn.
-struct ZeroInflatedAugmentedFamily : Concrete<ZeroInflatedAugmentedFamily> {
+struct ZeroInflatedAugmentedFamily final : Concrete<ZeroInflatedAugmentedFamily> {
   arma::vec count;
   arma::vec structural;   // z, one when the observation is a structural zero
   arma::vec rate;         // lambda, the Poisson rate, negative binomial only
@@ -4128,6 +4128,15 @@ arma::mat inverse_wishart(double df, const arma::mat& scatter) {
 // family here uses -- there is no conjugate mixture update to be had from it.
 // ---------------------------------------------------------------------------
 
+// The one `Concrete` family that is not `final`, because `DPMAFTFamily` derives
+// from it. That inheritance carries a trap worth naming: `Concrete`'s loops call
+// `self.DPMFamily::logdens_unit()` non-virtually, so a subclass that overrode a
+// unit method would have it honored by `Family::logdens()` and bypassed by the
+// hot path -- two answers for one density, differing only where it is most
+// expensive to notice. `DPMAFTFamily` overrides `update_aux()` and
+// `reported_loglik()` and no unit method, which is what makes it safe. Every
+// other family here is `final`, so the compiler rules the mistake out; a new
+// subclass of this one has to be checked by eye.
 struct DPMFamily : Concrete<DPMFamily> {
   // Per-observation error mean and variance, which are what the predictor's
   // target sees.
@@ -4571,7 +4580,7 @@ struct DPMFamily : Concrete<DPMFamily> {
 // the error distribution here is the more flexible of the two.
 // ---------------------------------------------------------------------------
 
-struct DPMAFTFamily : DPMFamily {
+struct DPMAFTFamily final : DPMFamily {
   arma::vec obs;      // log of the observed time, an event or a censoring
   arma::vec event;
 
@@ -4705,7 +4714,7 @@ struct DPMAFTFamily : DPMFamily {
 // noise to the chain. Predictions simulate too, with fresh draws.
 // ---------------------------------------------------------------------------
 
-struct MultinomProbitFamily : Concrete<MultinomProbitFamily> {
+struct MultinomProbitFamily final : Concrete<MultinomProbitFamily> {
   arma::vec category;      // observed category, 0 for the reference level
   int num_cat;
   arma::mat latent;        // W, C by N
@@ -5024,7 +5033,7 @@ struct MultinomProbitFamily : Concrete<MultinomProbitFamily> {
 // categories the likelihood of category j is exactly binomial-logistic in
 // eta_j - log C_j, so the same augmentation applies with one Polya-Gamma draw
 // per observation per category.
-struct MultinomAugmentedFamily : Concrete<MultinomAugmentedFamily> {
+struct MultinomAugmentedFamily final : Concrete<MultinomAugmentedFamily> {
   arma::vec category;
   int num_cat;
   bool symmetric;
@@ -5188,6 +5197,14 @@ arma::vec call_r(const Rcpp::Function& f, const double* x, int n,
 // non-negative, where the full second derivative is not. Since these numbers
 // only ever build a proposal, and the exact log density is what the acceptance
 // ratio uses, dropping the term costs a little efficiency and nothing else.
+// Deliberately not `Concrete`. `Concrete` earns its keep in `accumulate1()` and
+// `accumulate2()`, and those are reached only when the target is quadratic or
+// exponential (see `Target1`/`Target2` in mcmc.cpp, which return early
+// otherwise). This family reports `TARGET_GENERAL` and answers `wants_block()`
+// with true, so the sampler reaches it through `logdens_block()` and
+// `score_info_block()`, which it overrides itself and which cost one virtual
+// call per leaf rather than per observation. Deriving from `Concrete` would
+// change no call this family actually receives.
 struct LinkedFamily : Family {
   std::unique_ptr<Family> inner;
   Rcpp::Function theta;
@@ -5325,6 +5342,11 @@ struct LinkedFamily : Family {
 // gradient it produces is a little coarse, but it is a deterministic function
 // of the state, which is what reversibility needs, and only the proposal
 // depends on it.
+// Not `Concrete`, for the reason given above `LinkedFamily`, and here the
+// reason is stronger: this family's log density is an R function, its
+// `score_info_unit()` calls `score_info_block()` on a single observation, and
+// the per-observation route would therefore be one call into R per observation.
+// `wants_block()` is true precisely to keep the sampler off that route.
 struct RFamily : Family {
   Rcpp::Function dens;
   Rcpp::Function derivs;
@@ -5620,7 +5642,7 @@ Family* finish(Family* family) {
 // This is Deshpande, Bai, Balocchi, Starling and Weiss (2026), and the case of
 // one binary column is the Bayesian causal forest of Hahn, Murray and Carvalho
 // (2020).
-struct VaryingCoefficientFamily : Family {
+struct VaryingCoefficientFamily final : Concrete<VaryingCoefficientFamily> {
   std::unique_ptr<Family> inner;
   arma::mat basis;
 
@@ -5647,10 +5669,12 @@ struct VaryingCoefficientFamily : Family {
                            const std::vector<std::string>& b_labels_,
                            const arma::ivec& param_,
                            const arma::ivec& column_)
-    : Family(inner_->y, inner_->w, static_cast<int>(param_.n_elem)),
+    : Concrete<VaryingCoefficientFamily>(inner_->y, inner_->w,
+                                         static_cast<int>(param_.n_elem)),
       inner(inner_), basis(basis_), coding(coding_),
       coding_levels(coding_levels_), b_labels(b_labels_),
       param(param_), column(column_) {
+    mu_unit.assign(static_cast<std::size_t>(inner->H), 0.0);
 
     if (coding_levels.n_elem == 0) {
       return;
@@ -5763,17 +5787,21 @@ struct VaryingCoefficientFamily : Family {
     }
   }
 
+  // The inner family's predictors for one observation. `combine_all()` writes
+  // every entry before any is read, so one buffer serves every call; this was
+  // a `std::vector` constructed and destroyed per observation, which on a
+  // quadratic inner family sits in the innermost loop of the sampler.
+  mutable std::vector<double> mu_unit;
+
   double logdens_unit(int i, const double* eta) const override {
-    std::vector<double> mu(inner->H);
-    combine_all(i, eta, mu.data());
-    return inner->logdens_unit(i, mu.data());
+    combine_all(i, eta, mu_unit.data());
+    return inner->logdens_unit(i, mu_unit.data());
   }
 
   void score_info_unit(int i, const double* eta, int h, double* d1,
                        double* d2) const override {
-    std::vector<double> mu(inner->H);
-    combine_all(i, eta, mu.data());
-    inner->score_info_unit(i, mu.data(), param(h), d1, d2);
+    combine_all(i, eta, mu_unit.data());
+    inner->score_info_unit(i, mu_unit.data(), param(h), d1, d2);
 
     double s = slope(i, h);
     *d1 *= s;
@@ -5781,16 +5809,14 @@ struct VaryingCoefficientFamily : Family {
   }
 
   double dlogdens_unit(int i, const double* eta, int h) const override {
-    std::vector<double> mu(inner->H);
-    combine_all(i, eta, mu.data());
-    return inner->dlogdens_unit(i, mu.data(), param(h)) * slope(i, h);
+    combine_all(i, eta, mu_unit.data());
+    return inner->dlogdens_unit(i, mu_unit.data(), param(h)) * slope(i, h);
   }
 
   double info_unit(int i, const double* eta, int h) const override {
-    std::vector<double> mu(inner->H);
-    combine_all(i, eta, mu.data());
+    combine_all(i, eta, mu_unit.data());
     double s = slope(i, h);
-    return inner->info_unit(i, mu.data(), param(h)) * s * s;
+    return inner->info_unit(i, mu_unit.data(), param(h)) * s * s;
   }
 
   // The block form gets the same treatment. `block` is H doubles per

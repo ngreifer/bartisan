@@ -243,11 +243,22 @@ print.bartisan_importance <- function(x, digits = 3L, ...) {
   # still there for anyone who wants them.
   show[c("splits_lower", "splits_upper")] <- NULL
 
-  for (nm in c("prop_used", "prop_splits")) {
-    show[[nm]] <- round(show[[nm]], digits)
+  # Only the columns that are still there and still numeric. Subsetting a
+  # `<bartisan_importance>` keeps its class, so `vi[, c("variable",
+  # "prop_used")]` prints through here, and rounding a column the subset
+  # dropped -- or a character column it kept -- is an error rather than a
+  # narrower table.
+  round_if <- function(nm, d) {
+    if (!is_null(show[[nm]]) && is.numeric(show[[nm]])) {
+      show[[nm]] <<- round(show[[nm]], d)
+    }
   }
 
-  show[["splits"]] <- round(show[["splits"]], 1L)
+  for (nm in c("prop_used", "prop_splits")) {
+    round_if(nm, digits)
+  }
+
+  round_if("splits", 1L)
 
   print(show, row.names = FALSE)
   cli::cat_line()
