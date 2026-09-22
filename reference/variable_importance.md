@@ -155,7 +155,7 @@ fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
                 num_burn = 50, num_draws = 50, sparsity = TRUE,
                 verbose = FALSE)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 imp <- variable_importance(fit)
 imp
@@ -197,7 +197,7 @@ big <- bartisan(death ~ . - days, data = rhc, num_trees = 40,
                 num_burn = 50, num_draws = 50, sparsity = TRUE,
                 verbose = FALSE)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 merge(variable_importance(fit)[c("variable", "prop_splits")],
       variable_importance(big)[c("variable", "prop_splits")],

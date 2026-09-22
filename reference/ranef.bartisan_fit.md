@@ -84,7 +84,7 @@ d$y <- rnorm(200, d$x + as.numeric(d$site) / 3)
 fit <- bartisan(y ~ x + (1 | site), data = d, num_trees = 10,
                 num_burn = 50, num_draws = 50, verbose = FALSE)
 #> ℹ Using `family = dpm()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 # One intercept per site, as posterior means. The generic is \pkg{nlme}'s,
 # which \pkg{lme4} re-exports, so either qualification reaches this.

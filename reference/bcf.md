@@ -242,7 +242,7 @@ head(coef(fit))
 estimate_effect(fit)
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate    lower  upper    n
@@ -256,7 +256,7 @@ estimate_effect(fit)
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 
 # Or the whole picture at once
 summary(fit)

@@ -223,7 +223,7 @@ way, because it places cutpoints by rank and knows nothing about
 spacing. It fails instead by being a step function, so the fit is a step
 function of the original predictor: there is no derivative to take, and
 a relationship that is straight in the predictor becomes a staircase
-wherever the data are gappy. On two tight clusters with a linear truth
+wherever the data have gaps. On two tight clusters with a linear truth
 it was nearly three times worse than the alternatives.
 
 `"smoothcdf"`, the default, smooths that same distribution function and
@@ -268,13 +268,11 @@ grid point than the kernel reaches has passed it entirely and
 contributes 1, one further above contributes 0, and only those within
 \\h\\ need evaluating. With the data and the grid both sorted, the two
 ends of that window advance monotonically, so each is found by a pointer
-that never goes back and the sweep costs \\O(n + m)\\. For ten
-predictors at \\n = 10{,}000\\ that is 6 ms rather than 4.4 seconds, and
-unlike a Gaussian truncated at five bandwidths it is exact.
+that never goes back and the sweep costs \\O(n + m)\\.
 
 ### Sparsity (`sparsity`)
 
-By default the variable a rule splits on is drawn from a categorical
+By default, the variable a rule splits on is drawn from a categorical
 distribution whose probabilities have a Dirichlet prior ([Linero
 2018](#ref-linero2018sparse)):
 
@@ -314,13 +312,11 @@ at 50 trees the noise predictors are used in 95% of draws and are
 indistinguishable from the real ones. With it, the noise predictors stay
 near zero at every tree count, and reducing the trees buys little. The
 recommendation is a workaround for the absence of the prior rather than
-a property of variable selection in general.
-
-Two things this does not fix. Sparsity needs signal, so on a small
-sample with a weak fit nothing separates, and the honest reading of a
-flat table is that the data cannot rule anything out; and it says
-nothing about effect size, since a predictor can be split on constantly
-and move the prediction very little.
+a property of variable selection in general. However, sparsity needs
+signal, so on a small sample with a weak fit, nothing separates, and the
+honest reading of a flat table is that the data cannot rule anything
+out; and it says nothing about effect size, since a predictor can be
+split on constantly and move the prediction very little.
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md)
 covers both.
 
@@ -544,7 +540,7 @@ they run in parallel:
 
 ``` r
 
-future::plan(future::multisession, workers = 4)
+future::plan("multisession", workers = 4)
 
 fit <- bartisan(y ~ ., data = d, chains = 4)
 diagnose(fit)
@@ -681,30 +677,12 @@ Every cell is the median over replicates of the ratio *within* a
 replicate, which is the reading the design supports: both arms see the
 same data, so the paired ratio is the quantity with the least noise in
 it, and a median rather than a mean because a wall-clock timing can be
-disturbed by work outside the fit (see below). The bracketed range is an
-80% bootstrap interval over the replicates, and it is in the table
-because without it the column invites conclusions it cannot support: at
-three replicates the same quantity varied by a median factor of 4.5
-within a single cell, since the worst-quantity effective sample size is
-a minimum over many quantities and so is a high-variance thing to
-estimate. The median quantity is the stabler reading, and comparing the
-two columns is informative on its own: those ratios run .49 to 1.30
-where the worst-quantity ones run .43 to 1.49, so a family whose worst
-corner mixes noticeably better or worse under augmentation has usually
-moved less than that as a whole.
-
-These are wall-clock timings, so they are only as good as the machine
-was quiet. An earlier measurement of the four ordinal rows recorded one
-`augment = FALSE` fit at 3882 seconds against 30 to 43 for the other
-fourteen replicates of its cell, and two more at about 600 against 51 to
-65. Re-running the four cells with the machine to itself returned all
-120 fits’ effective sample sizes unchanged to the last recorded digit,
-so those three had done identical work; they came back at 34, 65 and 65
-seconds, and each had overlapped another job on the same machine. The
-rows above are that clean run, in which the un-augmented fits take 32 to
-38 seconds under hard rules and 61 to 69 under soft. Medians are used
-throughout regardless, since they are what keeps a table of timings
-robust to that kind of accident.
+disturbed by work outside the fit. The bracketed range is an 80%
+bootstrap interval over the replicates, and it is in the table because
+without it the column invites conclusions it cannot support: at three
+replicates the same quantity varied by a median factor of 4.5 within a
+single cell, since the worst-quantity effective sample size is a minimum
+over many quantities and so is a high-variance thing to estimate.
 
 `augment` is on by default for every family that has a rewriting: the
 binomial, ordinal, multinomial, negative binomial, zero-inflated, and
@@ -755,14 +733,14 @@ partially collapsed Gibbs sampler ([van Dyk and Park
 2008](#ref-vandyk2008)), which is the standard remedy ([Cowles
 1996](#ref-cowles1996)).
 
-The cumulative **logit** has no latent normal, its latent variable being
+The ordinal logit has no latent normal, its latent variable being
 logistic, and the usual route to one goes through the Kolmogorov-Smirnov
-density, which needs a sampler of its own. It does not have to. Polson
-et al. ([2013](#ref-polson2013))’s Theorem 1 at \\a = 1\\, \\b = 2\\
-says that the standard logistic density is \\\frac{1}{4} E\[\exp(-w x^2
-/ 2)\]\\ with \\w \sim \mathrm{PG}(2, 0)\\, so a logistic residual is a
-normal whose precision is Pólya-Gamma; and because \\\mathrm{PG}(b, c)\\
-is \\\mathrm{PG}(b, 0)\\ tilted by \\\exp(-c^2 w / 2)\\, the precision’s
+density, which needs a sampler of its own. However, Polson et al.
+([2013](#ref-polson2013))’s Theorem 1 at \\a = 1\\, \\b = 2\\ says that
+the standard logistic density is \\\frac{1}{4} E\[\exp(-w x^2 / 2)\]\\
+with \\w \sim \mathrm{PG}(2, 0)\\, so a logistic residual is a normal
+whose precision is Pólya-Gamma; and because \\\mathrm{PG}(b, c)\\ is
+\\\mathrm{PG}(b, 0)\\ tilted by \\\exp(-c^2 w / 2)\\, the precision’s
 conditional given a residual \\r\\ is exactly \\\mathrm{PG}(2, \lvert r
 \rvert)\\. That is an integer-parameter draw, which the exact Devroye
 sampler already in the package covers, so the logit link gets the same
@@ -787,16 +765,14 @@ sends the Fisher-scoring proposal to the wrong place.
 
 Over 40 replicate datasets at \\n = 500\\ with 10 predictors and the
 default settings, 95% credible intervals for the additive predictor
-cover the truth .964 of the time for a Gaussian response, .961 binomial,
-.973 Poisson, and .970 gamma, each with a Monte Carlo standard error
-near .006. Nominal coverage is .95, so these intervals are mildly
-conservative rather than deficient, and the binomial sits .008 below the
-other three, which at this replicate count is not a difference (p =
-.35). The ratio of absolute bias to posterior standard deviation runs
-.69 to .74, so the posterior spread is comfortably larger than the
-distance from the truth, which is the same fact read a second way. Four
-chains and five times the draws move neither number (p = .20 and p =
-.18), so mixing is not what sets them. All of this is one
+covered the truth .964 of the time for a Gaussian response, .961
+binomial, .973 Poisson, and .970 gamma, each with a Monte Carlo standard
+error near .006. Nominal coverage is .95, so these intervals are mildly
+conservative rather than deficient. The ratio of absolute bias to
+posterior standard deviation runs .69 to .74, so the posterior spread is
+comfortably larger than the distance from the truth, which is the same
+fact read a second way. Four chains and five times the draws move
+neither number, so mixing is not what sets them. All of this is one
 data-generating process: a mean function of moderate spread mapped to
 each family’s link, which for the binomial keeps the success
 probabilities informative. A response whose probabilities sit near 0 or
@@ -807,9 +783,13 @@ account rather than because of anything measured here.
 ## Comparison With Other BART Packages
 
 Below we compare *bartisan*’s capabilities to those of other popular
-BART R packages: *dbarts* 0.9.34, *BART* 2.9.10, *flexBART* 2.0.3,
-*SoftBart* 1.0.3, *bartMachine* 1.4.2, and *stochtree* 0.4.5. A dash
-means the package does not offer the feature.
+BART R packages: [*dbarts*](https://cran.r-project.org/package=dbarts)
+0.9.34, [*BART*](https://cran.r-project.org/package=BART) 2.9.10,
+[*flexBART*](https://cran.r-project.org/package=flexBART) 2.0.3,
+[*SoftBart*](https://cran.r-project.org/package=SoftBart) 1.0.3,
+[*bartMachine*](https://cran.r-project.org/package=bartMachine) 1.4.2,
+and [*stochtree*](https://cran.r-project.org/package=stochtree) 0.4.5. A
+dash means the package does not offer the feature.
 
 |  | bartisan | dbarts | BART | flexBART | SoftBart | bartMachine | stochtree |
 |----|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
@@ -824,7 +804,7 @@ means the package does not offer the feature.
 | Zero-inflated counts | ✓ | — | — | — | — | — | — |
 | Survival | ✓ 3 AFT, PH | — | ✓ **+ recurrent, competing risks** | — | — | — | — |
 | Heteroskedastic | ✓ | — | — | ✓ | — | — | ✓ |
-| Error distribution itself modeled | ✓ | — | — | — | — | — | — |
+| Error distribution itself modeled (DPM) | ✓ | — | — | — | — | — | — |
 | A likelihood written by the user | ✓ | — | — | — | — | — | — |
 | **Rules and priors** |  |  |  |  |  |  |  |
 | Hard decision rules | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
@@ -839,7 +819,7 @@ means the package does not offer the feature.
 | Treatment-effect (BCF) structure | ✓ | — | — | — | — | — | ✓ |
 | Formula interface | ✓ | ✓ | — | ✓ | — | — | — |
 | **Running it** |  |  |  |  |  |  |  |
-| Several chains | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
+| Multiple chains | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
 | Threads inside one chain | — | ✓ | ✓ | — | — | ✓ | ✓ |
 | Grow-from-root warm start | — | — | — | — | — | — | ✓ |
 | Cross-validation over hyperparameters | — | ✓ | — | — | — | ✓ | — |
@@ -851,17 +831,16 @@ means the package does not offer the feature.
 | Formal variable-selection test | ✓ inclusion | — | ✓ permutation | — | ✓ inclusion | ✓ permutation | — |
 | Partial dependence | ✓ | ✓ | — | — | ✓ | ✓ | — |
 | Interaction detection | ✎ | — | — | — | — | ✓ | — |
-| Counterfactual estimands with intervals | ✓ | — | — | — | — | — | — |
-| ATE, ATT or per-unit treatment effects | ✓ | — | — | — | — | — | — |
-| Cross-validated model comparison | ✓ | — | — | — | — | — | — |
+| Counterfactual estimands with intervals | ✓ | ✎ (through [*bartCause*](https://cran.r-project.org/package=bartCause)) | — | — | — | — | ✎ (through [*bartCause*](https://cran.r-project.org/package=bartCause)) |
+| ATE, ATT or per-unit treatment effects | ✓ | ✎ (through [*bartCause*](https://cran.r-project.org/package=bartCause)) | — | — | — | — | ✎ (through [*bartCause*](https://cran.r-project.org/package=bartCause)) |
+| Cross-validated model comparison (`loo`) | ✓ | — | — | — | — | — | — |
 
 **✎ means a helper package covers it, not this one.** Interaction
 detection is the remaining one, and *bartisan* does it through
 *marginaleffects*, because a fit works with it and every estimand there
 is computed by pushing the draws through:
 `avg_comparisons(variables = "x", by = "z")` and `hypotheses(~pairwise)`
-are interaction detection, and neither needs code here. Partial
-dependence used to sit in the same row and now does not:
+are interaction detection, and neither needs code here.
 [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
 averages the fitted surface over the sample at each value of one or two
 predictors, and [`plot()`](https://rdrr.io/r/graphics/plot.default.html)
@@ -883,154 +862,64 @@ there. The other is a permutation test ([Bleich et al.
 to the predictors has been broken and thresholds the splitting shares
 against the resulting null rather than against .5. *bartMachine* offers
 all three of its thresholds and *BART* offers the third one,
-`BART::mc.wbart.gse()`; *bartisan* offers none of them, and that is the
-actual gap.
-
-It is a gap worth closing, because the two answer differently. Measured
-over 20 replicates at \\n = 300\\ with 25 predictors, 3 of them real,
-and 20 trees: on data where nothing matters, the .5 cut selected a null
-predictor in every replicate, 7 of the 25 on average with the sparsity
-prior and all 25 without, while the two simultaneous permutation
-thresholds selected one in 1 replicate of 10 against a nominal .05. The
-.5 cut is a rule for choosing a predictive submodel and behaves like
-one; only the permutation null controls a false-positive rate. The cost
-is not the obstacle either, since a hundred fits of a 20-tree model runs
-in seconds for a cheap family. The obstacle is that the two corrections
-do not compose: run the permutation test with `sparsity = TRUE` and
-power collapses, to .12 for the max threshold and .37 for the SE one
-against .75 and .82 with `sparsity = FALSE`, because the prior shrinks
-the null distribution by the same mechanism it shrinks the observed
-shares. Anything implemented here would have to fit its null with the
-sparsity prior off, and say so.
+`BART::mc.wbart.gse()`; *bartisan* offers none of them.
 
 The other columns worth reading as gaps rather than as differences are
 these. There are no threads inside a chain, so a single chain is
 single-core here where *dbarts*, *BART*, *bartMachine*, and *stochtree*
-all use several; chains do run in parallel, which is the cheaper win,
-but it does not help one chain. There is no cross-validation over `k`,
-`num_trees`, or the tree prior, which `dbarts::xbart()` and
-`bartMachine::bartMachineCV()` both automate. There is no grow-from-root
-warm start, which is *stochtree*’s way of shortening burn-in. And there
-is no JSON serialization, so a fit round-trips through
-[`saveRDS()`](https://rdrr.io/r/base/readRDS.html) and not into another
-language. On survival, *BART* is ahead: recurrent events and competing
-risks are there and here they are not.
+all use several; chains do run in parallel, but it does not help one
+chain. There is no cross-validation over `k`, `num_trees`, or the tree
+prior, which `dbarts::xbart()` and `bartMachine::bartMachineCV()` both
+automate. There is no grow-from-root warm start, which is *stochtree*’s
+way of shortening burn-in. And there is no JSON serialization, so a fit
+round-trips through [`saveRDS()`](https://rdrr.io/r/base/readRDS.html)
+and not into another language. On survival, *BART* is ahead: recurrent
+events and competing risks are there and here they are not.
 
 Three more packages are single-purpose rather than general, so they are
 not columns above: [*bcf*](https://CRAN.R-project.org/package=bcf) fits
 Bayesian causal forests only,
 [*VCBART*](https://github.com/skdeshpande91/VCBART) varying-coefficient
-models only, and *bartCause* wraps *dbarts* for causal estimands.
+models only, and *bartCause* wraps *dbarts* and *stan4bart* for causal
+estimands.
 
 ## Notes and Limitations
 
-Soft rules cost more per iteration than hard ones, because an
-observation near a cutpoint has to be followed down both sides of it
-rather than into one cell, so a leaf that a hard rule would skip still
-has to be evaluated. The gap is about a factor of \\B\\, the number of
-leaves, and the reason it comes out near three rather than near a
-hundred is the tree prior: it keeps trees to about two and a half leaves
-on average, so there is not much for the softening to multiply.
-
-Absolute timings are machine- and load-dependent, so these are
-indicative rather than exact; repeated runs on the same laptop varied by
-about 20%. As an anchor, a Gaussian response with 10 predictors, 50 soft
-trees, and the default 200 warmup plus 800 saved draws takes about three
-quarters of a second at \\n = 500\\ and about eight and a half seconds
-at \\n = 5000\\, measured at steady state on one core of an M-series
-Mac. Hard rules are about 3 times faster (2.9 times at \\n = 500\\ and
-3.1 at \\n = 5000\\), and doubling the tree count roughly doubles the
-cost.
-
-The ratios are stabler than the absolute times. Cost relative to a
-Gaussian fit at the same size is set by how expensive the family’s log
-density and its derivatives are:
-
-| Family | Relative cost |
-|----|----|
-| [`gaussian()`](https://rdrr.io/r/stats/family.html) | 1x |
-| [`binomial()`](https://rdrr.io/r/stats/family.html), either link | 1.1x |
-| `ordinal("probit")` | 1.2x |
-| [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 1.3x |
-| `ordinal("logit")` | 1.3x |
-| [`poisson()`](https://rdrr.io/r/stats/family.html) | 3.5x |
-| `Gamma("log")` | 5.5x |
-| [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 5.8x |
-| [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 6.7x |
-| [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 7.9x |
-| [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 8.0x |
-| [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), with `power` drawn | 9.7x |
-| [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 17x |
-| [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) | 22x |
+Soft rules cost more per iteration than hard ones because an observation
+near a cutpoint has to be followed down both sides of it rather than
+into one cell, so a leaf that a hard rule would skip still has to be
+evaluated. The gap is about a factor of \\B\\, the number of leaves, and
+the reason it comes out near three rather than near a hundred is the
+tree prior: it keeps trees to about two and a half leaves on average, so
+there is not much for the softening to multiply.
 
 [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-earns a note because it looks as though it should be far worse: its
-density has no closed form at a positive response, and normalizing it
+has no closed form density at a positive response, and normalizing it
 takes an infinite series ([Dunn and Smyth 2005](#ref-dunn2005)).
-Measured against a Gaussian fit of the same size it costs 6.7 times as
-much where `Gamma("log")` costs 5.5, so the series is not visible in the
-total. The reason is where the series sits. Writing the log density in
-exponential-dispersion form ([Jørgensen 1987](#ref-jorgensen1987))
-separates it into a part that moves with the predictor, which is closed
-form, and a normalizing term that does not depend on the predictor at
-all; the second goes in the eta-free part, which is evaluated once per
-sweep rather than at every leaf, and cancels from every acceptance ratio
-in between. Its length depends on the response and the dispersion but
-never on the mean, so it does not grow as the forest moves. Drawing
-`power` costs about 45% again, because the slice sampler has to re-sum
-the series at each candidate value and cannot use the table of
-log-gammas that a fixed power allows.
+However, writing the log density in exponential-dispersion form
+([Jørgensen 1987](#ref-jorgensen1987)) separates it into a part that
+moves with the predictor, which is closed form, and a normalizing term
+that does not depend on the predictor at all; the second goes in the
+eta-free part, which is evaluated once per sweep rather than at every
+leaf, and cancels from every acceptance ratio in between. Its length
+depends on the response and the dispersion but never on the mean, so it
+does not grow as the forest moves. Drawing `power` costs about 45%
+again, because the slice sampler has to re-sum the series at each
+candidate value and cannot use the table of log-gammas that a fixed
+power allows.
 
 [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-are the expensive ones because every evaluation of their log density
+are expensive families because every evaluation of their log density
 needs two log-gamma calls that no amount of restructuring removes.
 [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is at the other end, and only because of augmentation: all three of its
 links have a latent-variable representation that the sampler uses by
 default (a normal for the probit, a normal with a Pólya-Gamma precision
 for the logit, and an exponential waiting time for the complementary
-log-log), which is what puts it beside
-[`binomial()`](https://rdrr.io/r/stats/family.html) here.
-`augment = FALSE` turns them off, and the table above is then no guide
-at all; the augmentation table earlier in this section is.
-
-An ordinal model is identified only up to a common shift of its
-cutpoints and its predictor. With three or more categories the draws are
-reported in the chart where **the predictor has mean zero over the
-fitted sample and every cutpoint is free**, which makes the cutpoints
-readable as category boundaries. With two categories the single boundary
-is folded into the intercept instead, so the fit is on the same scale as
+log-log), which is what makes it almost as fast as
 [`binomial()`](https://rdrr.io/r/stats/family.html).
-
-That is [`MASS::polr()`](https://rdrr.io/pkg/MASS/man/polr.html)’s chart
-([Venables and Ripley 2002](#ref-venables2002)) with its predictors
-centered. `polr()` identifies the location by leaving the intercept out
-of the design matrix rather than by centering, so its `zeta` is shifted
-by the mean of its own linear predictor. Either of these lines puts the
-two side by side, and on a linear truth they agree to Monte Carlo error:
-
-``` r
-
-p <- MASS::polr(y ~ x1 + x2, data = d, method = "probit")
-p$zeta - mean(p$lp)                      # same chart as colMeans(fit$aux)
-```
-
-Two prediction types exist for reporting an ordinal fit on a single
-scale, both following *WeightIt*. `predict(type = "mean")` weights the
-category probabilities by the labels read as numbers, so levels `"1"`,
-`"2"`, and `"4"` give a mean between one and four, and `values` says
-what the categories are worth when the labels are not numbers.
-`predict(type = "stdlv")` divides the predictor by the standard
-deviation of the latent variable it indexes, which puts fits with
-different links, or different amounts of signal, on one scale; it works
-for [`binomial()`](https://rdrr.io/r/stats/family.html) too, since a
-binary response is the same construction with one threshold. Note that
-the complementary log-log error enters the two families with opposite
-signs, and
-[`?predict.bartisan_fit`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md)
-says why.
 
 The leaf scale is raised from near zero over the first quarter of
 warmup. Linero ([2025](#ref-linero2025)) describes this as essential:
@@ -1177,9 +1066,6 @@ van Dyk, David A., and Taeyoung Park. 2008. “Partially Collapsed Gibbs
 Samplers: Theory and Methods.” *Journal of the American Statistical
 Association* 103 (482): 790–96.
 <https://doi.org/10.1198/016214508000000409>.
-
-Venables, W. N., and B. D. Ripley. 2002. *Modern Applied Statistics with
-s*. 4th ed. Springer.
 
 [^1]: *BART*’s support is a set of binary fits rather than a multinomial
     model, which is worth knowing before the checkmark is read as a

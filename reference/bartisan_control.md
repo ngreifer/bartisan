@@ -604,13 +604,13 @@ ctrl <- bartisan_control(num_trees = 20, gate = "hard", num_burn = 50,
 
 fit <- bartisan(death ~ . - days, data = rhc, control = ctrl)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 # The same call, with the settings passed through `...` instead
 fit2 <- bartisan(death ~ . - days, data = rhc, num_trees = 20,
                  gate = "hard", num_burn = 50, num_draws = 50)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 # A setting given once applies to every forest, and a vector gives each
 # forest its own value. A variance surface needs less capacity than a

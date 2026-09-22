@@ -26,8 +26,8 @@ machine learning method.
 ## How can a machine learning method be Bayesian?
 
 Each parameter of the model, including which variables are used to split
-the trees, how deep each tree is, the predicted value in the tree, the
-residual variance, etc., are assigned a prior, and through running the
+the trees, how deep each tree is, the predicted value in the leaf, the
+residual variance, etc., is assigned a prior, and through running the
 model on the data, each model output gains a posterior. In traditional
 machine learning models, these parameters are given an individual value,
 or the values are tuned across a grid. The posterior enables Bayesian
@@ -76,10 +76,7 @@ For the quantities those do not cover,
 [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
 and its relatives work on a fit directly, including arbitrary contrasts
 between covariate values, hypotheses comparing one estimate to another,
-and slopes, which want `x_transform = "range"` in
-[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md),
-since a slope through the default transform carries an estimated density
-along with it. Because every draw goes through the same machinery either
+and slopes. Because every draw goes through the same machinery either
 way, the result carries a posterior rather than a point estimate with a
 delta-method standard error. See
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
@@ -98,8 +95,8 @@ the prior alongside the variable and the cutpoint, so the missingness is
 part of the model rather than something to impute first. This is
 missingness incorporated in attributes, and it means a covariate can be
 informative through whether it is observed as well as through its value.
-A missing *outcome* is different: those rows are dropped, with a warning
-saying how many.
+Missingness in the outcome is different: those rows are dropped, with a
+warning saying how many.
 
 ## Can I supply my own likelihood?
 
@@ -132,9 +129,9 @@ keeps soft rules while recovering some of that speed; it is not free,
 though, since the bandwidth update is what lets the rules sharpen toward
 a step, so it costs some mixing and some accuracy on a mean function
 with jumps. `update_bandwidth = FALSE` stops resampling it altogether,
-which is faster again and is *more* accurate on smooth functions and
-much worse on nonsmooth ones. Beyond those, run the chains in parallel
-with a *future* plan, which costs nothing in draws.
+which is faster again and can actually be more accurate on smooth
+functions but much worse on nonsmooth ones. Beyond those, run the chains
+in parallel with a *future* plan, which costs nothing in draws.
 
 ## What if I’m a frequentist?
 
@@ -184,11 +181,9 @@ propensity scores ([Hill et al.
 BART outcome model, can be used in doubly robust estimators like DML and
 TMLE. BART can also be used in instrumental variables analysis
 ([McCulloch et al.,
-n.d.](#ref-mccullochCausalInferenceInstrumental2021)), regression
+n.d.](#ref-mccullochCausalInferenceInstrumental2021)) and regression
 discontinuity ([Alcantara et al.,
-n.d.](#ref-alcantaraModifiedBARTLearning2024)), and
-difference-in-differences ([Souto and Neto,
-n.d.](#ref-soutoForestsDifferencesRobust2025)).
+n.d.](#ref-alcantaraModifiedBARTLearning2024)).
 
 ## What are Bayesian Causal Forests?
 
@@ -196,7 +191,7 @@ Bayesian Causal Forests (BCF) are a modification of BART used to
 estimate treatment effects ([Hahn et al. 2020](#ref-hahn2020)). In
 addition to flexibly modeling the relationship between the outcome and
 the covariates, it also flexibly models the relationship between the
-*magnitude of the treatment effect* and the covariates. In this way, BCF
+magnitude of the treatment effect and the covariates. In this way, BCF
 is a varying-coefficient model ([Deshpande et al.
 2026](#ref-deshpande2026)). Compared to traditional BART, BCF tends to
 have better calibrated intervals and regularization of heterogeneous
@@ -232,8 +227,9 @@ was asked for, and
 on the result says whether the estimand itself has mixed, which is not
 implied by the fit’s own diagnostics.
 
+See
 [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
-is the worked version, including the assumptions that turn the estimate
+for a worked version, including the assumptions that turn the estimate
 into a causal effect, which no model supplies.
 
 ## What papers should I read to better understand BART?
@@ -281,7 +277,7 @@ practice as possible, including models for different outcome types
 zero-inflated), soft trees, sparsity priors, varying coefficients,
 random effects, and more, all in a single package[^1]. There are ways in
 which *bartisan* is inferior to these more specialized packages, but as
-a general-purpose tool, I hope you’ll find it effective.
+a general-purpose tool, we hope you’ll find it effective.
 
 ## What model family should I use?
 
@@ -436,9 +432,5 @@ Snowden, Jonathan M., Sherri Rose, and Kathleen M. Mortimer. 2011.
 “Implementation of g-Computation on a Simulated Data Set: Demonstration
 of a Causal Inference Technique.” *American Journal of Epidemiology* 173
 (7): 731–38. <https://doi.org/10.1093/aje/kwq472>.
-
-Souto, Hugo Gobato, and Francisco Louzada Neto. n.d. *Forests for
-Differences: Robust Causal Inference Beyond Parametric DiD*.
-<https://doi.org/10.48550/arXiv.2505.09706>.
 
 [^1]: I am well aware of [this xkcd comic](https://xkcd.com/927/).

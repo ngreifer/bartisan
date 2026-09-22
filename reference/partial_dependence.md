@@ -139,7 +139,7 @@ fit <- bartisan(death ~ age + sex + meanbp + aps, data = rhc,
                 num_trees = 10, num_burn = 50, num_draws = 50,
                 verbose = FALSE)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 # How the fitted risk moves with mean blood pressure
 pd <- partial_dependence(fit, ~ meanbp)

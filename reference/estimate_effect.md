@@ -67,7 +67,13 @@ plot(x, ...)
 
   optional; a one-sided formula or a variable name naming a grouping
   variable, in which case the effect is averaged within each of its
-  levels rather than over the whole sample.
+  levels rather than over the whole sample. A formula is evaluated with
+  [`stats::model.frame()`](https://rdrr.io/r/stats/model.frame.html)
+  rather than read for the names it mentions, so it can define a
+  grouping the data has no column for, as in `by = ~ age > 50` or
+  `by = ~ interaction(sex, region)`. It must give exactly one grouping
+  variable, and the term as written names the column it occupies in the
+  output.
 
 - newdata:
 
@@ -244,13 +250,13 @@ fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 # The risk difference, averaged over everyone
 estimate_effect(fit)
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate    lower  upper    n
@@ -264,13 +270,13 @@ estimate_effect(fit)
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 
 # Among the treated, and as a risk ratio rather than a difference
 estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 #> Average treatment effect on the treated (ratio)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over the 565 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
@@ -284,7 +290,7 @@ estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 
 # One effect per unit, ordered, with the average behind them
 cate <- estimate_effect(fit, estimand = "CATE")
@@ -295,9 +301,9 @@ plot(cate)
 estimate_effect(fit, by = ~ sex)
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
-#> Within levels of "sex"
+#> Within levels of `sex`
 #> 
 #>     sex    contrast estimate    lower  upper   n
 #>  female Y[1] - Y[0]   0.0490 -0.00818 0.1270 676
@@ -311,5 +317,5 @@ estimate_effect(fit, by = ~ sex)
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```

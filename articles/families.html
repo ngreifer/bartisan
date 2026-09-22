@@ -16,7 +16,8 @@
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Response Families in bartisan">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
+<meta property="og:title" content="Response Families in bartisan">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -70,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-20</h4>
+            <h4 data-toc-skip class="date">2026-09-22</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/families.Rmd" class="external-link"><code>vignettes/families.Rmd</code></a></small>
       <div class="d-none name"><code>families.Rmd</code></div>
@@ -294,18 +295,18 @@ the predictors</td>
 dispersion varies with the predictors</td>
 </tr>
 <tr class="odd">
+<td>non-negative and continuous, with a point mass at zero</td>
+<td><code><a href="../reference/bartisan-families.html">tweedie()</a></code></td>
+</tr>
+<tr class="even">
 <td>a proportion strictly inside <span class="math inline">\((0,
 1)\)</span>
 </td>
 <td><code><a href="../reference/bartisan-families.html">Beta()</a></code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>a proportion that can equal 0 or 1</td>
 <td><code><a href="../reference/bartisan-families.html">ordbeta()</a></code></td>
-</tr>
-<tr class="odd">
-<td>non-negative and continuous, with a point mass at zero</td>
-<td><code><a href="../reference/bartisan-families.html">tweedie()</a></code></td>
 </tr>
 <tr class="even">
 <td>a 0/1 indicator, or a two-column matrix of successes and
@@ -330,10 +331,10 @@ produce</td>
 <tr class="even">
 <td>a time with censoring</td>
 <td>
+<code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>, the default for survival outcomes;
 <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>, <code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> or
-<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>; <code><a href="../reference/bartisan-families.html">ph()</a></code> for proportional hazards
-with a free baseline; <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> if the shape of the error
-is in doubt</td>
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> if the shape of the error is known;
+<code><a href="../reference/bartisan-families.html">ph()</a></code> for proportional hazards with a free baseline</td>
 </tr>
 <tr class="odd">
 <td>something else</td>
@@ -358,9 +359,9 @@ Poisson mean very low where the zeros are, so a zero-inflated family is
 for when the zero mechanism is a <em>separate process worth
 modeling</em>, not merely for when a histogram spikes at zero. The same
 caution applies to the multinomial probit’s latent correlations.</p>
-<p>When two families are both defensible, we can compare them rather
-than argue about them; <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> work
-on a fit:</p>
+<p>When two families are both defensible, we can compare them
+empirically rather than reason about them; <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and
+<code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> work on a fit:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># The count response used here and through the rest of the vignette</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">300</span></span>
@@ -380,6 +381,9 @@ on a fit:</p>
 <span><span class="co">#&gt; Diagnostic flags present.</span></span>
 <span><span class="co">#&gt; See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)</span></span>
 <span><span class="co">#&gt; or https://mc-stan.org/loo/reference/loo-glossary.html.</span></span></code></pre></div>
+<p>In this case, both models fit the data approximately equally well
+(i.e., due to the small <code>elpd_diff</code> relative to
+<code>se_diff</code>).</p>
 </div>
 <div class="section level2">
 <h2 id="the-default-family-family-omitted">The Default Family (<code>family</code> Omitted)<a class="anchor" aria-label="anchor" href="#the-default-family-family-omitted"></a>
@@ -428,16 +432,13 @@ columns look like non-negative times and 0/1 events, which give
 </tbody>
 </table>
 <p>The choice is reported when it is made, and naming
-<code>family</code> silences the message. That is the intended way to
-silence it: an inferred family is a modeling decision taken on the
-analyst’s behalf, so confirming it in the call is a better outcome than
-suppressing the notice.</p>
+<code>family</code> silences the message.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span><span class="op">$</span><span class="va">binary</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">binary</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Set `family` to choose another, which also silences this message.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span></span>
 <span></span>
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
@@ -458,8 +459,7 @@ rather than a reading of the response’s type.</p>
 <p>The number of distinct values does not enter into it: every numeric
 response gets <code><a href="../reference/bartisan-families.html">dpm()</a></code>. A response with only a handful of
 distinct values probably wants <code><a href="../reference/bartisan-families.html">ordinal()</a></code>, but that is a
-modeling decision, and a threshold would make the default arbitrary and
-hard to predict.</p>
+modeling decision <em>bartisan</em> will not make for you.</p>
 <p>Prior weights are taken by <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>,
 <code><a href="../reference/bartisan-families.html">ordinal()</a></code>, and <code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code> for a numeric
 response, and by the three other <code>*_aft()</code> families and
@@ -501,6 +501,7 @@ quantiles and predicted with <code>type = "mean"</code>, so its RMSE is
 on the same scale as the others; its density is on the binned scale and
 so has no comparable log score. A bold cell is one whose lead holds in
 every replicate.</p>
+<div class="wide-table">
 <table style="width:100%;" class="table">
 <colgroup>
 <col width="14%">
@@ -566,6 +567,7 @@ every replicate.</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p>Coverage was between .89 and 1.00 everywhere, with the four families’
 medians between .98 and 1.00, so it does not separate them. Four things
 to take from this:</p>
@@ -730,7 +732,7 @@ family exists to produce:</p>
 <span><span class="va">fit_dpm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">heavy</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
 <span>                    family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">dpm</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/error_density.html">error_density</a></span><span class="op">(</span><span class="va">fit_dpm</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/error_density.html">error_density</a></span><span class="op">(</span><span class="va">fit_dpm</span>, plot <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="families_files/figure-html/dpmplot-1.png" class="r-plt" alt="" width="715"></p>
 </div>
 </div>
@@ -749,18 +751,11 @@ no predictor and leaves that forest a sum of stumps:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">Gamma_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>          <span class="co"># dispersion varies</span></span>
 <span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="fl">1</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">Gamma_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>  <span class="co"># and held constant</span></span></code></pre></div>
-<p><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::Gamma()</a></code> defaults to
-<code>link = "inverse"</code>, which is the canonical link for the gamma
-and the wrong one here: the additive predictor is unconstrained, and
-only the log link’s inverse keeps the mean positive over the whole line.
-A draw that wanders non-positive has no gamma density at all, so it is
-rejected during fitting and <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns
-<code>NaN</code> there. So <em>bartisan</em> ignores any other link and
-fits on <code>"log"</code>, saying so once; writing
-<code>Gamma("log")</code> silences that. <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::Gamma()</a></code>
-itself is untouched, so attaching the package cannot change what
-<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> does. If another link for a gamma response is
-genuinely wanted, <code><a href="../reference/custom_family.html">custom_family()</a></code> is the route.
+<p><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">stats::Gamma()</a></code> normally defaults to
+<code>link = "inverse"</code> but <em>bartisan</em> fits on
+<code>"log"</code> and ignores any other link, saying so once; writing
+<code>Gamma("log")</code> silences that. If another link for a gamma
+response is genuinely wanted, <code><a href="../reference/custom_family.html">custom_family()</a></code> is the route.
 <code><a href="../reference/bartisan-families.html">Gamma_ls()</a></code> defaults to the log link without warning.</p>
 <p>We compared <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">Gamma()</a></code>, <code><a href="../reference/bartisan-families.html">Gamma_ls()</a></code>,
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> with a <code>"log"</code> link,
@@ -778,6 +773,7 @@ and higher log score are better. A bold cell is one whose lead over the
 next family holds in every replicate; four replicates separate the
 families on the log score but often not on RMSE, and the paragraphs
 below say which is which.</p>
+<div class="wide-table">
 <table style="width:100%;" class="table">
 <colgroup>
 <col width="16%">
@@ -840,6 +836,7 @@ below say which is which.</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p>A few things to take from this:</p>
 <p><code><a href="../reference/bartisan-families.html">Gamma_ls()</a></code> is the family to reach for when the
 dispersion might vary, and it costs almost nothing when it does not. In
@@ -902,10 +899,10 @@ exactly right, or in discrete time, where the cumulative version
 <em>is</em> the discrete proportional hazards model and the predictor is
 a log hazard ratio.</p>
 <p>With very few events, the whole fit mixes slowly regardless of the
-link because a handful of events carry little information: at 2000
-observations, the effective sample size of the level of the predictor
-fell from about 860 at half positives to 8 at 0.2%. Lengthen the chain
-and read <code><a href="../reference/diagnose.html">diagnose()</a></code>.</p>
+link because a handful of events carry little information: in a
+simulation with 2000 observations, the effective sample size of the
+level of the predictor fell from about 860 at half positives to 8 at
+0.2%. Lengthen the chain and read <code><a href="../reference/diagnose.html">diagnose()</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="counts">Counts<a class="anchor" aria-label="anchor" href="#counts"></a>
@@ -920,7 +917,7 @@ the count, the second the log odds of being a structural zero), so the
 excess-zero mechanism can depend on the predictors. As with standard
 GLMs for count variables, these models can include an offset.</p>
 <p>To decide which family to use, consider these two questions, in this
-order.</p>
+order:</p>
 <div class="section level3">
 <h3 id="are-there-more-zeros-than-the-count-component-can-produce">1. Are there more zeros than the count component can produce?<a class="anchor" aria-label="anchor" href="#are-there-more-zeros-than-the-count-component-can-produce"></a>
 </h3>
@@ -928,8 +925,8 @@ order.</p>
 plenty, and a forest can drive the mean low exactly where the zeros are.
 Fit the plain family and the zero-inflated one and compare with
 <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>. Reach for zero inflation when the zero mechanism is
-itself something to <em>model</em>, or when the two processes have
-different predictors, not merely to improve a fit.</p>
+itself something to model, or when the two processes have different
+predictors, not merely to improve a fit.</p>
 <p>It is worth seeing how far a marginal look at the response can
 mislead here. The counts below are Poisson with no inflation whatsoever,
 but the conditional mean ranges over two orders of magnitude, so the low
@@ -1064,12 +1061,25 @@ a trait, a utility, an underlying measurement recorded in bins).
 <code>"cloglog"</code> gives the proportional <em>hazards</em> model on
 the categories, so choose it when the categories are ordered durations
 or stages. Accuracy is much the same across the three;
-<code>"probit"</code> is the fastest by a wide margin.</p>
+<code>"probit"</code> is the fastest.</p>
 <p>Ordered categories can also be treated as unordered categories and
 fit with <code>family = multinomial()</code>, described below; typically
 this produces more variable predictions as it requires a forest for each
 category rather than a single forest governing the entire distribution
 function.</p>
+<p>Two prediction types exist for reporting an ordinal fit on a single
+scale, both following <em>WeightIt</em>.
+<code>predict(type = "mean")</code> weights the category probabilities
+by the labels read as numbers, so levels <code>"1"</code>,
+<code>"2"</code>, and <code>"4"</code> give a mean between one and four,
+and <code>values</code> says what the categories are worth when the
+labels are not numbers. <code>predict(type = "stdlv")</code> divides the
+predictor by the standard deviation of the latent variable it indexes,
+which puts fits with different links, or different amounts of signal, on
+one scale; it works for <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code> too, since a binary
+response is the same construction with one threshold. Note that the
+complementary log-log error enters the two families with opposite signs,
+and <code><a href="../reference/predict.bartisan_fit.html">?predict.bartisan_fit</a></code> says why.</p>
 <div class="section level3">
 <h3 id="the-prior-on-the-cutpoints-cut_alpha">The Prior on the Cutpoints (<code>cut_alpha</code>)<a class="anchor" aria-label="anchor" href="#the-prior-on-the-cutpoints-cut_alpha"></a>
 </h3>
@@ -1082,21 +1092,20 @@ category probabilities,</p>
 <p><span class="math display">\[P_1 = F(c_1 - \varphi), \qquad P_k =
 F(c_k - \varphi) - F(c_{k-1} - \varphi),
 \qquad P_K = 1 - F(c_{K-1} - \varphi)\]</span></p>
-<p>which is a point on the simplex, and beliefs about <em>those</em> are
-easy to state.</p>
-<p>So the prior goes there and is pulled back through the change of
-variables. This is the induced-Dirichlet construction <span class="citation">(<a href="#ref-betancourt2019">Betancourt 2019</a>, <a href="#ref-betancourt2025">2025</a>)</span>, used for ordinal
+<p>which is a point on the simplex. The prior goes there and is pulled
+back through the change of variables. This is the induced-Dirichlet
+construction <span class="citation">(<a href="#ref-betancourt2019">Betancourt 2019</a>, <a href="#ref-betancourt2025">2025</a>)</span>, used for ordinal
 meta-analysis by <span class="citation">Cerullo et al. (<a href="#ref-cerullo2025">2025</a>)</span>:</p>
 <p><span class="math display">\[p(\mathbf{c} \mid \alpha, \varphi) =
 \mathrm{Dir}\big(\mathbf{P}(\mathbf{c}, \varphi) \mid \alpha\big)
 \cdot \big|\mathbf{J}_{\mathbf{c} \to \mathbf{P}}\big|\]</span></p>
-<p>The Jacobian is what makes it cheap. Each <span class="math inline">\(c_k\)</span> appears in exactly two of the
+<p>The Jacobian makes it cheap. Each <span class="math inline">\(c_k\)</span> appears in exactly two of the
 probabilities, <span class="math inline">\(P_k\)</span> and <span class="math inline">\(P_{k+1}\)</span>, so the matrix is bidiagonal and
 its determinant is the product of its diagonal, <span class="math inline">\(\prod_k f(c_k - \varphi)\)</span>, with <span class="math inline">\(f\)</span> the link’s density. The log prior is
 therefore one link density per cutpoint plus a Dirichlet term:</p>
 <p><span class="math display">\[\log p(\mathbf{c}) = \sum_k (\alpha_k -
 1) \log P_k + \sum_k \log f(c_k - \varphi)\]</span></p>
-<p>At the default <code>cut_alpha = 1</code> the Dirichlet term drops
+<p>At the default <code>cut_alpha = 1</code>, the Dirichlet term drops
 out and what is left says the induced probabilities are uniform over the
 simplex. That is not the same as a flat prior on the cutpoints
 themselves, which is improper; the Jacobian is exactly the difference
@@ -1105,45 +1114,10 @@ shares and smaller ones toward a few dominant categories. The anchor is
 the intercept, so the probabilities being described are the ones at the
 null fit rather than at an arbitrary zero, which is also the chart the
 cutpoints are reported in.</p>
-<p><code><a href="../reference/bartisan-families.html">ordbeta()</a></code> carries the same prior. It has three
-probabilities at the anchor, the masses at zero and one and the interior
-share, and the map from its two cutpoints to them has the same
-bidiagonal shape.</p>
-<p>What this buys is regularization where the data are thin. Over 344
-paired fits with <span class="math inline">\(K\)</span> from 3 to 64,
-both arms on identical data, cutpoint recovery improved in 64% of them
-(median 3.4%, Wilcoxon <span class="math inline">\(p = 2 \times
-10^{-9}\)</span>), and the gain tracks how thinly the categories are
-observed:</p>
-<table class="table">
-<thead><tr class="header">
-<th>smallest category</th>
-<th>median gain in cutpoint RMSE</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td>2 observations or fewer</td>
-<td>6.6%</td>
-</tr>
-<tr class="even">
-<td>3 to 15</td>
-<td>6.2%</td>
-</tr>
-<tr class="odd">
-<td>16 to 50</td>
-<td>2.3%</td>
-</tr>
-<tr class="even">
-<td>more than 50</td>
-<td>0.3%</td>
-</tr>
-</tbody>
-</table>
-<p>That is the shape a regularizer should have: it helps when the
-likelihood has little to say and gets out of the way when it does. It is
-also what makes <code>prior_only = TRUE</code> available on these two
-families, since a flat likelihood now leaves a proper density to draw
-from rather than nothing at all.</p>
+<p><code><a href="../reference/bartisan-families.html">ordbeta()</a></code> (descussed below) carries the same prior. It
+has three probabilities at the anchor, the masses at zero and one and
+the interior share, and the map from its two cutpoints to them has the
+same bidiagonal shape.</p>
 </div>
 <div class="section level3">
 <h3 id="categories-nobody-selected">Categories Nobody Selected<a class="anchor" aria-label="anchor" href="#categories-nobody-selected"></a>
@@ -1154,11 +1128,11 @@ all of its points and can still predict one.</p>
 <p>The thresholds either side of such a category remain identified. Each
 <span class="math inline">\(c_k\)</span> enters the likelihood through
 <span class="math inline">\(P(Y = k)\)</span> and <span class="math inline">\(P(Y = k+1)\)</span>, so an unused category <span class="math inline">\(k\)</span> leaves <span class="math inline">\(c_{k-1}\)</span> informed by the observations in
-category <span class="math inline">\(k-1\)</span> and <span class="math inline">\(c_k\)</span> informed by those in category <span class="math inline">\(k+1\)</span>. Two <em>adjacent</em> unused
-categories are the exception: the threshold between them appears only in
-terms no observation contributes to, and it is then drawn from the
-prior, restricted to the range its identified neighbors leave. That is
-the honest answer for a quantity the data say nothing about.</p>
+category <span class="math inline">\(k-1\)</span> and <span class="math inline">\(c_k\)</span> informed by those in category <span class="math inline">\(k+1\)</span>. Two adjacent unused categories are
+the exception: the threshold between them appears only in terms no
+observation contributes to, and it is then drawn from the prior,
+restricted to the range its identified neighbors leave. That is the
+honest answer for a quantity the data say nothing about.</p>
 <p>A numeric response is read as the distinct values it takes, so a
 scale with an unselected point has to be given as an ordered factor for
 that point to be modeled. Fitting <code><a href="../reference/bartisan-families.html">ordinal()</a></code> to an integer
@@ -1189,14 +1163,13 @@ y_{(k)} \mid x)\)</span>.</p>
 <p>It can be useful to bin the outcome first in a smaller number of
 categories, as one cutpoint per distinct value means <span class="math inline">\(n\)</span> cutpoints: at 1000 observations an
 unbinned fit took 73 seconds against 2.7 for <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>.
-Collapsing onto a grid of quantiles is both faster <em>and</em> more
-accurate, because a cutpoint vector with a thousand weakly-identified
-entries is worse conditioned than one with 25. Somewhere between 10 and
-50 quantile bins is enough, and the choice inside that range hardly
-matters; 25 bins was sixteen times faster than no binning and slightly
-more accurate. Keep each bin’s mean as its label so that
-<code>type = "mean"</code> still reports on the outcome’s scale. See
-below for an example:</p>
+Collapsing onto a grid of quantiles is both faster and more accurate,
+because a cutpoint vector with a thousand weakly-identified entries is
+worse conditioned than one with 25. Somewhere between 10 and 50 quantile
+bins is enough, and the choice inside that range hardly matters; 25 bins
+was sixteen times faster than no binning and slightly more accurate.
+Keep each bin’s mean as its label so that <code>type = "mean"</code>
+still reports on the outcome’s scale. See below for an example:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Binning d$heavy</span></span>
 <span><span class="va">nbins</span> <span class="op">&lt;-</span> <span class="fl">25</span></span>
@@ -1279,7 +1252,9 @@ as <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">bin
 <code class="sourceCode R"><span><span class="va">d</span><span class="op">$</span><span class="va">rate</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Beta.html" class="external-link">rbeta</a></span><span class="op">(</span><span class="va">n</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fl">1.5</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="va">pi</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x1</span><span class="op">)</span><span class="op">)</span> <span class="op">*</span> <span class="fl">12</span>,</span>
 <span>                <span class="fl">12</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fl">1.5</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="va">pi</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x1</span><span class="op">)</span><span class="op">)</span> <span class="op">*</span> <span class="fl">12</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">fit_beta</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">rate</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">Beta</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
+<span><span class="va">fit_beta</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">rate</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
+<span>                     family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">Beta</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_beta</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"phi"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 12.8</span></span></code></pre></div>
 <p>The <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> family requests the ordered beta
@@ -1290,13 +1265,13 @@ budget, a slider scale). One predictor drives both the probability of
 landing on an endpoint, through a pair of cutpoints as in an ordinal
 model, and the mean of the beta density in between.</p>
 <p>Choose between <code><a href="../reference/bartisan-families.html">Beta()</a></code> and <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> based
-on whether the response <em>can</em> reach a boundary, not on whether it
-happens to in the sample at hand. A response <em>at</em> zero or one has
-no beta density, so <code><a href="../reference/bartisan-families.html">Beta()</a></code> errors rather than nudging it
-inward. In the other direction, <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> fitted to a
-response with no boundary observations leaves its two cutpoints with
-nothing to identify them; the fit is not much worse for it, but the
-cutpoints are not interpretable and drift to large magnitudes.</p>
+on whether the response can reach a boundary, not on whether it happens
+to in the sample at hand. A response at zero or one has no beta density,
+so <code><a href="../reference/bartisan-families.html">Beta()</a></code> errors rather than nudging it inward. In the
+other direction, <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> fitted to a response with no
+boundary observations leaves its two cutpoints with nothing to identify
+them; the fit is not much worse for it, but the cutpoints are not
+interpretable and drift to large magnitudes.</p>
 </div>
 <div class="section level2">
 <h2 id="a-point-mass-at-zero-and-a-continuous-positive-part">A Point Mass at Zero and a Continuous Positive Part<a class="anchor" aria-label="anchor" href="#a-point-mass-at-zero-and-a-continuous-positive-part"></a>
@@ -1332,7 +1307,9 @@ one.</p>
 <span>                         scale <span class="op">=</span> <span class="fl">4</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1.5</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span> <span class="op">*</span> <span class="va">mu</span><span class="op">^</span><span class="op">(</span><span class="fl">1.5</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>                  <span class="fl">0</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">fit_tw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">spend</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">tweedie</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
+<span><span class="va">fit_tw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">spend</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
+<span>                   family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">tweedie</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>zeros <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">spend</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span>, phi <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_tw</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"phi"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; zeros   phi </span></span>
 <span><span class="co">#&gt; 0.233 3.907</span></span></code></pre></div>
@@ -1430,10 +1407,10 @@ quickest of the five to fit, since imputing the censored times leaves
 the sampler a quadratic target; <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>, whose
 likelihood takes the exponential path instead, is the slowest.
 <code><a href="../reference/bartisan-families.html">ph()</a></code> frees the baseline hazard instead, so it fits a hazard
-of any shape, at the price of asserting proportionality and of reading
+of any shape at the price of asserting proportionality and of reading
 the predictor on the hazard scale. <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> frees the
 error density <span class="citation">(<a href="#ref-henderson2020">Henderson et al. 2020</a>)</span>, which costs
-little when a single normal was right and gains a great deal when it was
+little when a single normal is right and gains a great deal when it is
 not.</p>
 <p><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> is the default for a <code>Surv</code>
 response, on the evidence in the survival vignette and because it is one
@@ -1460,7 +1437,8 @@ report it at and works for every family in the table:</p>
 <span>                   data <span class="op">=</span> <span class="va">d</span>, control <span class="op">=</span> <span class="va">ctrl</span>,</span>
 <span>                   family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">ph</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_ph</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_ph</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          1     2     5</span></span>
 <span><span class="co">#&gt; [1,] 0.859 0.760 0.533</span></span>
 <span><span class="co">#&gt; [2,] 0.852 0.749 0.516</span></span>
@@ -1577,9 +1555,9 @@ writing the transform into <code>logdens</code>, which is what the
 <code>exp(aux[1])</code> above is doing. <code>aux_start</code> need
 only be the right order of magnitude; the sampler walks to the posterior
 from a poor start.</p>
-<p>What it cannot do: take a non-numeric response, so a factor has to be
-coded first; or report a fitted mean, since the package cannot know what
-the mean of a supplied density is, so
+<p>It cannot take a non-numeric response, so a factor has to be coded
+first. It also cannot report a fitted mean, since the package cannot
+know what the mean of a supplied density is, so
 <code>predict(type = "response")</code> returns the additive predictors
 instead, though <code>type = "density"</code> works.</p>
 <p>Custom likelihoods are why <em>bartisan</em> is named what it is;

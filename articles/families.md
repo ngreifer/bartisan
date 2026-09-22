@@ -81,14 +81,14 @@ We start from the shape of the response:
 |----|----|
 | numeric, unbounded | [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), the default; [`gaussian()`](https://rdrr.io/r/stats/family.html) if prior weights are needed; [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) if the spread varies with the predictors |
 | positive and continuous | `Gamma("log")`, or [`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) if the dispersion varies with the predictors |
+| non-negative and continuous, with a point mass at zero | [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | a proportion strictly inside \\(0, 1)\\ | [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | a proportion that can equal 0 or 1 | [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
-| non-negative and continuous, with a point mass at zero | [`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | a 0/1 indicator, or a two-column matrix of successes and failures | [`binomial()`](https://rdrr.io/r/stats/family.html) |
 | a count | [`poisson()`](https://rdrr.io/r/stats/family.html), [`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) if overdispersed, or a zero-inflated family if there are more zeros than either can produce |
 | an ordered factor | [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 | an unordered factor | [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
-| a time with censoring | [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) or [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md); [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) for proportional hazards with a free baseline; [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) if the shape of the error is in doubt |
+| a time with censoring | [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), the default for survival outcomes; [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) or [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) if the shape of the error is known; [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) for proportional hazards with a free baseline |
 | something else | [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md) |
 
 Two considerations cut across that table.
@@ -114,10 +114,10 @@ for when the zero mechanism is a *separate process worth modeling*, not
 merely for when a histogram spikes at zero. The same caution applies to
 the multinomial probit’s latent correlations.
 
-When two families are both defensible, we can compare them rather than
-argue about them; [`loo()`](https://mc-stan.org/loo/reference/loo.html)
-and [`waic()`](https://mc-stan.org/loo/reference/waic.html) work on a
-fit:
+When two families are both defensible, we can compare them empirically
+rather than reason about them;
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) and
+[`waic()`](https://mc-stan.org/loo/reference/waic.html) work on a fit:
 
 ``` r
 
@@ -144,6 +144,9 @@ loo::loo_compare(
 #> or https://mc-stan.org/loo/reference/loo-glossary.html.
 ```
 
+In this case, both models fit the data approximately equally well (i.e.,
+due to the small `elpd_diff` relative to `se_diff`).
+
 ## The Default Family (`family` Omitted)
 
 `family` may be omitted from
@@ -160,9 +163,7 @@ in which case its default value is determined by the response variable:
 | any other numeric | [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 
 The choice is reported when it is made, and naming `family` silences the
-message. That is the intended way to silence it: an inferred family is a
-modeling decision taken on the analyst’s behalf, so confirming it in the
-call is a better outcome than suppressing the notice.
+message.
 
 ``` r
 
@@ -170,7 +171,7 @@ d$binary <- rbinom(n, 1, 0.4)
 
 fit <- bartisan(binary ~ x1 + x2, data = d, control = ctrl)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 fit
 #> Generalized BART
@@ -196,8 +197,7 @@ response gets
 [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 A response with only a handful of distinct values probably wants
 [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-but that is a modeling decision, and a threshold would make the default
-arbitrary and hard to predict.
+but that is a modeling decision *bartisan* will not make for you.
 
 Prior weights are taken by
 [`gaussian()`](https://rdrr.io/r/stats/family.html),
@@ -451,7 +451,7 @@ fit_dpm <- bartisan(heavy ~ x1 + x2, data = d,
 
 ``` r
 
-plot(error_density(fit_dpm))
+error_density(fit_dpm, plot = TRUE)
 ```
 
 ![](families_files/figure-html/dpmplot-1.png)
@@ -475,18 +475,10 @@ bartisan(y ~ x1 + x2, data = d, family = Gamma_ls())          # dispersion varie
 bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = Gamma_ls())  # and held constant
 ```
 
-[`stats::Gamma()`](https://rdrr.io/r/stats/family.html) defaults to
-`link = "inverse"`, which is the canonical link for the gamma and the
-wrong one here: the additive predictor is unconstrained, and only the
-log link’s inverse keeps the mean positive over the whole line. A draw
-that wanders non-positive has no gamma density at all, so it is rejected
-during fitting and [`predict()`](https://rdrr.io/r/stats/predict.html)
-returns `NaN` there. So *bartisan* ignores any other link and fits on
-`"log"`, saying so once; writing `Gamma("log")` silences that.
-[`stats::Gamma()`](https://rdrr.io/r/stats/family.html) itself is
-untouched, so attaching the package cannot change what
-[`glm()`](https://rdrr.io/r/stats/glm.html) does. If another link for a
-gamma response is genuinely wanted,
+[`stats::Gamma()`](https://rdrr.io/r/stats/family.html) normally
+defaults to `link = "inverse"` but *bartisan* fits on `"log"` and
+ignores any other link, saying so once; writing `Gamma("log")` silences
+that. If another link for a gamma response is genuinely wanted,
 [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 is the route.
 [`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -590,10 +582,10 @@ discrete time, where the cumulative version *is* the discrete
 proportional hazards model and the predictor is a log hazard ratio.
 
 With very few events, the whole fit mixes slowly regardless of the link
-because a handful of events carry little information: at 2000
-observations, the effective sample size of the level of the predictor
-fell from about 860 at half positives to 8 at 0.2%. Lengthen the chain
-and read
+because a handful of events carry little information: in a simulation
+with 2000 observations, the effective sample size of the level of the
+predictor fell from about 860 at half positives to 8 at 0.2%. Lengthen
+the chain and read
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md).
 
 ## Counts
@@ -613,7 +605,7 @@ with standard GLMs for count variables, these models can include an
 offset.
 
 To decide which family to use, consider these two questions, in this
-order.
+order:
 
 ### 1. Are there more zeros than the count component can produce?
 
@@ -621,9 +613,9 @@ Not “are there many zeros”: a Poisson with a small mean produces plenty,
 and a forest can drive the mean low exactly where the zeros are. Fit the
 plain family and the zero-inflated one and compare with
 [`loo()`](https://mc-stan.org/loo/reference/loo.html). Reach for zero
-inflation when the zero mechanism is itself something to *model*, or
-when the two processes have different predictors, not merely to improve
-a fit.
+inflation when the zero mechanism is itself something to model, or when
+the two processes have different predictors, not merely to improve a
+fit.
 
 It is worth seeing how far a marginal look at the response can mislead
 here. The counts below are Poisson with no inflation whatsoever, but the
@@ -776,12 +768,27 @@ latent variable is the object of interest (e.g., a trait, a utility, an
 underlying measurement recorded in bins). `"cloglog"` gives the
 proportional *hazards* model on the categories, so choose it when the
 categories are ordered durations or stages. Accuracy is much the same
-across the three; `"probit"` is the fastest by a wide margin.
+across the three; `"probit"` is the fastest.
 
 Ordered categories can also be treated as unordered categories and fit
 with `family = multinomial()`, described below; typically this produces
 more variable predictions as it requires a forest for each category
 rather than a single forest governing the entire distribution function.
+
+Two prediction types exist for reporting an ordinal fit on a single
+scale, both following *WeightIt*. `predict(type = "mean")` weights the
+category probabilities by the labels read as numbers, so levels `"1"`,
+`"2"`, and `"4"` give a mean between one and four, and `values` says
+what the categories are worth when the labels are not numbers.
+`predict(type = "stdlv")` divides the predictor by the standard
+deviation of the latent variable it indexes, which puts fits with
+different links, or different amounts of signal, on one scale; it works
+for [`binomial()`](https://rdrr.io/r/stats/family.html) too, since a
+binary response is the same construction with one threshold. Note that
+the complementary log-log error enters the two families with opposite
+signs, and
+[`?predict.bartisan_fit`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md)
+says why.
 
 ### The Prior on the Cutpoints (`cut_alpha`)
 
@@ -795,28 +802,26 @@ category probabilities,
 \\P_1 = F(c_1 - \varphi), \qquad P_k = F(c_k - \varphi) - F(c\_{k-1} -
 \varphi), \qquad P_K = 1 - F(c\_{K-1} - \varphi)\\
 
-which is a point on the simplex, and beliefs about *those* are easy to
-state.
-
-So the prior goes there and is pulled back through the change of
-variables. This is the induced-Dirichlet construction ([Betancourt
-2019](#ref-betancourt2019), [2025](#ref-betancourt2025)), used for
-ordinal meta-analysis by Cerullo et al. ([2025](#ref-cerullo2025)):
+which is a point on the simplex. The prior goes there and is pulled back
+through the change of variables. This is the induced-Dirichlet
+construction ([Betancourt 2019](#ref-betancourt2019),
+[2025](#ref-betancourt2025)), used for ordinal meta-analysis by Cerullo
+et al. ([2025](#ref-cerullo2025)):
 
 \\p(\mathbf{c} \mid \alpha, \varphi) =
 \mathrm{Dir}\big(\mathbf{P}(\mathbf{c}, \varphi) \mid \alpha\big) \cdot
 \big\|\mathbf{J}\_{\mathbf{c} \to \mathbf{P}}\big\|\\
 
-The Jacobian is what makes it cheap. Each \\c_k\\ appears in exactly two
-of the probabilities, \\P_k\\ and \\P\_{k+1}\\, so the matrix is
-bidiagonal and its determinant is the product of its diagonal, \\\prod_k
-f(c_k - \varphi)\\, with \\f\\ the link’s density. The log prior is
-therefore one link density per cutpoint plus a Dirichlet term:
+The Jacobian makes it cheap. Each \\c_k\\ appears in exactly two of the
+probabilities, \\P_k\\ and \\P\_{k+1}\\, so the matrix is bidiagonal and
+its determinant is the product of its diagonal, \\\prod_k f(c_k -
+\varphi)\\, with \\f\\ the link’s density. The log prior is therefore
+one link density per cutpoint plus a Dirichlet term:
 
 \\\log p(\mathbf{c}) = \sum_k (\alpha_k - 1) \log P_k + \sum_k \log
 f(c_k - \varphi)\\
 
-At the default `cut_alpha = 1` the Dirichlet term drops out and what is
+At the default `cut_alpha = 1`, the Dirichlet term drops out and what is
 left says the induced probabilities are uniform over the simplex. That
 is not the same as a flat prior on the cutpoints themselves, which is
 improper; the Jacobian is exactly the difference between the two. Larger
@@ -827,28 +832,9 @@ at an arbitrary zero, which is also the chart the cutpoints are reported
 in.
 
 [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-carries the same prior. It has three probabilities at the anchor, the
-masses at zero and one and the interior share, and the map from its two
-cutpoints to them has the same bidiagonal shape.
-
-What this buys is regularization where the data are thin. Over 344
-paired fits with \\K\\ from 3 to 64, both arms on identical data,
-cutpoint recovery improved in 64% of them (median 3.4%, Wilcoxon \\p = 2
-\times 10^{-9}\\), and the gain tracks how thinly the categories are
-observed:
-
-| smallest category       | median gain in cutpoint RMSE |
-|-------------------------|------------------------------|
-| 2 observations or fewer | 6.6%                         |
-| 3 to 15                 | 6.2%                         |
-| 16 to 50                | 2.3%                         |
-| more than 50            | 0.3%                         |
-
-That is the shape a regularizer should have: it helps when the
-likelihood has little to say and gets out of the way when it does. It is
-also what makes `prior_only = TRUE` available on these two families,
-since a flat likelihood now leaves a proper density to draw from rather
-than nothing at all.
+(descussed below) carries the same prior. It has three probabilities at
+the anchor, the masses at zero and one and the interior share, and the
+map from its two cutpoints to them has the same bidiagonal shape.
 
 ### Categories Nobody Selected
 
@@ -860,11 +846,11 @@ The thresholds either side of such a category remain identified. Each
 \\c_k\\ enters the likelihood through \\P(Y = k)\\ and \\P(Y = k+1)\\,
 so an unused category \\k\\ leaves \\c\_{k-1}\\ informed by the
 observations in category \\k-1\\ and \\c_k\\ informed by those in
-category \\k+1\\. Two *adjacent* unused categories are the exception:
-the threshold between them appears only in terms no observation
-contributes to, and it is then drawn from the prior, restricted to the
-range its identified neighbors leave. That is the honest answer for a
-quantity the data say nothing about.
+category \\k+1\\. Two adjacent unused categories are the exception: the
+threshold between them appears only in terms no observation contributes
+to, and it is then drawn from the prior, restricted to the range its
+identified neighbors leave. That is the honest answer for a quantity the
+data say nothing about.
 
 A numeric response is read as the distinct values it takes, so a scale
 with an unselected point has to be given as an ordered factor for that
@@ -901,7 +887,7 @@ It can be useful to bin the outcome first in a smaller number of
 categories, as one cutpoint per distinct value means \\n\\ cutpoints: at
 1000 observations an unbinned fit took 73 seconds against 2.7 for
 [`gaussian()`](https://rdrr.io/r/stats/family.html). Collapsing onto a
-grid of quantiles is both faster *and* more accurate, because a cutpoint
+grid of quantiles is both faster and more accurate, because a cutpoint
 vector with a thousand weakly-identified entries is worse conditioned
 than one with 25. Somewhere between 10 and 50 quantile bins is enough,
 and the choice inside that range hardly matters; 25 bins was sixteen
@@ -1002,7 +988,9 @@ the same way.
 d$rate <- rbeta(n, plogis(1.5 * sin(pi * d$x1)) * 12,
                 12 - plogis(1.5 * sin(pi * d$x1)) * 12)
 
-fit_beta <- bartisan(rate ~ x1 + x2, data = d, family = Beta(), control = ctrl)
+fit_beta <- bartisan(rate ~ x1 + x2, data = d,
+                     family = Beta(), control = ctrl)
+
 mean(fit_beta$aux[, "phi"])
 #> [1] 12.8
 ```
@@ -1020,9 +1008,9 @@ Choose between
 [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-based on whether the response *can* reach a boundary, not on whether it
-happens to in the sample at hand. A response *at* zero or one has no
-beta density, so
+based on whether the response can reach a boundary, not on whether it
+happens to in the sample at hand. A response at zero or one has no beta
+density, so
 [`Beta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 errors rather than nudging it inward. In the other direction,
 [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -1070,7 +1058,9 @@ d$spend <- ifelse(claims > 0,
                          scale = 4 * (1.5 - 1) * mu^(1.5 - 1)),
                   0)
 
-fit_tw <- bartisan(spend ~ x1 + x2, data = d, family = tweedie(), control = ctrl)
+fit_tw <- bartisan(spend ~ x1 + x2, data = d,
+                   family = tweedie(), control = ctrl)
+
 c(zeros = mean(d$spend == 0), phi = mean(fit_tw$aux[, "phi"]))
 #> zeros   phi 
 #> 0.233 3.907
@@ -1135,13 +1125,13 @@ leaves the sampler a quadratic target;
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 whose likelihood takes the exponential path instead, is the slowest.
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-frees the baseline hazard instead, so it fits a hazard of any shape, at
+frees the baseline hazard instead, so it fits a hazard of any shape at
 the price of asserting proportionality and of reading the predictor on
 the hazard scale.
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 frees the error density ([Henderson et al. 2020](#ref-henderson2020)),
-which costs little when a single normal was right and gains a great deal
-when it was not.
+which costs little when a single normal is right and gains a great deal
+when it is not.
 
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is the default for a `Surv` response, on the evidence in the survival
@@ -1174,7 +1164,8 @@ fit_ph <- bartisan(survival::Surv(time, event) ~ x1 + x2,
                    data = d, control = ctrl,
                    family = ph())
 
-head(predict(fit_ph, type = "survival", times = c(1, 2, 5)), 3)
+predict(fit_ph, type = "survival", times = c(1, 2, 5)) |>
+  head(3)
 #>          1     2     5
 #> [1,] 0.859 0.760 0.533
 #> [2,] 0.852 0.749 0.516
@@ -1315,11 +1306,11 @@ writing the transform into `logdens`, which is what the `exp(aux[1])`
 above is doing. `aux_start` need only be the right order of magnitude;
 the sampler walks to the posterior from a poor start.
 
-What it cannot do: take a non-numeric response, so a factor has to be
-coded first; or report a fitted mean, since the package cannot know what
-the mean of a supplied density is, so `predict(type = "response")`
-returns the additive predictors instead, though `type = "density"`
-works.
+It cannot take a non-numeric response, so a factor has to be coded
+first. It also cannot report a fitted mean, since the package cannot
+know what the mean of a supplied density is, so
+`predict(type = "response")` returns the additive predictors instead,
+though `type = "density"` works.
 
 Custom likelihoods are why *bartisan* is named what it is; they support
 *artisanal* models augmented by BART. Anywhere a linear predictor might

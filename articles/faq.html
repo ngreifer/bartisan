@@ -16,7 +16,8 @@
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Frequently Asked Questions">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
+<meta property="og:title" content="Frequently Asked Questions">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -70,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-20</h4>
+            <h4 data-toc-skip class="date">2026-09-22</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/faq.Rmd" class="external-link"><code>vignettes/faq.Rmd</code></a></small>
       <div class="d-none name"><code>faq.Rmd</code></div>
@@ -108,8 +109,8 @@ any machine learning method.</p>
 <h2 id="how-can-a-machine-learning-method-be-bayesian">How can a machine learning method be Bayesian?<a class="anchor" aria-label="anchor" href="#how-can-a-machine-learning-method-be-bayesian"></a>
 </h2>
 <p>Each parameter of the model, including which variables are used to
-split the trees, how deep each tree is, the predicted value in the tree,
-the residual variance, etc., are assigned a prior, and through running
+split the trees, how deep each tree is, the predicted value in the leaf,
+the residual variance, etc., is assigned a prior, and through running
 the model on the data, each model output gains a posterior. In
 traditional machine learning models, these parameters are given an
 individual value, or the values are tuned across a grid. The posterior
@@ -156,14 +157,12 @@ test of anything.</p>
 <p>For the quantities those do not cover,
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code> and its relatives work
 on a fit directly, including arbitrary contrasts between covariate
-values, hypotheses comparing one estimate to another, and slopes, which
-want <code>x_transform = "range"</code> in
-<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>, since a slope through the default
-transform carries an estimated density along with it. Because every draw
-goes through the same machinery either way, the result carries a
-posterior rather than a point estimate with a delta-method standard
-error. See <code><a href="../articles/effects.html">vignette("effects")</a></code> for the worked versions and
-<code><a href="../reference/estimate_effect.html">?estimate_effect</a></code> for the estimands.</p>
+values, hypotheses comparing one estimate to another, and slopes.
+Because every draw goes through the same machinery either way, the
+result carries a posterior rather than a point estimate with a
+delta-method standard error. See <code><a href="../articles/effects.html">vignette("effects")</a></code> for
+the worked versions and <code><a href="../reference/estimate_effect.html">?estimate_effect</a></code> for the
+estimands.</p>
 </div>
 <div class="section level2">
 <h2 id="what-if-i-have-missing-data">What if I have missing data?<a class="anchor" aria-label="anchor" href="#what-if-i-have-missing-data"></a>
@@ -176,9 +175,9 @@ what to do with a missing value, drawn from the prior alongside the
 variable and the cutpoint, so the missingness is part of the model
 rather than something to impute first. This is missingness incorporated
 in attributes, and it means a covariate can be informative through
-whether it is observed as well as through its value. A missing
-<em>outcome</em> is different: those rows are dropped, with a warning
-saying how many.</p>
+whether it is observed as well as through its value. Missingness in the
+outcome is different: those rows are dropped, with a warning saying how
+many.</p>
 </div>
 <div class="section level2">
 <h2 id="can-i-supply-my-own-likelihood">Can I supply my own likelihood?<a class="anchor" aria-label="anchor" href="#can-i-supply-my-own-likelihood"></a>
@@ -213,9 +212,10 @@ that speed; it is not free, though, since the bandwidth update is what
 lets the rules sharpen toward a step, so it costs some mixing and some
 accuracy on a mean function with jumps.
 <code>update_bandwidth = FALSE</code> stops resampling it altogether,
-which is faster again and is <em>more</em> accurate on smooth functions
-and much worse on nonsmooth ones. Beyond those, run the chains in
-parallel with a <em>future</em> plan, which costs nothing in draws.</p>
+which is faster again and can actually be more accurate on smooth
+functions but much worse on nonsmooth ones. Beyond those, run the chains
+in parallel with a <em>future</em> plan, which costs nothing in
+draws.</p>
 </div>
 <div class="section level2">
 <h2 id="what-if-im-a-frequentist">What if I’m a frequentist?<a class="anchor" aria-label="anchor" href="#what-if-im-a-frequentist"></a>
@@ -263,9 +263,8 @@ estimate propensity scores <span class="citation">(<a href="#ref-hillChallengesP
 2011</a>)</span>, which, together with a BART outcome model, can be used
 in doubly robust estimators like DML and TMLE. BART can also be used in
 instrumental variables analysis <span class="citation">(<a href="#ref-mccullochCausalInferenceInstrumental2021">McCulloch et al.,
-n.d.</a>)</span>, regression discontinuity <span class="citation">(<a href="#ref-alcantaraModifiedBARTLearning2024">Alcantara et al.,
-n.d.</a>)</span>, and difference-in-differences <span class="citation">(<a href="#ref-soutoForestsDifferencesRobust2025">Souto
-and Neto, n.d.</a>)</span>.</p>
+n.d.</a>)</span> and regression discontinuity <span class="citation">(<a href="#ref-alcantaraModifiedBARTLearning2024">Alcantara et al.,
+n.d.</a>)</span>.</p>
 </div>
 <div class="section level2">
 <h2 id="what-are-bayesian-causal-forests">What are Bayesian Causal Forests?<a class="anchor" aria-label="anchor" href="#what-are-bayesian-causal-forests"></a>
@@ -274,8 +273,8 @@ and Neto, n.d.</a>)</span>.</p>
 estimate treatment effects <span class="citation">(<a href="#ref-hahn2020">Hahn et al. 2020</a>)</span>. In addition to
 flexibly modeling the relationship between the outcome and the
 covariates, it also flexibly models the relationship between the
-<em>magnitude of the treatment effect</em> and the covariates. In this
-way, BCF is a varying-coefficient model <span class="citation">(<a href="#ref-deshpande2026">Deshpande et al. 2026</a>)</span>. Compared to
+magnitude of the treatment effect and the covariates. In this way, BCF
+is a varying-coefficient model <span class="citation">(<a href="#ref-deshpande2026">Deshpande et al. 2026</a>)</span>. Compared to
 traditional BART, BCF tends to have better calibrated intervals and
 regularization of heterogeneous treatment effects. BCF tends to
 outperform traditional BART in most causal inference contexts. It also
@@ -302,9 +301,9 @@ difference. On a fit from <code><a href="../reference/bartisan.html">bartisan()<
 the column. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws whatever was asked for, and
 <code><a href="../reference/diagnose.html">diagnose()</a></code> on the result says whether the estimand itself
 has mixed, which is not implied by the fit’s own diagnostics.</p>
-<p><code><a href="../articles/causal.html">vignette("causal")</a></code> is the worked version, including the
-assumptions that turn the estimate into a causal effect, which no model
-supplies.</p>
+<p>See <code><a href="../articles/causal.html">vignette("causal")</a></code> for a worked version, including
+the assumptions that turn the estimate into a causal effect, which no
+model supplies.</p>
 </div>
 <div class="section level2">
 <h2 id="what-papers-should-i-read-to-better-understand-bart">What papers should I read to better understand BART?<a class="anchor" aria-label="anchor" href="#what-papers-should-i-read-to-better-understand-bart"></a>
@@ -353,7 +352,7 @@ varying coefficients, random effects, and more, all in a single
 package<a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content='&lt;p&gt;I am well aware of &lt;a href="https://xkcd.com/927/" class="external-link"&gt;this
 xkcd comic&lt;/a&gt;.&lt;/p&gt;'><sup>1</sup></a>.
 There are ways in which <em>bartisan</em> is inferior to these more
-specialized packages, but as a general-purpose tool, I hope you’ll find
+specialized packages, but as a general-purpose tool, we hope you’ll find
 it effective.</p>
 </div>
 <div class="section level2">
@@ -527,10 +526,6 @@ Snowden, Jonathan M., Sherri Rose, and Kathleen M. Mortimer. 2011.
 <span>“Implementation of g-Computation on a Simulated Data Set:
 Demonstration of a Causal Inference Technique.”</span> <em>American
 Journal of Epidemiology</em> 173 (7): 731–38. <a href="https://doi.org/10.1093/aje/kwq472" class="external-link">https://doi.org/10.1093/aje/kwq472</a>.
-</div>
-<div id="ref-soutoForestsDifferencesRobust2025" class="csl-entry">
-Souto, Hugo Gobato, and Francisco Louzada Neto. n.d. <em>Forests for
-Differences: Robust Causal Inference Beyond Parametric DiD</em>. <a href="https://doi.org/10.48550/arXiv.2505.09706" class="external-link">https://doi.org/10.48550/arXiv.2505.09706</a>.
 </div>
 </div>
 </div>

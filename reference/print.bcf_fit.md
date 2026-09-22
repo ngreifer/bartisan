@@ -82,7 +82,7 @@ fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 fit
 #> Generalized BART
@@ -108,7 +108,7 @@ fit
 estimate_effect(fit)
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate    lower  upper    n
@@ -122,7 +122,7 @@ estimate_effect(fit)
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 
 # The conditional effects, ordered, with the average beside them
 plot(fit)

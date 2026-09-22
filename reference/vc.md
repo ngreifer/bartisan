@@ -27,10 +27,13 @@ vc(x, modifiers = NULL, center = "auto")
 
 - modifiers:
 
-  a one-sided formula naming the predictors this coefficient's forest
-  may split on. Default is `NULL` to allow every predictor in the model
-  except `x` itself. Note that naming something that is not a predictor
-  is an error rather than a silent restriction.
+  a one-sided formula naming the variables this coefficient's forest may
+  split on. Default is `NULL` to allow every predictor in the model
+  except `x` itself. A variable the model formula's fixed part does not
+  carry may be named here, and it then modifies the coefficient without
+  entering the control function; see Details. Naming something that is
+  not a column of `data` at all is an error rather than a silent
+  restriction.
 
 - center:
 
@@ -63,6 +66,19 @@ forest with `x` among its predictors happens to produce.
 
 By default a coefficient may vary with every predictor in the model
 except `x` itself, and `modifiers` narrows that.
+
+It can also widen it. A variable named here that the fixed part leaves
+out is given a column of its own and reaches this coefficient's forest
+and no other, so the coefficient varies with it while the control
+function stays blind to it. That asymmetry is the point rather than a
+side effect: it is how an effect is allowed to depend on something a
+prognostic function must not see. The case that needs it is a modifier
+from which the treatment could be reconstructed: a control function
+allowed to see such a variable can represent the treatment itself, so
+the effect is not identified, even though the effect may legitimately
+vary with it. Naming it as a modifier alone keeps it out of the control
+function. Only an explicit `modifiers` formula reaches such a variable:
+a bare `vc(z)` means the predictors of the model, which these are not.
 
 A covariate with a varying coefficient is kept out of the control
 function, since \\f_0(Z) + z f_1(Z)\\ is not identified when `z` is

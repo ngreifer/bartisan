@@ -5,7 +5,7 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Give a predictor a varying coefficient — vc"><meta name="description" content="Marks a predictor inside a bartisan() formula as one whose coefficient is a
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet"><meta property="og:title" content="Give a predictor a varying coefficient — vc"><meta name="description" content="Marks a predictor inside a bartisan() formula as one whose coefficient is a
 function of the other predictors rather than a constant, so that the
 coefficient gets a forest and a prior of its own. vc() is a marker rather
 than a function: it is read out of the formula it appears in and throws an
@@ -80,10 +80,12 @@ reference) as <code><a href="bartisan-families.html">multinomial()</a></code> co
 
 
 <dt id="arg-modifiers">modifiers<a class="anchor" aria-label="anchor" href="#arg-modifiers"></a></dt>
-<dd><p>a one-sided formula naming the predictors this coefficient's
+<dd><p>a one-sided formula naming the variables this coefficient's
 forest may split on. Default is <code>NULL</code> to allow every predictor in the model
-except <code>x</code> itself. Note that naming something that is not a predictor is an
-error rather than a silent restriction.</p></dd>
+except <code>x</code> itself. A variable the model formula's fixed part does not carry
+may be named here, and it then modifies the coefficient without entering
+the control function; see Details. Naming something that is not a column of
+<code>data</code> at all is an error rather than a silent restriction.</p></dd>
 
 
 <dt id="arg-center">center<a class="anchor" aria-label="anchor" href="#arg-center"></a></dt>
@@ -114,6 +116,18 @@ a prior of its own rather than being whatever difference a single forest with
 
 <p>By default a coefficient may vary with every predictor in the model except
 <code>x</code> itself, and <code>modifiers</code> narrows that.</p>
+<p>It can also widen it. A variable named here that the fixed part leaves out is
+given a column of its own and reaches this coefficient's forest and no other,
+so the coefficient varies with it while the control function stays blind to
+it. That asymmetry is the point rather than a side effect: it is how an
+effect is allowed to depend on something a prognostic function must not see.
+The case that needs it is a modifier from which the treatment could be
+reconstructed: a control function allowed to see such a variable can
+represent the treatment itself, so the effect is not identified, even though
+the effect may legitimately vary with it. Naming it as a modifier alone keeps
+it out of the control function. Only an explicit <code>modifiers</code> formula reaches
+such a variable: a bare <code>vc(z)</code> means the predictors of the model, which
+these are not.</p>
 <p>A covariate with a varying coefficient is kept out of the control function,
 since \(f_0(Z) + z f_1(Z)\) is not identified when <code>z</code> is among
 \(f_0\)'s predictors: any function of <code>z</code> moves between the two. Reached

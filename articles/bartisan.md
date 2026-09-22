@@ -31,6 +31,45 @@ depth.
 library(bartisan)
 ```
 
+### Parallelization and Progress Bars
+
+Using parallelization can speed up fitting
+[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
+models with multiple chains. Parallelization is controlled through the
+[*future*](https://CRAN.R-project.org/package=future) package. To
+request multi-session evaluation, one can simply call the following:
+
+``` r
+
+future::plan("multisession")
+```
+
+The [*future.apply*](https://CRAN.R-project.org/package=future.apply)
+package must also be installed (installing it also installs *future*).
+
+Some operations in *bartisan* can be take some time, and one can request
+a progress bar using the
+[*progressr*](https://CRAN.R-project.org/package=progressr) package. One
+can request progress bars globally for all functions that produce them
+using the following:
+
+``` r
+
+progressr::handlers(global = TRUE)
+```
+
+To request a progress bar for a single call, wrap the function
+evaluation in
+[`progressr::with_progress()`](https://progressr.futureverse.org/reference/with_progress.html),
+e.g.,
+
+``` r
+
+progressr::with_progress(
+  bartisan(y ~ ., data = d)
+)
+```
+
 ## The Data
 
 `rhc` records a random 1500 of the 5735 patients in the SUPPORT study
@@ -77,14 +116,19 @@ months. All were recorded before catheterization.
 
 ## Fitting the Model
 
+To fit the model, we simply call
+[`bartisan::bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
+with the same model formula one would use for
+[`glm()`](https://rdrr.io/r/stats/glm.html) or any other standard
+mdoel-fitting function, additionally supplying the dataset to `data` and
+the response family to `family`. Because BART involves random processes,
+we must also set a seed using
+[`set.seed()`](https://rdrr.io/r/base/Random.html) to ensure
+reproducibility (though not the `kind` does not matter).
+
 ``` r
 
 set.seed(2026)
-
-# For parallelization; optional
-if (rlang::is_installed(c("future", "future.apply"))) {
-  future::plan(future::multisession)
-}
 
 fit <- bartisan(
   death ~ rhc + age + sex + race + edu + aps + meanbp + resp + hema +
@@ -106,10 +150,10 @@ fit
 #> Draws: 3200 kept across 4 chains after 200 warmup
 ```
 
-That is the whole call. `family = binomial()` says the outcome is
-binary, exactly as in [`glm()`](https://rdrr.io/r/stats/glm.html). The
-family may be omitted, in which case it is read off the outcome and
-reported; naming it is clearer and silences the message.
+`family = binomial()` says the outcome is binary, exactly as in
+[`glm()`](https://rdrr.io/r/stats/glm.html). The family may be omitted,
+in which case it is read off the outcome and reported; naming it is
+clearer and silences the message.
 
 `chains = 4` runs the sampler four times from different starting points.
 The default is one chain, and the diagnostics in the next section are
@@ -129,15 +173,16 @@ rules. By default a rule is soft, so an observation near a split
 contributes to both sides of it and the fitted function comes out smooth
 rather than piecewise constant; `gate` in
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-switches to the hard rules of standard BART, which fit faster and less
+switches to the hard rules of standard BART, which fit faster but less
 accurately.
 [`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md)
 has the comparison.
 
 ## Checking the Model
 
-Two questions are worth separating: whether the sampler converged, and
-whether the model fits.
+In a Bayesian analysis, one must first determine whether the sampler
+converged before moving forward with a model’s results. Separately, one
+should assess whether the model is a good fit to the data.
 
 ### Convergence
 
@@ -303,6 +348,14 @@ check.
 
 ## Which Predictors the Model Uses
 
+A
+[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
+fit produces no model coefficients; to see which covariates played the
+biggest role in the fit, we can use
+[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
+on its output. This produces statistics about the use of each predictor
+in the trees.
+
 ``` r
 
 variable_importance(fit)
@@ -332,17 +385,16 @@ each predictor per draw, and `prop_used` is the proportion of draws in
 which the predictor received any rule at all.
 
 `surv2m` takes the most rules, which is unsurprising: it is a prognostic
-score built to predict survival. Age follows. At the bottom, `sex` and
-`race` are used in fewer than half the draws, as are several of the
-physiological measurements, which says the model can often do without
+score built to predict survival. `age` follows. At the bottom, `sex`,
+`race` and several of the physiological measurements are used in little
+more than half of the draws, which says the model can often do without
 them.
 
-Two cautions. Usage is not effect size: a predictor can be split on
-constantly and still move the prediction very little, and
-[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
-in the next section is the better guide to that. And, when predictors
-are correlated, the usage distributes among them more or less
-arbitrarily.
+It’s important to remember that usage is not effect size: a predictor
+can be split on constantly and still move the prediction very little,
+and the comparisons in the next section are the better guide to that.
+Also, when predictors are correlated, the usage distributes among them
+more or less arbitrarily.
 
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md)
 covers variable importance and selection, including how to tell whether
@@ -350,12 +402,131 @@ a difference in this table means anything.
 
 ## Interpreting the Fit
 
-A forest has no coefficients, so there is no table of slopes to read.
-The question “what is the effect of catheterization” is answered by
-asking the fitted model what it predicts when every patient receives it,
-asking again when none does, and taking the difference.
+A forest has no table of coefficients to read, so a fit is interpreted
+by putting questions to it: what happens to the prediction when a
+predictor is changed, and what shape does the prediction trace as that
+predictor varies. Three functions answer versions of that question, and
+they differ in what they average over rather than in what they are
+asking.
+
+### A Table of Average Comparisons
+
+[`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
+is the closest thing to a table of regression slopes. For each predictor
+in turn it changes that predictor, leaves the others as they are,
+predicts every patient twice, and averages the difference over the
+sample.
+
+``` r
+
+marginaleffects::avg_comparisons(fit)
+#> 
+#>    Term      Contrast  Estimate     2.5 %    97.5 %
+#>  age    +1             0.003076  0.001313  0.004798
+#>  aps    +1             0.001265  0.000000  0.003037
+#>  card   yes - no       0.027942 -0.002662  0.085209
+#>  crea   +1             0.000000 -0.010477  0.033159
+#>  edu    +1            -0.003049 -0.017120  0.002496
+#>  hema   +1             0.000000 -0.003459  0.002066
+#>  meanbp +1             0.000066 -0.000253  0.001772
+#>  paco2  +1             0.003164  0.000000  0.005994
+#>  pafi   +1             0.000218  0.000000  0.000515
+#>  race   black - white  0.000000 -0.041380  0.055406
+#>  race   other - white  0.000000 -0.027984  0.103281
+#>  resp   +1             0.000000 -0.001092  0.002480
+#>  rhc    1 - 0          0.055878  0.000000  0.105187
+#>  sex    male - female  0.000000 -0.019322  0.053762
+#>  surv2m +1            -0.178556 -0.274527 -0.088612
+#> 
+#> Type: response
+```
+
+`Contrast` says what change was made.[^1] For a categorical predictor it
+is a difference between two levels, and for a numeric one it is an
+increase of one unit, which is a default rather than anything the data
+suggested. The comparisons are on the probability scale, so `rhc` reads
+as an increase of a little over five percentage points in the
+probability of death and `age` as three tenths of a point per year of
+age. A logistic regression would report each of these as one slope on
+the log-odds scale; these are averages over the sample of a quantity the
+model allows to differ from patient to patient.
+
+Several rows are exactly zero rather than merely small, which is worth
+knowing about. The default splitting prior can leave a predictor out of
+the forest altogether in a given draw, and in such a draw every
+comparison involving it is exactly zero, so the posterior has a point
+mass there. Where that mass covers the middle of the posterior the
+median falls inside it and the estimate prints as exactly zero, which is
+what has happened to the predictors at the bottom of the importance
+table. The same mass is why the lower bound for `rhc` is zero rather
+than merely close to it.
+
+The one-unit default deserves a second look whenever a predictor does
+not span a unit. `surv2m` is a probability, so an increase of one is
+wider than its whole observed range, and the model holds its prediction
+flat past the edge of that range rather than continuing any trend.
+Asking instead for a change the data contains gives a larger answer:
+
+``` r
+
+marginaleffects::avg_comparisons(fit, variables = list(surv2m = "iqr"))
+#> 
+#>  Estimate  2.5 % 97.5 %
+#>    -0.292 -0.367 -0.211
+#> 
+#> Term: surv2m
+#> Type: response
+#> Comparison: Q3 - Q1
+```
+
+Moving a patient from the first quartile of the prognostic score to the
+third lowers the predicted probability of death by about .29, against
+the .18 the one-unit contrast reported.
+
+### The Shape of a Relationship
+
+One number for a predictor hides the shape of the relationship behind
+it, and the two `surv2m` contrasts are what that looks like when the
+shape matters: the answer depends on which change is asked about.
+Plotting the fit against one predictor shows the whole curve, averaging
+over the other predictors at each value.
+
+``` r
+
+plot(fit, ~ surv2m) +
+  ggplot2::labs(x = "Estimated probability of surviving two months",
+                y = "Fitted probability of death")
+```
+
+![](bartisan_files/figure-html/pdp-1.png)
+
+The fitted probability of death falls from close to .9 to about .5 as
+the prognostic score rises, and the fall is not a straight line, which
+is why the two contrasts above disagree about its size. A logistic
+regression reports one slope on the log-odds scale for the whole range.
+Nothing had to be specified to find the shape.
+
+The band is a credible interval on the *average* prediction at each
+value, not on any one patient’s, and it widens at the top where few
+patients were that healthy.
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+returns the same numbers without drawing them, and
+[`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html)
+is the one to reach for when the grid or what is conditioned on needs
+more control.
+
+[`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
+covers effects, curves, and interactions.
+
+### The Effect of a Treatment
+
+`rhc` has a row in the table above, so in one sense its effect has
+already been reported.
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
-does this, and needs only to be told which predictor is the treatment:
+asks the same question in the vocabulary of a causal analysis: it takes
+the treatment as an argument rather than as one predictor among many, it
+names the estimand being averaged, and it reports the two potential
+outcomes the contrast is a difference of.
 
 ``` r
 
@@ -364,7 +535,7 @@ eff <- estimate_effect(fit, treat = "rhc")
 eff
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate lower upper    n
@@ -378,62 +549,38 @@ eff
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```
 
-Catheterization is associated with an increase of about six percentage
-points in the probability of death. The interval runs from roughly zero
-to eleven points, so the direction is reasonably clear and the size is
-not.
-
-The lower bound is exactly zero rather than merely close to it, and that
-is worth knowing about. The default splitting prior can drop a predictor
-from the forest entirely, and in a draw where it drops `rhc` the
-contrast is exactly zero, so the posterior has a point mass there. The
-default settings are not necessarily the best ones for estimating a
-causal effect; more specialized methods, such as Bayesian causal forests
-(BCF) and BART without a sparsity-inducing prior, are described in
-[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md).
+Catheterization is associated with an increase of about five percentage
+points in the probability of death. The interval runs from zero to
+roughly eleven points, so the direction is reasonably clear and the size
+is not. The estimate differs a little from the `rhc` row of the
+comparisons table because it is the posterior mean of the same draws
+rather than their median.
 
 Because the outcome is binary, this is a difference in probability,
-which is interpretable without reference to the model. That is usually
-the number to report.
+which is interpretable without reference to the model, and it is usually
+the number to report. The two probabilities it is a difference of are
+printed below it: about 63% of patients would be expected to die without
+catheterization and 69% with it, averaging over the covariates as they
+actually occur in this sample.
 
-The two probabilities it is a difference of are printed below it, since
-the difference was computed from them: about 63% of patients would be
-expected to die without catheterization and 69% with it, averaging over
-the covariates as they actually occur in this sample.
+The treatment has to be categorical, since the contrast is taken between
+its levels. The effect of a continuous treatment is a slope or a
+dose-response curve instead, and
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+says so and names the functions that produce one.
 
-### Looking at a Relationship
-
-Effects averaged over the sample hide the shape of the relationship. To
-see the shape, plot the model’s predictions against one predictor.
-
-``` r
-
-plot(fit, ~ surv2m) +
-  ggplot2::labs(x = "Estimated probability of surviving two months",
-                y = "Fitted probability of death")
-```
-
-![](bartisan_files/figure-html/pdp-1.png)
-
-The fitted probability of death falls from close to .9 to about .5 as
-the prognostic score rises, and the fall is not a straight line. A
-logistic regression reports one slope on the log-odds scale for the
-whole range. Nothing had to be specified to find the shape.
-
-The band is a credible interval on the *average* prediction at each
-value, not on any one patient’s, and it widens at the top where few
-patients were that healthy.
-[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
-returns the same numbers without drawing them, and
-[`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html)
-is the one to reach for when the grid or what is conditioned on needs
-more control.
-
-[`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
-covers effects, curves, and interactions.
+The defaults are not necessarily the best settings for estimating a
+causal effect, and the zero at the end of the interval is the first sign
+of it: a sparsity prior that can drop a predictor is reasonable for
+prediction and poor for a treatment whose effect is being reported. More
+specialized methods, such as Bayesian causal forests (BCF) and BART
+without a sparsity-inducing prior, are described in
+[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md),
+which also covers what has to be true of the data before any of this can
+be read as an effect of the procedure.
 
 ## Predicting New Observations
 
@@ -450,7 +597,9 @@ predict(fit, newdata = new_patient)
 ```
 
 For a prediction with an interval, use
-[`marginaleffects::predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html)[^1]:
+[`marginaleffects::predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html),
+which reports the posterior median rather than the mean
+[`predict()`](https://rdrr.io/r/stats/predict.html) reports:
 
 ``` r
 
@@ -569,10 +718,12 @@ Effectiveness of Right Heart Catheterization in the Initial Care of
 Critically Ill Patients.” *JAMA* 276 (11): 889–97.
 <https://doi.org/10.1001/jama.1996.03540110043030>.
 
-[^1]: Note that by default, *marginaleffects* uses the posterior median
-    as the point estimate, whereas
-    [`predict()`](https://rdrr.io/r/stats/predict.html) uses the
-    posterior mean, so these values may differ slightly. Use
-    `options(marginaleffects_posterior_center = mean)` prior to running
-    `predictions()` to produce the posterior mean. We do this in
+[^1]: By default *marginaleffects* reports the posterior median as the
+    point estimate, whereas
+    [`predict()`](https://rdrr.io/r/stats/predict.html) and
+    [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+    report the posterior mean, so the same quantity can differ slightly
+    between them. Setting
+    `options(marginaleffects_posterior_center = mean)` before the call
+    switches it to the mean; we do this in
     [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md).

@@ -23,11 +23,9 @@ no model supplies them.
 
 In addition to its use here, BART can be used with instrumental
 variables analysis ([McCulloch et al.,
-n.d.](#ref-mccullochCausalInferenceInstrumental2021)), regression
+n.d.](#ref-mccullochCausalInferenceInstrumental2021)) and regression
 discontinuity ([Alcantara et al.,
-n.d.](#ref-alcantaraModifiedBARTLearning2024)), and
-difference-in-differences ([Souto and Neto,
-n.d.](#ref-soutoForestsDifferencesRobust2025)).
+n.d.](#ref-alcantaraModifiedBARTLearning2024)).
 
 The example we use here is a dataset used to answer whether right heart
 catheterization helps or harms critically ill patients ([Connors et al.
@@ -255,7 +253,7 @@ ate <- estimate_effect(fit, treat = "rhc")
 ate
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate  lower upper    n
@@ -269,7 +267,7 @@ ate
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```
 
 Under the assumptions above this is the average treatment effect:
@@ -314,7 +312,7 @@ scale:
 estimate_effect(fit, treat = "rhc", comparison = "lnor")
 #> Average treatment effect (log odds ratio)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>                contrast estimate  lower upper    n
@@ -328,7 +326,7 @@ estimate_effect(fit, treat = "rhc", comparison = "lnor")
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a, and O(y) is the odds
+#> ℹ Y[a] is the average response with `rhc` set to "a", and O(y) is the odds
 #>   `y/(1-y)`.
 ```
 
@@ -447,7 +445,7 @@ needs nothing else:
 estimate_effect(fit_bcf)
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate    lower  upper    n
@@ -461,7 +459,7 @@ estimate_effect(fit_bcf)
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```
 
 The two potential outcomes are printed beneath the contrast, since a
@@ -575,7 +573,7 @@ fit_earn_bcf <- bcf(
 estimate_effect(fit_earn_bcf, estimand = "ATT")
 #> Average treatment effect on the treated (difference)
 #> 
-#> Treatment: "treat"
+#> Treatment: `treat`
 #> Averaged over the 185 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
@@ -589,7 +587,7 @@ estimate_effect(fit_earn_bcf, estimand = "ATT")
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "treat" set to a.
+#> ℹ Y[a] is the average response with `treat` set to "a".
 ```
 
 `estimand = "ATT"` averages over the treated rather than over everyone,
@@ -705,7 +703,3 @@ of a Causal Inference Technique.” *American Journal of Epidemiology* 173
 Souto, Hugo Gobato, and Francisco Louzada. n.d. *Ablation Studies for
 Novel Treatment Effect Estimation Models*.
 <https://doi.org/10.48550/arXiv.2410.15560>.
-
-Souto, Hugo Gobato, and Francisco Louzada Neto. n.d. *Forests for
-Differences: Robust Causal Inference Beyond Parametric DiD*.
-<https://doi.org/10.48550/arXiv.2505.09706>.

@@ -246,7 +246,7 @@ set.seed(123)
 fit <- bartisan(death ~ . - days, data = rhc, sparsity = FALSE,
                 num_trees = 10, num_burn = 50, num_draws = 50)
 #> ℹ Using `family = binomial()`.
-#> ℹ Set `family` to choose another, which also silences this message.
+#> ℹ Set `family` explicitly to silence this message.
 
 # The effect of catheterization on the probability of death, as an average
 # contrast of counterfactual predictions
