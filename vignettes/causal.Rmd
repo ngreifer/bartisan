@@ -38,7 +38,7 @@ BART is a popular choice for causal inference because it allows one to fit the n
 
 However, it's important to remember that BART is not a "causal inference method"; it is just a method of estimating certain quantities, which often are interpretable as associations. The assumptions that turn an association into a causal effect are assumptions about the design, and no model supplies them.
 
-In addition to its use here, BART can be used with instrumental variables analysis [@mccullochCausalInferenceInstrumental2021], regression discontinuity [@alcantaraModifiedBARTLearning2024], and difference-in-differences [@soutoForestsDifferencesRobust2025].
+In addition to its use here, BART can be used with instrumental variables analysis [@mccullochCausalInferenceInstrumental2021] and regression discontinuity [@alcantaraModifiedBARTLearning2024].
 
 The example we use here is a dataset used to answer whether right heart catheterization helps or harms critically ill patients [@connors1996].
 

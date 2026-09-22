@@ -9367,3 +9367,52 @@ unbuilt, and an experimental option whose only documented advantage is on a
 criterion the package does not yet expose would mostly be used for the criterion
 it is *not* measured on. The code is `_dev/gibbs-prior.patch`; the entry above
 says how to put it back and what to measure first.
+
+## DiD is parked: no user-facing recommendation until the field settles
+
+Everything DiD now lives in `_dev/did/`, and nothing user-facing mentions it.
+The judgment is that *bartisan* is not ready to recommend how to do
+difference-in-differences with BART, not that the work was wrong; the measured
+results are in `_dev/did/DID.md` and stand.
+
+Removed from the package:
+
+- the whole "Panel Data: Difference-in-Differences" section of
+  `vignettes/causal.Rmd` (203 lines), its `has_did` guard, and the sentence in
+  the introduction that pointed at it;
+- the clause naming difference-in-differences, and its citation of
+  @soutoForestsDifferencesRobust2025, from the applications list in
+  `vignettes/faq.Rmd`;
+- the reference to the section from "Where to Go Next", which now points `?vc`
+  at `bcf()` instead;
+- `did` from `Suggests`;
+- the DiD framing of the modifier-only feature in `R/varying.R`, which now
+  motivates it generically as "a modifier from which the treatment could be
+  reconstructed". The claim it replaced was true and measured; it is gone
+  because it was advice about DiD, not because it was wrong.
+
+Deliberately kept:
+
+- `tests/testthat/test-estimate-effect.R`'s subgroup-estimand test and
+  `tests/testthat/test-varying.R`'s modifier-only test. Neither is user-facing
+  and both exercise behavior that remains; their comments still name DiD as the
+  motivating case, which is accurate history.
+- `callaway2021`, `santanna2020` and the Souto entries in
+  `vignettes/references.bib`, now uncited. Uncited entries do not render, and
+  they will be wanted again.
+- the code comment at `R/bartisan.R:466`.
+
+Why it was parked, in one line each: the DiD-BCF specification of Souto and
+Louzada Neto has a placebo check that cannot fail (0.67 to 0.99 where the truth
+is 0) and is unrefereed; the stacked Callaway-Sant'Anna design built to replace
+it works and agrees with `did`, but rests on a `num_trees` asymmetry found by
+measurement rather than theory and on a ridge the design was supposed to have
+removed; and the Category-B alternative from `_dev/did/PLAN-categories-B-and-D.md`
+is unbiased only where a group level shift coexists with strong unit
+persistence, and loses to the stacked model on real data anyway. Three designs,
+none of them a recommendation.
+
+When this is picked up again, start from `_dev/did/DID.md` § "Phase 13c", whose
+rule is the one that caught every earlier mistake: **an ESS for these models
+means nothing at a single chain length.**
+

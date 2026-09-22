@@ -30,11 +30,42 @@ docs/
 # outputs are not: `vignettes/survival-results.rds` is the one that ships. The
 # same rule keeps the varying-coefficient measurements, which `?vc`, the README
 # and `varying-coefficients.md` all cite by filename.
+#
+# `_dev/did/` is the parked difference-in-differences work: three designs that
+# were built, measured and not shipped, kept because the measurements are worth
+# more than the code and will be wanted if the field settles. Nothing in the
+# package references it. Note the ordering below: `_dev/*` excludes the
+# directory itself, so `!_dev/did/` has to re-include it before any file inside
+# can be un-ignored, and `_dev/did/*` then drops the `.rds` outputs the way the
+# `survival-*` rule does.
 _dev/*
+!_dev/did/
+_dev/did/*
 !_dev/TASKS.md
 !_dev/SHIP.md
 !_dev/REVIEW.md
 !_dev/review-bench.R
+!_dev/did/PLAN-categories-B-and-D.md
+!_dev/did/DID.md
+!_dev/did/did-bcf-dgp.R
+!_dev/did/did-bcf-size.R
+!_dev/did/did-bcf-capacity.R
+!_dev/did/did-bart-or.R
+!_dev/did/did-bcf-paperspec.R
+!_dev/did/did-bcf-size-report.R
+!_dev/did/did-bcf-study.R
+!_dev/did/did-stack-fun.R
+!_dev/did/did-stack-validate.R
+!_dev/did/did-stack-ridge.R
+!_dev/did/did-stack-ess.R
+!_dev/did/did-stack-refuted.R
+!_dev/did/catB-build.R
+!_dev/did/catB-cmp.R
+!_dev/did/catB-rescue.R
+!_dev/did/catB-persist.R
+!_dev/did/catB-mpdta.R
+!_dev/did/catB-extract.R
+!_dev/vc-bench.R
 !_dev/benchmark.Rmd
 !_dev/check.sh
 !_dev/survival-sim.R
