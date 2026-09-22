@@ -864,10 +864,9 @@ default_family <- function(y, weights = NULL) {
   }
 
   arg::msg(c(i = "Using {.code family = {chosen}()}.",
-             i = "Set {.arg family} to choose another, which also silences
-                  this message."))
+             i = "Set {.arg family} explicitly to silence this message."))
 
-  get(chosen, mode = "function", envir = asNamespace("bartisan"))()
+  chosen
 }
 
 # Two levels, or numeric zeros and ones -- the responses for which a binomial
