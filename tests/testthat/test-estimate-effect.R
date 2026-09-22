@@ -493,6 +493,65 @@ test_that("a by formula is evaluated rather than read for the names it mentions"
   expect_error(estimate_effect(fit, by = "nope"), "not a column")
 })
 
+# The difference-in-differences model of Souto and Louzada Neto (2025) is a
+# varying coefficient on a 0/1 treated-now indicator, so every estimand it
+# reports is an average of that coefficient over a chosen set of rows. This
+# pins that `estimate_effect()` reaches all of them, since the alternative is
+# asking a user to average `coef()` draws themselves.
+test_that("the difference-in-differences estimands are reachable", {
+  skip_on_cran()
+
+  set.seed(20L)
+  n_unit <- 80L
+  d <- expand.grid(t = 1:6, id = seq_len(n_unit))
+  d$cohort <- factor(c("never", "3", "5")[(d$id %% 3L) + 1L],
+                     levels = c("never", "3", "5"))
+  g <- c(never = Inf, `3` = 3, `5` = 5)[as.character(d$cohort)]
+  d$k <- d$t - g
+  d$ever <- as.integer(is.finite(g))
+  d$Dit <- as.integer(is.finite(g) & d$t >= g)
+  d$x1 <- stats::runif(nrow(d))
+  d$y <- 0.3 * d$t + d$x1 + 2 * d$Dit + stats::rnorm(nrow(d), sd = 0.3)
+
+  fit <- suppressMessages(
+    bartisan(y ~ cohort + t + x1 + vc(Dit, ~ x1 + t + cohort), data = d,
+             family = stats::gaussian(),
+             control = quick_control(num_trees = c(20L, 10L), num_burn = 200L,
+                                     num_draws = 300L)))
+
+  treated <- d[d$Dit == 1, , drop = FALSE]
+
+  # The ATT is the coefficient averaged over the treated rows, and that is what
+  # `estimate_effect()` on those rows returns; the two are the same numbers, so
+  # a user need not reach for `coef()` at all.
+  att <- estimate_effect(fit, treat = "Dit", newdata = treated)
+  by_hand <- mean(colMeans(coef(fit, draws = TRUE)[[1L]])[d$Dit == 1])
+
+  expect_identical(nrow(att), 1L)
+  expect_equal(att[["estimate"]], by_hand, tolerance = 1e-8)
+  expect_equal(att[["estimate"]], 2, tolerance = 0.25)
+
+  # The group-time effects, and the event study. `k` is not a predictor of the
+  # model at all; `by` is evaluated in `newdata`, which is what lets an
+  # event-time profile be asked for without the model carrying event time.
+  gatt <- estimate_effect(fit, treat = "Dit", newdata = treated, by = ~ cohort)
+  expect_identical(nrow(gatt), 2L)
+  expect_identical(names(gatt)[1L], "cohort")
+
+  es <- estimate_effect(fit, treat = "Dit", newdata = treated, by = ~ k)
+  expect_identical(names(es)[1L], "k")
+  expect_setequal(es[["k"]], as.character(sort(unique(treated$k))))
+  expect_true(all(abs(es[["estimate"]] - 2) < 0.5))
+
+  # And the per-observation effect, which is the coefficient itself.
+  catt <- estimate_effect(fit, treat = "Dit", newdata = treated,
+                          estimand = "CATE")
+  expect_identical(nrow(catt), nrow(treated))
+  expect_equal(catt[["estimate"]],
+               unname(colMeans(coef(fit, draws = TRUE)[[1L]])[d$Dit == 1]),
+               tolerance = 1e-8)
+})
+
 test_that("a newdata holding one arm is still a contrast", {
   d <- sim_effect(seed = 17L)
   fit <- fit_effect(d)

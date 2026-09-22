@@ -25,10 +25,12 @@
 #'   rather than as an expression. A numeric variable gets one forest; a factor
 #'   gets one per level, coded symmetrically (i.e., with no level held out as a
 #'   reference) as [multinomial()] codes its predictors.
-#' @param modifiers a one-sided formula naming the predictors this coefficient's
+#' @param modifiers a one-sided formula naming the variables this coefficient's
 #'   forest may split on. Default is `NULL` to allow every predictor in the model
-#'   except `x` itself. Note that naming something that is not a predictor is an
-#'   error rather than a silent restriction.
+#'   except `x` itself. A variable the model formula's fixed part does not carry
+#'   may be named here, and it then modifies the coefficient without entering
+#'   the control function; see Details. Naming something that is not a column of
+#'   `data` at all is an error rather than a silent restriction.
 #' @param center the value of `x` at which the control function is read, given as
 #'   either a string or a number. Allowable options include `"auto"` (the
 #'   default), `"mean"`, `"zero"`, `"mid"`, and `"estimate"`. `"mean"` centers
@@ -55,6 +57,19 @@
 #'
 #' By default a coefficient may vary with every predictor in the model except
 #' `x` itself, and `modifiers` narrows that.
+#'
+#' It can also widen it. A variable named here that the fixed part leaves out is
+#' given a column of its own and reaches this coefficient's forest and no other,
+#' so the coefficient varies with it while the control function stays blind to
+#' it. That asymmetry is the point rather than a side effect: it is how an
+#' effect is allowed to depend on something a prognostic function must not see.
+#' The case that needs it is a modifier from which the treatment could be
+#' reconstructed: a control function allowed to see such a variable can
+#' represent the treatment itself, so the effect is not identified, even though
+#' the effect may legitimately vary with it. Naming it as a modifier alone keeps
+#' it out of the control function. Only an explicit `modifiers` formula reaches
+#' such a variable: a bare `vc(z)` means the predictors of the model, which
+#' these are not.
 #'
 #' A covariate with a varying coefficient is kept out of the control function,
 #' since \eqn{f_0(Z) + z f_1(Z)} is not identified when `z` is among
@@ -377,7 +392,12 @@ uses_dot <- function(formula) {
 #     variable is constant on exactly those rows, so such a split separates rows
 #     that contribute from rows that contribute nothing. Wasted rather than
 #     unidentified, so it goes quietly.
-vc_modifiers <- function(specs, groups, dot, categorical, where = NULL) {
+# `groups` is what the control function may split on; `slope_groups` is what a
+# coefficient may, which is wider exactly when a modifier was named that the
+# model's fixed part does not carry. They were one argument until modifiers were
+# allowed to name such a variable.
+vc_modifiers <- function(specs, groups, dot, categorical, where = NULL,
+                         slope_groups = groups) {
   # Which formula, when the family has more than one. Otherwise there is only
   # one of them and naming it would be noise. Plain text rather than markup,
   # since an interpolated value is inserted rather than parsed.
@@ -413,15 +433,24 @@ vc_modifiers <- function(specs, groups, dot, categorical, where = NULL) {
       # is the failure mode worth spending an error on. The covariate's own
       # name is the exception: it is legitimately absent from the design,
       # since `vc()` took it out.
-      unknown <- setdiff(asked, c(groups, own))
+      # Only a name that reaches nothing at all is an error now. A name the
+      # fixed part does not carry is admitted and given a design column of its
+      # own, so by the time this runs it is among `slope_groups`; what is left
+      # here is the typo that named no variable the data has, which this
+      # reports rather than leaving to `model.frame()`.
+      unknown <- setdiff(asked, c(slope_groups, own))
 
       if (!is_null(unknown)) {
         arg::err(c("The modifiers of {.code {spec[['label']]}} name {length(unknown)} thing{?s} that {?is/are} not
-                         {?a predictor/predictors} of this model: {.val {unknown}}",
-                   i = "The predictors of {which} are {.val {groups}}."))
+                         {?a variable/variables} this model can reach: {.var {unknown}}",
+                   i = "A modifier may name a variable the fixed part leaves
+                        out, and it then modifies the coefficient without
+                        entering the control function; but it must still be a
+                        column of {.arg data}.",
+                   i = "The {cli::qty(length(slope_groups))} variable{?s} available {cli::qty(length(slope_groups))} {?is/are} {.var {slope_groups}}."))
       }
 
-      allowed <- intersect(asked, groups)
+      allowed <- intersect(asked, slope_groups)
     }
 
     # A numeric covariate modifying its own coefficient is a nonlinearity
@@ -625,6 +654,75 @@ vc_basis_factor <- function(x, spec) {
 # gets the same missing-value handling as any predictor; the design is built from
 # `split_vc_terms()$fixed`, so the covariate is not also a splitting predictor
 # unless the caller asked for that.
+# The modifier terms that the fixed part does not already carry. These become
+# design columns of their own so a coefficient's forest can split on them, and
+# they are kept out of every control function by the masks.
+#
+# `data` is used only to expand a `.`; without it the fixed part is read as
+# written, which is what a formula with no data to expand against means.
+vc_modifier_only <- function(specs, fixed, data = NULL) {
+  if (is_null(specs)) {
+    return(character())
+  }
+
+  asked <- unlist(lapply(specs, function(spec) {
+    if (is_null(spec[["modifiers"]])) {
+      return(character())
+    }
+    attr(stats::terms(spec[["modifiers"]]), "term.labels")
+  }), use.names = FALSE)
+
+  if (is_null(asked)) {
+    return(character())
+  }
+
+  have <- attr(stats::terms(fixed, data = data), "term.labels")
+  covariates <- pluck(specs, "covariate", character(1L))
+
+  out <- unique(setdiff(asked, c(have, covariates)))
+
+  # A modifier the fixed part does not carry is admitted, so a name that is a
+  # typo no longer reaches `vc_modifiers()`'s check -- it reaches
+  # `model.frame()`, which reports `object 'x' not found` without saying which
+  # term asked for it. Caught here instead, while the term is still in hand.
+  for (spec in specs) {
+    if (is_null(spec[["modifiers"]])) {
+      next
+    }
+
+    vars <- intersect(all.vars(spec[["modifiers"]]), 
+                      all.vars(stats::reformulate(out %or% "1")))
+    where <- environment(spec[["modifiers"]]) %or% parent.frame()
+    missing <- vars[!vapply(vars, function(v) {
+      (!is_null(data) && v %in% names(data)) || exists(v, envir = where)
+    }, logical(1L))]
+
+    if (!is_null(missing)) {
+      arg::err(c("The modifiers of {.code {spec[['label']]}} name
+                  {length(missing)} thing{?s} that {?is/are} not a column of
+                  {.arg data}: {.var {missing}}",
+                 i = "A modifier may name a variable the fixed part leaves out,
+                      in which case it modifies the coefficient without
+                      entering the control function; but it still has to
+                      exist."))
+    }
+  }
+
+  out
+}
+
+# `formula` with `terms` added to its right-hand side, keeping its environment.
+add_terms <- function(formula, terms) {
+  if (is_null(terms)) {
+    return(formula)
+  }
+
+  out <- stats::update(formula,
+                       stats::as.formula(paste("~ . +", paste(terms, collapse = " + "))))
+  environment(out) <- environment(formula)
+  out
+}
+
 vc_to_names <- function(expr) {
   if (!is.call(expr)) {
     return(expr)
@@ -765,7 +863,7 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
     names(categorical) <- pluck(specs, "covariate", character(1L))
 
     modifiers <- vc_modifiers(specs, allowed, forest_vc[[h]][["dot"]],
-                              categorical, labels[h])
+                              categorical, labels[h], slope_groups = groups)
 
     # One mask column per forest, in the order the forests are built: the
     # control function, then each coefficient's, a factor's levels

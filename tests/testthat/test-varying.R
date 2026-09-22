@@ -15,17 +15,27 @@ sim_vc <- function(n = 120, seed = 1) {
 spec_of <- function(formula, data, n_param = 1L, labels = NULL) {
   split <- split_random(formula)
   vc_split <- split_vc_terms(split[["fixed"]])
-  mf <- stats::model.frame(vc_to_names(formula), data)
-  mt <- stats::terms(vc_split[["fixed"]], data = mf)
+
+  # A modifier the fixed part does not carry becomes a design column of its own
+  # and is masked off the control function, which is what `bartisan()` does
+  # either side of building the frame; mirrored here so this harness keeps
+  # standing in for that pipeline.
+  vc_only <- vc_modifier_only(vc_split[["vc"]], vc_split[["fixed"]], data)
+  fixed <- add_terms(vc_split[["fixed"]], vc_only)
+
+  mf <- stats::model.frame(add_terms(vc_to_names(formula), vc_only), data)
+  mt <- stats::terms(fixed, data = mf)
   design <- build_design(mt, mf)
   groups <- unique(design[["term_labels"]][design[["assign"]]])
 
   forest_vc <- rep(list(list(specs = vc_split[["vc"]],
                              dot = uses_dot(split[["fixed"]]))), n_param)
 
-  resolve_vc(forest_vc, mf, design,
-             matrix(TRUE, nrow = length(groups), ncol = n_param),
-             labels = labels)
+  # What each control function may split on, as `forest_masks()` reads it off
+  # each parameter's own fixed formula: everything but the modifier-only terms.
+  base <- matrix(!groups %in% vc_only, nrow = length(groups), ncol = n_param)
+
+  resolve_vc(forest_vc, mf, design, base, labels = labels)
 }
 
 test_that("vc() is a formula marker and refuses to be called", {
@@ -119,13 +129,35 @@ test_that("a categorical covariate is removed from its own forest quietly", {
   expect_no_error(spec_of(y ~ x1 + x2 + vc(g, ~ g + x1), d))
 })
 
-test_that("a modifier that is not a predictor is a typo, not a restriction", {
+test_that("a modifier the fixed part leaves out modifies without entering it", {
+  d <- sim_vc()
+
+  # A modifier naming a variable the fixed part does not carry is admitted and
+  # given a design column of its own, so the coefficient's forest may split on
+  # it while the control function may not. That asymmetry is the point: it is
+  # what lets an effect vary with something the prognostic function must not
+  # see, and a difference-in-differences fit needs it for the event time, since
+  # a control function that knows the cohort and the period can represent the
+  # treatment exactly.
+  spec <- spec_of(y ~ x1 + vc(z, ~ x1 + x2), d)
+
+  expect_true("x2" %in% rownames(spec[["masks"]]))
+  expect_false(spec[["masks"]]["x2", 1L])   # the control function cannot
+  expect_true(spec[["masks"]]["x2", 2L])    # the coefficient can
+
+  # And a bare `vc(z)` does not pick one up: only an explicit modifier reaches
+  # a variable the fixed part left out.
+  bare <- spec_of(y ~ x1 + vc(z), d)
+  expect_false("x2" %in% rownames(bare[["masks"]]))
+})
+
+test_that("a modifier naming nothing at all is still a typo", {
   d <- sim_vc()
 
   expect_error(spec_of(y ~ x1 + x2 + vc(z, ~ nope), d),
-               "not a predictor")
+               "not a column of")
   expect_error(spec_of(y ~ x1 + x2 + vc(z, ~ x1 + typo), d),
-               "not .*predictors")
+               "not a column of")
 })
 
 test_that("the two overlap rules are separate", {

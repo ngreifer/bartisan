@@ -12,10 +12,12 @@ rather than as an expression. A numeric variable gets one forest; a factor
 gets one per level, coded symmetrically (i.e., with no level held out as a
 reference) as \code{\link[=multinomial]{multinomial()}} codes its predictors.}
 
-\item{modifiers}{a one-sided formula naming the predictors this coefficient's
+\item{modifiers}{a one-sided formula naming the variables this coefficient's
 forest may split on. Default is \code{NULL} to allow every predictor in the model
-except \code{x} itself. Note that naming something that is not a predictor is an
-error rather than a silent restriction.}
+except \code{x} itself. A variable the model formula's fixed part does not carry
+may be named here, and it then modifies the coefficient without entering
+the control function; see Details. Naming something that is not a column of
+\code{data} at all is an error rather than a silent restriction.}
 
 \item{center}{the value of \code{x} at which the control function is read, given as
 either a string or a number. Allowable options include \code{"auto"} (the
@@ -49,6 +51,19 @@ a prior of its own rather than being whatever difference a single forest with
 
 By default a coefficient may vary with every predictor in the model except
 \code{x} itself, and \code{modifiers} narrows that.
+
+It can also widen it. A variable named here that the fixed part leaves out is
+given a column of its own and reaches this coefficient's forest and no other,
+so the coefficient varies with it while the control function stays blind to
+it. That asymmetry is the point rather than a side effect: it is how an
+effect is allowed to depend on something a prognostic function must not see.
+The case that needs it is a modifier from which the treatment could be
+reconstructed: a control function allowed to see such a variable can
+represent the treatment itself, so the effect is not identified, even though
+the effect may legitimately vary with it. Naming it as a modifier alone keeps
+it out of the control function. Only an explicit \code{modifiers} formula reaches
+such a variable: a bare \code{vc(z)} means the predictors of the model, which
+these are not.
 
 A covariate with a varying coefficient is kept out of the control function,
 since \eqn{f_0(Z) + z f_1(Z)} is not identified when \code{z} is among

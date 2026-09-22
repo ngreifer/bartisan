@@ -459,6 +459,29 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
     formula <- resolved
   }
 
+  # A `vc()` modifier that is not otherwise a predictor is still a variable of
+  # the model: the coefficient's forest splits on it. It has to reach the model
+  # frame so it can be evaluated, and the design so it has a column to be split
+  # on, but it must not reach the *control* function -- that is the whole point
+  # of naming it only as a modifier, and for a difference-in-differences fit it
+  # is what keeps the control function from representing the treatment. The
+  # masks take care of the second part: they are built from each parameter's own
+  # fixed formula, which does not name these, so every control function excludes
+  # them and only a coefficient that asked reaches one. See `vc_modifiers()`.
+  vc_only <- vc_modifier_only(vc_split[["vc"]], split[["fixed"]],
+                              if (!missing(data) && is.data.frame(data)) data)
+
+  if (!is_null(vc_only)) {
+    mf[["formula"]] <- add_terms(mf[["formula"]], vc_only)
+    split[["fixed"]] <- add_terms(split[["fixed"]], vc_only)
+
+    # And into the stored formula, for the reason the frame's formula is what
+    # is stored at all: `insight::find_formula()` reads it to decide what the
+    # model's variables are, and a modifier is one of them even though the
+    # control function never sees it.
+    formula <- add_terms(formula, vc_only)
+  }
+
   mf[[1L]] <- quote(stats::model.frame)
   mf <- eval(mf, parent.frame())
 
