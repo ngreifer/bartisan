@@ -27,10 +27,12 @@
 #'   reference) as [multinomial()] codes its predictors.
 #' @param modifiers a one-sided formula naming the variables this coefficient's
 #'   forest may split on. Default is `NULL` to allow every predictor in the model
-#'   except `x` itself. A variable the model formula's fixed part does not carry
-#'   may be named here, and it then modifies the coefficient without entering
-#'   the control function; see Details. Naming something that is not a column of
-#'   `data` at all is an error rather than a silent restriction.
+#'   except `x` itself. A `.` in this formula stands for those same predictors,
+#'   so `~ .` is the default written out and `~ . + w` or `~ . - z` adds to or
+#'   removes from it; see Details. A variable the model formula's fixed part
+#'   does not carry may be named here, and it then modifies the coefficient
+#'   without entering the control function. Naming something that is not a
+#'   column of `data` at all is an error rather than a silent restriction.
 #' @param center the value of `x` at which the control function is read, given as
 #'   either a string or a number. Allowable options include `"auto"` (the
 #'   default), `"mean"`, `"zero"`, `"mid"`, and `"estimate"`. `"mean"` centers
@@ -57,6 +59,15 @@
 #'
 #' By default a coefficient may vary with every predictor in the model except
 #' `x` itself, and `modifiers` narrows that.
+#'
+#' Within `modifiers`, `.` stands for the predictors of the control function
+#' rather than, as in a model formula, for every column of the data. That
+#' makes `vc(z, ~ .)` the same model as `vc(z)`, and `vc(z, ~ . - x1)` the
+#' default with one modifier taken away, which is the short way to leave a
+#' coefficient free to vary with everything but one thing. `vc(z, ~ . + w)`
+#' adds one, and is how a variable the fixed part leaves out (below) is given to
+#' a coefficient without listing the rest. This is the sense `.` has in
+#' [update.formula()], not the one it has in [lm()].
 #'
 #' It can also widen it. A variable named here that the fixed part leaves out is
 #' given a column of its own and reaches this coefficient's forest and no other,
@@ -90,13 +101,11 @@
 #' At the other extreme, `~ 1` names nothing at all, which leaves the
 #' coefficient's forest no predictor to split on: every tree in it is a stump,
 #' so the coefficient is one drawn number and `x` enters as a linear term while
-#' the rest of the model stays nonparametric. Comparing `vc(z, ~ 1)` against
-#' `vc(z)` with [loo()][bartisan-interop] is then a test of whether the effect
-#' of `z` varies at all, and the constant fit reports it as a single
-#' coefficient, which under a logit link is one conditional log odds ratio. It
-#' is drawn under the leaf prior rather than a prior written for a regression
-#' coefficient, so it is shrunk toward zero. See
-#' `vignette("comparison", package = "bartisan")`.
+#' the rest of the model stays nonparametric. It is drawn under the leaf prior
+#' rather than a prior written for a regression coefficient, so it is shrunk
+#' toward zero. Comparing `vc(z, ~ 1)` against `vc(z)` with
+#' [loo()][bartisan-interop] is a test of whether the effect of `z` varies at
+#' all; `vignette("varying")` works one through.
 #'
 #' ## Setting `center`
 #'
@@ -132,30 +141,19 @@
 #' `gaussian_ls()`, `zi_poisson()` and the rest fit one forest per
 #' distributional parameter, and each parameter's formula carries its own `vc()`
 #' terms. The forests are then two-dimensional (a control function and its
-#' coefficients, for each parameter) and named accordingly, which is what
-#' per-forest settings are keyed by:
-#'
-#' ```r
-#' # forests: mean, mean:z, log_sd
-#' bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-#'          family = gaussian_ls())
-#'
-#' # forests: mean, mean:z, log_sd, log_sd:z; one formula reaches every
-#' # parameter, which is the rule every per-forest argument follows
-#' bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
-#'
-#' # each coefficient with its own modifiers
-#' bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
-#'               log_sd = ~ x1 + x2 + vc(z, ~ x1)), data = d,
-#'          family = gaussian_ls())
-#' ```
+#' coefficients, for each parameter) and named accordingly, `mean`, `mean:z`,
+#' `log_sd` and `log_sd:z` for `y ~ x1 + x2 + vc(z)` under `gaussian_ls()`,
+#' which is what per-forest settings are keyed by. One formula reaches every
+#' parameter, and a list of formulas gives each its own; `vignette("varying")`
+#' shows both.
 #'
 #' So the same covariate may have a coefficient on more than one parameter:
 #' \eqn{z} shifting the mean and widening the spread are different questions, and
 #' both are answered at once. [coef()] returns one column per coefficient, named
 #' for its forest.
 #'
-#' Two things follow from the parameters being different. A group intercept from
+#' Some consequences follow from the parameters being different. A group
+#' intercept from
 #' `(1 | g)` reaches every control function and no coefficient, since a
 #' group-varying coefficient is a random slope. And `center = "estimate"` is
 #' judged per parameter: the drawn coding needs a leaf target that is quadratic
@@ -169,7 +167,13 @@
 #' forest per level would add one such direction per coefficient and the
 #' reporting does not carry them.
 #'
+#' `vignette("varying")` is the worked account of all of this: each argument on
+#' the `rhc` data, the constant-against-varying comparison, reading the fit
+#' with [coef()] and [estimate_effect()], and how [bcf()] writes its model in
+#' these terms.
+#'
 #' @seealso
+#' * `vignette("varying")` for the guide
 #' * [bartisan()] for the formula interface
 #' * [bcf()] for the causal case, which is this term with the priors and the
 #'   propensity score set up for it
@@ -380,7 +384,7 @@ uses_dot <- function(formula) {
 # every group its own formula allows, less any varying covariate it may not see;
 # each coefficient's forest gets what its own `modifiers` formula allows.
 #
-# Two rules, and they differ in whether the caller named the variable:
+# The rules below differ in whether the caller named the variable:
 #
 #   * The control function cannot split on a varying covariate. With `z` among
 #     its modifiers, f_0(Z) + z f_1(Z) is not identified -- any function of `z`
@@ -394,6 +398,30 @@ uses_dot <- function(formula) {
 #     unidentified, so it goes quietly.
 # `groups` is what the control function may split on; `slope_groups` is what a
 # coefficient may, which is wider exactly when a modifier was named that the
+# The term labels of a `modifiers` formula, with `.` standing for the control
+# function's predictors.
+#
+# That is a narrower `.` than a model formula's, where it means every column of
+# the data. Here it means what a bare `vc(x)` means, so `vc(x, ~ .)` and `vc(x)`
+# are the same model and `~ . + w` and `~ . - z` add to or take from that set,
+# the way `.` reads in `update.formula()`. `terms()` does the expansion given a
+# frame whose columns are the predictors, and `-` then removes as it would in
+# any formula; an empty control function gives `.` nothing to stand for.
+#
+# The substitution is done by hand rather than through `terms(data = )`, which
+# warns from deep inside R whenever `.` and a variable outside the frame appear
+# together, i.e. exactly the `~ . + w` case this exists for.
+vc_modifier_terms <- function(modifiers, control) {
+  rhs <- modifiers[[length(modifiers)]]
+
+  if (uses_dot(modifiers)) {
+    stand_in <- if (is_null(control)) 1 else stats::reformulate(control)[[2L]]
+    rhs <- do.call(substitute, list(rhs, list(. = stand_in)))
+  }
+
+  attr(stats::terms(stats::as.formula(call("~", rhs))), "term.labels")
+}
+
 # model's fixed part does not carry. They were one argument until modifiers were
 # allowed to name such a variable.
 vc_modifiers <- function(specs, groups, dot, categorical, where = NULL,
@@ -426,14 +454,12 @@ vc_modifiers <- function(specs, groups, dot, categorical, where = NULL,
     allowed <- groups
 
     if (!is_null(spec[["modifiers"]])) {
-      asked <- attr(stats::terms(spec[["modifiers"]]), "term.labels")
+      asked <- vc_modifier_terms(spec[["modifiers"]], groups)
 
       # A name that is not a predictor is a typo, not a restriction, and
       # silently fitting a forest with fewer modifiers than were asked for
-      # is the failure mode worth spending an error on. The covariate's own
-      # name is the exception: it is legitimately absent from the design,
-      # since `vc()` took it out.
-      # Only a name that reaches nothing at all is an error now. A name the
+      # is the failure mode worth spending an error on.
+      # Only a name that reaches nothing at all is an error. A name the
       # fixed part does not carry is admitted and given a design column of its
       # own, so by the time this runs it is among `slope_groups`; what is left
       # here is the typo that named no variable the data has, which this
@@ -665,21 +691,25 @@ vc_modifier_only <- function(specs, fixed, data = NULL) {
     return(character())
   }
 
+  have <- attr(stats::terms(fixed, data = data), "term.labels")
+
   asked <- unlist(lapply(specs, function(spec) {
     if (is_null(spec[["modifiers"]])) {
       return(character())
     }
-    attr(stats::terms(spec[["modifiers"]]), "term.labels")
+    vc_modifier_terms(spec[["modifiers"]], have)
   }), use.names = FALSE)
 
   if (is_null(asked)) {
     return(character())
   }
-
-  have <- attr(stats::terms(fixed, data = data), "term.labels")
-  covariates <- pluck(specs, "covariate", character(1L))
-
-  out <- unique(setdiff(asked, c(have, covariates)))
+  # A varying covariate is not among `have`, since `vc()` took it out of the
+  # fixed part, so one named as a modifier -- of its own coefficient, which is
+  # how the effect stops being linear in it, or of another's -- is admitted here
+  # like any other variable the fixed part leaves out. It reaches the design and
+  # the coefficient forests that asked for it; the per-parameter masks keep it
+  # out of every control function, so the identification is untouched.
+  out <- unique(setdiff(asked, have))
 
   # A modifier the fixed part does not carry is admitted, so a name that is a
   # typo no longer reaches `vc_modifiers()`'s check -- it reaches

@@ -1013,3 +1013,58 @@ test_that("an augmented family under vc() has its augmentation refreshed", {
   # the same missing forward seen from the other side.
   expect_lt(mean(fit[["loglik"]]), 0)
 })
+
+test_that("a `.` among the modifiers means the control function's predictors", {
+  d <- sim_vc()
+
+  # `~ .` is the default written out, so the masks agree column for column.
+  bare <- spec_of(y ~ x1 + x2 + vc(z), d)
+  dot <- spec_of(y ~ x1 + x2 + vc(z, ~ .), d)
+  expect_identical(dot[["masks"]], bare[["masks"]])
+
+  # `-` takes one away from that set and leaves the control function alone.
+  minus <- spec_of(y ~ x1 + x2 + vc(z, ~ . - x2), d)
+  expect_true(minus[["masks"]]["x1", 2L])
+  expect_false(minus[["masks"]]["x2", 2L])
+  expect_true(minus[["masks"]]["x2", 1L])
+
+  # `+` adds one, including a variable the fixed part does not carry, which
+  # then reaches the coefficient and not the control function.
+  plus <- spec_of(y ~ x1 + vc(z, ~ . + x2), d)
+  expect_true(plus[["masks"]]["x1", 2L])
+  expect_true(plus[["masks"]]["x2", 2L])
+  expect_false(plus[["masks"]]["x2", 1L])
+
+  # It is the control function's `.`, not the data's: a column the model never
+  # names is not swept in.
+  d$extra <- stats::rnorm(nrow(d))
+  narrow <- spec_of(y ~ x1 + vc(z, ~ .), d)
+  expect_false("extra" %in% rownames(narrow[["masks"]]))
+
+  # A typo alongside `.` is still a typo.
+  expect_error(spec_of(y ~ x1 + x2 + vc(z, ~ . + nope), d), "not a column of")
+})
+
+test_that("a covariate named as a modifier reaches the coefficient without the fixed part", {
+  d <- sim_vc()
+
+  # `vc(z, ~ z + x1)` is how the effect stops being linear in `z`. `z` is not
+  # in the fixed part, so it has no design column of its own until the modifier
+  # asks for one; it must then reach the coefficient's forest and not the
+  # control function, and without the overlap warning that naming it in the
+  # fixed part would earn.
+  expect_no_warning(spec <- spec_of(y ~ x1 + x2 + vc(z, ~ z + x1), d))
+  expect_true("z" %in% rownames(spec[["masks"]]))
+  expect_false(spec[["masks"]]["z", 1L])
+  expect_true(spec[["masks"]]["z", 2L])
+  expect_false(spec[["pinned"]][[2L]])
+
+  # The same through `.`, and for a covariate modifying another coefficient.
+  dot <- spec_of(y ~ x1 + x2 + vc(z, ~ . + z), d)
+  expect_true(dot[["masks"]]["z", 2L])
+
+  cross <- spec_of(y ~ x1 + vc(z) + vc(x2, ~ z), d)
+  expect_false(cross[["masks"]]["z", 1L])
+  expect_false(cross[["masks"]]["z", 2L])   # not its own forest
+  expect_true(cross[["masks"]]["z", 3L])    # the one that asked
+})

@@ -14,10 +14,12 @@ reference) as \code{\link[=multinomial]{multinomial()}} codes its predictors.}
 
 \item{modifiers}{a one-sided formula naming the variables this coefficient's
 forest may split on. Default is \code{NULL} to allow every predictor in the model
-except \code{x} itself. A variable the model formula's fixed part does not carry
-may be named here, and it then modifies the coefficient without entering
-the control function; see Details. Naming something that is not a column of
-\code{data} at all is an error rather than a silent restriction.}
+except \code{x} itself. A \code{.} in this formula stands for those same predictors,
+so \code{~ .} is the default written out and \code{~ . + w} or \code{~ . - z} adds to or
+removes from it; see Details. A variable the model formula's fixed part
+does not carry may be named here, and it then modifies the coefficient
+without entering the control function. Naming something that is not a
+column of \code{data} at all is an error rather than a silent restriction.}
 
 \item{center}{the value of \code{x} at which the control function is read, given as
 either a string or a number. Allowable options include \code{"auto"} (the
@@ -52,6 +54,15 @@ a prior of its own rather than being whatever difference a single forest with
 By default a coefficient may vary with every predictor in the model except
 \code{x} itself, and \code{modifiers} narrows that.
 
+Within \code{modifiers}, \code{.} stands for the predictors of the control function
+rather than, as in a model formula, for every column of the data. That
+makes \code{vc(z, ~ .)} the same model as \code{vc(z)}, and \code{vc(z, ~ . - x1)} the
+default with one modifier taken away, which is the short way to leave a
+coefficient free to vary with everything but one thing. \code{vc(z, ~ . + w)}
+adds one, and is how a variable the fixed part leaves out (below) is given to
+a coefficient without listing the rest. This is the sense \code{.} has in
+\code{\link[=update.formula]{update.formula()}}, not the one it has in \code{\link[=lm]{lm()}}.
+
 It can also widen it. A variable named here that the fixed part leaves out is
 given a column of its own and reaches this coefficient's forest and no other,
 so the coefficient varies with it while the control function stays blind to
@@ -84,13 +95,11 @@ such a split separates rows that contribute from rows that contribute nothing.
 At the other extreme, \code{~ 1} names nothing at all, which leaves the
 coefficient's forest no predictor to split on: every tree in it is a stump,
 so the coefficient is one drawn number and \code{x} enters as a linear term while
-the rest of the model stays nonparametric. Comparing \code{vc(z, ~ 1)} against
-\code{vc(z)} with \link[=bartisan-interop]{loo()} is then a test of whether the effect
-of \code{z} varies at all, and the constant fit reports it as a single
-coefficient, which under a logit link is one conditional log odds ratio. It
-is drawn under the leaf prior rather than a prior written for a regression
-coefficient, so it is shrunk toward zero. See
-\code{vignette("comparison", package = "bartisan")}.
+the rest of the model stays nonparametric. It is drawn under the leaf prior
+rather than a prior written for a regression coefficient, so it is shrunk
+toward zero. Comparing \code{vc(z, ~ 1)} against \code{vc(z)} with
+\link[=bartisan-interop]{loo()} is a test of whether the effect of \code{z} varies at
+all; \code{vignette("varying")} works one through.
 }
 
 \subsection{Setting \code{center}}{
@@ -129,29 +138,19 @@ rather than in kind.
 \code{gaussian_ls()}, \code{zi_poisson()} and the rest fit one forest per
 distributional parameter, and each parameter's formula carries its own \code{vc()}
 terms. The forests are then two-dimensional (a control function and its
-coefficients, for each parameter) and named accordingly, which is what
-per-forest settings are keyed by:
-
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{# forests: mean, mean:z, log_sd
-bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2), data = d,
-         family = gaussian_ls())
-
-# forests: mean, mean:z, log_sd, log_sd:z; one formula reaches every
-# parameter, which is the rule every per-forest argument follows
-bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls())
-
-# each coefficient with its own modifiers
-bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
-              log_sd = ~ x1 + x2 + vc(z, ~ x1)), data = d,
-         family = gaussian_ls())
-}\if{html}{\out{</div>}}
+coefficients, for each parameter) and named accordingly, \code{mean}, \code{mean:z},
+\code{log_sd} and \code{log_sd:z} for \code{y ~ x1 + x2 + vc(z)} under \code{gaussian_ls()},
+which is what per-forest settings are keyed by. One formula reaches every
+parameter, and a list of formulas gives each its own; \code{vignette("varying")}
+shows both.
 
 So the same covariate may have a coefficient on more than one parameter:
 \eqn{z} shifting the mean and widening the spread are different questions, and
 both are answered at once. \code{\link[=coef]{coef()}} returns one column per coefficient, named
 for its forest.
 
-Two things follow from the parameters being different. A group intercept from
+Some consequences follow from the parameters being different. A group
+intercept from
 \code{(1 | g)} reaches every control function and no coefficient, since a
 group-varying coefficient is a random slope. And \code{center = "estimate"} is
 judged per parameter: the drawn coding needs a leaf target that is quadratic
@@ -164,6 +163,11 @@ are the levels of one parameter rather than separate parameters, identified
 only up to a function they all share, and reporting removes it; a coefficient
 forest per level would add one such direction per coefficient and the
 reporting does not carry them.
+
+\code{vignette("varying")} is the worked account of all of this: each argument on
+the \code{rhc} data, the constant-against-varying comparison, reading the fit
+with \code{\link[=coef]{coef()}} and \code{\link[=estimate_effect]{estimate_effect()}}, and how \code{\link[=bcf]{bcf()}} writes its model in
+these terms.
 }
 }
 \examples{
@@ -191,6 +195,7 @@ head(coef(fit2))
 }
 \seealso{
 \itemize{
+\item \code{vignette("varying")} for the guide
 \item \code{\link[=bartisan]{bartisan()}} for the formula interface
 \item \code{\link[=bcf]{bcf()}} for the causal case, which is this term with the priors and the
 propensity score set up for it
