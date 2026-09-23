@@ -1,7 +1,7 @@
 # Turn the response as it comes out of model.frame() into the numeric form the
 # engine expects, and work out the family-specific starting values.
 #
-# Two quantities need care and are computed here rather than in the sampler.
+# Some quantities need care and are computed here rather than in the sampler.
 #
 # The offset holds an intercept-only fit on the link scale -- exact for most
 # families, a moment approximation where censoring or a mixture makes the closed

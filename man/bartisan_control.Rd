@@ -259,7 +259,7 @@ slowly than a forest does, so a longer warmup is worth having there and
 especially when the error distribution itself is the object of interest.
 }
 
-\subsection{Setting \code{num_draws}: intervals want more than point predictions do}{
+\subsection{Setting \code{num_draws}}{
 
 The defaults were chosen on out-of-sample error and effective sample size per
 second. Those are the right criteria for a posterior mean and they are not the
@@ -275,7 +275,7 @@ the default and covered 0.938 against 0.958. Halving the excess width took
 about four times the sweeps, which is what an error decaying as the square
 root of the run predicts.
 
-Two draws to take from this rather than a number to apply. Raise \code{num_draws}
+This suggests some habits rather than a number to apply. Raise \code{num_draws}
 when an interval, a tail quantile or a posterior probability is the
 deliverable and the cost is affordable, and leave it alone when a posterior
 mean or a held-out prediction is. And read the width rather than the coverage

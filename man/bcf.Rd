@@ -77,8 +77,8 @@ one.
 \details{
 \subsection{The Model}{
 
-\code{bcf()} writes five things into a \code{\link[=bartisan]{bartisan()}} call, all of which can be
-written out there directly. The treatment gets a \code{\link[=vc]{vc()}} term, so the effect
+\code{bcf()} writes several settings into a \code{\link[=bartisan]{bartisan()}} call, all of which can
+be written out there directly. The treatment gets a \code{\link[=vc]{vc()}} term, so the effect
 is a forest of its own with its own prior rather than whatever difference a
 single forest with the treatment among its predictors happens to produce. The
 propensity score goes in the control function and not in the effect forest,
@@ -188,6 +188,8 @@ heterogeneous effects of continuous exposures using Bayesian tree ensembles.
 }
 \seealso{
 \code{\link[=estimate_effect]{estimate_effect()}} for the average or conditional effect;
-\code{\link[=bartisan]{bartisan()}} and \code{\link[=vc]{vc()}} for the
-general interface this is written in terms of, and \code{vignette("causal")}.
+\code{\link[=bartisan]{bartisan()}} and \code{\link[=vc]{vc()}} for the general interface this is written in terms
+of; \code{vignette("varying")} for the varying-coefficient model this is a case
+of and what it writes into the call; and \code{vignette("causal")} for the
+assumptions under which the effect is causal.
 }

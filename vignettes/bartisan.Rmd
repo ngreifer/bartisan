@@ -101,7 +101,7 @@ catheterization.
 
 ## Fitting the Model
 
-To fit the model, we simply call `bartisan::bartisan()` with the same model formula one would use for `glm()` or any other standard mdoel-fitting function, additionally supplying the dataset to `data` and the response family to `family`. Because BART involves random processes, we must also set a seed using `set.seed()` to ensure reproducibility (though not the `kind` does not matter).
+To fit the model, we simply call `bartisan::bartisan()` with the same model formula one would use for `glm()` or any other standard model-fitting function, additionally supplying the dataset to `data` and the response family to `family`. Because BART involves random processes, we must also set a seed using `set.seed()` to ensure reproducibility (though not the `kind` does not matter).
 
 ```{r fit}
 set.seed(2026)
@@ -204,7 +204,7 @@ continuous; with two values to get right it finds nothing here.
 `vignette("diagnostics")` covers what a departure from the diagonal looks like
 and what else to check.
 
-## Which Predictors the Model Uses
+## Variable Importance
 
 A `bartisan()` fit produces no model coefficients; to see which covariates played the biggest role in the fit, we can use `variable_importance()` on its output. This produces statistics about the use of each predictor in the trees.
 
@@ -234,8 +234,8 @@ to tell whether a difference in this table means anything.
 A forest has no table of coefficients to read, so a fit is interpreted by
 putting questions to it: what happens to the prediction when a predictor is
 changed, and what shape does the prediction trace as that predictor varies.
-Three functions answer versions of that question, and they differ in what they
-average over rather than in what they are asking.
+The functions below answer versions of that question, and they differ in what
+they average over rather than in what they are asking.
 
 ### A Table of Average Comparisons
 
@@ -412,7 +412,7 @@ the main thing that predicts whether they die.
 `vignette("comparison")` covers model comparison, and the cases where
 leave-one-out fails.
 
-## What to Be Careful About
+## Limitations
 
 The model is flexible about the shape of the relationship and nothing else.
 
@@ -432,7 +432,7 @@ trend.
 It does not fix a badly chosen family. Getting the outcome distribution wrong
 matters more than any sampler setting.
 
-## Where to Go Next
+## Further Reading
 
 | Topic | Vignette |
 | --- | --- |
@@ -441,6 +441,7 @@ matters more than any sampler setting.
 | Convergence and fit | `vignette("diagnostics")` |
 | Variable importance and selection | `vignette("importance")` |
 | Effects, Curves, and Interactions | `vignette("effects")` |
+| Varying coefficients and random intercepts | `vignette("varying")` |
 | Model comparison | `vignette("comparison")` |
 | Causal inference | `vignette("causal")` |
 | Censored and survival outcomes | `vignette("survival")` |

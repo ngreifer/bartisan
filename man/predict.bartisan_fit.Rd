@@ -128,7 +128,7 @@ every tree is retained, a prediction can be returned as its posterior mean or
 as the draws themselves.
 }
 \details{
-\subsection{Multinomial Probit Probabilities Are Simulated}{
+\subsection{Simulated Multinomial Probit Probabilities}{
 
 The likelihood of a \code{multinomial("probit")} fit has no closed form: the
 probability of a category is the chance that the largest of several correlated

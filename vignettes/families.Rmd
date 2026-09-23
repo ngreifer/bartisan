@@ -42,7 +42,7 @@ This vignette is about choosing a `family` for `bartisan()`. It covers what each
 
 `family` works the way it does in `glm()`: the `stats::family` objects work unchanged, *bartisan* adds the families that have no `glm()` counterpart in the same style, and `custom_family()` takes a log density written as an R function when nothing on the list fits. Unlike ordinary BART, nothing here requires the response to be conditionally conjugate [@linero2025], which is why the list is as long as it is.
 
-In this guide, we will work through the families one at a time. First we'll lay out the full list and the two questions that most often decide between them, and then the family that is inferred when `family` is left unnamed. Next we'll take the response types in turn (i.e., numeric, positive and continuous, binary, counts, ordered and unordered categories, bounded, and right-censored times), reporting for each what the measured differences between the candidate families are. Finally we'll cover the links beyond the listed ones and the route to a likelihood of one's own through `custom_family()`.
+In this guide, we will work through the families one at a time. First we'll lay out the full list and the questions that most often decide between them, and then the family that is inferred when `family` is left unnamed. Next we'll take the response types in turn (i.e., numeric, positive and continuous, binary, counts, ordered and unordered categories, bounded, and right-censored times), reporting for each what the measured differences between the candidate families are. Finally we'll cover the links beyond the listed ones and the route to a likelihood of one's own through `custom_family()`.
 
 ## The Families
 
@@ -88,11 +88,11 @@ We start from the shape of the response:
 | a time with censoring | `dpm_aft()`, the default for survival outcomes; `weibull_aft()`, `loglogistic_aft()` or `lognormal_aft()` if the shape of the error is known; `ph()` for proportional hazards with a free baseline |
 | something else | `custom_family()` |
 
-Two considerations cut across that table.
+Some considerations cut across that table.
 
-The first is whether anything besides the mean varies with the predictors. Every family except `gaussian_ls()`, `Gamma_ls()`, and the zero-inflated pair puts a forest on one location parameter and holds the rest of the distribution fixed across observations. If the spread itself moves with $x$, that is the wrong assumption, and the two location-scale families are what relax it: `gaussian_ls()` gives the normal's standard deviation a forest of its own, and `Gamma_ls()` does the same for the gamma's dispersion.
+One is whether anything besides the mean varies with the predictors. Every family except `gaussian_ls()`, `Gamma_ls()`, and the zero-inflated pair puts a forest on one location parameter and holds the rest of the distribution fixed across observations. If the spread itself moves with $x$, that is the wrong assumption, and the two location-scale families are what relax it: `gaussian_ls()` gives the normal's standard deviation a forest of its own, and `Gamma_ls()` does the same for the gamma's dispersion.
 
-The second is whether that extra structure is real or a flexible mean would absorb it. A nonparametric mean makes this sharper than it is in a GLM. A sum of trees can produce excess zeros on its own, by driving a Poisson mean very low where the zeros are, so a zero-inflated family is for when the zero mechanism is a *separate process worth modeling*, not merely for when a histogram spikes at zero. The same caution applies to the multinomial probit's latent correlations.
+Another is whether that extra structure is real or a flexible mean would absorb it. A nonparametric mean makes this sharper than it is in a GLM. A sum of trees can produce excess zeros on its own, by driving a Poisson mean very low where the zeros are, so a zero-inflated family is for when the zero mechanism is a *separate process worth modeling*, not merely for when a histogram spikes at zero. The same caution applies to the multinomial probit's latent correlations.
 
 When two families are both defensible, we can compare them empirically rather than reason about them; `loo()` and `waic()` work on a fit:
 
@@ -135,7 +135,7 @@ fit <- bartisan(binary ~ x1 + x2, data = d, control = ctrl)
 fit
 ```
 
-Two boundaries are deliberate. A numeric response taking exactly two values that are *not* 0 and 1 is not read as binomial, because deciding that `c(1, 2)` means failure and success would be a guess about which value is the success. And a count is not read as Poisson, because "the variance equals the mean" is a substantive claim rather than a reading of the response's type.
+Some boundaries are deliberate. A numeric response taking exactly two values that are *not* 0 and 1 is not read as binomial, because deciding that `c(1, 2)` means failure and success would be a guess about which value is the success. And a count is not read as Poisson, because "the variance equals the mean" is a substantive claim rather than a reading of the response's type.
 
 The number of distinct values does not enter into it: every numeric response gets `dpm()`. A response with only a handful of distinct values probably wants `ordinal()`, but that is a modeling decision *bartisan* will not make for you.
 
@@ -143,7 +143,7 @@ Prior weights are taken by `gaussian()`, `ordinal()`, and `gaussian_ls()` for a 
 
 ## Numeric Responses
 
-Four families fit a numeric response by putting a forest on its mean. They differ in what else they allow to vary:
+The families for a numeric response each put a forest on its mean, and they differ in what else they allow to vary:
 
 - `gaussian()` assumes one normal error, with `sigma` drawn and reported.
 - `dpm()` estimates the error distribution (a Dirichlet process mixture of normals [@george2019] rather than a single normal) but keeps it the same at every $x$.
@@ -163,7 +163,7 @@ We measured the four on 1000 training and 1000 test observations, 50 trees, 500 
 :::
 
 
-Coverage was between .89 and 1.00 everywhere, with the four families' medians between .98 and 1.00, so it does not separate them. Four things to take from this:
+Coverage was between .89 and 1.00 everywhere, with the four families' medians between .98 and 1.00, so it does not separate them. There are a few things to take from this:
 
 On normal errors they all tie, to three decimal places on RMSE and within two log points, even though `gaussian()` is exactly right there. This is what makes `dpm()` a sensible default rather than a specialist tool: it costs nothing when the simpler assumption holds.
 
@@ -298,11 +298,11 @@ With very few events, the whole fit mixes slowly regardless of the link because 
 
 The `poisson()` family restricts the conditional variance to equal the conditional mean, and the `negbin()` family adds a dispersion parameter reported as `theta`. The `zi_poisson()` and `zi_negbin()` families mix a point mass at zero (the zero-inflation part) with a count component and give each part its own forest (the first predictor is the log mean of the count, the second the log odds of being a structural zero), so the excess-zero mechanism can depend on the predictors. As with standard GLMs for count variables, these models can include an offset.
 
-To decide which family to use, consider these two questions, in this order:
+To decide which family to use, consider the following questions, in this order:
 
-### 1. Are there more zeros than the count component can produce?
+### Excess Zeros
 
-Not "are there many zeros": a Poisson with a small mean produces plenty, and a forest can drive the mean low exactly where the zeros are. Fit the plain family and the zero-inflated one and compare with `loo()`. Reach for zero inflation when the zero mechanism is itself something to model, or when the two processes have different predictors, not merely to improve a fit.
+The first question is whether there are more zeros than the count component can produce, rather than whether there are many zeros: a Poisson with a small mean produces plenty, and a forest can drive the mean low exactly where the zeros are. Fit the plain family and the zero-inflated one and compare with `loo()`. Reach for zero inflation when the zero mechanism is itself something to model, or when the two processes have different predictors, not merely to improve a fit.
 
 It is worth seeing how far a marginal look at the response can mislead here. The counts below are Poisson with no inflation whatsoever, but the conditional mean ranges over two orders of magnitude, so the low end of it contributes a large pile of zeros:
 
@@ -351,9 +351,9 @@ Read this the way `vignette("comparison")` recommends, which is to look at the s
 
 What has happened is that the forest already accounts for the zeros by finding where the conditional mean is small, which is what a nonparametric mean is for, so a mixture has nothing left to explain and pays for its parameters. The lesson generalizes past counts: with a flexible mean, a feature of the *marginal* distribution of the response is not evidence about the conditional model. Reach for zero inflation when the zero mechanism is a process worth modeling in its own right, and let a comparison of fits, not a histogram, settle whether it is there.
 
-### 2. Is the count component overdispersed once the zeros are accounted for?
+### Overdispersion in the Count Component
 
-A spike at zero inflates the sample variance and looks like dispersion. `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `zi_poisson()` is the better-conditioned fit.
+The next question is whether the count component is overdispersed once the zeros are accounted for. A spike at zero inflates the sample variance and looks like dispersion. `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `zi_poisson()` is the better-conditioned fit.
 
 Once again, the `ordinal()` family is another option worth knowing about for counts. A count is ordered and takes few distinct values, which is exactly what the cutpoint structure is for: it makes no assumption about the count distribution, needs no dispersion parameter, and handles excess zeros without a mixture, since the zero category simply gets whatever probability the cutpoints give it. Predict with `type = "mean"` to get predictions on the original response scale. The limits are that it cannot predict a count larger than the largest one observed, and that it has no rate interpretation (i.e., no log link, so no incidence-rate ratio). It can be useful to bin first if the counts range over more than a few dozen values, as below.
 
@@ -369,7 +369,7 @@ The three links are read as for the binomial, plus one consideration specific to
 
 Ordered categories can also be treated as unordered categories and fit with `family = multinomial()`, described below; typically this produces more variable predictions as it requires a forest for each category rather than a single forest governing the entire distribution function.
 
-Two prediction types exist for reporting an ordinal fit on a single scale, both following *WeightIt*. `predict(type = "mean")` weights the category probabilities by the labels read as numbers, so levels `"1"`, `"2"`, and `"4"` give a mean between one and four, and `values` says what the categories are worth when the labels are not numbers. `predict(type = "stdlv")` divides the predictor by the standard deviation of the latent variable it indexes, which puts fits with different links, or different amounts of signal, on one scale; it works for `binomial()` too, since a binary response is the same construction with one threshold. Note that the complementary log-log error enters the two families with opposite signs, and `?predict.bartisan_fit` says why.
+An ordinal fit can also be reported on a single scale, using prediction types that follow *WeightIt*. `predict(type = "mean")` weights the category probabilities by the labels read as numbers, so levels `"1"`, `"2"`, and `"4"` give a mean between one and four, and `values` says what the categories are worth when the labels are not numbers. `predict(type = "stdlv")` divides the predictor by the standard deviation of the latent variable it indexes, which puts fits with different links, or different amounts of signal, on one scale; it works for `binomial()` too, since a binary response is the same construction with one threshold. Note that the complementary log-log error enters the two families with opposite signs, and `?predict.bartisan_fit` says why.
 
 ### The Prior on the Cutpoints (`cut_alpha`)
 
@@ -407,11 +407,11 @@ intercept, so the probabilities being described are the ones at the null fit
 rather than at an arbitrary zero, which is also the chart the cutpoints are
 reported in.
 
-`ordbeta()` (descussed below) carries the same prior. It has three probabilities at the anchor, the
+`ordbeta()` (discussed below) carries the same prior. It has three probabilities at the anchor, the
 masses at zero and one and the interior share, and the map from its two cutpoints
 to them has the same bidiagonal shape.
 
-### Categories Nobody Selected
+### Empty Categories
 
 A level of an ordered factor that no observation takes is kept rather than
 dropped, so a rating scale with an unused point is still fitted on all of its
@@ -463,7 +463,7 @@ fit_oc <- bartisan(binned ~ x1 + x2,
 head(predict(fit_oc, type = "mean"))
 ```
 
-Two limits. `type = "mean"` is a convex combination of observed outcome values, so it can never predict outside the range of the training outcome, which is a feature when the outcome has a hard floor or ceiling and a liability when extrapolation is needed. And the invariance is a property of the model for $P(Y \le y \mid x)$, not of the mean read off it: `type = "mean"` after fitting on $\log Y$ is not the log of `type = "mean"` after fitting on $Y$.
+This approach has limits. `type = "mean"` is a convex combination of observed outcome values, so it can never predict outside the range of the training outcome, which is a feature when the outcome has a hard floor or ceiling and a liability when extrapolation is needed. And the invariance is a property of the model for $P(Y \le y \mid x)$, not of the mean read off it: `type = "mean"` after fitting on $\log Y$ is not the log of `type = "mean"` after fitting on $Y$.
 
 ## Unordered Categories
 
@@ -570,7 +570,7 @@ The trade-offs behind these choices are measured in `vignette("survival", packag
 
 ## Other Links and Custom Likelihoods
 
-Links beyond those in the table are accepted for `gaussian()`, `binomial()`, `poisson()` and `Beta()`, and applied from R by composing the supplied inverse link with the family's own. So `binomial("cauchit")` works, as does any link object of the kind `stats::make.link()` returns, including one written by hand. Two cautions: 1) the fit is slower, because each leaf costs a call into R, and 2) the additive predictor is unconstrained, so a link whose inverse has a restricted range (e.g., `poisson("identity")`) gives non-finite densities for some predictors, which are rejected rather than breaking the chain but are wasted work. `bartisan()` reports that when the fit starts. The families with more than one predictor, or whose link enters somewhere other than a single mean, take only their listed links.
+Links beyond those in the table are accepted for `gaussian()`, `binomial()`, `poisson()` and `Beta()`, and applied from R by composing the supplied inverse link with the family's own. So `binomial("cauchit")` works, as does any link object of the kind `stats::make.link()` returns, including one written by hand. Note that the fit is slower, because each leaf costs a call into R, and that the additive predictor is unconstrained, so a link whose inverse has a restricted range (e.g., `poisson("identity")`) gives non-finite densities for some predictors, which are rejected rather than breaking the chain but are wasted work. `bartisan()` reports that when the fit starts. The families with more than one predictor, or whose link enters somewhere other than a single mean, take only their listed links.
 
 `custom_family()` can be used to fit a BART model with a density of the user's design. It takes the log density itself and fits the model that goes with it. The sampler needs only the first two derivatives with respect to each additive predictor, and central differences of the supplied function produce both. Terms free of `eta`, the predictor to be modeled by BART, may be dropped: they cancel from every acceptance ratio. See below for an example of a "hand-rolled" Poisson fit using the Poisson density `dpois()`.
 

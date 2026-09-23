@@ -40,8 +40,8 @@
 #'
 #' ## Before the First Fit
 #'
-#' Three things are worth knowing first, and none of them requires knowing
-#' anything about Bayesian statistics.
+#' There are a few things worth knowing first, and none of them requires
+#' knowing anything about Bayesian statistics.
 #'
 #' A forest has no slope to read off, so the effect of a predictor is found by
 #' asking the fitted model what it predicts under one value of that predictor

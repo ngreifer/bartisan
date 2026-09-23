@@ -9416,3 +9416,12 @@ When this is picked up again, start from `_dev/did/DID.md` § "Phase 13c", whose
 rule is the one that caught every earlier mistake: **an ESS for these models
 means nothing at a single chain length.**
 
+## Heading and Enumeration Pass (2026-09-23)
+
+- [x] Renamed 24 vignette headings and 5 roxygen `@details` subheads that opened
+  with a question word, carried a negative, counted their contents, or made a
+  claim, and rewrote about 50 count-announcing openers ("Two things to get
+  right.") in the vignettes, roxygen, and code comments, per the r-doc-style
+  skill's rows 25–26. `devtools::document()` rerun. Committed 2026-09-23.
+  FAQ question headings were left as questions.
+

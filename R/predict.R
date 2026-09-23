@@ -99,7 +99,7 @@
 #' predictor. `"class"` is a factor either way.
 #'
 #' @details
-#' ## Multinomial Probit Probabilities Are Simulated
+#' ## Simulated Multinomial Probit Probabilities
 #'
 #' The likelihood of a `multinomial("probit")` fit has no closed form: the
 #' probability of a category is the chance that the largest of several correlated
@@ -304,10 +304,10 @@ eta_to_type <- function(object, parts, type, draws, newdata = NULL,
 # standardized effect size on such an outcome needs. This follows
 # `WeightIt::predict.ordinal_weightit(type = "stdlv")`.
 #
-# Two details matter. The variance of `eta` is taken over the **fitted** sample,
+# Some details matter. The variance of `eta` is taken over the **fitted** sample,
 # so it is a property of the model rather than of whatever is being predicted;
-# and `e` is shifted to have mean zero, which moves its mean into the index. That
-# second point is invisible for the logit and probit links, where the error is
+# and `e` is shifted to have mean zero, which moves its mean into the index. The
+# shift is invisible for the logit and probit links, where the error is
 # already centered, and is the whole of the difference for the complementary
 # log-log link.
 standardized_latent <- function(object, eta) {

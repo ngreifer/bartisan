@@ -184,7 +184,7 @@ knitr::kable(data.frame(
 
 Without the sparsity prior, the advice to use fewer trees is essential: at 50 trees the noise predictors are used in 95% of draws and are indistinguishable from the real ones. With it, the noise predictors stay near zero at every tree count, and reducing the trees buys little. The recommendation is a workaround for the absence of the prior rather than a property of variable selection in general. However, sparsity needs signal, so on a small sample with a weak fit, nothing separates, and the honest reading of a flat table is that the data cannot rule anything out; and it says nothing about effect size, since a predictor can be split on constantly and move the prediction very little. `vignette("importance")` covers both.
 
-## How the Model Is Fit
+## The Sampler
 
 ### Bayesian Backfitting
 
@@ -280,7 +280,7 @@ fit <- bartisan(y ~ ., data = d, chains = 4)
 diagnose(fit)
 ```
 
-The chain is the only parallel axis the *sampler* has, since a sweep conditions on the one before it, and it is also what makes a convergence diagnostic possible. Two things outside the sampler use a plan when one is set: the convergence pass splits its per-observation columns across workers, and `estimate_effect()` predicts the treatment levels in parallel. Any *future* backend works, including *mirai*'s, and one `set.seed()` reproduces the whole run whatever the backend.
+The chain is the only parallel axis the *sampler* has, since a sweep conditions on the one before it, and it is also what makes a convergence diagnostic possible. Outside the sampler, a plan is also used when one is set: the convergence pass splits its per-observation columns across workers, and `estimate_effect()` predicts the treatment levels in parallel. Any *future* backend works, including *mirai*'s, and one `set.seed()` reproduces the whole run whatever the backend.
 
 `diagnose()` is the one call for whether the fit can be reported. It computes split-R-hat and the bulk and tail effective sample sizes for every scalar the sampler draws, for the fitted function twice over, once averaged across observations and once over its worst 5% of them, and for the size of the forest itself, then says which of them fall short and what to change. Handed the output of `estimate_effect()` instead of a fit, it reports on the contrast and on the two potential outcomes it is a contrast of. Two of its choices are worth knowing about. It repeats R-hat on the second half of the draws alone, which is what distinguishes a warmup that ended too early from chains that have each settled somewhere different: discarding the early draws is what more `num_burn` would have done, so if that fixes R-hat then warmup was the problem, and the advice says so rather than listing everything a reader might try. And it leaves the leaf scale out, because that parameter mixes badly in every implementation (1.12 in *dbarts* and 1.16 in *stochtree* against 1.19 here, on the same data) and its disagreement never reaches the fitted function.
 
@@ -309,7 +309,7 @@ The single decision that matters more than all of these is the family. `vignette
 
 A non-conjugate sampler costs more than a conjugate one, and it is worth being precise about how much, and about what the extra buys. Cost per sweep is roughly linear in the number of observations and in the number of trees, but the family matters more than either: one that reaches the quadratic target is several times faster than one that does not, which is why `lognormal_aft()` fits in about a second where `weibull_aft()` takes eight on the same data.
 
-### What Data Augmentation Buys (`augment`)
+### Gains From Data Augmentation (`augment`)
 
 A major contributor to *bartisan*'s speed is data augmentation. Where the rewriting reaches a Gaussian conditional the Laplace approximation stops being an approximation at all, which is the largest of the gains: `augment` uses @albert1993 for a probit link and for an ordinal probit, Pólya-Gamma augmentation [@polson2013] for a logit link, an ordinal logit, or a multinomial, and imputation of the censored failure times for the log-normal and log-logistic survival models. The negative binomial and the zero-inflated families are rewritten too, but to a Poisson rather than to a Gaussian, and the two paragraphs after the table say what that costs them.
 
@@ -349,7 +349,7 @@ The ordinal logit has no latent normal, its latent variable being logistic, and 
 
 ## Correctness
 
-Three checks are in the test suite and worth knowing about.
+The test suite includes some checks worth knowing about.
 
 Shrinking the prior weights to nothing makes the likelihood constant, so the posterior collapses to the tree prior. The sampled trees then reproduce the prior's branching process to within a fraction of a percent, which is a direct check that the birth, death, and change moves satisfy detailed balance.
 
@@ -413,11 +413,11 @@ Below we compare *bartisan*'s capabilities to those of other popular BART R pack
 
 **✎ means a helper package covers it, not this one.** Interaction detection is the remaining one, and *bartisan* does it through *marginaleffects*, because a fit works with it and every estimand there is computed by pushing the draws through: `avg_comparisons(variables = "x", by = "z")` and `hypotheses(~pairwise)` are interaction detection, and neither needs code here. `partial_dependence()` averages the fitted surface over the sample at each value of one or two predictors, and `plot()` on a fit is the same thing drawn. `marginaleffects::plot_predictions()` remains the one to reach for when the grid needs more control than that.
 
-The variable-selection row divides differently, into two things that both get called a test. One is the posterior inclusion probability under the Dirichlet sparsity prior, thresholded at .5 to give the median probability model of @barbieri2004. *SoftBart* reports it as `posterior_probs()`, and it is `colMeans(var_counts > 0)` on the splitting counts: the `prop_used` column of `variable_importance()` is that same quantity, under a prior that is on by default here as it is there. The other is a permutation test [@bleich2014], which refits the model on responses whose link to the predictors has been broken and thresholds the splitting shares against the resulting null rather than against .5. *bartMachine* offers all three of its thresholds and *BART* offers the third one, `BART::mc.wbart.gse()`; *bartisan* offers none of them.
+The variable-selection row divides differently, since different procedures get called a test there. One is the posterior inclusion probability under the Dirichlet sparsity prior, thresholded at .5 to give the median probability model of @barbieri2004. *SoftBart* reports it as `posterior_probs()`, and it is `colMeans(var_counts > 0)` on the splitting counts: the `prop_used` column of `variable_importance()` is that same quantity, under a prior that is on by default here as it is there. The other is a permutation test [@bleich2014], which refits the model on responses whose link to the predictors has been broken and thresholds the splitting shares against the resulting null rather than against .5. *bartMachine* offers all three of its thresholds and *BART* offers the third one, `BART::mc.wbart.gse()`; *bartisan* offers none of them.
 
 The other columns worth reading as gaps rather than as differences are these. There are no threads inside a chain, so a single chain is single-core here where *dbarts*, *BART*, *bartMachine*, and *stochtree* all use several; chains do run in parallel, but it does not help one chain. There is no cross-validation over `k`, `num_trees`, or the tree prior, which `dbarts::xbart()` and `bartMachine::bartMachineCV()` both automate. There is no grow-from-root warm start, which is *stochtree*'s way of shortening burn-in. And there is no JSON serialization, so a fit round-trips through `saveRDS()` and not into another language. On survival, *BART* is ahead: recurrent events and competing risks are there and here they are not.
 
-Three more packages are single-purpose rather than general, so they are not columns above: [*bcf*](https://CRAN.R-project.org/package=bcf) fits Bayesian causal forests only, [*VCBART*](https://github.com/skdeshpande91/VCBART) varying-coefficient models only, and *bartCause* wraps *dbarts* and *stan4bart* for causal estimands.
+Some other packages are single-purpose rather than general, so they are not columns above: [*bcf*](https://CRAN.R-project.org/package=bcf) fits Bayesian causal forests only, [*VCBART*](https://github.com/skdeshpande91/VCBART) varying-coefficient models only, and *bartCause* wraps *dbarts* and *stan4bart* for causal estimands.
 
 ## Notes and Limitations
 

@@ -119,7 +119,7 @@
 #' also most of what \pkg{insight} needs to make the fit legible to the
 #' \pkg{easystats} packages.
 #'
-#' ## Leave-One-Out Is Approximate, and Mostly Holds Up
+#' ## Accuracy of the Leave-One-Out Approximation
 #'
 #' \pkgfun{loo}{loo} estimates the leave-one-out predictive density by importance
 #' sampling from the full-data posterior, and the estimate is trustworthy only

@@ -42,8 +42,8 @@
 #' @details
 #' ## The Model
 #'
-#' `bcf()` writes five things into a [bartisan()] call, all of which can be
-#' written out there directly. The treatment gets a [vc()] term, so the effect
+#' `bcf()` writes several settings into a [bartisan()] call, all of which can
+#' be written out there directly. The treatment gets a [vc()] term, so the effect
 #' is a forest of its own with its own prior rather than whatever difference a
 #' single forest with the treatment among its predictors happens to produce. The
 #' propensity score goes in the control function and not in the effect forest,
@@ -112,8 +112,10 @@
 #' the reconstruction, and `newdata` then has to carry the column itself.
 #'
 #' @seealso [estimate_effect()] for the average or conditional effect;
-#'   [bartisan()] and [vc()] for the
-#'   general interface this is written in terms of, and `vignette("causal")`.
+#'   [bartisan()] and [vc()] for the general interface this is written in terms
+#'   of; `vignette("varying")` for the varying-coefficient model this is a case
+#'   of and what it writes into the call; and `vignette("causal")` for the
+#'   assumptions under which the effect is causal.
 #'
 #' @references
 #' Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian regression tree

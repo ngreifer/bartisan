@@ -69,7 +69,7 @@ The only step BART can be used for in causal inference is causal effect estimati
 
 ## What are Bayesian Causal Forests?
 
-Bayesian Causal Forests (BCF) are a modification of BART used to estimate treatment effects [@hahn2020]. In addition to flexibly modeling the relationship between the outcome and the covariates, it also flexibly models the relationship between the magnitude of the treatment effect and the covariates. In this way, BCF is a varying-coefficient model [@deshpande2026]. Compared to traditional BART, BCF tends to have better calibrated intervals and regularization of heterogeneous treatment effects. BCF tends to outperform traditional BART in most causal inference contexts. It also tends to outperform generalized random forests (GRF), which serve a similar function.
+Bayesian Causal Forests (BCF) are a modification of BART used to estimate treatment effects [@hahn2020]. In addition to flexibly modeling the relationship between the outcome and the covariates, it also flexibly models the relationship between the magnitude of the treatment effect and the covariates. In this way, BCF is a varying-coefficient model [@deshpande2026]. Compared to traditional BART, BCF tends to have better calibrated intervals and regularization of heterogeneous treatment effects. BCF tends to outperform traditional BART in most causal inference contexts. It also tends to outperform generalized random forests (GRF), which serve a similar function. `bcf()` fits it; `vignette("varying")` covers the varying-coefficient model it is a case of and what `bcf()` sets on top of it.
 
 ## How do I get a treatment effect?
 

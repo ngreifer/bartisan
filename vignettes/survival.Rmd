@@ -85,7 +85,7 @@ This vignette is about right-censored time-to-event data. It covers the five fam
 
 The recurring theme is that these models disagree about *what the predictor means*, and that the disagreement mostly stops mattering once we ask for the quantity we actually wanted (i.e., survival at a horizon) rather than reading coefficients.
 
-In this guide, we will start from the response and the five families that accept it, and then set out the three estimands their predictors report and the one quantity that is comparable across all of them. Next we'll measure the five against six data-generating truths, sweep the amount of censoring, and take up the one case that defeats the whole set (a covariate effect that moves with time). Finally we'll cover three traps in reading these fits, the relative cost of each family, and a table for choosing.
+In this guide, we will start from the response and the five families that accept it, and then set out the estimands their predictors report and the one quantity that is comparable across all of them. Next we'll measure the five against six data-generating truths, sweep the amount of censoring, and take up the one case that defeats the whole set (a covariate effect that moves with time). Finally we'll cover the details that are easy to get wrong in reading these fits, the relative cost of each family, and a table for choosing.
 
 ## The Response (`Surv()`)
 
@@ -112,7 +112,7 @@ Only right censoring is supported: `Surv(time, status)` and nothing else. Left-t
 
 Censoring is assumed **independent** of the event time given the covariates, as it is in every model in this vignette and in `survival::coxph()`. That is an assumption about the data, not about the family, so no choice below relaxes it.
 
-## The Five Families
+## The Survival Families
 
 |Family              |Model                                                               |A contrast in the forest gives            |Drawn nuisance        |
 |:-------------------|:-------------------------------------------------------------------|:-----------------------------------------|:---------------------|
@@ -321,7 +321,7 @@ knitr::kable(pivot("s_rmse"), digits = 3, row.names = FALSE,
 :::
 
 
-Five things to read off it.
+There are a few things to read off it.
 
 **Being exactly right is worth surprisingly little.** On the Weibull truth, which `weibull_aft()` and `ph()` both describe exactly, `weibull_aft()` leads at .045, and `ph()` and `dpm_aft()`, neither of which is given the shape, are level with it at .046. Being *wrong* costs far more than being right gains: `lognormal_aft()` pays .068 on the same data. So the question worth asking of a family is not how much it wins when its assumption holds, but how much it loses when it does not.
 
@@ -369,7 +369,7 @@ In the top row every fit recovers the separation between the three subjects; the
 
 The bottom row is the one to look at. The true curves separate widely and then **reverse**: the subject with the best prognosis at the middle of the grid has the worst survival by the end of it, and the three curves cross. No fit reproduces that, which is the structural limitation stated as a picture. But the symptom is not a distorted covariate effect; it is a missing one. `ph()` and the discrete-time fit put all three subjects on essentially the same curve. `weibull_aft()` and `dpm_aft()` keep a little separation, in one fixed order, which is right over part of the range and wrong over the rest. A model that must apply the same covariate effect at every time, given an effect that is positive early and negative late, averages it to approximately nothing.
 
-Two cautions on reading this panel. It shows three subjects, not the sample: the discrete-time route scores much better than `ph()` on the ranking measured over all 700, and that advantage is not what this figure is showing. And the survival RMSE for this row was an unremarkable .08 to .10, so the failure is severe and the headline metric does not say so.
+This panel needs some care in reading. It shows three subjects, not the sample: the discrete-time route scores much better than `ph()` on the ranking measured over all 700, and that advantage is not what this figure is showing. And the survival RMSE for this row was an unremarkable .08 to .10, so the failure is severe and the headline metric does not say so.
 
 ### Recovering the Ordering of Risk {#ordering}
 
@@ -520,7 +520,7 @@ The trade is sharper than we might hope, in both directions.
 
 **Under crossing hazards it does not win on the survival curve either**, at .085 against the accelerated failure time families' .080. What it wins is the thing that matters: the ranking, at .47 against .29 and below for everything else. It is the only model in the set that recovers *any* of the reordering, and recovering some of a reversing effect while getting the level slightly worse is the better failure of the two.
 
-Three further costs. The expansion inflates the data, so a large study with a fine grid gets slow. The grid is a real choice, unlike `ph()`'s bins, because it sets the resolution of the hazard in $t$ *and* the resolution at which non-proportionality can be detected at all. And there is no `sigma`, no baseline and no error density to report; the model is a hazard surface, summarized through `type = "response"` and the curve, and `type = "survival"` does not apply to it because as far as the package is concerned it is a binomial fit.
+The route has further costs. The expansion inflates the data, so a large study with a fine grid gets slow. The grid is a real choice, unlike `ph()`'s bins, because it sets the resolution of the hazard in $t$ *and* the resolution at which non-proportionality can be detected at all. And there is no `sigma`, no baseline and no error density to report; the model is a hazard surface, summarized through `type = "response"` and the curve, and `type = "survival"` does not apply to it because as far as the package is concerned it is a binomial fit.
 
 **When to use it.** When there is a substantive reason to expect the covariate effect to move with time (e.g., a treatment whose benefit accrues or wears off, a risk factor that matters only early). Not as a hedge: under proportional hazards it is the most expensive option in the comparison, so reaching for it "just in case" costs about as much as being wrong about the error distribution. If the question is whether hazards are proportional, fitting it alongside `ph()` and comparing the fitted curves is a reasonable diagnostic; adopting it by default is not.
 
@@ -548,7 +548,7 @@ Without the correction the comparison is meaningless: on one of the simulations 
 
 The way to avoid thinking about it at all is to compare on $S(t \mid x)$ from `predict(type = "survival")`, which is a probability for every family and needs no correction.
 
-### `ph()`'s Predictor Is a Contrast, Not a Level
+### The Centered Predictor of `ph()`
 
 Because the baseline absorbs the level, a single fitted value of `ph()`'s predictor has no interpretation on its own; only differences do. `predict(type = "link")` is centered accordingly. When a level is what is wanted, ask for a quantity that has one: `type = "survival"`, or `type = "response"` for the median time.
 
@@ -601,7 +601,7 @@ The spread is about eightfold, and it does not follow the families' flexibility 
 
 `dpm_aft()` heads the table, and is the default for an unnamed `Surv` response, on the evidence above rather than on principle: it was best or tied-best on four of the six truths and never worse than third, and on the two truths where a parametric family was exactly right it matched that family to the third decimal. It is also, contrary to what its flexibility suggests, one of the cheaper families to fit, at about twice `lognormal_aft()` and a third of `weibull_aft()`. The second row is for fitting many models rather than one.
 
-Two closing points that the numbers above support and that are easy to lose sight of.
+The numbers above support some closing points that are easy to lose sight of.
 
 The families disagree far more about the *density* than about the *ordering*. If the question is comparative (e.g., who is at higher risk, which arm does better), we have a great deal of freedom in the choice and should spend our effort elsewhere. If the question is an absolute probability at a horizon, the choice matters and the comparison above is worth taking seriously.
 

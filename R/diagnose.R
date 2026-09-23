@@ -672,7 +672,7 @@ low <- function(x) {
 # each settled somewhere different, discarding the early draws changes nothing.
 #
 # A within-chain drift statistic would answer the same question more directly and
-# cannot be made to work here. Three ways of writing one were calibrated against
+# cannot be made to work here. Several ways of writing one were calibrated against
 # stationary autoregressive series: taking each half's Monte Carlo error from
 # that half rejects 31% of the time at an autocorrelation of 0.995 against a
 # nominal 5%; taking it from the whole chain holds specificity under 3% but then

@@ -60,10 +60,11 @@
 #' the same draws, so a difference between them is the skewness of the posterior
 #' rather than a disagreement.
 #'
-#' ## A Contrast of Exactly Zero Is Usually Real
+#' ## Contrasts of Exactly Zero
 #'
 #' `avg_comparisons()` reporting an estimate of exactly `0` is the most common
-#' surprise here, and two facts meet to produce it.
+#' surprise here, and it comes from the prior and the posterior summary acting
+#' together.
 #'
 #' The posterior of a contrast has an atom at exactly zero. In any draw where no
 #' tree splits on the variable being contrasted, the fit does not depend on that
@@ -77,7 +78,7 @@
 #' while the posterior mean and the upper limit of the interval are both far from
 #' zero.
 #'
-#' Four things are worth doing about it, in the order given. Look at
+#' There are a few things worth doing about it, in the order given. Look at
 #' `prop_used` in `summary()`, the posterior probability that the predictor
 #' appears anywhere in the forest, which is what the zero reports. Ask for the
 #' mean instead, with `options(marginaleffects_posterior_center = mean)`, which

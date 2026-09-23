@@ -85,11 +85,13 @@ articles:
 - title: Fitting a Model
   desc: >
     Choosing the likelihood, which is the modeling decision that matters more
-    than any sampler setting, and the response type whose families need a guide
-    of their own.
+    than any sampler setting; the response type whose families need a guide of
+    their own; and the two terms that add parameters to a sum of trees, a
+    coefficient that varies and an intercept per group.
   contents:
   - families
   - survival
+  - varying
 
 - title: Reading a Fit
   desc: >

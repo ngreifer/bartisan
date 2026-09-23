@@ -130,7 +130,7 @@
 #' [stats::make.link()] returns. It costs a call into R for every leaf the
 #' sampler visits, and the leaf prior scale is calibrated for the compiled link.
 #'
-#' Two single-predictor families are exceptions. `negbin()` takes `"log"` alone,
+#' Some single-predictor families are exceptions. `negbin()` takes `"log"` alone,
 #' so a link given to it is an error rather than a composition. [stats::Gamma()]
 #' accepts any link and fits none of them but `"log"`: every other link is
 #' dropped with a message, because the ones base R offers have inverses that go
@@ -234,7 +234,7 @@
 #' interpretable `sigma` where `dpm()` has a mixture. It is also faster, by 1.4
 #' times at a thousand observations. The vignette has the comparison.
 #'
-#' Two things to know about `dpm()` itself. It does not buy
+#' Some properties of `dpm()` itself are worth knowing. It does not buy
 #' heteroskedasticity: the error distribution is flexible but it is the same
 #' distribution at every \eqn{x}, and `gaussian_ls()` is the family for a
 #' spread that depends on the predictors. And the additive predictor is the
@@ -381,8 +381,8 @@
 #' two-part model instead, which `zi_poisson()` and `zi_negbin()` are for counts
 #' and which `custom_family()` can supply for anything else.
 #'
-#' Two things follow from the mean being \eqn{\exp(\eta)} exactly. A
-#' counterfactual mean through \CRANpkg{marginaleffects} needs nothing beyond the
+#' Because the mean is exactly \eqn{\exp(\eta)}, a counterfactual mean through
+#' \CRANpkg{marginaleffects} needs nothing beyond the
 #' forest, unlike a two-part model where it has to be recombined across
 #' predictors; and the fit is comparable with a `poisson()` or `Gamma("log")` fit
 #' of the same response, since all three put the same quantity on the same
@@ -451,8 +451,8 @@
 #'
 #' When none of the families above is the right one, [custom_family()] takes the
 #' log density itself, as an R function, and fits the model that goes with it.
-#' Its page has the details, including the two things a log density cannot
-#' supply: a posterior predictive distribution, and a fitted mean.
+#' Its page has the details, including what a log density cannot supply: a
+#' posterior predictive distribution and a fitted mean.
 #'
 #' @seealso
 #' [bartisan()] for fitting a model with one of these families;

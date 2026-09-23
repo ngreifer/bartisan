@@ -37,7 +37,8 @@ and counting how it spends them is the usual measure of variable importance for
 BART. `variable_importance()` reports the count.
 
 This vignette covers what that number means, how to tell whether a difference in
-it is real, and three things it is not. The last part matters more than the
+it is real, and the limits of what it measures. The last part matters more than
+the
 first: variable importance is the most over-read output in machine learning, and
 the failure modes are specific and checkable.
 
@@ -281,13 +282,12 @@ The advice is correct for classic BART and largely unnecessary here. Measured on
 the Friedman function at 500 observations over three replicates, the mean
 `prop_used` for the five noise predictors was:
 
-```{r treetable, echo = FALSE}
-knitr::kable(data.frame(
-  Trees = c(10, 20, 50, 100),
-  `sparsity = FALSE` = c(0.28, 0.50, 0.95, 1.00),
-  `sparsity = TRUE (default)` = c(0.09, 0.08, 0.09, 0.14),
-  check.names = FALSE))
-```
+| Trees| sparsity = FALSE| sparsity = TRUE (default)|
+|-----:|----------------:|-------------------------:|
+|    10|             0.28|                      0.09|
+|    20|             0.50|                      0.08|
+|    50|             0.95|                      0.09|
+|   100|             1.00|                      0.14|
 
 Without the sparsity prior the advice is essential: at 50 trees the noise
 predictors are used in 95% of draws and cannot be told apart from the real ones.

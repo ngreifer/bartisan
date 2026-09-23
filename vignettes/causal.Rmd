@@ -156,7 +156,7 @@ Under the assumptions above this is the average treatment effect: catheterizatio
 
 The two rows below the contrast are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%. `potential_outcomes = FALSE` in the `print()` call drops them where the difference is all that is wanted.
 
-### How the Estimate Is Computed, and on Which Scale
+### Computation and Scale of the Estimate
 `estimate_effect()` performs the g-computation above literally. Every unit is predicted twice, once with the treatment set to each of its levels; the two sets of predictions are averaged over the units the estimand asks for, *within each posterior draw*; and only then are the two averages contrasted. What comes back is a posterior for the estimand, summarized by its mean and a credible interval.
 
 That order is what makes a ratio here the marginal ratio rather than the average of the conditional ones, which is a different quantity. For a difference the two orders agree, so it only shows up once a ratio is asked for.
@@ -259,7 +259,7 @@ fit_earn_bcf <- bcf(
 estimate_effect(fit_earn_bcf, estimand = "ATT")
 ```
 
-`estimand = "ATT"` averages over the treated rather than over everyone, and `focal` is not needed because a 0/1 treatment settles which level is the treated one. Two cases do need it, and they differ. When the treatment has more than two levels, `focal` is required and naming it is the whole of the choice, since `"ATT"` and `"ATC"` then mean the same thing: the effect among the units in the level named. When it has two levels whose labels say nothing about which is which, the level order is assumed and a message says so, which `focal` silences.
+`estimand = "ATT"` averages over the treated rather than over everyone, and `focal` is not needed because a 0/1 treatment settles which level is the treated one. It does matter in other cases, and in different ways. When the treatment has more than two levels, `focal` is required and naming it is the whole of the choice, since `"ATT"` and `"ATC"` then mean the same thing: the effect among the units in the level named. When it has two levels whose labels say nothing about which is which, the level order is assumed and a message says so, which `focal` silences.
 
 The potential outcomes earn their place here: a few hundred dollars means something different against a baseline of six thousand than it would against six hundred.
 
@@ -282,12 +282,12 @@ plot(cate_att)
 
 Most of the conditional effects are positive, as the ATT is, and none of their intervals excludes zero. That is the usual picture: a per-unit effect is estimated from far less information than an average, so the intervals are wide even where the average is clear.
 
-## What the Credible Interval Means
+## Interpreting the Credible Interval
 The posterior interval is a credible interval for the estimand under the model and under the identification assumptions. It covers uncertainty from having a finite sample and from not knowing the shape of the outcome surface. It does not cover uncertainty about whether the assumptions hold.
 
 An unmeasured confounder does not widen the interval. It moves the estimate and leaves the interval where it was. This is why a sensitivity analysis, asking how strong a confounder would have to be to explain the result away, is a more informative addition than any refinement of the model.
 
-## Where to Go Next
+## Further Reading
 `?estimate_effect` is the reference for the estimands used here, including the subgroup form and the contrast types. `vignette("effects")` covers what *marginaleffects* adds beyond them, which is a much wider class of quantities and the route to take when the question is not a treatment contrast. `vignette("diagnostics")` covers checking the fit, which should happen before any of this is interpreted.
 
 ## References

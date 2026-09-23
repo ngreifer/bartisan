@@ -202,7 +202,7 @@ family's own, with the chain rule carrying the derivatives back. So
 \code{\link[stats:make.link]{stats::make.link()}} returns. It costs a call into R for every leaf the
 sampler visits, and the leaf prior scale is calibrated for the compiled link.
 
-Two single-predictor families are exceptions. \code{negbin()} takes \code{"log"} alone,
+Some single-predictor families are exceptions. \code{negbin()} takes \code{"log"} alone,
 so a link given to it is an error rather than a composition. \code{\link[stats:Gamma]{stats::Gamma()}}
 accepts any link and fits none of them but \code{"log"}: every other link is
 dropped with a message, because the ones base R offers have inverses that go
@@ -308,7 +308,7 @@ it takes prior weights, which \code{dpm()} refuses, and it reports one
 interpretable \code{sigma} where \code{dpm()} has a mixture. It is also faster, by 1.4
 times at a thousand observations. The vignette has the comparison.
 
-Two things to know about \code{dpm()} itself. It does not buy
+Some properties of \code{dpm()} itself are worth knowing. It does not buy
 heteroskedasticity: the error distribution is flexible but it is the same
 distribution at every \eqn{x}, and \code{gaussian_ls()} is the family for a
 spread that depends on the predictors. And the additive predictor is the
@@ -455,8 +455,8 @@ response whose zeros are more or less common than its mean implies wants a
 two-part model instead, which \code{zi_poisson()} and \code{zi_negbin()} are for counts
 and which \code{custom_family()} can supply for anything else.
 
-Two things follow from the mean being \eqn{\exp(\eta)} exactly. A
-counterfactual mean through \CRANpkg{marginaleffects} needs nothing beyond the
+Because the mean is exactly \eqn{\exp(\eta)}, a counterfactual mean through
+\CRANpkg{marginaleffects} needs nothing beyond the
 forest, unlike a two-part model where it has to be recombined across
 predictors; and the fit is comparable with a \code{poisson()} or \code{Gamma("log")} fit
 of the same response, since all three put the same quantity on the same
@@ -526,8 +526,8 @@ than one value is an error rather than a silent recycling.
 
 When none of the families above is the right one, \code{\link[=custom_family]{custom_family()}} takes the
 log density itself, as an R function, and fits the model that goes with it.
-Its page has the details, including the two things a log density cannot
-supply: a posterior predictive distribution, and a fitted mean.
+Its page has the details, including what a log density cannot supply: a
+posterior predictive distribution and a fitted mean.
 }
 }
 \examples{

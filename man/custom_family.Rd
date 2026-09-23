@@ -120,7 +120,7 @@ for a real predictor, by writing the transform into \code{logdens}: the \code{ex
 above is what keeps the scale positive.
 }
 
-\subsection{What a Log Density Cannot Supply}{
+\subsection{Limits of a Log Density}{
 
 A density says how likely an observed value is, not how to draw a new one, so
 a \code{custom_family()} fit has no posterior predictive distribution, which is
@@ -130,7 +130,8 @@ rather than returning something it cannot support. \link[=bartisan-interop]{loo(
 and \code{\link[=bartisan-interop]{waic()}} are unaffected, since both read the
 pointwise log likelihood the family already computes.
 
-Two smaller limits. The response must be numeric, so a factor has to be coded
+There are smaller limits as well. The response must be numeric, so a factor
+has to be coded
 first. And since the package cannot know what the mean of the density is,
 \code{predict(type = "response")} returns the additive predictors rather than a
 fitted mean.

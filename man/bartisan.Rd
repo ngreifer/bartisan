@@ -163,7 +163,7 @@ the derivatives.
 A message reports the choice, and naming \code{family} is what silences it, which
 is also what changes it.
 
-Two scenarios are worth noting. A count is read as a numeric variable and therefore has \code{dpm()} as its default. And a
+Some scenarios are worth noting. A count is read as a numeric variable and therefore has \code{dpm()} as its default. And a
 numeric response with exactly two values other than zero and one (e.g.,
 \code{c(1, 2)}) is also given \code{dpm()} as its default rather than \code{binomial()}, which of the two counts as the
 success not being something to guess at.
@@ -265,7 +265,7 @@ This is missingness incorporated in attributes, and the third rule is what
 lets the model split on missingness itself, so a variable whose absence
 carries the signal is usable even where its observed values say nothing.
 
-Two consequences are worth being clear about. \code{predict()} accepts missing
+This has consequences worth being clear about. \code{predict()} accepts missing
 values in a column that had them at fitting time, those being the columns
 whose rules carry an answer. And what the model estimates is the mean of the
 response given the predictors and the pattern of missingness, which is the
