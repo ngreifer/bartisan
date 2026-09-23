@@ -403,3 +403,188 @@ test_that("an argument the fast path does not know hands the grid to predict()",
                partial_dependence(fit, ~ x1, grid = 5L, iterations = 1:20,
                                   nonesuch = 1)$estimate)
 })
+
+test_that("a numeric second predictor is held at three values near its quartiles", {
+  d <- sim_x(n = 150L, p = 3L)
+  d$y <- d$x1 + d$x2 + stats::rnorm(nrow(d))
+
+  fit <- suppressMessages(suppressWarnings(
+    bartisan(y ~ ., d, family = stats::gaussian(), control = quick_control())))
+
+  # Two numeric predictors would otherwise give `grid` curves, each with a
+  # ribbon, so the second is summarized and the caller is told it happened.
+  expect_message(pd <- partial_dependence(fit, ~ x1 + x2, grid = 8L),
+                 "Grouping by")
+  expect_identical(nrow(pd), 8L * 3L)
+  expect_length(unique(pd[["x2"]]), 3L)
+
+  # They are values the predictor takes, not points on an even grid, and they
+  # sit near the quartiles.
+  expect_true(all(unique(pd[["x2"]]) %in% d[["x2"]]))
+  expect_equal(sort(unique(pd[["x2"]])),
+               unname(stats::quantile(d[["x2"]], c(.25, .5, .75))),
+               tolerance = 0.1)
+
+  # `values` is the way out, and naming the second predictor silences it.
+  expect_no_message(
+    pd2 <- partial_dependence(fit, ~ x1 + x2, grid = 8L,
+                              values = list(x2 = c(-1, 0, 1))))
+  expect_identical(sort(unique(pd2[["x2"]])), c(-1, 0, 1))
+
+  # A factor second predictor is readable as it is, so nothing is said and
+  # every level is kept.
+  d$g <- factor(rep(letters[1:4], length.out = nrow(d)))
+  fit2 <- suppressMessages(suppressWarnings(
+    bartisan(y ~ ., d, family = stats::gaussian(), control = quick_control())))
+
+  expect_no_message(pd3 <- partial_dependence(fit2, ~ x1 + g, grid = 8L))
+  expect_length(unique(pd3[["g"]]), 4L)
+})
+
+test_that("the three grouping values are distinct even when the quartiles are not", {
+  # A predictor whose mass sits at one value has that value for every quartile,
+  # so each in turn has to fall back to the nearest one still free.
+  heavy <- c(rep(0, 300L), seq(1, 100, length.out = 200L))
+  v <- pd_group_values(heavy)
+
+  expect_length(v, 3L)
+  expect_length(unique(v), 3L)
+  expect_true(0 %in% v)
+  expect_true(all(v %in% heavy))
+
+  # Nothing to summarize when the predictor has three values or fewer, and a
+  # binary one is left alone.
+  expect_identical(pd_group_values(rep(c(1, 2, 3), 10L)), c(1, 2, 3))
+  expect_identical(pd_group_values(rep(c(0, 1), 10L)), c(0, 1))
+
+  # An ordinary continuous predictor gets its quartiles.
+  set.seed(4)
+  z <- stats::rnorm(500L)
+  expect_equal(pd_group_values(z),
+               unname(stats::quantile(z, c(.25, .5, .75))), tolerance = 0.02)
+})
+
+test_that("a `values` entry may be a function of the predictor", {
+  set.seed(8)
+  d <- sim_x(n = 150L, p = 2L)
+  d$w <- sample(c(1, 2, 3, 4), nrow(d), replace = TRUE)
+  d$y <- d$x1 + d$w + stats::rnorm(nrow(d))
+
+  fit <- suppressMessages(suppressWarnings(
+    bartisan(y ~ ., d, family = stats::gaussian(), control = quick_control())))
+
+  # The point of the feature: a grouping predictor the default would summarize
+  # is recovered whole without naming its values.
+  expect_no_message(pd <- partial_dependence(fit, ~ x1 + w, grid = 5L,
+                                             values = list(w = unique)))
+  expect_identical(sort(unique(pd[["w"]])), c(1, 2, 3, 4))
+
+  # It works on either predictor and for a factor.
+  pd2 <- suppressMessages(
+    partial_dependence(fit, ~ x1 + w, values = list(x1 = range, w = unique)))
+  expect_equal(sort(unique(pd2[["x1"]])), range(d[["x1"]]))
+  expect_identical(nrow(pd2), 8L)
+
+  # A function is read from the column, so NA is dropped the way it is for the
+  # grids the column produces itself; a vector written out is used as written.
+  d$v <- c(rep(NA_real_, 10L), d$x2[-(1:10)])
+  fit2 <- suppressMessages(suppressWarnings(
+    bartisan(y ~ x1 + v, d, family = stats::gaussian(), control = quick_control())))
+
+  pd3 <- partial_dependence(fit2, ~ v, values = list(v = function(z) c(0, NA)))
+  expect_identical(pd3[["v"]], 0)
+
+  pd4 <- partial_dependence(fit2, ~ v, values = list(v = c(0, NA)))
+  expect_identical(nrow(pd4), 2L)
+})
+
+test_that("a `values` function that returns nothing usable is an error", {
+  d <- sim_x(n = 80L, p = 2L)
+  d$y <- d$x1 + stats::rnorm(nrow(d))
+
+  fit <- suppressMessages(suppressWarnings(
+    bartisan(y ~ ., d, family = stats::gaussian(), control = quick_control())))
+
+  # Each names the predictor, since that is what the caller has to go and fix.
+  expect_error(partial_dependence(fit, ~ x1, values = list(x1 = function(z) NULL)),
+               "x1")
+  expect_error(partial_dependence(fit, ~ x1, values = list(x1 = function(z) list(1, 2))),
+               "must return the values")
+  expect_error(partial_dependence(fit, ~ x1, values = list(x1 = function(z) numeric(0))),
+               "must return the values")
+  expect_error(partial_dependence(fit, ~ x1, values = list(x1 = function(z) c(NA, NA))),
+               "nothing but")
+})
+
+test_that("print() shows the ends of a long grid and says how many it dropped", {
+  d <- sim_x(n = 120L, p = 2L)
+  d$y <- d$x1 + stats::rnorm(nrow(d))
+
+  fit <- suppressMessages(suppressWarnings(
+    bartisan(y ~ ., d, family = stats::gaussian(), control = quick_control())))
+
+  pd <- partial_dependence(fit, ~ x1, grid = 51L)
+  expect_identical(nrow(pd), 51L)
+
+  # The body rows are the ones with four numeric columns; the note that follows
+  # starts with a count, so it has to be told apart from them.
+  body <- function(...) {
+    out <- utils::capture.output(print(pd, ...))
+    grep("^ *-?[0-9.]+ +-?[0-9.]+ +-?[0-9.]+ +-?[0-9.]+ *$", out, value = TRUE)
+  }
+  lead <- function(z) as.numeric(sub("^ *(-?[0-9.]+).*", "\\1", z))
+
+  # Ten by default, five from each end, and the count of what was left out.
+  rows <- body()
+  expect_length(rows, 10L)
+  expect_equal(lead(rows[1L]), pd[[1L]][1L], tolerance = 1e-3)
+  expect_equal(lead(rows[10L]), pd[[1L]][51L], tolerance = 1e-3)
+  expect_output(print(pd), "--- 41 rows omitted ---")
+  expect_output(print(pd), "n_print")
+
+  # The marker sits between the halves rather than after them, and only the
+  # top half carries the heading, which is why both are printed as one table
+  # and cut apart afterwards.
+  out <- utils::capture.output(print(pd))
+  sep <- grep("rows omitted", out)
+  head_at <- grep("^ *x1 +estimate +lower +upper *$", out)
+  expect_length(head_at, 1L)
+  expect_length(sep, 1L)
+  expect_true(head_at < sep && sep < length(out))
+  expect_identical(sum(out == out[[sep]]), 1L)
+  expect_equal(sep - head_at - 1L, 5L)        # five rows above the marker
+  expect_true(grepl("^ +---", out[[sep]]))    # and it is indented, not flush
+
+  # An odd `n_print` gives the extra row to the top: four then three.
+  rows <- body(n_print = 7L)
+  expect_length(rows, 7L)
+  expect_equal(lead(rows[4L]), pd[[1L]][4L], tolerance = 1e-3)
+  expect_equal(lead(rows[5L]), pd[[1L]][49L], tolerance = 1e-3)
+  expect_output(print(pd, n_print = 7L), "--- 44 rows omitted ---")
+
+  # One omitted row is reported in the singular.
+  three <- partial_dependence(fit, ~ x1, grid = 3L)
+  expect_output(print(three, n_print = 2L), "--- 1 row omitted ---")
+
+  # `n_print = 1` asks for nothing from the bottom, which `seq.int()` would
+  # otherwise turn into a backwards sequence and two rows.
+  expect_length(body(n_print = 1L), 1L)
+
+  # Nothing is dropped once the grid fits, and `Inf` always shows all of it.
+  expect_length(body(n_print = Inf), 51L)
+  expect_length(body(n_print = 51L), 51L)
+  expect_length(body(n_print = 99L), 51L)
+  for (np in list(Inf, 51L, 99L)) {
+    expect_false(any(grepl("omitted", utils::capture.output(print(pd, n_print = np)))))
+  }
+
+  # A grid that was short to begin with prints whole and says nothing, neither
+  # a marker nor the note about the argument.
+  short <- partial_dependence(fit, ~ x1, grid = 4L)
+  out <- utils::capture.output(print(short))
+  expect_false(any(grepl("omitted", out)))
+  expect_false(any(grepl("n_print", out)))
+
+  expect_error(print(pd, n_print = 0), "greater than or equal to 1")
+  expect_error(print(pd, n_print = c(1, 2)), "single whole number")
+})

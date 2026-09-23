@@ -10,9 +10,17 @@
 #' @param newdata optional; a data frame to average over. Default is the data
 #'   the model was fit to.
 #' @param grid `integer`; how many values of a numeric predictor to evaluate.
-#'   Default is 51. A factor is evaluated at each of its levels whatever this is.
+#'   Default is 26. A factor is evaluated at each of its levels whatever this
+#'   is, and a numeric predictor named second at three values rather than `grid`
+#'   of them; see Details.
 #' @param values optional; a named list giving the values to evaluate a
-#'   predictor at, which overrides `grid` for the predictors it names.
+#'   predictor at, which overrides `grid` for the predictors it names. An entry
+#'   may be a function of the predictor rather than the values themselves, so
+#'   that `values = list(age = unique)` evaluates `age` at every value it takes;
+#'   `NA` is dropped from what such a function returns, while a vector written
+#'   out by hand is used exactly as written. A numeric second predictor this
+#'   does not name is held at three of its values near its quartiles, and a
+#'   message reports which.
 #' @param level `numeric`; the level of the credible interval. Default is `.95`.
 #' @param type `string`; the prediction scale, passed to
 #'   [predict.bartisan_fit()]. Default is `"response"`.
@@ -23,6 +31,10 @@
 #'   `partial_dependence()`. For `plot.bartisan_fit()`, a `<bartisan_fit>`.
 #' @param digits `integer`; for `print()`, the number of significant digits to
 #'   print the estimates and their interval to. Default is 3.
+#' @param n_print `integer`; for `print()`, the total number of rows to show,
+#'   taken half from the top of the grid and half from the bottom, with the odd
+#'   row going to the top. A line between the two halves counts what was left
+#'   out. Default is 10, and `Inf` shows every row.
 #' @param y for `plot.bartisan_fit()`, the predictors to plot, as `variables`
 #'   above.
 #' @param ... for `plot.bartisan_fit()`, further arguments passed to
@@ -38,6 +50,20 @@
 #' for all of them, and the average over units is taken *within each posterior
 #' draw*. The interval is then a quantile of those averages, so it is an interval
 #' on the average prediction and not on any one unit's.
+#'
+#' The second predictor groups the curves rather than adding an axis, which is
+#' readable for a factor and for a numeric predictor with a few values, and not
+#' for a continuous one: `grid` values of it would give `grid` curves, each with
+#' a ribbon of its own. A numeric second predictor with more than three distinct
+#' values is therefore held at three of them and a message says which, with
+#' `values` there to choose others and `values = list(z = unique)` the short way
+#' to ask for all of them, which is what a predictor with four or five values
+#' usually wants. The three are the values nearest its
+#' quartiles, and they are distinct even when the quartiles are not, since a
+#' predictor with a large mass at one value takes that value for two or three of
+#' them; each quartile in turn takes the nearest value the predictor has that an
+#' earlier one did not take. They are values the predictor takes rather than
+#' points on an even grid, which is also what keeps the legend readable.
 #'
 #' The usual caveat on a partial dependence plot applies. Averaging over the
 #' other predictors evaluates the model at covariate combinations that may not
@@ -72,8 +98,17 @@
 #' # Two predictors, one of them a factor, which gives a curve per level
 #' plot(fit, ~ meanbp + sex)
 #'
+#' # Two numeric predictors, where the second is held at three values and a
+#' # message says which
+#' plot(fit, ~ meanbp + aps)
+#'
+#' # An entry of `values` may be a function of the predictor, which is how to
+#' # ask for values of your own without naming them
+#' plot(fit, ~ meanbp + aps,
+#'      values = list(aps = function(x) quantile(x, c(.1, .5, .9))))
+#'
 #' @export
-partial_dependence <- function(object, variables, newdata = NULL, grid = 51L,
+partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
                                values = NULL, level = 0.95, type = "response",
                                plot = FALSE, ...) {
 
@@ -106,7 +141,35 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 51L,
               not have: {.val {missing}}")
   }
 
-  points <- lapply(vars, function(v) pd_grid(newdata[[v]], grid, values[[v]]))
+  # A numeric second predictor is the grouping, and `grid` of them is a plot
+  # nobody can read, so it is summarized unless the caller said otherwise. The
+  # message is the point as much as the default is: a reader who wanted all of
+  # them has to be told they did not get them, and told what to set.
+  group <- if (length(vars) > 1L) vars[[2L]] else NULL
+
+  if (!is_null(group) && is_null(values[[group]]) &&
+      is.numeric(newdata[[group]])) {
+    z <- newdata[[group]]
+
+    if (length(unique(stats::na.omit(z))) > 3L) {
+      values[[group]] <- pd_group_values(z)
+
+      arg::msg(c(i = "Grouping by {.var {group}} at
+                      {.val {signif(values[[group]], 3L)}}, three of its
+                      values near its quartiles.",
+                 i = "Set {.arg values} to choose them yourself."))
+    }
+  }
+
+  points <- lapply(vars, function(v) {
+    given <- values[[v]]
+
+    if (is.function(given)) {
+      given <- pd_values_from(given, newdata[[v]], v)
+    }
+
+    pd_grid(newdata[[v]], grid, given)
+  })
   names(points) <- vars
   combos <- expand.grid(points, KEEP.OUT.ATTRS = FALSE,
                         stringsAsFactors = FALSE)
@@ -218,6 +281,65 @@ pd_grid <- function(z, grid, given) {
   seq(min(z, na.rm = TRUE), max(z, na.rm = TRUE), length.out = grid)
 }
 
+# A `values` entry may be a function of the column rather than the values
+# themselves, so that `values = list(age = unique)` asks for every value a
+# predictor takes without naming them, which is what recovers a numeric
+# predictor the grouping default would otherwise summarize. The function is
+# called on the column as it stands.
+#
+# `NA` is dropped from what it returns, the way every branch of `pd_grid()`
+# drops it from values it derives from the column itself. A vector written out
+# by hand is used exactly as written, since that is the caller saying what they
+# want rather than the column being read.
+pd_values_from <- function(f, z, name) {
+  out <- f(z)
+
+  if (is_null(out) || !is.atomic(out) || length(out) == 0L) {
+    arg::err("the function {.arg values} gives for {.var {name}} must return
+              the values to evaluate it at, and it returned
+              {.cls {class(out)}} of length {length(out)}")
+  }
+
+  out <- out[!is.na(out)]
+
+  if (length(out) == 0L) {
+    arg::err("the function {.arg values} gives for {.var {name}} returned
+              nothing but {.val {NA}}")
+  }
+
+  out
+}
+
+# Three values for a numeric grouping predictor, near its quartiles and all
+# distinct.
+#
+# The second predictor becomes the grouping, so a continuous one would get the
+# same grid as the first and the plot would carry one ribboned curve per grid
+# point. The quartiles are the three-value summary worth drawing, but they are
+# not always three numbers: a predictor with a large mass at one value takes
+# that value for two or three of them. So each quartile is snapped to the
+# nearest value the predictor actually has that an earlier quartile did not
+# already take, which keeps the mass point and still returns three curves.
+pd_group_values <- function(z, n = 3L) {
+  u <- sort(unique(stats::na.omit(z)))
+
+  if (length(u) <= n) {
+    return(u)
+  }
+
+  targets <- stats::quantile(z, seq_len(n) / (n + 1), na.rm = TRUE,
+                             names = FALSE)
+
+  out <- rep(NA_real_, n)
+
+  for (i in seq_len(n)) {
+    free <- u[!u %in% out[seq_len(i - 1L)]]
+    out[[i]] <- free[[which.min(abs(free - targets[[i]]))]]
+  }
+
+  sort(out)
+}
+
 pd_assign <- function(z, value) {
   if (is.factor(z)) {
     return(factor(rep(as.character(value), length(z)), levels = levels(z)))
@@ -236,9 +358,11 @@ pd_assign <- function(z, value) {
 
 #' @rdname partial_dependence
 #' @export
-print.bartisan_partial <- function(x, digits = 3L, ...) {
+print.bartisan_partial <- function(x, digits = 3L, n_print = 10L, ...) {
 
   arg::arg_whole_number(digits)
+  arg::arg_whole_number(n_print)
+  arg::arg_gte(n_print, 1)
 
   vars <- attr(x, "variables")
 
@@ -249,14 +373,64 @@ print.bartisan_partial <- function(x, digits = 3L, ...) {
            {.val {attr(x, 'type')}} scale")
   cli::cat_line()
 
-  as.data.frame(x) |>
-    effect_round(digits) |>
-    print(row.names = FALSE)
+  d <- as.data.frame(x) |>
+    effect_round(digits)
+
+  # A grid of 26 points, or 26 of them per level of a second predictor, is more
+  # than anyone reads off a console, and the ends are where a curve is read
+  # anyway. So the ends are what is kept and the count of what was dropped goes
+  # underneath, with the argument that shows the rest. The predictor's own
+  # column is what makes the gap visible, which is why there is no separator
+  # row between the two halves.
+  truncated <- nrow(d) > n_print
+
+  if (truncated) {
+    top <- ceiling(n_print / 2)
+    bottom <- n_print - top
+    keep <- seq_len(top)
+
+    # `seq.int()` counts backwards when it is asked for nothing, so a zero-row
+    # bottom half has to be left out rather than computed.
+    if (bottom > 0) {
+      keep <- c(keep, seq.int(nrow(d) - bottom + 1L, nrow(d)))
+    }
+
+    # Both halves are printed as one table and the lines cut apart afterwards.
+    # Printing them separately would repeat the heading and column-align each
+    # half to its own widths, so the two would not line up.
+    lines <- utils::capture.output(print(d[keep, , drop = FALSE],
+                                         row.names = FALSE))
+
+    gone <- nrow(d) - length(keep)
+    gap <- sprintf("--- %d row%s omitted ---", gone, if (gone == 1L) "" else "s")
+
+    # Centered on the table rather than the console, so it reads as a break in
+    # the column of numbers.
+    pad <- max(0L, (max(nchar(lines)) - nchar(gap)) %/% 2L)
+    gap <- paste0(strrep(" ", pad), gap)
+
+    # `cat()` rather than cli, which collapses the runs of spaces that put the
+    # marker under the middle of the table.
+    cat(c(lines[seq_len(top + 1L)], cli::style_italic(gap),
+          lines[-seq_len(top + 1L)]), sep = "\n")
+  }
+  else {
+    print(d, row.names = FALSE)
+  }
 
   cli::cat_line()
-  cli_bullets_cat(c(i = "{.field lower} and {.field upper} bound the
-                        {100 * attr(x, 'level')}% credible interval on the
-                        {.emph average} prediction, not on any one unit's."))
+
+  notes <- c(i = "{.field lower} and {.field upper} bound the
+                  {100 * attr(x, 'level')}% credible interval on the
+                  average prediction.")
+
+  if (truncated) {
+    notes <- c(notes,
+               i = "{.arg n_print} in {.help [{.fun print}](bartisan::print.bartisan_partial)} sets how many rows are shown, half from
+                    each end; {.code print(., n_print = Inf)} shows all of them.")
+  }
+
+  cli_bullets_cat(notes)
 
   invisible(x)
 }

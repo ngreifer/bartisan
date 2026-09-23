@@ -11,7 +11,7 @@ partial_dependence(
   object,
   variables,
   newdata = NULL,
-  grid = 51L,
+  grid = 26L,
   values = NULL,
   level = 0.95,
   type = "response",
@@ -19,7 +19,7 @@ partial_dependence(
   ...
 )
 
-\method{print}{bartisan_partial}(x, digits = 3L, ...)
+\method{print}{bartisan_partial}(x, digits = 3L, n_print = 10L, ...)
 
 \method{plot}{bartisan_partial}(x, ...)
 
@@ -35,10 +35,18 @@ partial_dependence(
 the model was fit to.}
 
 \item{grid}{\code{integer}; how many values of a numeric predictor to evaluate.
-Default is 51. A factor is evaluated at each of its levels whatever this is.}
+Default is 26. A factor is evaluated at each of its levels whatever this
+is, and a numeric predictor named second at three values rather than \code{grid}
+of them; see Details.}
 
 \item{values}{optional; a named list giving the values to evaluate a
-predictor at, which overrides \code{grid} for the predictors it names.}
+predictor at, which overrides \code{grid} for the predictors it names. An entry
+may be a function of the predictor rather than the values themselves, so
+that \code{values = list(age = unique)} evaluates \code{age} at every value it takes;
+\code{NA} is dropped from what such a function returns, while a vector written
+out by hand is used exactly as written. A numeric second predictor this
+does not name is held at three of its values near its quartiles, and a
+message reports which.}
 
 \item{level}{\code{numeric}; the level of the credible interval. Default is \code{.95}.}
 
@@ -58,6 +66,11 @@ argument and the method cannot disagree.}
 \item{digits}{\code{integer}; for \code{print()}, the number of significant digits to
 print the estimates and their interval to. Default is 3.}
 
+\item{n_print}{\code{integer}; for \code{print()}, the total number of rows to show,
+taken half from the top of the grid and half from the bottom, with the odd
+row going to the top. A line between the two halves counts what was left
+out. Default is 10, and \code{Inf} shows every row.}
+
 \item{y}{for \code{plot.bartisan_fit()}, the predictors to plot, as \code{variables}
 above.}
 }
@@ -76,6 +89,20 @@ At each grid value every unit is assigned that value, the prediction is taken
 for all of them, and the average over units is taken \emph{within each posterior
 draw}. The interval is then a quantile of those averages, so it is an interval
 on the average prediction and not on any one unit's.
+
+The second predictor groups the curves rather than adding an axis, which is
+readable for a factor and for a numeric predictor with a few values, and not
+for a continuous one: \code{grid} values of it would give \code{grid} curves, each with
+a ribbon of its own. A numeric second predictor with more than three distinct
+values is therefore held at three of them and a message says which, with
+\code{values} there to choose others and \code{values = list(z = unique)} the short way
+to ask for all of them, which is what a predictor with four or five values
+usually wants. The three are the values nearest its
+quartiles, and they are distinct even when the quartiles are not, since a
+predictor with a large mass at one value takes that value for two or three of
+them; each quartile in turn takes the nearest value the predictor has that an
+earlier one did not take. They are values the predictor takes rather than
+points on an even grid, which is also what keeps the legend readable.
 
 The usual caveat on a partial dependence plot applies. Averaging over the
 other predictors evaluates the model at covariate combinations that may not
@@ -103,6 +130,15 @@ plot(fit, ~ meanbp)
 
 # Two predictors, one of them a factor, which gives a curve per level
 plot(fit, ~ meanbp + sex)
+
+# Two numeric predictors, where the second is held at three values and a
+# message says which
+plot(fit, ~ meanbp + aps)
+
+# An entry of `values` may be a function of the predictor, which is how to
+# ask for values of your own without naming them
+plot(fit, ~ meanbp + aps,
+     values = list(aps = function(x) quantile(x, c(.1, .5, .9))))
 
 }
 \seealso{
