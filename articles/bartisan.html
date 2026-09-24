@@ -71,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-22</h4>
+            <h4 data-toc-skip class="date">2026-09-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -175,7 +175,7 @@ surviving two months. All were recorded before catheterization.</p>
 </h2>
 <p>To fit the model, we simply call <code><a href="../reference/bartisan.html">bartisan::bartisan()</a></code>
 with the same model formula one would use for <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> or any
-other standard mdoel-fitting function, additionally supplying the
+other standard model-fitting function, additionally supplying the
 dataset to <code>data</code> and the response family to
 <code>family</code>. Because BART involves random processes, we must
 also set a seed using <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> to ensure reproducibility
@@ -375,7 +375,7 @@ a departure from the diagonal looks like and what else to check.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="which-predictors-the-model-uses">Which Predictors the Model Uses<a class="anchor" aria-label="anchor" href="#which-predictors-the-model-uses"></a>
+<h2 id="variable-importance">Variable Importance<a class="anchor" aria-label="anchor" href="#variable-importance"></a>
 </h2>
 <p>A <code><a href="../reference/bartisan.html">bartisan()</a></code> fit produces no model coefficients; to see
 which covariates played the biggest role in the fit, we can use
@@ -426,9 +426,9 @@ means anything.</p>
 <p>A forest has no table of coefficients to read, so a fit is
 interpreted by putting questions to it: what happens to the prediction
 when a predictor is changed, and what shape does the prediction trace as
-that predictor varies. Three functions answer versions of that question,
-and they differ in what they average over rather than in what they are
-asking.</p>
+that predictor varies. The functions below answer versions of that
+question, and they differ in what they average over rather than in what
+they are asking.</p>
 <div class="section level3">
 <h3 id="a-table-of-average-comparisons">A Table of Average Comparisons<a class="anchor" aria-label="anchor" href="#a-table-of-average-comparisons"></a>
 </h3>
@@ -659,7 +659,7 @@ on arrival is the main thing that predicts whether they die.</p>
 cases where leave-one-out fails.</p>
 </div>
 <div class="section level2">
-<h2 id="what-to-be-careful-about">What to Be Careful About<a class="anchor" aria-label="anchor" href="#what-to-be-careful-about"></a>
+<h2 id="limitations">Limitations<a class="anchor" aria-label="anchor" href="#limitations"></a>
 </h2>
 <p>The model is flexible about the shape of the relationship and nothing
 else.</p>
@@ -679,7 +679,7 @@ rather than continuing any trend.</p>
 distribution wrong matters more than any sampler setting.</p>
 </div>
 <div class="section level2">
-<h2 id="where-to-go-next">Where to Go Next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+<h2 id="further-reading">Further Reading<a class="anchor" aria-label="anchor" href="#further-reading"></a>
 </h2>
 <table class="table">
 <thead><tr class="header">
@@ -708,18 +708,22 @@ distribution wrong matters more than any sampler setting.</p>
 <td><code><a href="../articles/effects.html">vignette("effects")</a></code></td>
 </tr>
 <tr class="even">
+<td>Varying coefficients and random intercepts</td>
+<td><code><a href="../articles/varying.html">vignette("varying")</a></code></td>
+</tr>
+<tr class="odd">
 <td>Model comparison</td>
 <td><code><a href="../articles/comparison.html">vignette("comparison")</a></code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Causal inference</td>
 <td><code><a href="../articles/causal.html">vignette("causal")</a></code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Censored and survival outcomes</td>
 <td><code><a href="../articles/survival.html">vignette("survival")</a></code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Frequently asked questions</td>
 <td><code><a href="../articles/faq.html">vignette("faq")</a></code></td>
 </tr>

@@ -9,10 +9,10 @@ importance for BART.
 reports the count.
 
 This vignette covers what that number means, how to tell whether a
-difference in it is real, and three things it is not. The last part
-matters more than the first: variable importance is the most over-read
-output in machine learning, and the failure modes are specific and
-checkable.
+difference in it is real, and the limits of what it measures. The last
+part matters more than the first: variable importance is the most
+over-read output in machine learning, and the failure modes are specific
+and checkable.
 
 In this guide we will first read the three statistics
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)

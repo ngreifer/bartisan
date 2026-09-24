@@ -120,7 +120,7 @@ To fit the model, we simply call
 [`bartisan::bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 with the same model formula one would use for
 [`glm()`](https://rdrr.io/r/stats/glm.html) or any other standard
-mdoel-fitting function, additionally supplying the dataset to `data` and
+model-fitting function, additionally supplying the dataset to `data` and
 the response family to `family`. Because BART involves random processes,
 we must also set a seed using
 [`set.seed()`](https://rdrr.io/r/base/Random.html) to ensure
@@ -346,7 +346,7 @@ here.
 covers what a departure from the diagonal looks like and what else to
 check.
 
-## Which Predictors the Model Uses
+## Variable Importance
 
 A
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
@@ -405,8 +405,8 @@ a difference in this table means anything.
 A forest has no table of coefficients to read, so a fit is interpreted
 by putting questions to it: what happens to the prediction when a
 predictor is changed, and what shape does the prediction trace as that
-predictor varies. Three functions answer versions of that question, and
-they differ in what they average over rather than in what they are
+predictor varies. The functions below answer versions of that question,
+and they differ in what they average over rather than in what they are
 asking.
 
 ### A Table of Average Comparisons
@@ -672,7 +672,7 @@ arrival is the main thing that predicts whether they die.
 [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
 covers model comparison, and the cases where leave-one-out fails.
 
-## What to Be Careful About
+## Limitations
 
 The model is flexible about the shape of the relationship and nothing
 else.
@@ -694,7 +694,7 @@ continuing any trend.
 It does not fix a badly chosen family. Getting the outcome distribution
 wrong matters more than any sampler setting.
 
-## Where to Go Next
+## Further Reading
 
 | Topic | Vignette |
 |----|----|
@@ -703,6 +703,7 @@ wrong matters more than any sampler setting.
 | Convergence and fit | [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md) |
 | Variable importance and selection | [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md) |
 | Effects, Curves, and Interactions | [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md) |
+| Varying coefficients and random intercepts | [`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md) |
 | Model comparison | [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md) |
 | Causal inference | [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md) |
 | Censored and survival outcomes | [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md) |

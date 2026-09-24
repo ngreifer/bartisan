@@ -187,7 +187,7 @@ above is what keeps the scale positive.</p>
 </div>
 
 <div class="section">
-<h3 id="what-a-log-density-cannot-supply">What a Log Density Cannot Supply<a class="anchor" aria-label="anchor" href="#what-a-log-density-cannot-supply"></a></h3>
+<h3 id="limits-of-a-log-density">Limits of a Log Density<a class="anchor" aria-label="anchor" href="#limits-of-a-log-density"></a></h3>
 
 
 <p>A density says how likely an observed value is, not how to draw a new one, so
@@ -197,7 +197,8 @@ what <code><a href="bartisan-interop.html">simulate()</a></code>, <code><a href=
 rather than returning something it cannot support. <a href="bartisan-interop.html">loo()</a>
 and <code><a href="bartisan-interop.html">waic()</a></code> are unaffected, since both read the
 pointwise log likelihood the family already computes.</p>
-<p>Two smaller limits. The response must be numeric, so a factor has to be coded
+<p>There are smaller limits as well. The response must be numeric, so a factor
+has to be coded
 first. And since the package cannot know what the mean of the density is,
 <code>predict(type = "response")</code> returns the additive predictors rather than a
 fitted mean.</p>

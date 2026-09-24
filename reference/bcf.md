@@ -110,7 +110,7 @@ the average; see
 
 ### The Model
 
-`bcf()` writes five things into a
+`bcf()` writes several settings into a
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 call, all of which can be written out there directly. The treatment gets
 a [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) term, so
@@ -207,8 +207,12 @@ tree ensembles.
 for the average or conditional effect;
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 and [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) for
-the general interface this is written in terms of, and
-[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md).
+the general interface this is written in terms of;
+[`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md)
+for the varying-coefficient model this is a case of and what it writes
+into the call; and
+[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
+for the assumptions under which the effect is causal.
 
 ## Examples
 

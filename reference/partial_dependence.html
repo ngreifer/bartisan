@@ -63,7 +63,7 @@ predictors, so that what is left is how the prediction moves with them.
 <span>  <span class="va">object</span>,</span>
 <span>  <span class="va">variables</span>,</span>
 <span>  newdata <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  grid <span class="op">=</span> <span class="fl">51L</span>,</span>
+<span>  grid <span class="op">=</span> <span class="fl">26L</span>,</span>
 <span>  values <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  type <span class="op">=</span> <span class="st">"response"</span>,</span>
@@ -72,7 +72,7 @@ predictors, so that what is left is how the prediction moves with them.
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_partial'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">x</span>, digits <span class="op">=</span> <span class="fl">3L</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">x</span>, digits <span class="op">=</span> <span class="fl">3L</span>, n_print <span class="op">=</span> <span class="fl">10L</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_partial'</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
@@ -101,12 +101,20 @@ the model was fit to.</p></dd>
 
 <dt id="arg-grid">grid<a class="anchor" aria-label="anchor" href="#arg-grid"></a></dt>
 <dd><p><code>integer</code>; how many values of a numeric predictor to evaluate.
-Default is 51. A factor is evaluated at each of its levels whatever this is.</p></dd>
+Default is 26. A factor is evaluated at each of its levels whatever this
+is, and a numeric predictor named second at three values rather than <code>grid</code>
+of them; see Details.</p></dd>
 
 
 <dt id="arg-values">values<a class="anchor" aria-label="anchor" href="#arg-values"></a></dt>
 <dd><p>optional; a named list giving the values to evaluate a
-predictor at, which overrides <code>grid</code> for the predictors it names.</p></dd>
+predictor at, which overrides <code>grid</code> for the predictors it names. An entry
+may be a function of the predictor rather than the values themselves, so
+that <code>values = list(age = unique)</code> evaluates <code>age</code> at every value it takes;
+<code>NA</code> is dropped from what such a function returns, while a vector written
+out by hand is used exactly as written. A numeric second predictor this
+does not name is held at three of its values near its quartiles, and a
+message reports which.</p></dd>
 
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
@@ -139,6 +147,13 @@ argument and the method cannot disagree.</p></dd>
 print the estimates and their interval to. Default is 3.</p></dd>
 
 
+<dt id="arg-n-print">n_print<a class="anchor" aria-label="anchor" href="#arg-n-print"></a></dt>
+<dd><p><code>integer</code>; for <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>, the total number of rows to show,
+taken half from the top of the grid and half from the bottom, with the odd
+row going to the top. A line between the two halves counts what was left
+out. Default is 10, and <code>Inf</code> shows every row.</p></dd>
+
+
 <dt id="arg-y">y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
 <dd><p>for <code>plot.bartisan_fit()</code>, the predictors to plot, as <code>variables</code>
 above.</p></dd>
@@ -156,6 +171,19 @@ returns a <span class="pkg">ggplot2</span> object.</p>
 for all of them, and the average over units is taken <em>within each posterior
 draw</em>. The interval is then a quantile of those averages, so it is an interval
 on the average prediction and not on any one unit's.</p>
+<p>The second predictor groups the curves rather than adding an axis, which is
+readable for a factor and for a numeric predictor with a few values, and not
+for a continuous one: <code>grid</code> values of it would give <code>grid</code> curves, each with
+a ribbon of its own. A numeric second predictor with more than three distinct
+values is therefore held at three of them and a message says which, with
+<code>values</code> there to choose others and <code>values = list(z = unique)</code> the short way
+to ask for all of them, which is what a predictor with four or five values
+usually wants. The three are the values nearest its
+quartiles, and they are distinct even when the quartiles are not, since a
+predictor with a large mass at one value takes that value for two or three of
+them; each quartile in turn takes the nearest value the predictor has that an
+earlier one did not take. They are values the predictor takes rather than
+points on an even grid, which is also what keeps the legend readable.</p>
 <p>The usual caveat on a partial dependence plot applies. Averaging over the
 other predictors evaluates the model at covariate combinations that may not
 occur, so a curve over a region where the predictor's values are sparse says
@@ -195,59 +223,21 @@ control over the grid</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  meanbp estimate lower upper</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    0.00    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    4.44    0.654 0.638 0.680</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    8.88    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   13.32    0.654 0.638 0.680</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   17.76    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   22.20    0.654 0.638 0.680</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   26.64    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   31.08    0.654 0.638 0.680</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   35.52    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   39.96    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   44.40    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   48.84    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   53.28    0.654 0.638 0.676</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   57.72    0.654 0.638 0.674</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   62.16    0.654 0.638 0.674</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   66.60    0.654 0.638 0.678</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   71.04    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   75.48    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   79.92    0.654 0.638 0.680</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   84.36    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   88.80    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   93.24    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   97.68    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  102.12    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  106.56    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  111.00    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  115.44    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  119.88    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  124.32    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  128.76    0.654 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  133.20    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  137.64    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  142.08    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  146.52    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  150.96    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  155.40    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  159.84    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  164.28    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  168.72    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  173.16    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  177.60    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  182.04    0.655 0.638 0.679</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">  --- 16 rows omitted ---</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  186.48    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  190.92    0.655 0.638 0.679</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  195.36    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  199.80    0.655 0.638 0.679</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  204.24    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  208.68    0.655 0.638 0.679</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  213.12    0.655 0.638 0.679</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  217.56    0.655 0.638 0.679</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  222.00    0.655 0.638 0.679</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the <span style="font-style: italic;">average</span> prediction,</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   not on any one unit's.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   them.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pd</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="partial_dependence-1.png" alt="" width="700" height="433"></span>
@@ -259,6 +249,19 @@ control over the grid</p></div>
 <span class="r-in"><span><span class="co"># Two predictors, one of them a factor, which gives a curve per level</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">sex</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="partial_dependence-3.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Two numeric predictors, where the second is held at three values and a</span></span></span>
+<span class="r-in"><span><span class="co"># message says which</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Grouping by `aps` at <span style="color: #0000BB;">41</span>, <span style="color: #0000BB;">54</span>, and <span style="color: #0000BB;">68</span>, three of its values near its quartiles.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `values` to choose them yourself.</span>
+<span class="r-plt img"><img src="partial_dependence-4.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># An entry of `values` may be a function of the predictor, which is how to</span></span></span>
+<span class="r-in"><span><span class="co"># ask for values of your own without naming them</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span>,</span></span>
+<span class="r-in"><span>     values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">x</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.1</span>, <span class="fl">.5</span>, <span class="fl">.9</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="partial_dependence-5.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

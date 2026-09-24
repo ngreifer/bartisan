@@ -283,7 +283,7 @@ different against a baseline of 63% than it would against 5%.
 [`print()`](https://rdrr.io/r/base/print.html) call drops them where the
 difference is all that is wanted.
 
-### How the Estimate Is Computed, and on Which Scale
+### Computation and Scale of the Estimate
 
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 performs the g-computation above literally. Every unit is predicted
@@ -592,12 +592,12 @@ estimate_effect(fit_earn_bcf, estimand = "ATT")
 
 `estimand = "ATT"` averages over the treated rather than over everyone,
 and `focal` is not needed because a 0/1 treatment settles which level is
-the treated one. Two cases do need it, and they differ. When the
-treatment has more than two levels, `focal` is required and naming it is
-the whole of the choice, since `"ATT"` and `"ATC"` then mean the same
-thing: the effect among the units in the level named. When it has two
-levels whose labels say nothing about which is which, the level order is
-assumed and a message says so, which `focal` silences.
+the treated one. It does matter in other cases, and in different ways.
+When the treatment has more than two levels, `focal` is required and
+naming it is the whole of the choice, since `"ATT"` and `"ATC"` then
+mean the same thing: the effect among the units in the level named. When
+it has two levels whose labels say nothing about which is which, the
+level order is assumed and a message says so, which `focal` silences.
 
 The potential outcomes earn their place here: a few hundred dollars
 means something different against a baseline of six thousand than it
@@ -633,7 +633,7 @@ their intervals excludes zero. That is the usual picture: a per-unit
 effect is estimated from far less information than an average, so the
 intervals are wide even where the average is clear.
 
-## What the Credible Interval Means
+## Interpreting the Credible Interval
 
 The posterior interval is a credible interval for the estimand under the
 model and under the identification assumptions. It covers uncertainty
@@ -647,7 +647,7 @@ analysis, asking how strong a confounder would have to be to explain the
 result away, is a more informative addition than any refinement of the
 model.
 
-## Where to Go Next
+## Further Reading
 
 [`?estimate_effect`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 is the reference for the estimands used here, including the subgroup

@@ -83,7 +83,7 @@ well behaved, and a \\k\\ above the threshold *loo* prints with them,
 which is at most .7 and a little lower for a fit with this many draws,
 says that for that observation they are not. Here they are all good.
 
-### When the Approximation Fails
+### Failures of the Approximation
 
 A forest is a flexible function, so a single observation can have a good
 deal of influence on the leaves it falls into, and the worry is
@@ -173,18 +173,18 @@ standard error is not evidence of anything.
 `pnorm(0, elpd_diff, se_diff)`, the chance that the model on that row is
 really the worse of the two given how far apart they came out and how
 precisely the difference is known. The best-ranked model has nothing to
-be compared against and gets `NA`. Two properties are worth knowing
-before reading one. Because the models are sorted by `elpd_loo` before
-it is computed, every reported value is at least .5 by construction, so
-.5 does not mean “even odds after weighing the evidence” but “the
-ranking is arbitrary and another sample could reverse it”; and because
-it comes from the normal approximation behind `se_diff`, it inherits
-that approximation’s failures, which is why *loo* flags them in
-`diag_diff` and `diag_elpd` when it detects them. Here it is 1.00, and
-the reading is that a sample like this one would essentially never put
-the demographic model ahead.
+be compared against and gets `NA`. Some of its properties are worth
+knowing before reading one. Because the models are sorted by `elpd_loo`
+before it is computed, every reported value is at least .5 by
+construction, so .5 does not mean “even odds after weighing the
+evidence” but “the ranking is arbitrary and another sample could reverse
+it”; and because it comes from the normal approximation behind
+`se_diff`, it inherits that approximation’s failures, which is why *loo*
+flags them in `diag_diff` and `diag_elpd` when it detects them. Here it
+is 1.00, and the reading is that a sample like this one would
+essentially never put the demographic model ahead.
 
-### Totals, Averages, and Why the Convention Is a Total
+### Totals and Averages
 
 `elpd_diff` is a difference of *totals*, and the reason is that a log
 score is additive. Summing it over observations gives a log predictive
@@ -522,17 +522,17 @@ can supply it, and choosing it to favor a model is choosing the answer.
 
 When the zeros are exact rather than rounded, there is no width to use
 and no correction to make. In that case do not compare the two families
-by [`loo()`](https://mc-stan.org/loo/reference/loo.html) at all. Two
-things answer the question instead, and between them they cover it.
+by [`loo()`](https://mc-stan.org/loo/reference/loo.html) at all. The
+question can be answered in other ways, which between them cover it.
 
-The first is to compare them only where both describe the outcome the
-same way, which is the positive observations, as above: on those, here,
+One is to compare them only where both describe the outcome the same
+way, which is the positive observations, as above: on those, here,
 neither family predicts better.
 
-The second is to notice that the disagreement is entirely about whether
-the outcome has a point mass, and that this is a question about the
-shape of the predictive distribution rather than about a density at a
-point. A posterior predictive check settles it in one line:
+Another is to notice that the disagreement is entirely about whether the
+outcome has a point mass, and that this is a question about the shape of
+the predictive distribution rather than about a density at a point. A
+posterior predictive check settles it in one line:
 
 ``` r
 
@@ -701,72 +701,18 @@ documents what each one changes.
 ## A Constant Coefficient Against a Varying One (`vc()`)
 
 `vc(z)` gives `z` a coefficient that is itself a forest, free to vary
-with the other predictors. Naming no modifier, `vc(z, ~ 1)`, leaves that
-forest nothing to split on: every tree in it is a stump, so the
-coefficient is a single drawn number and `z` enters the model as a
-linear term while everything else stays nonparametric. That is the
-semiparametric case of the General BART model of Tan and Roy
-([2019](#ref-tan2019)), a forest and a parametric part taking disjoint
-sets of predictors, and it is the shape *stan4bart* and *flexBART* fit;
-*flexBART*’s formula interface writes it as `y ~ bart(x1 + x2) + x3`,
-with `x3` linear, and a varying coefficient as `x4 * bart(x1 + x2)`.
-
-Comparing the two by
+with the other predictors, and `vc(z, ~ 1)` pins that coefficient to a
+single number, so `z` enters as a linear term while everything else
+stays nonparametric. Comparing the two by
 [`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
 asks a question neither variable importance nor a dropped predictor
 answers: not whether `z` matters, but whether what it does depends on
 anything else.
-
-``` r
-
-set.seed(2026)
-constant <- bartisan(update(model, . ~ . - rhc + vc(rhc, ~ 1)),
-                     data = rhc, family = binomial())
-
-set.seed(2026)
-varying <- bartisan(update(model, . ~ . - rhc + vc(rhc)),
-                    data = rhc, family = binomial())
-
-loo_compare(list(constant = loo(constant), varying = loo(varying)))
-#>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>  constant       0.0     0.0      NA                          
-#>   varying      -1.4     1.3    0.85 |elpd_diff| < 4
-```
-
-The constant coefficient is not beaten, so there is no evidence here
-that the effect of right heart catheterization on the log odds of death
-varies with the other covariates. That buys an interpretation the
-varying fit cannot offer, because one number describes the whole sample:
-
-``` r
-
-b <- coef(constant, draws = TRUE)[[1]][, 1]
-
-c(log_OR = mean(b), lower = quantile(b, 0.025, names = FALSE),
-  upper = quantile(b, 0.975, names = FALSE), OR = exp(mean(b)))
-#> log_OR  lower  upper     OR 
-#> 0.3565 0.1089 0.6201 1.4283
-```
-
-An odds ratio of about 1.4, conditional on the forest.
-[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
-puts the same effect at around six percentage points on the probability
-scale; the two are the same finding read on different scales, and which
-one to report is a question about the audience rather than about the
-fit.
-
-Two things to keep in mind. The coefficient is drawn under the leaf
-prior of its own forest, not under a prior written for a regression
-coefficient, so it is shrunk toward zero and is a regularized log odds
-ratio rather than a maximum likelihood one. Because `sigma_mu` scales as
-\\1/\sqrt{m}\\, that prior does not change with the number of trees.
-
-And the comparison is far better powered on some outcomes than others.
-On a Gaussian outcome with a coefficient truly ranging from 0.3 to 2.5,
-`vc(z)` won by 187 points at \\n = 1000\\; on a binary outcome with the
-same coefficients it won by 10, against a standard error of 5. A null
-result on a binary outcome at a few hundred observations says little,
-and should not be read as evidence that an effect is constant.
+[`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md)
+works that comparison through on this data, and covers what to keep in
+mind when reading it: that the constant coefficient is drawn under the
+leaf prior and so is shrunk toward zero, and that the comparison is far
+better powered on a Gaussian outcome than on a binary one.
 
 ## Variable Selection
 
@@ -775,9 +721,9 @@ best. With a search over all subsets, the winner is chosen partly for
 fitting the noise, for the same reason stepwise regression is not to be
 trusted.
 
-Two things work instead, and which one to use depends on the question.
-When the question is whether a *set* of variables earns its place, the
-comparison is the one from earlier in this vignette: name the
+Other approaches work instead, and which one to use depends on the
+question. When the question is whether a *set* of variables earns its
+place, the comparison is the one from earlier in this vignette: name the
 specifications in advance and put them through
 [`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html),
 as with the full and demographic models above. A handful of comparisons
@@ -838,10 +784,6 @@ covers what the families assume, which is what a comparison between them
 is really about.
 
 ## References
-
-Tan, Yaoyuan Vincent, and Jason Roy. 2019. “Bayesian Additive Regression
-Trees and the General BART Model.” *Statistics in Medicine* 38 (25):
-5048–69. <https://doi.org/10.1002/sim.8347>.
 
 Vehtari, Aki, Andrew Gelman, and Jonah Gabry. 2017. “Practical Bayesian
 Model Evaluation Using Leave-One-Out Cross-Validation and WAIC.”

@@ -198,6 +198,11 @@ have better calibrated intervals and regularization of heterogeneous
 treatment effects. BCF tends to outperform traditional BART in most
 causal inference contexts. It also tends to outperform generalized
 random forests (GRF), which serve a similar function.
+[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) fits it;
+[`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md)
+covers the varying-coefficient model it is a case of and what
+[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) sets on
+top of it.
 
 ## How do I get a treatment effect?
 

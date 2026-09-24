@@ -2,15 +2,16 @@
 
 ## Introduction
 
-Two questions get asked together and are worth separating. Has the
-sampler converged, meaning has it explored the posterior properly? And
-does the model fit, meaning does it describe the data?
+Checking a fit involves questions that often get asked together and are
+worth separating. Has the sampler converged, meaning has it explored the
+posterior properly? And does the model fit, meaning does it describe the
+data?
 
 The first is about the algorithm and the second is about the model; a
 fit can converge beautifully on a badly chosen family, and a well chosen
 family can be fitted by a chain that has not run long enough.
 
-In this guide, we will take the two questions in that order. First we’ll
+In this guide, we will take those questions in that order. First we’ll
 fit a model with four chains, hand it to
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md),
 and then unpack what that summary reports and why, including the one row
@@ -141,7 +142,7 @@ here, with one exception described below.
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
 applies them, and takes both as arguments so they can be moved.
 
-Two of the columns are worth naming separately. `rhat_late` is the same
+Some of the columns are worth naming separately. `rhat_late` is the same
 statistic computed on the second half of the retained draws alone, which
 is what tells a warmup that ended too early (i.e., too small a
 `num_burn`) from chains that have each settled somewhere different:
@@ -399,12 +400,12 @@ estimate_effect(bcf_fit, estimand = "ATE") |>
 #> ✔ Nothing to change.
 ```
 
-Three rows: the contrast, and the two average potential outcomes it is a
-contrast of. The effect is the row that falls short, at a bulk effective
-sample size well under 400 and an R-hat above the threshold, while the
-two averages it is built from are in better shape than it is. A
-difference can be worse than either of its parts, and that is the
-reading here.
+The output has a row for the contrast and one for each of the two
+average potential outcomes it is a contrast of. The effect is the row
+that falls short, at a bulk effective sample size well under 400 and an
+R-hat above the threshold, while the two averages it is built from are
+in better shape than it is. A difference can be worse than either of its
+parts, and that is the reading here.
 
 Now compare what the fit’s own table says about the same sampler:
 
@@ -495,33 +496,33 @@ for, which is the point: any posterior quantity can be diagnosed this
 way, including ones neither package knows about. Draw it, fold it,
 summarize it.
 
-Two things to get right. The fold has to match the order the draws are
-stored in, which here is all of chain one, then all of chain two, and so
-on; filling the array in that order is what
-`dim = c(per_chain, chains, 1)` does. And the quantity has to be the one
-being reported: diagnosing a prediction is not diagnosing the contrast
-of two predictions, for the reason the section above gives.
+The fold has to match the order the draws are stored in, which here is
+all of chain one, then all of chain two, and so on; filling the array in
+that order is what `dim = c(per_chain, chains, 1)` does. And the
+quantity has to be the one being reported: diagnosing a prediction is
+not diagnosing the contrast of two predictions, for the reason the
+section above gives.
 
-### Remedies for a Chain That Has Not Converged
+### Remedies for Poor Mixing
 
-Three things are worth trying, in the order in which they usually help.
-**More draws** is the first: increasing `num_burn` and `num_draws` fixes
-most cases. **A smaller forest** is the second, since reducing
-`num_trees` leaves fewer ways to represent the same function, so the
-sampler mixes faster. **A different family** is the third, because a
-likelihood that fits the data badly can produce a posterior that is hard
-to explore, so the family is worth checking when more draws and a
-smaller forest have not helped;
+There are a few remedies worth trying, given here in the order in which
+they usually help. **More draws**, from increasing `num_burn` and
+`num_draws`, fix most cases. **A smaller forest** helps next, since
+reducing `num_trees` leaves fewer ways to represent the same function,
+so the sampler mixes faster. **A different family** can be needed last,
+because a likelihood that fits the data badly can produce a posterior
+that is hard to explore, so the family is worth checking when more draws
+and a smaller forest have not helped;
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 covers the alternatives.
 
 Note these latter two options change the model itself, so only use them
 when required, not as a routine fix.
 
-One thing to rule out first. `rhat` above 1.01 on a quantity carrying
-only a handful of effective draws is not yet evidence that the chains
-disagree, since that is roughly where `rhat` sits when nothing is wrong,
-and
+The first step is to rule out a false alarm. `rhat` above 1.01 on a
+quantity carrying only a handful of effective draws is not yet evidence
+that the chains disagree, since that is roughly where `rhat` sits when
+nothing is wrong, and
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
 says so rather than reporting a disagreement it cannot support. In that
 case the effective sample size is what to fix, and more draws is the
@@ -589,7 +590,7 @@ diagnose(short)
 #>   draws to `posterior::summarise_draws()` for anything else.
 ```
 
-Four things are flagged. `rhat` is above the threshold, and the check
+Several things are flagged. `rhat` is above the threshold, and the check
 under it says that the R-hat in question rests on too few effective
 draws for the threshold to mean anything, which is the case the previous
 section says to rule out first: the chains are not demonstrably
@@ -634,20 +635,20 @@ sample sizes clear 400 with room. What is left of it sits on the log
 likelihood and the worst-5% row, which is where a forest’s largest R-hat
 usually sits. This fit can be reported from.
 
-Two things about the arithmetic are worth taking from it. The first is
-that effective sample size grows roughly in proportion to the draws, so
-the shortfall tells you the factor you need: a fit an order of magnitude
-short of 400 needs about an order of magnitude more draws, not a little
-more. An intermediate run at `num_burn = 1000` and `num_draws = 4000`
-cleared both effective-sample-size warnings on these data and still left
-R-hat at 1.010, a hair over the line, which is the usual shape of the
-last stretch.
+The arithmetic of that fix carries over to other fits. Effective sample
+size grows roughly in proportion to the draws, so the shortfall tells
+you the factor you need: a fit an order of magnitude short of 400 needs
+about an order of magnitude more draws, not a little more. An
+intermediate run at `num_burn = 1000` and `num_draws = 4000` cleared
+both effective-sample-size warnings on these data and still left R-hat
+at 1.010, a hair over the line, which is the usual shape of the last
+stretch.
 
-The second is that the estimate of effective sample size is itself
-noisy, and can fall as the chain lengthens: a short chain cannot see
-autocorrelation at long lags, so it reports an efficiency the chain does
-not have. Reading a single ESS figure as exact invites chasing it; the
-factor is what to read.
+The estimate of effective sample size is also itself noisy, and can fall
+as the chain lengthens: a short chain cannot see autocorrelation at long
+lags, so it reports an efficiency the chain does not have. Reading a
+single ESS figure as exact invites chasing it; the factor is what to
+read.
 
 Increasing draws does not always suffice. Doing so sufficed here because
 the flagged R-hat was the unreadable kind, resting on too few effective
@@ -663,10 +664,10 @@ Convergence says the sampler did its job; it says nothing at all about
 whether the model is right. The checks below assess the fit of the model
 to the data.
 
-### What the Prior Is (`prior_summary()`)
+### Reading the Prior Back (`prior_summary()`)
 
 Everything else in this section compares the model to the data it was
-fitted to. Two checks are worth running before any of that information
+fitted to. Some checks are worth running before any of that information
 has been spent, and the first is simply to read the prior back.
 
 ``` r
@@ -902,7 +903,7 @@ For a binary outcome, the residuals take two values for any given fitted
 probability and the plot is not informative; the calibration check above
 is what to use instead.
 
-### How Much the Model Explains (`r2()`)
+### The Bayesian R-Squared (`r2()`)
 
 ``` r
 
@@ -938,7 +939,7 @@ replicates respect any bound the outcome has (e.g., a count that cannot
 go below zero), and for a binary outcome we read a calibration plot
 instead, since the predictive check has little to say there.
 
-## Where to Go Next
+## Further Reading
 
 [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
 covers choosing between models once each of them fits, and

@@ -159,8 +159,8 @@ dispatch on. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-l
 <h3 id="the-model">The Model<a class="anchor" aria-label="anchor" href="#the-model"></a></h3>
 
 
-<p><code>bcf()</code> writes five things into a <code><a href="bartisan.html">bartisan()</a></code> call, all of which can be
-written out there directly. The treatment gets a <code><a href="vc.html">vc()</a></code> term, so the effect
+<p><code>bcf()</code> writes several settings into a <code><a href="bartisan.html">bartisan()</a></code> call, all of which can
+be written out there directly. The treatment gets a <code><a href="vc.html">vc()</a></code> term, so the effect
 is a forest of its own with its own prior rather than whatever difference a
 single forest with the treatment among its predictors happens to produce. The
 propensity score goes in the control function and not in the effect forest,
@@ -244,8 +244,10 @@ heterogeneous effects of continuous exposures using Bayesian tree ensembles.
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="estimate_effect.html">estimate_effect()</a></code> for the average or conditional effect;
-<code><a href="bartisan.html">bartisan()</a></code> and <code><a href="vc.html">vc()</a></code> for the
-general interface this is written in terms of, and <code><a href="../articles/causal.html">vignette("causal")</a></code>.</p></div>
+<code><a href="bartisan.html">bartisan()</a></code> and <code><a href="vc.html">vc()</a></code> for the general interface this is written in terms
+of; <code><a href="../articles/varying.html">vignette("varying")</a></code> for the varying-coefficient model this is a case
+of and what it writes into the call; and <code><a href="../articles/causal.html">vignette("causal")</a></code> for the
+assumptions under which the effect is causal.</p></div>
     </div>
 
     <div class="section level2">

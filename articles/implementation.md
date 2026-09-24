@@ -320,7 +320,7 @@ split on constantly and move the prediction very little.
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md)
 covers both.
 
-## How the Model Is Fit
+## The Sampler
 
 ### Bayesian Backfitting
 
@@ -548,7 +548,7 @@ diagnose(fit)
 
 The chain is the only parallel axis the *sampler* has, since a sweep
 conditions on the one before it, and it is also what makes a convergence
-diagnostic possible. Two things outside the sampler use a plan when one
+diagnostic possible. Outside the sampler, a plan is also used when one
 is set: the convergence pass splits its per-observation columns across
 workers, and
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
@@ -628,7 +628,7 @@ fits in about a second where
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 takes eight on the same data.
 
-### What Data Augmentation Buys (`augment`)
+### Gains From Data Augmentation (`augment`)
 
 A major contributor to *bartisan*’s speed is data augmentation. Where
 the rewriting reaches a Gaussian conditional the Laplace approximation
@@ -750,7 +750,7 @@ the sampler collapses to a single pass.
 
 ## Correctness
 
-Three checks are in the test suite and worth knowing about.
+The test suite includes some checks worth knowing about.
 
 Shrinking the prior weights to nothing makes the likelihood constant, so
 the posterior collapses to the tree prior. The sampled trees then
@@ -848,13 +848,13 @@ on a fit is the same thing drawn.
 [`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html)
 remains the one to reach for when the grid needs more control than that.
 
-The variable-selection row divides differently, into two things that
-both get called a test. One is the posterior inclusion probability under
-the Dirichlet sparsity prior, thresholded at .5 to give the median
-probability model of Barbieri and Berger ([2004](#ref-barbieri2004)).
-*SoftBart* reports it as `posterior_probs()`, and it is
-`colMeans(var_counts > 0)` on the splitting counts: the `prop_used`
-column of
+The variable-selection row divides differently, since different
+procedures get called a test there. One is the posterior inclusion
+probability under the Dirichlet sparsity prior, thresholded at .5 to
+give the median probability model of Barbieri and Berger
+([2004](#ref-barbieri2004)). *SoftBart* reports it as
+`posterior_probs()`, and it is `colMeans(var_counts > 0)` on the
+splitting counts: the `prop_used` column of
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
 is that same quantity, under a prior that is on by default here as it is
 there. The other is a permutation test ([Bleich et al.
@@ -876,7 +876,7 @@ round-trips through [`saveRDS()`](https://rdrr.io/r/base/readRDS.html)
 and not into another language. On survival, *BART* is ahead: recurrent
 events and competing risks are there and here they are not.
 
-Three more packages are single-purpose rather than general, so they are
+Some other packages are single-purpose rather than general, so they are
 not columns above: [*bcf*](https://CRAN.R-project.org/package=bcf) fits
 Bayesian causal forests only,
 [*VCBART*](https://github.com/skdeshpande91/VCBART) varying-coefficient

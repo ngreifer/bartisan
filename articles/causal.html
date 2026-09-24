@@ -71,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-22</h4>
+            <h4 data-toc-skip class="date">2026-09-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/causal.Rmd" class="external-link"><code>vignettes/causal.Rmd</code></a></small>
       <div class="d-none name"><code>causal.Rmd</code></div>
@@ -322,7 +322,7 @@ than it would against 5%. <code>potential_outcomes = FALSE</code> in the
 <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> call drops them where the difference is all that is
 wanted.</p>
 <div class="section level3">
-<h3 id="how-the-estimate-is-computed-and-on-which-scale">How the Estimate Is Computed, and on Which Scale<a class="anchor" aria-label="anchor" href="#how-the-estimate-is-computed-and-on-which-scale"></a>
+<h3 id="computation-and-scale-of-the-estimate">Computation and Scale of the Estimate<a class="anchor" aria-label="anchor" href="#computation-and-scale-of-the-estimate"></a>
 </h3>
 <p><code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> performs the g-computation above
 literally. Every unit is predicted twice, once with the treatment set to
@@ -584,13 +584,14 @@ outcome. See <code><a href="../articles/families.html">vignette("families")</a><
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">Y[a]</span> is the average response with `treat` set to <span style="color: #0000BB;">"a"</span>.</span></span></code></pre></div>
 <p><code>estimand = "ATT"</code> averages over the treated rather than
 over everyone, and <code>focal</code> is not needed because a 0/1
-treatment settles which level is the treated one. Two cases do need it,
-and they differ. When the treatment has more than two levels,
-<code>focal</code> is required and naming it is the whole of the choice,
-since <code>"ATT"</code> and <code>"ATC"</code> then mean the same
-thing: the effect among the units in the level named. When it has two
-levels whose labels say nothing about which is which, the level order is
-assumed and a message says so, which <code>focal</code> silences.</p>
+treatment settles which level is the treated one. It does matter in
+other cases, and in different ways. When the treatment has more than two
+levels, <code>focal</code> is required and naming it is the whole of the
+choice, since <code>"ATT"</code> and <code>"ATC"</code> then mean the
+same thing: the effect among the units in the level named. When it has
+two levels whose labels say nothing about which is which, the level
+order is assumed and a message says so, which <code>focal</code>
+silences.</p>
 <p>The potential outcomes earn their place here: a few hundred dollars
 means something different against a baseline of six thousand than it
 would against six hundred.</p>
@@ -616,7 +617,7 @@ effect is estimated from far less information than an average, so the
 intervals are wide even where the average is clear.</p>
 </div>
 <div class="section level2">
-<h2 id="what-the-credible-interval-means">What the Credible Interval Means<a class="anchor" aria-label="anchor" href="#what-the-credible-interval-means"></a>
+<h2 id="interpreting-the-credible-interval">Interpreting the Credible Interval<a class="anchor" aria-label="anchor" href="#interpreting-the-credible-interval"></a>
 </h2>
 <p>The posterior interval is a credible interval for the estimand under
 the model and under the identification assumptions. It covers
@@ -630,7 +631,7 @@ result away, is a more informative addition than any refinement of the
 model.</p>
 </div>
 <div class="section level2">
-<h2 id="where-to-go-next">Where to Go Next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+<h2 id="further-reading">Further Reading<a class="anchor" aria-label="anchor" href="#further-reading"></a>
 </h2>
 <p><code><a href="../reference/estimate_effect.html">?estimate_effect</a></code> is the reference for the estimands used
 here, including the subgroup form and the contrast types.

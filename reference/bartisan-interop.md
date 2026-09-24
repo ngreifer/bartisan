@@ -285,7 +285,7 @@ outcome.
 for a `glm`, which is also most of what insight needs to make the fit
 legible to the easystats packages.
 
-### Leave-One-Out Is Approximate, and Mostly Holds Up
+### Accuracy of the Leave-One-Out Approximation
 
 [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html) estimates the
 leave-one-out predictive density by importance sampling from the

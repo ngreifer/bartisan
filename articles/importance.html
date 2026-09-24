@@ -71,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-22</h4>
+            <h4 data-toc-skip class="date">2026-09-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/importance.Rmd" class="external-link"><code>vignettes/importance.Rmd</code></a></small>
       <div class="d-none name"><code>importance.Rmd</code></div>
@@ -91,10 +91,10 @@ others, and counting how it spends them is the usual measure of variable
 importance for BART. <code><a href="../reference/variable_importance.html">variable_importance()</a></code> reports the
 count.</p>
 <p>This vignette covers what that number means, how to tell whether a
-difference in it is real, and three things it is not. The last part
-matters more than the first: variable importance is the most over-read
-output in machine learning, and the failure modes are specific and
-checkable.</p>
+difference in it is real, and the limits of what it measures. The last
+part matters more than the first: variable importance is the most
+over-read output in machine learning, and the failure modes are specific
+and checkable.</p>
 <p>In this guide we will first read the three statistics
 <code><a href="../reference/variable_importance.html">variable_importance()</a></code> returns, and then calibrate them by
 adding predictors we know to be pure noise. Next we’ll look at the two

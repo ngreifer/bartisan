@@ -184,7 +184,7 @@ way.
 
 ## Details
 
-### Multinomial Probit Probabilities Are Simulated
+### Simulated Multinomial Probit Probabilities
 
 The likelihood of a `multinomial("probit")` fit has no closed form: the
 probability of a category is the chance that the largest of several

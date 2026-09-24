@@ -249,7 +249,7 @@ the derivatives.</p>
 
 <p><code>family</code> may be left alone, in which case it is read off the response:</p><table class="table table"><tr><td>Response</td><td>Family</td></tr><tr><td><code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or a two-column matrix of times and events</td><td><code><a href="bartisan-families.html">dpm_aft()</a></code></td></tr><tr><td>ordered factor</td><td><code><a href="bartisan-families.html">ordinal()</a></code></td></tr><tr><td>logical, or two levels, or numeric zeros and ones</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>factor or character with more than two levels</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>two-column matrix of successes and failures</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>anything else</td><td><code><a href="bartisan-families.html">dpm()</a></code></td></tr></table><p>A message reports the choice, and naming <code>family</code> is what silences it, which
 is also what changes it.</p>
-<p>Two scenarios are worth noting. A count is read as a numeric variable and therefore has <code><a href="bartisan-families.html">dpm()</a></code> as its default. And a
+<p>Some scenarios are worth noting. A count is read as a numeric variable and therefore has <code><a href="bartisan-families.html">dpm()</a></code> as its default. And a
 numeric response with exactly two values other than zero and one (e.g.,
 <code>c(1, 2)</code>) is also given <code><a href="bartisan-families.html">dpm()</a></code> as its default rather than <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, which of the two counts as the
 success not being something to guess at.</p>
@@ -345,7 +345,7 @@ equal probability:</p><ul><li><p><code>x &lt; c</code>, or missing, goes left;</
 </ul><p>This is missingness incorporated in attributes, and the third rule is what
 lets the model split on missingness itself, so a variable whose absence
 carries the signal is usable even where its observed values say nothing.</p>
-<p>Two consequences are worth being clear about. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing
+<p>This has consequences worth being clear about. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing
 values in a column that had them at fitting time, those being the columns
 whose rules carry an answer. And what the model estimates is the mean of the
 response given the predictors and the pattern of missingness, which is the

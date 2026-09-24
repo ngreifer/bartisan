@@ -235,7 +235,7 @@ derivatives.
 A message reports the choice, and naming `family` is what silences it,
 which is also what changes it.
 
-Two scenarios are worth noting. A count is read as a numeric variable
+Some scenarios are worth noting. A count is read as a numeric variable
 and therefore has
 [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 as its default. And a numeric response with exactly two values other
@@ -350,7 +350,7 @@ what lets the model split on missingness itself, so a variable whose
 absence carries the signal is usable even where its observed values say
 nothing.
 
-Two consequences are worth being clear about.
+This has consequences worth being clear about.
 [`predict()`](https://rdrr.io/r/stats/predict.html) accepts missing
 values in a column that had them at fitting time, those being the
 columns whose rules carry an answer. And what the model estimates is the

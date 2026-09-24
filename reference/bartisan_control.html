@@ -378,7 +378,7 @@ especially when the error distribution itself is the object of interest.</p>
 </div>
 
 <div class="section">
-<h3 id="setting-num-draws-intervals-want-more-than-point-predictions-do">Setting <code>num_draws</code>: intervals want more than point predictions do<a class="anchor" aria-label="anchor" href="#setting-num-draws-intervals-want-more-than-point-predictions-do"></a></h3>
+<h3 id="setting-num-draws">Setting <code>num_draws</code><a class="anchor" aria-label="anchor" href="#setting-num-draws"></a></h3>
 
 
 <p>The defaults were chosen on out-of-sample error and effective sample size per
@@ -393,7 +393,7 @@ pointwise 95% intervals for the regression function came out about 5% wider at
 the default and covered 0.938 against 0.958. Halving the excess width took
 about four times the sweeps, which is what an error decaying as the square
 root of the run predicts.</p>
-<p>Two draws to take from this rather than a number to apply. Raise <code>num_draws</code>
+<p>This suggests some habits rather than a number to apply. Raise <code>num_draws</code>
 when an interval, a tail quantile or a posterior probability is the
 deliverable and the cost is affordable, and leave it alone when a posterior
 mean or a held-out prediction is. And read the width rather than the coverage

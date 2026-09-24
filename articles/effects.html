@@ -71,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-22</h4>
+            <h4 data-toc-skip class="date">2026-09-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/effects.Rmd" class="external-link"><code>vignettes/effects.Rmd</code></a></small>
       <div class="d-none name"><code>effects.Rmd</code></div>
@@ -88,82 +88,109 @@ pre code {word-wrap: normal; white-space: pre;}
 </h2>
 <p>A forest has no coefficients: there is no table of slopes to read,
 and no standard error to put beside one. This is the part of the
-workflow that changes most when moving from <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> to BART,
-and it is the part where the change is an improvement rather than a
-cost.</p>
-<p>The replacement is to ask the fitted model questions about
-predictions. What does it predict for these people? What would it
-predict if this variable were different? How much does the answer differ
-between groups? The <em>marginaleffects</em> package <span class="citation">(<a href="#ref-arelbundock2024">Arel-Bundock et al.
-2024</a>)</span> asks all of them, and returns posterior intervals with
-the answers.</p>
-<p>Two of those questions the package answers itself, and it is worth
-knowing which before reading further. <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code>
-contrasts one binary or factor treatment and averages it as the ATE, the
-ATT, the ATC, or one effect per unit, optionally within subgroups;
+workflow that changes most when moving from parametric models to BART.
+At the same time, this is the very reason to switch to BART: the absence
+of coefficients accompanies to the extreme flexibility BART has in
+modeling relationships without the analyst having to specify their
+form.</p>
+<p>Though this may seem like a loss, modern approaches to characterizing
+variable relationships can support a model-agnostic workflow <span class="citation">(<a href="#ref-rohrerModelsPredictionMachines2026">Rohrer and Arel-Bundock
+2026</a>)</span>. The replacement for coefficients is to ask the fitted
+model questions about predictions. What does it predict for these
+people? What would it predict if this variable were different? How much
+does the answer differ between groups? The <a href="https://marginaleffects.com/" class="external-link"><em>marginaleffects</em></a> package
+<span class="citation">(<a href="#ref-arelbundock2024">Arel-Bundock et
+al. 2024</a>)</span> answers all of them, and returns posterior
+intervals with those answers.</p>
+<p>Two of those questions <em>bartisan</em> answers itself:
+<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> considers one binary or factor treatment
+and reports the contrast as the average treatment effect or as one
+effect per unit, optionally within subgroups;
 <code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> averages the fitted surface over the
-sample at each value of one or two predictors. Neither needs a suggested
-package, and <code><a href="../articles/causal.html">vignette("causal")</a></code> is the worked version of
-the first. Everything else in this vignette is <em>marginaleffects</em>:
-slopes, contrasts between arbitrary covariate values, a continuous
-treatment, hypotheses comparing one estimate to another, and any grid
-that fixes the other covariates at chosen values rather than averaging
-over them. That last class is the one to watch for, because it is where
-the native route stops rather than where it is merely less
-convenient.</p>
+sample at each value of one or two predictors.
+<code><a href="../articles/causal.html">vignette("causal")</a></code> contains the worked version of the
+first. Everything else in this vignette uses <em>marginaleffects</em>:
+slopes, contrasts between covariate values, a continuous predictor,
+hypotheses comparing one estimate to another, and any grid that fixes
+the other covariates at chosen values rather than averaging over
+them.</p>
 <p>This vignette covers the questions worth asking and how to phrase
 them. <code><a href="../articles/bartisan.html">vignette("bartisan")</a></code> is the shorter tour, and this
 expands its section on interpreting the fit.</p>
 <p>In this guide, we will start from the three kinds of question the
-package answers and then work through them in turn. First we’ll take
-average effects and the choice of step for a numeric predictor, along
-with the one prior setting (<code>sparsity</code>) that can quietly
+package answers and then work through them in turn. First, we’ll
+consider average effects of categorical and numeric predictors, along
+with the prior setting (<code>sparsity</code>) that can quietly
 attenuate a contrast. Next we’ll split those effects by subgroup and
 test a moderation with the difference of the two, then plot the shape of
 a fitted relationship and choose the scale on which an effect is
-reported. Finally we’ll write the effect as a parameter rather than a
-contrast with <code><a href="../reference/vc.html">vc()</a></code>, and close with what none of these
-estimates can be taken to mean.</p>
+reported, and close with what these estimates can and cannot be taken to
+mean.</p>
+<p>Below, we load in the <code>rhc</code> dataset (see
+<code><a href="../articles/bartisan.html">vignette("bartisan")</a></code> or
+<code><a href="../reference/rhc.html">help("rhc", package = "bartisan")</a></code> for details) and fit a
+BART logistic regression model predicting <code>death</code> from the
+available predictors. (Normally we would use multiple chains, perform
+diagnostics on mixing, and possibly modify the fitting parameters; we
+skip those here for brevity.)</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://marginaleffects.com/" class="external-link">marginaleffects</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span></span>
-<span>  <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span></span>
-<span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Fit a BART logistic regression model</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span></span>
+<span>                  <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span>
+<span>                data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">fit</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Call:</span></span>
+<span><span class="co">#&gt; bartisan(formula = death ~ rhc + age + sex + race + edu + aps + </span></span>
+<span><span class="co">#&gt;     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, </span></span>
+<span><span class="co">#&gt;     data = rhc, family = binomial())</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span></span>
+<span><span class="co">#&gt; Observations: 1500</span></span>
+<span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
+<span><span class="co">#&gt; Draws: 800 kept after 200 warmup</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="predictions-comparisons-and-slopes">Predictions, Comparisons, and Slopes<a class="anchor" aria-label="anchor" href="#predictions-comparisons-and-slopes"></a>
 </h2>
-<p>Everything below is one of three things.</p>
+<p>Everything below is one of the following:</p>
 <p>A <strong>prediction</strong> is what the model expects for a set of
-covariate values. <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions()</a></code> gives one per row,
-<code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> averages them.</p>
+covariate values. <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions()</a></code> gives one per unit or
+covariate profile, <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> averages them.</p>
 <p>A <strong>comparison</strong> is the difference between two
 predictions that differ in one variable. This is the closest thing to a
-regression coefficient, and it is usually what we want.</p>
+regression coefficient, and it is often what we want to report.</p>
 <p>A <strong>slope</strong> is the derivative of the prediction with
-respect to a numeric variable. It is the least useful of the three here,
-for a reason given below.</p>
+respect to a numeric variable. These are often also used to report but
+come with some limitations due to some peculiarities of using a
+tree-based model.</p>
 </div>
 <div class="section level2">
 <h2 id="average-effects-avg_comparisons">Average Effects (<code>avg_comparisons()</code>)<a class="anchor" aria-label="anchor" href="#average-effects-avg_comparisons"></a>
 </h2>
 <p><code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> with no <code>variables</code>
 argument gives every predictor at once, which for this model is a long
-table. A few at a time is easier to read:</p>
+table. A few at a time is easier to read, and often only a few effects
+are of primary interest anyway <span class="citation">(<a href="#ref-keeleCausalInterpretationEstimated2020">Keele et al.
+2020</a>)</span>:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rhc"</span>, <span class="st">"age"</span>, <span class="st">"card"</span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">comp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rhc"</span>, <span class="st">"age"</span>, <span class="st">"card"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">comp</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Term Contrast Estimate    2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  age  +1        0.00308  0.00131 0.0048</span></span>
-<span><span class="co">#&gt;  card yes - no  0.02794 -0.00266 0.0852</span></span>
-<span><span class="co">#&gt;  rhc  1 - 0     0.05588  0.00000 0.1052</span></span>
+<span><span class="co">#&gt;  Term Contrast Estimate    2.5 %  97.5 %</span></span>
+<span><span class="co">#&gt;  age  +1        0.00321  0.00160 0.00495</span></span>
+<span><span class="co">#&gt;  card yes - no  0.01300 -0.00558 0.08184</span></span>
+<span><span class="co">#&gt;  rhc  1 - 0     0.06492  0.01007 0.11539</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>This reads as a coefficient table. Each estimate is an average
@@ -172,6 +199,12 @@ patient’s own values: for a factor, between the levels named in the
 <code>Contrast</code> column, and for a numeric predictor, for an
 increase of one unit. <code>rhc</code> is coded <code>0</code> and
 <code>1</code>, so its one-unit contrast is the treatment effect.</p>
+<p>The comparison for <code>age</code>, for example, means that
+increasing all units’ age by 1, keeping all other predictors at their
+observed values, would yield an increase in the overall probability of
+death of 0.321 percentage points (a very small effect on this scale),
+with a 95% credible interval excluding 0. This isn’t a causal estimate;
+it’s just what the model predicts would happen.</p>
 <div class="section level3">
 <h3 id="the-splitting-prior-and-a-contrast-sparsity">The Splitting Prior and a Contrast (<code>sparsity</code>)<a class="anchor" aria-label="anchor" href="#the-splitting-prior-and-a-contrast-sparsity"></a>
 </h3>
@@ -179,280 +212,336 @@ increase of one unit. <code>rhc</code> is coded <code>0</code> and
 with it; that is not a rounding artifact. The default splitting prior is
 a variable-selection prior (i.e., one that can leave a predictor out of
 the forest altogether), so in a draw where it uses the predictor in no
-tree the prediction does not depend on it and the contrast is exactly
+tree, the prediction does not depend on it, and the contrast is exactly
 zero; the posterior of the contrast is a mixture with a point mass
 there, holding whatever share of draws dropped the predictor.
-<em>marginaleffects</em> centers a posterior at its median, so once that
-point mass holds half of it the reported estimate is exactly zero
-however far the rest of the posterior sits from zero. Setting
-<code>options(marginaleffects_posterior_center = mean)</code> asks for
-the mean instead, which is the summary <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code>
-reports.</p>
-<p>It matters more than it sounds: on a weak signal the prior attenuates
-the estimate substantially and its interval covers the truth well below
-its nominal rate. A strong effect is untouched, because the prior never
-has reason to drop a predictor that is earning its splits, so this is a
-weak-signal problem rather than a general one.</p>
-<p>If a contrast is what we are reporting, we fit with
-<code>sparsity = FALSE</code>, or with <code>split_prior</code>, which
-fixes the weights (i.e., the probability that each predictor is chosen
-for a split) and so cannot drop anything. <code><a href="../reference/bartisan_control.html">?bartisan_control</a></code>
-explains both halves of this.</p>
+<em>marginaleffects</em> centers a posterior at its median by default,
+so once that point mass holds half of it the reported estimate is
+exactly zero however far the rest of the posterior sits from zero.
+Setting <code>options(marginaleffects_posterior_center = mean)</code>
+asks for the mean instead, which is the how <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> and
+<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> report predictions.</p>
+<p>This can matter more than it sounds: on a weak signal, the prior can
+attenuate the estimate substantially, and its interval can cover the
+truth well below its nominal rate. A strong effect is untouched, because
+the prior never has reason to drop a predictor that is earning its
+splits, so this is a weak-signal problem rather than a general one.</p>
+<p>If a contrast is what we are reporting, we can fit the model with
+<code>sparsity = FALSE</code>, or by supplying <code>split_prior</code>,
+which fixes the weights (i.e., the probability that each predictor is
+chosen for a split) and so cannot drop anything.
+<code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> explains both options.</p>
 </div>
 <div class="section level3">
 <h3 id="choosing-the-step-variables">Choosing the Step (<code>variables</code>)<a class="anchor" aria-label="anchor" href="#choosing-the-step-variables"></a>
 </h3>
-<p>One unit is the default and is often the wrong scale. One point of an
-illness score is a small change; ten points is a difference someone
-would notice.</p>
+<p>One unit is the default step size for a contrast but is often the
+wrong scale. One point of an illness score is a small change; ten points
+is a difference someone would notice. For example, the variable
+<code>aps</code> ranges from 4 to 147 in the sample, so we might request
+a comparison corresponding to increasing its value by 10.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0.0122     0 0.0291</span></span>
+<span><span class="co">#&gt;    0.0108     0 0.0283</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: aps</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: +10</span></span></code></pre></div>
 <p>A numeric effect should always be reported together with the step it
 was computed at. Unlike a linear model, the answer here is not ten times
-the one-unit effect, because the relationship is not assumed to be a
-straight line.</p>
+the one-unit effect because the relationship is not assumed to be a
+straight line. We’ll see below other ways to characterize the
+relationship graphically.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="effects-for-subgroups-by">Effects for Subgroups (<code>by</code>)<a class="anchor" aria-label="anchor" href="#effects-for-subgroups-by"></a>
 </h2>
-<p><code>by</code> splits the average by a grouping variable.</p>
+<p>Supplying <code>by</code> to <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> and other
+functions in <em>marginaleffects</em> splits the average by a grouping
+variable.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no    0.0573     0  0.110</span></span>
-<span><span class="co">#&gt;   yes   0.0525     0  0.104</span></span>
+<span><span class="co">#&gt;  card Estimate   2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;   no    0.0658 0.01324  0.116</span></span>
+<span><span class="co">#&gt;   yes   0.0636 0.00852  0.114</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
 <p>The two subgroup estimates are close, and both intervals reach zero.
-<code>estimate_effect(fit, treat = "rhc", by = ~ card)</code> asks the
-same question natively and returns the same intervals; its point
-estimates differ a little, because it centers each posterior at its mean
-where <em>marginaleffects</em> centers at its median.</p>
-<p>A common mistake is to stop here and conclude that the effect differs
+A common mistake is to stop here and conclude that the effect differs
 between groups; that comparison is not a test. The question is whether
 the two effects differ from each other, which needs the difference of
-the two (i.e., a difference of differences) with an interval of its
-own.</p>
+the two (i.e., a difference of differences) with an interval of its own.
+This can be requested by specifying
+<code>hypothesis = ~pairwise</code>.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span>,</span>
 <span>                hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    Hypothesis Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  (yes) - (no) -0.00132 -0.0494 0.0122</span></span>
+<span><span class="co">#&gt;    Hypothesis  Estimate   2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;  (yes) - (no) -0.000921 -0.0236 0.0109</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>The difference is small with an interval covering zero, so there is
-no evidence here that the effect of catheterization depends on
-cardiovascular disease. This is how to test an interaction in a model
-that never had an interaction term to test, and the interval on that
-difference is the only thing that separates a real interaction from two
-subgroup estimates that merely look different.</p>
-<p>It is also the clearest place where the native route stops:
-<code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> reports each subgroup effect with its own
-interval and has no way to ask for the difference between them, so this
-call is the reason to reach for <em>marginaleffects</em> even when the
-subgroup estimates came from the other route.</p>
+no evidence here that the effect of catheterization varies by
+cardiovascular disease status. This is how to test an interaction in a
+model that never had an interaction term to test, and the interval on
+that difference is the only thing that separates a real interaction from
+two subgroup estimates that merely look different.</p>
 <p><code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> does the same thing for predictions
 rather than differences, which is useful for describing groups:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no     0.634 0.607  0.660</span></span>
-<span><span class="co">#&gt;   yes    0.691 0.656  0.731</span></span>
+<span><span class="co">#&gt;   no     0.636 0.608  0.661</span></span>
+<span><span class="co">#&gt;   yes    0.687 0.657  0.728</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
+<p>These correspond to the fitted predictions among those in each
+cardiovascular disease status group. That answers a different question
+from whether the model predicts that changing units’ disease status
+changes the probability of death, which corresponds to running the
+following:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;   no     0.646 0.617  0.672</span></span>
+<span><span class="co">#&gt;   yes    0.666 0.635  0.713</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Type: response</span></span></code></pre></div>
+<p>In the latter, <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> computes predictions
+for all units, first setting <code>card</code> to <code>"no"</code> and
+then to <code>"yes"</code>.</p>
 </div>
 <div class="section level2">
-<h2 id="the-shape-of-a-relationship-plot_predictions">The Shape of a Relationship (<code>plot_predictions()</code>)<a class="anchor" aria-label="anchor" href="#the-shape-of-a-relationship-plot_predictions"></a>
+<h2 id="the-shape-of-a-relationship-partial_dependence">The Shape of a Relationship (<code>partial_dependence()</code>)<a class="anchor" aria-label="anchor" href="#the-shape-of-a-relationship-partial_dependence"></a>
 </h2>
-<p>Averages hide shape. The fitted function is seen by plotting
-predictions against one predictor while the others are either averaged
-over or held fixed. <code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> averages them over
-the sample and draws the result natively, and
-<code>plot(fit, ~ x)</code> is the short way to it; the section uses
-<code>plot_predictions(draw = FALSE)</code> instead because it gives
-more control over the grid and over what is held fixed, which is what
-the hand-built <em>ggplot2</em> calls below are for:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<p>Averages can hide the shape of the relationship between a predictor
+and the outcome. To see the fitted function we plot predictions against
+one predictor while the others are averaged over, which is what
+<code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> does: it sets the predictor to each
+value of a grid in turn, predicts for every unit, and averages within
+each posterior draw, so the interval that comes back is on the average
+prediction rather than on any one patient’s.
+<code>partial_dependence(fit, ~ x)</code> builds the grid, and
+<code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws it.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">curve</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions</a></span><span class="op">(</span><span class="va">fit</span>, condition <span class="op">=</span> <span class="st">"aps"</span>, draw <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">pd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span><span class="va">aps</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">curve</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">aps</span>, <span class="va">estimate</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_ribbon.html" class="external-link">geom_ribbon</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">conf.low</span>, ymax <span class="op">=</span> <span class="va">conf.high</span><span class="op">)</span>, alpha <span class="op">=</span> <span class="fl">0.2</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">pd</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Predictor: <span style="color: #0000BB;">"aps"</span></span></span>
+<span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
+<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     aps estimate lower upper</span></span>
+<span><span class="co">#&gt;    4.00    0.613 0.518 0.668</span></span>
+<span><span class="co">#&gt;    9.72    0.613 0.518 0.668</span></span>
+<span><span class="co">#&gt;   15.44    0.613 0.520 0.668</span></span>
+<span><span class="co">#&gt;   21.16    0.615 0.531 0.668</span></span>
+<span><span class="co">#&gt;   26.88    0.620 0.555 0.668</span></span>
+<span><span class="co">#&gt; <span style="font-style: italic;">  --- 16 rows omitted ---</span></span></span>
+<span><span class="co">#&gt;  124.12    0.701 0.639 0.797</span></span>
+<span><span class="co">#&gt;  129.84    0.701 0.639 0.797</span></span>
+<span><span class="co">#&gt;  135.56    0.701 0.639 0.798</span></span>
+<span><span class="co">#&gt;  141.28    0.701 0.639 0.798</span></span>
+<span><span class="co">#&gt;  147.00    0.701 0.639 0.798</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
+<span><span class="co">#&gt;   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span></span>
+<span><span class="co">#&gt;   them.</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pd</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="effects_files/figure-html/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
+<span><span class="co"># Same thing:</span></span>
+<span><span class="co">## plot(fit, ~aps)</span></span></code></pre></div>
 <p>The probability of death rises with the illness score, and the rise
 is not a straight line on any scale the model was told about; nothing
-was specified to find the shape.</p>
+was specified to find the shape. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> returns a
+<em>ggplot2</em> object, so the labels above are added the way they
+would be to any other plot.</p>
 <p>The band is a credible interval and is wide at the top, where few
 patients were that sick, so the ends of a curve deserve more caution
 than the middle: with little data out there the forest shrinks its
 predictions toward the overall mean, which flattens the curve at both
 edges of the predictor’s range.</p>
-<p>Adding a second variable shows how the shape differs across
+<p>Naming a second predictor shows how the shape differs across
 groups.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">curve2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions</a></span><span class="op">(</span><span class="va">fit</span>, condition <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"aps"</span>, <span class="st">"rhc"</span><span class="op">)</span>, draw <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pd2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">rhc</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">curve2</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">aps</span>, <span class="va">estimate</span>, color <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_ribbon.html" class="external-link">geom_ribbon</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">conf.low</span>, ymax <span class="op">=</span> <span class="va">conf.high</span>, fill <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>              alpha <span class="op">=</span> <span class="fl">0.15</span>, color <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span><span class="va">pd2</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Predictors: <span style="color: #0000BB;">"aps"</span> and <span style="color: #0000BB;">"rhc"</span></span></span>
+<span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
+<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     aps rhc estimate lower upper</span></span>
+<span><span class="co">#&gt;    4.00   0    0.587 0.488 0.645</span></span>
+<span><span class="co">#&gt;    9.72   0    0.587 0.488 0.645</span></span>
+<span><span class="co">#&gt;   15.44   0    0.587 0.489 0.645</span></span>
+<span><span class="co">#&gt;   21.16   0    0.589 0.502 0.645</span></span>
+<span><span class="co">#&gt;   26.88   0    0.594 0.521 0.645</span></span>
+<span><span class="co">#&gt; <span style="font-style: italic;">    --- 42 rows omitted ---</span></span></span>
+<span><span class="co">#&gt;  124.12   1    0.738 0.671 0.831</span></span>
+<span><span class="co">#&gt;  129.84   1    0.738 0.671 0.831</span></span>
+<span><span class="co">#&gt;  135.56   1    0.738 0.671 0.831</span></span>
+<span><span class="co">#&gt;  141.28   1    0.738 0.671 0.831</span></span>
+<span><span class="co">#&gt;  147.00   1    0.738 0.671 0.831</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
+<span><span class="co">#&gt;   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span></span>
+<span><span class="co">#&gt;   them.</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pd2</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
-<span>       color <span class="op">=</span> <span class="st">"Catheterized"</span>, fill <span class="op">=</span> <span class="st">"Catheterized"</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_bw</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span></code></pre></div>
+<span>       color <span class="op">=</span> <span class="st">"Catheterized"</span>, fill <span class="op">=</span> <span class="st">"Catheterized"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="effects_files/figure-html/pdp2-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The two curves run close together; if they diverged, that would be a
 moderation worth reporting, and the difference of differences above is
 how to put a number on it.</p>
+<div class="section level3">
+<h3 id="values-of-the-second-predictor">Values of the Second Predictor<a class="anchor" aria-label="anchor" href="#values-of-the-second-predictor"></a>
+</h3>
+<p>A second predictor with a few values gives one curve for each of
+them, which is what happened above. With a continuous predictor, it is
+held at three values near its quartiles and a message reports them.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Mean arterial blood pressure"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
+<span>       color <span class="op">=</span> <span class="st">"APACHE III"</span>, fill <span class="op">=</span> <span class="st">"APACHE III"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Grouping by `aps` at <span style="color: #0000BB;">41</span>, <span style="color: #0000BB;">54</span>, and <span style="color: #0000BB;">68</span>, three of its values near its quartiles.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Set `values` to choose them yourself.</span></span></code></pre></div>
+<p><img src="effects_files/figure-html/pdp3-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><code>values</code> chooses others, and an entry of it may be a
+function of the predictor rather than the values themselves.
+<code>values = list(z = unique)</code> asks for every value a predictor
+takes, which is usually what a numeric predictor with four or five of
+them wants; the illness score has 114, so here we write the summary we
+want instead.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span>,</span>
+<span>     values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">x</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.05</span>, <span class="fl">.5</span>, <span class="fl">.95</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Mean arterial blood pressure"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
+<span>       color <span class="op">=</span> <span class="st">"APACHE III"</span>, fill <span class="op">=</span> <span class="st">"APACHE III"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="effects_files/figure-html/pdp4-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 </div>
-<div class="section level2">
-<h2 id="scales-type">Scales (<code>type</code>)<a class="anchor" aria-label="anchor" href="#scales-type"></a>
-</h2>
-<p><code>type</code> chooses the scale on which predictions are made and
-therefore the scale on which effects are reported.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, type <span class="op">=</span> <span class="st">"link"</span><span class="op">)</span></span>
+<div class="section level3">
+<h3 id="the-same-curve-through-marginaleffects">The Same Curve Through <em>marginaleffects</em><a class="anchor" aria-label="anchor" href="#the-same-curve-through-marginaleffects"></a>
+</h3>
+<p><code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::avg_predictions()</a></code> produces the same
+estimates as <code><a href="../reference/partial_dependence.html">partial_dependence()</a></code>. It has additional
+options that may be helpful, but otherwise the syntax is similar.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">at</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">$</span><span class="va">aps</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.1</span>, <span class="fl">.5</span>, <span class="fl">.9</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Uses posterior mean</span></span>
+<span><span class="fu"><a href="../reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">aps</span>, values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.296     0  0.571</span></span>
+<span><span class="co">#&gt; Predictor: <span style="color: #0000BB;">"aps"</span></span></span>
+<span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
+<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Term: rhc</span></span>
-<span><span class="co">#&gt; Type: link</span></span>
-<span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
-<p>On the link scale this is a difference in log-odds, which is what a
-logistic regression coefficient is. It is the less useful of the two
-here: a difference in probability is interpretable without reference to
-the model and is the number a reader can act on, whereas a difference in
-log-odds needs a baseline before it means anything.</p>
-<p>For survival families, <code>type = "survival"</code> with a
-<code>times</code> argument gives a difference in survival probability
-at a horizon. See <code><a href="../articles/survival.html">vignette("survival")</a></code>.</p>
+<span><span class="co">#&gt;   aps estimate lower upper</span></span>
+<span><span class="co">#&gt;  29.9    0.623 0.562 0.668</span></span>
+<span><span class="co">#&gt;  54.0    0.656 0.624 0.687</span></span>
+<span><span class="co">#&gt;  83.0    0.687 0.639 0.757</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span></span>
+<span><span class="co"># Uses posterior median by default</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;   aps Estimate 2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;  29.9    0.626 0.562  0.668</span></span>
+<span><span class="co">#&gt;  54.0    0.655 0.624  0.687</span></span>
+<span><span class="co">#&gt;  83.0    0.685 0.639  0.757</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Type: response</span></span></code></pre></div>
+<p>The two summarize one posterior two ways.
+<code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> reports its mean and
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> its median, which is the whole of the
+difference between the estimates; the intervals are quantiles of the
+same draws and agree to the digit.</p>
+<p>What <em>marginaleffects</em> adds is control over what the other
+predictors do. <code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> always averages them
+over the sample, while <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions()</a></code> and
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions()</a></code> in <em>marginaleffects</em> allows one
+to hold them fixed instead, and prints the profile it chose beside the
+estimates:</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions</a></span><span class="op">(</span><span class="va">fit</span>, condition <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span>, draw <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   rowid estimate conf.low conf.high  df   age card  crea   edu  hema meanbp</span></span>
+<span><span class="co">#&gt; 1     1   0.6296   0.5008    0.7477 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 2     2   0.6661   0.5464    0.7775 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 3     3   0.7051   0.5697    0.8176 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt;   paco2  pafi  race resp rhc  sex surv2m  aps</span></span>
+<span><span class="co">#&gt; 1 38.85 217.4 white   28   0 male  0.587 29.9</span></span>
+<span><span class="co">#&gt; 2 38.85 217.4 white   28   0 male  0.587 54.0</span></span>
+<span><span class="co">#&gt; 3 38.85 217.4 white   28   0 male  0.587 83.0</span></span></code></pre></div>
+<p>Those columns are why the numbers move: each row is a prediction for
+one synthetic patient who is average or modal in every other respect,
+where the curve above is an average over the patients in the data. The
+average is what to report for a population, and the profile what to
+report for a described kind of patient. <code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions()</a></code>
+also takes an arbitrary grid and will draw slopes and comparisons across
+a condition, which is where to go when the question outgrows a partial
+dependence plot.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="slopes-and-the-predictor-transform-avg_slopes">Slopes and the Predictor Transform (<code>avg_slopes()</code>)<a class="anchor" aria-label="anchor" href="#slopes-and-the-predictor-transform-avg_slopes"></a>
 </h2>
-<p><code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> reports a derivative, and whether that
-derivative means anything depends on <code>x_transform</code> in
-<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>. The fit is a smooth function of the
-<em>transformed</em> predictor, so the question is what the transform
-does to the original one.</p>
+<p><code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">marginaleffects::avg_slopes()</a></code> reports the derivative of
+the regression function with respect to a predictor; this is closest
+quantity to a regression slope. However, whether that derivative means
+anything depends on <code>gate</code> and <code>x_transform</code> in
+<code><a href="../reference/bartisan_control.html">bartisan_control()</a></code>. Under a soft gate, the fit is a smooth
+function of the (transformed) predictor; with
+<code>gate = "hard"</code>, the fit is piecewise constant under any
+transform and has no derivative worth taking.</p>
+<p>Because a numeric predictor is transformed to the interval <span class="math inline">\([0, 1]\)</span> according to
+<code>x_transform</code>, how its effect translates into a slope depends
+on the value supplied. Writing the fit as <span class="math inline">\(f(T(x))\)</span>, a slope is <span class="math inline">\(f'(T(x))\,T'(x)\)</span>, where <span class="math inline">\(T(\cdot)\)</span> is the transform function
+specified in <code>x_transform</code>: an affine <span class="math inline">\(T(\cdot)\)</span> has a known constant derivative,
+so only <span class="math inline">\(f'\)</span> is estimated.</p>
 <p>The default, <code>"smoothcdf"</code>, is differentiable, so
-<code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> works. The way to check such a thing is to
-shrink the numerical step and see whether the answer settles. On a
-surface whose average slope over the sample is .5485, the default gives
-.553, .559, .560, .561, .561 as the step runs from 1e-1 down to 1e-5. It
-settles.</p>
-<p>Under <code>"quantile"</code> the same sequence is .577, .882, 3.73,
-31.8, 311. That transform maps each predictor through its empirical
-distribution function, which is a step, so the fitted function is a step
-function of the original predictor and the difference quotient grows
-without bound as the step shrinks. There is no derivative there to
+<code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> works, but any error in estimating the density
+of <span class="math inline">\(X\)</span> yields additional error in the
+estimation of the slope. Under <code>"range"</code>, which is an affine
+map from the covariate’s observed range to <span class="math inline">\([0, 1]\)</span>, slopes are more accurate.
+<code>"quantile"</code> maps each predictor through its empirical
+distribution function, which is a step function, so the fitted function
+is a step function of the original predictor and the difference quotient
+grows without bound as the step shrinks. There is no derivative there to
 estimate, and the number <code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html" class="external-link">avg_slopes()</a></code> returns is a property
 of the step size rather than of the fit.</p>
-<p>Under <code>"range"</code> the sequence is .544, .543, .543, .543,
-.543, which settles closest to the truth. Writing the fit as <span class="math inline">\(f(T(x))\)</span>, a slope is <span class="math inline">\(f'(T(x))\,T'(x)\)</span>: an affine <span class="math inline">\(T\)</span> has a known constant derivative, so
-only <span class="math inline">\(f'\)</span> is estimated, where a
-smoothed distribution function contributes an estimated density and the
-two errors multiply. So <strong>we refit with
-<code>x_transform = "range"</code> when a slope is the quantity being
-reported</strong>, and leave the default alone when it is not.</p>
-<p>For everything else we use <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">comparisons()</a></code> with a step we
-can interpret, as with <code>aps = 10</code> above, which evaluates the
-fit at two points a substantive distance apart rather than dividing by a
-vanishing one. With <code>gate = "hard"</code> the fit is piecewise
-constant under any transform and has no derivative worth taking. This is
-documented at <code>?bartisan-marginaleffects</code>.</p>
-</div>
-<div class="section level2">
-<h2 id="varying-coefficients-vc">Varying Coefficients (<code>vc()</code>)<a class="anchor" aria-label="anchor" href="#varying-coefficients-vc"></a>
-</h2>
-<p>Everything above reads an effect out of a fitted surface by asking
-the model what it predicts under two versions of the data. There is
-another way to write the model, in which the effect is a parameter
-rather than a contrast:</p>
-<p><span class="math display">\[f_0(x) + z\,f_1(x)\]</span></p>
-<p>Here <span class="math inline">\(f_1\)</span> is a forest of its own,
-and it <em>is</em> the effect of <code>z</code>: how much the prediction
-moves per unit of <code>z</code>, as a function of the other predictors.
-<code><a href="../reference/vc.html">vc()</a></code> asks for it. This is the varying-coefficient model of
-<span class="citation">Deshpande et al. (<a href="#ref-deshpande2026">2026</a>)</span>, of which <span class="citation">Hahn et al. (<a href="#ref-hahn2020">2020</a>)</span>
-is the case of one binary covariate and <span class="citation">Woody et
-al. (<a href="#ref-woody2020">2020</a>)</span> the case of one
-continuous one.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit_vc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span></span>
-<span>                     <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>,</span>
-<span>                   data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span>,</span>
-<span>                   sparsity <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_vc</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;         rhc</span></span>
-<span><span class="co">#&gt; [1,] 0.4892</span></span>
-<span><span class="co">#&gt; [2,] 0.1855</span></span>
-<span><span class="co">#&gt; [3,] 0.2007</span></span>
-<span><span class="co">#&gt; [4,] 0.3322</span></span>
-<span><span class="co">#&gt; [5,] 0.2895</span></span>
-<span><span class="co">#&gt; [6,] 0.2646</span></span></code></pre></div>
-<p><code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> returns one value per patient, which is what a
-coefficient becomes when it is allowed to vary. It is on the link scale,
-so for this binary outcome it is a difference in log odds rather than in
-probability; <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> is still what reports an
-effect on the scale a reader can act on.</p>
-<p>What the reparameterization buys is a prior on the effect itself. The
-forest for <span class="math inline">\(f_1\)</span> is regularized
-separately from the forest for the rest of the outcome, so shrinking the
-prognostic part does not shrink the effect.
-<code><a href="../articles/causal.html">vignette("causal")</a></code> covers why that matters and
-<code><a href="../reference/bcf.html">bcf()</a></code> sets it up for the causal case.</p>
-<p>Two things worth knowing before reaching for it.</p>
-<p>The effect is <strong>linear in the covariate</strong> unless we say
-otherwise. For a binary treatment that is no assumption at all, since
-there are only two values. For a continuous predictor it says the effect
-is proportional to it, which is a real restriction. Letting the
-coefficient’s forest split on the covariate itself removes it, and then
-the effect varies across the covariate’s own range:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># The effect of `aps` may itself change across `aps`.</span></span>
-<span><span class="co"># A modifier has to be a predictor of the model, so `aps` reaches the formula</span></span>
-<span><span class="co"># through `.`, which also keeps it out of the control function.</span></span>
-<span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">aps</span>, <span class="op">~</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">age</span><span class="op">)</span></span></code></pre></div>
-<p>And a covariate whose coefficient varies should not also be a
-predictor of the control function. With it in both, the two are not
-separately identified: any function of it can move between them. Writing
-the covariate only inside <code><a href="../reference/vc.html">vc()</a></code> is what keeps them apart.
-Named outright in the fixed part as well, the model is fitted as asked
-and <code><a href="../reference/bartisan.html">bartisan()</a></code> warns; reached through <code>.</code>, the
-covariate is dropped from the control function without comment, since
-<code>.</code> did not name it.</p>
-<p>For a family with several additive predictors, each parameter’s
-formula carries its own <code><a href="../reference/vc.html">vc()</a></code> terms, so a covariate can have
-a coefficient on more than one of them:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># The effect of `z` on the mean, and separately on the spread.</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span>,</span>
-<span>              log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">z</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>         data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> then returns one column per coefficient, named
-<code>mean:z</code> and <code>log_sd:z</code> for the forests they come
-from, which is also how per-forest settings like <code>num_trees</code>
-are keyed. <code><a href="../reference/vc.html">?vc</a></code> covers the rest, including the two
-multinomial families that refuse this.</p>
+<p>So, when a slope is the quantity being reported, it is best to fit
+the model with <code>x_transform = "range"</code>, though the default
+can be okay as well, especially with a large sample (which yields less
+error in the estimation of the predictor distribution). For everything
+else, it makes most sense to use <code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons()</a></code> with a
+step we can interpret, as with <code>aps = 10</code> above, which
+evaluates the fit at two points a substantive distance apart rather than
+dividing by a vanishing one. This is documented at
+<code>?bartisan-marginaleffects</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="descriptions-of-the-fitted-model">Descriptions of the Fitted Model<a class="anchor" aria-label="anchor" href="#descriptions-of-the-fitted-model"></a>
@@ -471,12 +560,16 @@ measured with bias, or that the sample is not the population of
 interest.</p>
 </div>
 <div class="section level2">
-<h2 id="where-to-go-next">Where to Go Next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+<h2 id="further-reading">Further Reading<a class="anchor" aria-label="anchor" href="#further-reading"></a>
 </h2>
-<p><code><a href="../articles/importance.html">vignette("importance")</a></code> covers which predictors the
-forest uses, which is a different question from how much they move the
-outcome. <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers whether the fit can
-be trusted before any of this is read.
+<p><code><a href="../articles/varying.html">vignette("varying")</a></code> covers <code><a href="../reference/vc.html">vc()</a></code>, which
+writes an effect into the model as a parameter with a prior of its own
+rather than reading it off as a contrast, and is where to go when the
+effect is the point of the model. <code><a href="../articles/importance.html">vignette("importance")</a></code>
+covers which predictors the forest uses, which is a different question
+from how much they move the outcome.
+<code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers whether the fit can be
+trusted before any of this is read.
 <code>?bartisan-marginaleffects</code> documents which
 <em>marginaleffects</em> functions are supported and the arguments that
 are specific to this package, and <code><a href="../reference/estimate_effect.html">?estimate_effect</a></code> and
@@ -493,23 +586,17 @@ to Interpret Statistical Models Using <span class="nocase">marginaleffects</span
 <span>Python</span>.”</span> <em>Journal of Statistical Software</em>
 111 (9): 1–32. <a href="https://doi.org/10.18637/jss.v111.i09" class="external-link">https://doi.org/10.18637/jss.v111.i09</a>.
 </div>
-<div id="ref-deshpande2026" class="csl-entry">
-Deshpande, Sameer K., Ray Bai, Cecilia Balocchi, Jennifer E. Starling,
-and Jordan Weiss. 2026. <span>“<span>VCBART</span>: Bayesian Trees for
-Varying Coefficients.”</span> <em>Bayesian Analysis</em> 21 (1):
-281–308. <a href="https://doi.org/10.1214/24-BA1470" class="external-link">https://doi.org/10.1214/24-BA1470</a>.
+<div id="ref-keeleCausalInterpretationEstimated2020" class="csl-entry">
+Keele, Luke, Randolph T. Stevenson, and Felix Elwert. 2020. <span>“The
+Causal Interpretation of Estimated Associations in Regression
+Models.”</span> <em>Political Science Research and Methods</em> 8 (1):
+1–13. <a href="https://doi.org/10.1017/psrm.2019.31" class="external-link">https://doi.org/10.1017/psrm.2019.31</a>.
 </div>
-<div id="ref-hahn2020" class="csl-entry">
-Hahn, P. Richard, Jared S. Murray, and Carlos M. Carvalho. 2020.
-<span>“Bayesian Regression Tree Models for Causal Inference:
-Regularization, Confounding, and Heterogeneous Effects (with
-Discussion).”</span> <em>Bayesian Analysis</em> 15 (3): 965–1056. <a href="https://doi.org/10.1214/19-BA1195" class="external-link">https://doi.org/10.1214/19-BA1195</a>.
-</div>
-<div id="ref-woody2020" class="csl-entry">
-Woody, Spencer, Carlos M. Carvalho, P. Richard Hahn, and Jared S.
-Murray. 2020. <em>Estimating Heterogeneous Effects of Continuous
-Exposures Using Bayesian Tree Ensembles: Revisiting the Impact of
-Abortion Rates on Crime</em>. <a href="https://arxiv.org/abs/2007.09845" class="external-link">https://arxiv.org/abs/2007.09845</a>.
+<div id="ref-rohrerModelsPredictionMachines2026" class="csl-entry">
+Rohrer, Julia M., and Vincent Arel-Bundock. 2026. <span>“Models as
+Prediction Machines: How to Convert Confusing Coefficients into Clear
+Quantities.”</span> <em>Advances in Methods and Practices in
+Psychological Science</em> 9 (2): 25152459261424825. <a href="https://doi.org/10.1177/25152459261424825" class="external-link">https://doi.org/10.1177/25152459261424825</a>.
 </div>
 </div>
 </div>

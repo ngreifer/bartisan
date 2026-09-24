@@ -71,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-22</h4>
+            <h4 data-toc-skip class="date">2026-09-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/families.Rmd" class="external-link"><code>vignettes/families.Rmd</code></a></small>
       <div class="d-none name"><code>families.Rmd</code></div>
@@ -107,7 +107,7 @@ as an R function when nothing on the list fits. Unlike ordinary BART,
 nothing here requires the response to be conditionally conjugate <span class="citation">(<a href="#ref-linero2025">Linero 2025</a>)</span>,
 which is why the list is as long as it is.</p>
 <p>In this guide, we will work through the families one at a time. First
-we’ll lay out the full list and the two questions that most often decide
+we’ll lay out the full list and the questions that most often decide
 between them, and then the family that is inferred when
 <code>family</code> is left unnamed. Next we’ll take the response types
 in turn (i.e., numeric, positive and continuous, binary, counts, ordered
@@ -342,17 +342,17 @@ produce</td>
 </tr>
 </tbody>
 </table>
-<p>Two considerations cut across that table.</p>
-<p>The first is whether anything besides the mean varies with the
-predictors. Every family except <code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code>,
-<code><a href="../reference/bartisan-families.html">Gamma_ls()</a></code>, and the zero-inflated pair puts a forest on one
-location parameter and holds the rest of the distribution fixed across
-observations. If the spread itself moves with <span class="math inline">\(x\)</span>, that is the wrong assumption, and the
-two location-scale families are what relax it:
-<code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code> gives the normal’s standard deviation a
+<p>Some considerations cut across that table.</p>
+<p>One is whether anything besides the mean varies with the predictors.
+Every family except <code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code>, <code><a href="../reference/bartisan-families.html">Gamma_ls()</a></code>,
+and the zero-inflated pair puts a forest on one location parameter and
+holds the rest of the distribution fixed across observations. If the
+spread itself moves with <span class="math inline">\(x\)</span>, that is
+the wrong assumption, and the two location-scale families are what relax
+it: <code><a href="../reference/bartisan-families.html">gaussian_ls()</a></code> gives the normal’s standard deviation a
 forest of its own, and <code><a href="../reference/bartisan-families.html">Gamma_ls()</a></code> does the same for the
 gamma’s dispersion.</p>
-<p>The second is whether that extra structure is real or a flexible mean
+<p>Another is whether that extra structure is real or a flexible mean
 would absorb it. A nonparametric mean makes this sharper than it is in a
 GLM. A sum of trees can produce excess zeros on its own, by driving a
 Poisson mean very low where the zeros are, so a zero-inflated family is
@@ -450,7 +450,7 @@ columns look like non-negative times and 0/1 events, which give
 <span><span class="co">#&gt; Observations: 300</span></span>
 <span><span class="co">#&gt; Structure: 1 forest of 10 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 150 kept after 150 warmup</span></span></code></pre></div>
-<p>Two boundaries are deliberate. A numeric response taking exactly two
+<p>Some boundaries are deliberate. A numeric response taking exactly two
 values that are <em>not</em> 0 and 1 is not read as binomial, because
 deciding that <code>c(1, 2)</code> means failure and success would be a
 guess about which value is the success. And a count is not read as
@@ -470,8 +470,8 @@ and no family named is an error rather than a silent substitution.</p>
 <div class="section level2">
 <h2 id="numeric-responses">Numeric Responses<a class="anchor" aria-label="anchor" href="#numeric-responses"></a>
 </h2>
-<p>Four families fit a numeric response by putting a forest on its mean.
-They differ in what else they allow to vary:</p>
+<p>The families for a numeric response each put a forest on its mean,
+and they differ in what else they allow to vary:</p>
 <ul>
 <li>
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> assumes one normal error, with
@@ -569,8 +569,8 @@ every replicate.</p>
 </table>
 </div>
 <p>Coverage was between .89 and 1.00 everywhere, with the four families’
-medians between .98 and 1.00, so it does not separate them. Four things
-to take from this:</p>
+medians between .98 and 1.00, so it does not separate them. There are a
+few things to take from this:</p>
 <p>On normal errors they all tie, to three decimal places on RMSE and
 within two log points, even though <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> is exactly
 right there. This is what makes <code><a href="../reference/bartisan-families.html">dpm()</a></code> a sensible default
@@ -916,17 +916,19 @@ give each part its own forest (the first predictor is the log mean of
 the count, the second the log odds of being a structural zero), so the
 excess-zero mechanism can depend on the predictors. As with standard
 GLMs for count variables, these models can include an offset.</p>
-<p>To decide which family to use, consider these two questions, in this
-order:</p>
+<p>To decide which family to use, consider the following questions, in
+this order:</p>
 <div class="section level3">
-<h3 id="are-there-more-zeros-than-the-count-component-can-produce">1. Are there more zeros than the count component can produce?<a class="anchor" aria-label="anchor" href="#are-there-more-zeros-than-the-count-component-can-produce"></a>
+<h3 id="excess-zeros">Excess Zeros<a class="anchor" aria-label="anchor" href="#excess-zeros"></a>
 </h3>
-<p>Not “are there many zeros”: a Poisson with a small mean produces
-plenty, and a forest can drive the mean low exactly where the zeros are.
-Fit the plain family and the zero-inflated one and compare with
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>. Reach for zero inflation when the zero mechanism is
-itself something to model, or when the two processes have different
-predictors, not merely to improve a fit.</p>
+<p>The first question is whether there are more zeros than the count
+component can produce, rather than whether there are many zeros: a
+Poisson with a small mean produces plenty, and a forest can drive the
+mean low exactly where the zeros are. Fit the plain family and the
+zero-inflated one and compare with <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>. Reach for zero
+inflation when the zero mechanism is itself something to model, or when
+the two processes have different predictors, not merely to improve a
+fit.</p>
 <p>It is worth seeing how far a marginal look at the response can
 mislead here. The counts below are Poisson with no inflation whatsoever,
 but the conditional mean ranges over two orders of magnitude, so the low
@@ -1006,14 +1008,15 @@ right, and let a comparison of fits, not a histogram, settle whether it
 is there.</p>
 </div>
 <div class="section level3">
-<h3 id="is-the-count-component-overdispersed-once-the-zeros-are-accounted-for">2. Is the count component overdispersed once the zeros are accounted
-for?<a class="anchor" aria-label="anchor" href="#is-the-count-component-overdispersed-once-the-zeros-are-accounted-for"></a>
+<h3 id="overdispersion-in-the-count-component">Overdispersion in the Count Component<a class="anchor" aria-label="anchor" href="#overdispersion-in-the-count-component"></a>
 </h3>
-<p>A spike at zero inflates the sample variance and looks like
-dispersion. <code><a href="../reference/bartisan-families.html">zi_negbin()</a></code> separates the two at the cost of a
-parameter; if <code>theta</code> comes back large with a tight
-posterior, the negative binomial is not buying anything and
-<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code> is the better-conditioned fit.</p>
+<p>The next question is whether the count component is overdispersed
+once the zeros are accounted for. A spike at zero inflates the sample
+variance and looks like dispersion. <code><a href="../reference/bartisan-families.html">zi_negbin()</a></code> separates
+the two at the cost of a parameter; if <code>theta</code> comes back
+large with a tight posterior, the negative binomial is not buying
+anything and <code><a href="../reference/bartisan-families.html">zi_poisson()</a></code> is the better-conditioned
+fit.</p>
 <p>Once again, the <code><a href="../reference/bartisan-families.html">ordinal()</a></code> family is another option worth
 knowing about for counts. A count is ordered and takes few distinct
 values, which is exactly what the cutpoint structure is for: it makes no
@@ -1067,8 +1070,8 @@ fit with <code>family = multinomial()</code>, described below; typically
 this produces more variable predictions as it requires a forest for each
 category rather than a single forest governing the entire distribution
 function.</p>
-<p>Two prediction types exist for reporting an ordinal fit on a single
-scale, both following <em>WeightIt</em>.
+<p>An ordinal fit can also be reported on a single scale, using
+prediction types that follow <em>WeightIt</em>.
 <code>predict(type = "mean")</code> weights the category probabilities
 by the labels read as numbers, so levels <code>"1"</code>,
 <code>"2"</code>, and <code>"4"</code> give a mean between one and four,
@@ -1114,13 +1117,13 @@ shares and smaller ones toward a few dominant categories. The anchor is
 the intercept, so the probabilities being described are the ones at the
 null fit rather than at an arbitrary zero, which is also the chart the
 cutpoints are reported in.</p>
-<p><code><a href="../reference/bartisan-families.html">ordbeta()</a></code> (descussed below) carries the same prior. It
+<p><code><a href="../reference/bartisan-families.html">ordbeta()</a></code> (discussed below) carries the same prior. It
 has three probabilities at the anchor, the masses at zero and one and
 the interior share, and the map from its two cutpoints to them has the
 same bidiagonal shape.</p>
 </div>
 <div class="section level3">
-<h3 id="categories-nobody-selected">Categories Nobody Selected<a class="anchor" aria-label="anchor" href="#categories-nobody-selected"></a>
+<h3 id="empty-categories">Empty Categories<a class="anchor" aria-label="anchor" href="#empty-categories"></a>
 </h3>
 <p>A level of an ordered factor that no observation takes is kept rather
 than dropped, so a rating scale with an unused point is still fitted on
@@ -1186,11 +1189,11 @@ still reports on the outcome’s scale. See below for an example:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_oc</span>, type <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1]  2.2440  2.5803  1.5486  1.9539  2.8059 -0.0747</span></span></code></pre></div>
-<p>Two limits. <code>type = "mean"</code> is a convex combination of
-observed outcome values, so it can never predict outside the range of
-the training outcome, which is a feature when the outcome has a hard
-floor or ceiling and a liability when extrapolation is needed. And the
-invariance is a property of the model for <span class="math inline">\(P(Y \le y \mid x)\)</span>, not of the mean read
+<p>This approach has limits. <code>type = "mean"</code> is a convex
+combination of observed outcome values, so it can never predict outside
+the range of the training outcome, which is a feature when the outcome
+has a hard floor or ceiling and a liability when extrapolation is
+needed. And the invariance is a property of the model for <span class="math inline">\(P(Y \le y \mid x)\)</span>, not of the mean read
 off it: <code>type = "mean"</code> after fitting on <span class="math inline">\(\log Y\)</span> is not the log of
 <code>type = "mean"</code> after fitting on <span class="math inline">\(Y\)</span>.</p>
 </div>
@@ -1474,14 +1477,14 @@ and <code><a href="../reference/bartisan-families.html">Beta()</a></code>, and a
 inverse link with the family’s own. So <code>binomial("cauchit")</code>
 works, as does any link object of the kind
 <code><a href="https://rdrr.io/r/stats/make.link.html" class="external-link">stats::make.link()</a></code> returns, including one written by hand.
-Two cautions: 1) the fit is slower, because each leaf costs a call into
-R, and 2) the additive predictor is unconstrained, so a link whose
-inverse has a restricted range (e.g., <code>poisson("identity")</code>)
-gives non-finite densities for some predictors, which are rejected
-rather than breaking the chain but are wasted work.
-<code><a href="../reference/bartisan.html">bartisan()</a></code> reports that when the fit starts. The families
-with more than one predictor, or whose link enters somewhere other than
-a single mean, take only their listed links.</p>
+Note that the fit is slower, because each leaf costs a call into R, and
+that the additive predictor is unconstrained, so a link whose inverse
+has a restricted range (e.g., <code>poisson("identity")</code>) gives
+non-finite densities for some predictors, which are rejected rather than
+breaking the chain but are wasted work. <code><a href="../reference/bartisan.html">bartisan()</a></code> reports
+that when the fit starts. The families with more than one predictor, or
+whose link enters somewhere other than a single mean, take only their
+listed links.</p>
 <p><code><a href="../reference/custom_family.html">custom_family()</a></code> can be used to fit a BART model with a
 density of the user’s design. It takes the log density itself and fits
 the model that goes with it. The sampler needs only the first two

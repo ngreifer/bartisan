@@ -71,7 +71,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-22</h4>
+            <h4 data-toc-skip class="date">2026-09-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/implementation.Rmd" class="external-link"><code>vignettes/implementation.Rmd</code></a></small>
       <div class="d-none name"><code>implementation.Rmd</code></div>
@@ -397,7 +397,7 @@ can be split on constantly and move the prediction very little.
 </div>
 </div>
 <div class="section level2">
-<h2 id="how-the-model-is-fit">How the Model Is Fit<a class="anchor" aria-label="anchor" href="#how-the-model-is-fit"></a>
+<h2 id="the-sampler">The Sampler<a class="anchor" aria-label="anchor" href="#the-sampler"></a>
 </h2>
 <div class="section level3">
 <h3 id="bayesian-backfitting">Bayesian Backfitting<a class="anchor" aria-label="anchor" href="#bayesian-backfitting"></a>
@@ -623,8 +623,8 @@ which case they run in parallel:</p>
 <span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p>The chain is the only parallel axis the <em>sampler</em> has, since a
 sweep conditions on the one before it, and it is also what makes a
-convergence diagnostic possible. Two things outside the sampler use a
-plan when one is set: the convergence pass splits its per-observation
+convergence diagnostic possible. Outside the sampler, a plan is also
+used when one is set: the convergence pass splits its per-observation
 columns across workers, and <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> predicts the
 treatment levels in parallel. Any <em>future</em> backend works,
 including <em>mirai</em>’s, and one <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> reproduces
@@ -729,7 +729,7 @@ reaches the quadratic target is several times faster than one that does
 not, which is why <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> fits in about a second
 where <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> takes eight on the same data.</p>
 <div class="section level3">
-<h3 id="what-data-augmentation-buys-augment">What Data Augmentation Buys (<code>augment</code>)<a class="anchor" aria-label="anchor" href="#what-data-augmentation-buys-augment"></a>
+<h3 id="gains-from-data-augmentation-augment">Gains From Data Augmentation (<code>augment</code>)<a class="anchor" aria-label="anchor" href="#gains-from-data-augmentation-augment"></a>
 </h3>
 <p>A major contributor to <em>bartisan</em>’s speed is data
 augmentation. Where the rewriting reaches a Gaussian conditional the
@@ -976,7 +976,7 @@ shape the sampler collapses to a single pass.</p>
 <div class="section level2">
 <h2 id="correctness">Correctness<a class="anchor" aria-label="anchor" href="#correctness"></a>
 </h2>
-<p>Three checks are in the test suite and worth knowing about.</p>
+<p>The test suite includes some checks worth knowing about.</p>
 <p>Shrinking the prior weights to nothing makes the likelihood constant,
 so the posterior collapses to the tree prior. The sampled trees then
 reproduce the prior’s branching process to within a fraction of a
@@ -1485,11 +1485,12 @@ fitted surface over the sample at each value of one or two predictors,
 and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on a fit is the same thing drawn.
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">marginaleffects::plot_predictions()</a></code> remains the one to
 reach for when the grid needs more control than that.</p>
-<p>The variable-selection row divides differently, into two things that
-both get called a test. One is the posterior inclusion probability under
-the Dirichlet sparsity prior, thresholded at .5 to give the median
-probability model of <span class="citation">Barbieri and Berger (<a href="#ref-barbieri2004">2004</a>)</span>. <em>SoftBart</em> reports it
-as <code>posterior_probs()</code>, and it is
+<p>The variable-selection row divides differently, since different
+procedures get called a test there. One is the posterior inclusion
+probability under the Dirichlet sparsity prior, thresholded at .5 to
+give the median probability model of <span class="citation">Barbieri and
+Berger (<a href="#ref-barbieri2004">2004</a>)</span>. <em>SoftBart</em>
+reports it as <code>posterior_probs()</code>, and it is
 <code>colMeans(var_counts &gt; 0)</code> on the splitting counts: the
 <code>prop_used</code> column of <code><a href="../reference/variable_importance.html">variable_importance()</a></code> is
 that same quantity, under a prior that is on by default here as it is
@@ -1512,7 +1513,7 @@ shortening burn-in. And there is no JSON serialization, so a fit
 round-trips through <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code> and not into another
 language. On survival, <em>BART</em> is ahead: recurrent events and
 competing risks are there and here they are not.</p>
-<p>Three more packages are single-purpose rather than general, so they
+<p>Some other packages are single-purpose rather than general, so they
 are not columns above: <a href="https://CRAN.R-project.org/package=bcf" class="external-link"><em>bcf</em></a> fits
 Bayesian causal forests only, <a href="https://github.com/skdeshpande91/VCBART" class="external-link"><em>VCBART</em></a>
 varying-coefficient models only, and <em>bartCause</em> wraps

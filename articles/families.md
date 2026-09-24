@@ -34,7 +34,7 @@ conditionally conjugate ([Linero 2025](#ref-linero2025)), which is why
 the list is as long as it is.
 
 In this guide, we will work through the families one at a time. First
-we’ll lay out the full list and the two questions that most often decide
+we’ll lay out the full list and the questions that most often decide
 between them, and then the family that is inferred when `family` is left
 unnamed. Next we’ll take the response types in turn (i.e., numeric,
 positive and continuous, binary, counts, ordered and unordered
@@ -91,10 +91,10 @@ We start from the shape of the response:
 | a time with censoring | [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), the default for survival outcomes; [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) or [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) if the shape of the error is known; [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) for proportional hazards with a free baseline |
 | something else | [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md) |
 
-Two considerations cut across that table.
+Some considerations cut across that table.
 
-The first is whether anything besides the mean varies with the
-predictors. Every family except
+One is whether anything besides the mean varies with the predictors.
+Every family except
 [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 [`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 and the zero-inflated pair puts a forest on one location parameter and
@@ -106,13 +106,13 @@ gives the normal’s standard deviation a forest of its own, and
 [`Gamma_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 does the same for the gamma’s dispersion.
 
-The second is whether that extra structure is real or a flexible mean
-would absorb it. A nonparametric mean makes this sharper than it is in a
-GLM. A sum of trees can produce excess zeros on its own, by driving a
-Poisson mean very low where the zeros are, so a zero-inflated family is
-for when the zero mechanism is a *separate process worth modeling*, not
-merely for when a histogram spikes at zero. The same caution applies to
-the multinomial probit’s latent correlations.
+Another is whether that extra structure is real or a flexible mean would
+absorb it. A nonparametric mean makes this sharper than it is in a GLM.
+A sum of trees can produce excess zeros on its own, by driving a Poisson
+mean very low where the zeros are, so a zero-inflated family is for when
+the zero mechanism is a *separate process worth modeling*, not merely
+for when a histogram spikes at zero. The same caution applies to the
+multinomial probit’s latent correlations.
 
 When two families are both defensible, we can compare them empirically
 rather than reason about them;
@@ -185,7 +185,7 @@ fit
 #> Draws: 150 kept after 150 warmup
 ```
 
-Two boundaries are deliberate. A numeric response taking exactly two
+Some boundaries are deliberate. A numeric response taking exactly two
 values that are *not* 0 and 1 is not read as binomial, because deciding
 that `c(1, 2)` means failure and success would be a guess about which
 value is the success. And a count is not read as Poisson, because “the
@@ -215,8 +215,8 @@ error rather than a silent substitution.
 
 ## Numeric Responses
 
-Four families fit a numeric response by putting a forest on its mean.
-They differ in what else they allow to vary:
+The families for a numeric response each put a forest on its mean, and
+they differ in what else they allow to vary:
 
 - [`gaussian()`](https://rdrr.io/r/stats/family.html) assumes one normal
   error, with `sigma` drawn and reported.
@@ -251,8 +251,8 @@ replicate.
 | `ordinal("probit")` | 0.029 | 0.035 | 0.031 | 0.043 | 0.037 | 5.1 |
 
 Coverage was between .89 and 1.00 everywhere, with the four families’
-medians between .98 and 1.00, so it does not separate them. Four things
-to take from this:
+medians between .98 and 1.00, so it does not separate them. There are a
+few things to take from this:
 
 On normal errors they all tie, to three decimal places on RMSE and
 within two log points, even though
@@ -604,14 +604,16 @@ zero), so the excess-zero mechanism can depend on the predictors. As
 with standard GLMs for count variables, these models can include an
 offset.
 
-To decide which family to use, consider these two questions, in this
+To decide which family to use, consider the following questions, in this
 order:
 
-### 1. Are there more zeros than the count component can produce?
+### Excess Zeros
 
-Not “are there many zeros”: a Poisson with a small mean produces plenty,
-and a forest can drive the mean low exactly where the zeros are. Fit the
-plain family and the zero-inflated one and compare with
+The first question is whether there are more zeros than the count
+component can produce, rather than whether there are many zeros: a
+Poisson with a small mean produces plenty, and a forest can drive the
+mean low exactly where the zeros are. Fit the plain family and the
+zero-inflated one and compare with
 [`loo()`](https://mc-stan.org/loo/reference/loo.html). Reach for zero
 inflation when the zero mechanism is itself something to model, or when
 the two processes have different predictors, not merely to improve a
@@ -712,9 +714,11 @@ when the zero mechanism is a process worth modeling in its own right,
 and let a comparison of fits, not a histogram, settle whether it is
 there.
 
-### 2. Is the count component overdispersed once the zeros are accounted for?
+### Overdispersion in the Count Component
 
-A spike at zero inflates the sample variance and looks like dispersion.
+The next question is whether the count component is overdispersed once
+the zeros are accounted for. A spike at zero inflates the sample
+variance and looks like dispersion.
 [`zi_negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 separates the two at the cost of a parameter; if `theta` comes back
 large with a tight posterior, the negative binomial is not buying
@@ -775,8 +779,8 @@ with `family = multinomial()`, described below; typically this produces
 more variable predictions as it requires a forest for each category
 rather than a single forest governing the entire distribution function.
 
-Two prediction types exist for reporting an ordinal fit on a single
-scale, both following *WeightIt*. `predict(type = "mean")` weights the
+An ordinal fit can also be reported on a single scale, using prediction
+types that follow *WeightIt*. `predict(type = "mean")` weights the
 category probabilities by the labels read as numbers, so levels `"1"`,
 `"2"`, and `"4"` give a mean between one and four, and `values` says
 what the categories are worth when the labels are not numbers.
@@ -832,11 +836,11 @@ at an arbitrary zero, which is also the chart the cutpoints are reported
 in.
 
 [`ordbeta()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-(descussed below) carries the same prior. It has three probabilities at
+(discussed below) carries the same prior. It has three probabilities at
 the anchor, the masses at zero and one and the interior share, and the
 map from its two cutpoints to them has the same bidiagonal shape.
 
-### Categories Nobody Selected
+### Empty Categories
 
 A level of an ordered factor that no observation takes is kept rather
 than dropped, so a rating scale with an unused point is still fitted on
@@ -914,13 +918,13 @@ head(predict(fit_oc, type = "mean"))
 #> [1]  2.2440  2.5803  1.5486  1.9539  2.8059 -0.0747
 ```
 
-Two limits. `type = "mean"` is a convex combination of observed outcome
-values, so it can never predict outside the range of the training
-outcome, which is a feature when the outcome has a hard floor or ceiling
-and a liability when extrapolation is needed. And the invariance is a
-property of the model for \\P(Y \le y \mid x)\\, not of the mean read
-off it: `type = "mean"` after fitting on \\\log Y\\ is not the log of
-`type = "mean"` after fitting on \\Y\\.
+This approach has limits. `type = "mean"` is a convex combination of
+observed outcome values, so it can never predict outside the range of
+the training outcome, which is a feature when the outcome has a hard
+floor or ceiling and a liability when extrapolation is needed. And the
+invariance is a property of the model for \\P(Y \le y \mid x)\\, not of
+the mean read off it: `type = "mean"` after fitting on \\\log Y\\ is not
+the log of `type = "mean"` after fitting on \\Y\\.
 
 ## Unordered Categories
 
@@ -1211,12 +1215,11 @@ Links beyond those in the table are accepted for
 and applied from R by composing the supplied inverse link with the
 family’s own. So `binomial("cauchit")` works, as does any link object of
 the kind [`stats::make.link()`](https://rdrr.io/r/stats/make.link.html)
-returns, including one written by hand. Two cautions: 1) the fit is
-slower, because each leaf costs a call into R, and 2) the additive
-predictor is unconstrained, so a link whose inverse has a restricted
-range (e.g., `poisson("identity")`) gives non-finite densities for some
-predictors, which are rejected rather than breaking the chain but are
-wasted work.
+returns, including one written by hand. Note that the fit is slower,
+because each leaf costs a call into R, and that the additive predictor
+is unconstrained, so a link whose inverse has a restricted range (e.g.,
+`poisson("identity")`) gives non-finite densities for some predictors,
+which are rejected rather than breaking the chain but are wasted work.
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 reports that when the fit starts. The families with more than one
 predictor, or whose link enters somewhere other than a single mean, take

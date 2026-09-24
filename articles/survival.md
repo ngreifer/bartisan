@@ -29,13 +29,13 @@ we ask for the quantity we actually wanted (i.e., survival at a horizon)
 rather than reading coefficients.
 
 In this guide, we will start from the response and the five families
-that accept it, and then set out the three estimands their predictors
-report and the one quantity that is comparable across all of them. Next
-we’ll measure the five against six data-generating truths, sweep the
-amount of censoring, and take up the one case that defeats the whole set
-(a covariate effect that moves with time). Finally we’ll cover three
-traps in reading these fits, the relative cost of each family, and a
-table for choosing.
+that accept it, and then set out the estimands their predictors report
+and the one quantity that is comparable across all of them. Next we’ll
+measure the five against six data-generating truths, sweep the amount of
+censoring, and take up the one case that defeats the whole set (a
+covariate effect that moves with time). Finally we’ll cover the details
+that are easy to get wrong in reading these fits, the relative cost of
+each family, and a table for choosing.
 
 ## The Response (`Surv()`)
 
@@ -78,7 +78,7 @@ covariates, as it is in every model in this vignette and in
 is an assumption about the data, not about the family, so no choice
 below relaxes it.
 
-## The Five Families
+## The Survival Families
 
 | Family | Model | A contrast in the forest gives | Drawn nuisance |
 |:---|:---|:---|:---|
@@ -408,7 +408,7 @@ the predictors are not.
 
 RMSE of S(t \| x) on held-out data. Lower is better. {.table}
 
-Five things to read off it.
+There are a few things to read off it.
 
 **Being exactly right is worth surprisingly little.** On the Weibull
 truth, which
@@ -501,7 +501,7 @@ of the range and wrong over the rest. A model that must apply the same
 covariate effect at every time, given an effect that is positive early
 and negative late, averages it to approximately nothing.
 
-Two cautions on reading this panel. It shows three subjects, not the
+This panel needs some care in reading. It shows three subjects, not the
 sample: the discrete-time route scores much better than
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 on the ranking measured over all 700, and that advantage is not what
@@ -743,8 +743,8 @@ below for everything else. It is the only model in the set that recovers
 *any* of the reordering, and recovering some of a reversing effect while
 getting the level slightly worse is the better failure of the two.
 
-Three further costs. The expansion inflates the data, so a large study
-with a fine grid gets slow. The grid is a real choice, unlike
+The route has further costs. The expansion inflates the data, so a large
+study with a fine grid gets slow. The grid is a real choice, unlike
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s
 bins, because it sets the resolution of the hazard in \\t\\ *and* the
 resolution at which non-proportionality can be detected at all. And
@@ -811,7 +811,7 @@ The way to avoid thinking about it at all is to compare on \\S(t \mid
 x)\\ from `predict(type = "survival")`, which is a probability for every
 family and needs no correction.
 
-### `ph()`’s Predictor Is a Contrast, Not a Level
+### The Centered Predictor of `ph()`
 
 Because the baseline absorbs the level, a single fitted value of
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s
@@ -935,8 +935,8 @@ and a third of
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 The second row is for fitting many models rather than one.
 
-Two closing points that the numbers above support and that are easy to
-lose sight of.
+The numbers above support some closing points that are easy to lose
+sight of.
 
 The families disagree far more about the *density* than about the
 *ordering*. If the question is comparative (e.g., who is at higher risk,

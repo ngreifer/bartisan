@@ -176,11 +176,12 @@ rather than a disagreement.</p>
 </div>
 
 <div class="section">
-<h3 id="a-contrast-of-exactly-zero-is-usually-real">A Contrast of Exactly Zero Is Usually Real<a class="anchor" aria-label="anchor" href="#a-contrast-of-exactly-zero-is-usually-real"></a></h3>
+<h3 id="contrasts-of-exactly-zero">Contrasts of Exactly Zero<a class="anchor" aria-label="anchor" href="#contrasts-of-exactly-zero"></a></h3>
 
 
 <p><code>avg_comparisons()</code> reporting an estimate of exactly <code>0</code> is the most common
-surprise here, and two facts meet to produce it.</p>
+surprise here, and it comes from the prior and the posterior summary acting
+together.</p>
 <p>The posterior of a contrast has an atom at exactly zero. In any draw where no
 tree splits on the variable being contrasted, the fit does not depend on that
 variable at all, so the two counterfactual predictions are identical to the
@@ -192,7 +193,7 @@ the atom holds more than half the mass the reported estimate is exactly zero
 however large the rest of the posterior is: the median can land on the atom
 while the posterior mean and the upper limit of the interval are both far from
 zero.</p>
-<p>Four things are worth doing about it, in the order given. Look at
+<p>There are a few things worth doing about it, in the order given. Look at
 <code>prop_used</code> in <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, the posterior probability that the predictor
 appears anywhere in the forest, which is what the zero reports. Ask for the
 mean instead, with <code>options(marginaleffects_posterior_center = mean)</code>, which

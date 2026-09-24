@@ -237,7 +237,7 @@ own, with the chain rule carrying the derivatives back. So
 It costs a call into R for every leaf the sampler visits, and the leaf
 prior scale is calibrated for the compiled link.
 
-Two single-predictor families are exceptions. `negbin()` takes `"log"`
+Some single-predictor families are exceptions. `negbin()` takes `"log"`
 alone, so a link given to it is an error rather than a composition.
 [`stats::Gamma()`](https://rdrr.io/r/stats/family.html) accepts any link
 and fits none of them but `"log"`: every other link is dropped with a
@@ -361,7 +361,7 @@ it takes prior weights, which `dpm()` refuses, and it reports one
 interpretable `sigma` where `dpm()` has a mixture. It is also faster, by
 1.4 times at a thousand observations. The vignette has the comparison.
 
-Two things to know about `dpm()` itself. It does not buy
+Some properties of `dpm()` itself are worth knowing. It does not buy
 heteroskedasticity: the error distribution is flexible but it is the
 same distribution at every \\x\\, and `gaussian_ls()` is the family for
 a spread that depends on the predictors. And the additive predictor is
@@ -526,8 +526,8 @@ less common than its mean implies wants a two-part model instead, which
 [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 can supply for anything else.
 
-Two things follow from the mean being \\\exp(\eta)\\ exactly. A
-counterfactual mean through
+Because the mean is exactly \\\exp(\eta)\\, a counterfactual mean
+through
 [marginaleffects](https://CRAN.R-project.org/package=marginaleffects)
 needs nothing beyond the forest, unlike a two-part model where it has to
 be recombined across predictors; and the fit is comparable with a
@@ -604,9 +604,8 @@ silent recycling.
 When none of the families above is the right one,
 [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
 takes the log density itself, as an R function, and fits the model that
-goes with it. Its page has the details, including the two things a log
-density cannot supply: a posterior predictive distribution, and a fitted
-mean.
+goes with it. Its page has the details, including what a log density
+cannot supply: a posterior predictive distribution and a fitted mean.
 
 ## See also
 
