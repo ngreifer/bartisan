@@ -352,8 +352,7 @@ make_group_probs <- function(assign, term_labels) {
 # One column of splitting weights per forest the engine builds.
 #
 # `split_prior` and `masks` set them, and they multiply. `split_prior` is what
-# the caller asked
-# for, per forest or once for all of them. `masks` is what each forest's own
+# the caller asked for, per forest or once for all of them. `masks` is what each forest's own
 # formula allows: a term a forest's formula leaves out gets a weight of zero,
 # which is what holds the forest to its own predictors without giving it a design
 # matrix of its own.

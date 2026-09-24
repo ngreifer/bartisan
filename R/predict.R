@@ -196,8 +196,8 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
     if (is_null(times)) {
       arg::err(c("{.arg times} says at which times to report survival, and has
                   no default because the horizon is a choice rather than a
-                  property of the fit",
-                 i = "for example {.code times = c(1, 5)}"))
+                  property of the fit.",
+                 i = "For example, {.code times = c(1, 5)}."))
     }
 
     arg::arg_numeric(times)

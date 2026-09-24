@@ -150,8 +150,7 @@ both are answered at once. \code{\link[=coef]{coef()}} returns one column per co
 for its forest.
 
 Some consequences follow from the parameters being different. A group
-intercept from
-\code{(1 | g)} reaches every control function and no coefficient, since a
+intercept from \code{(1 | g)} reaches every control function and no coefficient, since a
 group-varying coefficient is a random slope. And \code{center = "estimate"} is
 judged per parameter: the drawn coding needs a leaf target that is quadratic
 in the predictor it feeds, which \code{gaussian_ls()} is in the mean and is not

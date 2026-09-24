@@ -687,7 +687,7 @@ prior_summary.bartisan_fit <- function(object, ...) {
   prior <- object[["prior"]]
 
   if (is_null(prior)) {
-    arg::err(c("this fit kept no record of the prior it was given",
+    arg::err(c("This fit kept no record of the prior it was given.",
                i = "It was made before {.fn prior_summary} existed; refit it to
                     summarize the prior."))
   }

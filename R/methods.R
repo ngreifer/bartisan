@@ -458,8 +458,8 @@ ranef.bartisan_fit <- function(object, draws = FALSE, ...) {
   random <- object[["random"]]
 
   if (is_null(random)) {
-    arg::err(c("this model has no group intercepts, so there is nothing to
-                extract",
+    arg::err(c("This model has no group intercepts, so there is nothing to
+                extract.",
                i = "A {.code (1 | group)} term in the formula is what adds
                     them; see {.fn bartisan}."))
   }

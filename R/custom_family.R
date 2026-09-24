@@ -112,8 +112,7 @@
 #' pointwise log likelihood the family already computes.
 #'
 #' There are smaller limits as well. The response must be numeric, so a factor
-#' has to be coded
-#' first. And since the package cannot know what the mean of the density is,
+#' has to be coded first. And since the package cannot know what the mean of the density is,
 #' `predict(type = "response")` returns the additive predictors rather than a
 #' fitted mean.
 #'

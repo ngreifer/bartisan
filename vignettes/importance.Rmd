@@ -38,9 +38,8 @@ BART. `variable_importance()` reports the count.
 
 This vignette covers what that number means, how to tell whether a difference in
 it is real, and the limits of what it measures. The last part matters more than
-the
-first: variable importance is the most over-read output in machine learning, and
-the failure modes are specific and checkable.
+the first: variable importance is the most over-read output in machine learning,
+and the failure modes are specific and checkable.
 
 In this guide we will first read the three statistics `variable_importance()`
 returns, and then calibrate them by adding predictors we know to be pure noise.

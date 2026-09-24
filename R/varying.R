@@ -153,8 +153,7 @@
 #' for its forest.
 #'
 #' Some consequences follow from the parameters being different. A group
-#' intercept from
-#' `(1 | g)` reaches every control function and no coefficient, since a
+#' intercept from `(1 | g)` reaches every control function and no coefficient, since a
 #' group-varying coefficient is a random slope. And `center = "estimate"` is
 #' judged per parameter: the drawn coding needs a leaf target that is quadratic
 #' in the predictor it feeds, which `gaussian_ls()` is in the mean and is not

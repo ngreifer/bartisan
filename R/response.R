@@ -58,7 +58,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
              arg::err(c("{.fn dpm_aft} does not take prior weights, because a
                          weight would have to be a multiplicity in the Dirichlet
                          process, which is not what a fractional weight means.",
-                        i = "the other survival families take them"))
+                        i = "The other survival families take them."))
            }
 
            a <- prepare_surv(y, n)
@@ -236,10 +236,10 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            # has fixed by hand, and the zero probability that the power and the
            # dispersion are jointly identified through has nothing to bear on.
            if (!any(y == 0)) {
-             arg::wrn(c("the response has no zeros, which is what the
-                         {.val tweedie} family's point mass is for",
+             arg::wrn(c("The response has no zeros, which is what the
+                         {.val tweedie} family's point mass is for.",
                         i = "{.code Gamma(\"log\")} models a strictly positive
-                             response with the shape drawn rather than fixed"))
+                             response with the shape drawn rather than fixed."))
            }
 
            out$y <- y
@@ -688,16 +688,16 @@ check_numeric_response <- function(y, name) {
   # indicators as out-of-range responses, and `custom_family()` reaches the
   # engine and dies there on an out-of-bounds index. Refuse the shape instead.
   if (is.matrix(y) && ncol(y) > 1L) {
-    arg::err(c("the {.val {name}} family requires one response value per
-                observation, but the response has {ncol(y)} columns",
+    arg::err(c("The {.val {name}} family requires one response value per
+                observation, but the response has {ncol(y)} columns.",
                i = if (inherits(y, "Surv")) {
-                 "a {.cls Surv} response needs a survival family:
+                 "A {.cls Surv} response needs a survival family:
                   {.fn dpm_aft}, {.fn weibull_aft}, {.fn loglogistic_aft},
-                  {.fn lognormal_aft} or {.fn ph}"
+                  {.fn lognormal_aft} or {.fn ph}."
                }
                else {
-                 "a two-column response of successes and failures needs
-                  {.fn binomial}"
+                 "A two-column response of successes and failures needs
+                  {.fn binomial}."
                }))
   }
 
@@ -808,9 +808,9 @@ warn_unused_scale_points <- function(values) {
 
   absent <- setdiff(seq(min(values), max(values)), values)
 
-  arg::wrn(c("the response runs from {min(values)} to {max(values)}, but
+  arg::wrn(c("The response runs from {min(values)} to {max(values)}, but
               {length(absent)} value{?s} in that range {?is/are} never taken:
-              {.val {absent}}",
+              {.val {absent}}.",
              i = "Those categories are ignored, so the scale is fitted with
                   {length(values)} of its {span} points.",
              i = "To model them, give the response as an {.cls ordered} factor
