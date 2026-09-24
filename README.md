@@ -89,13 +89,45 @@ fit
 #> Draws: 800 kept after 200 warmup
 ```
 
+Calling `summary()` on the fit displays a measure of variable
+importance, how often predictors were used to split the trees:
+
+``` r
+summary(fit)
+#> Generalized BART
+#> 
+#> Call:
+#> bartisan(formula = death ~ rhc + age + sex + race + edu + pafi + 
+#>     paco2 + crea + surv2m + card, data = rhc, family = binomial())
+#> 
+#> Family: "binomial" with the "logit" link
+#> Observations: 1500
+#> Structure: 1 forest of 50 trees, soft decision rules
+#> Draws: 800
+#> 
+#> Predictor usage
+#> Splitting rules per draw, and how often used at all.
+#>          mean     sd lower upper prop_used
+#> age    12.422  6.583     3 28.02     1.000
+#> surv2m 26.810 10.464    11 49.00     1.000
+#> rhc     4.916  4.248     0 17.00     0.960
+#> pafi    7.811  5.587     0 21.00     0.941
+#> paco2   5.221  4.787     0 17.00     0.909
+#> crea   10.167  9.482     0 34.02     0.897
+#> edu     3.114  3.225     0 11.03     0.789
+#> card    2.980  3.626     0 12.00     0.608
+#> sex     2.354  3.245     0 10.00     0.521
+#> race    1.176  1.762     0  6.00     0.439
+```
+
 Nothing had to be said about which predictors matter, which are curved,
 or which interact. `plot()` shows what the model made of one of them,
 here the study’s own estimate of each patient’s chance of surviving two
 months:
 
 ``` r
-plot(fit, ~ surv2m) +
+partial_dependence(fit, ~ surv2m) |>
+  plot() +
   ggplot2::labs(x = "Estimated probability of surviving two months",
                 y = "Fitted probability of death")
 ```
@@ -112,7 +144,7 @@ standard error:
 estimate_effect(fit, treat = "rhc")
 #> Average treatment effect (difference)
 #> 
-#> Treatment: "rhc"
+#> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate lower upper    n
@@ -126,8 +158,18 @@ estimate_effect(fit, treat = "rhc")
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
-#> ℹ Y[a] is the average response with "rhc" set to a.
+#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```
+
+To examine effect heterogeneity, one can generate a plot of conditional
+effect estimates for all units:
+
+``` r
+estimate_effect(fit, treat = "rhc", estimand = "CATE") |>
+  plot()
+```
+
+<img src="man/figures/README-unnamed-chunk-3-1.png" alt="" width="90%" style="display: block; margin: auto;" />
 
 ## Learning More
 
@@ -139,6 +181,7 @@ points at the guide that takes that step further:
 |----------------------------------------------|------------------------------|
 | Choosing a response family                   | `vignette("families")`       |
 | Censored and survival outcomes               | `vignette("survival")`       |
+| Varying coefficient models                   | `vignette("varying")`        |
 | Effects, curves, and interactions            | `vignette("effects")`        |
 | Which predictors the model uses              | `vignette("importance")`     |
 | Convergence and model fit                    | `vignette("diagnostics")`    |

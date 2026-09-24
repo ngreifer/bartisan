@@ -87,12 +87,19 @@ fit <- bartisan(death ~ rhc + age + sex + race + edu + pafi +
 fit
 ```
 
+Calling `summary()` on the fit displays a measure of variable importance, how often predictors were used to split the trees:
+
+```{r}
+summary(fit)
+```
+
 Nothing had to be said about which predictors matter, which are curved, or which
 interact. `plot()` shows what the model made of one of them, here the study's own
 estimate of each patient's chance of surviving two months:
 
 ```{r pdp, fig.alt = "Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .48, inside a credible band that widens at both ends."}
-plot(fit, ~ surv2m) +
+partial_dependence(fit, ~ surv2m) |>
+  plot() +
   ggplot2::labs(x = "Estimated probability of surviving two months",
                 y = "Fitted probability of death")
 ```
@@ -106,6 +113,14 @@ credible interval rather than a standard error:
 estimate_effect(fit, treat = "rhc")
 ```
 
+To examine effect heterogeneity, one can generate a plot of conditional effect estimates for all units:
+
+```{r}
+estimate_effect(fit, treat = "rhc", estimand = "CATE") |>
+  plot()
+```
+
+
 ## Learning More
 
 `vignette("bartisan")` is the place to start. It carries one analysis from the
@@ -116,6 +131,7 @@ that takes that step further:
 | --- | --- |
 | Choosing a response family | `vignette("families")` |
 | Censored and survival outcomes | `vignette("survival")` |
+| Varying coefficient models | `vignette("varying")` |
 | Effects, curves, and interactions | `vignette("effects")` |
 | Which predictors the model uses | `vignette("importance")` |
 | Convergence and model fit | `vignette("diagnostics")` |
