@@ -7,7 +7,7 @@
 \usage{
 \method{print}{bcf_fit}(x, digits = 3L, ...)
 
-\method{plot}{bcf_fit}(x, level = 0.95, comparison = "difference", ...)
+\method{plot}{bcf_fit}(x, level = 0.95, comparison = "difference", marginal = TRUE, ...)
 }
 \arguments{
 \item{x}{a \verb{<bcf_fit>} object; the output of a call to \code{\link[=bcf]{bcf()}}.}
@@ -21,6 +21,9 @@ otherwise ignored.}
 
 \item{comparison}{passed to \code{\link[=estimate_effect]{estimate_effect()}}, which is what computes the
 numbers.}
+
+\item{marginal}{\code{logical}; whether to draw the marginal effect beside the
+conditional ones. Default is \code{TRUE}.}
 }
 \value{
 \code{plot()} returns a \pkg{ggplot2} object. \code{print()} returns its input
@@ -50,7 +53,7 @@ fit
 # The effect, with the potential outcomes it is a difference of
 estimate_effect(fit)
 
-# The conditional effects, ordered, with the average beside them
+# The conditional effects, ordered, with the marginal effect beside them
 plot(fit)
 
 }

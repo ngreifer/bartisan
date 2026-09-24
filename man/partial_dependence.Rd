@@ -15,7 +15,6 @@ partial_dependence(
   values = NULL,
   level = 0.95,
   type = "response",
-  plot = FALSE,
   ...
 )
 
@@ -52,10 +51,6 @@ message reports which.}
 
 \item{type}{\code{string}; the prediction scale, passed to
 \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. Default is \code{"response"}.}
-
-\item{plot}{\code{logical}; whether to draw the result rather than return it.
-Default is \code{FALSE}. \code{plot = TRUE} calls \code{\link[=plot.bartisan_partial]{plot.bartisan_partial()}}, so the
-argument and the method cannot disagree.}
 
 \item{...}{for \code{plot.bartisan_fit()}, further arguments passed to
 \code{partial_dependence()}; for \code{partial_dependence()}, further arguments passed to \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}.}

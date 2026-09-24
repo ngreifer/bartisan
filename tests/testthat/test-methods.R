@@ -117,9 +117,6 @@ test_that("draws = TRUE hands back the counts themselves", {
                      control = quick_control(num_trees = 10L))
   expect_type(variable_importance(ls_fit, draws = TRUE), "list")
   expect_length(variable_importance(ls_fit, draws = TRUE), length(ls_fit$counts))
-
-  expect_error(variable_importance(fit, draws = TRUE, plot = TRUE),
-               "different things")
 })
 
 test_that("the print method says which reading the fit supports", {
@@ -160,7 +157,7 @@ test_that("the print method says which reading the fit supports", {
                 "Variable importance")
 })
 
-test_that("plot = TRUE draws the table it would otherwise return", {
+test_that("plot() draws the importance table", {
   skip_if_not_installed("ggplot2")
 
   d <- sim_x(n = 200, p = 3, seed = 776)
@@ -170,15 +167,18 @@ test_that("plot = TRUE draws the table it would otherwise return", {
   fit <- bartisan(y ~ ., d, family = stats::gaussian(),
                   control = quick_control(num_trees = 10L))
 
-  expect_s3_class(variable_importance(fit, plot = TRUE), "ggplot")
+  expect_s3_class(plot(variable_importance(fit)), "ggplot")
 
   # One panel per forest when there is more than one.
   ls_fit <- bartisan(y ~ ., d, family = gaussian_ls(),
                      control = quick_control(num_trees = 10L))
-  expect_s3_class(variable_importance(ls_fit, plot = TRUE), "ggplot")
+  expect_s3_class(plot(variable_importance(ls_fit)), "ggplot")
+
+  # Drawing is the method's job alone; there is no argument that does it.
+  expect_error(variable_importance(fit, plot = TRUE), "unused argument")
 })
 
-test_that("the plot method and the plot argument are one drawing", {
+test_that("the plot method draws the table, and a subset of it", {
   skip_if_not_installed("ggplot2")
 
   d <- sim_x(n = 200, p = 4, seed = 777)
@@ -189,16 +189,7 @@ test_that("the plot method and the plot argument are one drawing", {
                   control = quick_control(num_trees = 10L, num_draws = 100L))
 
   imp <- variable_importance(fit)
-  by_arg <- variable_importance(fit, plot = TRUE)
-  by_method <- plot(imp)
-
-  expect_s3_class(by_method, "ggplot")
-
-  # `plot = TRUE` calls the method, so these are the same drawing rather than
-  # two of them; the ggplot objects themselves carry environments that will not
-  # compare equal, so the comparison is on the pieces.
-  expect_equal(by_method$data, by_arg$data)
-  expect_identical(by_method$labels, by_arg$labels)
+  expect_s3_class(plot(imp), "ggplot")
 
   # Subsetting first is how a wide model is made readable, so the method has to
   # accept what `head()` and `subset()` return.

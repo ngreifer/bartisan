@@ -266,16 +266,8 @@ test_that("the error density carries a class and a plot method", {
 
   skip_if_not_installed("ggplot2")
 
-  # `plot = TRUE` goes through the method, so the two cannot draw different
-  # things; comparing the pieces a ggplot is made of rather than the object,
-  # which carries environments that will not compare equal.
-  by_arg <- error_density(fit, at = seq(-3, 3, length.out = 21L), plot = TRUE)
-  by_method <- plot(out)
-
-  expect_s3_class(by_method, "ggplot")
-  expect_s3_class(by_arg, "ggplot")
-  expect_equal(by_method$data, by_arg$data)
-  expect_identical(by_method$labels, by_arg$labels)
+  expect_s3_class(plot(out), "ggplot")
+  expect_error(error_density(fit, plot = TRUE), "unused argument")
 
   # And a subset of the grid is still something the method accepts.
   expect_s3_class(plot(out[1:5, ]), "ggplot")

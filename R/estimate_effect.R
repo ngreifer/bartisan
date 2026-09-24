@@ -47,8 +47,6 @@
 #'   to [predict.bartisan_fit()]. Default is `"response"`, which is the scale on
 #'   which an average of unit-level differences is the marginal effect. See
 #'   Details before changing it.
-#' @param plot `logical`; whether to draw the result rather than return it.
-#'   Default is `FALSE`. `plot = TRUE` calls [plot.bartisan_effect()].
 #' @param x a `<bartisan_effect>` object; the output of a call to
 #'   `estimate_effect()`.
 #' @param digits `integer`; the number of significant digits to print.
@@ -61,6 +59,10 @@
 #'   under each treatment level below the contrasts, those being what the
 #'   contrasts were computed from. Default is `TRUE`. They are in the result's
 #'   `"potential_outcomes"` attribute either way.
+#' @param marginal `logical`; for `plot()` on conditional effects (i.e.,
+#'   `estimand = "CATE"`), whether to draw the marginal effect beside the units.
+#'   Default is `TRUE`. Ignored by the other plots, which draw no marginal
+#'   effect beside their estimates.
 #' @param ... ignored.
 #'
 #' @returns
@@ -154,7 +156,7 @@
 #' # Among the treated, and as a risk ratio rather than a difference
 #' estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 #'
-#' # One effect per unit, ordered, with the average behind them
+#' # One effect per unit, ordered, with the marginal effect beside them
 #' cate <- estimate_effect(fit, estimand = "CATE")
 #' plot(cate)
 #'
@@ -165,12 +167,11 @@
 estimate_effect <- function(object, treat = NULL, estimand = "ATE",
                             comparison = "difference", by = NULL,
                             newdata = NULL, level = 0.95, interval = "eti",
-                            focal = NULL, type = "response", plot = FALSE) {
+                            focal = NULL, type = "response") {
 
   arg::arg_is(object, "bartisan_fit")
   arg::arg_number(level)
   arg::arg_between(level, c(0, 1), inclusive = FALSE)
-  arg::arg_flag(plot)
 
   estimand <- arg::match_arg(toupper(estimand),
                              c("ATE", "ATT", "ATC", "CATE"))
@@ -321,6 +322,7 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
   attr(out, "treatment") <- treat
   attr(out, "focal") <- focal
   attr(out, "type") <- type
+  attr(out, "family") <- object[["family"]][["family"]]
   attr(out, "n_units") <- sum(keep)
 
   # What `diagnose()` needs to fold the draws back into chains and to name the
@@ -341,11 +343,7 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
                                              interval, keep, newdata, NULL)
   }
 
-  if (!plot) {
-    return(out)
-  }
-
-  plot(out)
+  out
 }
 
 # The treatment's name: a `bcf()` fit knows it, a `bartisan()` fit cannot.
@@ -996,15 +994,18 @@ effect_round <- function(show, digits) {
 
 #' @rdname estimate_effect
 #' @export
-plot.bartisan_effect <- function(x, ...) {
+plot.bartisan_effect <- function(x, marginal = TRUE, ...) {
+  arg::arg_flag(marginal)
+
   estimand <- attr(x, "estimand")
   comparison <- attr(x, "comparison")
   by <- attr(x, "by")
-  ylab <- effect_axis_label(estimand, comparison)
+  ylab <- effect_axis_label(estimand, comparison, attr(x, "family"),
+                            attr(x, "type"))
   null_at <- if (comparison %in% c("difference", "lnratio", "lnor")) 0 else 1
 
   if (identical(estimand, "CATE")) {
-    return(effect_forest_units(x, ylab, null_at))
+    return(effect_forest_units(x, ylab, null_at, marginal))
   }
 
   if (!is_null(by)) {
@@ -1014,7 +1015,14 @@ plot.bartisan_effect <- function(x, ...) {
   effect_density(x, ylab, null_at)
 }
 
-effect_axis_label <- function(estimand, comparison) {
+# The ratios name their scale in their own words; a difference does not, and
+# "Effect" alone leaves a reader guessing whether 0.06 is a probability, a
+# log odds, or the response's own units. So a difference says what it is a
+# difference in where that is known: a probability for a binomial response,
+# and the link scale whatever the family when `type = "link"`. Anything else is
+# on the response's own scale, which the reader already knows.
+effect_axis_label <- function(estimand, comparison, family = NULL,
+                              type = NULL) {
   what <- switch(comparison,
                  difference = "Effect",
                  ratio = "Ratio",
@@ -1022,16 +1030,34 @@ effect_axis_label <- function(estimand, comparison) {
                  or = "Odds ratio",
                  lnor = "Log odds ratio")
 
-  if (identical(estimand, "CATE")) sprintf("Conditional %s", tolower(what))
-  else what
+  label <- {
+    if (identical(estimand, "CATE")) sprintf("Conditional %s", tolower(what))
+    else what
+  }
+
+  if (identical(comparison, "difference")) {
+    scale <- {
+      if (identical(type, "link")) "difference on the link scale"
+      else if (identical(family, "binomial") &&
+               (is_null(type) || identical(type, "response")))
+        "difference in probability"
+      else NULL
+    }
+
+    if (!is_null(scale)) {
+      label <- sprintf("%s (%s)", label, scale)
+    }
+  }
+
+  label
 }
 
 # Units ordered by their estimate, with the marginal effect beside them, which
 # is what makes the spread readable as heterogeneity rather than as a list of
 # numbers.
-effect_forest_units <- function(x, ylab, null_at) {
+effect_forest_units <- function(x, ylab, null_at, marginal = TRUE) {
   d <- as.data.frame(x)
-  marg <- attr(x, "marginal")
+  marg <- if (marginal) attr(x, "marginal")
 
   d <- lapply(split(d, d[["contrast"]]), function(z) {
     z <- z[order(z[["estimate"]]), , drop = FALSE]
@@ -1043,13 +1069,27 @@ effect_forest_units <- function(x, ylab, null_at) {
 
   n <- max(d[["rank"]])
 
+  # The units run from 0% to 100% of the ranking rather than 1 to n, so a
+  # reader can say where in the distribution an effect sits ("the median unit",
+  # "the top quarter") without counting. The first and last units sit on 0 and
+  # 100 exactly.
+  d[["pct"]] <- 100 * (d[["rank"]] - 1) / max(n - 1, 1)
+
   # The marginal effect goes beside the units rather than behind them. A band
   # across the panel is the obvious way to draw it and the wrong one: it sits
   # under every conditional interval, so the thing the reader most wants to
   # locate is the thing hardest to see. One interval past the right edge, in its
-  # own color, is comparable by eye against any of them.
-  gap <- max(1, round(0.06 * n))
-  at <- n + gap + 1
+  # own color, is comparable by eye against any of them. The divider sits a
+  # short way past the last unit, and the marginal effect is centered between
+  # the divider and the edge of the panel, which the scale below does not pad.
+  #
+  # It is labeled as the marginal effect rather than as an average because it
+  # is one only for a difference. It is the contrast of the potential outcomes
+  # averaged over the units, and for a ratio or an odds ratio that is not the
+  # average of the units' own contrasts, which is the point of reporting it.
+  divider <- 104
+  edge <- 116
+  at <- (divider + edge) / 2
 
   # The marks shrink as the units multiply. At a few hundred they merge into a
   # solid block at any fixed size, which loses the very thing the plot is for.
@@ -1057,7 +1097,7 @@ effect_forest_units <- function(x, ylab, null_at) {
   bar_alpha <- max(0.35, min(0.9, 200 / n))
   bar_width <- max(0.25, dot / 2)
 
-  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$rank, y = .data$estimate)) +
+  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$pct, y = .data$estimate)) +
     ggplot2::geom_hline(yintercept = null_at, linetype = 2, color = "grey40") +
     ggplot2::geom_errorbar(ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
                            width = 0, color = "grey60", alpha = bar_alpha,
@@ -1067,29 +1107,35 @@ effect_forest_units <- function(x, ylab, null_at) {
   if (!is_null(marg)) {
     m <- as.data.frame(marg)
     m <- m[m[["contrast"]] %in% unique(d[["contrast"]]), , drop = FALSE]
-    m[["rank"]] <- at
+    m[["pct"]] <- at
 
     p <- p +
-      ggplot2::geom_vline(xintercept = n + gap / 2, color = "grey85") +
+      ggplot2::geom_vline(xintercept = divider, color = "grey85") +
       ggplot2::geom_errorbar(data = m,
                              ggplot2::aes(ymin = .data$lower,
                                           ymax = .data$upper),
                              width = 0, linewidth = 1, color = "firebrick") +
       ggplot2::geom_point(data = m, size = 2, color = "firebrick") +
-      ggplot2::scale_x_continuous(breaks = at, labels = "average",
-                                  limits = c(0, at + gap))
+      ggplot2::scale_x_continuous(
+        breaks = c(seq(0, 100, by = 25), at),
+        labels = c(sprintf("%d%%", seq(0L, 100L, by = 25L)), "Marginal\neffect"),
+        limits = c(0, edge),
+        expand = ggplot2::expansion(mult = c(0.02, 0)))
+  }
+  else {
+    p <- p +
+      ggplot2::scale_x_continuous(
+        breaks = seq(0, 100, by = 25),
+        labels = sprintf("%d%%", seq(0L, 100L, by = 25L)),
+        limits = c(0, 100),
+        expand = ggplot2::expansion(mult = 0.02))
   }
 
   p <- p +
-    ggplot2::labs(x = NULL, y = ylab) +
+    ggplot2::labs(x = "Units, ordered by their conditional effect", y = ylab) +
     ggplot2::theme_bw() +
     ggplot2::theme(panel.grid.major.x = ggplot2::element_blank(),
                    panel.grid.minor.x = ggplot2::element_blank())
-
-  if (is_null(marg)) {
-    p <- p + ggplot2::theme(axis.text.x = ggplot2::element_blank(),
-                            axis.ticks.x = ggplot2::element_blank())
-  }
 
   if (length(unique(d[["contrast"]])) > 1L) {
     p <- p + ggplot2::facet_wrap(~ .data$contrast)

@@ -8,6 +8,8 @@
 #' @param level `numeric`; the level of the credible interval. Default is `.95`.
 #' @param comparison passed to [estimate_effect()], which is what computes the
 #'   numbers.
+#' @param marginal `logical`; whether to draw the marginal effect beside the
+#'   conditional ones. Default is `TRUE`.
 #' @param digits `integer`; the number of significant digits to print.
 #' @param ... for `plot()`, further arguments passed to [estimate_effect()];
 #'   otherwise ignored.
@@ -38,7 +40,7 @@
 #' # The effect, with the potential outcomes it is a difference of
 #' estimate_effect(fit)
 #'
-#' # The conditional effects, ordered, with the average beside them
+#' # The conditional effects, ordered, with the marginal effect beside them
 #' plot(fit)
 #'
 #' @rdname print.bcf_fit
@@ -63,7 +65,9 @@ print.bcf_fit <- function(x, digits = 3L, ...) {
 
 #' @rdname print.bcf_fit
 #' @export
-plot.bcf_fit <- function(x, level = 0.95, comparison = "difference", ...) {
+plot.bcf_fit <- function(x, level = 0.95, comparison = "difference",
+                         marginal = TRUE, ...) {
   plot(estimate_effect(x, estimand = "CATE", comparison = comparison,
-                       level = level, ...))
+                       level = level, ...),
+       marginal = marginal)
 }

@@ -246,7 +246,7 @@ fit_dpm <- bartisan(heavy ~ x1 + x2, data = d,
 ```
 
 ```{r dpmplot, fig.height = 2.6}
-error_density(fit_dpm, plot = TRUE)
+plot(error_density(fit_dpm))
 ```
 
 ## Positive Continuous Responses

@@ -1344,20 +1344,17 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #'   either side of zero.
 #' @param level `numeric`; the width of the pointwise interval. Default is .95
 #'   for 95% intervals.
-#' @param plot `logical`; whether to return a plot of the density rather than the
-#'   density itself. Default is `FALSE` to return the values. Equivalent to
-#'   calling `plot()` on the result. Either needs \CRANpkg{ggplot2} and returns
-#'   a `ggplot` object, so it can be added to in the usual way; the values are
-#'   the thing to reach for when the density is to be drawn against something
-#'   else, as `vignette("survival")` draws it against the normal a
-#'   `lognormal_aft()` fit would have assumed.
 #'
 #' @returns
 #' A `<bartisan_error_density>` object, which is a data frame with one row per
 #' grid point and its own `plot()` method, with columns `at`, `mean`, `lower`,
-#' and `upper`, giving the posterior mean density and a pointwise interval. With
-#' `plot = TRUE`, or from `plot()` on the result, a `ggplot` object drawing the
-#' posterior mean density with that interval as a ribbon.
+#' and `upper`, giving the posterior mean density and a pointwise interval.
+#'
+#' `plot()` on the result draws the posterior mean density with that interval
+#' as a ribbon and returns a \pkg{ggplot2} object, so it can be added to in the
+#' usual way. The values are the thing to reach for when the density is to be
+#' drawn against something else, as `vignette("survival")` draws it against the
+#' normal a `lognormal_aft()` fit would have assumed.
 #'
 #' @seealso
 #' [dpm()] and [dpm_aft()] for the families with an estimated error
@@ -1383,11 +1380,10 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' plot(error_density(fit))
 #'
 #' @export
-error_density <- function(object, at = NULL, level = 0.95, plot = FALSE,
+error_density <- function(object, at = NULL, level = 0.95,
                           iterations = NULL) {
 
   arg::arg_is(object, "bartisan_fit")
-  arg::arg_flag(plot)
 
   if (!object[["family"]][["family"]] %in% c("dpm", "dpm_aft")) {
     arg::err(c("{.fn error_density} needs a fit with an estimated error
@@ -1428,13 +1424,7 @@ error_density <- function(object, at = NULL, level = 0.95, plot = FALSE,
 
   class(out) <- c("bartisan_error_density", "data.frame")
 
-  if (!plot) {
-    return(out)
-  }
-
-  # Through the method rather than beside it, so that `plot = TRUE` and
-  # `plot()` are not two drawings of the same thing that can drift apart.
-  plot(out)
+  out
 }
 
 #' @rdname error_density

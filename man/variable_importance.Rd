@@ -5,7 +5,7 @@
 \alias{plot.bartisan_importance}
 \title{How often each predictor is used}
 \usage{
-variable_importance(object, level = 0.95, draws = FALSE, plot = FALSE)
+variable_importance(object, level = 0.95, draws = FALSE)
 
 \method{plot}{bartisan_importance}(x, y, ...)
 }
@@ -17,12 +17,7 @@ Default is .95 for a 95\% interval.}
 
 \item{draws}{\code{logical}; whether to return the splitting counts of every
 posterior draw rather than a summary of them, for a comparison the summary
-does not offer. Default is \code{FALSE}. Cannot be combined with \code{plot}.}
-
-\item{plot}{\code{logical}; whether to return a \CRANpkg{ggplot2} plot of \code{splits}
-and its interval for each predictor instead of the table. Default is
-\code{FALSE}. Equivalent to calling \code{plot()} on the result, which is usually more
-convenient since the table can be subset first.}
+does not offer. Default is \code{FALSE}.}
 
 \item{x}{a \verb{<bartisan_importance>} object; the output of a call to
 \code{variable_importance()}.}
@@ -50,8 +45,11 @@ A family with more than one additive predictor has a forest for each, and the
 data frame then gains a leading \code{predictor} column naming which.
 
 With \code{draws = TRUE}, the draws-by-predictors matrix of counts instead, or a
-named list of them when there is more than one forest. With \code{plot = TRUE}, a
-\pkg{ggplot2} object.
+named list of them when there is more than one forest.
+
+\code{plot()} on the result draws \code{splits} and its interval for each predictor
+and returns a \pkg{ggplot2} object. The result can be subset first, so
+\code{plot(vi[vi$prop_used > .5, ])} draws only the predictors that are used.
 }
 \description{
 Reports, for every predictor, how many splitting rules the forest spends on

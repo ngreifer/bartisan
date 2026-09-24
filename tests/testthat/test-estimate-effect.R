@@ -230,7 +230,7 @@ test_that("an odds ratio is refused when the response is not a probability", {
                "needs the response to be a probability")
 })
 
-test_that("the plot argument and the plot method draw the same thing", {
+test_that("plot() draws each kind of effect", {
   skip_if_not_installed("ggplot2")
 
   d <- sim_effect(seed = 11L)
@@ -239,13 +239,11 @@ test_that("the plot argument and the plot method draw the same thing", {
   for (spec in list(list(estimand = "CATE"), list(by = ~ g),
                     list(estimand = "ATE"))) {
     eff <- do.call(estimate_effect, c(list(fit), spec))
-    from_method <- plot(eff)
-    from_arg <- do.call(estimate_effect, c(list(fit), spec, list(plot = TRUE)))
-
-    expect_s3_class(from_arg, "ggplot")
-    expect_equal(from_arg[["data"]], from_method[["data"]])
-    expect_equal(from_arg[["labels"]], from_method[["labels"]])
+    expect_s3_class(plot(eff), "ggplot")
   }
+
+  # Drawing is the method's job alone; there is no argument that does it.
+  expect_error(estimate_effect(fit, plot = TRUE), "unused argument")
 })
 
 test_that("print() reports the effect, its potential outcomes and its spread", {
@@ -347,13 +345,14 @@ test_that("the marginal effect is drawn beside the units, not behind them", {
 
   marginal_layer <- vapply(p[["layers"]], function(l) {
     is.data.frame(l[["data"]]) && nrow(l[["data"]]) == 1L &&
-      "rank" %in% names(l[["data"]])
+      "pct" %in% names(l[["data"]])
   }, logical(1L))
   expect_true(any(marginal_layer))
 
-  # And it sits to the right of every unit.
+  # And it sits to the right of every unit, which run from 0% to 100% of the
+  # ranking.
   marg <- p[["layers"]][[which(marginal_layer)[1L]]][["data"]]
-  expect_gt(marg[["rank"]][1L], nrow(d))
+  expect_gt(marg[["pct"]][1L], 100)
 })
 
 test_that("intervening on the treatment leaves the propensity score alone", {
@@ -627,4 +626,78 @@ test_that("the per-level predictions are the same in parallel as in sequence", {
   expect_identical(nrow(one), 3L)
   expect_equal(as.data.frame(many), as.data.frame(one))
   expect_equal(attr(many, "draws"), attr(one, "draws"))
+})
+
+test_that("the conditional-effects plot is laid out on a percentile axis", {
+  skip_if_not_installed("ggplot2")
+
+  d <- sim_effect(seed = 11L, binary = TRUE)
+  fit <- fit_effect(d, binary = TRUE)
+  p <- plot(estimate_effect(fit, estimand = "CATE"))
+  b <- ggplot2::ggplot_build(p)
+
+  # The units run from 0% to 100% of the ranking, and the axis says so.
+  expect_identical(p$labels$x, "Units, ordered by their conditional effect")
+  units <- which(vapply(b$data, function(z) {
+    "shape" %in% names(z) && nrow(z) == nrow(d)
+  }, logical(1L)))[1L]
+  expect_equal(range(b$data[[units]]$x), c(0, 100))
+
+  # The average sits centered between the divider and the panel's right edge,
+  # which the scale does not pad.
+  panel <- b$layout$panel_params[[1L]]$x.range
+  divider <- b$data[[which(vapply(b$data, function(z) {
+    "xintercept" %in% names(z)
+  }, logical(1L)))[1L]]]$xintercept
+  average <- b$data[[length(b$data)]]$x[1L]
+  expect_equal(average - divider, panel[2L] - average)
+  expect_true("Marginal\neffect" %in% b$layout$panel_params[[1L]]$x$get_labels())
+})
+
+test_that("an effect axis names the scale a difference is on", {
+  lab <- effect_axis_label
+
+  expect_identical(lab("CATE", "difference", "binomial", "response"),
+                   "Conditional effect (difference in probability)")
+  expect_identical(lab("ATE", "difference", "binomial", "response"),
+                   "Effect (difference in probability)")
+  expect_identical(lab("CATE", "difference", "binomial", "link"),
+                   "Conditional effect (difference on the link scale)")
+  expect_identical(lab("CATE", "difference", "gaussian", "link"),
+                   "Conditional effect (difference on the link scale)")
+
+  # The response's own units need no naming, and a ratio already names itself.
+  expect_identical(lab("CATE", "difference", "gaussian", "response"),
+                   "Conditional effect")
+  expect_identical(lab("CATE", "or", "binomial", "response"),
+                   "Conditional odds ratio")
+  expect_identical(lab("ATE", "ratio", "binomial", "response"), "Ratio")
+})
+
+test_that("`marginal = FALSE` leaves the marginal effect out of the plot", {
+  skip_if_not_installed("ggplot2")
+
+  d <- sim_effect(seed = 11L, binary = TRUE)
+  fit <- fit_effect(d, binary = TRUE)
+  eff <- estimate_effect(fit, estimand = "CATE")
+
+  with_it <- ggplot2::ggplot_build(plot(eff))
+  without <- ggplot2::ggplot_build(plot(eff, marginal = FALSE))
+
+  # No divider, no interval past the units, and an axis that ends with them.
+  has_vline <- function(b) any(vapply(b$data, function(z) {
+    "xintercept" %in% names(z)
+  }, logical(1L)))
+  expect_true(has_vline(with_it))
+  expect_false(has_vline(without))
+  expect_identical(length(without$data), length(with_it$data) - 3L)
+  expect_lt(without$layout$panel_params[[1L]]$x.range[2L], 104)
+  expect_false("Marginal\neffect" %in%
+                 without$layout$panel_params[[1L]]$x$get_labels())
+
+  # `plot()` on a bcf() fit passes it through.
+  from_fit <- ggplot2::ggplot_build(plot(fit, marginal = FALSE))
+  expect_false(has_vline(from_fit))
+
+  expect_error(plot(eff, marginal = "no"), "marginal")
 })

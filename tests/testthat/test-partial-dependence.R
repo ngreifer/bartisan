@@ -98,7 +98,7 @@ test_that("three predictors and unknown ones are refused", {
   expect_error(partial_dependence(fit, ~ nope), "does not have")
 })
 
-test_that("the plot argument and the plot method draw the same thing", {
+test_that("plot() draws partial dependence from the result or the fit", {
   skip_if_not_installed("ggplot2")
 
   d <- sim_x(n = 80L, p = 2L)
@@ -110,14 +110,13 @@ test_that("the plot argument and the plot method draw the same thing", {
              control = quick_control())))
 
   for (v in list(~ x1, ~ g, ~ x1 + g)) {
-    pd <- partial_dependence(fit, v, grid = 5L)
-    from_method <- plot(pd)
-    from_arg <- partial_dependence(fit, v, grid = 5L, plot = TRUE)
-
-    expect_s3_class(from_arg, "ggplot")
-    expect_equal(from_arg[["data"]], from_method[["data"]])
-    expect_equal(from_arg[["labels"]], from_method[["labels"]])
+    expect_s3_class(plot(partial_dependence(fit, v, grid = 5L)), "ggplot")
   }
+
+  # `plot` is not an argument. The dots would otherwise carry it to `predict()`,
+  # which ignores it, and the table would come back without complaint.
+  expect_error(partial_dependence(fit, ~ x1, grid = 5L, plot = TRUE),
+               "no `plot` argument")
 
   # `plot()` on the fit is the same drawing, which is what makes it sugar.
   expect_equal(plot(fit, ~ x1, grid = 5L)[["data"]],

@@ -10,11 +10,7 @@
 #'   Default is .95 for a 95% interval.
 #' @param draws `logical`; whether to return the splitting counts of every
 #'   posterior draw rather than a summary of them, for a comparison the summary
-#'   does not offer. Default is `FALSE`. Cannot be combined with `plot`.
-#' @param plot `logical`; whether to return a \CRANpkg{ggplot2} plot of `splits`
-#'   and its interval for each predictor instead of the table. Default is
-#'   `FALSE`. Equivalent to calling `plot()` on the result, which is usually more
-#'   convenient since the table can be subset first.
+#'   does not offer. Default is `FALSE`.
 #'
 #' @returns
 #' A `<bartisan_importance>` object, which is a data frame with one row per
@@ -33,8 +29,11 @@
 #' data frame then gains a leading `predictor` column naming which.
 #'
 #' With `draws = TRUE`, the draws-by-predictors matrix of counts instead, or a
-#' named list of them when there is more than one forest. With `plot = TRUE`, a
-#' \pkg{ggplot2} object.
+#' named list of them when there is more than one forest.
+#'
+#' `plot()` on the result draws `splits` and its interval for each predictor
+#' and returns a \pkg{ggplot2} object. The result can be subset first, so
+#' `plot(vi[vi$prop_used > .5, ])` draws only the predictors that are used.
 #'
 #' @details
 #' ## Reading the Columns
@@ -113,14 +112,12 @@
 #' plot(head(imp, 8))
 #'
 #' @export
-variable_importance <- function(object, level = 0.95, draws = FALSE,
-                                plot = FALSE) {
+variable_importance <- function(object, level = 0.95, draws = FALSE) {
 
   arg::arg_is(object, "bartisan_fit")
   arg::arg_number(level)
   arg::arg_between(level, c(0, 1), inclusive = FALSE)
   arg::arg_flag(draws)
-  arg::arg_flag(plot)
 
   counts <- object[["counts"]]
 
@@ -129,12 +126,6 @@ variable_importance <- function(object, level = 0.95, draws = FALSE,
   }
 
   if (draws) {
-    if (plot) {
-      arg::err(c("{.arg draws} and {.arg plot} ask for different things.",
-                 i = "{.code draws = TRUE} returns the counts to summarize
-                      yourself; {.code plot = TRUE} draws the summary."))
-    }
-
     # One forest needs no list around it, matching what `coef()` does.
     if (length(counts) == 1L) {
       return(counts[[1L]])
@@ -186,13 +177,7 @@ variable_importance <- function(object, level = 0.95, draws = FALSE,
   attr(out, "sparsity") <- isTRUE(object[["control"]][["sparsity"]])
   class(out) <- c("bartisan_importance", "data.frame")
 
-  if (!plot) {
-    return(out)
-  }
-
-  # Through the method rather than beside it, so that `plot = TRUE` and `plot()`
-  # cannot become two drawings of the same table.
-  plot(out)
+  out
 }
 
 #' @rdname variable_importance
@@ -211,7 +196,7 @@ plot.bartisan_importance <- function(x, y, ...) {
 importance_plot <- function(x) {
 
   x[["variable"]] <- factor(x[["variable"]],
-                            levels = rev(unique(x[["variable"]])))
+                            levels = rev(sort(unique(x[["variable"]]))))
 
   p <- ggplot2::ggplot(x, ggplot2::aes(x = .data$splits, y = .data$variable)) +
     ggplot2::geom_errorbar(ggplot2::aes(xmin = .data$splits_lower,

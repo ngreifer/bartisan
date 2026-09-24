@@ -5,7 +5,7 @@
 \alias{plot.bartisan_error_density}
 \title{Error distribution of a Dirichlet process mixture fit}
 \usage{
-error_density(object, at = NULL, level = 0.95, plot = FALSE, iterations = NULL)
+error_density(object, at = NULL, level = 0.95, iterations = NULL)
 
 \method{plot}{bartisan_error_density}(x, y, ...)
 }
@@ -21,14 +21,6 @@ either side of zero.}
 \item{level}{\code{numeric}; the width of the pointwise interval. Default is .95
 for 95\% intervals.}
 
-\item{plot}{\code{logical}; whether to return a plot of the density rather than the
-density itself. Default is \code{FALSE} to return the values. Equivalent to
-calling \code{plot()} on the result. Either needs \CRANpkg{ggplot2} and returns
-a \code{ggplot} object, so it can be added to in the usual way; the values are
-the thing to reach for when the density is to be drawn against something
-else, as \code{vignette("survival")} draws it against the normal a
-\code{lognormal_aft()} fit would have assumed.}
-
 \item{iterations}{\code{numeric}; optional indices of the stored draws to use,
 between 1 and the number of draws the fit retains. Default is \code{NULL} to use
 all of them.}
@@ -43,9 +35,13 @@ all of them.}
 \value{
 A \verb{<bartisan_error_density>} object, which is a data frame with one row per
 grid point and its own \code{plot()} method, with columns \code{at}, \code{mean}, \code{lower},
-and \code{upper}, giving the posterior mean density and a pointwise interval. With
-\code{plot = TRUE}, or from \code{plot()} on the result, a \code{ggplot} object drawing the
-posterior mean density with that interval as a ribbon.
+and \code{upper}, giving the posterior mean density and a pointwise interval.
+
+\code{plot()} on the result draws the posterior mean density with that interval
+as a ribbon and returns a \pkg{ggplot2} object, so it can be added to in the
+usual way. The values are the thing to reach for when the density is to be
+drawn against something else, as \code{vignette("survival")} draws it against the
+normal a \code{lognormal_aft()} fit would have assumed.
 }
 \description{
 Estimates the density of the errors of a \code{\link[=dpm]{dpm()}} or \code{\link[=dpm_aft]{dpm_aft()}} fit, as the

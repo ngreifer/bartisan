@@ -24,9 +24,6 @@
 #' @param level `numeric`; the level of the credible interval. Default is `.95`.
 #' @param type `string`; the prediction scale, passed to
 #'   [predict.bartisan_fit()]. Default is `"response"`.
-#' @param plot `logical`; whether to draw the result rather than return it.
-#'   Default is `FALSE`. `plot = TRUE` calls [plot.bartisan_partial()], so the
-#'   argument and the method cannot disagree.
 #' @param x a `<bartisan_partial>` object; the output of a call to
 #'   `partial_dependence()`. For `plot.bartisan_fit()`, a `<bartisan_fit>`.
 #' @param digits `integer`; for `print()`, the number of significant digits to
@@ -110,14 +107,24 @@
 #' @export
 partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
                                values = NULL, level = 0.95, type = "response",
-                               plot = FALSE, ...) {
+                               ...) {
 
   arg::arg_is(object, "bartisan_fit")
+
+  # `plot` was an argument, and the dots pass anything else through to
+  # `predict()`, which ignores what it does not know, so an old `plot = TRUE`
+  # would quietly return the table. The other functions that dropped it fail on
+  # an unused argument; this one has to be told to.
+  if ("plot" %in% ...names()) {
+    arg::err(c("{.fn partial_dependence} has no {.arg plot} argument.",
+               i = "Call {.fn plot} on its result, or {.code plot(fit, ~ x)}
+                    on the fit."))
+  }
+
   arg::arg_whole_number(grid)
   arg::arg_gte(grid, 2)
   arg::arg_number(level)
   arg::arg_between(level, c(0, 1), inclusive = FALSE)
-  arg::arg_flag(plot)
 
   vars <- pd_variables(variables)
 
@@ -229,11 +236,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
   attr(out, "n_units") <- nrow(newdata)
   class(out) <- c("bartisan_partial", "data.frame")
 
-  if (!plot) {
-    return(out)
-  }
-
-  plot(out)
+  out
 }
 
 pd_variables <- function(variables) {
@@ -519,7 +522,7 @@ plot.bartisan_fit <- function(x, y, ...) {
                     predictors are worth asking about."))
   }
 
-  partial_dependence(x, variables = y, ..., plot = TRUE)
+  plot(partial_dependence(x, variables = y, ...))
 }
 
 # How a grid point is predicted, chosen once for the whole grid.

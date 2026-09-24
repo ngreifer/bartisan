@@ -16,13 +16,12 @@ estimate_effect(
   level = 0.95,
   interval = "eti",
   focal = NULL,
-  type = "response",
-  plot = FALSE
+  type = "response"
 )
 
 \method{print}{bartisan_effect}(x, digits = 3L, contrasts = NULL, potential_outcomes = TRUE, ...)
 
-\method{plot}{bartisan_effect}(x, ...)
+\method{plot}{bartisan_effect}(x, marginal = TRUE, ...)
 }
 \arguments{
 \item{object}{a \verb{<bartisan_fit>} object; the output of a call to \code{\link[=bcf]{bcf()}} or
@@ -77,9 +76,6 @@ to \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. Default is \code
 which an average of unit-level differences is the marginal effect. See
 Details before changing it.}
 
-\item{plot}{\code{logical}; whether to draw the result rather than return it.
-Default is \code{FALSE}. \code{plot = TRUE} calls \code{\link[=plot.bartisan_effect]{plot.bartisan_effect()}}.}
-
 \item{x}{a \verb{<bartisan_effect>} object; the output of a call to
 \code{estimate_effect()}.}
 
@@ -97,6 +93,11 @@ contrasts were computed from. Default is \code{TRUE}. They are in the result's
 \code{"potential_outcomes"} attribute either way.}
 
 \item{...}{ignored.}
+
+\item{marginal}{\code{logical}; for \code{plot()} on conditional effects (i.e.,
+\code{estimand = "CATE"}), whether to draw the marginal effect beside the units.
+Default is \code{TRUE}. Ignored by the other plots, which draw no marginal
+effect beside their estimates.}
 }
 \value{
 A \verb{<bartisan_effect>} object, a data frame with one row per reported effect
@@ -194,7 +195,7 @@ estimate_effect(fit)
 # Among the treated, and as a risk ratio rather than a difference
 estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 
-# One effect per unit, ordered, with the average behind them
+# One effect per unit, ordered, with the marginal effect beside them
 cate <- estimate_effect(fit, estimand = "CATE")
 plot(cate)
 
