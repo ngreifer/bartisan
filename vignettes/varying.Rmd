@@ -87,7 +87,7 @@ We can see that `age`, `paco2`, and `surv2m` were used in every tree in the cont
 
 ### Effect Modifiers (`modifiers`)
 
-By default, a coefficient is allowed to vary with every predictor in the model except the covariate itself, and `modifiers`, the second argument to `vc()`, is a one-sided formula that narrows that:
+By default, a coefficient is allowed to vary with every predictor in the model except the covariate itself. Supplying an argument to `modifiers`, the second argument to `vc()` taking a one-sided formula, allows one to control which predictors enter the coefficient forest.
 
 ```{r vcmod, eval = run}
 set.seed(2026)
@@ -99,7 +99,7 @@ fit_aps <- bartisan(death ~ age + sex + race + edu + aps +
                     data = rhc, family = binomial())
 ```
 
-Now the effect of catheterization may differ by severity of illness (`aps`) and by `age` and by nothing else, which is a statement about the model and not a restriction the data can undo. Narrowing is worth doing when there is reason to think the effect depends on a few things, since a forest asked to search fourteen predictors for heterogeneity that lives in two will spend some of its prior on the other twelve.
+Now the effect of catheterization may differ by severity of illness (`aps`), `age`, and nothing else, which is a statement about the model and not a restriction the data can undo. Restricting the modifiers is worth doing when there is reason to think the effect depends only on a few specific predictors, since a forest asked to search fourteen predictors for heterogeneity that lives in two will spend some of its prior on the other twelve.
 
 Calling `summary()` on `fit_aps`, we can see that the only variables used in the varying coefficient forest are indeed `aps` and `age`, as requested:
 
@@ -107,12 +107,12 @@ Calling `summary()` on `fit_aps`, we can see that the only variables used in the
 summary(fit_aps)
 ```
 
-The other thing `modifiers` decides is whether the effect is linear in the covariate. As written, the model is $z\, f_1(Z)$, which for a binary $z$ is no assumption at all, there being only two values, and for a continuous one says the effect is proportional to it. That is a real restriction, and a numeric covariate is allowed to modify its own coefficient to remove it:
+When the modified variable is continuous, `modifiers` decides whether the effect is linear in the covariate. As written, the model is $z\, f_1(Z)$, which for a binary $z$ is no assumption at all, there being only two values, and for a continuous one says the effect is conditionally linear. That is a real restriction, and a numeric covariate is allowed to modify its own coefficient to remove it:
 
 ```{r vcself, eval = FALSE}
 # The effect of `aps` may itself change across `aps`, so the dose response is
 # a curve rather than a line through the origin
-bartisan(death ~ age + sex + vc(aps, ~ aps + age + sex),
+bartisan(death ~ age + sex + vc(aps, ~ . + aps),
          data = rhc, family = binomial())
 ```
 
@@ -161,7 +161,7 @@ c(log_OR = mean(b),
 
 An odds ratio of about 1.4, conditional on the predictors in the forest. A constant conditional odds ratio is a much more clinically meaningful effect summary than a marginal effect measure because it describes the estimated effect for each patient profile as determined by the included covariates, as opposed to an average effect across a whole population. This is the same interpretation a coefficient in a logistic regression would have, but fit with BART, we can be reasonably confident that any nonlinearities and interactions among covariates are adjusted for, whereas a logistic regression must impose the model structure a researcher believes to be there.
 
-It is important to remember that the coefficient is drawn under the leaf prior of its own forest and not under a prior written for a regression coefficient, so it is shrunk toward zero and is a regularized log odds ratio rather than a maximum likelihood one; because the leaf scale is divided by $\sqrt{m}$ for a forest of $m$ trees, that prior does not change with the number of trees. Also, the comparison between a fixed and a varying coefficient is far better powered on some outcomes than others. On a Gaussian outcome with a coefficient truly ranging from 0.3 to 2.5, the varying coefficient was easily preferred at $n = 1000$; on a binary outcome with the same coefficients it  both models were equally preferred. A null result on a binary outcome at a few hundred observations says little, and should not be read as evidence that an effect is constant.
+It is important to remember that the coefficient is drawn under the leaf prior of its own forest and not under a prior written for a regression coefficient, so it is shrunk toward zero and is a regularized log odds ratio rather than a maximum likelihood one; because the leaf scale is divided by $\sqrt{m}$ for a forest of $m$ trees, that prior does not change with the number of trees. Also, the comparison between a fixed and a varying coefficient is far better powered on some outcomes than others. On a Gaussian outcome with a coefficient truly ranging from 0.3 to 2.5, the varying coefficient was easily preferred at $n = 1000$; on a binary outcome with the same coefficients, both models were equally preferred. A null result on a binary outcome at a few hundred observations says little, and should not be read as evidence that an effect is constant.
 
 ## Reading a Fit
 

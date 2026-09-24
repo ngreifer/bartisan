@@ -262,7 +262,7 @@ split_vc_terms <- function(formula, unique_covariates = TRUE) {
 
     if (!is.symbol(covariate)) {
       arg::err(c("{.code {label}} must name a bare predictor, not
-                  {.code {deparse(covariate)}}",
+                  {.code {deparse(covariate)}}.",
                  i = "Compute it in {.arg data} first, then name the column."))
     }
 
@@ -347,7 +347,7 @@ check_no_buried_vc <- function(expr) {
 
   if (is_vc_call(expr)) {
     arg::err(c("{.code {deparse1(expr)}} must be added to the formula with
-                {.code +}",
+                {.code +}.",
                i = "{.fn vc} names one of the model's terms; it cannot be
                   subtracted, crossed or nested inside another term."))
   }
@@ -535,7 +535,7 @@ vc_basis_numeric <- function(x, spec) {
     center,
     arg::arg_string,
     arg::arg_number,
-    .arg = sprintf("center of %s", spec[["label"]])
+    .msg = sprintf("In {.code %s}, {.arg center} must be a string or a number", spec[["label"]])
   )
 
   if (is.character(center)) {
@@ -543,7 +543,7 @@ vc_basis_numeric <- function(x, spec) {
     # a second test against the unmatched string would take `"est"` down the
     # fixed-centering path without a word.
     center <- arg::match_arg(center, c("auto", "mean", "zero", "mid", "estimate"),
-                             .arg = sprintf("center of %s", spec[["label"]]))
+                             .context = sprintf("In {.code %s},", spec[['label']]))
 
     if (identical(center, "estimate")) {
       return(vc_basis_estimated(x, spec,
@@ -634,8 +634,7 @@ vc_basis_factor <- function(x, spec) {
 
   if (length(levels) < 2L) {
     arg::err("{.code {spec[['label']]}} needs a predictor with at least two
-              levels; {.val {spec[['covariate']]}} has
-              {length(levels)}")
+              levels; {.val {spec[['covariate']]}} has {length(levels)}")
   }
 
   center <- spec[["center"]]
@@ -651,7 +650,7 @@ vc_basis_factor <- function(x, spec) {
   }
 
   if (is.numeric(center) || !center %in% c("mean", levels)) {
-    arg::err(c("the center of {.code {spec[['label']]}} must be {.val mean},
+    arg::err(c("The center of {.code {spec[['label']]}} must be {.val mean},
                 {.val estimate} or one of {.val {levels}}.",
                i = "{.val {spec[['covariate']]}} is categorical, so
                   {.val zero}, {.val mid} and a number do not name a value it
@@ -720,7 +719,7 @@ vc_modifier_only <- function(specs, fixed, data = NULL) {
       next
     }
 
-    vars <- intersect(all.vars(spec[["modifiers"]]), 
+    vars <- intersect(all.vars(spec[["modifiers"]]),
                       all.vars(stats::reformulate(out %or% "1")))
     where <- environment(spec[["modifiers"]]) %or% parent.frame()
     missing <- vars[!vapply(vars, function(v) {
@@ -730,7 +729,7 @@ vc_modifier_only <- function(specs, fixed, data = NULL) {
     if (!is_null(missing)) {
       arg::err(c("The modifiers of {.code {spec[['label']]}} name
                   {length(missing)} thing{?s} that {?is/are} not a column of
-                  {.arg data}: {.var {missing}}",
+                  {.arg data}: {.var {missing}}.",
                  i = "A modifier may name a variable the fixed part leaves out,
                       in which case it modifies the coefficient without
                       entering the control function; but it still has to
@@ -845,11 +844,11 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
                 groups = groups))
   }
 
-  missing_from_frame <- setdiff(
-    unlist(lapply(forest_vc, function(f) {
-      pluck(f[["specs"]], "covariate", character(1L))
-    }), use.names = FALSE),
-    names(mf))
+  missing_from_frame <- lapply(forest_vc, function(f) {
+    pluck(f[["specs"]], "covariate", character(1L))
+  }) |>
+    unlist(use.names = FALSE) |>
+    setdiff(names(mf))
 
   if (!is_null(missing_from_frame)) {
     arg::err("{.arg data} has no column {.val {missing_from_frame}}")
@@ -889,8 +888,8 @@ resolve_vc <- function(forest_vc, mf, design, base_masks, n_aux = 0L,
 
     categorical <- vapply(basis[["parts"]],
                           function(p) identical(p[["kind"]], "factor"),
-                          logical(1L))
-    names(categorical) <- pluck(specs, "covariate", character(1L))
+                          logical(1L)) |>
+      setNames(pluck(specs, "covariate", character(1L)))
 
     modifiers <- vc_modifiers(specs, allowed, forest_vc[[h]][["dot"]],
                               categorical, labels[h], slope_groups = groups)
@@ -1037,8 +1036,10 @@ vc_recenter <- function(slopes, vc, object, iterations = NULL) {
       base <- names(slopes)[columns]
 
       for (k in seq_along(levels)[-1L]) {
-        label <- if (length(levels) == 2L) base
-        else sprintf("%s%s", base, levels[k])
+        label <- {
+          if (length(levels) == 2L) base
+          else sprintf("%s%s", base, levels[k])
+        }
         out[[label]] <- (b[, k] - b[, 1L]) * slopes[[columns]]
       }
 
