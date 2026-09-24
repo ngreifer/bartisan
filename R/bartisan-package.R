@@ -22,19 +22,19 @@
 #' | predict for new data | [predict.bartisan_fit()] |
 #' | a prediction with an interval | \pkgfun{marginaleffects}{predictions} |
 #' | an interval for a new observation, noise included | [`posterior_predict()`][bartisan-interop] |
-#' | how much a predictor moves the outcome | \pkgfun{marginaleffects}{avg_comparisons} |
-#' | a partial dependence plot | [partial_dependence()], or \pkgfun{marginaleffects}{plot_predictions} for more control over the grid |
+#' | how much a predictor moves the outcome | \pkgfun{marginaleffects}{avg_comparisons}, `vignette("effects")` |
+#' | a partial dependence plot | [partial_dependence()] |
 #' | which predictors the forest uses | [variable_importance()] |
 #' | to tell the prior which predictors matter | `split_prior` in [bartisan_control()] |
 #' | to see what prior a fit was given | [`prior_summary()`][bartisan-interop] |
 #' | to see what that prior implies about the outcome | `prior_only` in [bartisan()] |
 #' | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [`bartisan-families`] |
-#' | a coefficient that varies with the other predictors | [vc()] in the formula, then [coef()] |
+#' | a coefficient that varies with the other predictors | [vc()] in the formula, `vignette("varying")` |
 #' | a treatment effect with its own prior | [bcf()], `vignette("causal")` |
 #' | the ATE, ATT or the effect for each unit | [estimate_effect()] |
-#' | to check it converged and mixed | [diagnose()], then [`as_draws()`][bartisan-interop] with \pkg{bayesplot} |
+#' | to check it converged and mixed | [diagnose()], then [`as_draws()`][bartisan-interop] with \pkg{bayesplot}, `vignette("diagnostics")` |
 #' | to check it fits | [`pp_check()`][bartisan-interop], [`residuals()`][bartisan-interop] |
-#' | to compare two models | [`loo()`][bartisan-interop] |
+#' | to compare two models | [`loo()`][bartisan-interop], `vignette("comparison")` |
 #' | survival data | [ph()], [dpm_aft()], `vignette("survival")` |
 #' | a likelihood of one's own | [custom_family()] |
 #'

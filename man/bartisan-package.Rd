@@ -27,19 +27,19 @@ need. This table is the map.\tabular{ll}{
    predict for new data \tab \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} \cr
    a prediction with an interval \tab \pkgfun{marginaleffects}{predictions} \cr
    an interval for a new observation, noise included \tab \code{\link[=bartisan-interop]{posterior_predict()}} \cr
-   how much a predictor moves the outcome \tab \pkgfun{marginaleffects}{avg_comparisons} \cr
-   a partial dependence plot \tab \code{\link[=partial_dependence]{partial_dependence()}}, or \pkgfun{marginaleffects}{plot_predictions} for more control over the grid \cr
+   how much a predictor moves the outcome \tab \pkgfun{marginaleffects}{avg_comparisons}, \code{vignette("effects")} \cr
+   a partial dependence plot \tab \code{\link[=partial_dependence]{partial_dependence()}} \cr
    which predictors the forest uses \tab \code{\link[=variable_importance]{variable_importance()}} \cr
    to tell the prior which predictors matter \tab \code{split_prior} in \code{\link[=bartisan_control]{bartisan_control()}} \cr
    to see what prior a fit was given \tab \code{\link[=bartisan-interop]{prior_summary()}} \cr
    to see what that prior implies about the outcome \tab \code{prior_only} in \code{\link[=bartisan]{bartisan()}} \cr
    to give one forest its own predictors or settings \tab a list of formulas, and per-forest arguments; see \code{\link{bartisan-families}} \cr
-   a coefficient that varies with the other predictors \tab \code{\link[=vc]{vc()}} in the formula, then \code{\link[=coef]{coef()}} \cr
+   a coefficient that varies with the other predictors \tab \code{\link[=vc]{vc()}} in the formula, \code{vignette("varying")} \cr
    a treatment effect with its own prior \tab \code{\link[=bcf]{bcf()}}, \code{vignette("causal")} \cr
    the ATE, ATT or the effect for each unit \tab \code{\link[=estimate_effect]{estimate_effect()}} \cr
-   to check it converged and mixed \tab \code{\link[=diagnose]{diagnose()}}, then \code{\link[=bartisan-interop]{as_draws()}} with \pkg{bayesplot} \cr
+   to check it converged and mixed \tab \code{\link[=diagnose]{diagnose()}}, then \code{\link[=bartisan-interop]{as_draws()}} with \pkg{bayesplot}, \code{vignette("diagnostics")} \cr
    to check it fits \tab \code{\link[=bartisan-interop]{pp_check()}}, \code{\link[=bartisan-interop]{residuals()}} \cr
-   to compare two models \tab \code{\link[=bartisan-interop]{loo()}} \cr
+   to compare two models \tab \code{\link[=bartisan-interop]{loo()}}, \code{vignette("comparison")} \cr
    survival data \tab \code{\link[=ph]{ph()}}, \code{\link[=dpm_aft]{dpm_aft()}}, \code{vignette("survival")} \cr
    a likelihood of one's own \tab \code{\link[=custom_family]{custom_family()}} \cr
 }
