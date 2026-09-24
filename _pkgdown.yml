@@ -5,6 +5,54 @@ template:
   light-switch: true
   math-rendering: mathjax
 
+# The Articles menu is written out rather than generated from the `articles:`
+# index below, because pkgdown adds a link to that index only when some
+# articles are left out of the menu. A new vignette therefore needs a line here
+# as well as in `articles:`. The headings follow the index's sections, in the
+# same order. The FAQ is left out because it has its own link on the bar.
+navbar:
+  structure:
+    left: [intro, reference, articles, faq, tutorials, news]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: All articles
+        href: articles/index.html
+      - text: ---------
+      - text: Start Here
+      - text: Getting Started with bartisan
+        href: articles/bartisan.html
+      - text: ---------
+      - text: Fitting a Model
+      - text: Response Families in bartisan
+        href: articles/families.html
+      - text: Survival Analysis in bartisan
+        href: articles/survival.html
+      - text: Varying Coefficients and Random Intercepts
+        href: articles/varying.html
+      - text: ---------
+      - text: Reading a Fit
+      - text: Effects, Curves, and Interactions
+        href: articles/effects.html
+      - text: Which Variables Matter
+        href: articles/importance.html
+      - text: Causal Inference with BART
+        href: articles/causal.html
+      - text: ---------
+      - text: Checking a Fit
+      - text: Checking Convergence and Fit
+        href: articles/diagnostics.html
+      - text: Choosing Between Models
+        href: articles/comparison.html
+      - text: ---------
+      - text: Reference
+      - text: Generalized BART with bartisan
+        href: articles/implementation.html
+    faq:
+      text: FAQ
+      href: articles/faq.html
+
 reference:
 - title: Overview
   desc: >
