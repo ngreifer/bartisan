@@ -111,18 +111,46 @@
 <span><span class="co">#&gt; Observations: 1500</span></span>
 <span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 800 kept after 200 warmup</span></span></code></pre></div>
-<p>Nothing had to be said about which predictors matter, which are curved, or which interact. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> shows what the model made of one of them, here the study’s own estimate of each patient’s chance of surviving two months:</p>
+<p>Calling <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on the fit displays a measure of variable importance, how often predictors were used to split the trees:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">+</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Generalized BART</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Call:</span></span>
+<span><span class="co">#&gt; bartisan(formula = death ~ rhc + age + sex + race + edu + pafi + </span></span>
+<span><span class="co">#&gt;     paco2 + crea + surv2m + card, data = rhc, family = binomial())</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Family: "binomial" with the "logit" link</span></span>
+<span><span class="co">#&gt; Observations: 1500</span></span>
+<span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
+<span><span class="co">#&gt; Draws: 800</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Predictor usage</span></span>
+<span><span class="co">#&gt; Splitting rules per draw, and how often used at all.</span></span>
+<span><span class="co">#&gt;          mean     sd lower upper prop_used</span></span>
+<span><span class="co">#&gt; age    12.422  6.583     3 28.02     1.000</span></span>
+<span><span class="co">#&gt; surv2m 26.810 10.464    11 49.00     1.000</span></span>
+<span><span class="co">#&gt; rhc     4.916  4.248     0 17.00     0.960</span></span>
+<span><span class="co">#&gt; pafi    7.811  5.587     0 21.00     0.941</span></span>
+<span><span class="co">#&gt; paco2   5.221  4.787     0 17.00     0.909</span></span>
+<span><span class="co">#&gt; crea   10.167  9.482     0 34.02     0.897</span></span>
+<span><span class="co">#&gt; edu     3.114  3.225     0 11.03     0.789</span></span>
+<span><span class="co">#&gt; card    2.980  3.626     0 12.00     0.608</span></span>
+<span><span class="co">#&gt; sex     2.354  3.245     0 10.00     0.521</span></span>
+<span><span class="co">#&gt; race    1.176  1.762     0  6.00     0.439</span></span></code></pre></div>
+<p>Nothing had to be said about which predictors matter, which are curved, or which interact. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> shows what the model made of one of them, here the study’s own estimate of each patient’s chance of surviving two months:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Estimated probability of surviving two months"</span>,</span>
 <span>                y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="reference/figures/README-pdp-1.png" alt="Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .48, inside a credible band that widens at both ends." width="90%" style="display: block; margin: auto;"></p>
 <p>A forest has no coefficients, so an effect is a contrast between what the model predicts under one value of a predictor and under another, averaged over the sample. Every posterior draw goes through that contrast, so what comes back is a credible interval rather than a standard error:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Average treatment effect (difference)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Treatment: "rhc"</span></span>
+<span><span class="co">#&gt; Treatment: `rhc`</span></span>
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     contrast estimate lower upper    n</span></span>
@@ -136,7 +164,12 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed</span></span>
 <span><span class="co">#&gt;   credible interval.</span></span>
-<span><span class="co">#&gt; ℹ Y[a] is the average response with "rhc" set to a.</span></span></code></pre></div>
+<span><span class="co">#&gt; ℹ Y[a] is the average response with `rhc` set to "a".</span></span></code></pre></div>
+<p>To examine effect heterogeneity, one can generate a plot of conditional effect estimates for all units:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span>, estimand <span class="op">=</span> <span class="st">"CATE"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p><img src="reference/figures/README-unnamed-chunk-3-1.png" alt="" width="90%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level2">
 <h2 id="learning-more">Learning More<a class="anchor" aria-label="anchor" href="#learning-more"></a>
@@ -159,6 +192,10 @@
 <tr>
 <td>Censored and survival outcomes</td>
 <td><code><a href="articles/survival.html">vignette("survival")</a></code></td>
+</tr>
+<tr>
+<td>Varying coefficient models</td>
+<td><code><a href="articles/varying.html">vignette("varying")</a></code></td>
 </tr>
 <tr>
 <td>Effects, curves, and interactions</td>
