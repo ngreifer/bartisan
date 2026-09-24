@@ -38,7 +38,33 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="../articles/index.html">All articles</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
+    <li><a class="dropdown-item" href="../articles/bartisan.html">Getting Started with bartisan</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Fitting a Model</h6></li>
+    <li><a class="dropdown-item" href="../articles/families.html">Response Families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/survival.html">Survival Analysis in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/varying.html">Varying Coefficients and Random Intercepts</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Reading a Fit</h6></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, Curves, and Interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/importance.html">Which Variables Matter</a></li>
+    <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Checking a Fit</h6></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking Convergence and Fit</a></li>
+    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing Between Models</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
+  </ul>
+</li>
+<li class="active nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -79,17 +105,13 @@ Greifer</h4>
 
     
     
-<div class="section level2">
-<h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
-</h2>
-<p>These are the questions that come up most often about BART and about
+<p>These are some questions that come up most often about BART and
 <em>bartisan</em>. Each answer stands on its own, so they can be read in
 any order, and each one points at the vignette or help page that works
 its topic through in full.</p>
-</div>
-<div class="section level2">
-<h2 id="what-is-bart">What is BART?<a class="anchor" aria-label="anchor" href="#what-is-bart"></a>
-</h2>
+<div class="section level3">
+<h3 id="what-is-bart">What is BART?<a class="anchor" aria-label="anchor" href="#what-is-bart"></a>
+</h3>
 <p>BART stands for “Bayesian Additive Regression Trees”. It’s a Bayesian
 machine learning method used to model the relationship between
 predictors and outcomes. It’s similar to GBM/xgboost, extraTrees, and
@@ -99,15 +121,15 @@ random forests and extraTrees average theirs. This lets it approximate
 complex and nonlinear functions without you needing to specify their
 form.</p>
 </div>
-<div class="section level2">
-<h2 id="howwhen-should-i-use-bart">How/When should I use BART?<a class="anchor" aria-label="anchor" href="#howwhen-should-i-use-bart"></a>
-</h2>
+<div class="section level3">
+<h3 id="howwhen-should-i-use-bart">How/When should I use BART?<a class="anchor" aria-label="anchor" href="#howwhen-should-i-use-bart"></a>
+</h3>
 <p>Use BART exactly the same way you would use any regression method or
 any machine learning method.</p>
 </div>
-<div class="section level2">
-<h2 id="how-can-a-machine-learning-method-be-bayesian">How can a machine learning method be Bayesian?<a class="anchor" aria-label="anchor" href="#how-can-a-machine-learning-method-be-bayesian"></a>
-</h2>
+<div class="section level3">
+<h3 id="how-can-a-machine-learning-method-be-bayesian">How can a machine learning method be Bayesian?<a class="anchor" aria-label="anchor" href="#how-can-a-machine-learning-method-be-bayesian"></a>
+</h3>
 <p>Each parameter of the model, including which variables are used to
 split the trees, how deep each tree is, the predicted value in the leaf,
 the residual variance, etc., is assigned a prior, and through running
@@ -116,9 +138,9 @@ traditional machine learning models, these parameters are given an
 individual value, or the values are tuned across a grid. The posterior
 enables Bayesian inference on BART’s predictions.</p>
 </div>
-<div class="section level2">
-<h2 id="how-can-a-bayesian-method-be-machine-learning">How can a Bayesian method be machine learning?<a class="anchor" aria-label="anchor" href="#how-can-a-bayesian-method-be-machine-learning"></a>
-</h2>
+<div class="section level3">
+<h3 id="how-can-a-bayesian-method-be-machine-learning">How can a Bayesian method be machine learning?<a class="anchor" aria-label="anchor" href="#how-can-a-bayesian-method-be-machine-learning"></a>
+</h3>
 <p>Instead of specifying a specific functional form as you would in a
 Bayesian generalized linear model (GLM), you specify priors governing a
 tree structure (e.g., the depth of trees, the variables to split on),
@@ -127,9 +149,9 @@ Bayesian because all components of the model have a prior and posterior,
 but rather than putting priors on GLM coefficients, you put priors on
 aspects of the machine learning model.</p>
 </div>
-<div class="section level2">
-<h2 id="how-can-bart-be-used-for-inference">How can BART be used for inference?<a class="anchor" aria-label="anchor" href="#how-can-bart-be-used-for-inference"></a>
-</h2>
+<div class="section level3">
+<h3 id="how-can-bart-be-used-for-inference">How can BART be used for inference?<a class="anchor" aria-label="anchor" href="#how-can-bart-be-used-for-inference"></a>
+</h3>
 <p>Because each prediction from the model has a posterior, any quantity
 derived from the predictions, like average marginal effects, has one
 too. These can be used as part of a modern regression workflow through
@@ -141,9 +163,9 @@ learning models no longer problematic for arriving at interpretable
 model summaries, and the posteriors of these quantities allow for
 Bayesian inference on them.</p>
 </div>
-<div class="section level2">
-<h2 id="how-do-i-get-estimates-out-of-the-model">How do I get estimates out of the model?<a class="anchor" aria-label="anchor" href="#how-do-i-get-estimates-out-of-the-model"></a>
-</h2>
+<div class="section level3">
+<h3 id="how-do-i-get-estimates-out-of-the-model">How do I get estimates out of the model?<a class="anchor" aria-label="anchor" href="#how-do-i-get-estimates-out-of-the-model"></a>
+</h3>
 <p><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> gives you the fitted values or the full
 posterior of them. <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> turns those into a
 treatment effect: the ATE, the ATT, or one effect per unit, with a
@@ -164,9 +186,9 @@ delta-method standard error. See <code><a href="../articles/effects.html">vignet
 the worked versions and <code><a href="../reference/estimate_effect.html">?estimate_effect</a></code> for the
 estimands.</p>
 </div>
-<div class="section level2">
-<h2 id="what-if-i-have-missing-data">What if I have missing data?<a class="anchor" aria-label="anchor" href="#what-if-i-have-missing-data"></a>
-</h2>
+<div class="section level3">
+<h3 id="what-if-i-have-missing-data">What if I have missing data?<a class="anchor" aria-label="anchor" href="#what-if-i-have-missing-data"></a>
+</h3>
 <p>Missing values in the predictors are fine and nothing is dropped for
 them, though <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts a missing value only in a
 column that had one at fitting time, since only those columns’ rules
@@ -179,9 +201,9 @@ whether it is observed as well as through its value. Missingness in the
 outcome is different: those rows are dropped, with a warning saying how
 many.</p>
 </div>
-<div class="section level2">
-<h2 id="can-i-supply-my-own-likelihood">Can I supply my own likelihood?<a class="anchor" aria-label="anchor" href="#can-i-supply-my-own-likelihood"></a>
-</h2>
+<div class="section level3">
+<h3 id="can-i-supply-my-own-likelihood">Can I supply my own likelihood?<a class="anchor" aria-label="anchor" href="#can-i-supply-my-own-likelihood"></a>
+</h3>
 <p>Yes, through <code><a href="../reference/custom_family.html">custom_family()</a></code>, which is the feature the
 package is named for. You give it a function of the response and the
 additive predictors, <code>function(y, eta)</code>, returning one log
@@ -196,9 +218,9 @@ the link scale, and <code><a href="https://mc-stan.org/loo/reference/loo.html" c
 predictors rather than a fitted mean, since the package cannot know
 where the mean of a supplied density sits.</p>
 </div>
-<div class="section level2">
-<h2 id="why-is-my-model-slow-and-what-should-i-change-first">Why is my model slow, and what should I change first?<a class="anchor" aria-label="anchor" href="#why-is-my-model-slow-and-what-should-i-change-first"></a>
-</h2>
+<div class="section level3">
+<h3 id="why-is-my-model-slow-and-what-should-i-change-first">Why is my model slow, and what should I change first?<a class="anchor" aria-label="anchor" href="#why-is-my-model-slow-and-what-should-i-change-first"></a>
+</h3>
 <p>The three settings that matter most, in the order worth trying them.
 <code>num_trees</code> is close to linear in cost, and a second forest
 can usually be smaller than the first, so
@@ -217,9 +239,9 @@ functions but much worse on nonsmooth ones. Beyond those, run the chains
 in parallel with a <em>future</em> plan, which costs nothing in
 draws.</p>
 </div>
-<div class="section level2">
-<h2 id="what-if-im-a-frequentist">What if I’m a frequentist?<a class="anchor" aria-label="anchor" href="#what-if-im-a-frequentist"></a>
-</h2>
+<div class="section level3">
+<h3 id="what-if-im-a-frequentist">What if I’m a frequentist?<a class="anchor" aria-label="anchor" href="#what-if-im-a-frequentist"></a>
+</h3>
 <p>You don’t have to use the full posterior for inference; you can use
 the predictions from a BART model (e.g., the posterior mean for each
 prediction) in a frequentist estimator like double/debiased machine
@@ -233,9 +255,9 @@ estimands. That said, some also treat the resulting credible intervals
 as confidence intervals, but the frequentist operating characteristics
 of these intervals are not guaranteed.</p>
 </div>
-<div class="section level2">
-<h2 id="is-bart-good">Is BART good?<a class="anchor" aria-label="anchor" href="#is-bart-good"></a>
-</h2>
+<div class="section level3">
+<h3 id="is-bart-good">Is BART good?<a class="anchor" aria-label="anchor" href="#is-bart-good"></a>
+</h3>
 <p>Yes! BART or a related method won the American Causal Inference
 Conference Data Competition in both of the years whose results have been
 written up <span class="citation">(<a href="#ref-dorie2019">Dorie et al.
@@ -246,9 +268,9 @@ inference) across a wide variety of data-generating processes. For
 general prediction, BART has been shown to do as well or better than
 popular methods like GBM and random forests <span class="citation">(<a href="#ref-chipman2010">Chipman et al. 2010</a>)</span>.</p>
 </div>
-<div class="section level2">
-<h2 id="how-can-bart-be-used-for-causal-inference">How can BART be used for causal inference?<a class="anchor" aria-label="anchor" href="#how-can-bart-be-used-for-causal-inference"></a>
-</h2>
+<div class="section level3">
+<h3 id="how-can-bart-be-used-for-causal-inference">How can BART be used for causal inference?<a class="anchor" aria-label="anchor" href="#how-can-bart-be-used-for-causal-inference"></a>
+</h3>
 <p>The only step BART can be used for in causal inference is causal
 effect estimation, i.e., estimating causal effects given causal
 assumptions on the data. It works like any other regression method as
@@ -266,9 +288,9 @@ instrumental variables analysis <span class="citation">(<a href="#ref-mccullochC
 n.d.</a>)</span> and regression discontinuity <span class="citation">(<a href="#ref-alcantaraModifiedBARTLearning2024">Alcantara et al.,
 n.d.</a>)</span>.</p>
 </div>
-<div class="section level2">
-<h2 id="what-are-bayesian-causal-forests">What are Bayesian Causal Forests?<a class="anchor" aria-label="anchor" href="#what-are-bayesian-causal-forests"></a>
-</h2>
+<div class="section level3">
+<h3 id="what-are-bayesian-causal-forests">What are Bayesian Causal Forests?<a class="anchor" aria-label="anchor" href="#what-are-bayesian-causal-forests"></a>
+</h3>
 <p>Bayesian Causal Forests (BCF) are a modification of BART used to
 estimate treatment effects <span class="citation">(<a href="#ref-hahn2020">Hahn et al. 2020</a>)</span>. In addition to
 flexibly modeling the relationship between the outcome and the
@@ -283,9 +305,9 @@ similar function. <code><a href="../reference/bcf.html">bcf()</a></code> fits it
 <code><a href="../articles/varying.html">vignette("varying")</a></code> covers the varying-coefficient model it
 is a case of and what <code><a href="../reference/bcf.html">bcf()</a></code> sets on top of it.</p>
 </div>
-<div class="section level2">
-<h2 id="how-do-i-get-a-treatment-effect">How do I get a treatment effect?<a class="anchor" aria-label="anchor" href="#how-do-i-get-a-treatment-effect"></a>
-</h2>
+<div class="section level3">
+<h3 id="how-do-i-get-a-treatment-effect">How do I get a treatment effect?<a class="anchor" aria-label="anchor" href="#how-do-i-get-a-treatment-effect"></a>
+</h3>
 <p><code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> reports it, with the two average
 potential outcomes printed beneath. A fit from <code><a href="../reference/bcf.html">bcf()</a></code>
 carries its own treatment, so nothing else has to be named:</p>
@@ -307,9 +329,9 @@ has mixed, which is not implied by the fit’s own diagnostics.</p>
 the assumptions that turn the estimate into a causal effect, which no
 model supplies.</p>
 </div>
-<div class="section level2">
-<h2 id="what-papers-should-i-read-to-better-understand-bart">What papers should I read to better understand BART?<a class="anchor" aria-label="anchor" href="#what-papers-should-i-read-to-better-understand-bart"></a>
-</h2>
+<div class="section level3">
+<h3 id="what-papers-should-i-read-to-better-understand-bart">What papers should I read to better understand BART?<a class="anchor" aria-label="anchor" href="#what-papers-should-i-read-to-better-understand-bart"></a>
+</h3>
 <p>BART has a growing literature spread across multiple fields. We
 recommend reading the original BART paper by <span class="citation">Chipman et al. (<a href="#ref-chipman2010">2010</a>)</span>, the paper introducing BART for
 causal inference by <span class="citation">Hill (<a href="#ref-hill2011">2011</a>)</span>, an accessible paper on BART for
@@ -317,9 +339,9 @@ social scientists <span class="citation">Green and Kern (<a href="#ref-greenMode
 and the Annual Reviews paper on BART by <span class="citation">Hill et
 al. (<a href="#ref-hill2020">2020</a>)</span>.</p>
 </div>
-<div class="section level2">
-<h2 id="what-does-the-name-bartisan-mean">What does the name “bartisan” mean?<a class="anchor" aria-label="anchor" href="#what-does-the-name-bartisan-mean"></a>
-</h2>
+<div class="section level3">
+<h3 id="what-does-the-name-bartisan-mean">What does the name “bartisan” mean?<a class="anchor" aria-label="anchor" href="#what-does-the-name-bartisan-mean"></a>
+</h3>
 <p><em>bartisan</em> is a portmanteau of BART and “artisan”.
 <em>bartisan</em> allows you to supply your own likelihood to fit the
 BART model of your choice without needing to derive or program the whole
@@ -329,10 +351,10 @@ flexibility and customization for its built-in models, including hard
 and smooth gates for the trees, random effects, varying coefficient
 models, many model families, and control of sparsity.</p>
 </div>
-<div class="section level2">
-<h2 id="how-does-bartisan-differ-from-other-bart-implementations-in-r">How does <em>bartisan</em> differ from other BART implementations in
+<div class="section level3">
+<h3 id="how-does-bartisan-differ-from-other-bart-implementations-in-r">How does <em>bartisan</em> differ from other BART implementations in
 R?<a class="anchor" aria-label="anchor" href="#how-does-bartisan-differ-from-other-bart-implementations-in-r"></a>
-</h2>
+</h3>
 <p>There are many R packages that implement BART, each of which has its
 own strengths. <em>bartisan</em> aims to be highly general but with
 intelligent defaults that make it easy to simply plug in in place of a
@@ -357,9 +379,9 @@ There are ways in which <em>bartisan</em> is inferior to these more
 specialized packages, but as a general-purpose tool, we hope you’ll find
 it effective.</p>
 </div>
-<div class="section level2">
-<h2 id="what-model-family-should-i-use">What model family should I use?<a class="anchor" aria-label="anchor" href="#what-model-family-should-i-use"></a>
-</h2>
+<div class="section level3">
+<h3 id="what-model-family-should-i-use">What model family should I use?<a class="anchor" aria-label="anchor" href="#what-model-family-should-i-use"></a>
+</h3>
 <p>This of course depends on the outcome and the assumptions you are
 willing to make about it. In general, the defaults are a good starting
 point, though for numeric outcomes, bounding (e.g., at 0 or 1, inclusive
@@ -368,9 +390,9 @@ families. Check out <code><a href="../articles/families.html">vignette("families
 <code>?bartisan-families</code> for more details and help with this
 decision.</p>
 </div>
-<div class="section level2">
-<h2 id="how-should-i-select-the-values-of-the-hyperparameters">How should I select the values of the hyperparameters?<a class="anchor" aria-label="anchor" href="#how-should-i-select-the-values-of-the-hyperparameters"></a>
-</h2>
+<div class="section level3">
+<h3 id="how-should-i-select-the-values-of-the-hyperparameters">How should I select the values of the hyperparameters?<a class="anchor" aria-label="anchor" href="#how-should-i-select-the-values-of-the-hyperparameters"></a>
+</h3>
 <p>One of the great advantages of BART is that performance tends to be
 strong using the default hyperparameters, and tuning them with
 cross-validation tends to buy very little for the increase in
@@ -393,10 +415,10 @@ on more often, though in general the Bayesian updates can discover this
 from the data anyway. See <code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> for a full
 list.</p>
 </div>
-<div class="section level2">
-<h2 id="how-should-i-choose-how-many-chains-and-burn-in-and-posterior-draws">How should I choose how many chains and burn-in and posterior
+<div class="section level3">
+<h3 id="how-should-i-choose-how-many-chains-and-burn-in-and-posterior-draws">How should I choose how many chains and burn-in and posterior
 draws?<a class="anchor" aria-label="anchor" href="#how-should-i-choose-how-many-chains-and-burn-in-and-posterior-draws"></a>
-</h2>
+</h3>
 <p>For all of these parameters, more is always better but requires more
 computation and more memory usage. It can be a good idea to build your
 model on synthetic data with the default number of burn-in and posterior

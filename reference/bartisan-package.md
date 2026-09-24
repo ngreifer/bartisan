@@ -41,19 +41,19 @@ packages need. This table is the map.
 | predict for new data | [`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md) |
 | a prediction with an interval | [`marginaleffects::predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html) |
 | an interval for a new observation, noise included | [`posterior_predict()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
-| how much a predictor moves the outcome | [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html) |
-| a partial dependence plot | [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md), or [`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html) for more control over the grid |
+| how much a predictor moves the outcome | [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html) , [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md) |
+| a partial dependence plot | [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md) |
 | which predictors the forest uses | [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md) |
 | to tell the prior which predictors matter | `split_prior` in [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md) |
 | to see what prior a fit was given | [`prior_summary()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
 | to see what that prior implies about the outcome | `prior_only` in [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md) |
 | to give one forest its own predictors or settings | a list of formulas, and per-forest arguments; see [`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
-| a coefficient that varies with the other predictors | [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) in the formula, then [`coef()`](https://rdrr.io/r/stats/coef.html) |
+| a coefficient that varies with the other predictors | [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) in the formula, [`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md) |
 | a treatment effect with its own prior | [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md), [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md) |
 | the ATE, ATT or the effect for each unit | [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md) |
-| to check it converged and mixed | [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md), then [`as_draws()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) with bayesplot |
+| to check it converged and mixed | [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md), then [`as_draws()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) with bayesplot, [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md) |
 | to check it fits | [`pp_check()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md), [`residuals()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
-| to compare two models | [`loo()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md) |
+| to compare two models | [`loo()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md), [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md) |
 | survival data | [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md), [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md) |
 | a likelihood of one's own | [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md) |
 

@@ -38,7 +38,33 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../articles/bartisan.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="../articles/index.html">All articles</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
+    <li><a class="dropdown-item" href="../articles/bartisan.html">Getting Started with bartisan</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Fitting a Model</h6></li>
+    <li><a class="dropdown-item" href="../articles/families.html">Response Families in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/survival.html">Survival Analysis in bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/varying.html">Varying Coefficients and Random Intercepts</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Reading a Fit</h6></li>
+    <li><a class="dropdown-item" href="../articles/effects.html">Effects, Curves, and Interactions</a></li>
+    <li><a class="dropdown-item" href="../articles/importance.html">Which Variables Matter</a></li>
+    <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Checking a Fit</h6></li>
+    <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking Convergence and Fit</a></li>
+    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing Between Models</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
+  </ul>
+</li>
+<li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -633,18 +659,18 @@ supplied:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.01      1.01      611      842</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.00      1.01     2776     5906</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    15660    24055</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01      932     2243</span></span>
+<span><span class="co">#&gt;                               loglik 1.01      1.01      645     1092</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.00      1.01     2313     5161</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    16106    25219</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01      999     2235</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 32000 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 for every reported quantity</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 611 for every reported quantity, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 842 for every reported quantity, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 1.9 effective draws</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 645 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 1092 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 2.0 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Nothing to change.</span></span></code></pre></div>

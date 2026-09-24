@@ -1,13 +1,11 @@
 # Frequently Asked Questions
 
-## Introduction
-
-These are the questions that come up most often about BART and about
+These are some questions that come up most often about BART and
 *bartisan*. Each answer stands on its own, so they can be read in any
 order, and each one points at the vignette or help page that works its
 topic through in full.
 
-## What is BART?
+### What is BART?
 
 BART stands for “Bayesian Additive Regression Trees”. It’s a Bayesian
 machine learning method used to model the relationship between
@@ -18,12 +16,12 @@ random forests and extraTrees average theirs. This lets it approximate
 complex and nonlinear functions without you needing to specify their
 form.
 
-## How/When should I use BART?
+### How/When should I use BART?
 
 Use BART exactly the same way you would use any regression method or any
 machine learning method.
 
-## How can a machine learning method be Bayesian?
+### How can a machine learning method be Bayesian?
 
 Each parameter of the model, including which variables are used to split
 the trees, how deep each tree is, the predicted value in the leaf, the
@@ -33,7 +31,7 @@ machine learning models, these parameters are given an individual value,
 or the values are tuned across a grid. The posterior enables Bayesian
 inference on BART’s predictions.
 
-## How can a Bayesian method be machine learning?
+### How can a Bayesian method be machine learning?
 
 Instead of specifying a specific functional form as you would in a
 Bayesian generalized linear model (GLM), you specify priors governing a
@@ -43,7 +41,7 @@ Bayesian because all components of the model have a prior and posterior,
 but rather than putting priors on GLM coefficients, you put priors on
 aspects of the machine learning model.
 
-## How can BART be used for inference?
+### How can BART be used for inference?
 
 Because each prediction from the model has a posterior, any quantity
 derived from the predictions, like average marginal effects, has one
@@ -56,7 +54,7 @@ black-box nature of machine learning models no longer problematic for
 arriving at interpretable model summaries, and the posteriors of these
 quantities allow for Bayesian inference on them.
 
-## How do I get estimates out of the model?
+### How do I get estimates out of the model?
 
 [`predict()`](https://rdrr.io/r/stats/predict.html) gives you the fitted
 values or the full posterior of them.
@@ -84,7 +82,7 @@ for the worked versions and
 [`?estimate_effect`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 for the estimands.
 
-## What if I have missing data?
+### What if I have missing data?
 
 Missing values in the predictors are fine and nothing is dropped for
 them, though [`predict()`](https://rdrr.io/r/stats/predict.html) accepts
@@ -98,7 +96,7 @@ informative through whether it is observed as well as through its value.
 Missingness in the outcome is different: those rows are dropped, with a
 warning saying how many.
 
-## Can I supply my own likelihood?
+### Can I supply my own likelihood?
 
 Yes, through
 [`custom_family()`](https://ngreifer.github.io/bartisan/reference/custom_family.md),
@@ -116,7 +114,7 @@ all work, though `predict(type = "response")` hands back the additive
 predictors rather than a fitted mean, since the package cannot know
 where the mean of a supplied density sits.
 
-## Why is my model slow, and what should I change first?
+### Why is my model slow, and what should I change first?
 
 The three settings that matter most, in the order worth trying them.
 `num_trees` is close to linear in cost, and a second forest can usually
@@ -133,7 +131,7 @@ which is faster again and can actually be more accurate on smooth
 functions but much worse on nonsmooth ones. Beyond those, run the chains
 in parallel with a *future* plan, which costs nothing in draws.
 
-## What if I’m a frequentist?
+### What if I’m a frequentist?
 
 You don’t have to use the full posterior for inference; you can use the
 predictions from a BART model (e.g., the posterior mean for each
@@ -150,7 +148,7 @@ the resulting credible intervals as confidence intervals, but the
 frequentist operating characteristics of these intervals are not
 guaranteed.
 
-## Is BART good?
+### Is BART good?
 
 Yes! BART or a related method won the American Causal Inference
 Conference Data Competition in both of the years whose results have been
@@ -162,7 +160,7 @@ data-generating processes. For general prediction, BART has been shown
 to do as well or better than popular methods like GBM and random forests
 ([Chipman et al. 2010](#ref-chipman2010)).
 
-## How can BART be used for causal inference?
+### How can BART be used for causal inference?
 
 The only step BART can be used for in causal inference is causal effect
 estimation, i.e., estimating causal effects given causal assumptions on
@@ -185,7 +183,7 @@ n.d.](#ref-mccullochCausalInferenceInstrumental2021)) and regression
 discontinuity ([Alcantara et al.,
 n.d.](#ref-alcantaraModifiedBARTLearning2024)).
 
-## What are Bayesian Causal Forests?
+### What are Bayesian Causal Forests?
 
 Bayesian Causal Forests (BCF) are a modification of BART used to
 estimate treatment effects ([Hahn et al. 2020](#ref-hahn2020)). In
@@ -204,7 +202,7 @@ covers the varying-coefficient model it is a case of and what
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) sets on
 top of it.
 
-## How do I get a treatment effect?
+### How do I get a treatment effect?
 
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 reports it, with the two average potential outcomes printed beneath. A
@@ -237,7 +235,7 @@ See
 for a worked version, including the assumptions that turn the estimate
 into a causal effect, which no model supplies.
 
-## What papers should I read to better understand BART?
+### What papers should I read to better understand BART?
 
 BART has a growing literature spread across multiple fields. We
 recommend reading the original BART paper by Chipman et al.
@@ -247,7 +245,7 @@ for social scientists Green and Kern
 ([2012](#ref-greenModelingHeterogeneousTreatment2012)), and the Annual
 Reviews paper on BART by Hill et al. ([2020](#ref-hill2020)).
 
-## What does the name “bartisan” mean?
+### What does the name “bartisan” mean?
 
 *bartisan* is a portmanteau of BART and “artisan”. *bartisan* allows you
 to supply your own likelihood to fit the BART model of your choice
@@ -258,7 +256,7 @@ customization for its built-in models, including hard and smooth gates
 for the trees, random effects, varying coefficient models, many model
 families, and control of sparsity.
 
-## How does *bartisan* differ from other BART implementations in R?
+### How does *bartisan* differ from other BART implementations in R?
 
 There are many R packages that implement BART, each of which has its own
 strengths. *bartisan* aims to be highly general but with intelligent
@@ -284,7 +282,7 @@ random effects, and more, all in a single package[^1]. There are ways in
 which *bartisan* is inferior to these more specialized packages, but as
 a general-purpose tool, we hope you’ll find it effective.
 
-## What model family should I use?
+### What model family should I use?
 
 This of course depends on the outcome and the assumptions you are
 willing to make about it. In general, the defaults are a good starting
@@ -294,7 +292,7 @@ families. Check out
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 and `?bartisan-families` for more details and help with this decision.
 
-## How should I select the values of the hyperparameters?
+### How should I select the values of the hyperparameters?
 
 One of the great advantages of BART is that performance tends to be
 strong using the default hyperparameters, and tuning them with
@@ -319,7 +317,7 @@ the Bayesian updates can discover this from the data anyway. See
 [`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 for a full list.
 
-## How should I choose how many chains and burn-in and posterior draws?
+### How should I choose how many chains and burn-in and posterior draws?
 
 For all of these parameters, more is always better but requires more
 computation and more memory usage. It can be a good idea to build your
