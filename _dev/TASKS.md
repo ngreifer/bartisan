@@ -9425,3 +9425,18 @@ means nothing at a single chain length.**
   skill's rows 25–26. `devtools::document()` rerun. Committed 2026-09-23.
   FAQ question headings were left as questions.
 
+
+## coda compatibility: deferred (2026-09-24)
+
+Considered and set aside until a user asks for it. coda's convergence
+diagnostics are the older forms of what `diagnose()` already reports:
+`gelman.diag()` is Gelman-Rubin without splitting or rank normalization, and
+`effectiveSize()` is a spectral estimate, where `diagnose()` matches
+posterior's rank-normalized R-hat and bulk and tail ESS. `as_draws()` already
+feeds posterior and bayesplot, and rstanarm registers no coda method either.
+
+If it is revisited, the shape is a thin `as.mcmc.list()` method with coda in
+Suggests that reuses the selection `as_draws.bartisan_fit()` already makes
+(the scalar draws plus a representative spread of `eta`). posterior has no
+converter to `mcmc.list`, so that reshaping is the only work involved. Do not
+build coda-specific diagnostics.
