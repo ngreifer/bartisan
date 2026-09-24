@@ -501,8 +501,9 @@ conditional effects, as differences unless `comparison` says otherwise:
 patients ordered by their estimate, with a credible interval each, and
 the marginal effect as a single interval past the right edge in its own
 color. Ordering is what makes the spread readable as heterogeneity
-rather than as a list of numbers, and keeping the average off to the
-side is what makes it comparable against any of them.
+rather than as a list of numbers, and keeping the marginal effect off to
+the side is what makes it comparable against any of them.
+`marginal = FALSE` leaves it out.
 
 ``` r
 

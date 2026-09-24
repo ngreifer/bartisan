@@ -189,9 +189,11 @@ frequently used predictor in the varying coefficient (`rhc`) forest.
 ### Effect Modifiers (`modifiers`)
 
 By default, a coefficient is allowed to vary with every predictor in the
-model except the covariate itself, and `modifiers`, the second argument
-to [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md), is a
-one-sided formula that narrows that:
+model except the covariate itself. Supplying an argument to `modifiers`,
+the second argument to
+[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) taking a
+one-sided formula, allows one to control which predictors enter the
+coefficient forest.
 
 ``` r
 
@@ -205,11 +207,12 @@ fit_aps <- bartisan(death ~ age + sex + race + edu + aps +
 ```
 
 Now the effect of catheterization may differ by severity of illness
-(`aps`) and by `age` and by nothing else, which is a statement about the
-model and not a restriction the data can undo. Narrowing is worth doing
-when there is reason to think the effect depends on a few things, since
-a forest asked to search fourteen predictors for heterogeneity that
-lives in two will spend some of its prior on the other twelve.
+(`aps`), `age`, and nothing else, which is a statement about the model
+and not a restriction the data can undo. Restricting the modifiers is
+worth doing when there is reason to think the effect depends only on a
+few specific predictors, since a forest asked to search fourteen
+predictors for heterogeneity that lives in two will spend some of its
+prior on the other twelve.
 
 Calling [`summary()`](https://rdrr.io/r/base/summary.html) on `fit_aps`,
 we can see that the only variables used in the varying coefficient
@@ -266,18 +269,18 @@ summary(fit_aps)
 #> card    0.00  0.00  0.00     0     0.000
 ```
 
-The other thing `modifiers` decides is whether the effect is linear in
-the covariate. As written, the model is \\z\\ f_1(Z)\\, which for a
-binary \\z\\ is no assumption at all, there being only two values, and
-for a continuous one says the effect is proportional to it. That is a
-real restriction, and a numeric covariate is allowed to modify its own
-coefficient to remove it:
+When the modified variable is continuous, `modifiers` decides whether
+the effect is linear in the covariate. As written, the model is \\z\\
+f_1(Z)\\, which for a binary \\z\\ is no assumption at all, there being
+only two values, and for a continuous one says the effect is
+conditionally linear. That is a real restriction, and a numeric
+covariate is allowed to modify its own coefficient to remove it:
 
 ``` r
 
 # The effect of `aps` may itself change across `aps`, so the dose response is
 # a curve rather than a line through the origin
-bartisan(death ~ age + sex + vc(aps, ~ aps + age + sex),
+bartisan(death ~ age + sex + vc(aps, ~ . + aps),
          data = rhc, family = binomial())
 ```
 
@@ -415,7 +418,7 @@ change with the number of trees. Also, the comparison between a fixed
 and a varying coefficient is far better powered on some outcomes than
 others. On a Gaussian outcome with a coefficient truly ranging from 0.3
 to 2.5, the varying coefficient was easily preferred at \\n = 1000\\; on
-a binary outcome with the same coefficients it both models were equally
+a binary outcome with the same coefficients, both models were equally
 preferred. A null result on a binary outcome at a few hundred
 observations says little, and should not be read as evidence that an
 effect is constant.

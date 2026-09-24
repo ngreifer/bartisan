@@ -177,9 +177,8 @@ and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">imp</span><span class="op">)</span></span></code></pre></div>
 <p><img src="importance_files/figure-html/viplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>For a model wider than this one, subsetting first is what keeps the
-picture readable: <code>plot(head(imp, 10))</code> shows the top ten.
-<code><a href="../reference/variable_importance.html">variable_importance()</a></code> also takes <code>plot = TRUE</code>,
-which is the same drawing reached in one call.</p>
+picture readable: <code>plot(head(imp, 10))</code> shows the top
+ten.</p>
 <p>And when the question is not one the summary answers,
 <code>draws = TRUE</code> returns the counts themselves, one row per
 posterior draw, so any comparison can be made directly. The posterior

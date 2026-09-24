@@ -11,7 +11,7 @@ actually have.
 ## Usage
 
 ``` r
-error_density(object, at = NULL, level = 0.95, plot = FALSE, iterations = NULL)
+error_density(object, at = NULL, level = 0.95, iterations = NULL)
 
 # S3 method for class 'bartisan_error_density'
 plot(x, y, ...)
@@ -35,21 +35,6 @@ plot(x, y, ...)
 
   `numeric`; the width of the pointwise interval. Default is .95 for 95%
   intervals.
-
-- plot:
-
-  `logical`; whether to return a plot of the density rather than the
-  density itself. Default is `FALSE` to return the values. Equivalent to
-  calling [`plot()`](https://rdrr.io/r/graphics/plot.default.html) on
-  the result. Either needs
-  [ggplot2](https://CRAN.R-project.org/package=ggplot2) and returns a
-  `ggplot` object, so it can be added to in the usual way; the values
-  are the thing to reach for when the density is to be drawn against
-  something else, as
-  [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-  draws it against the normal a
-  [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-  fit would have assumed.
 
 - iterations:
 
@@ -76,10 +61,17 @@ A `<bartisan_error_density>` object, which is a data frame with one row
 per grid point and its own
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) method, with
 columns `at`, `mean`, `lower`, and `upper`, giving the posterior mean
-density and a pointwise interval. With `plot = TRUE`, or from
-[`plot()`](https://rdrr.io/r/graphics/plot.default.html) on the result,
-a `ggplot` object drawing the posterior mean density with that interval
-as a ribbon.
+density and a pointwise interval.
+
+[`plot()`](https://rdrr.io/r/graphics/plot.default.html) on the result
+draws the posterior mean density with that interval as a ribbon and
+returns a ggplot2 object, so it can be added to in the usual way. The
+values are the thing to reach for when the density is to be drawn
+against something else, as
+[`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
+draws it against the normal a
+[`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+fit would have assumed.
 
 ## See also
 

@@ -62,7 +62,7 @@ as a data frame rather than displayed (i.e., ready to sort, filter, or plot).</p
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">object</span>, level <span class="op">=</span> <span class="fl">0.95</span>, draws <span class="op">=</span> <span class="cn">FALSE</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">object</span>, level <span class="op">=</span> <span class="fl">0.95</span>, draws <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_importance'</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
@@ -84,14 +84,7 @@ Default is .95 for a 95% interval.</p></dd>
 <dt id="arg-draws">draws<a class="anchor" aria-label="anchor" href="#arg-draws"></a></dt>
 <dd><p><code>logical</code>; whether to return the splitting counts of every
 posterior draw rather than a summary of them, for a comparison the summary
-does not offer. Default is <code>FALSE</code>. Cannot be combined with <code>plot</code>.</p></dd>
-
-
-<dt id="arg-plot">plot<a class="anchor" aria-label="anchor" href="#arg-plot"></a></dt>
-<dd><p><code>logical</code>; whether to return a <a href="https://CRAN.R-project.org/package=ggplot2" class="external-link"><span class="pkg">ggplot2</span></a> plot of <code>splits</code>
-and its interval for each predictor instead of the table. Default is
-<code>FALSE</code>. Equivalent to calling <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the result, which is usually more
-convenient since the table can be subset first.</p></dd>
+does not offer. Default is <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
@@ -122,8 +115,10 @@ that number, which the <code><a href="https://rdrr.io/r/base/print.html" class="
 </ul><p>A family with more than one additive predictor has a forest for each, and the
 data frame then gains a leading <code>predictor</code> column naming which.</p>
 <p>With <code>draws = TRUE</code>, the draws-by-predictors matrix of counts instead, or a
-named list of them when there is more than one forest. With <code>plot = TRUE</code>, a
-<span class="pkg">ggplot2</span> object.</p>
+named list of them when there is more than one forest.</p>
+<p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the result draws <code>splits</code> and its interval for each predictor
+and returns a <span class="pkg">ggplot2</span> object. The result can be subset first, so
+<code>plot(vi[vi$prop_used &gt; .5, ])</code> draws only the predictors that are used.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

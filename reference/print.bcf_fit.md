@@ -15,7 +15,7 @@ conditional effects.
 print(x, digits = 3L, ...)
 
 # S3 method for class 'bcf_fit'
-plot(x, level = 0.95, comparison = "difference", ...)
+plot(x, level = 0.95, comparison = "difference", marginal = TRUE, ...)
 ```
 
 ## Arguments
@@ -45,6 +45,11 @@ plot(x, level = 0.95, comparison = "difference", ...)
   passed to
   [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md),
   which is what computes the numbers.
+
+- marginal:
+
+  `logical`; whether to draw the marginal effect beside the conditional
+  ones. Default is `TRUE`.
 
 ## Value
 
@@ -124,7 +129,7 @@ estimate_effect(fit)
 #>   credible interval.
 #> ℹ Y[a] is the average response with `rhc` set to "a".
 
-# The conditional effects, ordered, with the average beside them
+# The conditional effects, ordered, with the marginal effect beside them
 plot(fit)
 
 ```

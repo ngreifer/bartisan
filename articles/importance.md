@@ -112,8 +112,6 @@ plot(imp)
 
 For a model wider than this one, subsetting first is what keeps the
 picture readable: `plot(head(imp, 10))` shows the top ten.
-[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
-also takes `plot = TRUE`, which is the same drawing reached in one call.
 
 And when the question is not one the summary answers, `draws = TRUE`
 returns the counts themselves, one row per posterior draw, so any

@@ -10,7 +10,7 @@ sort, filter, or plot).
 ## Usage
 
 ``` r
-variable_importance(object, level = 0.95, draws = FALSE, plot = FALSE)
+variable_importance(object, level = 0.95, draws = FALSE)
 
 # S3 method for class 'bartisan_importance'
 plot(x, y, ...)
@@ -32,17 +32,7 @@ plot(x, y, ...)
 
   `logical`; whether to return the splitting counts of every posterior
   draw rather than a summary of them, for a comparison the summary does
-  not offer. Default is `FALSE`. Cannot be combined with `plot`.
-
-- plot:
-
-  `logical`; whether to return a
-  [ggplot2](https://CRAN.R-project.org/package=ggplot2) plot of `splits`
-  and its interval for each predictor instead of the table. Default is
-  `FALSE`. Equivalent to calling
-  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) on the
-  result, which is usually more convenient since the table can be subset
-  first.
+  not offer. Default is `FALSE`.
 
 - x:
 
@@ -84,8 +74,12 @@ A family with more than one additive predictor has a forest for each,
 and the data frame then gains a leading `predictor` column naming which.
 
 With `draws = TRUE`, the draws-by-predictors matrix of counts instead,
-or a named list of them when there is more than one forest. With
-`plot = TRUE`, a ggplot2 object.
+or a named list of them when there is more than one forest.
+
+[`plot()`](https://rdrr.io/r/graphics/plot.default.html) on the result
+draws `splits` and its interval for each predictor and returns a ggplot2
+object. The result can be subset first, so
+`plot(vi[vi$prop_used > .5, ])` draws only the predictors that are used.
 
 ## Details
 

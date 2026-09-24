@@ -16,7 +16,6 @@ partial_dependence(
   values = NULL,
   level = 0.95,
   type = "response",
-  plot = FALSE,
   ...
 )
 
@@ -74,12 +73,6 @@ plot(x, y, ...)
   `string`; the prediction scale, passed to
   [`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md).
   Default is `"response"`.
-
-- plot:
-
-  `logical`; whether to draw the result rather than return it. Default
-  is `FALSE`. `plot = TRUE` calls `plot.bartisan_partial()`, so the
-  argument and the method cannot disagree.
 
 - ...:
 

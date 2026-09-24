@@ -451,7 +451,7 @@ fit_dpm <- bartisan(heavy ~ x1 + x2, data = d,
 
 ``` r
 
-error_density(fit_dpm, plot = TRUE)
+plot(error_density(fit_dpm))
 ```
 
 ![](families_files/figure-html/dpmplot-1.png)

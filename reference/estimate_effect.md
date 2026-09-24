@@ -19,15 +19,14 @@ estimate_effect(
   level = 0.95,
   interval = "eti",
   focal = NULL,
-  type = "response",
-  plot = FALSE
+  type = "response"
 )
 
 # S3 method for class 'bartisan_effect'
 print(x, digits = 3L, contrasts = NULL, potential_outcomes = TRUE, ...)
 
 # S3 method for class 'bartisan_effect'
-plot(x, ...)
+plot(x, marginal = TRUE, ...)
 ```
 
 ## Arguments
@@ -109,11 +108,6 @@ plot(x, ...)
   unit-level differences is the marginal effect. See Details before
   changing it.
 
-- plot:
-
-  `logical`; whether to draw the result rather than return it. Default
-  is `FALSE`. `plot = TRUE` calls `plot.bartisan_effect()`.
-
 - x:
 
   a `<bartisan_effect>` object; the output of a call to
@@ -141,6 +135,14 @@ plot(x, ...)
 - ...:
 
   ignored.
+
+- marginal:
+
+  `logical`; for
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) on
+  conditional effects (i.e., `estimand = "CATE"`), whether to draw the
+  marginal effect beside the units. Default is `TRUE`. Ignored by the
+  other plots, which draw no marginal effect beside their estimates.
 
 ## Value
 
@@ -292,7 +294,7 @@ estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 #>   credible interval.
 #> ℹ Y[a] is the average response with `rhc` set to "a".
 
-# One effect per unit, ordered, with the average behind them
+# One effect per unit, ordered, with the marginal effect beside them
 cate <- estimate_effect(fit, estimand = "CATE")
 plot(cate)
 

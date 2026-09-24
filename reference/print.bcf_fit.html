@@ -63,7 +63,7 @@ effect comes from, and <code><a href="https://rdrr.io/r/graphics/plot.default.ht
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">x</span>, digits <span class="op">=</span> <span class="fl">3L</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bcf_fit'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, level <span class="op">=</span> <span class="fl">0.95</span>, comparison <span class="op">=</span> <span class="st">"difference"</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, level <span class="op">=</span> <span class="fl">0.95</span>, comparison <span class="op">=</span> <span class="st">"difference"</span>, marginal <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -90,6 +90,11 @@ otherwise ignored.</p></dd>
 <dt id="arg-comparison">comparison<a class="anchor" aria-label="anchor" href="#arg-comparison"></a></dt>
 <dd><p>passed to <code><a href="estimate_effect.html">estimate_effect()</a></code>, which is what computes the
 numbers.</p></dd>
+
+
+<dt id="arg-marginal">marginal<a class="anchor" aria-label="anchor" href="#arg-marginal"></a></dt>
+<dd><p><code>logical</code>; whether to draw the marginal effect beside the
+conditional ones. Default is <code>TRUE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -161,7 +166,7 @@ model</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">Y[a]</span> is the average response with `rhc` set to <span style="color: #0000BB;">"a"</span>.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The conditional effects, ordered, with the average beside them</span></span></span>
+<span class="r-in"><span><span class="co"># The conditional effects, ordered, with the marginal effect beside them</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="print.bcf_fit-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>

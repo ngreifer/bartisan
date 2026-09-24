@@ -59,7 +59,7 @@ commits to one normal, this says what shape the errors actually have.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">error_density</span><span class="op">(</span><span class="va">object</span>, at <span class="op">=</span> <span class="cn">NULL</span>, level <span class="op">=</span> <span class="fl">0.95</span>, plot <span class="op">=</span> <span class="cn">FALSE</span>, iterations <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">error_density</span><span class="op">(</span><span class="va">object</span>, at <span class="op">=</span> <span class="cn">NULL</span>, level <span class="op">=</span> <span class="fl">0.95</span>, iterations <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'bartisan_error_density'</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
@@ -86,16 +86,6 @@ either side of zero.</p></dd>
 for 95% intervals.</p></dd>
 
 
-<dt id="arg-plot">plot<a class="anchor" aria-label="anchor" href="#arg-plot"></a></dt>
-<dd><p><code>logical</code>; whether to return a plot of the density rather than the
-density itself. Default is <code>FALSE</code> to return the values. Equivalent to
-calling <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the result. Either needs <a href="https://CRAN.R-project.org/package=ggplot2" class="external-link"><span class="pkg">ggplot2</span></a> and returns
-a <code>ggplot</code> object, so it can be added to in the usual way; the values are
-the thing to reach for when the density is to be drawn against something
-else, as <code><a href="../articles/survival.html">vignette("survival")</a></code> draws it against the normal a
-<code><a href="bartisan-families.html">lognormal_aft()</a></code> fit would have assumed.</p></dd>
-
-
 <dt id="arg-iterations">iterations<a class="anchor" aria-label="anchor" href="#arg-iterations"></a></dt>
 <dd><p><code>numeric</code>; optional indices of the stored draws to use,
 between 1 and the number of draws the fit retains. Default is <code>NULL</code> to use
@@ -119,9 +109,12 @@ all of them.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>&lt;bartisan_error_density&gt;</code> object, which is a data frame with one row per
 grid point and its own <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> method, with columns <code>at</code>, <code>mean</code>, <code>lower</code>,
-and <code>upper</code>, giving the posterior mean density and a pointwise interval. With
-<code>plot = TRUE</code>, or from <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the result, a <code>ggplot</code> object drawing the
-posterior mean density with that interval as a ribbon.</p>
+and <code>upper</code>, giving the posterior mean density and a pointwise interval.</p>
+<p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the result draws the posterior mean density with that interval
+as a ribbon and returns a <span class="pkg">ggplot2</span> object, so it can be added to in the
+usual way. The values are the thing to reach for when the density is to be
+drawn against something else, as <code><a href="../articles/survival.html">vignette("survival")</a></code> draws it against the
+normal a <code><a href="bartisan-families.html">lognormal_aft()</a></code> fit would have assumed.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

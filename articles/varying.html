@@ -253,9 +253,10 @@ forest.</p>
 <h3 id="effect-modifiers-modifiers">Effect Modifiers (<code>modifiers</code>)<a class="anchor" aria-label="anchor" href="#effect-modifiers-modifiers"></a>
 </h3>
 <p>By default, a coefficient is allowed to vary with every predictor in
-the model except the covariate itself, and <code>modifiers</code>, the
-second argument to <code><a href="../reference/vc.html">vc()</a></code>, is a one-sided formula that
-narrows that:</p>
+the model except the covariate itself. Supplying an argument to
+<code>modifiers</code>, the second argument to <code><a href="../reference/vc.html">vc()</a></code> taking
+a one-sided formula, allows one to control which predictors enter the
+coefficient forest.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
@@ -265,12 +266,12 @@ narrows that:</p>
 <span>                      <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">rhc</span>, <span class="op">~</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">age</span><span class="op">)</span>,</span>
 <span>                    data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Now the effect of catheterization may differ by severity of illness
-(<code>aps</code>) and by <code>age</code> and by nothing else, which is
-a statement about the model and not a restriction the data can undo.
-Narrowing is worth doing when there is reason to think the effect
-depends on a few things, since a forest asked to search fourteen
-predictors for heterogeneity that lives in two will spend some of its
-prior on the other twelve.</p>
+(<code>aps</code>), <code>age</code>, and nothing else, which is a
+statement about the model and not a restriction the data can undo.
+Restricting the modifiers is worth doing when there is reason to think
+the effect depends only on a few specific predictors, since a forest
+asked to search fourteen predictors for heterogeneity that lives in two
+will spend some of its prior on the other twelve.</p>
 <p>Calling <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on <code>fit_aps</code>, we can see
 that the only variables used in the varying coefficient forest are
 indeed <code>aps</code> and <code>age</code>, as requested:</p>
@@ -322,15 +323,17 @@ indeed <code>aps</code> and <code>age</code>, as requested:</p>
 <span><span class="co">#&gt; crea    0.00  0.00  0.00     0     0.000</span></span>
 <span><span class="co">#&gt; surv2m  0.00  0.00  0.00     0     0.000</span></span>
 <span><span class="co">#&gt; card    0.00  0.00  0.00     0     0.000</span></span></code></pre></div>
-<p>The other thing <code>modifiers</code> decides is whether the effect
-is linear in the covariate. As written, the model is <span class="math inline">\(z\, f_1(Z)\)</span>, which for a binary <span class="math inline">\(z\)</span> is no assumption at all, there being
-only two values, and for a continuous one says the effect is
-proportional to it. That is a real restriction, and a numeric covariate
-is allowed to modify its own coefficient to remove it:</p>
+<p>When the modified variable is continuous, <code>modifiers</code>
+decides whether the effect is linear in the covariate. As written, the
+model is <span class="math inline">\(z\, f_1(Z)\)</span>, which for a
+binary <span class="math inline">\(z\)</span> is no assumption at all,
+there being only two values, and for a continuous one says the effect is
+conditionally linear. That is a real restriction, and a numeric
+covariate is allowed to modify its own coefficient to remove it:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># The effect of `aps` may itself change across `aps`, so the dose response is</span></span>
 <span><span class="co"># a curve rather than a line through the origin</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">aps</span>, <span class="op">~</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span><span class="op">)</span>,</span>
+<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="fu"><a href="../reference/vc.html">vc</a></span><span class="op">(</span><span class="va">aps</span>, <span class="op">~</span> <span class="va">.</span> <span class="op">+</span> <span class="va">aps</span><span class="op">)</span>,</span>
 <span>         data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>This fits <span class="math inline">\(\text{aps} \cdot
 f_1(\text{aps},\, \text{age},\, \text{sex})\)</span>, so the slope moves
@@ -458,9 +461,9 @@ not change with the number of trees. Also, the comparison between a
 fixed and a varying coefficient is far better powered on some outcomes
 than others. On a Gaussian outcome with a coefficient truly ranging from
 0.3 to 2.5, the varying coefficient was easily preferred at <span class="math inline">\(n = 1000\)</span>; on a binary outcome with the
-same coefficients it both models were equally preferred. A null result
-on a binary outcome at a few hundred observations says little, and
-should not be read as evidence that an effect is constant.</p>
+same coefficients, both models were equally preferred. A null result on
+a binary outcome at a few hundred observations says little, and should
+not be read as evidence that an effect is constant.</p>
 </div>
 </div>
 <div class="section level2">
