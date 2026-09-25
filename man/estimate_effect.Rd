@@ -36,8 +36,9 @@ estimate_effect(
 group, which by default is the treatment's second level for the former and
 its first for the latter. With a binary treatment that makes them the
 treated and the untreated without \code{focal} being named. \code{"CATE"} does not
-average at all and returns one effect per unit. Abbreviations and lowercase
-spellings are allowed.}
+average at all and returns the conditional effect at each unit's
+covariates, which is not that unit's own individual effect; see Details.
+Abbreviations and lowercase spellings are allowed.}
 
 \item{comparison}{\code{string}; how the two potential outcomes are contrasted.
 Allowable options include \code{"difference"} (the default), \code{"ratio"},
@@ -54,8 +55,8 @@ variable, and the term as written names the column it occupies in the
 output.}
 
 \item{newdata}{optional; a data frame of units to average over. Default is
-the data the model was fit to, which is what makes the default estimand the
-sample average effect.}
+the data the model was fit to, so that the average runs over the covariates
+of the fitted sample; see Details for what that average is.}
 
 \item{level}{\code{numeric}; the level of the credible interval. Default is \code{.95}.}
 
@@ -119,6 +120,21 @@ level of the treatment, contrasts those potential outcomes within each draw,
 and averages over the units the estimand asks for.
 }
 \details{
+\subsection{The Estimand}{
+
+The ATE, ATT and ATC are averages of the conditional effect over the
+covariates of the units averaged over, computed within each posterior draw.
+This is sometimes called the mixed average treatment effect. The covariates
+are treated as fixed, so the interval reflects uncertainty about the outcome
+model but not the further variation a population average would carry, and
+the units' observed outcomes are not conditioned on, as they would be for a
+sample average of individual effects. Likewise, \code{estimand = "CATE"} reports
+the expected effect at each unit's covariates rather than the unit's own
+effect, which depends on how its two potential outcomes are associated and is
+not identified. See \code{vignette("causal")} for the distinction between these
+estimands.
+}
+
 \subsection{Setting \code{type}}{
 
 A varying coefficient is a contrast on the link scale: on a
@@ -195,7 +211,8 @@ estimate_effect(fit)
 # Among the treated, and as a risk ratio rather than a difference
 estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 
-# One effect per unit, ordered, with the marginal effect beside them
+# The effect at each unit's covariates, ordered, with the marginal effect
+# beside them
 cate <- estimate_effect(fit, estimand = "CATE")
 plot(cate)
 

@@ -12,8 +12,9 @@
 #'   group, which by default is the treatment's second level for the former and
 #'   its first for the latter. With a binary treatment that makes them the
 #'   treated and the untreated without `focal` being named. `"CATE"` does not
-#'   average at all and returns one effect per unit. Abbreviations and lowercase
-#'   spellings are allowed.
+#'   average at all and returns the conditional effect at each unit's
+#'   covariates, which is not that unit's own individual effect; see Details.
+#'   Abbreviations and lowercase spellings are allowed.
 #' @param treat `string`; the name of the treatment variable. A fit from
 #'   [bcf()] carries its own and needs none, so this is for a fit from
 #'   [bartisan()], where nothing marks one predictor as the treatment.
@@ -30,8 +31,8 @@
 #'   variable, and the term as written names the column it occupies in the
 #'   output.
 #' @param newdata optional; a data frame of units to average over. Default is
-#'   the data the model was fit to, which is what makes the default estimand the
-#'   sample average effect.
+#'   the data the model was fit to, so that the average runs over the covariates
+#'   of the fitted sample; see Details for what that average is.
 #' @param level `numeric`; the level of the credible interval. Default is `.95`.
 #' @param interval `string`; `"eti"` (the default) for an equal-tailed interval
 #'   from the quantiles of the draws, or `"hpdi"` for the highest posterior
@@ -79,6 +80,20 @@
 #' \pkg{ggplot2} object.
 #'
 #' @details
+#' ## The Estimand
+#'
+#' The ATE, ATT and ATC are averages of the conditional effect over the
+#' covariates of the units averaged over, computed within each posterior draw.
+#' This is sometimes called the mixed average treatment effect. The covariates
+#' are treated as fixed, so the interval reflects uncertainty about the outcome
+#' model but not the further variation a population average would carry, and
+#' the units' observed outcomes are not conditioned on, as they would be for a
+#' sample average of individual effects. Likewise, `estimand = "CATE"` reports
+#' the expected effect at each unit's covariates rather than the unit's own
+#' effect, which depends on how its two potential outcomes are associated and is
+#' not identified. See `vignette("causal")` for the distinction between these
+#' estimands.
+#'
 #' ## Setting `type`
 #'
 #' A varying coefficient is a contrast on the link scale: on a
@@ -156,7 +171,8 @@
 #' # Among the treated, and as a risk ratio rather than a difference
 #' estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 #'
-#' # One effect per unit, ordered, with the marginal effect beside them
+#' # The effect at each unit's covariates, ordered, with the marginal effect
+#' # beside them
 #' cate <- estimate_effect(fit, estimand = "CATE")
 #' plot(cate)
 #'
