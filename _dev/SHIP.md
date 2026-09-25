@@ -8,6 +8,10 @@ The standard applied throughout: **does this seriously affect a workflow the
 package claims to support?** Speedups, polish and features that another package
 already covers are excluded, however tempting.
 
+The current state is the 2026-09-24 section, which is a CRAN submission
+checklist. The 2026-09-15 and 2026-09-18 sections below it are kept as the
+record of how the list got there.
+
 ## Where we stand (2026-09-15, after a clean check)
 
 Everything the original list called blocking has landed except one item, and that
@@ -102,6 +106,64 @@ when a fit's diagnostics look poor.
 Two pieces of verification are owed that no amount of local checking supplies:
 `--as-cran` on an unrestricted network, and one other platform. Both were owed
 on 2026-09-15 too.
+
+## Re-read 2026-09-24: the CRAN submission checklist
+
+Features have landed since 2026-09-18, among them `vignette("varying")`, the `.`
+in `vc()`, and function-valued `values` in `partial_dependence()`, and none of
+them reopened an item. What has moved is that the list was checked against
+CRAN's own requirements for a first submission rather than against the
+package's, using the `cran-extrachecks` checklist, and that turned up items no
+earlier section had. This section supersedes both earlier ones where they
+disagree.
+
+The last full check is pueue task 207 on 2026-09-23: `_dev/check.sh
+--no-build-vignettes` with `NOT_CRAN=true`, 27 minutes, **`Status: 1 WARNING,
+1 NOTE`**, 2566 expectations passing and none failing. Both findings are
+paperwork and one is now fixed; see the table.
+
+| Item | State on 2026-09-24 |
+| --- | --- |
+| WARNING: GNU extension in `src/Makevars` | **Fixed.** `$(OBJECTS): $(wildcard *.h)` (from `6de73cc`) is GNU make only. The dependency is load-bearing in development, since it is what stops a stale object linking against a changed header, and irrelevant on CRAN, which builds from a clean tarball. So the rule stays and the headers are now listed by name. Declaring `SystemRequirements: GNU make` was the alternative, and CRAN's incoming check turns that into a NOTE of its own. Verified by applying R CMD check's own pattern to the file (no hits) and by touching `utils.h`, after which all 11 objects rebuilt. A new header has to be added to the list by hand. |
+| NOTE: "No news entries found" | **Open.** `NEWS.md`'s heading is `# bartisan (development version)`, which R cannot parse as a version. Goes with the version bump. |
+| Version is `0.0.0.9000` | **Open.** Wants a release number such as `0.1.0`, with `# bartisan 0.1.0` as the NEWS heading. |
+| `Authors@R` has no `cph` for the maintainer | **Fixed.** Now `c("aut", "cre", "cph")`. Linero stays `c("ctb", "cph")`, and his comment now reads "Author of FlexBart, the reference implementation of Linero (2025), from which the MCMC engine is adapted", so that it cannot be read as Deshpande's *flexBART*. |
+| `Description:` quoted `'glm()'` | **Fixed.** CRAN quotes software names and leaves function names bare. The spell check will still flag Tweedie, SoftBart and Linero, which `cran-comments.md` should explain. |
+| Licensing of the adapted engine | **Open, and a question for Linero.** Provenance was checked on 2026-09-24: the engine is adapted from `FlexBart`, the R package in the reproduction materials of Linero (2025) (in `_dev/Reproduce/packages-scripts/packages/`), which is a different package from Deshpande's *flexBART* on CRAN. The evidence is in the code: `src/mcmc.cpp` names two places where it departs from "Linero's code" (the Fisher-scoring tolerance and the birth probability after a root collapse), and the slice sampler keeps FlexBart's structure and variable names. FlexBart's `DESCRIPTION` says `License: GPL 2.0` and it ships no LICENSE file. If that means version 2 only, a derivative cannot be offered under `GPL (>= 2)`, since that would allow GPL-3. Either Linero confirms "or later" in writing, or *bartisan* is licensed `GPL-2`. |
+| `cran-comments.md` | **Open.** Does not exist. First submission, check results, and the three spell-check words. |
+| README install instructions | **Open.** Says the package is not on CRAN and installs with `pak::pak("ngreifer/bartisan")`. Wants `install.packages("bartisan")`, edited in `README.Rmd` and rebuilt. |
+| Vignette build time | **Reduced, still over budget.** Timed on 2026-09-24 with `_dev/vignette-timing.R` (a fresh R process per vignette, against the installed package, with `_R_CHECK_LIMIT_CORES_=TRUE`): **9.2 minutes** for all eleven, every one knitting cleanly. Moving `bartisan`, `causal` and `importance` from four chains to one, with a pointer to `vignette("diagnostics")` for the fit controls, took them from 238, 139 and 22 seconds to 56, 39 and 9. The prediction was under 8 minutes and it was wrong, because the two largest were untouched: `diagnostics` at 140 seconds keeps its four chains, and its `update()` to 2000 + 8000 draws is ten times the default fit's iterations; `comparison` at 128 seconds already used one chain and makes about twenty fits, ten of them inside two five-fold `kfold()` calls. Then `effects` 67, `families` 63, `varying` 47. With compilation, tests and examples on top, the check is well past ten minutes. What is left is a choice between precomputing the heaviest chunks (as `survival` already does), skipping evaluation on CRAN through the `run` switch most of the vignettes already have while shipping HTML built locally, or cutting content. Per-chunk times are in `_dev/vignette-chunk-times.md` (from `_dev/vignette-chunk-timing.R`): 70 of 176 chunks hold 527 of the 547 seconds, and the ten largest about half, led by diagnostics' `mixfixed` (69), families' `zerocompare` (56), comparison's `links` (34), bartisan's `comparisons` (30) and comparison's `survfits` (29). Diagnostics at 2 chains instead of 4 renders in 74 seconds against 143; causal at 2 chains, with the multisession plan restored, in 45 against 39, since the chains run in parallel on CRAN's two cores. Re-timed later on 2026-09-24 after the cuts (families' four-way comparison, comparison's cloglog fit and point-mass section, the faster prior-only fit) and the switch of causal's lalonde fit to `tweedie()`: an estimated **7.6 minutes** on a quiet machine, from a run taken under load and corrected by the slowdown of unchanged chunks (median 1.44). The largest chunks left are diagnostics' `mixfixed` (about 74 s), bartisan's `comparisons` (30), diagnostics' `diagnose_effect` (28), comparison's `survfits` (17), and effects' three two-predictor partial dependence chunks (about 13 each). |
+| `--as-cran` never completed | **Open**, unchanged since 2026-09-15. Hangs on a network wait in this sandbox. Needs one run on an unrestricted network; it also covers the URL check. |
+| A second platform | **Open**, unchanged. win-builder, the macOS builder and R-devel have never seen the package. All three upload it to an outside service, so they wait on an explicit go-ahead. |
+| Tests under CRAN's settings | **Unmeasured.** The 27 minutes are with `NOT_CRAN=true`. Without it the 91 `skip_on_cran()` tests drop out, and how long the rest take is not known. |
+| A hex logo | Optional, unchanged. Cheaper before the README and site are final. |
+| `inst/CITATION` | Optional, newly listed. |
+
+One side effect of the single chains is worth recording. In `vignette("causal")`, the `lalonde`
+fit, `bcf(family = dpm())`, gave average potential outcomes among the treated of 5420 to 5650 for
+`Y[0]` in two four-chain builds and 3780 with one chain, while the treated group's observed mean
+earnings are 6349. The ATT intervals overlap (183 [-248, 823] and 228 [-222, 971] against 370
+[-151, 1090]), so the contrast is not the problem; the level of a `dpm()` fit is, and it evidently
+mixes slowly enough that one chain lands somewhere else. Not investigated yet.
+
+Checked and not a problem: every exported help page has `\value` and examples,
+there is no `\dontrun{}` and no commented-out example code, there are no `http://`
+links and no relative links in the README, the Title is title case and under 65
+characters, the Description does not open with a banned phrase and cites its
+methods by DOI, the installed package is 4.6 MB and the tarball 2.4 MB, and the
+package's own C++ uses no OpenMP.
+
+### What to do next, in order
+
+1. Settle the license with Linero, since the answer may change `DESCRIPTION`.
+2. The paperwork: version bump and NEWS heading, `cran-comments.md`, README
+   install line.
+3. Decide how the vignettes fit CRAN's time budget (see the table), then re-time
+   them with `_dev/vignette-timing.R`.
+4. A full check, which is owed again after the Makevars change.
+5. `--as-cran` somewhere with an unrestricted network, then win-builder,
+   the macOS builder and R-devel.
+6. Submit.
 
 ## Part 1: what is actually missing
 
