@@ -109,7 +109,7 @@ set.seed(2026)
 fit <- bartisan(
   death ~ rhc + age + sex + race + edu + aps + meanbp + resp + hema +
     pafi + paco2 + crea + surv2m + card,
-  data = rhc, family = binomial(), chains = 4
+  data = rhc, family = binomial()
 )
 
 fit
@@ -119,11 +119,11 @@ fit
 as in `glm()`. The family may be omitted, in which case it is read off the
 outcome and reported; naming it is clearer and silences the message.
 
-`chains = 4` runs the sampler four times from different starting points. The
-default is one chain, and the diagnostics in the next section are still
-computed for it, with R-hat taken by splitting that single chain into
-segments; running several is what lets them detect chains that have settled in
-different places.
+The fit uses the default single chain, which is enough for the estimates and
+keeps this guide brief. In a real analysis we would run several chains, and
+possibly change the number of burn-in and retained draws, before reading any
+results; `vignette("diagnostics")` explains how to set these fit controls and
+how to check that they were enough.
 
 Choosing a family is the one modeling decision that usually matters more than any
 sampler setting. `vignette("families")` covers the choice, and
@@ -150,11 +150,13 @@ whichever of them fall short.
 diagnose(fit)
 ```
 
-`rhat` compares variation between chains to variation within them; values near 1
-indicate the chains have settled on the same answer. `rhat_late` is the same
-statistic on the second half of the draws alone, which is what distinguishes a
-warmup that ended too early from chains that have each settled somewhere
-different. `ess_bulk` and `ess_tail` are effective sample sizes, and count how
+Because the fit has one chain, the first line of the report says to refit with
+several, and in a real analysis we would do that before reading the rest.
+`rhat` compares variation between chains to variation within them; with one
+chain it compares the chain's two halves, which detects drift but cannot detect
+chains that have settled in different places. `rhat_late` is the same statistic
+on the second half of the draws alone, which is what distinguishes a warmup that
+ended too early from chains that have each settled somewhere different. `ess_bulk` and `ess_tail` are effective sample sizes, and count how
 many independent draws the correlated ones are worth, in the middle of the
 distribution and in the tails.
 
@@ -174,12 +176,14 @@ estimand itself when there is one to take:
 diagnose(estimate_effect(fit, treat = "rhc"))
 ```
 
-Far fewer effective draws than the table above would suggest, and the last check
-says why: the splitting prior gives `rhc` no rule in some draws, which puts the
-contrast at exactly zero and can hold it there for a long run. Nothing in the
-fit's own table shows it, because the other predictors keep the fitted function
-moving the whole time. `vignette("causal")` covers the settings that remove the
-atom when an effect is what is being reported.
+The contrast carries far fewer effective draws than the average fitted value in
+the table above, which the fit's own table could not have shown, since the other
+predictors keep the fitted function moving even where the contrast mixes slowly.
+Under the default splitting prior there is a further way this can happen:
+`rhc` gets no rule in some draws, which puts the contrast at exactly zero and can
+hold it there for a long run. `diagnose()` notes that atom when it finds one, and
+`vignette("causal")` covers the settings that remove it when an effect is what is
+being reported.
 
 The table is in `diagnose(fit)$table` when the numbers are wanted rather than
 the report.
@@ -218,8 +222,8 @@ predictor received any rule at all.
 
 `surv2m` takes the most rules, which is unsurprising: it is a prognostic score
 built to predict survival. `age` follows. At the bottom, `sex`, `race` and
-several of the physiological measurements are used in little more than half of
-the draws, which says the model can often do without them.
+several of the physiological measurements are used in only about half of the
+draws, which says the model can often do without them.
 
 It's important to remember that usage is not effect size: a predictor can be split on constantly
 and still move the prediction very little, and the comparisons in the next
@@ -256,7 +260,7 @@ before the call switches it to the mean; we do this in `vignette("causal")`.]
 For a categorical predictor it is a difference between two levels, and for a
 numeric one it is an increase of one unit, which is a default rather than
 anything the data suggested. The comparisons are on the probability scale, so
-`rhc` reads as an increase of a little over five percentage points in the
+`rhc` reads as an increase of about six and a half percentage points in the
 probability of death and `age` as three tenths of a point per year of age. A
 logistic regression would report each of these as one slope on the log-odds
 scale; these are averages over the sample of a quantity the model allows to
@@ -268,8 +272,8 @@ altogether in a given draw, and in such a draw every comparison involving it is
 exactly zero, so the posterior has a point mass there. Where that mass covers
 the middle of the posterior the median falls inside it and the estimate prints
 as exactly zero, which is what has happened to the predictors at the bottom of
-the importance table. The same mass is why the lower bound for `rhc` is zero
-rather than merely close to it.
+the importance table. The same mass is why the lower bound for `aps` is exactly
+zero rather than merely close to it.
 
 The one-unit default deserves a second look whenever a predictor does not span a
 unit. `surv2m` is a probability, so an increase of one is wider than its whole
@@ -327,9 +331,9 @@ eff <- estimate_effect(fit, treat = "rhc")
 eff
 ```
 
-Catheterization is associated with an increase of about five percentage points
-in the probability of death. The interval runs from zero to roughly eleven
-points, so the direction is reasonably clear and the size is not. The estimate
+Catheterization is associated with an increase of about six percentage points
+in the probability of death. The interval runs from about one point to roughly
+eleven, so the direction is reasonably clear and the size is not. The estimate
 differs a little from the `rhc` row of the comparisons table because it is the
 posterior mean of the same draws rather than their median.
 
@@ -345,9 +349,9 @@ instead, and `estimate_effect()` says so and names the functions that produce
 one.
 
 The defaults are not necessarily the best settings for estimating a causal
-effect, and the zero at the end of the interval is the first sign of it: a
-sparsity prior that can drop a predictor is reasonable for prediction and poor
-for a treatment whose effect is being reported. More specialized methods, such
+effect. A sparsity prior that can drop a predictor, which is what put several
+rows of the comparisons table at exactly zero, is reasonable for prediction and
+poor for a treatment whose effect is being reported. More specialized methods, such
 as Bayesian causal forests (BCF) and BART without a sparsity-inducing prior, are
 described in `vignette("causal")`, which also covers what has to be true of the
 data before any of this can be read as an effect of the procedure.
@@ -399,7 +403,7 @@ alone:
 ```{r loocompare, eval = has_loo}
 set.seed(2026)
 demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
-                         family = binomial(), chains = 4)
+                         family = binomial())
 
 loo_compare(list(full = loo(fit),
                  demographics = loo(demographics)))
