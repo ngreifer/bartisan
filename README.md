@@ -15,10 +15,11 @@ rather than specified. *bartisan* does that for response distributions
 that standard BART cannot reach, using the Laplace-approximation
 reversible-jump sampler of Linero ([2025](#ref-linero2025)), which
 relaxes the requirement that the leaf parameters be integrable in closed
-form. That requirement ties standard BART to a Gaussian likelihood, and lifting it is the sense in which the model here is
-*generalized*: the same sense a generalized linear model is, in which
-the response distribution is a choice the analyst makes rather than an
-assumption the sampler imposes.
+form. That requirement ties standard BART to a Gaussian likelihood, and
+lifting it is the sense in which the model here is *generalized*: the
+same sense a generalized linear model is, in which the response
+distribution is a choice the analyst makes rather than an assumption the
+sampler imposes.
 
 A model is written the way it is in `glm()`, with a formula, a data
 frame, and a family, and the `stats::family` objects `glm()` takes are
