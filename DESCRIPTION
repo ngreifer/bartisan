@@ -3,11 +3,11 @@ Type: Package
 Title: Generalized Bayesian Additive Regression Trees
 Version: 0.0.0.9000
 Authors@R: c(
-    person("Noah", "Greifer", role = c("aut", "cre"),
+    person("Noah", "Greifer", role = c("aut", "cre", "cph"),
            email = "noah.greifer@gmail.com",
            comment = c(ORCID = "0000-0003-3067-7154")),
     person("Antonio R.", "Linero", role = c("ctb", "cph"),
-           comment = "Author of the FlexBart reference implementation from which the MCMC engine is adapted")
+           comment = "Author of FlexBart, the reference implementation of Linero (2025), from which the MCMC engine is adapted")
     )
 Description: Fits Bayesian additive regression trees (BART) models for
     likelihoods outside the conditionally conjugate Gaussian case, using the
@@ -21,7 +21,7 @@ Description: Fits Bayesian additive regression trees (BART) models for
     for the error distribution. Decision rules may be hard, as in standard BART, or
     soft, as in the SoftBart model of Linero and Yang (2018)
     <doi:10.1111/rssb.12293>, which yields smoother fits. The interface follows
-    that of 'glm()', so that a model is specified with a formula, a data frame,
+    that of glm(), so that a model is specified with a formula, a data frame,
     and a family.
 License: GPL (>= 2)
 Encoding: UTF-8
