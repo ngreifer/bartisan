@@ -116,20 +116,21 @@ where the mean of a supplied density sits.
 
 ### Why is my model slow, and what should I change first?
 
-The three settings that matter most, in the order worth trying them.
-`num_trees` is close to linear in cost, and a second forest can usually
-be smaller than the first, so `num_trees = c(mean = 50, log_sd = 10)` on
-a location-scale model is much cheaper than 50 for both. `gate = "hard"`
-is several times faster than the soft default and costs nothing if the
-relationship is well approximated by a step function. `bandwidth_every`
+The settings below matter most, in the order worth trying them. Cost is
+close to linear in `num_trees`, and a second forest can usually be
+smaller than the first, so setting
+`num_trees = c(mean = 50, log_sd = 10)` on a location-scale model is
+much cheaper than 50 for both. Setting `gate = "hard"` is several times
+faster than the soft default and costs nothing if the relationship is
+well approximated by a step function. The `bandwidth_every` argument
 controls how often the soft-rule bandwidth is resampled, and raising it
 keeps soft rules while recovering some of that speed; it is not free,
-though, since the bandwidth update is what lets the rules sharpen toward
-a step, so it costs some mixing and some accuracy on a mean function
-with jumps. `update_bandwidth = FALSE` stops resampling it altogether,
-which is faster again and can actually be more accurate on smooth
-functions but much worse on nonsmooth ones. Beyond those, run the chains
-in parallel with a *future* plan, which costs nothing in draws.
+though, since the bandwidth update lets the rules sharpen toward a step,
+so it costs some mixing and some accuracy on a mean function with jumps.
+Setting `update_bandwidth = FALSE` stops resampling it altogether, which
+is faster again and can actually be more accurate on smooth functions
+but much worse on nonsmooth ones. Beyond those, run the chains in
+parallel with a *future* plan, which costs nothing in draws.
 
 ### What if I’m a frequentist?
 
@@ -180,8 +181,8 @@ BART outcome model, can be used in doubly robust estimators like DML and
 TMLE. BART can also be used in instrumental variables analysis
 ([McCulloch et al.,
 n.d.](#ref-mccullochCausalInferenceInstrumental2021)) and regression
-discontinuity ([Alcantara et al.,
-n.d.](#ref-alcantaraModifiedBARTLearning2024)).
+discontinuity ([Alcantara et al.
+2024](#ref-alcantaraModifiedBARTLearning2024)).
 
 ### What are Bayesian Causal Forests?
 
@@ -216,14 +217,15 @@ fit <- bcf(y ~ x1 + x2, treat = ~ z, data = d)
 estimate_effect(fit)
 ```
 
-The estimand is an argument, so `estimand = "ATT"` averages over the
-treated instead of over everyone, `estimand = "CATE"` returns one effect
-per unit, `by = ~ g` gives subgroup effects, and `comparison = "ratio"`
-reports a ratio rather than a difference. On a fit from
+The estimand is an argument: setting `estimand = "ATT"` averages over
+the treated instead of over everyone, setting `estimand = "CATE"`
+returns one effect per unit, supplying `by = ~ g` gives subgroup
+effects, and setting `comparison = "ratio"` reports a ratio rather than
+a difference. On a fit from
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 rather than
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) it works
-the same way once `treat` names the column.
+the same way once the `treat` argument names the column.
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws whatever
 was asked for, and
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
@@ -300,20 +302,21 @@ cross-validation tends to buy very little for the increase in
 computation. We recommend changing the default parameters only if you
 understand very well what each one does.
 
-That said, there are a few hyperparameters that might be considered.
-`gate` controls whether hard or soft decision trees are used; the
-default, soft decision trees, tend to perform better when modeling
+That said, there are a few hyperparameters that might be considered. The
+`gate` argument controls whether hard or soft decision trees are used;
+the default, soft decision trees, tend to perform better when modeling
 smooth relationships, but they cost substantially more computation,
 because every observation reaches every leaf with some weight rather
-than taking one side of each split. `gate = "hard"` is the fast option
-when the relationship is expected to be a step function anyway.
-`sparsity` controls how much sparsity is induced in the covariates
-chosen for splitting; the default is to have sparsity on, which is
-especially useful with many predictors, but sometimes it can be valuable
-to turn the sparsity prior off to ensure all variables are used in the
-model. `split_prior` can also be used instead of `sparsity` to manually
-decide which variables should be split on more often, though in general
-the Bayesian updates can discover this from the data anyway. See
+than taking one side of each split. Setting `gate = "hard"` is the fast
+option when the relationship is expected to be a step function anyway.
+The `sparsity` argument controls how much sparsity is induced in the
+covariates chosen for splitting; the default is to have sparsity on,
+which is especially useful with many predictors, but sometimes it can be
+valuable to turn the sparsity prior off to ensure all variables are used
+in the model. The `split_prior` argument can also be used instead of
+`sparsity` to manually decide which variables should be split on more
+often, though in general the Bayesian updates can discover this from the
+data anyway. See
 [`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
 for a full list.
 
@@ -352,7 +355,7 @@ Double/Debiased Machine Learning*.
 <https://doi.org/10.48550/arXiv.2504.08324>.
 
 Alcantara, Rafael, Meijia Wang, P. Richard Hahn, and Hedibert Lopes.
-n.d. *Modified BART for Learning Heterogeneous Effects in Regression
+2024. *Modified BART for Learning Heterogeneous Effects in Regression
 Discontinuity Designs*. <https://doi.org/10.48550/arXiv.2407.14365>.
 
 Arel-Bundock, Vincent, Noah Greifer, and Andrew Heiss. 2024. “How to

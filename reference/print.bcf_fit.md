@@ -44,7 +44,7 @@ plot(x, level = 0.95, comparison = "difference", marginal = TRUE, ...)
 
   passed to
   [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md),
-  which is what computes the numbers.
+  which computes the numbers.
 
 - marginal:
 

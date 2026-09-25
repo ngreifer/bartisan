@@ -127,8 +127,9 @@ and averages over the units the estimand asks for.</p>
 group, which by default is the treatment's second level for the former and
 its first for the latter. With a binary treatment that makes them the
 treated and the untreated without <code>focal</code> being named. <code>"CATE"</code> does not
-average at all and returns one effect per unit. Abbreviations and lowercase
-spellings are allowed.</p></dd>
+average at all and returns the conditional effect at each unit's
+covariates, which is not that unit's own individual effect; see Details.
+Abbreviations and lowercase spellings are allowed.</p></dd>
 
 
 <dt id="arg-comparison">comparison<a class="anchor" aria-label="anchor" href="#arg-comparison"></a></dt>
@@ -151,8 +152,8 @@ output.</p></dd>
 
 <dt id="arg-newdata">newdata<a class="anchor" aria-label="anchor" href="#arg-newdata"></a></dt>
 <dd><p>optional; a data frame of units to average over. Default is
-the data the model was fit to, which is what makes the default estimand the
-sample average effect.</p></dd>
+the data the model was fit to, so that the average runs over the covariates
+of the fitted sample; see Details for what that average is.</p></dd>
 
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
@@ -234,6 +235,23 @@ below the contrasts unless <code>potential_outcomes = FALSE</code>. <code><a hre
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
 
 <div class="section">
+<h3 id="the-estimand">The Estimand<a class="anchor" aria-label="anchor" href="#the-estimand"></a></h3>
+
+
+<p>The ATE, ATT and ATC are averages of the conditional effect over the
+covariates of the units averaged over, computed within each posterior draw.
+This is sometimes called the mixed average treatment effect. The covariates
+are treated as fixed, so the interval reflects uncertainty about the outcome
+model but not the further variation a population average would carry, and
+the units' observed outcomes are not conditioned on, as they would be for a
+sample average of individual effects. Likewise, <code>estimand = "CATE"</code> reports
+the expected effect at each unit's covariates rather than the unit's own
+effect, which depends on how its two potential outcomes are associated and is
+not identified. See <code><a href="../articles/causal.html">vignette("causal")</a></code> for the distinction between these
+estimands.</p>
+</div>
+
+<div class="section">
 <h3 id="setting-type">Setting <code>type</code><a class="anchor" aria-label="anchor" href="#setting-type"></a></h3>
 
 
@@ -243,7 +261,7 @@ and the average of those is the average conditional log odds ratio rather than
 the marginal one a treatment question usually asks for. The default is
 therefore <code>type = "response"</code>, where every unit's contrast is on the scale the
 response is measured on and averaging them gives the marginal effect.</p>
-<p><code>type = "link"</code> is the right choice for looking at how the effect varies,
+<p>Setting <code>type = "link"</code> is the right choice for looking at how the effect varies,
 since that is the scale the forest models it on, and the wrong one for
 reporting an average.</p>
 </div>
@@ -288,7 +306,7 @@ average over the group <code>focal</code> names and only the default differs.</p
 <h3 id="multi-category-treatments">Multi-category Treatments<a class="anchor" aria-label="anchor" href="#multi-category-treatments"></a></h3>
 
 
-<p>There is nothing to work out from the values, so <code>focal</code> is required for
+<p>There is nothing to work out from the values, so the <code>focal</code> argument is required for
 <code>"ATT"</code> and <code>"ATC"</code>, and those two then name the same estimand: the effect
 among the units in the level named.</p>
 <p>Every pairwise contrast is computed. Which ones are shown is a display
@@ -362,7 +380,8 @@ same estimands through
 <span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">Y[a]</span> is the average response with `rhc` set to <span style="color: #0000BB;">"a"</span>.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># One effect per unit, ordered, with the marginal effect beside them</span></span></span>
+<span class="r-in"><span><span class="co"># The effect at each unit's covariates, ordered, with the marginal effect</span></span></span>
+<span class="r-in"><span><span class="co"># beside them</span></span></span>
 <span class="r-in"><span><span class="va">cate</span> <span class="op">&lt;-</span> <span class="fu">estimate_effect</span><span class="op">(</span><span class="va">fit</span>, estimand <span class="op">=</span> <span class="st">"CATE"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">cate</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="estimate_effect-1.png" alt="" width="700" height="433"></span>

@@ -97,7 +97,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-24</h4>
+            <h4 data-toc-skip class="date">2026-09-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/importance.Rmd" class="external-link"><code>vignettes/importance.Rmd</code></a></small>
       <div class="d-none name"><code>importance.Rmd</code></div>
@@ -130,6 +130,10 @@ correlated predictors, where the ranking is confidently wrong. Finally
 we’ll cover what importance does not measure and what to make of the
 advice to reduce the number of trees when using BART to select
 variables.</p>
+<p>The fits use the default single chain for brevity. In a real analysis
+we would run several chains and possibly change the number of burn-in
+and retained draws; <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers how to
+set these fit controls and how to check that they were enough.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span></span>
@@ -145,7 +149,7 @@ variables.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">imp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span></span>
@@ -153,20 +157,20 @@ variables.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;    surv2m     1.000       0.284   21.6</span></span>
-<span><span class="co">#&gt;       age     1.000       0.152   11.5</span></span>
-<span><span class="co">#&gt;     paco2     0.968       0.080    6.1</span></span>
-<span><span class="co">#&gt;       rhc     0.935       0.053    4.0</span></span>
-<span><span class="co">#&gt;       aps     0.891       0.067    5.1</span></span>
-<span><span class="co">#&gt;      pafi     0.889       0.063    4.8</span></span>
-<span><span class="co">#&gt;       edu     0.749       0.046    3.5</span></span>
-<span><span class="co">#&gt;      card     0.715       0.056    4.3</span></span>
-<span><span class="co">#&gt;      hema     0.640       0.035    2.6</span></span>
-<span><span class="co">#&gt;    meanbp     0.632       0.032    2.4</span></span>
-<span><span class="co">#&gt;      crea     0.630       0.035    2.7</span></span>
-<span><span class="co">#&gt;      race     0.582       0.039    3.0</span></span>
-<span><span class="co">#&gt;      resp     0.562       0.032    2.4</span></span>
-<span><span class="co">#&gt;       sex     0.521       0.027    2.1</span></span>
+<span><span class="co">#&gt;    surv2m     1.000       0.211   15.6</span></span>
+<span><span class="co">#&gt;       age     1.000       0.182   13.6</span></span>
+<span><span class="co">#&gt;       rhc     0.995       0.098    7.3</span></span>
+<span><span class="co">#&gt;      pafi     0.995       0.080    6.0</span></span>
+<span><span class="co">#&gt;     paco2     0.991       0.105    7.9</span></span>
+<span><span class="co">#&gt;       aps     0.764       0.062    4.7</span></span>
+<span><span class="co">#&gt;       edu     0.684       0.053    4.0</span></span>
+<span><span class="co">#&gt;      resp     0.667       0.059    4.4</span></span>
+<span><span class="co">#&gt;      race     0.637       0.031    2.3</span></span>
+<span><span class="co">#&gt;      card     0.621       0.025    1.8</span></span>
+<span><span class="co">#&gt;      hema     0.574       0.033    2.5</span></span>
+<span><span class="co">#&gt;    meanbp     0.555       0.022    1.7</span></span>
+<span><span class="co">#&gt;      crea     0.514       0.018    1.4</span></span>
+<span><span class="co">#&gt;       sex     0.479       0.020    1.5</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The output has six columns, of which <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> shows four,
@@ -194,17 +198,16 @@ and drop the rest entirely. A predictor that contributes nothing can
 fall to <code>prop_used</code> near zero, which is not possible under
 classic BART, where every predictor keeps a fixed share of the splitting
 probability.</p>
-<p>The prognostic score and the illness measures sit at the top, which
-is what we would expect; at the other end, several predictors are used
+<p>The prognostic score, age, and two of the illness measures sit at the
+top, as we would expect; at the other end, several predictors are used
 in only about half the draws.</p>
 <p>For a ranking this long the picture is easier to read than the table,
 and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws it:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">imp</span><span class="op">)</span></span></code></pre></div>
 <p><img src="importance_files/figure-html/viplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
-<p>For a model wider than this one, subsetting first is what keeps the
-picture readable: <code>plot(head(imp, 10))</code> shows the top
-ten.</p>
+<p>For a model wider than this one, subsetting first keeps the picture
+readable: <code>plot(head(imp, 10))</code> shows the top ten.</p>
 <p>And when the question is not one the summary answers,
 <code>draws = TRUE</code> returns the counts themselves, one row per
 posterior draw, so any comparison can be made directly. The posterior
@@ -214,7 +217,7 @@ on <code>meanbp</code>, for instance, is a proportion of draws:</p>
 <code class="sourceCode R"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">counts</span><span class="op">[</span>, <span class="st">"aps"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="va">counts</span><span class="op">[</span>, <span class="st">"meanbp"</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.67</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.649</span></span></code></pre></div>
 <p>That is worth doing before reading much into a difference in the
 table: two predictors adjacent in the ranking are usually not
 distinguishable, and this is how to find out.</p>
@@ -233,29 +236,29 @@ means adding a few.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">fit_noise</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">.</span> <span class="op">~</span> <span class="va">.</span> <span class="op">+</span> <span class="va">noise1</span> <span class="op">+</span> <span class="va">noise2</span> <span class="op">+</span> <span class="va">noise3</span><span class="op">)</span>,</span>
-<span>                      data <span class="op">=</span> <span class="va">rhc_noise</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, chains <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
+<span>                      data <span class="op">=</span> <span class="va">rhc_noise</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_noise</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;    surv2m     1.000       0.199   15.2</span></span>
-<span><span class="co">#&gt;       age     1.000       0.132   10.1</span></span>
-<span><span class="co">#&gt;     paco2     0.966       0.083    6.3</span></span>
-<span><span class="co">#&gt;      pafi     0.957       0.065    5.0</span></span>
-<span><span class="co">#&gt;       aps     0.928       0.082    6.3</span></span>
-<span><span class="co">#&gt;       rhc     0.924       0.055    4.2</span></span>
-<span><span class="co">#&gt;      card     0.788       0.036    2.7</span></span>
-<span><span class="co">#&gt;    noise1     0.777       0.049    3.7</span></span>
-<span><span class="co">#&gt;       edu     0.776       0.042    3.2</span></span>
-<span><span class="co">#&gt;    meanbp     0.730       0.040    3.0</span></span>
-<span><span class="co">#&gt;      hema     0.719       0.036    2.8</span></span>
-<span><span class="co">#&gt;      crea     0.712       0.046    3.5</span></span>
-<span><span class="co">#&gt;    noise2     0.673       0.028    2.1</span></span>
-<span><span class="co">#&gt;    noise3     0.666       0.032    2.5</span></span>
-<span><span class="co">#&gt;      race     0.590       0.026    2.0</span></span>
-<span><span class="co">#&gt;       sex     0.569       0.021    1.6</span></span>
-<span><span class="co">#&gt;      resp     0.568       0.028    2.1</span></span>
+<span><span class="co">#&gt;    surv2m     1.000       0.172   13.1</span></span>
+<span><span class="co">#&gt;     paco2     1.000       0.151   11.6</span></span>
+<span><span class="co">#&gt;       age     1.000       0.121    9.2</span></span>
+<span><span class="co">#&gt;      pafi     1.000       0.072    5.5</span></span>
+<span><span class="co">#&gt;       rhc     0.980       0.045    3.4</span></span>
+<span><span class="co">#&gt;       edu     0.975       0.053    4.0</span></span>
+<span><span class="co">#&gt;       aps     0.894       0.069    5.3</span></span>
+<span><span class="co">#&gt;    noise1     0.774       0.039    3.0</span></span>
+<span><span class="co">#&gt;      crea     0.686       0.039    3.0</span></span>
+<span><span class="co">#&gt;    meanbp     0.674       0.047    3.6</span></span>
+<span><span class="co">#&gt;    noise3     0.670       0.032    2.5</span></span>
+<span><span class="co">#&gt;      card     0.662       0.030    2.3</span></span>
+<span><span class="co">#&gt;      resp     0.639       0.026    2.0</span></span>
+<span><span class="co">#&gt;    noise2     0.601       0.026    2.0</span></span>
+<span><span class="co">#&gt;      hema     0.598       0.028    2.1</span></span>
+<span><span class="co">#&gt;       sex     0.562       0.028    2.2</span></span>
+<span><span class="co">#&gt;      race     0.498       0.022    1.6</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>The noise variables do not sort to the bottom. They land in the
@@ -366,8 +369,8 @@ affected is any statement about which variable matters.</p>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: +1</span></span></code></pre></div>
 <p>The copy takes most of the association; the original’s interval
-covers zero. Moving both together, which is what a change in the
-underlying quantity would mean, recovers the truth:</p>
+covers zero. Moving both together, as a change in the underlying
+quantity would, recovers the truth:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lo</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">cd</span>, x1 <span class="op">=</span> <span class="fl">0.25</span>, x1_copy <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span>
 <span><span class="va">hi</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">cd</span>, x1 <span class="op">=</span> <span class="fl">0.75</span>, x1_copy <span class="op">=</span> <span class="fl">0.75</span><span class="op">)</span></span>
@@ -467,7 +470,7 @@ reports several times the count of a forest of 20 without being several
 times as informative. The share is computed within each draw, so it adds
 to one at any forest size. It is not invariant, since the number of
 trees also changes how the rules get allocated, but the ranking carries
-over and that is what the comparison is about.</p>
+over, and the ranking is the subject of the comparison.</p>
 </div>
 <div class="section level2">
 <h2 id="further-reading">Further Reading<a class="anchor" aria-label="anchor" href="#further-reading"></a>

@@ -195,7 +195,7 @@ nothing to fit them to.</p></dd>
 
 <dt id="arg-prior-only">prior_only<a class="anchor" aria-label="anchor" href="#arg-prior-only"></a></dt>
 <dd><p><code>logical</code>; whether to draw from the prior rather than the
-posterior, which is what a prior predictive check reads. Default is <code>FALSE</code>.
+posterior, as a prior predictive check requires. Default is <code>FALSE</code>.
 Not available for every family; see Details.</p></dd>
 
 
@@ -228,8 +228,8 @@ for variable selection.</p></dd>
 standard deviation or the ordinal cutpoints, when the family has any.</p></dd>
 
 <dt><code>has_na</code></dt>
-<dd><p>which predictor columns contained a missing value, which is
-what determines where <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> will accept one.</p></dd>
+<dd><p>which predictor columns contained a missing value, which
+determines where <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> will accept one.</p></dd>
 
 <dt><code>sigma_mu</code>, <code>bandwidth</code></dt>
 <dd><p>draws of the leaf standard deviation and,
@@ -271,8 +271,9 @@ the derivatives.</p>
 <h3 id="inferring-the-family">Inferring the Family<a class="anchor" aria-label="anchor" href="#inferring-the-family"></a></h3>
 
 
-<p><code>family</code> may be left alone, in which case it is read off the response:</p><table class="table table"><tr><td>Response</td><td>Family</td></tr><tr><td><code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or a two-column matrix of times and events</td><td><code><a href="bartisan-families.html">dpm_aft()</a></code></td></tr><tr><td>ordered factor</td><td><code><a href="bartisan-families.html">ordinal()</a></code></td></tr><tr><td>logical, or two levels, or numeric zeros and ones</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>factor or character with more than two levels</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>two-column matrix of successes and failures</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>anything else</td><td><code><a href="bartisan-families.html">dpm()</a></code></td></tr></table><p>A message reports the choice, and naming <code>family</code> is what silences it, which
-is also what changes it.</p>
+<p>The <code>family</code> argument may be left alone, in which case it is read off the
+response:</p><table class="table table"><tr><td>Response</td><td>Family</td></tr><tr><td><code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object, or a two-column matrix of times and events</td><td><code><a href="bartisan-families.html">dpm_aft()</a></code></td></tr><tr><td>ordered factor</td><td><code><a href="bartisan-families.html">ordinal()</a></code></td></tr><tr><td>logical, or two levels, or numeric zeros and ones</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>factor or character with more than two levels</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>two-column matrix of successes and failures</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td>anything else</td><td><code><a href="bartisan-families.html">dpm()</a></code></td></tr></table><p>A message reports the choice, and naming <code>family</code> silences it and
+overrides the choice.</p>
 <p>Some scenarios are worth noting. A count is read as a numeric variable and therefore has <code><a href="bartisan-families.html">dpm()</a></code> as its default. And a
 numeric response with exactly two values other than zero and one (e.g.,
 <code>c(1, 2)</code>) is also given <code><a href="bartisan-families.html">dpm()</a></code> as its default rather than <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, which of the two counts as the
@@ -315,7 +316,7 @@ the count part and another on the inflation part), and they are independent of
 one another.</p>
 <p>Only random <em>intercepts</em> are supported, and a random slope is refused rather
 than ignored. The reason is that a random intercept is a scalar entering the
-predictor with weight one for the observations in its level, which is what a
+predictor with weight one for the observations in its level, exactly as a
 leaf is once its gate is removed, so the sampler's leaf machinery handles it
 exactly; a slope is a different shape of parameter. A variable whose effect
 varies by group belongs in the fixed part of the formula, where a tree can
@@ -349,7 +350,7 @@ because the default symmetric coding gives every category a forest and a
 shift common to all of them cancels out of the softmax. A vector offset
 there leaves the fitted probabilities unchanged; with <code>reference</code> set it
 does not cancel, and moves every non-reference category against the
-reference one. A matrix is what expresses a per-category offset either way.</p>
+reference one. A per-category offset is expressed as a matrix either way.</p>
 <p>An offset is not a function of the predictors, so it cannot be rebuilt for
 rows the fit has not seen: a model fitted with one requires <code>offset</code> at
 <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> time.</p>
@@ -366,7 +367,7 @@ rule on a variable that has missing values is drawn as one of three, with
 equal probability:</p><ul><li><p><code>x &lt; c</code>, or missing, goes left;</p></li>
 <li><p><code>x &lt; c</code> goes left, missing goes right;</p></li>
 <li><p>missing goes left, present goes right.</p></li>
-</ul><p>This is missingness incorporated in attributes, and the third rule is what
+</ul><p>This is missingness incorporated in attributes, and the third rule
 lets the model split on missingness itself, so a variable whose absence
 carries the signal is usable even where its observed values say nothing.</p>
 <p>This has consequences worth being clear about. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing
@@ -398,7 +399,7 @@ approximation, which the sampler then moves away from.</p>
 <h3 id="drawing-from-the-prior-prior-only-">Drawing From the Prior (<code>prior_only</code>)<a class="anchor" aria-label="anchor" href="#drawing-from-the-prior-prior-only-"></a></h3>
 
 
-<p><code>prior_only = TRUE</code> fits the same model to no data. Every observation is given
+<p>Setting <code>prior_only = TRUE</code> fits the same model to no data. Every observation is given
 a weight of zero, and since the weight multiplies that observation's log
 density, its gradient, and its curvature, the likelihood is flat: each tree
 move is accepted or rejected on the prior alone and each leaf is drawn from

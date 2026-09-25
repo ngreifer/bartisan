@@ -15,8 +15,8 @@ the reference document rather than the entry point:
 shows how to use the package on a real analysis, and
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 covers choosing a likelihood. This is the one to read to find out what
-the fit is doing, why the defaults are what they are, or what an
-advanced setting changes.
+the fit is doing, why the defaults were chosen, or what an advanced
+setting changes.
 
 In this guide we will first set out the model, which is a sum of trees
 supplying an additive predictor to an arbitrary likelihood, and then the
@@ -54,10 +54,10 @@ BART sums many of them ([Chipman et al. 2010](#ref-chipman2010)):
 \\f(x) = \sum\_{m=1}^{M} g(x; T_m, M_m).\\
 
 Each tree is kept small by its prior, so no single one explains much.
-The sum is flexible while each term is a weak learner, which is what
-makes the fit stable. Interactions come free: a path through a tree that
-splits on \\x_1\\ and then on \\x_2\\ is an interaction between them,
-and nothing had to be specified for it to appear.
+The sum is flexible while each term is a weak learner, which makes the
+fit stable. Interactions come free: a path through a tree that splits on
+\\x_1\\ and then on \\x_2\\ is an interaction between them, and nothing
+had to be specified for it to appear.
 
 In ordinary BART, the sum is the conditional mean of a Gaussian outcome,
 
@@ -141,20 +141,20 @@ smooth rather than a step. As \\\tau \to 0\\ the gate becomes a step and
 the hard rule is recovered.
 
 The `gate` argument chooses \\\psi\\: `"smoothstep"` (the default),
-`"smootherstep"`, `"logistic"`, or `"hard"`. How far the smoothing
-reaches is what separates them. The logistic has unbounded support, so
-under it every observation really does reach every leaf with some
-weight. The two polynomial gates are the cumulative distribution
-functions of symmetric Beta kernels and reach exactly zero and one
-outside a finite window, so an observation far enough from a cutpoint
-takes one side only and the subtree on the other side is never visited.
-That skipped work turns out to be worth less than it sounds; what makes
-them faster is that a polynomial needs no
-[`exp()`](https://rdrr.io/r/base/Log.html), and they keep that advantage
-even at a bandwidth wide enough to truncate nothing at all. `bandwidth`
-sets the prior mean of \\\tau\\, which is drawn rather than fixed, and
-it means the same amount of smoothing under every gate, the kernels
-being matched on their standard deviation rather than on their width.
+`"smootherstep"`, `"logistic"`, or `"hard"`. They differ in how far the
+smoothing reaches. The logistic has unbounded support, so under it every
+observation really does reach every leaf with some weight. The two
+polynomial gates are the cumulative distribution functions of symmetric
+Beta kernels and reach exactly zero and one outside a finite window, so
+an observation far enough from a cutpoint takes one side only and the
+subtree on the other side is never visited. That skipped work turns out
+to be worth less than it sounds; they are faster because a polynomial
+needs no [`exp()`](https://rdrr.io/r/base/Log.html), and they keep that
+advantage even at a bandwidth wide enough to truncate nothing at all.
+The `bandwidth` argument sets the prior mean of \\\tau\\, which is drawn
+rather than fixed, and it means the same amount of smoothing under every
+gate, the kernels being matched on their standard deviation rather than
+on their width.
 
 Soft rules cost about three times as much per iteration but are usually
 worth it:
@@ -185,8 +185,8 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.416     1.3
-#> 2       hard     1.079     0.4
+#> 1 smoothstep     0.416     0.8
+#> 2       hard     1.079     0.2
 ```
 
 The true function has a standard deviation of about 4.9, so both are
@@ -218,11 +218,11 @@ with 95% intervals covering .24 rather than .95. The deterioration with
 occupies an ever smaller share of the range.
 
 `"quantile"` maps each predictor through its own empirical distribution
-function, which is what `SoftBart::softbart()` does. It cannot fail that
-way, because it places cutpoints by rank and knows nothing about
-spacing. It fails instead by being a step function, so the fit is a step
-function of the original predictor: there is no derivative to take, and
-a relationship that is straight in the predictor becomes a staircase
+function, as `SoftBart::softbart()` does. It cannot fail that way,
+because it places cutpoints by rank and knows nothing about spacing. It
+fails instead by being a step function, so the fit is a step function of
+the original predictor: there is no derivative to take, and a
+relationship that is straight in the predictor becomes a staircase
 wherever the data have gaps. On two tight clusters with a linear truth
 it was nearly three times worse than the alternatives.
 
@@ -259,16 +259,16 @@ measures what that costs and recommends refitting with `"range"` when a
 slope is the quantity being reported.
 
 The kernel is Epanechnikov rather than Gaussian because its support is
-bounded, which is what makes the estimate cheap to compute exactly.
-Written directly, \\\hat F_h\\ on a grid of \\m\\ points is \\nm\\
-kernel evaluations, tens of millions per predictor on a large fit.
-Almost all of that work is avoidable, because almost every weight is a 0
-or a 1 rather than something in between: an observation further below a
-grid point than the kernel reaches has passed it entirely and
-contributes 1, one further above contributes 0, and only those within
-\\h\\ need evaluating. With the data and the grid both sorted, the two
-ends of that window advance monotonically, so each is found by a pointer
-that never goes back and the sweep costs \\O(n + m)\\.
+bounded, which makes the estimate cheap to compute exactly. Written
+directly, \\\hat F_h\\ on a grid of \\m\\ points is \\nm\\ kernel
+evaluations, tens of millions per predictor on a large fit. Almost all
+of that work is avoidable, because almost every weight is a 0 or a 1
+rather than something in between: an observation further below a grid
+point than the kernel reaches has passed it entirely and contributes 1,
+one further above contributes 0, and only those within \\h\\ need
+evaluating. With the data and the grid both sorted, the two ends of that
+window advance monotonically, so each is found by a pointer that never
+goes back and the sweep costs \\O(n + m)\\.
 
 ### Sparsity (`sparsity`)
 
@@ -280,8 +280,8 @@ distribution whose probabilities have a Dirichlet prior ([Linero
 
 with \\\alpha\\ itself drawn. Small \\\alpha\\ concentrates the
 probability on a few predictors, so the forest can stop splitting on the
-rest entirely. This is DART, and it is what `sparsity = TRUE` means. It
-is the default.
+rest entirely. This is DART, and setting `sparsity = TRUE` requests it.
+It is the default.
 
 The alternative, `sparsity = FALSE`, gives every predictor the same
 splitting probability, which is classic BART.
@@ -348,9 +348,9 @@ parameters integrated out,
 ### The General Case, and the Laplace Approximation
 
 For a Gaussian outcome with a normal leaf prior, that integral is a
-normal integral and has a closed form. This is what confines classic
-BART to Gaussian likelihoods, or to likelihoods that can be made
-Gaussian by augmentation.
+normal integral and has a closed form. This confines classic BART to
+Gaussian likelihoods, or to likelihoods that can be made Gaussian by
+augmentation.
 
 For anything else, the integral has no closed form. Linero
 ([2025](#ref-linero2025)) replaces it with a Laplace approximation:
@@ -377,7 +377,8 @@ the cheapest machinery each admits:
 | General | anything else | Newton iteration |
 
 A family that lands higher in this table is several times faster than
-one that does not. This is what data augmentation is for.
+one that does not. Data augmentation exists to move a family higher in
+this table.
 
 ### Data Augmentation (`augment`)
 
@@ -479,10 +480,10 @@ effect defined on complete data that multiple imputation targets.
 
 ### Several Chains (`chains`)
 
-`chains` runs the sampler more than once from different starting points.
-The default is one, which is enough for estimates. Running several is
-what makes a between-chain comparison possible, which is the only way to
-see whether the sampler has converged, and
+The `chains` argument runs the sampler more than once from different
+starting points. The default is one, which is enough for estimates.
+Running several makes a between-chain comparison possible, which is the
+only way to see whether the sampler has converged, and
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
 is where that comparison is computed. It is not part of the fit: the
 per-observation statistics cost more than the sampling does, so they run
@@ -509,8 +510,8 @@ diagnose(fit_chains)$table
 ```
 
 This table is read selectively. `aux.sigma` and `loglik` are close to 1,
-which is what convergence looks like, and they respond to longer chains
-in the usual way.
+as they are at convergence, and they respond to longer chains in the
+usual way.
 
 The `eta` row does not, and it is worth knowing why before it causes
 alarm. It summarizes the worst 5% of the observations rather than the
@@ -547,7 +548,7 @@ diagnose(fit)
 ```
 
 The chain is the only parallel axis the *sampler* has, since a sweep
-conditions on the one before it, and it is also what makes a convergence
+conditions on the one before it, and it also makes a convergence
 diagnostic possible. Outside the sampler, a plan is also used when one
 is set: the convergence pass splits its per-observation columns across
 workers, and
@@ -566,11 +567,11 @@ the size of the forest itself, then says which of them fall short and
 what to change. Handed the output of
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 instead of a fit, it reports on the contrast and on the two potential
-outcomes it is a contrast of. Two of its choices are worth knowing
-about. It repeats R-hat on the second half of the draws alone, which is
-what distinguishes a warmup that ended too early from chains that have
-each settled somewhere different: discarding the early draws is what
-more `num_burn` would have done, so if that fixes R-hat then warmup was
+outcomes it is a contrast of. Some of its choices are worth knowing
+about. It repeats R-hat on the second half of the draws alone, which
+distinguishes a warmup that ended too early from chains that have each
+settled somewhere different: discarding the early draws has the same
+effect as a larger `num_burn`, so if that fixes R-hat then warmup was
 the problem, and the advice says so rather than listing everything a
 reader might try. And it leaves the leaf scale out, because that
 parameter mixes badly in every implementation (1.12 in *dbarts* and 1.16
@@ -633,9 +634,9 @@ takes eight on the same data.
 A major contributor to *bartisan*’s speed is data augmentation. Where
 the rewriting reaches a Gaussian conditional the Laplace approximation
 stops being an approximation at all, which is the largest of the gains:
-`augment` uses Albert and Chib ([1993](#ref-albert1993)) for a probit
-link and for an ordinal probit, Pólya-Gamma augmentation ([Polson et al.
-2013](#ref-polson2013)) for a logit link, an ordinal logit, or a
+the augmentation uses Albert and Chib ([1993](#ref-albert1993)) for a
+probit link and for an ordinal probit, Pólya-Gamma augmentation ([Polson
+et al. 2013](#ref-polson2013)) for a logit link, an ordinal logit, or a
 multinomial, and imputation of the censored failure times for the
 log-normal and log-logistic survival models. The negative binomial and
 the zero-inflated families are rewritten too, but to a Poisson rather
@@ -684,27 +685,28 @@ replicates the same quantity varied by a median factor of 4.5 within a
 single cell, since the worst-quantity effective sample size is a minimum
 over many quantities and so is a high-variance thing to estimate.
 
-`augment` is on by default for every family that has a rewriting: the
-binomial, ordinal, multinomial, negative binomial, zero-inflated, and
-survival families. The negative binomial’s is a Poisson whose rate comes
-from a gamma, which needs one gamma draw per observation rather than a
-Pólya-Gamma one, and it is the one family whose two rows differ in kind
-rather than degree. Under hard rules the target reaches the exponential
-form and the rewriting buys time at a real cost in mixing; under soft
-rules it cannot, and the rewriting instead buys a little time at no
-measurable cost in mixing. Neither comes out ahead on effective draws
-per second, at 1.0 and 0.8 times, which makes the negative binomial the
-one family whose rewriting does not pay for itself; `augment = FALSE` is
-worth trying whenever a negative binomial fit’s diagnostics look poor.
+The `augment` argument is on by default for every family that has a
+rewriting: the binomial, ordinal, multinomial, negative binomial,
+zero-inflated, and survival families. The negative binomial’s is a
+Poisson whose rate comes from a gamma, which needs one gamma draw per
+observation rather than a Pólya-Gamma one, and it is the one family
+whose two rows differ in kind rather than degree. Under hard rules the
+target reaches the exponential form and the rewriting buys time at a
+real cost in mixing; under soft rules it cannot, and the rewriting
+instead buys a little time at no measurable cost in mixing. Neither
+comes out ahead on effective draws per second, at 1.0 and 0.8 times,
+which makes the negative binomial the one family whose rewriting does
+not pay for itself; setting `augment = FALSE` is worth trying whenever a
+negative binomial fit’s diagnostics look poor.
 
 The survival families are the clearest case of what the rewriting is
-for. Right-censoring is what makes their likelihood expensive: an
-observed failure contributes a density in the additive predictor and a
-censored one contributes a survival function, and the two have different
-shapes, so nothing about the target is exploitable. Imputing each
-censored failure time above its censoring time replaces the survival
-term with a density, and then every observation contributes the same
-quadratic shape.
+for. Right-censoring makes their likelihood expensive: an observed
+failure contributes a density in the additive predictor and a censored
+one contributes a survival function, and the two have different shapes,
+so nothing about the target is exploitable. Imputing each censored
+failure time above its censoring time replaces the survival term with a
+density, and then every observation contributes the same quadratic
+shape.
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is absent from the table because it needs none of this, its likelihood
 being already exponential in the sense above, censoring included, which
@@ -918,7 +920,7 @@ is at the other end, and only because of augmentation: all three of its
 links have a latent-variable representation that the sampler uses by
 default (a normal for the probit, a normal with a Pólya-Gamma precision
 for the logit, and an exponential waiting time for the complementary
-log-log), which is what makes it almost as fast as
+log-log), which makes it almost as fast as
 [`binomial()`](https://rdrr.io/r/stats/family.html).
 
 The leaf scale is raised from near zero over the first quarter of
@@ -939,7 +941,7 @@ the scale down: in a fully separated example the drawn scale wandered
 between 3 and 9 times its prior median over 1600 draws without settling.
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 warns when the scale settles more than five times above its prior
-median, and `update_sigma_mu = FALSE` pins it.
+median, and setting `update_sigma_mu = FALSE` pins it.
 
 A link supplied from R costs a call into the interpreter for every leaf
 the sampler visits, and
@@ -1085,6 +1087,6 @@ Association* 103 (482): 790–96.
     couples the forests through the likelihood itself instead:
     conditional on the others, the likelihood for category \\j\\ is
     exactly binomial-logistic in \\\eta_j - \log C_j\\ with \\C_j\\
-    summing \\e^{\eta}\\ over the rest, which is what the Pólya-Gamma
-    augmentation exploits and what keeps the prior symmetric in the
+    summing \\e^{\eta}\\ over the rest, a structure the Pólya-Gamma
+    augmentation exploits and one that keeps the prior symmetric in the
     categories ([Murray 2021](#ref-murray2021)).

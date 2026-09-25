@@ -150,7 +150,7 @@ does. See Details.</p></dd>
 
 <dt id="arg-num-draws">num_draws<a class="anchor" aria-label="anchor" href="#arg-num-draws"></a></dt>
 <dd><p><code>numeric</code>; the number of draws to keep. Default is 800.
-These are what every estimate and interval is computed from, so raising it
+Every estimate and interval is computed from these, so raising it
 narrows Monte Carlo error; increase it when <code>ess_bulk</code> or <code>ess_tail</code> is
 small relative to what the reported quantity needs.</p></dd>
 
@@ -240,7 +240,7 @@ additive predictor, whether the forests draw their splitting proportions
 from one pooled Dirichlet rather than one each. Default is <code>FALSE</code>. <code>TRUE</code>
 is an assumption about the data rather than a free improvement, and
 requires that the proportions be drawn at all and over the same predictors,
-so <code>sparsity</code> must not be <code>FALSE</code> for the forests that are to share.
+so the forests that are to share must not have <code>sparsity = FALSE</code>.
 Ignored for a family with a single forest. See Details.</p></dd>
 
 
@@ -248,7 +248,7 @@ Ignored for a family with a single forest. See Details.</p></dd>
 <dd><p><em>Advanced.</em> string; how a splitting rule divides the
 levels of a factor. Allowable options include <code>"subset"</code> (the default),
 which draws a subset of the levels still available at the node and sends
-those left, and <code>"onehot"</code>, which is what most BART implementations do: it
+those left, and <code>"onehot"</code>, which follows most BART implementations: it
 splits on one indicator column, peeling a single level off the rest.</p></dd>
 
 
@@ -334,7 +334,7 @@ to use the number of predictor groups; the two shapes default to whatever
 <dd><p><em>Advanced.</em> <code>logical</code>; whether to draw the
 splitting proportions and their concentration. Defaults are <code>NULL</code> to
 follow <code>sparsity</code>. Turning both off recovers a uniform prior over
-predictors, which is what <code>sparsity = FALSE</code> does.</p></dd>
+predictors, as setting <code>sparsity = FALSE</code> does.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -361,7 +361,7 @@ draws from the same seed at somewhat greater cost.</p></dd>
 forms that a target quadratic in the additive predictor allows, in which
 one pass over a node determines the log target everywhere, so that the
 Laplace approximation is the conditional posterior rather than an
-approximation to it. Default is <code>TRUE</code>, which is what makes a Gaussian
+approximation to it. Default is <code>TRUE</code>, which makes a Gaussian
 response, or any of the rewritings in <code>augment</code>, cheap. <code>FALSE</code> falls back
 on the general path; the two agree, at greater cost.</p></dd>
 
@@ -415,7 +415,7 @@ than whether.</p>
 predictors irrelevant, comparing the default against a run 64 times longer:
 pointwise 95% intervals for the regression function came out about 5% wider at
 the default and covered 0.938 against 0.958. Halving the excess width took
-about four times the sweeps, which is what an error decaying as the square
+about four times the sweeps, as an error decaying as the square
 root of the run predicts.</p>
 <p>This suggests some habits rather than a number to apply. Raise <code>num_draws</code>
 when an interval, a tail quantile or a posterior probability is the
@@ -438,7 +438,7 @@ of trees for a model with a single forest; the defaults tend to do well,
 which is a strength of BART. The leaf prior scale divides by the square root
 of a forest's own tree count, so shrinking one forest does not change the
 prior on the sum.</p>
-<p><code>num_trees</code> can be supplied as a vector when the family has more than one
+<p>The <code>num_trees</code> argument can be supplied as a vector when the family has more than one
 forest, where each value corresponds to the number of trees for that forest.
 The scale forest of location-scale models (e.g., <code>family = gaussian_ls()</code>)
 dominates the run time, its target not being quadratic, and a variance
@@ -461,7 +461,7 @@ to the left branch is \(w_L(x; c) = 1 - w_R(x; c)\).</p><div class="section">
 <h4 id="hard-gates">Hard Gates<a class="anchor" aria-label="anchor" href="#hard-gates"></a></h4>
 
 
-<p>For a hard gate (<code>gate = "hard"</code>), which is what is used in traditional BART
+<p>For a hard gate (<code>gate = "hard"</code>), which is used in traditional BART
 and most other tree-based models,</p>
 <p>$$w_R(x; c) = \mathbb{I}(x &gt; c)$$</p>
 <p>where \(\mathbb{I}(\cdot)\) is the indicator function. An observation
@@ -487,9 +487,9 @@ negligible in predictive performance. <code>"smoothstep"</code> is computational
 fastest and lets some observations have weights of exactly 0 or 1, which is
 why it is the default; <code>"logistic"</code> is the one Linero and Yang (2018)
 originally describe.</p>
-<p><code>bandwidth_every</code> controls how often the bandwidth is updated from its
+<p>The <code>bandwidth_every</code> argument controls how often the bandwidth is updated from its
 starting value specified by <code>bandwidth</code> for a soft gate when
-<code>update_bandwidth = TRUE</code> (the default). Drawing the bandwidth is what lets a
+<code>update_bandwidth = TRUE</code> (the default). Drawing the bandwidth lets a
 rule sharpen toward a step, so setting <code>update_bandwidth = FALSE</code> is faster
 and tends to be more accurate on smooth functions, but is much worse on
 nonsmooth ones. Raising <code>bandwidth_every</code> is the middle course, recovering
@@ -540,9 +540,9 @@ induce is a bit opaque.</p><div class="section">
 
 
 <p><code>sparsity</code> and <code>split_prior</code> answer different questions and cannot both be in
-force, so giving <code>split_prior</code> turns <code>sparsity</code> off. <code>sparsity</code> is for when
+force, so giving <code>split_prior</code> turns <code>sparsity</code> off. The <code>sparsity</code> argument is for when
 which predictors matter is unknown and the prior is to work it out from the
-data, and a predictor can be dropped entirely; <code>split_prior</code> is for when
+data, and a predictor can be dropped entirely; the <code>split_prior</code> argument is for when
 something is known and is to be honored, with the proportions held at the
 supplied values.</p>
 <p>A weight is a statement about relative attention, not about effect size. It
@@ -569,7 +569,7 @@ positionally or keyed by the forest names listed in <code><a href="bartisan-fami
 forest a named argument does not mention keeps that argument's default rather
 than borrowing another forest's value. That covers <code>num_trees</code>, <code>k</code>,
 <code>sigma_mu</code>, <code>sparsity</code>, <code>split_prior</code>, <code>bandwidth</code>, <code>gamma</code>, <code>beta</code>, the four
-<code>alpha</code> arguments, and the three <code>update_</code> flags; <code>formula</code> works the same
+<code>alpha</code> arguments, and the three <code>update_</code> flags; the <code>formula</code> argument works the same
 way, as <code><a href="bartisan.html">bartisan()</a></code> describes.</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan_control.html">bartisan_control</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fl">50</span>, log_sd <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>,</span>
 <span>                 sparsity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="cn">TRUE</span>, log_sd <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
@@ -582,7 +582,7 @@ single value.</p>
 <h3 id="progress">Progress<a class="anchor" aria-label="anchor" href="#progress"></a></h3>
 
 
-<p><code>verbose = TRUE</code> prints a line every <code>num_print</code> iterations, which is the
+<p>Setting <code>verbose = TRUE</code> prints a line every <code>num_print</code> iterations, which is the
 whole of what this package decides about progress. A progress bar is
 <a href="https://CRAN.R-project.org/package=progressr" class="external-link"><span class="pkg">progressr</span></a>'s business, and the sampler reports to it
 unconditionally: nothing is shown unless a handler is active, so there is no
@@ -593,7 +593,7 @@ argument to switch on. To request a progress bar, use one of the calls below:</p
 <span></span>
 <span><span class="co"># or once, for the session</span></span>
 <span><span class="fu">progressr</span><span class="fu">::</span><span class="fu"><a href="https://progressr.futureverse.org/reference/handlers.html" class="external-link">handlers</a></span><span class="op">(</span>global <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre><p></p></div>
-<p>The bar is sized for the whole fit, so <code>chains = 4</code> fills one bar once rather
+<p>The bar is sized for the whole fit, so setting <code>chains = 4</code> fills one bar once rather
 than four in sequence, and chains running in parallel under <a href="https://CRAN.R-project.org/package=future" class="external-link"><span class="pkg">future</span></a>
 relay their progress back as it arrives.</p>
 </div>

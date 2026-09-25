@@ -67,7 +67,7 @@ forest with `x` among its predictors happens to produce.
 ### Setting `modifiers`
 
 By default a coefficient may vary with every predictor in the model
-except `x` itself, and `modifiers` narrows that.
+except `x` itself, and the `modifiers` argument narrows that.
 
 Within `modifiers`, `.` stands for the predictors of the control
 function rather than, as in a model formula, for every column of the
@@ -124,17 +124,17 @@ works one through.
 ### Setting `center`
 
 Centering is a reparameterization of \\f_0\\ alone: every coefficient
-and every estimand is identical under any choice, and what changes is
-what the control function means. `"auto"` picks by the covariate. For a
-`0`/`1` covariate it uses zero, so \\f_0\\ is the surface among the
-untreated, which is a quantity with its own meaning. For any other
+and every estimand is identical under any choice, and the choice changes
+only what the control function means. `"auto"` picks by the covariate.
+For a `0`/`1` covariate it uses zero, so \\f_0\\ is the surface among
+the untreated, which is a quantity with its own meaning. For any other
 numeric covariate it uses the mean, because zero may be nowhere near the
 data and the control function there would be an extrapolation.
 
 A factor is always fitted mean-centered and gets one forest per level,
 coded symmetrically rather than as contrasts against a level that
 happened to sort first. That coding leaves the reference a reporting
-choice: `center` names the level
+choice: the `center` argument names the level
 [`coef()`](https://rdrr.io/r/stats/coef.html) reports against, and no
 refit is needed to change it.
 
@@ -147,13 +147,13 @@ number of values and no value is a reference.
 [`coef()`](https://rdrr.io/r/stats/coef.html) returns the identified
 contrasts.
 
-At two values it restricts nothing, and it is what
-[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) uses:
-what it buys is that the answer stops depending on which level was
-written as 1. Above two values every contrast becomes one shared shape
-times a scalar, where the symmetric coding gives each level its own, so
-it is the parsimonious model against a general one. Reach for it when
-the levels plausibly differ in degree rather than in kind.
+At two values it restricts nothing, and
+[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) uses it:
+with it, the answer stops depending on which level was written as 1.
+Above two values every contrast becomes one shared shape times a scalar,
+where the symmetric coding gives each level its own, so it is the
+parsimonious model against a general one. Reach for it when the levels
+plausibly differ in degree rather than in kind.
 
 ### Families with Several Additive Predictors
 
@@ -165,8 +165,8 @@ two-dimensional (a control function and its coefficients, for each
 parameter) and named accordingly, `mean`, `mean:z`, `log_sd` and
 `log_sd:z` for `y ~ x1 + x2 + vc(z)` under
 [`gaussian_ls()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-which is what per-forest settings are keyed by. One formula reaches
-every parameter, and a list of formulas gives each its own;
+the names per-forest settings are keyed by. One formula reaches every
+parameter, and a list of formulas gives each its own;
 [`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md)
 shows both.
 
@@ -226,12 +226,12 @@ set.seed(123)
 
 # The effect of right heart catheterization on death, free to vary with
 # every other covariate. `rhc` reaches the fixed part through `.`, so it is
-# dropped from the control function, which is what keeps the two identified
+# dropped from the control function, which keeps the two identified
 fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
                 family = binomial(), num_trees = 10, num_burn = 50,
                 num_draws = 50)
 
-# One coefficient per patient, which is what a coefficient function comes to
+# One coefficient per patient: the coefficient function at each observation
 head(coef(fit))
 #>            rhc
 #> [1,] 0.3852362

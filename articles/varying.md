@@ -4,7 +4,7 @@
 
 A BART model is a sum of trees, and a sum of trees has no coefficients.
 It predicts, and an effect is read off it as a contrast between two
-predictions, which is what
+predictions, as
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 and the *marginaleffects* functions in
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
@@ -73,8 +73,8 @@ moves per unit of \\X_j\\, as a function of whatever \\f_j\\ is allowed
 to split on. With a single binary \\X\\, \\f_1\\ is the conditional
 treatment effect on the link scale, one value per covariate profile.
 
-All of the forests are fitted at once. That is what buys a prior on the
-coefficient itself. Were \\X_j\\ simply one predictor among many in a
+All of the forests are fitted at once. That gives the coefficient a
+prior of its own. Were \\X_j\\ simply one predictor among many in a
 single forest, its effect would be whatever difference that forest
 happened to produce, regularized by the same prior that regularizes
 everything else, and Hahn et al. ([2020](#ref-hahn2020)) show that
@@ -296,39 +296,40 @@ that contribute nothing.
 ### Centering the Covariate (`center`)
 
 The \\c_j\\ in the model are the values at which the control function is
-read, and `center` chooses them. This is a reparameterization of \\f_0\\
-alone: every coefficient and every estimand is identical under any
-choice, and what changes is what the control function means and how well
-the two forests mix. The default, `"auto"`, picks by the covariate. A
-`0`/`1` covariate is left at zero, so \\f_0\\ is the surface among the
-binary predictor’s reference level, which is a quantity with a meaning
-of its own. Any other numeric covariate is centered at its mean, because
-zero may be nowhere near the data and a control function read there
-would be an extrapolation. `"zero"`, `"mean"`, `"mid"` (the midpoint of
-the range), or a specific number override that.
+read, and the `center` argument chooses them. This is a
+reparameterization of \\f_0\\ alone: every coefficient and every
+estimand is identical under any choice, and the choice changes only what
+the control function means and how well the two forests mix. The
+default, `"auto"`, picks by the covariate. A `0`/`1` covariate is left
+at zero, so \\f_0\\ is the surface among the binary predictor’s
+reference level, which is a quantity with a meaning of its own. Any
+other numeric covariate is centered at its mean, because zero may be
+nowhere near the data and a control function read there would be an
+extrapolation. `"zero"`, `"mean"`, `"mid"` (the midpoint of the range),
+or a specific number override that.
 
 A factor is handled differently. It is always fitted mean-centered and
 gets one forest per level, coded symmetrically rather than as contrasts
 against whichever level happened to sort first, and
 [`coef()`](https://rdrr.io/r/stats/coef.html) recenters the coefficients
 to sum to zero across the levels. That coding leaves the reference level
-a reporting choice: `center` names the level to report against, and no
-refit is needed to change it.
+a reporting choice: the `center` argument names the level to report
+against, and no refit is needed to change it.
 
-`center = "estimate"` is different in kind. Rather than subtract a
-number from the covariate, it gives each of the covariate’s values a
+Setting `center = "estimate"` is different in kind. Rather than subtract
+a number from the covariate, it gives each of the covariate’s values a
 coefficient of its own and *draws* it, so that every contrast carries
 the same prior whatever the number of values and no value is a
-reference. At two values it restricts nothing, and it is what
-[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) uses for
-a binary treatment: what it buys is that the answer stops depending on
-which arm was written as 1. Above two values every contrast becomes one
-shared shape times a scalar, where the symmetric coding gives each level
-its own, so it is the parsimonious model against a general one, and the
-one to reach for when the levels plausibly differ in degree rather than
-in kind. It needs a covariate with between two and twenty distinct
-values, and a family whose leaf target is quadratic in the predictor it
-feeds, which is why
+reference. At two values it restricts nothing, and
+[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) uses it
+for a binary treatment: with it, the answer stops depending on which arm
+was written as 1. Above two values every contrast becomes one shared
+shape times a scalar, where the symmetric coding gives each level its
+own, so it is the parsimonious model against a general one, and the one
+to reach for when the levels plausibly differ in degree rather than in
+kind. It needs a covariate with between two and twenty distinct values,
+and a family whose leaf target is quadratic in the predictor it feeds,
+which is why
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) falls
 back to the fixed coding for a family that is not.
 
@@ -445,16 +446,16 @@ head(coef(fit_vc))
 ```
 
 [`coef()`](https://rdrr.io/r/stats/coef.html) returns one row per
-observation and one column per coefficient, which is what a coefficient
-becomes when it is allowed to vary: for the first patient, or more
+observation and one column per coefficient, since a coefficient allowed
+to vary has a value for each observation: for the first patient, or more
 precisely for a patient with the first patient’s covariate profile, the
 log odds of death move by 0.511 under catheterization. The values are on
 the link scale, so for a binary outcome they are differences in log odds
 rather than in probability. Supplying `newdata` evaluates the
 coefficients at other covariate profiles, and setting `draws = TRUE`
 returns every posterior draw rather than the mean, as a list with one
-draws-by-observations matrix per coefficient, which is what an interval
-on any one patient’s coefficient needs.
+draws-by-observations matrix per coefficient, which an interval on any
+one patient’s coefficient needs.
 
 ``` r
 
@@ -546,17 +547,17 @@ setting worth knowing about, and it is the one
 default. A coefficient forest describes how an effect varies, and that
 is usually a simpler surface than the outcome’s, so it needs less
 capacity; and with less capacity it competes less with the control
-function for the same variation, which is what keeps the two well
-separated in the posterior. When a fit with a varying coefficient mixes
-badly, a coefficient forest that is too large is the first thing to try.
+function for the same variation, which keeps the two well separated in
+the posterior. When a fit with a varying coefficient mixes badly, a
+coefficient forest that is too large is the first thing to try.
 
-`sparsity` is the other setting that reads differently on a coefficient
-forest. On the control function it selects among the predictors the way
-it does in any BART fit. On a coefficient forest what it selects among
-is the *modifiers*, and dropping all of them leaves an effect that does
-not vary rather than an effect that is zero, since nothing can drop the
-covariate the forest multiplies. That is the shrinkage a heterogeneity
-model wants, and it is why
+The `sparsity` argument is the other setting that reads differently on a
+coefficient forest. On the control function it selects among the
+predictors the way it does in any BART fit. On a coefficient forest what
+it selects among is the *modifiers*, and dropping all of them leaves an
+effect that does not vary rather than an effect that is zero, since
+nothing can drop the covariate the forest multiplies. That is the
+shrinkage a heterogeneity model wants, and it is why
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) leaves
 `sparsity` on where a single-forest treatment model turns it off;
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
@@ -617,7 +618,7 @@ bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
 ```
 
 A forest a named vector leaves out keeps the argument’s own default
-rather than taking its parameter’s value:
+rather than taking its parameter’s value: setting
 `num_trees = c(mean = 50L, log_sd = 15L)` gives both coefficient forests
 the default of 50, not 50 and 15. Name the coefficient forests too when
 they are meant to differ.
@@ -684,14 +685,14 @@ call:
 3.  A binary treatment’s coding is drawn rather than fixed, which is
     `center = "estimate"`, so the answer is the same whichever arm was
     written as 1.
-4.  `sparsity` is left on, since the treatment is the coefficient rather
-    than a predictor a splitting proportion could drop (note this is in
-    line with the
+4.  The `sparsity` argument is left on, since the treatment is the
+    coefficient rather than a predictor a splitting proportion could
+    drop (note this is in line with the
     [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
     default, but not what is otherwise recommend for treatment effect
     estimation without a varying coefficient model).
 
-`moderators` is
+The `moderators` argument is
 [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md)’s
 `modifiers` under the name the causal literature uses, and the
 propensity model is
@@ -784,9 +785,8 @@ were drawn under in `fit_re$tau`, one matrix of draws per additive
 predictor with a column per grouping factor, and
 [`summary()`](https://rdrr.io/r/base/summary.html) reports that scale
 beside the leaf scale. `ranef()` is the generic from *nlme*, which
-*lme4* re-exports, so either qualification reaches the method;
-`draws = TRUE` gives the draws, which is what an interval on a group
-needs.
+*lme4* re-exports, so either qualification reaches the method; setting
+`draws = TRUE` gives the draws, which an interval on a group needs.
 
 ``` r
 
@@ -819,9 +819,9 @@ the level of the fitted function is the additive predictor’s.
 There are a few details about this term worth knowing. Only intercepts
 are supported, and a random slope is refused rather than ignored. A
 random intercept is a scalar entering the predictor with weight one for
-the observations in its level, which is exactly what a leaf is once its
-gate is removed, so the sampler’s leaf machinery handles it, closed
-forms included; a slope is a scalar multiplying a covariate, which is a
+the observations in its level, exactly as a leaf is once its gate is
+removed, so the sampler’s leaf machinery handles it, closed forms
+included; a slope is a scalar multiplying a covariate, which is a
 different shape of parameter. A variable whose effect varies by group
 belongs in the fixed part of the formula, where a tree can split on the
 group and on the variable together and get an interaction of any shape.
@@ -859,7 +859,7 @@ coefficient.
 [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
 covers
 [`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html),
-which is what the constant-against-varying comparison above rests on.
+on which the constant-against-varying comparison above rests.
 [`?bartisan`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 documents the `(1 | group)` syntax, and
 [`?ranef.bartisan_fit`](https://ngreifer.github.io/bartisan/reference/ranef.bartisan_fit.md)

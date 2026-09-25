@@ -132,7 +132,7 @@ bartisan(
 - prior_only:
 
   `logical`; whether to draw from the prior rather than the posterior,
-  which is what a prior predictive check reads. Default is `FALSE`. Not
+  as a prior predictive check requires. Default is `FALSE`. Not
   available for every family; see Details.
 
 - ...:
@@ -173,9 +173,9 @@ others.
 
 - `has_na`:
 
-  which predictor columns contained a missing value, which is what
-  determines where [`predict()`](https://rdrr.io/r/stats/predict.html)
-  will accept one.
+  which predictor columns contained a missing value, which determines
+  where [`predict()`](https://rdrr.io/r/stats/predict.html) will accept
+  one.
 
 - `sigma_mu`, `bandwidth`:
 
@@ -220,7 +220,8 @@ derivatives.
 
 ### Inferring the Family
 
-`family` may be left alone, in which case it is read off the response:
+The `family` argument may be left alone, in which case it is read off
+the response:
 
 |  |  |
 |----|----|
@@ -232,8 +233,8 @@ derivatives.
 | two-column matrix of successes and failures | [`binomial()`](https://rdrr.io/r/stats/family.html) |
 | anything else | [`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
 
-A message reports the choice, and naming `family` is what silences it,
-which is also what changes it.
+A message reports the choice, and naming `family` silences it and
+overrides the choice.
 
 Some scenarios are worth noting. A count is read as a numeric variable
 and therefore has
@@ -284,11 +285,11 @@ part), and they are independent of one another.
 Only random *intercepts* are supported, and a random slope is refused
 rather than ignored. The reason is that a random intercept is a scalar
 entering the predictor with weight one for the observations in its
-level, which is what a leaf is once its gate is removed, so the
-sampler's leaf machinery handles it exactly; a slope is a different
-shape of parameter. A variable whose effect varies by group belongs in
-the fixed part of the formula, where a tree can split on the group and
-on the variable together and get an interaction of any shape.
+level, exactly as a leaf is once its gate is removed, so the sampler's
+leaf machinery handles it exactly; a slope is a different shape of
+parameter. A variable whose effect varies by group belongs in the fixed
+part of the formula, where a tree can split on the group and on the
+variable together and get an interaction of any shape.
 
 A grouping factor can also go in the fixed part, where a tree splits on
 it like anything else, and with few large groups that is the better
@@ -324,7 +325,7 @@ because the default symmetric coding gives every category a forest and a
 shift common to all of them cancels out of the softmax. A vector offset
 there leaves the fitted probabilities unchanged; with `reference` set it
 does not cancel, and moves every non-reference category against the
-reference one. A matrix is what expresses a per-category offset either
+reference one. A per-category offset is expressed as a matrix either
 way.
 
 An offset is not a function of the predictors, so it cannot be rebuilt
@@ -345,10 +346,9 @@ three, with equal probability:
 
 - missing goes left, present goes right.
 
-This is missingness incorporated in attributes, and the third rule is
-what lets the model split on missingness itself, so a variable whose
-absence carries the signal is usable even where its observed values say
-nothing.
+This is missingness incorporated in attributes, and the third rule lets
+the model split on missingness itself, so a variable whose absence
+carries the signal is usable even where its observed values say nothing.
 
 This has consequences worth being clear about.
 [`predict()`](https://rdrr.io/r/stats/predict.html) accepts missing
@@ -375,9 +375,9 @@ a moment approximation, which the sampler then moves away from.
 
 ### Drawing From the Prior (`prior_only`)
 
-`prior_only = TRUE` fits the same model to no data. Every observation is
-given a weight of zero, and since the weight multiplies that
-observation's log density, its gradient, and its curvature, the
+Setting `prior_only = TRUE` fits the same model to no data. Every
+observation is given a weight of zero, and since the weight multiplies
+that observation's log density, its gradient, and its curvature, the
 likelihood is flat: each tree move is accepted or rejected on the prior
 alone and each leaf is drawn from its prior. A family that draws an
 auxiliary parameter from the response directly rather than through the

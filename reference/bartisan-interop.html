@@ -176,7 +176,7 @@ all of them.</p></dd>
 <dd><p>an offset and prior weights for <code>newdata</code>, as in
 <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>. Defaults are <code>NULL</code> to use those the model was fit
 with. For a binomial response the weights are the numbers of trials, and so
-are what a replicate outcome is a fraction of; they must be given alongside
+give the denominator of a replicate outcome; they must be given alongside
 <code>newdata</code> when the model was fit with more than one trial, since the number
 of trials is not a function of the predictors and cannot be reconstructed.</p></dd>
 
@@ -193,7 +193,7 @@ to pass them.</p></dd>
 
 <dt id="arg-transform">transform<a class="anchor" aria-label="anchor" href="#arg-transform"></a></dt>
 <dd><p><code>logical</code>; for <code>posterior_linpred()</code>, whether to map the
-predictor through the inverse link, which is what <code>posterior_epred()</code> does.
+predictor through the inverse link, as <code>posterior_epred()</code> does.
 Default is <code>FALSE</code>.</p></dd>
 
 
@@ -288,7 +288,7 @@ selects several.</p></dd>
     <p><code>kfold()</code> returns a <code>&lt;kfold&gt;</code> object, a list whose <code>estimates</code> holds
 <code>elpd_kfold</code>, <code>p_kfold</code> and <code>kfoldic</code> with their standard errors, whose
 <code>pointwise</code> holds the same three per observation, and whose <code>folds</code> records
-the split; <code>save_fits = TRUE</code> adds the \(K\) refits in <code>fits</code>.</p>
+the split; setting <code>save_fits = TRUE</code> adds the \(K\) refits in <code>fits</code>.</p>
 <p><code>posterior_predict()</code>, <code>posterior_epred()</code>, <code>posterior_linpred()</code> and
 <code>log_lik()</code> return a matrix of draws by observations. <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> returns a
 data frame of one column per replicate. <code>loo()</code> and <code>waic()</code> return the
@@ -320,7 +320,7 @@ fitted model, <code><a href="https://mc-stan.org/rstantools/reference/posterior_
 <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">stats::simulate()</a></code> is the same thing in the shape base R expects.
 <code><a href="https://mc-stan.org/rstantools/reference/log_lik.html" class="external-link">rstantools::log_lik()</a></code>
  returns the draws-by-observations matrix of
-log-likelihood contributions, which is what <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>
+log-likelihood contributions, which <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>
  and
 <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">loo::waic()</a></code>
  need.</p>
@@ -350,7 +350,7 @@ also most of what <span class="pkg">insight</span> needs to make the fit legible
 <p><code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>
  estimates the leave-one-out predictive density by importance
 sampling from the full-data posterior, and the estimate is trustworthy only
-when the importance weights have a finite variance, which is what the Pareto
+when the importance weights have a finite variance, which the Pareto
 \(k\) diagnostic reports on. A forest is a flexible function of the
 predictors, so the worry is that one observation carries enough influence over
 the leaves it lands in that dropping it cannot be approximated from the fit in
@@ -399,7 +399,7 @@ having used it. <code><a href="../articles/comparison.html">vignette("comparison
 them, and they differ by the Jacobian of the change of variable, so a log score
 taken across that boundary is off by \(\sum \log t\) over the events, which
 can reverse which family looks better.</p>
-<p><code>scale</code> puts them on one measure, and reads the same from either side, since a
+<p>The <code>scale</code> argument puts them on one measure, and reads the same from either side, since a
 fit already on the scale named is returned untouched:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="fu">loo_compare</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu">loo</span><span class="op">(</span><span class="va">aft_fit</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span>,</span>
 <span>                 ph <span class="op">=</span> <span class="fu">loo</span><span class="op">(</span><span class="va">ph_fit</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
@@ -417,12 +417,12 @@ comparison and <code><a href="../articles/survival.html">vignette("survival")</a
 <p>The seven <code>ppc_loo_*</code> checks reweight the replicates towards the
 leave-one-out predictive, so they need those weights. <code>pp_check()</code> computes
 them from the fit's own pointwise log likelihood and passes them on, and
-<code>ndraws</code> does not apply to those checks, because the weights and the
+the <code>ndraws</code> argument does not apply to those checks, because the weights and the
 replicates have to line up draw for draw; supplying <code>lw</code> or <code>psis_object</code>
 takes over from it.</p>
 <p>The two calibration checks are the ones to reach for when the response is
 binary, since the default check compares two distributions that can only take
-two values. <code>type = "loo_calibration"</code> is the honest one, holding each
+two values. Setting <code>type = "loo_calibration"</code> gives the honest one, holding each
 observation out of the probability it is judged against, where
 <code>type = "calibration"</code> is its in-sample counterpart and reads optimistically.
 Those two and a binned residual plot (<code>type = "error_binned"</code>) are about the
@@ -500,7 +500,7 @@ flexible. It needs a mean, so it is available for every family except
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Replicate outcomes, one per draw per observation, whose mean is what</span></span></span>
+<span class="r-in"><span><span class="co"># Replicate outcomes, one per draw per observation, whose mean</span></span></span>
 <span class="r-in"><span><span class="co"># `fitted()` reports</span></span></span>
 <span class="r-in"><span><span class="va">yrep</span> <span class="op">&lt;-</span> <span class="fu">rstantools</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstantools/reference/posterior_predict.html" class="external-link">posterior_predict</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="fu">rstantools</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstantools/reference/posterior_epred.html" class="external-link">posterior_epred</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>

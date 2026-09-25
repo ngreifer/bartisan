@@ -99,7 +99,7 @@ These model the log event time directly,
 
 with \\\epsilon\\ of a fixed shape and \\\sigma\\ drawn and reported in
 `fit$aux`. Multiplying survival time by a constant adds a constant to
-\\\eta\\, which is what “accelerated failure time” means: covariates
+\\\eta\\, which is the meaning of “accelerated failure time”: covariates
 stretch or compress the time axis without changing the shape of the
 survival curve.
 
@@ -121,7 +121,7 @@ hazard.
 has a **monotone** hazard, which may be increasing, decreasing or flat
 but never turning around; it is the only family in the package that is
 simultaneously an accelerated failure time and a proportional hazards
-model, which is what makes it the one parametric choice supporting a
+model, which makes it the one parametric choice supporting a
 hazard-ratio reading. It is also about seven times slower than the other
 two (see [Speed](#speed)).
 **[`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)**
@@ -226,8 +226,8 @@ head(round(colMeans(fit_ph$aux), 3))
 
 The bin hazards come back as `lambda1`, `lambda2`, … alongside
 `lambda_rate`, the drawn rate of their own Gamma prior; the hazards are
-shrunk toward each other through it, which is what keeps a fine grid
-from overfitting.
+shrunk toward each other through it, which keeps a fine grid from
+overfitting.
 
 One point of interpretation matters here. The predictor and the baseline
 are identified only *jointly*: multiplying \\\lambda_0\\ by a constant
@@ -351,9 +351,9 @@ survival model from this package: it sidesteps the estimand mismatch
 above, it comes with a posterior interval, and it is comparable across
 families in a way that the predictors are not.
 
-`type = "response"` is the median survival time for all five, which is
-the other scale-free summary and is often easier to communicate than a
-curve.
+Setting `type = "response"` gives the median survival time for all five,
+which is the other scale-free summary and is often easier to communicate
+than a curve.
 
 ## Hazard Shapes Each Family Can Represent
 
@@ -444,7 +444,7 @@ more accurate than anything else and 300 log points ahead, because no
 other family in the set can represent a bimodal time distribution at any
 value of its parameters. The heavy-tailed case is milder, and there
 [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-matches it, which is what the log-logistic’s heavy tails are for.
+matches it, as its heavy tails are designed to.
 
 **[`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 costs nothing when it is not needed, and it is the most consistent
@@ -455,8 +455,8 @@ correctly specified
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s
 .0449. It is best or tied-best on four of the six truths and never worse
 than third on any. That asymmetry (large gains when the assumption is
-wrong, no measurable loss when it is right) is what makes it a sensible
-default for anyone without a view about the error’s shape.
+wrong, no measurable loss when it is right) makes it a sensible default
+for anyone without a view about the error’s shape.
 
 **When hazards cross, the survival RMSE understates the damage.** Every
 family lands between .080 and .096, which looks like a mild penalty. It
@@ -750,8 +750,8 @@ bins, because it sets the resolution of the hazard in \\t\\ *and* the
 resolution at which non-proportionality can be detected at all. And
 there is no `sigma`, no baseline and no error density to report; the
 model is a hazard surface, summarized through `type = "response"` and
-the curve, and `type = "survival"` does not apply to it because as far
-as the package is concerned it is a binomial fit.
+the curve, and the `type = "survival"` prediction does not apply to it
+because as far as the package is concerned it is a binomial fit.
 
 **When to use it.** When there is a substantive reason to expect the
 covariate effect to move with time (e.g., a treatment whose benefit
@@ -816,8 +816,8 @@ family and needs no correction.
 Because the baseline absorbs the level, a single fitted value of
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s
 predictor has no interpretation on its own; only differences do.
-`predict(type = "link")` is centered accordingly. When a level is what
-is wanted, ask for a quantity that has one: `type = "survival"`, or
+`predict(type = "link")` is centered accordingly. When a level is
+wanted, ask for a quantity that has one: `type = "survival"`, or
 `type = "response"` for the median time.
 
 ### The Bin Grid (`num_bins`)
@@ -860,15 +860,15 @@ which point [`loo()`](https://mc-stan.org/loo/reference/loo.html) and
 usable at all.
 
 So the shape of the thing is a wide flat plateau with a cliff a long way
-past the default, not a peak that has to be found. `num_bins` is exposed
-for confirming that on one’s own data rather than for tuning: fit at the
-default and again at two or three times it, and if the answers agree
-(they will) stop thinking about it.
+past the default, not a peak that has to be found. The `num_bins`
+argument is exposed for confirming that on one’s own data rather than
+for tuning: fit at the default and again at two or three times it, and
+if the answers agree (they will) stop thinking about it.
 
 This is also the answer to a question that comes up: why not fit Cox’s
 *partial* likelihood, which needs no grid at all? Because it couples
 observations through risk sets, so it does not decompose into a sum over
-the observations reaching a leaf, which is what this sampler requires.
+the observations reaching a leaf, as this sampler requires.
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 fits the full likelihood of the piecewise-exponential model instead,
 which does decompose, and which approaches the partial likelihood as the

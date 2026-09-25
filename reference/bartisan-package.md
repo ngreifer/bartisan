@@ -13,7 +13,7 @@ location-scale regression, and a Dirichlet process mixture for the error
 distribution. Decision rules may be hard, as in standard BART, or soft,
 as in the SoftBart model of Linero and Yang (2018)
 [doi:10.1111/rssb.12293](https://doi.org/10.1111/rssb.12293) , which
-yields smoother fits. The interface follows that of 'glm()', so that a
+yields smoother fits. The interface follows that of glm(), so that a
 model is specified with a formula, a data frame, and a family.
 
 ## Details
@@ -110,15 +110,15 @@ for how the sampler works.
 ## Author
 
 **Maintainer**: Noah Greifer <noah.greifer@gmail.com>
-([ORCID](https://orcid.org/0000-0003-3067-7154))
+([ORCID](https://orcid.org/0000-0003-3067-7154)) \[copyright holder\]
 
 Authors:
 
 - Noah Greifer <noah.greifer@gmail.com>
-  ([ORCID](https://orcid.org/0000-0003-3067-7154))
+  ([ORCID](https://orcid.org/0000-0003-3067-7154)) \[copyright holder\]
 
 Other contributors:
 
-- Antonio R. Linero (Author of the FlexBart reference implementation
-  from which the MCMC engine is adapted) \[contributor, copyright
-  holder\]
+- Antonio R. Linero (Author of FlexBart, the reference implementation of
+  Linero (2025), from which the MCMC engine is adapted) \[contributor,
+  copyright holder\]

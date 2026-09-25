@@ -2,12 +2,12 @@
 
 ## Authors
 
-- **Noah Greifer**. Author, maintainer.
+- **Noah Greifer**. Author, maintainer, copyright holder.
   [](https://orcid.org/0000-0003-3067-7154)
 
 - **Antonio R. Linero**. Contributor, copyright holder.  
-  Author of the FlexBart reference implementation from which the MCMC
-  engine is adapted
+  Author of FlexBart, the reference implementation of Linero (2025),
+  from which the MCMC engine is adapted
 
 ## Citation
 

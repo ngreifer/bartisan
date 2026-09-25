@@ -146,13 +146,13 @@ covariate.</p></dd>
 
 
 <dt id="arg-propensity">propensity<a class="anchor" aria-label="anchor" href="#arg-propensity"></a></dt>
-<dd><p>what to do about the probability of treatment, given as
+<dd><p>what to do about the propensity score, given as
 either a logical value, a numeric vector or matrix, or a one-sided formula.
 Default is <code>TRUE</code> to fit a model for it and add the fitted values to the
 control function. <code>FALSE</code> fits nothing, a numeric vector or matrix is used
 as given, and a one-sided formula fits it with the predictors that formula
-names. A continuous treatment has no propensity score that is a
-probability, so <code>TRUE</code> is refused for one; see Details.</p></dd>
+names. For a continuous treatment the fitted values are the treatment's
+conditional mean given the covariates; see Details.</p></dd>
 
 
 <dt id="arg-propensity-args">propensity_args<a class="anchor" aria-label="anchor" href="#arg-propensity-args"></a></dt>
@@ -195,6 +195,14 @@ surfaces. A binary treatment has its coding drawn rather than fixed, which is
 <code>center = "estimate"</code> in <code><a href="vc.html">vc()</a></code> and makes the answer the same whichever level
 was written as 1; a treatment with more levels keeps the symmetric per-level
 coding. And <code>sparsity</code> is left at its default, which is on.</p>
+<p>The propensity score that enters the control function is the posterior mean
+of a separate model for the treatment, fit before the outcome model and then
+held fixed. Its uncertainty is therefore not carried into the interval for the
+effect, and the outcome has no say in the score, as it would in a joint model
+of the two. See <code><a href="../articles/causal.html">vignette("causal")</a></code> for more on this choice. Including the
+score at all matters because, with flexible priors on the outcome that are
+independent of the model for the treatment, the implied prior on the amount of
+confounding bias concentrates near zero (Linero, 2024).</p>
 </div>
 
 <div class="section">
@@ -220,7 +228,7 @@ forest to select.</p>
 
 
 <p>The treatment decides the model for the propensity score and what that score
-is.</p><table class="table table"><tr><td>treatment</td><td>propensity score</td><td>model</td></tr><tr><td>binary</td><td>one column, the probability of treatment</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td><code>K</code> categories</td><td>the whole vector of assignment probabilities</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>continuous</td><td>a conditional density, not a regression</td><td>not fitted</td></tr></table><p>For a treatment with more than two categories the balancing score is the
+is.</p><table class="table table"><tr><td>treatment</td><td>propensity score</td><td>model</td></tr><tr><td>binary</td><td>one column, the probability of treatment</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td><code>K</code> categories</td><td>the whole vector of assignment probabilities</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>continuous</td><td>the conditional mean of the treatment</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code></td></tr></table><p>For a treatment with more than two categories the balancing score is the
 whole vector of assignment probabilities rather than any one of them, so all
 of them go into the control function. They sum to one and are therefore
 collinear, which costs a tree ensemble nothing.</p>
@@ -230,10 +238,14 @@ collinear, which costs a tree ensemble nothing.</p>
 <h3 id="continuous-treatments">Continuous Treatments<a class="anchor" aria-label="anchor" href="#continuous-treatments"></a></h3>
 
 
-<p>For a continuous treatment the balancing score is the conditional density of
-the treatment given the covariates at the observed dose, which needs a
-density model rather than a regression, so <code>propensity = TRUE</code> is refused for
-one and a score supplied as a number is used as given.</p>
+<p>For a continuous treatment, the score added to the control function is the
+treatment's conditional mean given the covariates, fit with a Gaussian model.
+The balancing score proper would be the conditional density of the treatment
+at the observed dose, but the purpose of the score here is to let the control
+function absorb the confounding, and Linero (2024) shows for linear models
+that it is the conditional mean of the treatment whose absence leaves the
+prior on the confounding bias concentrated near zero. A score supplied as a
+number is used as given.</p>
 <p>A continuous treatment also carries an assumption. This fits
 <code>f0(x) + z * f1(x)</code>, a dose response that is linear in the dose with a slope
 that varies with the covariates, which for a binary treatment is no
@@ -249,10 +261,11 @@ across the dose; see <code><a href="vc.html">vc()</a></code>.</p>
 
 
 <p>The propensity score is a predictor of the control function and one the
-caller never named, so <code>newdata</code> taken from their own frame does not carry
-it. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> rebuilds it from the model the fit kept, which is what makes
+caller never named, so a <code>newdata</code> data frame taken from their own frame does not carry
+it. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> rebuilds it from the model the fit kept, which makes
 that work. Supplying <code>propensity</code> as a number rather than fitting it removes
-the reconstruction, and <code>newdata</code> then has to carry the column itself.</p>
+the reconstruction, and the data given as <code>newdata</code> then has to carry the
+column itself.</p>
 </div>
 
     </div>
@@ -261,6 +274,9 @@ the reconstruction, and <code>newdata</code> then has to carry the column itself
     <p>Hahn, P. R., Murray, J. S., &amp; Carvalho, C. M. (2020). Bayesian regression tree
 models for causal inference: regularization, confounding, and heterogeneous
 effects. <em>Bayesian Analysis</em>, 15(3), 965–1056. <a href="https://doi.org/10.1214/19-BA1195" class="external-link">doi:10.1214/19-BA1195</a></p>
+<p>Linero, A. R. (2024). In nonparametric and high-dimensional models, Bayesian
+ignorability is an informative prior. <em>Journal of the American Statistical
+Association</em>, 119(548), 2785–2798. <a href="https://doi.org/10.1080/01621459.2023.2278202" class="external-link">doi:10.1080/01621459.2023.2278202</a></p>
 <p>Woody, S., Carvalho, C. M., Hahn, P. R., &amp; Murray, J. S. (2020). Estimating
 heterogeneous effects of continuous exposures using Bayesian tree ensembles.
 <a href="https://doi.org/10.48550/arXiv.2007.09845" class="external-link">doi:10.48550/arXiv.2007.09845</a></p>
@@ -289,8 +305,8 @@ assumptions under which the effect is causal.</p></div>
 <span class="r-in"><span>           propensity_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
 <span class="r-in"><span>                                  num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># One conditional effect per patient, which is what the effect forest comes</span></span></span>
-<span class="r-in"><span><span class="co"># to at each observation</span></span></span>
+<span class="r-in"><span><span class="co"># One conditional effect per patient: the effect forest evaluated at each</span></span></span>
+<span class="r-in"><span><span class="co"># observation</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>               rhc</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  0.276254026</span>

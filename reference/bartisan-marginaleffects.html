@@ -159,7 +159,7 @@ numbers, <code>"stdlv"</code> the standardized latent variable of an ordinal fit
 the first two are described under <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>. An <code><a href="bartisan-families.html">ordinal()</a></code>
 or <code><a href="bartisan-families.html">multinomial()</a></code> response has no single mean, so <code>"response"</code> gives
 <code>"prob"</code> for those families, while a binomial fit reports the probability
-of its second level, as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> does, and <code>"prob"</code> is what asks for
+of its second level, as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> does, and <code>"prob"</code> asks for
 both of its columns. <code>"probs"</code>, <code>"lp"</code>, <code>"lv"</code> and <code>"surv"</code> are accepted as
 aliases for <code>"prob"</code>, <code>"link"</code>, <code>"link"</code> and <code>"survival"</code>, since those are
 the names the same quantities go by for other ordinal fits in
@@ -210,20 +210,20 @@ together.</p>
 tree splits on the variable being contrasted, the fit does not depend on that
 variable at all, so the two counterfactual predictions are identical to the
 last bit and their difference is exactly zero. The Dirichlet sparsity prior,
-<code>sparsity</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>, is what makes those draws common, since
-dropping a weak predictor from every tree is what a variable selection prior
-is for. And <span class="pkg">marginaleffects</span> centers a posterior at its median, so once
+set by the <code>sparsity</code> argument of <code><a href="bartisan_control.html">bartisan_control()</a></code>, makes those draws
+common, since dropping a weak predictor from every tree is the purpose of a
+variable selection prior. And <span class="pkg">marginaleffects</span> centers a posterior at its median, so once
 the atom holds more than half the mass the reported estimate is exactly zero
 however large the rest of the posterior is: the median can land on the atom
 while the posterior mean and the upper limit of the interval are both far from
 zero.</p>
 <p>There are a few things worth doing about it, in the order given. Look at
 <code>prop_used</code> in <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, the posterior probability that the predictor
-appears anywhere in the forest, which is what the zero reports. Ask for the
+appears anywhere in the forest, the quantity the zero reports. Ask for the
 mean instead, with <code>options(marginaleffects_posterior_center = mean)</code>, which
 is the summary <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code> reports and the one that behaves
 sensibly against an atom. Reconsider the sparsity prior, since
-<code>sparsity = FALSE</code> removes the atom almost entirely where a larger <code>num_trees</code>
+setting <code>sparsity = FALSE</code> removes the atom almost entirely where a larger <code>num_trees</code>
 leaves it in place; that is a modeling choice rather than a fix, and it is the
 right one when a contrast on a particular predictor is the estimand. And run
 several chains and compare them, because the variable selection state mixes
@@ -239,7 +239,7 @@ slowly and a single chain can look much more settled than the posterior is.
 to be differentiable in the predictor as the caller supplies it. Whether it is
 depends on <code>x_transform</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>, because the fit is a smooth
 function of the transformed predictor rather than of the original one.</p>
-<p><code>x_transform = "range"</code> is what slopes want, and refitting with it is
+<p>Setting <code>x_transform = "range"</code> suits slopes, and refitting with it is
 worthwhile when a derivative is the quantity being reported rather than a
 prediction. It is the only affine map of the three, so it is the only one
 through which a slope of the fit is a slope of the original predictor. The
@@ -266,7 +266,7 @@ it:</p>
 <span><span class="fu">avg_comparisons</span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"trt"</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>One time per call. <span class="pkg">marginaleffects</span> checks the dots against a whitelist
 of its own, hardcoded per model class, so it warns that it does not recognize
-<code>times</code> while passing it through, which is what the warning says. There is no
+<code>times</code> while passing it through, as the warning says. There is no
 hook for registering an argument with it, so the warning is expected and the
 result is correct.</p>
 </div>
@@ -275,7 +275,7 @@ result is correct.</p>
 <h3 id="prediction-types">Prediction Types<a class="anchor" aria-label="anchor" href="#prediction-types"></a></h3>
 
 
-<p><code>type = "link"</code> needs a family with a single additive predictor, since there
+<p>Setting <code>type = "link"</code> needs a family with a single additive predictor, since there
 is no one link to be talking about in <code><a href="bartisan-families.html">gaussian_ls()</a></code>, the zero-inflated
 families or <code><a href="bartisan-families.html">multinomial()</a></code>. Those families work on the response scale, which
 is one number per observation whatever the family, and <code><a href="bartisan-families.html">multinomial()</a></code> and

@@ -194,7 +194,7 @@ every cutpoint is free (see <code><a href="bartisan-families.html">bartisan-fami
 observations is then zero in every draw, which leaves it nothing to diagnose,
 and it is reported as <code>NA</code>. The level of the fitted function has not gone
 anywhere: the sampler pins the first threshold, so <code>aux.cut1</code> is that level
-rather than a cutpoint, and it is the row to read wherever the level is what
+rather than a cutpoint, and it is the row to read wherever the level
 matters, as it is for a probability in the lowest categories. It is usually
 the slowest row in such a fit, and the most pessimistic one, since it carries
 the level on its own where every quantity computed from the draws mixes the
@@ -244,8 +244,8 @@ and <code><a href="bartisan-interop.html">as_draws()</a></code> for anyone who w
 
 <p>R-hat is a ratio of two variance estimates taken from the same draws, so with
 few effective draws it sits above 1 whether or not anything is wrong, and how
-far above depends on how many chains are being compared. <code>rhat_max</code> is
-therefore not a threshold a quantity can be held to at any effective sample
+far above depends on how many chains are being compared. The <code>rhat_max</code>
+argument is therefore not a threshold a quantity can be held to at any effective sample
 size: four chains need about 400 effective draws before 1.01 is even the
 average of R-hat's null, which is where the pairing of the two defaults comes
 from, and sixteen chains need about 1600 for the same 1.01. Where a quantity
@@ -260,10 +260,10 @@ cannot be read yet and send the reader to the effective sample size instead.</p>
 <p>The advice the print method gives follows from which statistic failed, and the
 order matters because the fixes are not interchangeable.</p>
 <p>One chain comes first, since nothing else can be diagnosed properly until
-there are several; <code>chains = 4</code> is the setting to reach for, and with
+there are several; setting <code>chains = 4</code> is the change to make, and with
 <a href="https://CRAN.R-project.org/package=future" class="external-link"><span class="pkg">future</span></a> installed and a parallel backend in use it usually costs
 little wall clock. R-hat elevated but acceptable on the late draws says warmup
-ended too early, so <code>num_burn</code> is the one to raise. R-hat elevated on the late
+ended too early, so the <code>num_burn</code> argument is the one to raise. R-hat elevated on the late
 draws too says the chains have each settled somewhere different: raise
 <code>num_burn</code> and <code>num_draws</code> together, and failing that reduce <code>num_trees</code> and
 check the family, since a likelihood that fits badly can produce a posterior
@@ -328,8 +328,8 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   quantity that carries too few effective draws for the threshold to mean</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   anything: with this many chains it would sit about where it does even if the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. Effective sample size is</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   what makes it readable, and that grows with the total number of draws; using</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. A larger effective sample</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   size makes it readable, and that grows with the total number of draws; using</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   fewer chains lowers the bar as well, since R-hat's null rises with the number</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   of chains being compared.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
@@ -355,8 +355,8 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws to `posterior::summarise_draws()` for anything else.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># A stricter effective sample size, which is what an interval endpoint needs</span></span></span>
-<span class="r-in"><span><span class="co"># and a posterior mean does not</span></span></span>
+<span class="r-in"><span><span class="co"># A stricter effective sample size, which an interval endpoint needs and a</span></span></span>
+<span class="r-in"><span><span class="co"># posterior mean does not</span></span></span>
 <span class="r-in"><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">fit</span>, ess_min <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -386,8 +386,8 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   quantity that carries too few effective draws for the threshold to mean</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   anything: with this many chains it would sit about where it does even if the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. Effective sample size is</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   what makes it readable, and that grows with the total number of draws; using</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. A larger effective sample</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   size makes it readable, and that grows with the total number of draws; using</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   fewer chains lowers the bar as well, since R-hat's null rises with the number</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   of chains being compared.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>

@@ -97,7 +97,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-24</h4>
+            <h4 data-toc-skip class="date">2026-09-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/effects.Rmd" class="external-link"><code>vignettes/effects.Rmd</code></a></small>
       <div class="d-none name"><code>effects.Rmd</code></div>
@@ -189,12 +189,12 @@ skip those here for brevity.)</p>
 <h2 id="predictions-comparisons-and-slopes">Predictions, Comparisons, and Slopes<a class="anchor" aria-label="anchor" href="#predictions-comparisons-and-slopes"></a>
 </h2>
 <p>Everything below is one of the following:</p>
-<p>A <strong>prediction</strong> is what the model expects for a set of
-covariate values. <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions()</a></code> gives one per unit or
-covariate profile, <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> averages them.</p>
+<p>A <strong>prediction</strong> is the outcome the model expects for a
+set of covariate values. <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions()</a></code> gives one per unit
+or covariate profile, <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> averages them.</p>
 <p>A <strong>comparison</strong> is the difference between two
 predictions that differ in one variable. This is the closest thing to a
-regression coefficient, and it is often what we want to report.</p>
+regression coefficient, and we often want to report it.</p>
 <p>A <strong>slope</strong> is the derivative of the prediction with
 respect to a numeric variable. These are often also used to report but
 come with some limitations due to some peculiarities of using a
@@ -252,7 +252,7 @@ attenuate the estimate substantially, and its interval can cover the
 truth well below its nominal rate. A strong effect is untouched, because
 the prior never has reason to drop a predictor that is earning its
 splits, so this is a weak-signal problem rather than a general one.</p>
-<p>If a contrast is what we are reporting, we can fit the model with
+<p>If we are reporting a contrast, we can fit the model with
 <code>sparsity = FALSE</code>, or by supplying <code>split_prior</code>,
 which fixes the weights (i.e., the probability that each predictor is
 chosen for a split) and so cannot drop anything.
@@ -351,11 +351,11 @@ then to <code>"yes"</code>.</p>
 </h2>
 <p>Averages can hide the shape of the relationship between a predictor
 and the outcome. To see the fitted function we plot predictions against
-one predictor while the others are averaged over, which is what
-<code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> does: it sets the predictor to each
-value of a grid in turn, predicts for every unit, and averages within
-each posterior draw, so the interval that comes back is on the average
-prediction rather than on any one patient’s.
+one predictor while the others are averaged over.
+<code><a href="../reference/partial_dependence.html">partial_dependence()</a></code> does this: it sets the predictor to
+each value of a grid in turn, predicts for every unit, and averages
+within each posterior draw, so the interval that comes back is on the
+average prediction rather than on any one patient’s.
 <code>partial_dependence(fit, ~ x)</code> builds the grid, and
 <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws it.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
@@ -446,8 +446,8 @@ how to put a number on it.</p>
 <h3 id="values-of-the-second-predictor">Values of the Second Predictor<a class="anchor" aria-label="anchor" href="#values-of-the-second-predictor"></a>
 </h3>
 <p>A second predictor with a few values gives one curve for each of
-them, which is what happened above. With a continuous predictor, it is
-held at three values near its quartiles and a message reports them.</p>
+them, as happened above. With a continuous predictor, it is held at
+three values near its quartiles and a message reports them.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Mean arterial blood pressure"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
@@ -455,11 +455,11 @@ held at three values near its quartiles and a message reports them.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Grouping by `aps` at <span style="color: #0000BB;">41</span>, <span style="color: #0000BB;">54</span>, and <span style="color: #0000BB;">68</span>, three of its values near its quartiles.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Set `values` to choose them yourself.</span></span></code></pre></div>
 <p><img src="effects_files/figure-html/pdp3-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
-<p><code>values</code> chooses others, and an entry of it may be a
-function of the predictor rather than the values themselves.
-<code>values = list(z = unique)</code> asks for every value a predictor
-takes, which is usually what a numeric predictor with four or five of
-them wants; the illness score has 114, so here we write the summary we
+<p>The <code>values</code> argument chooses others, and an entry of it
+may be a function of the predictor rather than the values themselves.
+Setting <code>values = list(z = unique)</code> asks for every value a
+predictor takes, which usually suits a numeric predictor with four or
+five of them; the illness score has 114, so here we write the summary we
 want instead.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span>,</span>
@@ -525,11 +525,11 @@ estimates:</p>
 <p>Those columns are why the numbers move: each row is a prediction for
 one synthetic patient who is average or modal in every other respect,
 where the curve above is an average over the patients in the data. The
-average is what to report for a population, and the profile what to
-report for a described kind of patient. <code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions()</a></code>
-also takes an arbitrary grid and will draw slopes and comparisons across
-a condition, which is where to go when the question outgrows a partial
-dependence plot.</p>
+average should be reported for a population, and the profile for a
+described kind of patient. <code><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions()</a></code> also takes an
+arbitrary grid and will draw slopes and comparisons across a condition,
+which is where to go when the question outgrows a partial dependence
+plot.</p>
 </div>
 </div>
 <div class="section level2">

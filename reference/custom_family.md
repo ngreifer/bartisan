@@ -59,8 +59,8 @@ custom_family(
 - aux_names:
 
   optional `character`; the names of the nuisance parameters to draw, if
-  any. Naming them is what declares them, because the names label the
-  columns of `fit$aux` and are what
+  any. Naming them declares them, because the names label the columns of
+  `fit$aux` and are the labels
   [`summary()`](https://rdrr.io/r/base/summary.html) and
   [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
   report them under. They must be distinct and non-empty. Default is
@@ -74,8 +74,8 @@ custom_family(
   as one value or one per parameter. Default is `NULL`, which is 0 for
   each. The sampler will walk to the posterior from a poor start, so
   this need only be the right order of magnitude. Supplying it is a
-  second way to declare the parameters, so `aux_start = c(shape = 1)`
-  both names one and starts it at 1.
+  second way to declare the parameters, so setting
+  `aux_start = c(shape = 1)` both names one and starts it at 1.
 
 - name:
 
@@ -122,8 +122,9 @@ belongs in a family written for it.
 
 ### Nuisance Parameters
 
-These are drawn alongside the trees when `aux_names` names them, and
-`logdens` then takes a third argument holding their current values:
+These are drawn alongside the trees when the `aux_names` argument names
+them, and the function supplied as `logdens` then takes a third argument
+holding their current values:
 
     # A Gaussian written out by hand, with its scale drawn rather than fixed.
     by_hand <- custom_family(
@@ -140,14 +141,14 @@ split, so the forest is a single scalar), and it is drawn by the same
 Laplace-plus-Metropolis step as any leaf, under that step's Gaussian
 leaf prior. So a parameter with a restricted range is handled the way it
 would be for a real predictor, by writing the transform into `logdens`:
-the [`exp()`](https://rdrr.io/r/base/Log.html) above is what keeps the
-scale positive.
+the [`exp()`](https://rdrr.io/r/base/Log.html) above keeps the scale
+positive.
 
 ### Limits of a Log Density
 
 A density says how likely an observed value is, not how to draw a new
 one, so a `custom_family()` fit has no posterior predictive
-distribution, which is what
+distribution, which
 [`simulate()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md),
 [`pp_check()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
 and

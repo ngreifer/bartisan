@@ -97,7 +97,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-24</h4>
+            <h4 data-toc-skip class="date">2026-09-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/survival.Rmd" class="external-link"><code>vignettes/survival.Rmd</code></a></small>
       <div class="d-none name"><code>survival.Rmd</code></div>
@@ -246,9 +246,9 @@ something else free; what differs is which part is parametric.</p>
 <p>with <span class="math inline">\(\epsilon\)</span> of a fixed shape
 and <span class="math inline">\(\sigma\)</span> drawn and reported in
 <code>fit$aux</code>. Multiplying survival time by a constant adds a
-constant to <span class="math inline">\(\eta\)</span>, which is what
-“accelerated failure time” means: covariates stretch or compress the
-time axis without changing the shape of the survival curve.</p>
+constant to <span class="math inline">\(\eta\)</span>, which is the
+meaning of “accelerated failure time”: covariates stretch or compress
+the time axis without changing the shape of the survival curve.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_w</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span> <span class="op">+</span> <span class="va">trt</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
 <span>                  family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">weibull_aft</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
@@ -263,7 +263,7 @@ the hazard. <strong><code><a href="../reference/bartisan-families.html">weibull_
 <strong>monotone</strong> hazard, which may be increasing, decreasing or
 flat but never turning around; it is the only family in the package that
 is simultaneously an accelerated failure time and a proportional hazards
-model, which is what makes it the one parametric choice supporting a
+model, which makes it the one parametric choice supporting a
 hazard-ratio reading. It is also about seven times slower than the other
 two (see <a href="#speed">Speed</a>).
 <strong><code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code></strong> allows a hazard that
@@ -347,7 +347,7 @@ than once, which none of the three parametric families can do.</p>
 <p>The bin hazards come back as <code>lambda1</code>,
 <code>lambda2</code>, … alongside <code>lambda_rate</code>, the drawn
 rate of their own Gamma prior; the hazards are shrunk toward each other
-through it, which is what keeps a fine grid from overfitting.</p>
+through it, which keeps a fine grid from overfitting.</p>
 <p>One point of interpretation matters here. The predictor and the
 baseline are identified only <em>jointly</em>: multiplying <span class="math inline">\(\lambda_0\)</span> by a constant and subtracting
 its log from <span class="math inline">\(r(x)\)</span> leaves the
@@ -482,9 +482,9 @@ be assembled by hand from the draws, and it is the way we recommend
 reporting a survival model from this package: it sidesteps the estimand
 mismatch above, it comes with a posterior interval, and it is comparable
 across families in a way that the predictors are not.</p>
-<p><code>type = "response"</code> is the median survival time for all
-five, which is the other scale-free summary and is often easier to
-communicate than a curve.</p>
+<p>Setting <code>type = "response"</code> gives the median survival time
+for all five, which is the other scale-free summary and is often easier
+to communicate than a curve.</p>
 </div>
 </div>
 <div class="section level2">
@@ -668,8 +668,8 @@ by a wide margin.</strong> On the two-component error it is three times
 more accurate than anything else and 300 log points ahead, because no
 other family in the set can represent a bimodal time distribution at any
 value of its parameters. The heavy-tailed case is milder, and there
-<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> matches it, which is what the
-log-logistic’s heavy tails are for.</p>
+<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> matches it, as its heavy tails are
+designed to.</p>
 <p><strong><code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> costs nothing when it is not needed,
 and it is the most consistent family in the table.</strong> On
 log-normal errors it sits at .0491 against the correctly specified
@@ -677,8 +677,8 @@ log-normal errors it sits at .0491 against the correctly specified
 against <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>’s .0449. It is best or tied-best on
 four of the six truths and never worse than third on any. That asymmetry
 (large gains when the assumption is wrong, no measurable loss when it is
-right) is what makes it a sensible default for anyone without a view
-about the error’s shape.</p>
+right) makes it a sensible default for anyone without a view about the
+error’s shape.</p>
 <p><strong>When hazards cross, the survival RMSE understates the
 damage.</strong> Every family lands between .080 and .096, which looks
 like a mild penalty. It is not: the <a href="#ordering">ranking
@@ -1035,9 +1035,9 @@ hazard in <span class="math inline">\(t\)</span> <em>and</em> the
 resolution at which non-proportionality can be detected at all. And
 there is no <code>sigma</code>, no baseline and no error density to
 report; the model is a hazard surface, summarized through
-<code>type = "response"</code> and the curve, and
-<code>type = "survival"</code> does not apply to it because as far as
-the package is concerned it is a binomial fit.</p>
+<code>type = "response"</code> and the curve, and the
+<code>type = "survival"</code> prediction does not apply to it because
+as far as the package is concerned it is a binomial fit.</p>
 <p><strong>When to use it.</strong> When there is a substantive reason
 to expect the covariate effect to move with time (e.g., a treatment
 whose benefit accrues or wears off, a risk factor that matters only
@@ -1094,9 +1094,9 @@ every family and needs no correction.</p>
 <p>Because the baseline absorbs the level, a single fitted value of
 <code><a href="../reference/bartisan-families.html">ph()</a></code>’s predictor has no interpretation on its own; only
 differences do. <code>predict(type = "link")</code> is centered
-accordingly. When a level is what is wanted, ask for a quantity that has
-one: <code>type = "survival"</code>, or <code>type = "response"</code>
-for the median time.</p>
+accordingly. When a level is wanted, ask for a quantity that has one:
+<code>type = "survival"</code>, or <code>type = "response"</code> for
+the median time.</p>
 </div>
 <div class="section level3">
 <h3 id="the-bin-grid-num_bins">The Bin Grid (<code>num_bins</code>)<a class="anchor" aria-label="anchor" href="#the-bin-grid-num_bins"></a>
@@ -1184,21 +1184,20 @@ half the Pareto-<span class="math inline">\(k\)</span> values went above
 .7, at which point <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> stop being
 usable at all.</p>
 <p>So the shape of the thing is a wide flat plateau with a cliff a long
-way past the default, not a peak that has to be found.
-<code>num_bins</code> is exposed for confirming that on one’s own data
-rather than for tuning: fit at the default and again at two or three
-times it, and if the answers agree (they will) stop thinking about
+way past the default, not a peak that has to be found. The
+<code>num_bins</code> argument is exposed for confirming that on one’s
+own data rather than for tuning: fit at the default and again at two or
+three times it, and if the answers agree (they will) stop thinking about
 it.</p>
 <p>This is also the answer to a question that comes up: why not fit
 Cox’s <em>partial</em> likelihood, which needs no grid at all? Because
 it couples observations through risk sets, so it does not decompose into
-a sum over the observations reaching a leaf, which is what this sampler
-requires. <code><a href="../reference/bartisan-families.html">ph()</a></code> fits the full likelihood of the
-piecewise-exponential model instead, which does decompose, and which
-approaches the partial likelihood as the bins shrink. A grid-free
-version was built and measured against this one <span class="citation">(<a href="#ref-linero2022">Linero et al.
-2022</a>)</span>; it was no more accurate, and it broke
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>, for the reason above.</p>
+a sum over the observations reaching a leaf, as this sampler requires.
+<code><a href="../reference/bartisan-families.html">ph()</a></code> fits the full likelihood of the piecewise-exponential
+model instead, which does decompose, and which approaches the partial
+likelihood as the bins shrink. A grid-free version was built and
+measured against this one <span class="citation">(<a href="#ref-linero2022">Linero et al. 2022</a>)</span>; it was no more
+accurate, and it broke <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>, for the reason above.</p>
 </div>
 </div>
 <div class="section level2">

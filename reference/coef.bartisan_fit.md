@@ -51,11 +51,10 @@ surface at the value each covariate was centered on, which is a
 prediction rather than a coefficient, and `predict(object)` reports it.
 
 For a factor the coefficients are recentered to sum to zero across its
-levels, which is what makes them the deviations they are reported as.
-The symmetric coding carries one spare function-valued dimension, so
-this is exact rather than an approximation, and it is the reason a
-factor's reference level is a choice made here rather than at fitting
-time.
+levels, which makes them the deviations they are reported as. The
+symmetric coding carries one spare function-valued dimension, so this is
+exact rather than an approximation, and it is the reason a factor's
+reference level is a choice made here rather than at fitting time.
 
 ## See also
 

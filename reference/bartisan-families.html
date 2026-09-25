@@ -174,7 +174,7 @@ simplex; larger values pull them toward equal shares. See Details.</p></dd>
 <dd><p>for <code>multinomial()</code>, the response category to hold as the
 reference, given as a single value naming one of the response's levels.
 Default is <code>NULL</code>, which with the logit link fits one forest per category
-instead and leaves the model unidentified, which is what makes the prior
+instead and leaves the model unidentified, which makes the prior
 symmetric in the categories; see Details. The probit link is always written
 as contrasts against a reference, so there the default is the first level.</p></dd>
 
@@ -303,9 +303,9 @@ the way to reach anything else.</p>
 <h3 id="omitting-family">Omitting <code>family</code><a class="anchor" aria-label="anchor" href="#omitting-family"></a></h3>
 
 
-<p><code>family</code> may be omitted, in which case it is read off the response's type and
+<p>The <code>family</code> argument may be omitted, in which case it is read off the response's type and
 the choice reported with a message; <code><a href="bartisan.html">bartisan()</a></code> tabulates the lookup, since
-<code>family</code> is its argument. A count is read as <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> rather than
+it is the function that takes the <code>family</code> argument. A count is read as <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> rather than
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>, and a numeric response taking two values other than 0 and 1 as
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> rather than <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code>, both being modeling decisions rather
 than readings of the response's type.</p>
@@ -326,7 +326,7 @@ cutpoint per distinct value is both far slower and slightly less accurate than
 twenty-five bins; <code><a href="../articles/families.html">vignette("families")</a></code> works it through.</p>
 <p>The cutpoints of <code>ordinal()</code> and <code>ordbeta()</code> carry an induced-Dirichlet prior,
 which puts the prior on the category probabilities the cutpoints imply rather
-than on the cutpoints themselves. <code>cut_alpha</code> is its concentration, and it
+than on the cutpoints themselves. The <code>cut_alpha</code> argument is its concentration, and it
 regularizes a thinly observed category without disturbing a well observed one.</p>
 <p>A level of an ordered factor that nobody selected is kept rather than dropped,
 so a rating scale with an unused point is fitted on all of its points. A
@@ -362,7 +362,7 @@ orthant probabilities of a distribution whose location is a sum of trees, so a
 flexible mean absorbs much of the dependence they are meant to measure and
 they are weakly identified until the sample is large. The likelihood has no
 closed form, so it and every category probability are simulated with
-<code>replicates</code> draws, and <code>augment</code> does not apply, the latent variables being
+<code>replicates</code> draws, and the <code>augment</code> argument does not apply, the latent variables being
 the model rather than a rewriting of it.</p>
 <p><code>dpm()</code> is not a distribution but a way of not choosing one. It is DPMBART: a
 numeric response with the sum of trees for its mean, as
@@ -416,7 +416,7 @@ Weibull, log-logistic and log-normal survival times.</p>
 <p>A contrast in the predictor is a log time ratio in all of them, and in
 <code>dpm_aft()</code> too, because with \(\epsilon\) independent of \(x\) every
 quantile and both means of \(T\) scale by \(e^{\Delta\eta}\) whatever
-shape the error has. What differs is what \(e^{\eta}\) is on its own, each
+shape the error has. The families differ in what \(e^{\eta}\) is on its own, each
 family pinning its error's location differently: the median of \(T\) for
 <code>loglogistic_aft()</code> and <code>lognormal_aft()</code>, the geometric mean for <code>dpm_aft()</code>,
 and the Weibull scale for <code>weibull_aft()</code>. Contrasts are unaffected by any of
@@ -430,19 +430,19 @@ a proportional hazards model as well.</p>
 <p><code>ph()</code> is the proportional hazards alternative, with a piecewise-constant
 baseline: \(\lambda(t \mid x) = \lambda_0(t)\exp(r(x))\), so its predictor
 is a log <em>hazard</em> ratio and the baseline is free to take any shape rather than
-the monotone one a Weibull imposes. <code>num_bins</code> sets how many pieces, with the
+the monotone one a Weibull imposes. The <code>num_bins</code> argument sets how many pieces, with the
 edges at evenly spaced quantiles of the observed times; the default is about
 the cube root of the sample size. The bin hazards are drawn from their exact
 gamma conditionals and reported as <code>lambda1</code>, <code>lambda2</code>, ... in <code>fit$aux</code>,
 together with the rate of their own prior. The predictor and the baseline are
 identified only jointly, so the baseline carries the level and the predictor
 is reported centered on it.</p>
-<p>Cox's <em>partial</em> likelihood is what cannot be used here: it couples
+<p>Cox's <em>partial</em> likelihood cannot be used here: it couples
 observations through risk sets and so does not decompose into a sum over the
 observations reaching a leaf. The full likelihood of the piecewise-exponential
 model does decompose, and it approaches the partial likelihood as the bins
 shrink, which is how <code>ph()</code> reaches proportional hazards without it.</p>
-<p><code>num_bins</code> should be left at its default. The estimates are insensitive to it,
+<p>The <code>num_bins</code> argument should be left at its default. The estimates are insensitive to it,
 and what it does change is the effective number of parameters, which grows
 with the bin count and so matters for <code><a href="bartisan-interop.html">loo()</a></code> and <code>waic()</code>.
 <code><a href="../articles/survival.html">vignette("survival")</a></code> sweeps it.</p>
@@ -472,8 +472,8 @@ function of the predictors.</p>
 <p><code>Gamma_ls()</code> does the same for a gamma response: the first forest is the log
 mean, exactly as <code>Gamma("log")</code>'s is, and the second is the log dispersion, so
 the shape is <code>exp(-log_dispersion)</code> at each observation rather than one value
-drawn for the whole sample. What it relaxes is the assumption that the
-coefficient of variation is constant, which is what a gamma with a single
+drawn for the whole sample. It relaxes the assumption that the
+coefficient of variation is constant, which a gamma with a single
 shape asserts, and giving its second forest an intercept-only formula puts
 that assumption back; see "Several additive predictors" above.</p>
 <p>Note that the mean forest is quadratic in neither family, but it takes the
@@ -505,7 +505,7 @@ spending, rainfall, insurance claims and earnings. It is the analogue of
 <code>ordbeta()</code> at the other end: one predictor again drives both parts, but
 through the mean rather than through a cutpoint, since \(\mu = \exp(\eta)\)
 and \(\mathrm{Var}(y) = \phi\mu^p\) together fix the probability of a zero
-at \(\exp(-\mu^{2-p}/(\phi(2-p)))\). That is what makes it a single process
+at \(\exp(-\mu^{2-p}/(\phi(2-p)))\). That makes it a single process
 and is also its restriction: the share of zeros has no level of its own, so a
 response whose zeros are more or less common than its mean implies wants a
 two-part model instead, which <code>zi_poisson()</code> and <code>zi_negbin()</code> are for counts
@@ -526,7 +526,7 @@ scale.</p>
 then every argument that could mean something different for each of them may
 be given per forest, keyed by the names below or positionally;
 <code><a href="bartisan_control.html">bartisan_control()</a></code> states the recycling rule and lists which arguments it
-covers, and <code>formula</code> is among them, so a forest can have predictors of its
+covers, and the <code>formula</code> argument is among them, so a forest can have predictors of its
 own.</p>
 <p>The first forest is always the main parameter, the one a single-forest family
 would have on its own. This table is the canonical list of the names, which
@@ -541,7 +541,7 @@ pinned to a single leaf, and nothing about them is set per forest.</p>
 <p>A forest whose formula names no predictor is a constant. <code>~ 1</code> leaves that
 forest nothing to split on, so every tree in it is a stump and the parameter is
 one drawn scalar. Every family here that takes more than one formula accepts
-that, which is what makes the distinction between a nuisance parameter and an
+that, which makes the distinction between a nuisance parameter and an
 empty forest a thin one: <code>gaussian_ls()</code> with <code>~ 1</code> on its scale is
 <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>, <code>Gamma_ls()</code> with <code>~ 1</code> is <code>Gamma("log")</code>, and <code>zi_poisson()</code>
 with <code>~ 1</code> on its inflation part is the zero-inflated Poisson with a single

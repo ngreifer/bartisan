@@ -134,9 +134,9 @@ differenced, which costs three calls per sweep rather than three per leaf.</p></
 
 <dt id="arg-aux-names">aux_names<a class="anchor" aria-label="anchor" href="#arg-aux-names"></a></dt>
 <dd><p>optional <code>character</code>; the names of the nuisance parameters
-to draw, if any. Naming them is what declares them, because the names label
-the columns of <code>fit$aux</code> and are what <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and <code><a href="diagnose.html">diagnose()</a></code> report
-them under. They must be distinct and non-empty. Default is <code>NULL</code> for
+to draw, if any. Naming them declares them, because the names label
+the columns of <code>fit$aux</code> and are the labels <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and <code><a href="diagnose.html">diagnose()</a></code>
+report them under. They must be distinct and non-empty. Default is <code>NULL</code> for
 none, unless <code>aux_start</code> is given, in which case the parameters are named
 by <code>names(aux_start)</code> when it carries names and positionally (<code>"aux1"</code>,
 <code>"aux2"</code>, and so on) when it does not.</p></dd>
@@ -147,7 +147,7 @@ by <code>names(aux_start)</code> when it carries names and positionally (<code>"
 at, given as one value or one per parameter. Default is <code>NULL</code>, which is 0
 for each. The sampler will walk to the posterior from a poor start, so this
 need only be the right order of magnitude. Supplying it is a second way to
-declare the parameters, so <code>aux_start = c(shape = 1)</code> both names one and
+declare the parameters, so setting <code>aux_start = c(shape = 1)</code> both names one and
 starts it at 1.</p></dd>
 
 
@@ -193,8 +193,8 @@ family written for it.</p><div class="section">
 <h3 id="nuisance-parameters">Nuisance Parameters<a class="anchor" aria-label="anchor" href="#nuisance-parameters"></a></h3>
 
 
-<p>These are drawn alongside the trees when <code>aux_names</code> names them, and
-<code>logdens</code> then takes a third argument holding their current values:</p>
+<p>These are drawn alongside the trees when the <code>aux_names</code> argument names them,
+and the function supplied as <code>logdens</code> then takes a third argument holding their current values:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="co"># A Gaussian written out by hand, with its scale drawn rather than fixed.</span></span>
 <span><span class="va">by_hand</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/custom_family.html">custom_family</a></span><span class="op">(</span></span>
 <span>  logdens <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">y</span>, <span class="va">eta</span>, <span class="va">aux</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">dnorm</a></span><span class="op">(</span><span class="va">y</span>, <span class="va">eta</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">aux</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span>, log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
@@ -207,7 +207,7 @@ split, so the forest is a single scalar), and it is drawn by the same
 Laplace-plus-Metropolis step as any leaf, under that step's Gaussian leaf
 prior. So a parameter with a restricted range is handled the way it would be
 for a real predictor, by writing the transform into <code>logdens</code>: the <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code>
-above is what keeps the scale positive.</p>
+above keeps the scale positive.</p>
 </div>
 
 <div class="section">
@@ -215,8 +215,8 @@ above is what keeps the scale positive.</p>
 
 
 <p>A density says how likely an observed value is, not how to draw a new one, so
-a <code>custom_family()</code> fit has no posterior predictive distribution, which is
-what <code><a href="bartisan-interop.html">simulate()</a></code>, <code><a href="bartisan-interop.html">pp_check()</a></code> and
+a <code>custom_family()</code> fit has no posterior predictive distribution, which
+<code><a href="bartisan-interop.html">simulate()</a></code>, <code><a href="bartisan-interop.html">pp_check()</a></code> and
 <code><a href="bartisan-interop.html">r2()</a></code> rely on. Each of them errors on such a fit
 rather than returning something it cannot support. <a href="bartisan-interop.html">loo()</a>
 and <code><a href="bartisan-interop.html">waic()</a></code> are unaffected, since both read the

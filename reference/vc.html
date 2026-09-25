@@ -141,7 +141,7 @@ a prior of its own rather than being whatever difference a single forest with
 
 
 <p>By default a coefficient may vary with every predictor in the model except
-<code>x</code> itself, and <code>modifiers</code> narrows that.</p>
+<code>x</code> itself, and the <code>modifiers</code> argument narrows that.</p>
 <p>Within <code>modifiers</code>, <code>.</code> stands for the predictors of the control function
 rather than, as in a model formula, for every column of the data. That
 makes <code>vc(z, ~ .)</code> the same model as <code>vc(z)</code>, and <code>vc(z, ~ . - x1)</code> the
@@ -191,7 +191,7 @@ all; <code><a href="../articles/varying.html">vignette("varying")</a></code> wor
 
 
 <p>Centering is a reparameterization of \(f_0\) alone: every coefficient and
-every estimand is identical under any choice, and what changes is what the
+every estimand is identical under any choice, and the choice changes only what the
 control function means. <code>"auto"</code> picks by the covariate. For a <code>0</code>/<code>1</code>
 covariate it uses zero, so \(f_0\) is the surface among the untreated,
 which is a quantity with its own meaning. For any other numeric covariate it
@@ -199,7 +199,7 @@ uses the mean, because zero may be nowhere near the data and the control
 function there would be an extrapolation.</p>
 <p>A factor is always fitted mean-centered and gets one forest per level, coded
 symmetrically rather than as contrasts against a level that happened to sort
-first. That coding leaves the reference a reporting choice: <code>center</code> names the
+first. That coding leaves the reference a reporting choice: the <code>center</code> argument names the
 level <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> reports against, and no refit is needed to change it.</p>
 </div>
 
@@ -211,8 +211,8 @@ level <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">co
 number from <code>x</code>, it gives each of <code>x</code>'s values a coefficient of its own and
 draws it, so that every contrast carries the same prior whatever the number of
 values and no value is a reference. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> returns the identified contrasts.</p>
-<p>At two values it restricts nothing, and it is what <code><a href="bcf.html">bcf()</a></code> uses: what it buys
-is that the answer stops depending on which level was written as 1. Above two
+<p>At two values it restricts nothing, and <code><a href="bcf.html">bcf()</a></code> uses it: with it,
+the answer stops depending on which level was written as 1. Above two
 values every contrast becomes one shared shape times a scalar, where the
 symmetric coding gives each level its own, so it is the parsimonious model
 against a general one. Reach for it when the levels plausibly differ in degree
@@ -228,7 +228,7 @@ distributional parameter, and each parameter's formula carries its own <code>vc(
 terms. The forests are then two-dimensional (a control function and its
 coefficients, for each parameter) and named accordingly, <code>mean</code>, <code>mean:z</code>,
 <code>log_sd</code> and <code>log_sd:z</code> for <code>y ~ x1 + x2 + vc(z)</code> under <code><a href="bartisan-families.html">gaussian_ls()</a></code>,
-which is what per-forest settings are keyed by. One formula reaches every
+the names per-forest settings are keyed by. One formula reaches every
 parameter, and a list of formulas gives each its own; <code><a href="../articles/varying.html">vignette("varying")</a></code>
 shows both.</p>
 <p>So the same covariate may have a coefficient on more than one parameter:
@@ -274,12 +274,12 @@ propensity score set up for it</p></li>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The effect of right heart catheterization on death, free to vary with</span></span></span>
 <span class="r-in"><span><span class="co"># every other covariate. `rhc` reaches the fixed part through `.`, so it is</span></span></span>
-<span class="r-in"><span><span class="co"># dropped from the control function, which is what keeps the two identified</span></span></span>
+<span class="r-in"><span><span class="co"># dropped from the control function, which keeps the two identified</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span> <span class="op">+</span> <span class="fu">vc</span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
 <span class="r-in"><span>                family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
 <span class="r-in"><span>                num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># One coefficient per patient, which is what a coefficient function comes to</span></span></span>
+<span class="r-in"><span><span class="co"># One coefficient per patient: the coefficient function at each observation</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>            rhc</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.3852362</span>

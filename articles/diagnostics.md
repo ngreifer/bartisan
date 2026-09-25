@@ -80,8 +80,8 @@ diagnose(fit)
 #> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
 #>   quantity that carries too few effective draws for the threshold to mean
 #>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. Effective sample size is
-#>   what makes it readable, and that grows with the total number of draws; using
+#>   chains agreed exactly, as the check above reports. A larger effective sample
+#>   size makes it readable, and that grows with the total number of draws; using
 #>   fewer chains lowers the bar as well, since R-hat's null rises with the number
 #>   of chains being compared.
 #> • If that does not settle it, reduce `num_trees`, which was `50`. A smaller
@@ -99,20 +99,20 @@ diagnose(fit)
 #>   draws to `posterior::summarise_draws()` for anything else.
 ```
 
-The rest of this section is what it is reporting and why, which is worth
-reading once; when the summary itself is enough,
+The rest of this section explains what it reports and why, which is
+worth reading once; when the summary itself is enough,
 [`vignette("bartisan")`](https://ngreifer.github.io/bartisan/articles/bartisan.md)
 is the shorter tour of the whole workflow.
 
 ### Running More Than One Chain (`chains`)
 
-`chains = 4` above is doing the work. The default is one chain, which
-produces estimates but no way to check most of what matters, because
-R-hat compares chains to each other; with one chain it is computed by
-splitting that chain, which catches drift but cannot catch two chains
-settling in different places. Running four costs four times as much
-sampling, which for most fits is a few seconds, and less than that under
-a *future* plan.
+Setting `chains = 4` above is doing the work. The default is one chain,
+which produces estimates but no way to check most of what matters,
+because R-hat compares chains to each other; with one chain it is
+computed by splitting that chain, which catches drift but cannot catch
+two chains settling in different places. Running four costs four times
+as much sampling, which for most fits is a few seconds, and less than
+that under a *future* plan.
 
 More chains is not, however, a way to improve `rhat`, and it is worth
 knowing which way it cuts before reaching for it. Effective sample size
@@ -144,14 +144,13 @@ applies them, and takes both as arguments so they can be moved.
 
 Some of the columns are worth naming separately. `rhat_late` is the same
 statistic computed on the second half of the retained draws alone, which
-is what tells a warmup that ended too early (i.e., too small a
-`num_burn`) from chains that have each settled somewhere different:
-throwing away the early draws is exactly what more `num_burn` would have
-done, so if that fixes `rhat`, warmup was the problem. The `splits.*`
-row is the total number of splitting rules in the forest at each draw,
-the one quantity here that is about the trees rather than about the
-fitted values, and which no general-purpose MCMC diagnostic would think
-to look at.
+tells a warmup that ended too early (i.e., too small a `num_burn`) from
+chains that have each settled somewhere different: throwing away the
+early draws has the same effect as a larger `num_burn`, so if that fixes
+`rhat`, warmup was the problem. The `splits.*` row is the total number
+of splitting rules in the forest at each draw, the one quantity here
+that is about the trees rather than about the fitted values, and which
+no general-purpose MCMC diagnostic would think to look at.
 
 ### The Rows of the Table
 
@@ -354,9 +353,9 @@ as_draws(fit, eta = 1) |>
 ![](diagnostics_files/figure-html/trace-1.png)
 
 What we want to see is four chains overlapping, wandering around the
-same level, with no drift and no long excursions. `eta = 1` selects the
-first observation; `eta = TRUE` gives a spread of ten and `eta = FALSE`
-gives none.
+same level, with no drift and no long excursions. Setting `eta = 1`
+selects the first observation, `eta = TRUE` a spread of ten, and
+`eta = FALSE` none.
 
 ### Diagnosing the Quantity Being Reported
 
@@ -462,9 +461,9 @@ reports.
 
 The arranging is the only step with a decision in it. The sampler stacks
 its chains, so the draws of any quantity are one long vector in chain
-order, and folding it into an iterations-by-chains matrix is what
-recovers the structure R-hat needs. Below, the quantity is an average
-comparison computed by *marginaleffects*, whose draws come out of
+order, and folding it into an iterations-by-chains matrix recovers the
+structure R-hat needs. Below, the quantity is an average comparison
+computed by *marginaleffects*, whose draws come out of
 [`posterior_draws()`](https://rdrr.io/pkg/marginaleffects/man/posterior_draws.html):
 
 ``` r
@@ -497,8 +496,8 @@ way, including ones neither package knows about. Draw it, fold it,
 summarize it.
 
 The fold has to match the order the draws are stored in, which here is
-all of chain one, then all of chain two, and so on; filling the array in
-that order is what `dim = c(per_chain, chains, 1)` does. And the
+all of chain one, then all of chain two, and so on; specifying
+`dim = c(per_chain, chains, 1)` fills the array in that order. And the
 quantity has to be the one being reported: diagnosing a prediction is
 not diagnosing the contrast of two predictions, for the reason the
 section above gives.
@@ -525,8 +524,8 @@ that the chains disagree, since that is roughly where `rhat` sits when
 nothing is wrong, and
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
 says so rather than reporting a disagreement it cannot support. In that
-case the effective sample size is what to fix, and more draws is the
-whole of the remedy.
+case the effective sample size needs fixing, and more draws is the whole
+of the remedy.
 
 ### A Worked Example: More Draws, Same Model
 
@@ -571,8 +570,8 @@ diagnose(short)
 #> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
 #>   quantity that carries too few effective draws for the threshold to mean
 #>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. Effective sample size is
-#>   what makes it readable, and that grows with the total number of draws; using
+#>   chains agreed exactly, as the check above reports. A larger effective sample
+#>   size makes it readable, and that grows with the total number of draws; using
 #>   fewer chains lowers the bar as well, since R-hat's null rises with the number
 #>   of chains being compared.
 #> • If that does not settle it, reduce `num_trees`, which was `50`. A smaller
@@ -612,18 +611,18 @@ diagnose(longer)
 #> Convergence and mixing
 #> 
 #>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.01      1.01      645     1092
-#>                           splits.eta 1.00      1.01     2313     5161
-#>  eta.eta (average over observations) 1.00      1.00    16106    25219
-#>   eta.eta (worst 5% of observations) 1.01      1.01      999     2235
+#>                               loglik 1.01      1.01      611      842
+#>                           splits.eta 1.00      1.01     2776     5906
+#>  eta.eta (average over observations) 1.00      1.00    15660    24055
+#>   eta.eta (worst 5% of observations) 1.01      1.01      932     2243
 #> 
 #> ✔ 4 chains, 32000 draws kept in total
 #> ✔ R-hat is below 1.01 for every reported quantity
 #> ✔ Warmup was long enough, since R-hat is already fine
 #> ✔ The chains agree about the size of the forest
-#> ✔ Bulk ESS is at least 645 for every reported quantity, above 400
-#> ✔ Tail ESS is at least 1092 for every reported quantity, above 400
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 2.0 effective draws
+#> ✔ Bulk ESS is at least 611 for every reported quantity, above 400
+#> ✔ Tail ESS is at least 842 for every reported quantity, above 400
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 1.9 effective draws
 #>   per hundred kept
 #> 
 #> ✔ Nothing to change.
@@ -647,8 +646,8 @@ stretch.
 The estimate of effective sample size is also itself noisy, and can fall
 as the chain lengthens: a short chain cannot see autocorrelation at long
 lags, so it reports an efficiency the chain does not have. Reading a
-single ESS figure as exact invites chasing it; the factor is what to
-read.
+single ESS figure as exact invites chasing it; the factor should be read
+instead.
 
 Increasing draws does not always suffice. Doing so sufficed here because
 the flagged R-hat was the unreadable kind, resting on too few effective
@@ -721,10 +720,10 @@ are statements about trees and leaves, and nobody has intuition for what
 `k = 2` implies about a patient’s chance of dying. A prior predictive
 check puts the prior on the outcome’s own scale, where it can be judged.
 
-`prior_only = TRUE` fits the same model to no data. Every observation is
-given a weight of zero, and since the weight multiplies that
-observation’s contribution to the likelihood, the likelihood goes flat
-and the sampler draws from the prior.
+Setting `prior_only = TRUE` fits the same model to no data. Every
+observation is given a weight of zero, and since the weight multiplies
+that observation’s contribution to the likelihood, the likelihood goes
+flat and the sampler draws from the prior.
 
 ``` r
 
@@ -753,8 +752,8 @@ quantile(predict(fit, type = "response", draws = TRUE), p)
 #> 0.192 0.368 0.677 0.892 0.948
 ```
 
-The prior runs from about .01 to about .99, which is what we want of a
-prior on a probability: it rules almost nothing out and asserts almost
+The prior runs from about .01 to about .99, as we would want of a prior
+on a probability: it rules almost nothing out and asserts almost
 nothing. The fitted model runs from about .19 to about .95 over the same
 quantiles, so the data have brought it a long way in from where it
 started. A prior that had come back concentrated near zero and one, or
@@ -789,11 +788,11 @@ pp_check(fit)
 
 ![](diagnostics_files/figure-html/ppc-1.png)
 
-For a continuous outcome this is the workhorse check, and systematic
-differences are what to look for: replicates that are too narrow, that
-miss a second mode, or that put mass where the outcome cannot go.
-Simulating negative values for an outcome that cannot be negative says
-the family is wrong, and
+For a continuous outcome this is the workhorse check, and we look for
+systematic differences: replicates that are too narrow, that miss a
+second mode, or that put mass where the outcome cannot go. Simulating
+negative values for an outcome that cannot be negative says the family
+is wrong, and
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 covers the alternatives.
 
@@ -801,25 +800,24 @@ For a binary outcome it is a weak check, which is worth knowing before
 reading too much into it. There are only two values the replicates can
 take, so they will match the observed proportion unless the model has
 gone badly wrong; passing this check tells us almost nothing. The
-calibration check below is what to read instead.
+calibration check below should be read instead.
 
 #### Checks Worth Reaching For
 
-`type` names any of *bayesplot*’s checks without its `ppc_` prefix, and
-four of them earn their place for a forest.
+The `type` argument names any of *bayesplot*’s checks without its `ppc_`
+prefix, and four of them earn their place for a forest.
 
 The default compares whole distributions, which is a coarse question. A
-test statistic is a sharper one: `type = "stat"` compares any summary of
-the replicates with the same summary of the outcome, so the spread, a
-tail quantile, or the share of zeros can each be asked about on its own.
-The share of zeros is the one that finds an unmodeled point mass, which
-is what
+test statistic is a sharper one: setting `type = "stat"` compares any
+summary of the replicates with the same summary of the outcome, so the
+spread, a tail quantile, or the share of zeros can each be asked about
+on its own. The share of zeros finds an unmodeled point mass, the case
+for which
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 recommends
 [`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
-[`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-for.
+[`tweedie()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 
 ``` r
 
@@ -828,8 +826,8 @@ pp_check(fit, type = "stat", stat = "sd")
 
 ![](diagnostics_files/figure-html/ppcstat-1.png)
 
-**Calibration of the whole predictive distribution** is what
-`type = "loo_pit_ecdf"` asks. Each observation is transformed through
+**Calibration of the whole predictive distribution** is checked by
+setting `type = "loo_pit_ecdf"`. Each observation is transformed through
 its own leave-one-out predictive distribution, which should leave a
 uniform if the model is calibrated, and the plot compares the result
 with one. A curve that leaves the band says the predictive spread is
@@ -842,19 +840,19 @@ pp_check(fit, type = "loo_pit_ecdf")
 
 ![](diagnostics_files/figure-html/ppcloo-1.png)
 
-**Where a residual is left**, rather than how big it is, is what
-`type = "error_scatter_avg_vs_x"` shows: the average residual against a
-predictor, which is where a missing interaction appears as structure.
-And `type = "intervals"` draws a predictive interval per observation, so
-systematic under-coverage is visible as a run of points outside their
-intervals.
+**The location of a residual**, rather than its size, is shown by
+setting `type = "error_scatter_avg_vs_x"`: the average residual against
+a predictor, which is where a missing interaction appears as structure.
+And setting `type = "intervals"` draws a predictive interval per
+observation, so systematic under-coverage is visible as a run of points
+outside their intervals.
 
 The rest apply where the response allows, and say so when it does not: a
 rootogram wants counts, a bar plot wants discrete values, a calibration
-plot wants a binary outcome. `type = "km_overlay"` is the one written
-for censored data, overlaying the replicate survival curves on the
-observed Kaplan-Meier curve; it takes the censoring indicator from the
-fit’s own response, and needs the *ggfortify* package installed
+plot wants a binary outcome. The one written for censored data is
+`type = "km_overlay"`, which overlays the replicate survival curves on
+the observed Kaplan-Meier curve; it takes the censoring indicator from
+the fit’s own response, and needs the *ggfortify* package installed
 alongside *bayesplot*.
 
 ### Calibration
@@ -878,10 +876,10 @@ few patients can be discounted.
 A line above the diagonal at the left and below it at the right means
 the predictions are too extreme, which is the usual failure of an
 overfitted model; the opposite pattern means they are too timid, which
-is what heavy shrinkage produces.
+heavy shrinkage produces.
 
 Each patient is judged here against a probability estimated without
-them, which is what separates this from the in-sample version,
+them, which separates this from the in-sample version,
 `type = "calibration"`. That one reads optimistically, by however much
 the model has fitted the individual patients rather than the pattern.
 [`fitted()`](https://rdrr.io/r/stats/fitted.values.html) returns the
@@ -901,7 +899,7 @@ models directly.
 
 For a binary outcome, the residuals take two values for any given fitted
 probability and the plot is not informative; the calibration check above
-is what to use instead.
+should be used instead.
 
 ### The Bayesian R-Squared (`r2()`)
 

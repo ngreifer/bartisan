@@ -24,6 +24,13 @@ is confidently wrong. Finally we’ll cover what importance does not
 measure and what to make of the advice to reduce the number of trees
 when using BART to select variables.
 
+The fits use the default single chain for brevity. In a real analysis we
+would run several chains and possibly change the number of burn-in and
+retained draws;
+[`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
+covers how to set these fit controls and how to check that they were
+enough.
+
 ``` r
 
 library(bartisan)
@@ -40,7 +47,7 @@ model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
 
 set.seed(2026)
 
-fit <- bartisan(model, data = rhc, family = binomial(), chains = 4)
+fit <- bartisan(model, data = rhc, family = binomial())
 
 imp <- variable_importance(fit)
 
@@ -48,20 +55,20 @@ imp
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.284   21.6
-#>       age     1.000       0.152   11.5
-#>     paco2     0.968       0.080    6.1
-#>       rhc     0.935       0.053    4.0
-#>       aps     0.891       0.067    5.1
-#>      pafi     0.889       0.063    4.8
-#>       edu     0.749       0.046    3.5
-#>      card     0.715       0.056    4.3
-#>      hema     0.640       0.035    2.6
-#>    meanbp     0.632       0.032    2.4
-#>      crea     0.630       0.035    2.7
-#>      race     0.582       0.039    3.0
-#>      resp     0.562       0.032    2.4
-#>       sex     0.521       0.027    2.1
+#>    surv2m     1.000       0.211   15.6
+#>       age     1.000       0.182   13.6
+#>       rhc     0.995       0.098    7.3
+#>      pafi     0.995       0.080    6.0
+#>     paco2     0.991       0.105    7.9
+#>       aps     0.764       0.062    4.7
+#>       edu     0.684       0.053    4.0
+#>      resp     0.667       0.059    4.4
+#>      race     0.637       0.031    2.3
+#>      card     0.621       0.025    1.8
+#>      hema     0.574       0.033    2.5
+#>    meanbp     0.555       0.022    1.7
+#>      crea     0.514       0.018    1.4
+#>       sex     0.479       0.020    1.5
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
@@ -96,9 +103,9 @@ nothing can fall to `prop_used` near zero, which is not possible under
 classic BART, where every predictor keeps a fixed share of the splitting
 probability.
 
-The prognostic score and the illness measures sit at the top, which is
-what we would expect; at the other end, several predictors are used in
-only about half the draws.
+The prognostic score, age, and two of the illness measures sit at the
+top, as we would expect; at the other end, several predictors are used
+in only about half the draws.
 
 For a ranking this long the picture is easier to read than the table,
 and [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws it:
@@ -110,8 +117,8 @@ plot(imp)
 
 ![](importance_files/figure-html/viplot-1.png)
 
-For a model wider than this one, subsetting first is what keeps the
-picture readable: `plot(head(imp, 10))` shows the top ten.
+For a model wider than this one, subsetting first keeps the picture
+readable: `plot(head(imp, 10))` shows the top ten.
 
 And when the question is not one the summary answers, `draws = TRUE`
 returns the counts themselves, one row per posterior draw, so any
@@ -124,7 +131,7 @@ proportion of draws:
 counts <- variable_importance(fit, draws = TRUE)
 
 mean(counts[, "aps"] > counts[, "meanbp"])
-#> [1] 0.67
+#> [1] 0.649
 ```
 
 That is worth doing before reading much into a difference in the table:
@@ -146,29 +153,29 @@ for (j in 1:3) rhc_noise[[paste0("noise", j)]] <- rnorm(nrow(rhc_noise))
 
 set.seed(2026)
 fit_noise <- bartisan(update(model, . ~ . + noise1 + noise2 + noise3),
-                      data = rhc_noise, family = binomial(), chains = 4)
+                      data = rhc_noise, family = binomial())
 
 variable_importance(fit_noise)
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.199   15.2
-#>       age     1.000       0.132   10.1
-#>     paco2     0.966       0.083    6.3
-#>      pafi     0.957       0.065    5.0
-#>       aps     0.928       0.082    6.3
-#>       rhc     0.924       0.055    4.2
-#>      card     0.788       0.036    2.7
-#>    noise1     0.777       0.049    3.7
-#>       edu     0.776       0.042    3.2
-#>    meanbp     0.730       0.040    3.0
-#>      hema     0.719       0.036    2.8
-#>      crea     0.712       0.046    3.5
-#>    noise2     0.673       0.028    2.1
-#>    noise3     0.666       0.032    2.5
-#>      race     0.590       0.026    2.0
-#>       sex     0.569       0.021    1.6
-#>      resp     0.568       0.028    2.1
+#>    surv2m     1.000       0.172   13.1
+#>     paco2     1.000       0.151   11.6
+#>       age     1.000       0.121    9.2
+#>      pafi     1.000       0.072    5.5
+#>       rhc     0.980       0.045    3.4
+#>       edu     0.975       0.053    4.0
+#>       aps     0.894       0.069    5.3
+#>    noise1     0.774       0.039    3.0
+#>      crea     0.686       0.039    3.0
+#>    meanbp     0.674       0.047    3.6
+#>    noise3     0.670       0.032    2.5
+#>      card     0.662       0.030    2.3
+#>      resp     0.639       0.026    2.0
+#>    noise2     0.601       0.026    2.0
+#>      hema     0.598       0.028    2.1
+#>       sex     0.562       0.028    2.2
+#>      race     0.498       0.022    1.6
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
@@ -293,8 +300,8 @@ avg_comparisons(fit_corr, variables = c("x1", "x1_copy"))
 ```
 
 The copy takes most of the association; the original’s interval covers
-zero. Moving both together, which is what a change in the underlying
-quantity would mean, recovers the truth:
+zero. Moving both together, as a change in the underlying quantity
+would, recovers the truth:
 
 ``` r
 
@@ -379,8 +386,8 @@ cannot be: it counts rules, so a forest of 50 trees reports several
 times the count of a forest of 20 without being several times as
 informative. The share is computed within each draw, so it adds to one
 at any forest size. It is not invariant, since the number of trees also
-changes how the rules get allocated, but the ranking carries over and
-that is what the comparison is about.
+changes how the rules get allocated, but the ranking carries over, and
+the ranking is the subject of the comparison.
 
 ## Further Reading
 

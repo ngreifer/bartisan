@@ -52,8 +52,9 @@ plot(x, marginal = TRUE, ...)
   group, which by default is the treatment's second level for the former
   and its first for the latter. With a binary treatment that makes them
   the treated and the untreated without `focal` being named. `"CATE"`
-  does not average at all and returns one effect per unit. Abbreviations
-  and lowercase spellings are allowed.
+  does not average at all and returns the conditional effect at each
+  unit's covariates, which is not that unit's own individual effect; see
+  Details. Abbreviations and lowercase spellings are allowed.
 
 - comparison:
 
@@ -77,8 +78,8 @@ plot(x, marginal = TRUE, ...)
 - newdata:
 
   optional; a data frame of units to average over. Default is the data
-  the model was fit to, which is what makes the default estimand the
-  sample average effect.
+  the model was fit to, so that the average runs over the covariates of
+  the fitted sample; see Details for what that average is.
 
 - level:
 
@@ -162,6 +163,22 @@ ggplot2 object.
 
 ## Details
 
+### The Estimand
+
+The ATE, ATT and ATC are averages of the conditional effect over the
+covariates of the units averaged over, computed within each posterior
+draw. This is sometimes called the mixed average treatment effect. The
+covariates are treated as fixed, so the interval reflects uncertainty
+about the outcome model but not the further variation a population
+average would carry, and the units' observed outcomes are not
+conditioned on, as they would be for a sample average of individual
+effects. Likewise, `estimand = "CATE"` reports the expected effect at
+each unit's covariates rather than the unit's own effect, which depends
+on how its two potential outcomes are associated and is not identified.
+See
+[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
+for the distinction between these estimands.
+
 ### Setting `type`
 
 A varying coefficient is a contrast on the link scale: on a
@@ -172,9 +189,9 @@ default is therefore `type = "response"`, where every unit's contrast is
 on the scale the response is measured on and averaging them gives the
 marginal effect.
 
-`type = "link"` is the right choice for looking at how the effect
-varies, since that is the scale the forest models it on, and the wrong
-one for reporting an average.
+Setting `type = "link"` is the right choice for looking at how the
+effect varies, since that is the scale the forest models it on, and the
+wrong one for reporting an average.
 
 ### Setting `comparison`
 
@@ -213,9 +230,9 @@ differs.
 
 ### Multi-category Treatments
 
-There is nothing to work out from the values, so `focal` is required for
-`"ATT"` and `"ATC"`, and those two then name the same estimand: the
-effect among the units in the level named.
+There is nothing to work out from the values, so the `focal` argument is
+required for `"ATT"` and `"ATC"`, and those two then name the same
+estimand: the effect among the units in the level named.
 
 Every pairwise contrast is computed. Which ones are shown is a display
 choice, made by `contrasts` in the
@@ -294,7 +311,8 @@ estimate_effect(fit, estimand = "ATT", comparison = "ratio")
 #>   credible interval.
 #> ℹ Y[a] is the average response with `rhc` set to "a".
 
-# One effect per unit, ordered, with the marginal effect beside them
+# The effect at each unit's covariates, ordered, with the marginal effect
+# beside them
 cate <- estimate_effect(fit, estimand = "CATE")
 plot(cate)
 

@@ -76,10 +76,10 @@ bartisan_control(
 
 - num_draws:
 
-  `numeric`; the number of draws to keep. Default is 800. These are what
-  every estimate and interval is computed from, so raising it narrows
-  Monte Carlo error; increase it when `ess_bulk` or `ess_tail` is small
-  relative to what the reported quantity needs.
+  `numeric`; the number of draws to keep. Default is 800. Every estimate
+  and interval is computed from these, so raising it narrows Monte Carlo
+  error; increase it when `ess_bulk` or `ess_tail` is small relative to
+  what the reported quantity needs.
 
 - num_thin:
 
@@ -170,16 +170,17 @@ bartisan_control(
   one pooled Dirichlet rather than one each. Default is `FALSE`. `TRUE`
   is an assumption about the data rather than a free improvement, and
   requires that the proportions be drawn at all and over the same
-  predictors, so `sparsity` must not be `FALSE` for the forests that are
-  to share. Ignored for a family with a single forest. See Details.
+  predictors, so the forests that are to share must not have
+  `sparsity = FALSE`. Ignored for a family with a single forest. See
+  Details.
 
 - categorical:
 
   *Advanced.* string; how a splitting rule divides the levels of a
   factor. Allowable options include `"subset"` (the default), which
   draws a subset of the levels still available at the node and sends
-  those left, and `"onehot"`, which is what most BART implementations
-  do: it splits on one indicator column, peeling a single level off the
+  those left, and `"onehot"`, which follows most BART implementations:
+  it splits on one indicator column, peeling a single level off the
   rest.
 
 - augment:
@@ -266,7 +267,7 @@ bartisan_control(
 
   *Advanced.* `logical`; whether to draw the splitting proportions and
   their concentration. Defaults are `NULL` to follow `sparsity`. Turning
-  both off recovers a uniform prior over predictors, which is what
+  both off recovers a uniform prior over predictors, as setting
   `sparsity = FALSE` does.
 
 - verbose:
@@ -296,7 +297,7 @@ bartisan_control(
   quadratic in the additive predictor allows, in which one pass over a
   node determines the log target everywhere, so that the Laplace
   approximation is the conditional posterior rather than an
-  approximation to it. Default is `TRUE`, which is what makes a Gaussian
+  approximation to it. Default is `TRUE`, which makes a Gaussian
   response, or any of the rewritings in `augment`, cheap. `FALSE` falls
   back on the general path; the two agree, at greater cost.
 
@@ -353,8 +354,8 @@ Measured on one design, a Friedman function at n = 4000 with 25 of 30
 predictors irrelevant, comparing the default against a run 64 times
 longer: pointwise 95% intervals for the regression function came out
 about 5% wider at the default and covered 0.938 against 0.958. Halving
-the excess width took about four times the sweeps, which is what an
-error decaying as the square root of the run predicts.
+the excess width took about four times the sweeps, as an error decaying
+as the square root of the run predicts.
 
 This suggests some habits rather than a number to apply. Raise
 `num_draws` when an interval, a tail quantile or a posterior probability
@@ -376,9 +377,9 @@ defaults tend to do well, which is a strength of BART. The leaf prior
 scale divides by the square root of a forest's own tree count, so
 shrinking one forest does not change the prior on the sum.
 
-`num_trees` can be supplied as a vector when the family has more than
-one forest, where each value corresponds to the number of trees for that
-forest. The scale forest of location-scale models (e.g.,
+The `num_trees` argument can be supplied as a vector when the family has
+more than one forest, where each value corresponds to the number of
+trees for that forest. The scale forest of location-scale models (e.g.,
 `family = gaussian_ls()`) dominates the run time, its target not being
 quadratic, and a variance surface carries much less information than a
 mean surface, so giving it fewer trees runs substantially faster at the
@@ -396,8 +397,8 @@ contribution to the left branch is \\w_L(x; c) = 1 - w_R(x; c)\\.
 
 #### Hard Gates
 
-For a hard gate (`gate = "hard"`), which is what is used in traditional
-BART and most other tree-based models,
+For a hard gate (`gate = "hard"`), which is used in traditional BART and
+most other tree-based models,
 
 \$\$w_R(x; c) = \mathbb{I}(x \> c)\$\$
 
@@ -426,11 +427,11 @@ observations have weights of exactly 0 or 1, which is why it is the
 default; `"logistic"` is the one Linero and Yang (2018) originally
 describe.
 
-`bandwidth_every` controls how often the bandwidth is updated from its
-starting value specified by `bandwidth` for a soft gate when
-`update_bandwidth = TRUE` (the default). Drawing the bandwidth is what
-lets a rule sharpen toward a step, so setting `update_bandwidth = FALSE`
-is faster and tends to be more accurate on smooth functions, but is much
+The `bandwidth_every` argument controls how often the bandwidth is
+updated from its starting value specified by `bandwidth` for a soft gate
+when `update_bandwidth = TRUE` (the default). Drawing the bandwidth lets
+a rule sharpen toward a step, so setting `update_bandwidth = FALSE` is
+faster and tends to be more accurate on smooth functions, but is much
 worse on nonsmooth ones. Raising `bandwidth_every` is the middle course,
 recovering some speed while keeping soft rules, at a real cost in mixing
 and a small one in accuracy where the mean function jumps.
@@ -486,11 +487,12 @@ them and the sparsity they induce is a bit opaque.
 #### Telling the Prior What Is Already Known
 
 `sparsity` and `split_prior` answer different questions and cannot both
-be in force, so giving `split_prior` turns `sparsity` off. `sparsity` is
-for when which predictors matter is unknown and the prior is to work it
-out from the data, and a predictor can be dropped entirely;
-`split_prior` is for when something is known and is to be honored, with
-the proportions held at the supplied values.
+be in force, so giving `split_prior` turns `sparsity` off. The
+`sparsity` argument is for when which predictors matter is unknown and
+the prior is to work it out from the data, and a predictor can be
+dropped entirely; the `split_prior` argument is for when something is
+known and is to be honored, with the proportions held at the supplied
+values.
 
 A weight is a statement about relative attention, not about effect size.
 It changes how often a split on a predictor is proposed, which is a
@@ -512,8 +514,8 @@ per forest, either positionally or keyed by the forest names listed in
 A forest a named argument does not mention keeps that argument's default
 rather than borrowing another forest's value. That covers `num_trees`,
 `k`, `sigma_mu`, `sparsity`, `split_prior`, `bandwidth`, `gamma`,
-`beta`, the four `alpha` arguments, and the three `update_` flags;
-`formula` works the same way, as
+`beta`, the four `alpha` arguments, and the three `update_` flags; the
+`formula` argument works the same way, as
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
 describes.
 
@@ -526,8 +528,9 @@ their forests act as one, so these arguments take a single value.
 
 ### Progress
 
-`verbose = TRUE` prints a line every `num_print` iterations, which is
-the whole of what this package decides about progress. A progress bar is
+Setting `verbose = TRUE` prints a line every `num_print` iterations,
+which is the whole of what this package decides about progress. A
+progress bar is
 [progressr](https://CRAN.R-project.org/package=progressr)'s business,
 and the sampler reports to it unconditionally: nothing is shown unless a
 handler is active, so there is no argument to switch on. To request a
@@ -540,10 +543,10 @@ progress bar, use one of the calls below:
     # or once, for the session
     progressr::handlers(global = TRUE)
 
-The bar is sized for the whole fit, so `chains = 4` fills one bar once
-rather than four in sequence, and chains running in parallel under
-[future](https://CRAN.R-project.org/package=future) relay their progress
-back as it arrives.
+The bar is sized for the whole fit, so setting `chains = 4` fills one
+bar once rather than four in sequence, and chains running in parallel
+under [future](https://CRAN.R-project.org/package=future) relay their
+progress back as it arrives.
 
 ### Parallelization with future
 

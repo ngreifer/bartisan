@@ -95,8 +95,8 @@ died$log_days <- log(died$days)
 fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
                 num_trees = 10, num_burn = 50, num_draws = 50)
 
-# What shape the errors have, which is what a Gaussian fit would have
-# assumed to be normal
+# The shape of the errors, which a Gaussian fit would have assumed to be
+# normal
 head(error_density(fit, at = c(-2, 0, 2)))
 #>   at      mean     lower     upper
 #> 1 -2 0.1149222 0.1129846 0.1167409

@@ -89,7 +89,7 @@ fit
 
 Everything below is one of the following:
 
-A **prediction** is what the model expects for a set of covariate
+A **prediction** is the outcome the model expects for a set of covariate
 values.
 [`predictions()`](https://rdrr.io/pkg/marginaleffects/man/predictions.html)
 gives one per unit or covariate profile,
@@ -98,7 +98,7 @@ averages them.
 
 A **comparison** is the difference between two predictions that differ
 in one variable. This is the closest thing to a regression coefficient,
-and it is often what we want to report.
+and we often want to report it.
 
 A **slope** is the derivative of the prediction with respect to a
 numeric variable. These are often also used to report but come with some
@@ -164,7 +164,7 @@ truth well below its nominal rate. A strong effect is untouched, because
 the prior never has reason to drop a predictor that is earning its
 splits, so this is a weak-signal problem rather than a general one.
 
-If a contrast is what we are reporting, we can fit the model with
+If we are reporting a contrast, we can fit the model with
 `sparsity = FALSE`, or by supplying `split_prior`, which fixes the
 weights (i.e., the probability that each predictor is chosen for a
 split) and so cannot drop anything.
@@ -283,12 +283,12 @@ then to `"yes"`.
 
 Averages can hide the shape of the relationship between a predictor and
 the outcome. To see the fitted function we plot predictions against one
-predictor while the others are averaged over, which is what
+predictor while the others are averaged over.
 [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
-does: it sets the predictor to each value of a grid in turn, predicts
-for every unit, and averages within each posterior draw, so the interval
-that comes back is on the average prediction rather than on any one
-patient’s. `partial_dependence(fit, ~ x)` builds the grid, and
+does this: it sets the predictor to each value of a grid in turn,
+predicts for every unit, and averages within each posterior draw, so the
+interval that comes back is on the average prediction rather than on any
+one patient’s. `partial_dependence(fit, ~ x)` builds the grid, and
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws it.
 
 ``` r
@@ -393,8 +393,8 @@ how to put a number on it.
 ### Values of the Second Predictor
 
 A second predictor with a few values gives one curve for each of them,
-which is what happened above. With a continuous predictor, it is held at
-three values near its quartiles and a message reports them.
+as happened above. With a continuous predictor, it is held at three
+values near its quartiles and a message reports them.
 
 ``` r
 
@@ -407,11 +407,11 @@ plot(fit, ~ meanbp + aps) +
 
 ![](effects_files/figure-html/pdp3-1.png)
 
-`values` chooses others, and an entry of it may be a function of the
-predictor rather than the values themselves. `values = list(z = unique)`
-asks for every value a predictor takes, which is usually what a numeric
-predictor with four or five of them wants; the illness score has 114, so
-here we write the summary we want instead.
+The `values` argument chooses others, and an entry of it may be a
+function of the predictor rather than the values themselves. Setting
+`values = list(z = unique)` asks for every value a predictor takes,
+which usually suits a numeric predictor with four or five of them; the
+illness score has 114, so here we write the summary we want instead.
 
 ``` r
 
@@ -494,8 +494,8 @@ plot_predictions(fit, condition = list(aps = at), draw = FALSE)
 Those columns are why the numbers move: each row is a prediction for one
 synthetic patient who is average or modal in every other respect, where
 the curve above is an average over the patients in the data. The average
-is what to report for a population, and the profile what to report for a
-described kind of patient.
+should be reported for a population, and the profile for a described
+kind of patient.
 [`plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html)
 also takes an arbitrary grid and will draw slopes and comparisons across
 a condition, which is where to go when the question outgrows a partial

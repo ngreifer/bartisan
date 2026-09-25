@@ -68,13 +68,13 @@ bcf(
 
 - propensity:
 
-  what to do about the probability of treatment, given as either a
-  logical value, a numeric vector or matrix, or a one-sided formula.
-  Default is `TRUE` to fit a model for it and add the fitted values to
-  the control function. `FALSE` fits nothing, a numeric vector or matrix
-  is used as given, and a one-sided formula fits it with the predictors
-  that formula names. A continuous treatment has no propensity score
-  that is a probability, so `TRUE` is refused for one; see Details.
+  what to do about the propensity score, given as either a logical
+  value, a numeric vector or matrix, or a one-sided formula. Default is
+  `TRUE` to fit a model for it and add the fitted values to the control
+  function. `FALSE` fits nothing, a numeric vector or matrix is used as
+  given, and a one-sided formula fits it with the predictors that
+  formula names. For a continuous treatment the fitted values are the
+  treatment's conditional mean given the covariates; see Details.
 
 - propensity_args:
 
@@ -128,6 +128,17 @@ the answer the same whichever level was written as 1; a treatment with
 more levels keeps the symmetric per-level coding. And `sparsity` is left
 at its default, which is on.
 
+The propensity score that enters the control function is the posterior
+mean of a separate model for the treatment, fit before the outcome model
+and then held fixed. Its uncertainty is therefore not carried into the
+interval for the effect, and the outcome has no say in the score, as it
+would in a joint model of the two. See
+[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
+for more on this choice. Including the score at all matters because,
+with flexible priors on the outcome that are independent of the model
+for the treatment, the implied prior on the amount of confounding bias
+concentrates near zero (Linero, 2024).
+
 ### Setting `sparsity`
 
 A variable-selection prior can drop a predictor from the forest entirely
@@ -154,7 +165,7 @@ score is.
 | treatment | propensity score | model |
 | binary | one column, the probability of treatment | [`binomial()`](https://rdrr.io/r/stats/family.html) |
 | `K` categories | the whole vector of assignment probabilities | [`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md) |
-| continuous | a conditional density, not a regression | not fitted |
+| continuous | the conditional mean of the treatment | [`gaussian()`](https://rdrr.io/r/stats/family.html) |
 
 For a treatment with more than two categories the balancing score is the
 whole vector of assignment probabilities rather than any one of them, so
@@ -163,11 +174,14 @@ therefore collinear, which costs a tree ensemble nothing.
 
 ### Continuous Treatments
 
-For a continuous treatment the balancing score is the conditional
-density of the treatment given the covariates at the observed dose,
-which needs a density model rather than a regression, so
-`propensity = TRUE` is refused for one and a score supplied as a number
-is used as given.
+For a continuous treatment, the score added to the control function is
+the treatment's conditional mean given the covariates, fit with a
+Gaussian model. The balancing score proper would be the conditional
+density of the treatment at the observed dose, but the purpose of the
+score here is to let the control function absorb the confounding, and
+Linero (2024) shows for linear models that it is the conditional mean of
+the treatment whose absence leaves the prior on the confounding bias
+concentrated near zero. A score supplied as a number is used as given.
 
 A continuous treatment also carries an assumption. This fits
 `f0(x) + z * f1(x)`, a dose response that is linear in the dose with a
@@ -183,11 +197,12 @@ directly, which lets the effect vary across the dose; see
 ### Predicting for New Data
 
 The propensity score is a predictor of the control function and one the
-caller never named, so `newdata` taken from their own frame does not
-carry it. [`predict()`](https://rdrr.io/r/stats/predict.html) rebuilds
-it from the model the fit kept, which is what makes that work. Supplying
-`propensity` as a number rather than fitting it removes the
-reconstruction, and `newdata` then has to carry the column itself.
+caller never named, so a `newdata` data frame taken from their own frame
+does not carry it. [`predict()`](https://rdrr.io/r/stats/predict.html)
+rebuilds it from the model the fit kept, which makes that work.
+Supplying `propensity` as a number rather than fitting it removes the
+reconstruction, and the data given as `newdata` then has to carry the
+column itself.
 
 ## References
 
@@ -195,6 +210,11 @@ Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian
 regression tree models for causal inference: regularization,
 confounding, and heterogeneous effects. *Bayesian Analysis*, 15(3),
 965–1056. [doi:10.1214/19-BA1195](https://doi.org/10.1214/19-BA1195)
+
+Linero, A. R. (2024). In nonparametric and high-dimensional models,
+Bayesian ignorability is an informative prior. *Journal of the American
+Statistical Association*, 119(548), 2785–2798.
+[doi:10.1080/01621459.2023.2278202](https://doi.org/10.1080/01621459.2023.2278202)
 
 Woody, S., Carvalho, C. M., Hahn, P. R., & Murray, J. S. (2020).
 Estimating heterogeneous effects of continuous exposures using Bayesian
@@ -230,8 +250,8 @@ fit <- bcf(death ~ . - days, treat = ~ rhc, data = rhc,
            propensity_args = list(num_trees = 10, num_burn = 50,
                                   num_draws = 50))
 
-# One conditional effect per patient, which is what the effect forest comes
-# to at each observation
+# One conditional effect per patient: the effect forest evaluated at each
+# observation
 head(coef(fit))
 #>               rhc
 #> [1,]  0.276254026

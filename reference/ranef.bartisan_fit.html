@@ -124,7 +124,7 @@ was drawn under is in <code>object$tau</code>, one column per factor and one mat
 additive predictor, and <code><a href="bartisan-interop.html">prior_summary()</a></code> reports the prior
 it was drawn from.</p>
 <p>A posterior mean is the wrong summary for a level with few observations, which
-is the case a group intercept exists for. <code>draws = TRUE</code> is what gives an
+is the case a group intercept exists for. Setting <code>draws = TRUE</code> gives an
 interval, and a level whose interval covers zero is one the data had little to
 say about.</p>
 <p>The intercepts are shrunk towards zero by their prior and are deviations from

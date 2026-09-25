@@ -130,11 +130,11 @@ The average over observations is then zero in every draw, which leaves
 it nothing to diagnose, and it is reported as `NA`. The level of the
 fitted function has not gone anywhere: the sampler pins the first
 threshold, so `aux.cut1` is that level rather than a cutpoint, and it is
-the row to read wherever the level is what matters, as it is for a
-probability in the lowest categories. It is usually the slowest row in
-such a fit, and the most pessimistic one, since it carries the level on
-its own where every quantity computed from the draws mixes the level
-with faster-moving ones.
+the row to read wherever the level matters, as it is for a probability
+in the lowest categories. It is usually the slowest row in such a fit,
+and the most pessimistic one, since it carries the level on its own
+where every quantity computed from the draws mixes the level with
+faster-moving ones.
 
 `rhat` is split-R-hat, so drift inside a chain counts as disagreement
 rather than hiding inside a chain mean. `rhat_late` is that same
@@ -188,13 +188,13 @@ for anyone who wants to look.
 R-hat is a ratio of two variance estimates taken from the same draws, so
 with few effective draws it sits above 1 whether or not anything is
 wrong, and how far above depends on how many chains are being compared.
-`rhat_max` is therefore not a threshold a quantity can be held to at any
-effective sample size: four chains need about 400 effective draws before
-1.01 is even the average of R-hat's null, which is where the pairing of
-the two defaults comes from, and sixteen chains need about 1600 for the
-same 1.01. Where a quantity fails R-hat while carrying fewer than that,
-the checks report that the number cannot be read yet and send the reader
-to the effective sample size instead.
+The `rhat_max` argument is therefore not a threshold a quantity can be
+held to at any effective sample size: four chains need about 400
+effective draws before 1.01 is even the average of R-hat's null, which
+is where the pairing of the two defaults comes from, and sixteen chains
+need about 1600 for the same 1.01. Where a quantity fails R-hat while
+carrying fewer than that, the checks report that the number cannot be
+read yet and send the reader to the effective sample size instead.
 
 ### Remedies for Poor Mixing
 
@@ -202,15 +202,15 @@ The advice the print method gives follows from which statistic failed,
 and the order matters because the fixes are not interchangeable.
 
 One chain comes first, since nothing else can be diagnosed properly
-until there are several; `chains = 4` is the setting to reach for, and
+until there are several; setting `chains = 4` is the change to make, and
 with [future](https://CRAN.R-project.org/package=future) installed and a
 parallel backend in use it usually costs little wall clock. R-hat
 elevated but acceptable on the late draws says warmup ended too early,
-so `num_burn` is the one to raise. R-hat elevated on the late draws too
-says the chains have each settled somewhere different: raise `num_burn`
-and `num_draws` together, and failing that reduce `num_trees` and check
-the family, since a likelihood that fits badly can produce a posterior
-with no single place to be.
+so the `num_burn` argument is the one to raise. R-hat elevated on the
+late draws too says the chains have each settled somewhere different:
+raise `num_burn` and `num_draws` together, and failing that reduce
+`num_trees` and check the family, since a likelihood that fits badly can
+produce a posterior with no single place to be.
 
 Effective sample size depends on the total number of draws rather than
 on how they are divided between chains, where R-hat compares chains
@@ -277,8 +277,8 @@ diagnose(fit)
 #> • Raise `num_draws`, which was `50`. R-hat is above the threshold for a
 #>   quantity that carries too few effective draws for the threshold to mean
 #>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. Effective sample size is
-#>   what makes it readable, and that grows with the total number of draws; using
+#>   chains agreed exactly, as the check above reports. A larger effective sample
+#>   size makes it readable, and that grows with the total number of draws; using
 #>   fewer chains lowers the bar as well, since R-hat's null rises with the number
 #>   of chains being compared.
 #> • If that does not settle it, reduce `num_trees`, which was `10`. A smaller
@@ -304,8 +304,8 @@ diagnose(fit)
 #>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
 #>   draws to `posterior::summarise_draws()` for anything else.
 
-# A stricter effective sample size, which is what an interval endpoint needs
-# and a posterior mean does not
+# A stricter effective sample size, which an interval endpoint needs and a
+# posterior mean does not
 diagnose(fit, ess_min = 1000)
 #> Convergence and mixing
 #> 
@@ -335,8 +335,8 @@ diagnose(fit, ess_min = 1000)
 #> • Raise `num_draws`, which was `50`. R-hat is above the threshold for a
 #>   quantity that carries too few effective draws for the threshold to mean
 #>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. Effective sample size is
-#>   what makes it readable, and that grows with the total number of draws; using
+#>   chains agreed exactly, as the check above reports. A larger effective sample
+#>   size makes it readable, and that grows with the total number of draws; using
 #>   fewer chains lowers the bar as well, since R-hat's null rises with the number
 #>   of chains being compared.
 #> • If that does not settle it, reduce `num_trees`, which was `10`. A smaller

@@ -56,7 +56,7 @@ matrix per additive predictor, and
 reports the prior it was drawn from.
 
 A posterior mean is the wrong summary for a level with few observations,
-which is the case a group intercept exists for. `draws = TRUE` is what
+which is the case a group intercept exists for. Setting `draws = TRUE`
 gives an interval, and a level whose interval covers zero is one the
 data had little to say about.
 

@@ -97,7 +97,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-24</h4>
+            <h4 data-toc-skip class="date">2026-09-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/comparison.Rmd" class="external-link"><code>vignettes/comparison.Rmd</code></a></small>
       <div class="d-none name"><code>comparison.Rmd</code></div>
@@ -129,11 +129,11 @@ cross-validation. First we’ll fit a model to the <code>rhc</code> data
 and read its <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> output, including the diagnostics that
 say when the approximation cannot be trusted, and the two forms of
 cross-validation to fall back on when it cannot. Next we’ll compare two
-sets of variables and then three links, work through the two ways two
-log densities end up on different scales and what to do about each, and
-put the forest up against a Bayesian logistic regression. Finally we’ll
-cover how to tune a setting and how to select variables, both of which
-have a right way and a more tempting wrong one.</p>
+sets of variables and then two links, cover the families whose log
+densities are on different scales and what to do when comparing them,
+and put the forest up against a Bayesian logistic regression. Finally
+we’ll cover how to tune a setting and how to select variables, both of
+which have a right way and a more tempting wrong one.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/loo/" class="external-link">loo</a></span><span class="op">)</span></span>
@@ -146,10 +146,9 @@ have a right way and a more tempting wrong one.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>The fits here use the default single chain rather than the four used
-elsewhere; leave-one-out needs draws rather than chains, and four times
-as many fits would make this vignette slow to build for no gain.
-Convergence should still be checked separately, as in
+<p>The fits here use the default single chain for brevity; leave-one-out
+needs draws rather than chains. Convergence should still be checked
+separately, and the fit controls possibly changed, as described in
 <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code>, before we trust any of these
 comparisons.</p>
 </div>
@@ -214,11 +213,11 @@ not shown.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">score</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] -171.9</span></span></code></pre></div>
-<p><code>type = "density"</code> evaluates the outcome under each
-posterior draw and averages over the draws before taking the log, which
-is the same form as one pointwise <code>elpd_loo</code> contribution.
-The two are therefore estimates of the same thing, which the two numbers
-do not make obvious:</p>
+<p>Setting <code>type = "density"</code> evaluates the outcome under
+each posterior draw and averages over the draws before taking the log,
+which is the same form as one pointwise <code>elpd_loo</code>
+contribution. The two are therefore estimates of the same thing, which
+the two numbers do not make obvious:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">elpd_total</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span><span class="op">$</span><span class="va">estimates</span><span class="op">[</span><span class="st">"elpd_loo"</span>, <span class="st">"Estimate"</span><span class="op">]</span></span>
 <span></span>
@@ -292,8 +291,8 @@ times a log score.</p>
 <p>Nothing is lost by preferring the average, because the decision does
 not depend on the choice. The mean difference and the total differ by a
 factor of <span class="math inline">\(n\)</span>, its standard error
-differs by the same factor, and the ratio of the two, which is what says
-whether the difference is real, is identical either way.</p>
+differs by the same factor, and the ratio of the two, which says whether
+the difference is real, is identical either way.</p>
 <p>What the average is better for is a comparison whose two halves do
 not sum over the same observations. The section above ran into exactly
 that: <code>elpd_loo</code> totals 1500 terms and the held-out score
@@ -328,9 +327,9 @@ them saw:</p>
 quoted per observation: the average difference in log score, its
 standard error, and the ratio that decides whether to believe it. The
 full model is ahead by a little over two standard errors rather than
-six, which is what the split costs. It sees 300 observations where
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> sees 1500, and the precision of a difference goes as
-the square root of the count.</p>
+six, and the difference is the cost of the split. It sees 300
+observations where <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> sees 1500, and the precision of a
+difference goes as the square root of the count.</p>
 </div>
 <div class="section level3">
 <h3 id="every-observation-held-out-once-k-fold">Every Observation Held Out Once (K-Fold)<a class="anchor" aria-label="anchor" href="#every-observation-held-out-once-k-fold"></a>
@@ -362,11 +361,12 @@ observation it was fitted to and what it predicts for the same one held
 out, which is the price of having used it. The cost is five fits rather
 than one.</p>
 <p>The folds are passed rather than drawn so that the second model is
-scored on the same split, which is what makes the two comparable:</p>
+scored on the same split, which makes the two comparable:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">kfold_demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/kfold-generic.html" class="external-link">kfold</a></span><span class="op">(</span><span class="va">demographics</span>, folds <span class="op">=</span> <span class="va">folds</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="va">kfold_full</span>, demographics <span class="op">=</span> <span class="va">kfold_demographics</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="va">kfold_full</span>,</span>
+<span>                 demographics <span class="op">=</span> <span class="va">kfold_demographics</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
 <span><span class="co">#&gt;  demographics     -70.3    11.1    1.00</span></span></code></pre></div>
@@ -381,9 +381,10 @@ thing:</p>
 <span>  loo <span class="op">=</span> <span class="va">elpd_total</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   kfold     loo </span></span>
 <span><span class="co">#&gt; -0.5635 -0.5656</span></span></code></pre></div>
-<p>They agree, which is what a clean Pareto <span class="math inline">\(k\)</span> column was saying in less direct form.
-That is the division of labor between the three routes:
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> for one fit and a diagnostic, <span class="math inline">\(K\)</span>-fold for <span class="math inline">\(K\)</span> fits and no approximation, and a single
+<p>They agree, as a clean Pareto <span class="math inline">\(k\)</span>
+column suggested in less direct form. That is the division of labor
+between the three routes: <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> for one fit and a
+diagnostic, <span class="math inline">\(K\)</span>-fold for <span class="math inline">\(K\)</span> fits and no approximation, and a single
 split when even that is too expensive. When the outcome is rare enough
 that a random split could leave a fold with no events in it,
 <code><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">loo::kfold_split_stratified()</a></code> assigns the folds
@@ -401,26 +402,20 @@ die, and demographics alone do not.</p>
 </h2>
 <p>The other choice is the likelihood. For a binary outcome the family
 is settled, and what remains is the link (i.e., the function that maps
-the forest’s output onto a probability). Below we compare probit and
-complementary log-log BART models to our original logistic BART
-model.</p>
+the forest’s output onto a probability). Below we compare a probit BART
+model to our original logistic BART model.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">probit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="st">"probit"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span><span class="va">cloglog</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="st">"cloglog"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>logit <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>,</span>
-<span>                 probit <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">probit</span><span class="op">)</span>,</span>
-<span>                 cloglog <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">cloglog</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
-<span><span class="co">#&gt;    logit       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;   probit      -0.1     1.2    0.53 |elpd_diff| &lt; 4          </span></span>
-<span><span class="co">#&gt;  cloglog      -1.7     1.9    0.82 |elpd_diff| &lt; 4</span></span></code></pre></div>
-<p>The three are within a point or two of each other, and the
-differences are smaller than their standard errors, which <em>loo</em>
-flags directly. The reading is that the link does not matter here.</p>
+<span>                 probit <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">probit</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
+<span><span class="co">#&gt;   logit       0.0     0.0      NA                          </span></span>
+<span><span class="co">#&gt;  probit      -0.1     1.2    0.53 |elpd_diff| &lt; 4</span></span></code></pre></div>
+<p>The two are within a point of each other, and the differences are
+smaller than their standard errors, which <em>loo</em> flags directly.
+The reading is that the link does not matter here.</p>
 <p>That is a useful negative result and worth reporting as one. It is
 also the usual outcome: with a flexible function on the inside, the link
 has little left to do, because the forest can absorb the difference
@@ -428,176 +423,58 @@ between one link and another. This is not true of a generalized linear
 model, where the link carries the whole shape of the relationship.</p>
 </div>
 <div class="section level2">
-<h2 id="the-scale-of-the-log-density">The Scale of the Log Density<a class="anchor" aria-label="anchor" href="#the-scale-of-the-log-density"></a>
+<h2 id="the-scale-of-the-log-density-scale">The Scale of the Log Density (<code>scale</code>)<a class="anchor" aria-label="anchor" href="#the-scale-of-the-log-density-scale"></a>
 </h2>
-<p><code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> is built on the pointwise log density of each
-observation, so comparing two models by it assumes both densities are
-taken with respect to the same measure. That is usually automatic. Two
-different things break it: one is a change of variable and is always
-repairable, the other is a point mass and usually is not.</p>
-<div class="section level3">
-<h3 id="a-change-of-variable-ph-against-an-aft-family">A Change of Variable (<code>ph()</code> Against an AFT Family)<a class="anchor" aria-label="anchor" href="#a-change-of-variable-ph-against-an-aft-family"></a>
-</h3>
-<p>The accelerated failure time families report the density of <span class="math inline">\(\log T\)</span>, while <code><a href="../reference/bartisan-families.html">ph()</a></code> reports
-the density of <span class="math inline">\(T\)</span>. Below we fit one
-of each to the survival outcome in these data and compare them as they
-come out:</p>
+<p><code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> compares models by the log density each assigns to
+the observed outcomes, so the models being compared have to describe the
+same quantity on the same scale. That holds for every comparison above,
+and for any comparison between two families of the same kind. It needs a
+step from us when a comparison crosses between the two kinds of survival
+family.</p>
+<p>The accelerated failure time families (<code><a href="../reference/bartisan-families.html">weibull_aft()</a></code>,
+<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code>, <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code>, and
+<code><a href="../reference/bartisan-families.html">dpm_aft()</a></code>) model the log of the survival time, and
+<code><a href="../reference/bartisan-families.html">ph()</a></code> models the time itself. When a comparison includes
+both kinds, <code>scale = "time"</code> should be supplied to every call
+to <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>, which puts each model on the scale of the time. A
+fit already on that scale is returned unchanged, so the same argument
+can be given to every model in the comparison. Below, we compare a
+log-normal accelerated failure time model with a proportional hazards
+model for the survival outcome in <code>rhc</code>:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/therneau/survival" class="external-link">survival</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">surv_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">days</span>, <span class="va">death</span><span class="op">)</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">surv2m</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span><span class="va">aft</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">surv_model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">weibull_aft</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">aft</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">surv_model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">lognormal_aft</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">prop_haz</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">surv_model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">ph</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span><span class="op">)</span>, ph <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
-<span><span class="co">#&gt;    aft       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;     ph   -3375.9    91.0    1.00           1 k_psis &gt; 0.66</span></span></code></pre></div>
-<p>The accelerated failure time model appears to win by thousands of
-points, which is implausible on its face: no choice of baseline hazard
-is worth that much. What the comparison is measuring is the change of
-variable.</p>
-<p>Writing <span class="math inline">\(Y = \log T\)</span>, the density
-of <span class="math inline">\(T\)</span> is <span class="math inline">\(f_T(t) = f_Y(\log t) / t\)</span>, so the log
-density on the <span class="math inline">\(T\)</span> scale is <span class="math inline">\(\log f_Y(\log t) - \log t\)</span>. Subtracting
-<span class="math inline">\(\log t\)</span> from each of the accelerated
-failure time model’s pointwise contributions is the whole of the
-correction, and it applies to events only: a censored observation
-contributes a survival probability, which is a probability on either
-scale and carries no measure to change.</p>
-<p><code>scale</code> asks <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> for it. Naming one measure
-for every model in the comparison is enough, because a fit already on
-the scale named is returned untouched:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span>,</span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span>,</span>
 <span>                 ph <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
 <span><span class="co">#&gt;     ph       0.0     0.0      NA           1 k_psis &gt; 0.66</span></span>
-<span><span class="co">#&gt;    aft    -146.1    15.0    1.00</span></span></code></pre></div>
-<p>The ordering reverses. Read on the scale they share, the two are a
-hundred-odd points apart rather than three thousand, and it is the
-proportional hazards model that predicts these times better.</p>
-<p>The correction is not applied without being asked for, because
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> would then stop reporting the model’s own predictive
-density: it would no longer agree with <code>log_lik()</code>, and a
-comparison against a proportional hazards fit from some other package
-would quietly take on the error the correction exists to remove.</p>
-<p>Which of the two scales is named does not matter, since a constant
-per observation cancels from a difference. Asking for
-<code>"log_time"</code> moves both totals and leaves the gap where it
-was:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>on_time <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/elpd.html" class="external-link">elpd</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/elpd.html" class="external-link">elpd</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  on_log_time <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/elpd.html" class="external-link">elpd</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span>, scale <span class="op">=</span> <span class="st">"log_time"</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span></span>
-<span>    <span class="fu"><a href="https://mc-stan.org/loo/reference/elpd.html" class="external-link">elpd</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>, scale <span class="op">=</span> <span class="st">"log_time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     on_time on_log_time </span></span>
-<span><span class="co">#&gt;       146.1       146.1</span></span></code></pre></div>
-<p>The everyday version of this mistake takes the same repair by hand. A
-model of <code>log(y)</code> reports <span class="math inline">\(\log
-f_Y(\log y)\)</span>, so subtracting <span class="math inline">\(\log
-y\)</span> from each of its pointwise contributions, with
-<code>loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))</code>, puts
-it on the scale of a model of <code>y</code>.</p>
-<p>There is also a way to sidestep the correction rather than apply it.
-Survival at a horizon is a probability under every family, so comparing
-fits on <code>predict(type = "survival")</code> needs no Jacobian at
-all; <code><a href="../articles/survival.html">vignette("survival")</a></code> gives that route, along with the
-same correction written for a held-out log score instead of for
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>.</p>
-</div>
-<div class="section level3">
-<h3 id="a-point-mass-against-a-density-gaussian-against-tweedie">A Point Mass Against a Density (<code>gaussian()</code> Against
-<code>tweedie()</code>)<a class="anchor" aria-label="anchor" href="#a-point-mass-against-a-density-gaussian-against-tweedie"></a>
-</h3>
-<p>The second break is not a transformation, and unlike the first it
-usually cannot be repaired. <code><a href="../reference/bartisan-families.html">tweedie()</a></code> places a point mass
-at zero and a density on the positive half-line; <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>
-places a density on the whole line. Earnings in the <code>lalonde</code>
-data are where this comes up, since a quarter of the sample earned
-exactly nothing.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"lalonde"</span>, package <span class="op">=</span> <span class="st">"cobalt"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">earnings</span> <span class="op">&lt;-</span> <span class="va">re78</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">educ</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span> <span class="va">nodegree</span> <span class="op">+</span> <span class="va">re74</span> <span class="op">+</span> <span class="va">re75</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span><span class="va">normal</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">earnings</span>, data <span class="op">=</span> <span class="va">lalonde</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span><span class="va">compound</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">earnings</span>, data <span class="op">=</span> <span class="va">lalonde</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">tweedie</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>gaussian <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">normal</span><span class="op">)</span>, tweedie <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
-<span><span class="co">#&gt;   tweedie       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;  gaussian   -1249.8    95.0    1.00           2 k_psis &gt; 0.66</span></span></code></pre></div>
-<p>The tweedie is ahead by more than a thousand points, and that number
-should not be believed. At an observation where earnings are exactly
-zero the tweedie reports a probability and the gaussian reports a
-density, which are not the same kind of quantity and do not belong in
-the same sum. Splitting the contributions at the zeros shows that the
-gap is nothing but that mismatch:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">zero</span> <span class="op">&lt;-</span> <span class="va">lalonde</span><span class="op">$</span><span class="va">re78</span> <span class="op">==</span> <span class="fl">0</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>gaussian <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>at_zero <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">normal</span><span class="op">)</span><span class="op">$</span><span class="va">pointwise</span><span class="op">[</span><span class="va">zero</span>, <span class="st">"elpd_loo"</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>                   positive <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">normal</span><span class="op">)</span><span class="op">$</span><span class="va">pointwise</span><span class="op">[</span><span class="op">!</span><span class="va">zero</span>, <span class="st">"elpd_loo"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>      tweedie  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>at_zero <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span><span class="op">$</span><span class="va">pointwise</span><span class="op">[</span><span class="va">zero</span>, <span class="st">"elpd_loo"</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>                   positive <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span><span class="op">$</span><span class="va">pointwise</span><span class="op">[</span><span class="op">!</span><span class="va">zero</span>, <span class="st">"elpd_loo"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;          at_zero positive</span></span>
-<span><span class="co">#&gt; gaussian -1457.8    -4845</span></span>
-<span><span class="co">#&gt; tweedie   -213.7    -4839</span></span></code></pre></div>
-<p>At the positive outcomes, where both report a density, the two are
-within a couple of points of each other. Everything else is the
-atom.</p>
-<p><strong>The one case where the comparison is valid</strong> is an
-outcome that is really recorded on a grid rather than being continuous:
-whole dollars, whole counts, tenths of a millimeter. Then neither model
-is reporting a density at all, properly speaking, and both can be put on
-the probability of landing in one cell of that grid, after which the
-totals are comparable. Doing it means turning each density into a
-probability by multiplying it by the cell width, which is a constant per
-observation and so a correction of the same shape as the Jacobian above.
-The width has to come from knowing how the outcome was recorded; no
-fitted model can supply it, and choosing it to favor a model is choosing
-the answer.</p>
-<p>When the zeros are exact rather than rounded, there is no width to
-use and no correction to make. In that case do not compare the two
-families by <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> at all. The question can be answered in
-other ways, which between them cover it.</p>
-<p>One is to compare them only where both describe the outcome the same
-way, which is the positive observations, as above: on those, here,
-neither family predicts better.</p>
-<p>Another is to notice that the disagreement is entirely about whether
-the outcome has a point mass, and that this is a question about the
-shape of the predictive distribution rather than about a density at a
-point. A posterior predictive check settles it in one line:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">zero_share</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">y</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">y</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>observed <span class="op">=</span> <span class="fu">zero_share</span><span class="op">(</span><span class="va">lalonde</span><span class="op">$</span><span class="va">re78</span><span class="op">)</span>,</span>
-<span>  gaussian <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="fu">rstantools</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstantools/reference/posterior_predict.html" class="external-link">posterior_predict</a></span><span class="op">(</span><span class="va">normal</span><span class="op">)</span>, <span class="fl">1</span>, <span class="va">zero_share</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  tweedie  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="fu">rstantools</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstantools/reference/posterior_predict.html" class="external-link">posterior_predict</a></span><span class="op">(</span><span class="va">compound</span><span class="op">)</span>, <span class="fl">1</span>, <span class="va">zero_share</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; observed gaussian  tweedie </span></span>
-<span><span class="co">#&gt;   0.2329   0.0000   0.2177</span></span></code></pre></div>
-<p>A gaussian fit never produces an exact zero and about a quarter of
-these outcomes are exactly zero, so <code><a href="../reference/bartisan-families.html">tweedie()</a></code> is the family
-to use here and no log score was needed to say so.
-<code><a href="../articles/families.html">vignette("families")</a></code> covers the families that carry a point
-mass and <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers the checks.</p>
-<p>The rule behind both halves of this section is that
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> compares models whose densities are taken with
-respect to the same measure. A transformation of the outcome is undone
-with its Jacobian, so those comparisons are repairable; a point mass
-against a density is repairable only when the outcome is recorded on a
-grid, and otherwise belongs to a predictive check rather than to a log
-score.</p>
-</div>
+<span><span class="co">#&gt;    aft     -91.6    15.6    1.00</span></span></code></pre></div>
+<p>The proportional hazards model predicts these survival times better,
+by about 92 points with a standard error of 16. The flag in the last
+column says that one of the pointwise estimates for <code><a href="../reference/bartisan-families.html">ph()</a></code> is
+unreliable (see the section on failures of the approximation above);
+with a difference of nearly six standard errors, it does not change the
+reading.</p>
+<p>Two accelerated failure time families, or two <code><a href="../reference/bartisan-families.html">ph()</a></code> fits,
+already share a scale and can be compared without the argument. Setting
+<code>scale = "log_time"</code> instead of <code>"time"</code> gives the
+same differences between models, since the correction for each
+observation is the same for every model and cancels from their
+difference. The same step is needed outside survival models: to compare
+a model of <code>log(y)</code> with a model of <code>y</code>, subtract
+<code>log(y)</code> from each pointwise log density of the first before
+calling <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> (e.g.,
+<code>loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))</code>).
+<code><a href="../articles/survival.html">vignette("survival")</a></code> gives the equivalent correction for a
+held-out log score.</p>
 </div>
 <div class="section level2">
 <h2 id="comparing-against-a-bayesian-glm">Comparing Against a Bayesian GLM<a class="anchor" aria-label="anchor" href="#comparing-against-a-bayesian-glm"></a>
@@ -610,11 +487,11 @@ that is evidence the relationship is close to linear on the log-odds
 scale, and the simpler model is the easier one to report.</p>
 <p>The comparison has to be like for like, which means both models have
 to produce a pointwise log density of the same outcome on the same
-scale. Fitting the regression in a Bayesian framework is what arranges
-that: <em>rstanarm</em> fits it with <code>stan_glm()</code> and gives
-it a <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> method, and the resulting object goes into
+scale. Fitting the regression in a Bayesian framework arranges that:
+<em>rstanarm</em> fits it with <code>stan_glm()</code> and gives it a
+<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> method, and the resulting object goes into
 <code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare()</a></code> beside ours.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logistic</span> <span class="op">&lt;-</span> <span class="fu">rstanarm</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstanarm/reference/stan_glm.html" class="external-link">stan_glm</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>                               chains <span class="op">=</span> <span class="fl">4</span>, refresh <span class="op">=</span> <span class="fl">0</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
@@ -632,7 +509,7 @@ it a <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.7).</span></span>
 <span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>bart <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>, logistic <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">logistic</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;  logistic       0.0     0.0      NA                          </span></span>
@@ -664,9 +541,8 @@ rather than a disappointment.</p>
 should not be reported as one. The two differ by a factor of <span class="math inline">\(-2\)</span> before anything else, and
 <code><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC()</a></code>’s penalty is a count of parameters, which a forest
 has no fixed number of; the <code>p_loo</code> above is an estimate
-rather than a count. Fitting the regression the Bayesian way is what
-lets us compare <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> against <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>, as
-above.</p>
+rather than a count. Fitting the regression the Bayesian way lets us
+compare <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> against <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>, as above.</p>
 </div>
 <div class="section level2">
 <h2 id="tuning">Tuning<a class="anchor" aria-label="anchor" href="#tuning"></a>
@@ -680,7 +556,7 @@ biased estimate of performance when the same data chose the setting.</p>
 advance, chosen on one set of observations and assessed on another. The
 split from the earlier section is already in hand, so the grid goes
 through <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> on the training set:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">50</span>, <span class="fl">200</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">tuned</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">trees</span>, <span class="kw">function</span><span class="op">(</span><span class="va">n</span><span class="op">)</span> <span class="op">{</span></span>
@@ -699,7 +575,7 @@ through <code><a href="https://mc-stan.org/loo/reference/loo.html" class="extern
 standard error, and <em>loo</em> flags both comparisons as too small to
 read. Scoring the same three fits on the held-out observations says it
 again, and is the assessment the selection is not allowed to see:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">tuned</span>, <span class="kw">function</span><span class="op">(</span><span class="va">f</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">f</span>, newdata <span class="op">=</span> <span class="va">held</span>, type <span class="op">=</span> <span class="st">"density"</span>,</span>
 <span>                                      log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  trees_20  trees_50 trees_200 </span></span>
@@ -711,7 +587,7 @@ is the one the noise favored. Reporting its score as the model’s
 performance is exactly the optimism this section opened with, and it is
 why the assessment has to come from observations the grid never touched.
 Here the honest summary is that <code>num_trees</code> does not matter
-on these data, and the default is what to keep.</p>
+on these data, and the default should be kept.</p>
 <p>That is the usual outcome, and it is worth knowing before spending a
 grid on it. When tuning does pay, it tends to be for cost rather than
 accuracy, and <code><a href="../articles/faq.html">vignette("faq")</a></code> lists the settings that buy
@@ -753,7 +629,7 @@ way a search is not.</p>
 dropping one at a time and reading <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> is a weak
 instrument. It works for a dominant predictor and fails for the
 rest:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">drop_one</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span>  <span class="va">reduced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">model</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">". ~ . -"</span>, <span class="va">v</span><span class="op">)</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span>
@@ -792,7 +668,7 @@ whether it is used.</p>
 <p><code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers checking that each model
 fits before comparing them, which is the step most often skipped.
 <code><a href="../articles/families.html">vignette("families")</a></code> covers what the families assume, which
-is what a comparison between them is really about.</p>
+is the real subject of a comparison between them.</p>
 </div>
 <div class="section level2 unnumbered">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
