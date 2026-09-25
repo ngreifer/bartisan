@@ -821,9 +821,18 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     isTRUE(null_rhat(bad_rhat[["ess"]]) > rhat_max)
 
   if (unreadable) {
+    # One chain is split into halves, so it is the halves that agree.
+    null_who <- if (chains == 1L) {
+      "a single chain averages %.3f even when its two halves agree"
+    }
+    else {
+      sprintf("%d chains average %%.3f even when they agree", chains)
+    }
+
     rows <- add(rows, "rhat readable", "warn",
-                sprintf("That R-hat rests on only %.0f effective draws, where %d chains average %.3f even when they agree",
-                        bad_rhat[["ess"]], chains, null_rhat(bad_rhat[["ess"]])))
+                sprintf(paste("That R-hat rests on only %.0f effective draws, where",
+                              null_who),
+                        bad_rhat[["ess"]], null_rhat(bad_rhat[["ess"]])))
   }
 
   bad_late <- worst_share("late_bad")
