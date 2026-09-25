@@ -416,7 +416,7 @@ test_that("a guessed treated level is announced", {
   d <- sim_effect(seed = 15L)
   # Level names that say nothing, so the level order is all there is to go on.
   # A numeric treatment cannot make this case, since `bcf()` reads a numeric one
-  # that is not 0/1 as continuous and refuses it.
+  # that is not 0/1 as continuous, which `estimate_effect()` does not take.
   d$z <- factor(d$z, levels = c(0L, 1L), labels = c("alpha", "beta"))
 
   fit <- suppressMessages(suppressWarnings(

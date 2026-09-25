@@ -43,13 +43,13 @@ the rules.}
 effect may vary with. Default is \code{NULL} to let the effect vary with every
 covariate.}
 
-\item{propensity}{what to do about the probability of treatment, given as
+\item{propensity}{what to do about the propensity score, given as
 either a logical value, a numeric vector or matrix, or a one-sided formula.
 Default is \code{TRUE} to fit a model for it and add the fitted values to the
 control function. \code{FALSE} fits nothing, a numeric vector or matrix is used
 as given, and a one-sided formula fits it with the predictors that formula
-names. A continuous treatment has no propensity score that is a
-probability, so \code{TRUE} is refused for one; see Details.}
+names. For a continuous treatment the fitted values are the treatment's
+conditional mean given the covariates; see Details.}
 
 \item{propensity_args}{a list of \code{\link[=bartisan_control]{bartisan_control()}} settings for the
 propensity model. Default is \code{list()} to leave every setting at its own
@@ -89,6 +89,15 @@ surfaces. A binary treatment has its coding drawn rather than fixed, which is
 \code{center = "estimate"} in \code{\link[=vc]{vc()}} and makes the answer the same whichever level
 was written as 1; a treatment with more levels keeps the symmetric per-level
 coding. And \code{sparsity} is left at its default, which is on.
+
+The propensity score that enters the control function is the posterior mean
+of a separate model for the treatment, fit before the outcome model and then
+held fixed. Its uncertainty is therefore not carried into the interval for the
+effect, and the outcome has no say in the score, as it would in a joint model
+of the two. See \code{vignette("causal")} for more on this choice. Including the
+score at all matters because, with flexible priors on the outcome that are
+independent of the model for the treatment, the implied prior on the amount of
+confounding bias concentrates near zero (Linero, 2024).
 }
 
 \subsection{Setting \code{sparsity}}{
@@ -115,7 +124,7 @@ is.\tabular{lll}{
    treatment \tab propensity score \tab model \cr
    binary \tab one column, the probability of treatment \tab \code{\link[=binomial]{binomial()}} \cr
    \code{K} categories \tab the whole vector of assignment probabilities \tab \code{\link[=multinomial]{multinomial()}} \cr
-   continuous \tab a conditional density, not a regression \tab not fitted \cr
+   continuous \tab the conditional mean of the treatment \tab \code{\link[=gaussian]{gaussian()}} \cr
 }
 
 
@@ -127,10 +136,14 @@ collinear, which costs a tree ensemble nothing.
 
 \subsection{Continuous Treatments}{
 
-For a continuous treatment the balancing score is the conditional density of
-the treatment given the covariates at the observed dose, which needs a
-density model rather than a regression, so \code{propensity = TRUE} is refused for
-one and a score supplied as a number is used as given.
+For a continuous treatment, the score added to the control function is the
+treatment's conditional mean given the covariates, fit with a Gaussian model.
+The balancing score proper would be the conditional density of the treatment
+at the observed dose, but the purpose of the score here is to let the control
+function absorb the confounding, and Linero (2024) shows for linear models
+that it is the conditional mean of the treatment whose absence leaves the
+prior on the confounding bias concentrated near zero. A score supplied as a
+number is used as given.
 
 A continuous treatment also carries an assumption. This fits
 \code{f0(x) + z * f1(x)}, a dose response that is linear in the dose with a slope
@@ -181,6 +194,10 @@ summary(fit)
 Hahn, P. R., Murray, J. S., & Carvalho, C. M. (2020). Bayesian regression tree
 models for causal inference: regularization, confounding, and heterogeneous
 effects. \emph{Bayesian Analysis}, 15(3), 965--1056. \doi{10.1214/19-BA1195}
+
+Linero, A. R. (2024). In nonparametric and high-dimensional models, Bayesian
+ignorability is an informative prior. \emph{Journal of the American Statistical
+Association}, 119(548), 2785--2798. \doi{10.1080/01621459.2023.2278202}
 
 Woody, S., Carvalho, C. M., Hahn, P. R., & Murray, J. S. (2020). Estimating
 heterogeneous effects of continuous exposures using Bayesian tree ensembles.

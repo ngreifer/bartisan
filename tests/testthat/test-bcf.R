@@ -118,12 +118,29 @@ test_that("a categorical treatment gets a forest per level and a score per level
                     attr(stats::terms(fit), "term.labels")))
 })
 
-test_that("a continuous treatment refuses a propensity score, with the reason", {
+test_that("a continuous treatment's score is its conditional mean", {
   d <- sim_causal(seed = 6, kind = "continuous")
 
-  expect_error(do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
-                                   family = gaussian()), bcf_args())),
-               "no propensity score that is a probability")
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                             family = gaussian()), bcf_args()))
+
+  # A regression of the treatment on the covariates, whose fitted values are
+  # the score, as the fitted probabilities are for a binary treatment.
+  model <- fit[["bcf"]][["model"]]
+  expect_identical(model[["family"]][["family"]], "gaussian")
+  score <- fit[["bcf"]][["propensity"]][, ".propensity"]
+  expect_equal(unname(score), unname(as.numeric(stats::fitted(model))))
+
+  # The fixture draws z as x1 plus noise, so the conditional mean follows x1.
+  expect_gt(stats::cor(score, d$x1), 0.9)
+
+  # It reaches the control function and not the effect, as for a binary
+  # treatment, and predict() rebuilds it for data that does not carry it.
+  counts <- fit[["counts"]]
+  expect_gt(mean(counts[["(Intercept)"]][, ".propensity"]), 0)
+  expect_identical(unname(mean(counts[["z"]][, ".propensity"])), 0)
+  expect_lt(max(abs(as.numeric(predict(fit, newdata = d)) -
+                      as.numeric(fitted(fit)))), 1e-8)
 
   # Without one it fits, and a score supplied as a number is taken as given.
   expect_no_error(do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
