@@ -103,7 +103,7 @@
 #' therefore `type = "response"`, where every unit's contrast is on the scale the
 #' response is measured on and averaging them gives the marginal effect.
 #'
-#' `type = "link"` is the right choice for looking at how the effect varies,
+#' Setting `type = "link"` is the right choice for looking at how the effect varies,
 #' since that is the scale the forest models it on, and the wrong one for
 #' reporting an average.
 #'
@@ -139,7 +139,7 @@
 #'
 #' ## Multi-category Treatments
 #'
-#' There is nothing to work out from the values, so `focal` is required for
+#' There is nothing to work out from the values, so the `focal` argument is required for
 #' `"ATT"` and `"ATC"`, and those two then name the same estimand: the effect
 #' among the units in the level named.
 #'

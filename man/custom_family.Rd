@@ -39,9 +39,9 @@ covers the additive predictors only: a nuisance parameter is always
 differenced, which costs three calls per sweep rather than three per leaf.}
 
 \item{aux_names}{optional \code{character}; the names of the nuisance parameters
-to draw, if any. Naming them is what declares them, because the names label
-the columns of \code{fit$aux} and are what \code{summary()} and \code{\link[=diagnose]{diagnose()}} report
-them under. They must be distinct and non-empty. Default is \code{NULL} for
+to draw, if any. Naming them declares them, because the names label
+the columns of \code{fit$aux} and are the labels \code{summary()} and \code{\link[=diagnose]{diagnose()}}
+report them under. They must be distinct and non-empty. Default is \code{NULL} for
 none, unless \code{aux_start} is given, in which case the parameters are named
 by \code{names(aux_start)} when it carries names and positionally (\code{"aux1"},
 \code{"aux2"}, and so on) when it does not.}
@@ -50,7 +50,7 @@ by \code{names(aux_start)} when it carries names and positionally (\code{"aux1"}
 at, given as one value or one per parameter. Default is \code{NULL}, which is 0
 for each. The sampler will walk to the posterior from a poor start, so this
 need only be the right order of magnitude. Supplying it is a second way to
-declare the parameters, so \code{aux_start = c(shape = 1)} both names one and
+declare the parameters, so setting \code{aux_start = c(shape = 1)} both names one and
 starts it at 1.}
 
 \item{name}{string; a label used when printing the fit. Default is
@@ -100,8 +100,8 @@ belongs in the formula and a varying trial count or exposure belongs in a
 family written for it.
 \subsection{Nuisance Parameters}{
 
-These are drawn alongside the trees when \code{aux_names} names them, and
-\code{logdens} then takes a third argument holding their current values:
+These are drawn alongside the trees when the \code{aux_names} argument names them,
+and the function supplied as \code{logdens} then takes a third argument holding their current values:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{# A Gaussian written out by hand, with its scale drawn rather than fixed.
 by_hand <- custom_family(
@@ -117,14 +117,14 @@ split, so the forest is a single scalar), and it is drawn by the same
 Laplace-plus-Metropolis step as any leaf, under that step's Gaussian leaf
 prior. So a parameter with a restricted range is handled the way it would be
 for a real predictor, by writing the transform into \code{logdens}: the \code{exp()}
-above is what keeps the scale positive.
+above keeps the scale positive.
 }
 
 \subsection{Limits of a Log Density}{
 
 A density says how likely an observed value is, not how to draw a new one, so
-a \code{custom_family()} fit has no posterior predictive distribution, which is
-what \code{\link[=bartisan-interop]{simulate()}}, \code{\link[=bartisan-interop]{pp_check()}} and
+a \code{custom_family()} fit has no posterior predictive distribution, which
+\code{\link[=bartisan-interop]{simulate()}}, \code{\link[=bartisan-interop]{pp_check()}} and
 \code{\link[=bartisan-interop]{r2()}} rely on. Each of them errors on such a fit
 rather than returning something it cannot support. \link[=bartisan-interop]{loo()}
 and \code{\link[=bartisan-interop]{waic()}} are unaffected, since both read the

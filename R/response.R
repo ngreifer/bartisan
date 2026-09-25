@@ -236,8 +236,8 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            # has fixed by hand, and the zero probability that the power and the
            # dispersion are jointly identified through has nothing to bear on.
            if (!any(y == 0)) {
-             arg::wrn(c("The response has no zeros, which is what the
-                         {.val tweedie} family's point mass is for.",
+             arg::wrn(c("The response has no zeros, so the point mass of the
+                         {.val tweedie} family has nothing to model.",
                         i = "{.code Gamma(\"log\")} models a strictly positive
                              response with the shape drawn rather than fixed."))
            }

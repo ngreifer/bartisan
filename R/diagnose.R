@@ -94,7 +94,7 @@
 #' observations is then zero in every draw, which leaves it nothing to diagnose,
 #' and it is reported as `NA`. The level of the fitted function has not gone
 #' anywhere: the sampler pins the first threshold, so `aux.cut1` is that level
-#' rather than a cutpoint, and it is the row to read wherever the level is what
+#' rather than a cutpoint, and it is the row to read wherever the level
 #' matters, as it is for a probability in the lowest categories. It is usually
 #' the slowest row in such a fit, and the most pessimistic one, since it carries
 #' the level on its own where every quantity computed from the draws mixes the
@@ -145,8 +145,8 @@
 #'
 #' R-hat is a ratio of two variance estimates taken from the same draws, so with
 #' few effective draws it sits above 1 whether or not anything is wrong, and how
-#' far above depends on how many chains are being compared. `rhat_max` is
-#' therefore not a threshold a quantity can be held to at any effective sample
+#' far above depends on how many chains are being compared. The `rhat_max`
+#' argument is therefore not a threshold a quantity can be held to at any effective sample
 #' size: four chains need about 400 effective draws before 1.01 is even the
 #' average of R-hat's null, which is where the pairing of the two defaults comes
 #' from, and sixteen chains need about 1600 for the same 1.01. Where a quantity
@@ -159,10 +159,10 @@
 #' order matters because the fixes are not interchangeable.
 #'
 #' One chain comes first, since nothing else can be diagnosed properly until
-#' there are several; `chains = 4` is the setting to reach for, and with
+#' there are several; setting `chains = 4` is the change to make, and with
 #' \CRANpkg{future} installed and a parallel backend in use it usually costs
 #' little wall clock. R-hat elevated but acceptable on the late draws says warmup
-#' ended too early, so `num_burn` is the one to raise. R-hat elevated on the late
+#' ended too early, so the `num_burn` argument is the one to raise. R-hat elevated on the late
 #' draws too says the chains have each settled somewhere different: raise
 #' `num_burn` and `num_draws` together, and failing that reduce `num_trees` and
 #' check the family, since a likelihood that fits badly can produce a posterior
@@ -195,8 +195,8 @@
 #' # The table, the checks, and what to do about whichever of them failed
 #' diagnose(fit)
 #'
-#' # A stricter effective sample size, which is what an interval endpoint needs
-#' # and a posterior mean does not
+#' # A stricter effective sample size, which an interval endpoint needs and a
+#' # posterior mean does not
 #' diagnose(fit, ess_min = 1000)
 #'
 #' @export
@@ -846,7 +846,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   }
   else if (bad_late[["share"]] <= FAIL_SHARE) {
     rows <- add(rows, "warmup", "warn",
-                sprintf("Warmup was too short: R-hat is fine on the second half of the draws alone, which is what more `num_burn` would have given"))
+                sprintf("Warmup was too short: R-hat is fine on the second half of the draws alone, as it would be with more `num_burn`"))
   }
   else if (unreadable) {
     # The stronger reading is withheld here for the same reason the check above
@@ -999,8 +999,8 @@ diagnosis_advice <- function(checks, control = NULL) {
     out <- c(out, paste(
       paste0("Raise `num_burn`", had("num_burn"), "."),
       "R-hat is already acceptable on the second half of the",
-      "retained draws on their own, which is what a longer warmup would have",
-      "given, so it is the early draws the chains disagree about."))
+      "retained draws on their own, as it would be after a longer warmup,",
+      "so it is the early draws the chains disagree about."))
   }
 
   if (failed("rhat") && !warmup) {
@@ -1010,8 +1010,8 @@ diagnosis_advice <- function(checks, control = NULL) {
         "R-hat is above the threshold for a quantity that carries too few",
         "effective draws for the threshold to mean anything: with this many",
         "chains it would sit about where it does even if the chains agreed",
-        "exactly, as the check above reports. Effective sample size is what",
-        "makes it readable, and that grows with the total number of draws;",
+        "exactly, as the check above reports. A larger effective sample",
+        "size makes it readable, and that grows with the total number of draws;",
         "using fewer chains lowers the bar as well, since R-hat's null rises",
         "with the number of chains being compared."))
     }

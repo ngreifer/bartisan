@@ -52,7 +52,7 @@ a prior of its own rather than being whatever difference a single forest with
 \subsection{Setting \code{modifiers}}{
 
 By default a coefficient may vary with every predictor in the model except
-\code{x} itself, and \code{modifiers} narrows that.
+\code{x} itself, and the \code{modifiers} argument narrows that.
 
 Within \code{modifiers}, \code{.} stands for the predictors of the control function
 rather than, as in a model formula, for every column of the data. That
@@ -105,7 +105,7 @@ all; \code{vignette("varying")} works one through.
 \subsection{Setting \code{center}}{
 
 Centering is a reparameterization of \eqn{f_0} alone: every coefficient and
-every estimand is identical under any choice, and what changes is what the
+every estimand is identical under any choice, and the choice changes only what the
 control function means. \code{"auto"} picks by the covariate. For a \code{0}/\code{1}
 covariate it uses zero, so \eqn{f_0} is the surface among the untreated,
 which is a quantity with its own meaning. For any other numeric covariate it
@@ -114,7 +114,7 @@ function there would be an extrapolation.
 
 A factor is always fitted mean-centered and gets one forest per level, coded
 symmetrically rather than as contrasts against a level that happened to sort
-first. That coding leaves the reference a reporting choice: \code{center} names the
+first. That coding leaves the reference a reporting choice: the \code{center} argument names the
 level \code{\link[=coef]{coef()}} reports against, and no refit is needed to change it.
 }
 
@@ -125,8 +125,8 @@ number from \code{x}, it gives each of \code{x}'s values a coefficient of its ow
 draws it, so that every contrast carries the same prior whatever the number of
 values and no value is a reference. \code{\link[=coef]{coef()}} returns the identified contrasts.
 
-At two values it restricts nothing, and it is what \code{\link[=bcf]{bcf()}} uses: what it buys
-is that the answer stops depending on which level was written as 1. Above two
+At two values it restricts nothing, and \code{\link[=bcf]{bcf()}} uses it: with it,
+the answer stops depending on which level was written as 1. Above two
 values every contrast becomes one shared shape times a scalar, where the
 symmetric coding gives each level its own, so it is the parsimonious model
 against a general one. Reach for it when the levels plausibly differ in degree
@@ -140,7 +140,7 @@ distributional parameter, and each parameter's formula carries its own \code{vc(
 terms. The forests are then two-dimensional (a control function and its
 coefficients, for each parameter) and named accordingly, \code{mean}, \code{mean:z},
 \code{log_sd} and \code{log_sd:z} for \code{y ~ x1 + x2 + vc(z)} under \code{gaussian_ls()},
-which is what per-forest settings are keyed by. One formula reaches every
+the names per-forest settings are keyed by. One formula reaches every
 parameter, and a list of formulas gives each its own; \code{vignette("varying")}
 shows both.
 
@@ -176,12 +176,12 @@ set.seed(123)
 
 # The effect of right heart catheterization on death, free to vary with
 # every other covariate. `rhc` reaches the fixed part through `.`, so it is
-# dropped from the control function, which is what keeps the two identified
+# dropped from the control function, which keeps the two identified
 fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
                 family = binomial(), num_trees = 10, num_burn = 50,
                 num_draws = 50)
 
-# One coefficient per patient, which is what a coefficient function comes to
+# One coefficient per patient: the coefficient function at each observation
 head(coef(fit))
 
 # The same effect, free to vary with severity of illness alone

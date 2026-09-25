@@ -9478,3 +9478,19 @@ Suggests that reuses the selection `as_draws.bartisan_fit()` already makes
 (the scalar draws plus a representative spread of `eta`). posterior has no
 converter to `mcmc.list`, so that reshaping is the only work involved. Do not
 build coda-specific diagnostics.
+
+## Cleft and Argument-Subject Pass (2026-09-25)
+
+- [x] Rewrote every "X is what makes Y" cleft in user-facing text (vignettes,
+  README, roxygen, condition messages; about 170) and every sentence or clause
+  whose subject was a bare argument or argument-value pair (about 80), per the
+  r-doc-style skill's rows 29–30. `devtools::document()` rerun. Uncommitted,
+  for review.
+- [ ] The same clefts remain in developer-only comments: 103 in `R/*.R` and 77
+  in `src/`. Also one in the `@noRd` block for `R/RcppExports.R`, which has to
+  be fixed in its `src/` source and regenerated with `Rcpp::compileAttributes()`.
+- Left as they were: passive conditionals naming an argument ("when `newdata`
+  is supplied", "Ignored when `folds` is given"), which his *MatchIt* and
+  *cobalt* roxygen also uses, and covariates or parameters in backticks (`z`,
+  `theta`, `phi`) that are not arguments.
+

@@ -43,8 +43,8 @@ multinomial families.}
 \item{\code{"class"}}{the most probable category, as a factor, for the same
 families.}
 \item{\code{"mean"}}{the mean of the response with the category labels read as
-numbers, for the same families, so that \code{"4"} counts as four. \code{values}
-says what the categories are worth where the labels are not the numbers
+numbers, for the same families, so that \code{"4"} counts as four. The
+\code{values} argument says what the categories are worth where the labels are not the numbers
 intended.}
 \item{\code{"stdlv"}}{the additive predictor on the scale of the latent
 variable it indexes, for the ordinal and binomial families under the
@@ -52,15 +52,15 @@ probit, logit and complementary log-log links. This puts fits with
 different links, or different amounts of signal, on one scale. See
 Details.}
 \item{\code{"density"}}{the conditional density of the outcome given the
-predictors, evaluated at the observed outcome, so \code{newdata} must carry
-the outcome and leaving it empty uses the fitted data. This is the
+predictors, evaluated at the observed outcome, so the \code{newdata} argument
+must carry the outcome and leaving it empty uses the fitted data. This is the
 observation's likelihood contribution, so it is a probability for a
 discrete response and a survival probability for a censored time. See
 Details.}
 \item{\code{"survival"}}{the survival function \eqn{S(t \mid x)} at the times
 given in \code{times}, for the accelerated failure time families and \code{\link[=ph]{ph()}}.
 Returns one column per time, or a draws by rows by times array when
-\code{draws = TRUE}. This is what makes the usual survival estimand reachable
+\code{draws = TRUE}. This makes the usual survival estimand reachable
 through \pkg{marginaleffects}; see \code{\link{bartisan-marginaleffects}}.}
 }}
 
@@ -143,7 +143,7 @@ much more accurate than any single row of \code{draws = TRUE}.
 \subsection{Setting \code{type = "stdlv"}}{
 
 This reports \verb{(eta - E[e]) / sd(y*)} for the latent \verb{y* = eta + e}, following
-\pkgfun{WeightIt}{predict.ordinal_weightit}, and is what makes an ordinal or
+\pkgfun{WeightIt}{predict.ordinal_weightit}, and makes an ordinal or
 binary fit comparable across links.
 
 The scale is \verb{sd(y*) = sqrt(var(eta) + var(e))}, where \code{var(eta)} is taken
@@ -158,7 +158,7 @@ whole of the difference for the complementary log-log.
 Such a model is identified only up to a common shift of its thresholds and its
 predictor, so the location here is a convention, and the one used is the same
 the cutpoints use: a predictor centered over the fitted sample. Differences on
-this scale, which is what a standardized quantity is for, are unaffected by
+this scale, which a standardized quantity exists to support, are unaffected by
 that choice.
 }
 
@@ -168,10 +168,10 @@ The measure differs across the survival families: the accelerated failure time
 families, \code{dpm_aft()} included, report the density of \eqn{\log T}, where
 \code{\link[=ph]{ph()}} reports the density of \eqn{T}. The two differ by \eqn{\sum \log t},
 so log scores are comparable within each group rather than across them, and
-\code{type = "survival"} is comparable throughout. \code{\link[=bartisan-interop]{loo()}} takes a
+the \code{type = "survival"} prediction is comparable throughout. \code{\link[=bartisan-interop]{loo()}} takes a
 \code{scale} argument that puts them on one measure.
 
-\code{type = "density"} returns \code{NaN} for an observation whose density is undefined
+Setting \code{type = "density"} returns \code{NaN} for an observation whose density is undefined
 at any of the draws, which happens when a link the package does not compile
 has been composed onto the family's own scale and its inverse does not cover
 the whole additive predictor (e.g., \code{poisson("identity")}, which gives a
@@ -196,7 +196,7 @@ head(predict(fit, type = "response"))
 post <- predict(fit, newdata = rhc[1:5, ], draws = TRUE)
 apply(post, 2, quantile, c(.025, .5, .975))
 
-# A held-out log score, which needs the outcome, so `newdata` carries it
+# A held-out log score, which needs the outcome, so the `newdata` argument carries it
 sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
 
 }

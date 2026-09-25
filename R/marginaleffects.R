@@ -23,7 +23,7 @@
 #'   the first two are described under [predict.bartisan_fit()]. An `ordinal()`
 #'   or `multinomial()` response has no single mean, so `"response"` gives
 #'   `"prob"` for those families, while a binomial fit reports the probability
-#'   of its second level, as [stats::glm()] does, and `"prob"` is what asks for
+#'   of its second level, as [stats::glm()] does, and `"prob"` asks for
 #'   both of its columns. `"probs"`, `"lp"`, `"lv"` and `"surv"` are accepted as
 #'   aliases for `"prob"`, `"link"`, `"link"` and `"survival"`, since those are
 #'   the names the same quantities go by for other ordinal fits in
@@ -70,9 +70,9 @@
 #' tree splits on the variable being contrasted, the fit does not depend on that
 #' variable at all, so the two counterfactual predictions are identical to the
 #' last bit and their difference is exactly zero. The Dirichlet sparsity prior,
-#' `sparsity` in [bartisan_control()], is what makes those draws common, since
-#' dropping a weak predictor from every tree is what a variable selection prior
-#' is for. And \pkg{marginaleffects} centers a posterior at its median, so once
+#' set by the `sparsity` argument of [bartisan_control()], makes those draws
+#' common, since dropping a weak predictor from every tree is the purpose of a
+#' variable selection prior. And \pkg{marginaleffects} centers a posterior at its median, so once
 #' the atom holds more than half the mass the reported estimate is exactly zero
 #' however large the rest of the posterior is: the median can land on the atom
 #' while the posterior mean and the upper limit of the interval are both far from
@@ -80,11 +80,11 @@
 #'
 #' There are a few things worth doing about it, in the order given. Look at
 #' `prop_used` in `summary()`, the posterior probability that the predictor
-#' appears anywhere in the forest, which is what the zero reports. Ask for the
+#' appears anywhere in the forest, the quantity the zero reports. Ask for the
 #' mean instead, with `options(marginaleffects_posterior_center = mean)`, which
 #' is the summary [predict.bartisan_fit()] reports and the one that behaves
 #' sensibly against an atom. Reconsider the sparsity prior, since
-#' `sparsity = FALSE` removes the atom almost entirely where a larger `num_trees`
+#' setting `sparsity = FALSE` removes the atom almost entirely where a larger `num_trees`
 #' leaves it in place; that is a modeling choice rather than a fix, and it is the
 #' right one when a contrast on a particular predictor is the estimand. And run
 #' several chains and compare them, because the variable selection state mixes
@@ -98,7 +98,7 @@
 #' depends on `x_transform` in [bartisan_control()], because the fit is a smooth
 #' function of the transformed predictor rather than of the original one.
 #'
-#' `x_transform = "range"` is what slopes want, and refitting with it is
+#' Setting `x_transform = "range"` suits slopes, and refitting with it is
 #' worthwhile when a derivative is the quantity being reported rather than a
 #' prediction. It is the only affine map of the three, so it is the only one
 #' through which a slope of the fit is a slope of the original predictor. The
@@ -125,13 +125,13 @@
 #'
 #' One time per call. \pkg{marginaleffects} checks the dots against a whitelist
 #' of its own, hardcoded per model class, so it warns that it does not recognize
-#' `times` while passing it through, which is what the warning says. There is no
+#' `times` while passing it through, as the warning says. There is no
 #' hook for registering an argument with it, so the warning is expected and the
 #' result is correct.
 #'
 #' ## Prediction Types
 #'
-#' `type = "link"` needs a family with a single additive predictor, since there
+#' Setting `type = "link"` needs a family with a single additive predictor, since there
 #' is no one link to be talking about in `gaussian_ls()`, the zero-inflated
 #' families or `multinomial()`. Those families work on the response scale, which
 #' is one number per observation whatever the family, and `multinomial()` and

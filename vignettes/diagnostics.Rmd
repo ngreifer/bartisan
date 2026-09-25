@@ -83,13 +83,13 @@ reports comes from the stored draws, so it needs no other package.
 diagnose(fit)
 ```
 
-The rest of this section is what it is reporting and why, which is worth reading
-once; when the summary itself is enough, `vignette("bartisan")` is the shorter
+The rest of this section explains what it reports and why, which is worth
+reading once; when the summary itself is enough, `vignette("bartisan")` is the shorter
 tour of the whole workflow.
 
 ### Running More Than One Chain (`chains`)
 
-`chains = 4` above is doing the work. The default is one chain, which produces
+Setting `chains = 4` above is doing the work. The default is one chain, which produces
 estimates but no way to check most of what matters, because R-hat compares chains
 to each other; with one chain it is computed by splitting that chain, which
 catches drift but cannot catch two chains settling in different places. Running
@@ -122,10 +122,10 @@ exception described below. `diagnose()` applies them, and takes both as
 arguments so they can be moved.
 
 Some of the columns are worth naming separately. `rhat_late` is the same
-statistic computed on the second half of the retained draws alone, which is what tells a
+statistic computed on the second half of the retained draws alone, which tells a
 warmup that ended too early (i.e., too small a `num_burn`) from chains that have
-each settled somewhere different: throwing away the early draws is exactly what
-more `num_burn` would have done, so if that fixes `rhat`, warmup was the problem.
+each settled somewhere different: throwing away the early draws has the same
+effect as a larger `num_burn`, so if that fixes `rhat`, warmup was the problem.
 The `splits.*` row is the total number of splitting rules in the forest at
 each draw, the one quantity here that is about the trees rather than about the
 fitted values, and which no general-purpose MCMC diagnostic would think to look
@@ -270,8 +270,8 @@ as_draws(fit, eta = 1) |>
 ```
 
 What we want to see is four chains overlapping, wandering around the same level,
-with no drift and no long excursions. `eta = 1` selects the first observation;
-`eta = TRUE` gives a spread of ten and `eta = FALSE` gives none.
+with no drift and no long excursions. Setting `eta = 1` selects the first
+observation, `eta = TRUE` a spread of ten, and `eta = FALSE` none.
 
 ### Diagnosing the Quantity Being Reported
 
@@ -329,8 +329,8 @@ anything that can be arranged as draws by chains can be handed to
 
 The arranging is the only step with a decision in it. The sampler stacks its
 chains, so the draws of any quantity are one long vector in chain order, and
-folding it into an iterations-by-chains matrix is what recovers the structure
-R-hat needs. Below, the quantity is an average comparison computed by
+folding it into an iterations-by-chains matrix recovers the structure R-hat
+needs. Below, the quantity is an average comparison computed by
 *marginaleffects*, whose draws come out of `posterior_draws()`:
 
 ```{r me_draws, eval = run && has_me && has_post}
@@ -356,8 +356,8 @@ which is the point: any posterior quantity can be diagnosed this way, including
 ones neither package knows about. Draw it, fold it, summarize it.
 
 The fold has to match the order the draws are stored in, which here is all of
-chain one, then all of chain two, and so on; filling the
-array in that order is what `dim = c(per_chain, chains, 1)` does. And the
+chain one, then all of chain two, and so on; specifying
+`dim = c(per_chain, chains, 1)` fills the array in that order. And the
 quantity has to be the one being reported: diagnosing a prediction is not
 diagnosing the contrast of two predictions, for the reason the section above
 gives.
@@ -379,7 +379,7 @@ The first step is to rule out a false alarm. `rhat` above 1.01 on a quantity
 carrying only a handful of effective draws is not yet evidence that the chains disagree, since
 that is roughly where `rhat` sits when nothing is wrong, and `diagnose()` says so
 rather than reporting a disagreement it cannot support. In that case the
-effective sample size is what to fix, and more draws is the whole of the
+effective sample size needs fixing, and more draws is the whole of the
 remedy.
 
 ### A Worked Example: More Draws, Same Model
@@ -432,7 +432,7 @@ is the usual shape of the last stretch.
 The estimate of effective sample size is also itself noisy, and can
 fall as the chain lengthens: a short chain cannot see autocorrelation at long
 lags, so it reports an efficiency the chain does not have. Reading a single ESS
-figure as exact invites chasing it; the factor is what to read.
+figure as exact invites chasing it; the factor should be read instead.
 
 Increasing draws does not always suffice. Doing so sufficed
 here because the flagged R-hat was the unreadable kind, resting on too few
@@ -473,7 +473,7 @@ intuition for what `k = 2` implies about a patient's chance of dying. A prior
 predictive check puts the prior on the outcome's own scale, where it can be
 judged.
 
-`prior_only = TRUE` fits the same model to no data. Every observation is given a
+Setting `prior_only = TRUE` fits the same model to no data. Every observation is given a
 weight of zero, and since the weight multiplies that observation's contribution
 to the likelihood, the likelihood goes flat and the sampler draws from the prior.
 
@@ -498,7 +498,7 @@ quantile(predict(prior, type = "response", draws = TRUE), p)
 quantile(predict(fit, type = "response", draws = TRUE), p)
 ```
 
-The prior runs from about .01 to about .99, which is what we want of a prior on a
+The prior runs from about .01 to about .99, as we would want of a prior on a
 probability: it rules almost nothing out and asserts almost nothing. The fitted
 model runs from about .19 to about .95 over the same quantiles, so the data have
 brought it a long way in from where it started. A prior that had come back
@@ -524,8 +524,8 @@ compares their distribution to the observed one.
 pp_check(fit)
 ```
 
-For a continuous outcome this is the workhorse check, and systematic differences
-are what to look for: replicates that are too narrow, that miss a second mode, or
+For a continuous outcome this is the workhorse check, and we look for systematic
+differences: replicates that are too narrow, that miss a second mode, or
 that put mass where the outcome cannot go. Simulating negative values for an
 outcome that cannot be negative says the family is wrong, and
 `vignette("families")` covers the alternatives.
@@ -533,27 +533,27 @@ outcome that cannot be negative says the family is wrong, and
 For a binary outcome it is a weak check, which is worth knowing before
 reading too much into it. There are only two values the replicates can take, so
 they will match the observed proportion unless the model has gone badly wrong;
-passing this check tells us almost nothing. The calibration check below is what
-to read instead.
+passing this check tells us almost nothing. The calibration check below should
+be read instead.
 
 #### Checks Worth Reaching For
 
-`type` names any of *bayesplot*'s checks without its `ppc_` prefix, and four of
+The `type` argument names any of *bayesplot*'s checks without its `ppc_` prefix, and four of
 them earn their place for a forest.
 
 The default compares whole distributions, which is a coarse question. A
-test statistic is a sharper one: `type = "stat"` compares any summary of the
+test statistic is a sharper one: setting `type = "stat"` compares any summary of the
 replicates with the same summary of the outcome, so the spread, a tail
 quantile, or the share of zeros can each be asked about on its own. The share of
-zeros is the one that finds an unmodeled point mass, which is what
-`vignette("families")` recommends `zi_poisson()` and `tweedie()` for.
+zeros finds an unmodeled point mass, the case for which
+`vignette("families")` recommends `zi_poisson()` and `tweedie()`.
 
 ```{r ppcstat, eval = run && has_bp, fig.height = 2.6}
 pp_check(fit, type = "stat", stat = "sd")
 ```
 
-**Calibration of the whole predictive distribution** is what
-`type = "loo_pit_ecdf"` asks. Each observation is transformed through its own
+**Calibration of the whole predictive distribution** is checked by setting
+`type = "loo_pit_ecdf"`. Each observation is transformed through its own
 leave-one-out predictive distribution, which should leave a uniform if the model
 is calibrated, and the plot compares the result with one. A curve that leaves
 the band says the predictive spread is wrong even where the mean is right, which
@@ -563,17 +563,17 @@ the default check cannot see.
 pp_check(fit, type = "loo_pit_ecdf")
 ```
 
-**Where a residual is left**, rather than how big it is, is what
-`type = "error_scatter_avg_vs_x"` shows: the average residual against a
+**The location of a residual**, rather than its size, is shown by setting
+`type = "error_scatter_avg_vs_x"`: the average residual against a
 predictor, which is where a missing interaction appears as structure. And
-`type = "intervals"` draws a predictive interval per observation, so systematic
+setting `type = "intervals"` draws a predictive interval per observation, so systematic
 under-coverage is visible as a run of points outside their intervals.
 
 The rest apply where the response allows, and say so when it does not: a
 rootogram wants counts, a bar plot wants discrete values, a calibration plot
-wants a binary outcome. `type = "km_overlay"` is the one written for censored
-data, overlaying the replicate survival curves on the observed Kaplan-Meier
-curve; it takes the censoring indicator from the fit's own response, and needs
+wants a binary outcome. The one written for censored data is
+`type = "km_overlay"`, which overlays the replicate survival curves on the
+observed Kaplan-Meier curve; it takes the censoring indicator from the fit's own response, and needs
 the *ggfortify* package installed alongside *bayesplot*.
 
 ### Calibration
@@ -593,11 +593,11 @@ discounted.
 
 A line above the diagonal at the left and below it at the right means the
 predictions are too extreme, which is the usual failure of an overfitted model;
-the opposite pattern means they are too timid, which is what heavy shrinkage
+the opposite pattern means they are too timid, which heavy shrinkage
 produces.
 
 Each patient is judged here against a probability estimated without them, which
-is what separates this from the in-sample version, `type = "calibration"`. That
+separates this from the in-sample version, `type = "calibration"`. That
 one reads optimistically, by however much the model has fitted the individual
 patients rather than the pattern. `fitted()` returns the probabilities
 themselves, for binning them some other way.
@@ -613,8 +613,8 @@ spread of the outcome depends on the predictors, which `gaussian_ls()` models
 directly.
 
 For a binary outcome, the residuals take two values for any given fitted
-probability and the plot is not informative; the calibration check above is what
-to use instead.
+probability and the plot is not informative; the calibration check above should
+be used instead.
 
 ### The Bayesian R-Squared (`r2()`)
 

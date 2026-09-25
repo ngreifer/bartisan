@@ -130,7 +130,7 @@ These model the log event time directly,
 
 $$\log T = \eta(x) + \sigma\epsilon,$$
 
-with $\epsilon$ of a fixed shape and $\sigma$ drawn and reported in `fit$aux`. Multiplying survival time by a constant adds a constant to $\eta$, which is what "accelerated failure time" means: covariates stretch or compress the time axis without changing the shape of the survival curve.
+with $\epsilon$ of a fixed shape and $\sigma$ drawn and reported in `fit$aux`. Multiplying survival time by a constant adds a constant to $\eta$, which is the meaning of "accelerated failure time": covariates stretch or compress the time axis without changing the shape of the survival curve.
 
 ```{r aftfits}
 fit_w <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
@@ -141,7 +141,7 @@ fit_ln <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
 c(weibull = mean(fit_w$aux[, "sigma"]), lognormal = mean(fit_ln$aux[, "sigma"]))
 ```
 
-They differ only in the error's shape, and therefore in the shape of the hazard. **`weibull_aft()`** has a **monotone** hazard, which may be increasing, decreasing or flat but never turning around; it is the only family in the package that is simultaneously an accelerated failure time and a proportional hazards model, which is what makes it the one parametric choice supporting a hazard-ratio reading. It is also about seven times slower than the other two (see [Speed](#speed)). **`loglogistic_aft()`** allows a hazard that rises and then falls, and has the heaviest tails of the three, so a handful of very long survivors move it least. **`lognormal_aft()`** also allows a non-monotone hazard, with thinner tails than the log-logistic.
+They differ only in the error's shape, and therefore in the shape of the hazard. **`weibull_aft()`** has a **monotone** hazard, which may be increasing, decreasing or flat but never turning around; it is the only family in the package that is simultaneously an accelerated failure time and a proportional hazards model, which makes it the one parametric choice supporting a hazard-ratio reading. It is also about seven times slower than the other two (see [Speed](#speed)). **`loglogistic_aft()`** allows a hazard that rises and then falls, and has the heaviest tails of the three, so a handful of very long survivors move it least. **`lognormal_aft()`** also allows a non-monotone hazard, with thinner tails than the log-logistic.
 
 In practice the log-logistic and log-normal are hard to tell apart from data and the Weibull is distinguishable from both, so the informative comparison is Weibull against either of the other two, by `loo()`.
 
@@ -194,7 +194,7 @@ fit_ph <- bartisan(Surv(time, status) ~ x1 + x2 + x3 + trt, data = d,
 head(round(colMeans(fit_ph$aux), 3))
 ```
 
-The bin hazards come back as `lambda1`, `lambda2`, … alongside `lambda_rate`, the drawn rate of their own Gamma prior; the hazards are shrunk toward each other through it, which is what keeps a fine grid from overfitting.
+The bin hazards come back as `lambda1`, `lambda2`, … alongside `lambda_rate`, the drawn rate of their own Gamma prior; the hazards are shrunk toward each other through it, which keeps a fine grid from overfitting.
 
 One point of interpretation matters here. The predictor and the baseline are identified only *jointly*: multiplying $\lambda_0$ by a constant and subtracting its log from $r(x)$ leaves the likelihood unchanged. The fit resolves this by letting the baseline carry the level and reporting $r(x)$ centered, so **`fit_ph`'s predictor is a contrast, not a level**. Differences between two values of $r$ are meaningful; a single value is not.
 
@@ -244,7 +244,7 @@ One time per call. *marginaleffects* may warn that it does not recognize `times`
 
 This works identically for all five families. It is the reason `type = "survival"` exists rather than leaving the curve to be assembled by hand from the draws, and it is the way we recommend reporting a survival model from this package: it sidesteps the estimand mismatch above, it comes with a posterior interval, and it is comparable across families in a way that the predictors are not.
 
-`type = "response"` is the median survival time for all five, which is the other scale-free summary and is often easier to communicate than a curve.
+Setting `type = "response"` gives the median survival time for all five, which is the other scale-free summary and is often easier to communicate than a curve.
 
 ## Hazard Shapes Each Family Can Represent
 
@@ -327,9 +327,9 @@ There are a few things to read off it.
 
 **`ph()` wins where the baseline turns over, and only there.** At .045 against .055 for the best parametric alternative, it is clearly ahead on the case the three parametric families structurally cannot fit. But this is the one truth in the table where it leads. On the log-normal and heavy-tailed accelerated failure time truths it is among the worst (.069 on log-normal errors against .049) because proportional hazards is an assumption too, and it is the wrong one there.
 
-**When the error is badly shaped, `dpm_aft()` wins by a wide margin.** On the two-component error it is three times more accurate than anything else and 300 log points ahead, because no other family in the set can represent a bimodal time distribution at any value of its parameters. The heavy-tailed case is milder, and there `loglogistic_aft()` matches it, which is what the log-logistic's heavy tails are for.
+**When the error is badly shaped, `dpm_aft()` wins by a wide margin.** On the two-component error it is three times more accurate than anything else and 300 log points ahead, because no other family in the set can represent a bimodal time distribution at any value of its parameters. The heavy-tailed case is milder, and there `loglogistic_aft()` matches it, as its heavy tails are designed to.
 
-**`dpm_aft()` costs nothing when it is not needed, and it is the most consistent family in the table.** On log-normal errors it sits at .0491 against the correctly specified `lognormal_aft()`'s .0498; on the Weibull truth, .0457 against `weibull_aft()`'s .0449. It is best or tied-best on four of the six truths and never worse than third on any. That asymmetry (large gains when the assumption is wrong, no measurable loss when it is right) is what makes it a sensible default for anyone without a view about the error's shape.
+**`dpm_aft()` costs nothing when it is not needed, and it is the most consistent family in the table.** On log-normal errors it sits at .0491 against the correctly specified `lognormal_aft()`'s .0498; on the Weibull truth, .0457 against `weibull_aft()`'s .0449. It is best or tied-best on four of the six truths and never worse than third on any. That asymmetry (large gains when the assumption is wrong, no measurable loss when it is right) makes it a sensible default for anyone without a view about the error's shape.
 
 **When hazards cross, the survival RMSE understates the damage.** Every family lands between .080 and .096, which looks like a mild penalty. It is not: the [ranking column](#ordering) shows that the models have absorbed a reversing covariate effect into almost no covariate effect at all. See [the discrete-time route](#nonprop) below.
 
@@ -520,7 +520,7 @@ The trade is sharper than we might hope, in both directions.
 
 **Under crossing hazards it does not win on the survival curve either**, at .085 against the accelerated failure time families' .080. What it wins is the thing that matters: the ranking, at .47 against .29 and below for everything else. It is the only model in the set that recovers *any* of the reordering, and recovering some of a reversing effect while getting the level slightly worse is the better failure of the two.
 
-The route has further costs. The expansion inflates the data, so a large study with a fine grid gets slow. The grid is a real choice, unlike `ph()`'s bins, because it sets the resolution of the hazard in $t$ *and* the resolution at which non-proportionality can be detected at all. And there is no `sigma`, no baseline and no error density to report; the model is a hazard surface, summarized through `type = "response"` and the curve, and `type = "survival"` does not apply to it because as far as the package is concerned it is a binomial fit.
+The route has further costs. The expansion inflates the data, so a large study with a fine grid gets slow. The grid is a real choice, unlike `ph()`'s bins, because it sets the resolution of the hazard in $t$ *and* the resolution at which non-proportionality can be detected at all. And there is no `sigma`, no baseline and no error density to report; the model is a hazard surface, summarized through `type = "response"` and the curve, and the `type = "survival"` prediction does not apply to it because as far as the package is concerned it is a binomial fit.
 
 **When to use it.** When there is a substantive reason to expect the covariate effect to move with time (e.g., a treatment whose benefit accrues or wears off, a risk factor that matters only early). Not as a hedge: under proportional hazards it is the most expensive option in the comparison, so reaching for it "just in case" costs about as much as being wrong about the error distribution. If the question is whether hazards are proportional, fitting it alongside `ph()` and comparing the fitted curves is a reasonable diagnostic; adopting it by default is not.
 
@@ -550,7 +550,7 @@ The way to avoid thinking about it at all is to compare on $S(t \mid x)$ from `p
 
 ### The Centered Predictor of `ph()`
 
-Because the baseline absorbs the level, a single fitted value of `ph()`'s predictor has no interpretation on its own; only differences do. `predict(type = "link")` is centered accordingly. When a level is what is wanted, ask for a quantity that has one: `type = "survival"`, or `type = "response"` for the median time.
+Because the baseline absorbs the level, a single fitted value of `ph()`'s predictor has no interpretation on its own; only differences do. `predict(type = "link")` is centered accordingly. When a level is wanted, ask for a quantity that has one: `type = "survival"`, or `type = "response"` for the median time.
 
 ### The Bin Grid (`num_bins`)
 
@@ -565,9 +565,9 @@ knitr::kable(res$bins, digits = 3, row.names = FALSE,
 
 At 250 bins something does happen, consistently in both truths and both error columns: the error rises by about 20% and the Pareto-$k$ diagnostics start to be troubled. This is over-parameterization becoming visible, since 250 bins on 700 observations gives about 200 effective parameters and the shrinkage through `lambda_rate` is no longer enough to absorb it. Push further, to one piece per event time, and each observation's density is inflated by a parameter only that observation informs: measured that way the effective parameter count exceeded the sample size and more than half the Pareto-$k$ values went above .7, at which point `loo()` and `waic()` stop being usable at all.
 
-So the shape of the thing is a wide flat plateau with a cliff a long way past the default, not a peak that has to be found. `num_bins` is exposed for confirming that on one's own data rather than for tuning: fit at the default and again at two or three times it, and if the answers agree (they will) stop thinking about it.
+So the shape of the thing is a wide flat plateau with a cliff a long way past the default, not a peak that has to be found. The `num_bins` argument is exposed for confirming that on one's own data rather than for tuning: fit at the default and again at two or three times it, and if the answers agree (they will) stop thinking about it.
 
-This is also the answer to a question that comes up: why not fit Cox's *partial* likelihood, which needs no grid at all? Because it couples observations through risk sets, so it does not decompose into a sum over the observations reaching a leaf, which is what this sampler requires. `ph()` fits the full likelihood of the piecewise-exponential model instead, which does decompose, and which approaches the partial likelihood as the bins shrink. A grid-free version was built and measured against this one [@linero2022]; it was no more accurate, and it broke `loo()`, for the reason above.
+This is also the answer to a question that comes up: why not fit Cox's *partial* likelihood, which needs no grid at all? Because it couples observations through risk sets, so it does not decompose into a sum over the observations reaching a leaf, as this sampler requires. `ph()` fits the full likelihood of the piecewise-exponential model instead, which does decompose, and which approaches the partial likelihood as the bins shrink. A grid-free version was built and measured against this one [@linero2022]; it was no more accurate, and it broke `loo()`, for the reason above.
 
 ## Speed {#speed}
 

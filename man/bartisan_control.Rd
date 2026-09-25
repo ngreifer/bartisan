@@ -58,7 +58,7 @@ when \code{\link[=diagnose]{diagnose()}}'s \code{rhat} says the chains have not 
 does. See Details.}
 
 \item{num_draws}{\code{numeric}; the number of draws to keep. Default is 800.
-These are what every estimate and interval is computed from, so raising it
+Every estimate and interval is computed from these, so raising it
 narrows Monte Carlo error; increase it when \code{ess_bulk} or \code{ess_tail} is
 small relative to what the reported quantity needs.}
 
@@ -130,13 +130,13 @@ additive predictor, whether the forests draw their splitting proportions
 from one pooled Dirichlet rather than one each. Default is \code{FALSE}. \code{TRUE}
 is an assumption about the data rather than a free improvement, and
 requires that the proportions be drawn at all and over the same predictors,
-so \code{sparsity} must not be \code{FALSE} for the forests that are to share.
+so the forests that are to share must not have \code{sparsity = FALSE}.
 Ignored for a family with a single forest. See Details.}
 
 \item{categorical}{\emph{Advanced.} string; how a splitting rule divides the
 levels of a factor. Allowable options include \code{"subset"} (the default),
 which draws a subset of the levels still available at the node and sends
-those left, and \code{"onehot"}, which is what most BART implementations do: it
+those left, and \code{"onehot"}, which follows most BART implementations: it
 splits on one indicator column, peeling a single level off the rest.}
 
 \item{augment}{\emph{Advanced.} \code{logical}; whether to rewrite the likelihood as the
@@ -200,7 +200,7 @@ to use the number of predictor groups; the two shapes default to whatever
 \item{update_s, update_alpha}{\emph{Advanced.} \code{logical}; whether to draw the
 splitting proportions and their concentration. Defaults are \code{NULL} to
 follow \code{sparsity}. Turning both off recovers a uniform prior over
-predictors, which is what \code{sparsity = FALSE} does.}
+predictors, as setting \code{sparsity = FALSE} does.}
 
 \item{verbose}{\emph{Advanced.} \code{logical}; whether to print progress to the
 console while sampling. Default is \code{FALSE}. For a progress bar instead, see
@@ -219,7 +219,7 @@ draws from the same seed at somewhat greater cost.}
 forms that a target quadratic in the additive predictor allows, in which
 one pass over a node determines the log target everywhere, so that the
 Laplace approximation is the conditional posterior rather than an
-approximation to it. Default is \code{TRUE}, which is what makes a Gaussian
+approximation to it. Default is \code{TRUE}, which makes a Gaussian
 response, or any of the rewritings in \code{augment}, cheap. \code{FALSE} falls back
 on the general path; the two agree, at greater cost.}
 
@@ -272,7 +272,7 @@ Measured on one design, a Friedman function at n = 4000 with 25 of 30
 predictors irrelevant, comparing the default against a run 64 times longer:
 pointwise 95\% intervals for the regression function came out about 5\% wider at
 the default and covered 0.938 against 0.958. Halving the excess width took
-about four times the sweeps, which is what an error decaying as the square
+about four times the sweeps, as an error decaying as the square
 root of the run predicts.
 
 This suggests some habits rather than a number to apply. Raise \code{num_draws}
@@ -295,7 +295,7 @@ which is a strength of BART. The leaf prior scale divides by the square root
 of a forest's own tree count, so shrinking one forest does not change the
 prior on the sum.
 
-\code{num_trees} can be supplied as a vector when the family has more than one
+The \code{num_trees} argument can be supplied as a vector when the family has more than one
 forest, where each value corresponds to the number of trees for that forest.
 The scale forest of location-scale models (e.g., \code{family = gaussian_ls()})
 dominates the run time, its target not being quadratic, and a variance
@@ -315,7 +315,7 @@ observation to the right-hand branch is \eqn{w_R(x; c)}, and the contribution
 to the left branch is \eqn{w_L(x; c) = 1 - w_R(x; c)}.
 \subsection{Hard Gates}{
 
-For a hard gate (\code{gate = "hard"}), which is what is used in traditional BART
+For a hard gate (\code{gate = "hard"}), which is used in traditional BART
 and most other tree-based models,
 
 \deqn{w_R(x; c) = \mathbb{I}(x > c)}
@@ -345,9 +345,9 @@ fastest and lets some observations have weights of exactly 0 or 1, which is
 why it is the default; \code{"logistic"} is the one Linero and Yang (2018)
 originally describe.
 
-\code{bandwidth_every} controls how often the bandwidth is updated from its
+The \code{bandwidth_every} argument controls how often the bandwidth is updated from its
 starting value specified by \code{bandwidth} for a soft gate when
-\code{update_bandwidth = TRUE} (the default). Drawing the bandwidth is what lets a
+\code{update_bandwidth = TRUE} (the default). Drawing the bandwidth lets a
 rule sharpen toward a step, so setting \code{update_bandwidth = FALSE} is faster
 and tends to be more accurate on smooth functions, but is much worse on
 nonsmooth ones. Raising \code{bandwidth_every} is the middle course, recovering
@@ -398,9 +398,9 @@ induce is a bit opaque.
 \subsection{Telling the Prior What Is Already Known}{
 
 \code{sparsity} and \code{split_prior} answer different questions and cannot both be in
-force, so giving \code{split_prior} turns \code{sparsity} off. \code{sparsity} is for when
+force, so giving \code{split_prior} turns \code{sparsity} off. The \code{sparsity} argument is for when
 which predictors matter is unknown and the prior is to work it out from the
-data, and a predictor can be dropped entirely; \code{split_prior} is for when
+data, and a predictor can be dropped entirely; the \code{split_prior} argument is for when
 something is known and is to be honored, with the proportions held at the
 supplied values.
 
@@ -425,7 +425,7 @@ positionally or keyed by the forest names listed in \code{\link{bartisan-familie
 forest a named argument does not mention keeps that argument's default rather
 than borrowing another forest's value. That covers \code{num_trees}, \code{k},
 \code{sigma_mu}, \code{sparsity}, \code{split_prior}, \code{bandwidth}, \code{gamma}, \code{beta}, the four
-\code{alpha} arguments, and the three \code{update_} flags; \code{formula} works the same
+\code{alpha} arguments, and the three \code{update_} flags; the \code{formula} argument works the same
 way, as \code{\link[=bartisan]{bartisan()}} describes.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan_control(num_trees = c(mean = 50, log_sd = 10),
@@ -439,7 +439,7 @@ single value.
 
 \subsection{Progress}{
 
-\code{verbose = TRUE} prints a line every \code{num_print} iterations, which is the
+Setting \code{verbose = TRUE} prints a line every \code{num_print} iterations, which is the
 whole of what this package decides about progress. A progress bar is
 \CRANpkg{progressr}'s business, and the sampler reports to it
 unconditionally: nothing is shown unless a handler is active, so there is no
@@ -453,7 +453,7 @@ argument to switch on. To request a progress bar, use one of the calls below:
 progressr::handlers(global = TRUE)
 }\if{html}{\out{</div>}}
 
-The bar is sized for the whole fit, so \code{chains = 4} fills one bar once rather
+The bar is sized for the whole fit, so setting \code{chains = 4} fills one bar once rather
 than four in sequence, and chains running in parallel under \CRANpkg{future}
 relay their progress back as it arrives.
 }

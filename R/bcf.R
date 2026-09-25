@@ -119,10 +119,11 @@
 #' ## Predicting for New Data
 #'
 #' The propensity score is a predictor of the control function and one the
-#' caller never named, so `newdata` taken from their own frame does not carry
-#' it. `predict()` rebuilds it from the model the fit kept, which is what makes
+#' caller never named, so a `newdata` data frame taken from their own frame does not carry
+#' it. `predict()` rebuilds it from the model the fit kept, which makes
 #' that work. Supplying `propensity` as a number rather than fitting it removes
-#' the reconstruction, and `newdata` then has to carry the column itself.
+#' the reconstruction, and the data given as `newdata` then has to carry the
+#' column itself.
 #'
 #' @seealso [estimate_effect()] for the average or conditional effect;
 #'   [bartisan()] and [vc()] for the general interface this is written in terms
@@ -157,8 +158,8 @@
 #'            propensity_args = list(num_trees = 10, num_burn = 50,
 #'                                   num_draws = 50))
 #'
-#' # One conditional effect per patient, which is what the effect forest comes
-#' # to at each observation
+#' # One conditional effect per patient: the effect forest evaluated at each
+#' # observation
 #' head(coef(fit))
 #'
 #' # The average effect over the sample, on the response scale, which for a

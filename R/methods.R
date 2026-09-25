@@ -316,7 +316,7 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 #' rather than a coefficient, and `predict(object)` reports it.
 #'
 #' For a factor the coefficients are recentered to sum to zero across its levels,
-#' which is what makes them the deviations they are reported as. The symmetric
+#' which makes them the deviations they are reported as. The symmetric
 #' coding carries one spare function-valued dimension, so this is exact rather
 #' than an approximation, and it is the reason a factor's reference level is a
 #' choice made here rather than at fitting time.
@@ -418,7 +418,7 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
 #' it was drawn from.
 #'
 #' A posterior mean is the wrong summary for a level with few observations, which
-#' is the case a group intercept exists for. `draws = TRUE` is what gives an
+#' is the case a group intercept exists for. Setting `draws = TRUE` gives an
 #' interval, and a level whose interval covers zero is one the data had little to
 #' say about.
 #'
@@ -460,7 +460,7 @@ ranef.bartisan_fit <- function(object, draws = FALSE, ...) {
   if (is_null(random)) {
     arg::err(c("This model has no group intercepts, so there is nothing to
                 extract.",
-               i = "A {.code (1 | group)} term in the formula is what adds
+               i = "A {.code (1 | group)} term in the formula adds
                     them; see {.fn bartisan}."))
   }
 

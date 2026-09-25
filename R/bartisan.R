@@ -56,7 +56,7 @@
 #'   is read off the response and a message reports the choice; see Details for
 #'   the rules.
 #' @param prior_only `logical`; whether to draw from the prior rather than the
-#'   posterior, which is what a prior predictive check reads. Default is `FALSE`.
+#'   posterior, as a prior predictive check requires. Default is `FALSE`.
 #'   Not available for every family; see Details.
 #' @param weights optional; prior weights, one per observation. For a binomial
 #'   response given as proportions, these are the numbers of trials, as in
@@ -103,7 +103,8 @@
 #'
 #' ## Inferring the Family
 #'
-#' `family` may be left alone, in which case it is read off the response:
+#' The `family` argument may be left alone, in which case it is read off the
+#' response:
 #'
 #' | Response | Family |
 #' |---|---|
@@ -114,8 +115,8 @@
 #' | two-column matrix of successes and failures | `binomial()` |
 #' | anything else | `dpm()` |
 #'
-#' A message reports the choice, and naming `family` is what silences it, which
-#' is also what changes it.
+#' A message reports the choice, and naming `family` silences it and
+#' overrides the choice.
 #'
 #' Some scenarios are worth noting. A count is read as a numeric variable and therefore has `dpm()` as its default. And a
 #' numeric response with exactly two values other than zero and one (e.g.,
@@ -158,7 +159,7 @@
 #'
 #' Only random *intercepts* are supported, and a random slope is refused rather
 #' than ignored. The reason is that a random intercept is a scalar entering the
-#' predictor with weight one for the observations in its level, which is what a
+#' predictor with weight one for the observations in its level, exactly as a
 #' leaf is once its gate is removed, so the sampler's leaf machinery handles it
 #' exactly; a slope is a different shape of parameter. A variable whose effect
 #' varies by group belongs in the fixed part of the formula, where a tree can
@@ -193,7 +194,7 @@
 #' shift common to all of them cancels out of the softmax. A vector offset
 #' there leaves the fitted probabilities unchanged; with `reference` set it
 #' does not cancel, and moves every non-reference category against the
-#' reference one. A matrix is what expresses a per-category offset either way.
+#' reference one. A per-category offset is expressed as a matrix either way.
 #'
 #' An offset is not a function of the predictors, so it cannot be rebuilt for
 #' rows the fit has not seen: a model fitted with one requires `offset` at
@@ -211,7 +212,7 @@
 #' - `x < c` goes left, missing goes right;
 #' - missing goes left, present goes right.
 #'
-#' This is missingness incorporated in attributes, and the third rule is what
+#' This is missingness incorporated in attributes, and the third rule
 #' lets the model split on missingness itself, so a variable whose absence
 #' carries the signal is usable even where its observed values say nothing.
 #'
@@ -238,7 +239,7 @@
 #'
 #' ## Drawing From the Prior (`prior_only`)
 #'
-#' `prior_only = TRUE` fits the same model to no data. Every observation is given
+#' Setting `prior_only = TRUE` fits the same model to no data. Every observation is given
 #' a weight of zero, and since the weight multiplies that observation's log
 #' density, its gradient, and its curvature, the likelihood is flat: each tree
 #' move is accepted or rejected on the prior alone and each leaf is drawn from
@@ -283,8 +284,8 @@
 #'     for variable selection.}
 #'   \item{`aux`}{draws of the nuisance parameters, such as the residual
 #'     standard deviation or the ordinal cutpoints, when the family has any.}
-#'   \item{`has_na`}{which predictor columns contained a missing value, which is
-#'     what determines where `predict()` will accept one.}
+#'   \item{`has_na`}{which predictor columns contained a missing value, which
+#'     determines where `predict()` will accept one.}
 #'   \item{`sigma_mu`, `bandwidth`}{draws of the leaf standard deviation and,
 #'     for soft rules, the per-tree gate bandwidths.}
 #'   \item{`loglik`}{the log likelihood at each draw.}
@@ -514,10 +515,10 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
 
   if (is_null(attr(mt, "term.labels"))) {
     arg::err(c("{.arg formula} must include at least one predictor a forest can
-                split on",
+                split on.",
                i = if (vc_any) {
-                 "A {.fn vc} covariate is what a coefficient multiplies, not
-                  something its own forest can split on, so a model of nothing
+                 "A {.fn vc} covariate multiplies a coefficient rather than
+                  being something its own forest can split on, so a model of nothing
                   but {.fn vc} terms has no predictors left."
                }))
   }

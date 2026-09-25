@@ -82,7 +82,7 @@ simplex; larger values pull them toward equal shares. See Details.}
 \item{reference}{for \code{multinomial()}, the response category to hold as the
 reference, given as a single value naming one of the response's levels.
 Default is \code{NULL}, which with the logit link fits one forest per category
-instead and leaves the model unidentified, which is what makes the prior
+instead and leaves the model unidentified, which makes the prior
 symmetric in the categories; see Details. The probit link is always written
 as contrasts against a reference, so there the default is the first level.}
 
@@ -225,9 +225,9 @@ the way to reach anything else.
 
 \subsection{Omitting \code{family}}{
 
-\code{family} may be omitted, in which case it is read off the response's type and
+The \code{family} argument may be omitted, in which case it is read off the response's type and
 the choice reported with a message; \code{\link[=bartisan]{bartisan()}} tabulates the lookup, since
-\code{family} is its argument. A count is read as \code{gaussian()} rather than
+it is the function that takes the \code{family} argument. A count is read as \code{gaussian()} rather than
 \code{poisson()}, and a numeric response taking two values other than 0 and 1 as
 \code{gaussian()} rather than \code{binomial()}, both being modeling decisions rather
 than readings of the response's type.
@@ -247,7 +247,7 @@ twenty-five bins; \code{vignette("families")} works it through.
 
 The cutpoints of \code{ordinal()} and \code{ordbeta()} carry an induced-Dirichlet prior,
 which puts the prior on the category probabilities the cutpoints imply rather
-than on the cutpoints themselves. \code{cut_alpha} is its concentration, and it
+than on the cutpoints themselves. The \code{cut_alpha} argument is its concentration, and it
 regularizes a thinly observed category without disturbing a well observed one.
 
 A level of an ordered factor that nobody selected is kept rather than dropped,
@@ -286,7 +286,7 @@ orthant probabilities of a distribution whose location is a sum of trees, so a
 flexible mean absorbs much of the dependence they are meant to measure and
 they are weakly identified until the sample is large. The likelihood has no
 closed form, so it and every category probability are simulated with
-\code{replicates} draws, and \code{augment} does not apply, the latent variables being
+\code{replicates} draws, and the \code{augment} argument does not apply, the latent variables being
 the model rather than a rewriting of it.
 
 \code{dpm()} is not a distribution but a way of not choosing one. It is DPMBART: a
@@ -345,7 +345,7 @@ Weibull, log-logistic and log-normal survival times.
 A contrast in the predictor is a log time ratio in all of them, and in
 \code{dpm_aft()} too, because with \eqn{\epsilon} independent of \eqn{x} every
 quantile and both means of \eqn{T} scale by \eqn{e^{\Delta\eta}} whatever
-shape the error has. What differs is what \eqn{e^{\eta}} is on its own, each
+shape the error has. The families differ in what \eqn{e^{\eta}} is on its own, each
 family pinning its error's location differently: the median of \eqn{T} for
 \code{loglogistic_aft()} and \code{lognormal_aft()}, the geometric mean for \code{dpm_aft()},
 and the Weibull scale for \code{weibull_aft()}. Contrasts are unaffected by any of
@@ -361,7 +361,7 @@ a proportional hazards model as well.
 \code{ph()} is the proportional hazards alternative, with a piecewise-constant
 baseline: \eqn{\lambda(t \mid x) = \lambda_0(t)\exp(r(x))}, so its predictor
 is a log \emph{hazard} ratio and the baseline is free to take any shape rather than
-the monotone one a Weibull imposes. \code{num_bins} sets how many pieces, with the
+the monotone one a Weibull imposes. The \code{num_bins} argument sets how many pieces, with the
 edges at evenly spaced quantiles of the observed times; the default is about
 the cube root of the sample size. The bin hazards are drawn from their exact
 gamma conditionals and reported as \code{lambda1}, \code{lambda2}, ... in \code{fit$aux},
@@ -369,13 +369,13 @@ together with the rate of their own prior. The predictor and the baseline are
 identified only jointly, so the baseline carries the level and the predictor
 is reported centered on it.
 
-Cox's \emph{partial} likelihood is what cannot be used here: it couples
+Cox's \emph{partial} likelihood cannot be used here: it couples
 observations through risk sets and so does not decompose into a sum over the
 observations reaching a leaf. The full likelihood of the piecewise-exponential
 model does decompose, and it approaches the partial likelihood as the bins
 shrink, which is how \code{ph()} reaches proportional hazards without it.
 
-\code{num_bins} should be left at its default. The estimates are insensitive to it,
+The \code{num_bins} argument should be left at its default. The estimates are insensitive to it,
 and what it does change is the effective number of parameters, which grows
 with the bin count and so matters for \code{\link[=bartisan-interop]{loo()}} and \code{waic()}.
 \code{vignette("survival")} sweeps it.
@@ -410,8 +410,8 @@ function of the predictors.
 \code{Gamma_ls()} does the same for a gamma response: the first forest is the log
 mean, exactly as \code{Gamma("log")}'s is, and the second is the log dispersion, so
 the shape is \code{exp(-log_dispersion)} at each observation rather than one value
-drawn for the whole sample. What it relaxes is the assumption that the
-coefficient of variation is constant, which is what a gamma with a single
+drawn for the whole sample. It relaxes the assumption that the
+coefficient of variation is constant, which a gamma with a single
 shape asserts, and giving its second forest an intercept-only formula puts
 that assumption back; see "Several additive predictors" above.
 
@@ -449,7 +449,7 @@ spending, rainfall, insurance claims and earnings. It is the analogue of
 \code{ordbeta()} at the other end: one predictor again drives both parts, but
 through the mean rather than through a cutpoint, since \eqn{\mu = \exp(\eta)}
 and \eqn{\mathrm{Var}(y) = \phi\mu^p} together fix the probability of a zero
-at \eqn{\exp(-\mu^{2-p}/(\phi(2-p)))}. That is what makes it a single process
+at \eqn{\exp(-\mu^{2-p}/(\phi(2-p)))}. That makes it a single process
 and is also its restriction: the share of zeros has no level of its own, so a
 response whose zeros are more or less common than its mean implies wants a
 two-part model instead, which \code{zi_poisson()} and \code{zi_negbin()} are for counts
@@ -469,7 +469,7 @@ Most families model one parameter with one forest. Some model several, and
 then every argument that could mean something different for each of them may
 be given per forest, keyed by the names below or positionally;
 \code{\link[=bartisan_control]{bartisan_control()}} states the recycling rule and lists which arguments it
-covers, and \code{formula} is among them, so a forest can have predictors of its
+covers, and the \code{formula} argument is among them, so a forest can have predictors of its
 own.
 
 The first forest is always the main parameter, the one a single-forest family
@@ -498,7 +498,7 @@ pinned to a single leaf, and nothing about them is set per forest.
 A forest whose formula names no predictor is a constant. \code{~ 1} leaves that
 forest nothing to split on, so every tree in it is a stump and the parameter is
 one drawn scalar. Every family here that takes more than one formula accepts
-that, which is what makes the distinction between a nuisance parameter and an
+that, which makes the distinction between a nuisance parameter and an
 empty forest a thin one: \code{gaussian_ls()} with \code{~ 1} on its scale is
 \code{gaussian()}, \code{Gamma_ls()} with \code{~ 1} is \code{Gamma("log")}, and \code{zi_poisson()}
 with \code{~ 1} on its inflation part is the zero-inflated Poisson with a single

@@ -28,8 +28,8 @@
 #'     \item{`"class"`}{the most probable category, as a factor, for the same
 #'       families.}
 #'     \item{`"mean"`}{the mean of the response with the category labels read as
-#'       numbers, for the same families, so that `"4"` counts as four. `values`
-#'       says what the categories are worth where the labels are not the numbers
+#'       numbers, for the same families, so that `"4"` counts as four. The
+#'       `values` argument says what the categories are worth where the labels are not the numbers
 #'       intended.}
 #'     \item{`"stdlv"`}{the additive predictor on the scale of the latent
 #'       variable it indexes, for the ordinal and binomial families under the
@@ -37,15 +37,15 @@
 #'       different links, or different amounts of signal, on one scale. See
 #'       Details.}
 #'     \item{`"density"`}{the conditional density of the outcome given the
-#'       predictors, evaluated at the observed outcome, so `newdata` must carry
-#'       the outcome and leaving it empty uses the fitted data. This is the
+#'       predictors, evaluated at the observed outcome, so the `newdata` argument
+#'       must carry the outcome and leaving it empty uses the fitted data. This is the
 #'       observation's likelihood contribution, so it is a probability for a
 #'       discrete response and a survival probability for a censored time. See
 #'       Details.}
 #'     \item{`"survival"`}{the survival function \eqn{S(t \mid x)} at the times
 #'       given in `times`, for the accelerated failure time families and [ph()].
 #'       Returns one column per time, or a draws by rows by times array when
-#'       `draws = TRUE`. This is what makes the usual survival estimand reachable
+#'       `draws = TRUE`. This makes the usual survival estimand reachable
 #'       through \pkg{marginaleffects}; see [`bartisan-marginaleffects`].}
 #'   }
 #' @param draws `logical`; whether to return every posterior draw rather than
@@ -113,7 +113,7 @@
 #' ## Setting `type = "stdlv"`
 #'
 #' This reports `(eta - E[e]) / sd(y*)` for the latent `y* = eta + e`, following
-#' \pkgfun{WeightIt}{predict.ordinal_weightit}, and is what makes an ordinal or
+#' \pkgfun{WeightIt}{predict.ordinal_weightit}, and makes an ordinal or
 #' binary fit comparable across links.
 #'
 #' The scale is `sd(y*) = sqrt(var(eta) + var(e))`, where `var(eta)` is taken
@@ -128,7 +128,7 @@
 #' Such a model is identified only up to a common shift of its thresholds and its
 #' predictor, so the location here is a convention, and the one used is the same
 #' the cutpoints use: a predictor centered over the fitted sample. Differences on
-#' this scale, which is what a standardized quantity is for, are unaffected by
+#' this scale, which a standardized quantity exists to support, are unaffected by
 #' that choice.
 #'
 #' ## Setting `type = "density"`
@@ -137,10 +137,10 @@
 #' families, `dpm_aft()` included, report the density of \eqn{\log T}, where
 #' [ph()] reports the density of \eqn{T}. The two differ by \eqn{\sum \log t},
 #' so log scores are comparable within each group rather than across them, and
-#' `type = "survival"` is comparable throughout. [`loo()`][bartisan-interop] takes a
+#' the `type = "survival"` prediction is comparable throughout. [`loo()`][bartisan-interop] takes a
 #' `scale` argument that puts them on one measure.
 #'
-#' `type = "density"` returns `NaN` for an observation whose density is undefined
+#' Setting `type = "density"` returns `NaN` for an observation whose density is undefined
 #' at any of the draws, which happens when a link the package does not compile
 #' has been composed onto the family's own scale and its inverse does not cover
 #' the whole additive predictor (e.g., `poisson("identity")`, which gives a
@@ -169,7 +169,7 @@
 #' post <- predict(fit, newdata = rhc[1:5, ], draws = TRUE)
 #' apply(post, 2, quantile, c(.025, .5, .975))
 #'
-#' # A held-out log score, which needs the outcome, so `newdata` carries it
+#' # A held-out log score, which needs the outcome, so the `newdata` argument carries it
 #' sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
 #'
 #' @export
@@ -1372,8 +1372,8 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
 #'                 num_trees = 10, num_burn = 50, num_draws = 50)
 #'
-#' # What shape the errors have, which is what a Gaussian fit would have
-#' # assumed to be normal
+#' # The shape of the errors, which a Gaussian fit would have assumed to be
+#' # normal
 #' head(error_density(fit, at = c(-2, 0, 2)))
 #'
 #' # The same thing drawn, with the pointwise interval as a ribbon
@@ -1387,7 +1387,7 @@ error_density <- function(object, at = NULL, level = 0.95,
 
   if (!object[["family"]][["family"]] %in% c("dpm", "dpm_aft")) {
     arg::err(c("{.fn error_density} needs a fit with an estimated error
-                distribution, which is what {.fn dpm} has.",
+                distribution, such as the one {.fn dpm} fits.",
                i = "Every other family fixes the error distribution, so its
                     density is a closed form rather than something to estimate."))
   }

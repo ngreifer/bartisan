@@ -6,7 +6,7 @@
 #'
 #' @param x a `<bcf_fit>` object; the output of a call to [bcf()].
 #' @param level `numeric`; the level of the credible interval. Default is `.95`.
-#' @param comparison passed to [estimate_effect()], which is what computes the
+#' @param comparison passed to [estimate_effect()], which computes the
 #'   numbers.
 #' @param marginal `logical`; whether to draw the marginal effect beside the
 #'   conditional ones. Default is `TRUE`.

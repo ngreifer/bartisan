@@ -17,11 +17,11 @@
 #' @param offset,weights an offset and prior weights for `newdata`, as in
 #'   [predict.bartisan_fit()]. Defaults are `NULL` to use those the model was fit
 #'   with. For a binomial response the weights are the numbers of trials, and so
-#'   are what a replicate outcome is a fraction of; they must be given alongside
+#'   give the denominator of a replicate outcome; they must be given alongside
 #'   `newdata` when the model was fit with more than one trial, since the number
 #'   of trials is not a function of the predictors and cannot be reconstructed.
 #' @param transform `logical`; for `posterior_linpred()`, whether to map the
-#'   predictor through the inverse link, which is what `posterior_epred()` does.
+#'   predictor through the inverse link, as `posterior_epred()` does.
 #'   Default is `FALSE`.
 #' @param nsim,ndraws `numeric`; the number of posterior draws to use, chosen at
 #'   random from the retained ones. Defaults are 1 for `simulate()` and 10 for
@@ -76,7 +76,7 @@
 #' `kfold()` returns a `<kfold>` object, a list whose `estimates` holds
 #' `elpd_kfold`, `p_kfold` and `kfoldic` with their standard errors, whose
 #' `pointwise` holds the same three per observation, and whose `folds` records
-#' the split; `save_fits = TRUE` adds the \eqn{K} refits in `fits`.
+#' the split; setting `save_fits = TRUE` adds the \eqn{K} refits in `fits`.
 #'
 #' `posterior_predict()`, `posterior_epred()`, `posterior_linpred()` and
 #' `log_lik()` return a matrix of draws by observations. `simulate()` returns a
@@ -103,7 +103,7 @@
 #' \pkg{rstantools} conventions that \pkg{brms} and \pkg{rstanarm} follow, and
 #' [stats::simulate()] is the same thing in the shape base R expects.
 #' \pkgfun{rstantools}{log_lik} returns the draws-by-observations matrix of
-#' log-likelihood contributions, which is what \pkgfun{loo}{loo} and
+#' log-likelihood contributions, which \pkgfun{loo}{loo} and
 #' \pkgfun{loo}{waic} need.
 #'
 #' `pp_check()` runs any of the \pkg{bayesplot} posterior-predictive checks on
@@ -123,7 +123,7 @@
 #'
 #' \pkgfun{loo}{loo} estimates the leave-one-out predictive density by importance
 #' sampling from the full-data posterior, and the estimate is trustworthy only
-#' when the importance weights have a finite variance, which is what the Pareto
+#' when the importance weights have a finite variance, which the Pareto
 #' \eqn{k} diagnostic reports on. A forest is a flexible function of the
 #' predictors, so the worry is that one observation carries enough influence over
 #' the leaves it lands in that dropping it cannot be approximated from the fit in
@@ -175,7 +175,7 @@
 #' taken across that boundary is off by \eqn{\sum \log t} over the events, which
 #' can reverse which family looks better.
 #'
-#' `scale` puts them on one measure, and reads the same from either side, since a
+#' The `scale` argument puts them on one measure, and reads the same from either side, since a
 #' fit already on the scale named is returned untouched:
 #'
 #' ```r
@@ -194,13 +194,13 @@
 #' The seven `ppc_loo_*` checks reweight the replicates towards the
 #' leave-one-out predictive, so they need those weights. `pp_check()` computes
 #' them from the fit's own pointwise log likelihood and passes them on, and
-#' `ndraws` does not apply to those checks, because the weights and the
+#' the `ndraws` argument does not apply to those checks, because the weights and the
 #' replicates have to line up draw for draw; supplying `lw` or `psis_object`
 #' takes over from it.
 #'
 #' The two calibration checks are the ones to reach for when the response is
 #' binary, since the default check compares two distributions that can only take
-#' two values. `type = "loo_calibration"` is the honest one, holding each
+#' two values. Setting `type = "loo_calibration"` gives the honest one, holding each
 #' observation out of the probability it is judged against, where
 #' `type = "calibration"` is its in-sample counterpart and reads optimistically.
 #' Those two and a binned residual plot (`type = "error_binned"`) are about the
@@ -256,7 +256,7 @@
 #' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
 #'                 num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
 #'
-#' # Replicate outcomes, one per draw per observation, whose mean is what
+#' # Replicate outcomes, one per draw per observation, whose mean
 #' # `fitted()` reports
 #' yrep <- rstantools::posterior_predict(fit)
 #' range(colMeans(rstantools::posterior_epred(fit)) - fitted(fit))

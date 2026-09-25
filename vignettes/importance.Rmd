@@ -101,7 +101,7 @@ possible under classic BART, where every predictor keeps a fixed share of the
 splitting probability.
 
 The prognostic score, age, and two of the illness measures sit at the top,
-which is what we would expect; at the other end, several predictors are used in
+as we would expect; at the other end, several predictors are used in
 only about half the draws.
 
 For a ranking this long the picture is easier to read than the table, and
@@ -111,8 +111,8 @@ For a ranking this long the picture is easier to read than the table, and
 plot(imp)
 ```
 
-For a model wider than this one, subsetting first is what keeps the picture
-readable: `plot(head(imp, 10))` shows the top ten.
+For a model wider than this one, subsetting first keeps the picture readable:
+`plot(head(imp, 10))` shows the top ten.
 
 And when the question is not one the summary answers, `draws = TRUE` returns the
 counts themselves, one row per posterior draw, so any comparison can be made
@@ -231,8 +231,8 @@ avg_comparisons(fit_corr, variables = c("x1", "x1_copy"))
 ```
 
 The copy takes most of the association; the original's interval covers zero.
-Moving both together, which is what a change in the underlying quantity would
-mean, recovers the truth:
+Moving both together, as a change in the underlying quantity would, recovers
+the truth:
 
 ```{r corrjoint}
 lo <- transform(cd, x1 = 0.25, x1_copy = 0.25)
@@ -307,7 +307,7 @@ it counts rules, so a forest of 50 trees reports several times the count of a
 forest of 20 without being several times as informative. The share is computed
 within each draw, so it adds to one at any forest size. It is not invariant,
 since the number of trees also changes how the rules get allocated, but the
-ranking carries over and that is what the comparison is about.
+ranking carries over, and the ranking is the subject of the comparison.
 
 ## Further Reading
 

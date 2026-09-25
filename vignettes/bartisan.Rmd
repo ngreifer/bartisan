@@ -115,7 +115,7 @@ fit <- bartisan(
 fit
 ```
 
-`family = binomial()` says the outcome is binary, exactly
+Setting `family = binomial()` says the outcome is binary, exactly
 as in `glm()`. The family may be omitted, in which case it is read off the
 outcome and reported; naming it is clearer and silences the message.
 
@@ -132,7 +132,7 @@ sampler setting. `vignette("families")` covers the choice, and
 The other decision worth knowing about is the shape of the decision rules. By
 default a rule is soft, so an observation near a split contributes to both sides
 of it and the fitted function comes out smooth rather than piecewise constant;
-`gate` in `bartisan_control()` switches to the hard rules of standard BART,
+the `gate` argument of `bartisan_control()` switches to the hard rules of standard BART,
 which fit faster but less accurately. `vignette("implementation")` has the
 comparison.
 
@@ -155,14 +155,14 @@ several, and in a real analysis we would do that before reading the rest.
 `rhat` compares variation between chains to variation within them; with one
 chain it compares the chain's two halves, which detects drift but cannot detect
 chains that have settled in different places. `rhat_late` is the same statistic
-on the second half of the draws alone, which is what distinguishes a warmup that
+on the second half of the draws alone, which distinguishes a warmup that
 ended too early from chains that have each settled somewhere different. `ess_bulk` and `ess_tail` are effective sample sizes, and count how
 many independent draws the correlated ones are worth, in the middle of the
 distribution and in the tails.
 
 Read the rows that correspond to the quantities being reported. `eta.eta` is the
 fitted function and appears twice, once averaged over the observations and once
-over the worst 5% of them; the second is what governs a prediction for one
+over the worst 5% of them; the second governs a prediction for one
 observation. Forests mix slowly on their fitted values, so a figure above 1.01 on
 the worst-5% row is ordinary rather than alarming; `vignette("diagnostics")`
 explains what to do about it and when to worry.
@@ -182,8 +182,8 @@ predictors keep the fitted function moving even where the contrast mixes slowly.
 Under the default splitting prior there is a further way this can happen:
 `rhc` gets no rule in some draws, which puts the contrast at exactly zero and can
 hold it there for a long run. `diagnose()` notes that atom when it finds one, and
-`vignette("causal")` covers the settings that remove it when an effect is what is
-being reported.
+`vignette("causal")` covers the settings that remove it when an effect is being
+reported.
 
 The table is in `diagnose(fit)$table` when the numbers are wanted rather than
 the report.
@@ -271,8 +271,8 @@ about. The default splitting prior can leave a predictor out of the forest
 altogether in a given draw, and in such a draw every comparison involving it is
 exactly zero, so the posterior has a point mass there. Where that mass covers
 the middle of the posterior the median falls inside it and the estimate prints
-as exactly zero, which is what has happened to the predictors at the bottom of
-the importance table. The same mass is why the lower bound for `aps` is exactly
+as exactly zero, as it has for the predictors at the bottom of the importance
+table. The same mass is why the lower bound for `aps` is exactly
 zero rather than merely close to it.
 
 The one-unit default deserves a second look whenever a predictor does not span a
@@ -292,8 +292,8 @@ one-unit contrast reported.
 ### The Shape of a Relationship
 
 One number for a predictor hides the shape of the relationship behind it, and
-the two `surv2m` contrasts are what that looks like when the shape matters: the
-answer depends on which change is asked about. Plotting the fit against one
+the two `surv2m` contrasts show it happening when the shape matters: the answer
+depends on which change is asked about. Plotting the fit against one
 predictor shows the whole curve, averaging over the other predictors at each
 value.
 
@@ -349,8 +349,8 @@ instead, and `estimate_effect()` says so and names the functions that produce
 one.
 
 The defaults are not necessarily the best settings for estimating a causal
-effect. A sparsity prior that can drop a predictor, which is what put several
-rows of the comparisons table at exactly zero, is reasonable for prediction and
+effect. A sparsity prior that can drop a predictor, which put several rows of
+the comparisons table at exactly zero, is reasonable for prediction and
 poor for a treatment whose effect is being reported. More specialized methods, such
 as Bayesian causal forests (BCF) and BART without a sparsity-inducing prior, are
 described in `vignette("causal")`, which also covers what has to be true of the
@@ -410,7 +410,7 @@ loo_compare(list(full = loo(fit),
 ```
 
 The full model predicts better by around six times the standard error of the
-difference, which is what we would expect: how sick a patient is on arrival is
+difference, as we would expect: how sick a patient is on arrival is
 the main thing that predicts whether they die.
 
 `vignette("comparison")` covers model comparison, and the cases where

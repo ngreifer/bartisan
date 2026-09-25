@@ -53,14 +53,14 @@
 #' for a continuous one: `grid` values of it would give `grid` curves, each with
 #' a ribbon of its own. A numeric second predictor with more than three distinct
 #' values is therefore held at three of them and a message says which, with
-#' `values` there to choose others and `values = list(z = unique)` the short way
-#' to ask for all of them, which is what a predictor with four or five values
-#' usually wants. The three are the values nearest its
+#' the `values` argument there to choose others and `values = list(z = unique)` the short way
+#' to ask for all of them, which usually suits a predictor with four or five
+#' values. The three are the values nearest its
 #' quartiles, and they are distinct even when the quartiles are not, since a
 #' predictor with a large mass at one value takes that value for two or three of
 #' them; each quartile in turn takes the nearest value the predictor has that an
 #' earlier one did not take. They are values the predictor takes rather than
-#' points on an even grid, which is also what keeps the legend readable.
+#' points on an even grid, which also keeps the legend readable.
 #'
 #' The usual caveat on a partial dependence plot applies. Averaging over the
 #' other predictors evaluates the model at covariate combinations that may not
@@ -89,7 +89,7 @@
 #'
 #' plot(pd)
 #'
-#' # The same thing from the fit, which is what the `plot()` method is for
+#' # The same thing from the fit, using the `plot()` method
 #' plot(fit, ~ meanbp)
 #'
 #' # Two predictors, one of them a factor, which gives a curve per level

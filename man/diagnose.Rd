@@ -97,7 +97,7 @@ every cutpoint is free (see \code{\link{bartisan-families}}). The average over
 observations is then zero in every draw, which leaves it nothing to diagnose,
 and it is reported as \code{NA}. The level of the fitted function has not gone
 anywhere: the sampler pins the first threshold, so \code{aux.cut1} is that level
-rather than a cutpoint, and it is the row to read wherever the level is what
+rather than a cutpoint, and it is the row to read wherever the level
 matters, as it is for a probability in the lowest categories. It is usually
 the slowest row in such a fit, and the most pessimistic one, since it carries
 the level on its own where every quantity computed from the draws mixes the
@@ -149,8 +149,8 @@ and \code{\link[=bartisan-interop]{as_draws()}} for anyone who wants to look.
 
 R-hat is a ratio of two variance estimates taken from the same draws, so with
 few effective draws it sits above 1 whether or not anything is wrong, and how
-far above depends on how many chains are being compared. \code{rhat_max} is
-therefore not a threshold a quantity can be held to at any effective sample
+far above depends on how many chains are being compared. The \code{rhat_max}
+argument is therefore not a threshold a quantity can be held to at any effective sample
 size: four chains need about 400 effective draws before 1.01 is even the
 average of R-hat's null, which is where the pairing of the two defaults comes
 from, and sixteen chains need about 1600 for the same 1.01. Where a quantity
@@ -164,10 +164,10 @@ The advice the print method gives follows from which statistic failed, and the
 order matters because the fixes are not interchangeable.
 
 One chain comes first, since nothing else can be diagnosed properly until
-there are several; \code{chains = 4} is the setting to reach for, and with
+there are several; setting \code{chains = 4} is the change to make, and with
 \CRANpkg{future} installed and a parallel backend in use it usually costs
 little wall clock. R-hat elevated but acceptable on the late draws says warmup
-ended too early, so \code{num_burn} is the one to raise. R-hat elevated on the late
+ended too early, so the \code{num_burn} argument is the one to raise. R-hat elevated on the late
 draws too says the chains have each settled somewhere different: raise
 \code{num_burn} and \code{num_draws} together, and failing that reduce \code{num_trees} and
 check the family, since a likelihood that fits badly can produce a posterior
@@ -195,8 +195,8 @@ fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10, chains = 2,
 # The table, the checks, and what to do about whichever of them failed
 diagnose(fit)
 
-# A stricter effective sample size, which is what an interval endpoint needs
-# and a posterior mean does not
+# A stricter effective sample size, which an interval endpoint needs and a
+# posterior mean does not
 diagnose(fit, ess_min = 1000)
 
 }

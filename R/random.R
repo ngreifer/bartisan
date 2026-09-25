@@ -139,7 +139,7 @@ random_predict <- function(object, newdata, iterations) {
     arg::wrn(c("{.arg newdata} has levels of {.val {bad}} that were not
                 present when the model was fit.",
                i = "Those rows get the group effect's prior mean of zero,
-                    which is what a group with no data can be given."))
+                    the only value a group with no data can be given."))
   }
 
   out

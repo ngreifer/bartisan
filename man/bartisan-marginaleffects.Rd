@@ -63,7 +63,7 @@ numbers, \code{"stdlv"} the standardized latent variable of an ordinal fit, and
 the first two are described under \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. An \code{ordinal()}
 or \code{multinomial()} response has no single mean, so \code{"response"} gives
 \code{"prob"} for those families, while a binomial fit reports the probability
-of its second level, as \code{\link[stats:glm]{stats::glm()}} does, and \code{"prob"} is what asks for
+of its second level, as \code{\link[stats:glm]{stats::glm()}} does, and \code{"prob"} asks for
 both of its columns. \code{"probs"}, \code{"lp"}, \code{"lv"} and \code{"surv"} are accepted as
 aliases for \code{"prob"}, \code{"link"}, \code{"link"} and \code{"survival"}, since those are
 the names the same quantities go by for other ordinal fits in
@@ -113,9 +113,9 @@ The posterior of a contrast has an atom at exactly zero. In any draw where no
 tree splits on the variable being contrasted, the fit does not depend on that
 variable at all, so the two counterfactual predictions are identical to the
 last bit and their difference is exactly zero. The Dirichlet sparsity prior,
-\code{sparsity} in \code{\link[=bartisan_control]{bartisan_control()}}, is what makes those draws common, since
-dropping a weak predictor from every tree is what a variable selection prior
-is for. And \pkg{marginaleffects} centers a posterior at its median, so once
+set by the \code{sparsity} argument of \code{\link[=bartisan_control]{bartisan_control()}}, makes those draws
+common, since dropping a weak predictor from every tree is the purpose of a
+variable selection prior. And \pkg{marginaleffects} centers a posterior at its median, so once
 the atom holds more than half the mass the reported estimate is exactly zero
 however large the rest of the posterior is: the median can land on the atom
 while the posterior mean and the upper limit of the interval are both far from
@@ -123,11 +123,11 @@ zero.
 
 There are a few things worth doing about it, in the order given. Look at
 \code{prop_used} in \code{summary()}, the posterior probability that the predictor
-appears anywhere in the forest, which is what the zero reports. Ask for the
+appears anywhere in the forest, the quantity the zero reports. Ask for the
 mean instead, with \code{options(marginaleffects_posterior_center = mean)}, which
 is the summary \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}} reports and the one that behaves
 sensibly against an atom. Reconsider the sparsity prior, since
-\code{sparsity = FALSE} removes the atom almost entirely where a larger \code{num_trees}
+setting \code{sparsity = FALSE} removes the atom almost entirely where a larger \code{num_trees}
 leaves it in place; that is a modeling choice rather than a fix, and it is the
 right one when a contrast on a particular predictor is the estimand. And run
 several chains and compare them, because the variable selection state mixes
@@ -142,7 +142,7 @@ to be differentiable in the predictor as the caller supplies it. Whether it is
 depends on \code{x_transform} in \code{\link[=bartisan_control]{bartisan_control()}}, because the fit is a smooth
 function of the transformed predictor rather than of the original one.
 
-\code{x_transform = "range"} is what slopes want, and refitting with it is
+Setting \code{x_transform = "range"} suits slopes, and refitting with it is
 worthwhile when a derivative is the quantity being reported rather than a
 prediction. It is the only affine map of the three, so it is the only one
 through which a slope of the fit is a slope of the original predictor. The
@@ -169,14 +169,14 @@ avg_comparisons(fit, variables = "trt", type = "survival", times = 1)
 
 One time per call. \pkg{marginaleffects} checks the dots against a whitelist
 of its own, hardcoded per model class, so it warns that it does not recognize
-\code{times} while passing it through, which is what the warning says. There is no
+\code{times} while passing it through, as the warning says. There is no
 hook for registering an argument with it, so the warning is expected and the
 result is correct.
 }
 
 \subsection{Prediction Types}{
 
-\code{type = "link"} needs a family with a single additive predictor, since there
+Setting \code{type = "link"} needs a family with a single additive predictor, since there
 is no one link to be talking about in \code{gaussian_ls()}, the zero-inflated
 families or \code{multinomial()}. Those families work on the response scale, which
 is one number per observation whatever the family, and \code{multinomial()} and

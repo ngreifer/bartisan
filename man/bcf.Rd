@@ -158,10 +158,11 @@ across the dose; see \code{\link[=vc]{vc()}}.
 \subsection{Predicting for New Data}{
 
 The propensity score is a predictor of the control function and one the
-caller never named, so \code{newdata} taken from their own frame does not carry
-it. \code{predict()} rebuilds it from the model the fit kept, which is what makes
+caller never named, so a \code{newdata} data frame taken from their own frame does not carry
+it. \code{predict()} rebuilds it from the model the fit kept, which makes
 that work. Supplying \code{propensity} as a number rather than fitting it removes
-the reconstruction, and \code{newdata} then has to carry the column itself.
+the reconstruction, and the data given as \code{newdata} then has to carry the
+column itself.
 }
 }
 \examples{
@@ -178,8 +179,8 @@ fit <- bcf(death ~ . - days, treat = ~ rhc, data = rhc,
            propensity_args = list(num_trees = 10, num_burn = 50,
                                   num_draws = 50))
 
-# One conditional effect per patient, which is what the effect forest comes
-# to at each observation
+# One conditional effect per patient: the effect forest evaluated at each
+# observation
 head(coef(fit))
 
 # The average effect over the sample, on the response scale, which for a

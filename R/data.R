@@ -4,8 +4,8 @@
 #' Data from the SUPPORT study on whether right heart catheterization within 24
 #' hours of admission to an intensive care unit affects survival (Connors et al.,
 #' 1996). Catheterization was not randomized, so the comparison is confounded by
-#' how sick each patient was on admission, which is what the physiological
-#' covariates are for.
+#' how sick each patient was on admission, which the physiological
+#' covariates are there to adjust for.
 #'
 #' @format A data frame with 1500 rows and 16 columns.
 #' \describe{

@@ -144,7 +144,7 @@ the marginal one a treatment question usually asks for. The default is
 therefore \code{type = "response"}, where every unit's contrast is on the scale the
 response is measured on and averaging them gives the marginal effect.
 
-\code{type = "link"} is the right choice for looking at how the effect varies,
+Setting \code{type = "link"} is the right choice for looking at how the effect varies,
 since that is the scale the forest models it on, and the wrong one for
 reporting an average.
 }
@@ -183,7 +183,7 @@ average over the group \code{focal} names and only the default differs.
 
 \subsection{Multi-category Treatments}{
 
-There is nothing to work out from the values, so \code{focal} is required for
+There is nothing to work out from the values, so the \code{focal} argument is required for
 \code{"ATT"} and \code{"ATC"}, and those two then name the same estimand: the effect
 among the units in the level named.
 

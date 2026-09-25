@@ -53,7 +53,7 @@ and returns a \pkg{ggplot2} object. The result can be subset first, so
 }
 \description{
 Reports, for every predictor, how many splitting rules the forest spends on
-it and how often it is used at all, which is what "variable importance" means
+it and how often it is used at all, which is the meaning of "variable importance"
 for a BART model. This is the table \code{\link[=summary.bartisan_fit]{summary.bartisan_fit()}} prints, returned
 as a data frame rather than displayed (i.e., ready to sort, filter, or plot).
 }
@@ -104,7 +104,7 @@ data("rhc")
 set.seed(123)
 
 # The sparsity prior concentrates the splitting rules on the predictors that
-# earn them, which is what makes `prop_used` readable as a selection rule
+# earn them, which makes `prop_used` readable as a selection rule
 fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
                 num_burn = 50, num_draws = 50, sparsity = TRUE,
                 verbose = FALSE)
@@ -129,7 +129,7 @@ merge(variable_importance(fit)[c("variable", "prop_splits")],
 counts <- variable_importance(fit, draws = TRUE)
 mean(counts[, "aps"] > counts[, "meanbp"])
 
-# The ranking, drawn. Subsetting first is what keeps a wide model readable.
+# The ranking, drawn. Subsetting first keeps a wide model readable.
 plot(head(imp, 8))
 
 }

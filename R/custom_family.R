@@ -26,9 +26,9 @@
 #'   covers the additive predictors only: a nuisance parameter is always
 #'   differenced, which costs three calls per sweep rather than three per leaf.
 #' @param aux_names optional `character`; the names of the nuisance parameters
-#'   to draw, if any. Naming them is what declares them, because the names label
-#'   the columns of `fit$aux` and are what `summary()` and [diagnose()] report
-#'   them under. They must be distinct and non-empty. Default is `NULL` for
+#'   to draw, if any. Naming them declares them, because the names label
+#'   the columns of `fit$aux` and are the labels `summary()` and [diagnose()]
+#'   report them under. They must be distinct and non-empty. Default is `NULL` for
 #'   none, unless `aux_start` is given, in which case the parameters are named
 #'   by `names(aux_start)` when it carries names and positionally (`"aux1"`,
 #'   `"aux2"`, and so on) when it does not.
@@ -36,7 +36,7 @@
 #'   at, given as one value or one per parameter. Default is `NULL`, which is 0
 #'   for each. The sampler will walk to the posterior from a poor start, so this
 #'   need only be the right order of magnitude. Supplying it is a second way to
-#'   declare the parameters, so `aux_start = c(shape = 1)` both names one and
+#'   declare the parameters, so setting `aux_start = c(shape = 1)` both names one and
 #'   starts it at 1.
 #' @param name string; a label used when printing the fit. Default is
 #'   `"custom"`.
@@ -81,8 +81,8 @@
 #'
 #' ## Nuisance Parameters
 #'
-#' These are drawn alongside the trees when `aux_names` names them, and
-#' `logdens` then takes a third argument holding their current values:
+#' These are drawn alongside the trees when the `aux_names` argument names them,
+#' and the function supplied as `logdens` then takes a third argument holding their current values:
 #'
 #' ```r
 #' # A Gaussian written out by hand, with its scale drawn rather than fixed.
@@ -99,13 +99,13 @@
 #' Laplace-plus-Metropolis step as any leaf, under that step's Gaussian leaf
 #' prior. So a parameter with a restricted range is handled the way it would be
 #' for a real predictor, by writing the transform into `logdens`: the `exp()`
-#' above is what keeps the scale positive.
+#' above keeps the scale positive.
 #'
 #' ## Limits of a Log Density
 #'
 #' A density says how likely an observed value is, not how to draw a new one, so
-#' a `custom_family()` fit has no posterior predictive distribution, which is
-#' what [`simulate()`][bartisan-interop], [`pp_check()`][bartisan-interop] and
+#' a `custom_family()` fit has no posterior predictive distribution, which
+#' [`simulate()`][bartisan-interop], [`pp_check()`][bartisan-interop] and
 #' [`r2()`][bartisan-interop] rely on. Each of them errors on such a fit
 #' rather than returning something it cannot support. [loo()][bartisan-interop]
 #' and [`waic()`][bartisan-interop] are unaffected, since both read the

@@ -21,7 +21,7 @@
 #'   `dpm()` fit, whose component-count state settles more slowly than a forest
 #'   does. See Details.
 #' @param num_draws `numeric`; the number of draws to keep. Default is 800.
-#'   These are what every estimate and interval is computed from, so raising it
+#'   Every estimate and interval is computed from these, so raising it
 #'   narrows Monte Carlo error; increase it when `ess_bulk` or `ess_tail` is
 #'   small relative to what the reported quantity needs.
 #' @param num_thin `numeric`; keep one draw in every `num_thin` after warmup.
@@ -72,12 +72,12 @@
 #'   from one pooled Dirichlet rather than one each. Default is `FALSE`. `TRUE`
 #'   is an assumption about the data rather than a free improvement, and
 #'   requires that the proportions be drawn at all and over the same predictors,
-#'   so `sparsity` must not be `FALSE` for the forests that are to share.
+#'   so the forests that are to share must not have `sparsity = FALSE`.
 #'   Ignored for a family with a single forest. See Details.
 #' @param categorical *Advanced.* string; how a splitting rule divides the
 #'   levels of a factor. Allowable options include `"subset"` (the default),
 #'   which draws a subset of the levels still available at the node and sends
-#'   those left, and `"onehot"`, which is what most BART implementations do: it
+#'   those left, and `"onehot"`, which follows most BART implementations: it
 #'   splits on one indicator column, peeling a single level off the rest.
 #' @param augment *Advanced.* `logical`; whether to rewrite the likelihood as the
 #'   margin of a Gaussian or a Poisson one, which makes the target a shape the
@@ -142,7 +142,7 @@
 #' @param update_s,update_alpha *Advanced.* `logical`; whether to draw the
 #'   splitting proportions and their concentration. Defaults are `NULL` to
 #'   follow `sparsity`. Turning both off recovers a uniform prior over
-#'   predictors, which is what `sparsity = FALSE` does.
+#'   predictors, as setting `sparsity = FALSE` does.
 #' @param verbose *Advanced.* `logical`; whether to print progress to the
 #'   console while sampling. Default is `FALSE`. For a progress bar instead, see
 #'   the Progress section below, which needs no argument here.
@@ -157,7 +157,7 @@
 #'   forms that a target quadratic in the additive predictor allows, in which
 #'   one pass over a node determines the log target everywhere, so that the
 #'   Laplace approximation is the conditional posterior rather than an
-#'   approximation to it. Default is `TRUE`, which is what makes a Gaussian
+#'   approximation to it. Default is `TRUE`, which makes a Gaussian
 #'   response, or any of the rewritings in `augment`, cheap. `FALSE` falls back
 #'   on the general path; the two agree, at greater cost.
 #' @param generic_accumulate *Validation.* `logical`; whether to accumulate a
@@ -203,7 +203,7 @@
 #' predictors irrelevant, comparing the default against a run 64 times longer:
 #' pointwise 95% intervals for the regression function came out about 5% wider at
 #' the default and covered 0.938 against 0.958. Halving the excess width took
-#' about four times the sweeps, which is what an error decaying as the square
+#' about four times the sweeps, as an error decaying as the square
 #' root of the run predicts.
 #'
 #' This suggests some habits rather than a number to apply. Raise `num_draws`
@@ -225,7 +225,7 @@
 #' of a forest's own tree count, so shrinking one forest does not change the
 #' prior on the sum.
 #'
-#' `num_trees` can be supplied as a vector when the family has more than one
+#' The `num_trees` argument can be supplied as a vector when the family has more than one
 #' forest, where each value corresponds to the number of trees for that forest.
 #' The scale forest of location-scale models (e.g., `family = gaussian_ls()`)
 #' dominates the run time, its target not being quadratic, and a variance
@@ -245,7 +245,7 @@
 #'
 #' ### Hard Gates
 #'
-#' For a hard gate (`gate = "hard"`), which is what is used in traditional BART
+#' For a hard gate (`gate = "hard"`), which is used in traditional BART
 #' and most other tree-based models,
 #'
 #' \deqn{w_R(x; c) = \mathbb{I}(x > c)}
@@ -274,9 +274,9 @@
 #' why it is the default; `"logistic"` is the one Linero and Yang (2018)
 #' originally describe.
 #'
-#' `bandwidth_every` controls how often the bandwidth is updated from its
+#' The `bandwidth_every` argument controls how often the bandwidth is updated from its
 #' starting value specified by `bandwidth` for a soft gate when
-#' `update_bandwidth = TRUE` (the default). Drawing the bandwidth is what lets a
+#' `update_bandwidth = TRUE` (the default). Drawing the bandwidth lets a
 #' rule sharpen toward a step, so setting `update_bandwidth = FALSE` is faster
 #' and tends to be more accurate on smooth functions, but is much worse on
 #' nonsmooth ones. Raising `bandwidth_every` is the middle course, recovering
@@ -326,9 +326,9 @@
 #' ### Telling the Prior What Is Already Known
 #'
 #' `sparsity` and `split_prior` answer different questions and cannot both be in
-#' force, so giving `split_prior` turns `sparsity` off. `sparsity` is for when
+#' force, so giving `split_prior` turns `sparsity` off. The `sparsity` argument is for when
 #' which predictors matter is unknown and the prior is to work it out from the
-#' data, and a predictor can be dropped entirely; `split_prior` is for when
+#' data, and a predictor can be dropped entirely; the `split_prior` argument is for when
 #' something is known and is to be honored, with the proportions held at the
 #' supplied values.
 #'
@@ -350,7 +350,7 @@
 #' forest a named argument does not mention keeps that argument's default rather
 #' than borrowing another forest's value. That covers `num_trees`, `k`,
 #' `sigma_mu`, `sparsity`, `split_prior`, `bandwidth`, `gamma`, `beta`, the four
-#' `alpha` arguments, and the three `update_` flags; `formula` works the same
+#' `alpha` arguments, and the three `update_` flags; the `formula` argument works the same
 #' way, as [bartisan()] describes.
 #'
 #' ```r
@@ -364,7 +364,7 @@
 #'
 #' ## Progress
 #'
-#' `verbose = TRUE` prints a line every `num_print` iterations, which is the
+#' Setting `verbose = TRUE` prints a line every `num_print` iterations, which is the
 #' whole of what this package decides about progress. A progress bar is
 #' \CRANpkg{progressr}'s business, and the sampler reports to it
 #' unconditionally: nothing is shown unless a handler is active, so there is no
@@ -379,7 +379,7 @@
 #' progressr::handlers(global = TRUE)
 #' ```
 #'
-#' The bar is sized for the whole fit, so `chains = 4` fills one bar once rather
+#' The bar is sized for the whole fit, so setting `chains = 4` fills one bar once rather
 #' than four in sequence, and chains running in parallel under \CRANpkg{future}
 #' relay their progress back as it arrives.
 #'
@@ -587,7 +587,7 @@ bartisan_control <- function(chains = 1L,
     arg::err(c("{.arg share_sparsity} has nothing to share when the splitting
                 proportions are not drawn.",
                i = "It pools the counts behind one Dirichlet draw, which
-                    {.code sparsity = TRUE} is what asks for."))
+                    setting {.code sparsity = TRUE} requests."))
   }
 
   sparse <- resolve_sparsity(sparsity)

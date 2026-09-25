@@ -106,7 +106,7 @@ We can use `cobalt::bal.plot()` to examine the overlap of the propensity score d
 bal.plot(rhc ~ prop_score, data = rhc, type = "hist", mirror = TRUE)
 ```
 
-What matters for positivity is that the two groups overlap over most of their range, and they do. Distributions pushed against zero and one with little overlap are what failure looks like, and the honest response then is to restrict the analysis to the region of overlap rather than let the model extrapolate into a part of the covariate space where one treatment was never observed.
+What matters for positivity is that the two groups overlap over most of their range, and they do. Distributions pushed against zero and one with little overlap indicate a failure of positivity, and the honest response then is to restrict the analysis to the region of overlap rather than let the model extrapolate into a part of the covariate space where one treatment was never observed.
 
 This check belongs before the outcome model, not after. Where one treatment was never observed, any estimate the outcome model produces there is an extrapolation, and whether its interval shows that depends on the model. On the example @liBayesianCausalInference2023 use to illustrate the problem, a BART model fit separately to each treatment group kept the same interval width where the groups did not overlap, and missed the true effect there. In our replication of that example, the models used in this vignette widened their intervals four- to ninefold in those regions, but the wider intervals did not remove the bias: `bcf()`'s estimates there were still off by more than 1 on an effect of 5. So a wide interval is worth noticing, but it does not replace checking overlap before fitting the outcome model.
 
@@ -123,13 +123,13 @@ Here, we use traditional BART and BCF to model $\mu(A, X)$. The rest of the anal
 
 ### Conditional, Sample, and Population Averages
 
-Because the estimator averages the model's predictions over the covariates of the units in the sample, what it estimates is the average of the conditional effect $\mu(1, x) - \mu(0, x)$ over those covariate values, computed within each posterior draw. @liBayesianCausalInference2023 call this the "mixed average treatment effect", and note, as @dingCausalInferenceMissing2018 did, that it is what most Bayesian causal analyses in fact report.
+Because the estimator averages the model's predictions over the covariates of the units in the sample, what it estimates is the average of the conditional effect $\mu(1, x) - \mu(0, x)$ over those covariate values, computed within each posterior draw. @liBayesianCausalInference2023 call this the "mixed average treatment effect", and note, as @dingCausalInferenceMissing2018 did, that most Bayesian causal analyses in fact report it.
 
 It differs from the sample average treatment effect and the population average treatment effect, the two averages usually defined, in what it holds fixed. The sample average treatment effect is the average of each unit's own $Y_i(1) - Y_i(0)$, which conditions on the units' observed outcomes as well as their covariates. Inference for it requires imputing each unit's missing potential outcome, and that imputation depends on how strongly a unit's two potential outcomes are associated, about which the data carry no information. The population average treatment effect is the average over the population the sample was drawn from, which treats the covariates as random as well and is the most uncertain of the three [@liBayesianCausalInference2023]. The mixed average needs neither a model for the covariates nor an assumption about how the potential outcomes are associated, which is why it is the usual target. `estimate_effect()` estimates it for the ATE, the ATT, and the ATC alike, averaging over the treated or untreated units' covariates for the latter two.
 
 ### Controlling Sparsity
 
-Before we fit the outcome model, we need to change one setting to make traditional BART suitable for estimating the ATE. The default splitting prior is a variable-selection prior. It can drop a predictor from every tree in the forest at once, which is what makes it worth having when the goal is prediction, and exactly what you do not want when the estimand is a contrast on one particular predictor. The traditional BART outcome model below is fitted with `sparsity = FALSE`, which weights the predictors equally and cannot drop any of them.
+Before we fit the outcome model, we need to change one setting to make traditional BART suitable for estimating the ATE. The default splitting prior is a variable-selection prior. It can drop a predictor from every tree in the forest at once, which makes it worth having when the goal is prediction, but not when the estimand is a contrast on one particular predictor. The traditional BART outcome model below is fitted with `sparsity = FALSE`, which weights the predictors equally and cannot drop any of them.
 
 The propensity score model above keeps the default, and should: predicting who was treated is a prediction problem, and no contrast is read off it. `?bartisan_control` explains both halves of this, and using the `split_prior` argument can be an alternative when there are enough covariates that weighting them all alike is wasteful.
 
@@ -161,15 +161,15 @@ ate
 
 Under the assumptions above this is the average treatment effect: catheterization raises the probability of death by about `r if (run) round(100 * abs(ate$estimate[1])) else "6"` percentage points, with an interval running from roughly `r if (run) round(100 * ate$lower[1], 1) else "1.6"` to `r if (run) round(100 * ate$upper[1], 1) else "11"`.
 
-The two rows below the contrast are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%. `potential_outcomes = FALSE` in the `print()` call drops them where the difference is all that is wanted.
+The two rows below the contrast are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%. Setting `potential_outcomes = FALSE` in the `print()` call drops them where the difference is all that is wanted.
 
 ### Computation and Scale of the Estimate
 
 `estimate_effect()` performs the g-computation above literally. Every unit is predicted twice, once with the treatment set to each of its levels; the two sets of predictions are averaged over the units the estimand asks for, *within each posterior draw*; and only then are the two averages contrasted. What comes back is a posterior for the estimand, summarized by its mean and a credible interval.
 
-That order is what makes a ratio here the marginal ratio rather than the average of the conditional ones, which is a different quantity. For a difference the two orders agree, so it only shows up once a ratio is asked for.
+That order makes a ratio here the marginal ratio rather than the average of the conditional ones, which is a different quantity. For a difference the two orders agree, so it only shows up once a ratio is asked for.
 
-The scale matters, and it is the reason the default is `type = "response"`. On that scale, the average of the unit-level differences *is* the marginal effect. A contrast read off the link scale is not: on a logistic fit, the average of the conditional log odds ratios is not the marginal log odds ratio, and the two can differ by a good deal. `comparison` asks for the contrast rather than the scale, so a risk ratio or an odds ratio is available without leaving the response scale:
+The scale matters, and it is the reason the default is `type = "response"`. On that scale, the average of the unit-level differences *is* the marginal effect. A contrast read off the link scale is not: on a logistic fit, the average of the conditional log odds ratios is not the marginal log odds ratio, and the two can differ by a good deal. The `comparison` argument asks for the contrast rather than the scale, so a risk ratio or an odds ratio is available without leaving the response scale:
 
 ```{r ate_or, eval = run}
 estimate_effect(fit, treat = "rhc", comparison = "lnor")
@@ -219,7 +219,7 @@ Because the treatment is named in the call, `estimate_effect()` needs nothing el
 estimate_effect(fit_bcf)
 ```
 
-The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 64% and another against 5%; `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` is, adding what `O(y)` is once an odds ratio is asked for.
+The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 64% and another against 5%; setting `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` is, adding what `O(y)` is once an odds ratio is asked for.
 
 The output of `summary()` on a `bcf()` fit is the same summary of the forests it is on any other fit, and says at the end where the effect is reported. That way the same call means the same thing whichever way the model was written.
 
@@ -233,7 +233,7 @@ cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 ```
 
-`plot()` draws the conditional effects, as differences unless `comparison` says otherwise: patients ordered by their estimate, with a credible interval each, and the marginal effect as a single interval past the right edge in its own color. Setting `marginal = FALSE` leaves it out.
+`plot()` draws the conditional effects, as differences unless the `comparison` argument says otherwise: patients ordered by their estimate, with a credible interval each, and the marginal effect as a single interval past the right edge in its own color. Setting `marginal = FALSE` leaves it out.
 
 ```{r bcfplot, eval = run, fig.height = 3.4}
 plot(fit_bcf)
@@ -244,7 +244,7 @@ plot(fit_bcf)
 Note that a conditional odds ratio is not the marginal one, and their average is not it either. That is the scale caution from earlier in a second place: an average of conditional contrasts equals the marginal contrast only when the contrast is a difference. For an identity link, which the next example uses, the ATE *is* the average of the conditional effects.
 
 ## A Second Example: A Continuous Outcome, and the ATT
-The catheterization question is about a whole population, so the ATE is the estimand. Many questions are not. When a program is offered to a particular group and the question is whether it helped *them*, the ATT is what to report, and the outcome is often continuous rather than binary.
+The catheterization question is about a whole population, so the ATE is the estimand. Many questions are not. When a program is offered to a particular group and the question is whether it helped *them*, the ATT is the estimand to report, and the outcome is often continuous rather than binary.
 
 `lalonde`, from *cobalt*, is the standard example: a job training program, with earnings in 1978 as the outcome.
 

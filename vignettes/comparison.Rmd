@@ -91,7 +91,7 @@ score <- predict(fit_train, newdata = held, type = "density", log = TRUE)
 sum(score)
 ```
 
-`type = "density"` evaluates the outcome under each posterior draw and averages over the draws before taking the log, which is the same form as one pointwise `elpd_loo` contribution. The two are therefore estimates of the same thing, which the two numbers do not make obvious:
+Setting `type = "density"` evaluates the outcome under each posterior draw and averages over the draws before taking the log, which is the same form as one pointwise `elpd_loo` contribution. The two are therefore estimates of the same thing, which the two numbers do not make obvious:
 
 ```{r holdoutscale, eval = run}
 elpd_total <- loo(full)$estimates["elpd_loo", "Estimate"]
@@ -125,7 +125,7 @@ The full model predicts better by around six times the standard error of the dif
 
 `elpd_diff` is a difference of *totals*, and the reason is that a log score is additive. Summing it over observations gives a log predictive likelihood, so the difference between two models is a log likelihood ratio: the evidence the sample carries about which model predicts better, in nats. On that reading the total is the quantity with meaning, and it should grow with the sample, because more data is more evidence. It also keeps `elpd` a total over observations, as AIC, WAIC and DIC are, though those three are quoted on the deviance scale, which is $-2$ times a log score.
 
-Nothing is lost by preferring the average, because the decision does not depend on the choice. The mean difference and the total differ by a factor of $n$, its standard error differs by the same factor, and the ratio of the two, which is what says whether the difference is real, is identical either way.
+Nothing is lost by preferring the average, because the decision does not depend on the choice. The mean difference and the total differ by a factor of $n$, its standard error differs by the same factor, and the ratio of the two, which says whether the difference is real, is identical either way.
 
 What the average is better for is a comparison whose two halves do not sum over the same observations. The section above ran into exactly that: `elpd_loo` totals 1500 terms and the held-out score totals 300, so the totals are not comparable and the per-observation averages are. The same is true of a score quoted across datasets, or across subgroups of different sizes. Within one `loo_compare()` call it never arises, since every model there is scored on the same rows, which is why the convention can afford to be a total.
 
@@ -146,7 +146,7 @@ c(mean_diff = mean(d), se = sd(d) / sqrt(length(d)),
   ratio = mean(d) / (sd(d) / sqrt(length(d))))
 ```
 
-That is `loo_compare()`'s arithmetic done by hand and quoted per observation: the average difference in log score, its standard error, and the ratio that decides whether to believe it. The full model is ahead by a little over two standard errors rather than six, which is what the split costs. It sees 300 observations where `loo()` sees 1500, and the precision of a difference goes as the square root of the count.
+That is `loo_compare()`'s arithmetic done by hand and quoted per observation: the average difference in log score, its standard error, and the ratio that decides whether to believe it. The full model is ahead by a little over two standard errors rather than six, and the difference is the cost of the split. It sees 300 observations where `loo()` sees 1500, and the precision of a difference goes as the square root of the count.
 
 ### Every Observation Held Out Once (K-Fold)
 
@@ -163,7 +163,7 @@ kfold_full
 
 `elpd_kfold` is the held-out log score, summed over every observation, and it owes nothing to an importance-sampling approximation: the model really was refitted without each fold. `p_kfold` is the gap between what the model predicts for an observation it was fitted to and what it predicts for the same one held out, which is the price of having used it. The cost is five fits rather than one.
 
-The folds are passed rather than drawn so that the second model is scored on the same split, which is what makes the two comparable:
+The folds are passed rather than drawn so that the second model is scored on the same split, which makes the two comparable:
 
 ```{r kfoldcompare, eval = run}
 kfold_demographics <- kfold(demographics, folds = folds)
@@ -181,7 +181,7 @@ c(kfold = kfold_full$estimates["elpd_kfold", "Estimate"] / nrow(rhc),
   loo = elpd_total / nrow(rhc))
 ```
 
-They agree, which is what a clean Pareto $k$ column was saying in less direct form. That is the division of labor between the three routes: `loo()` for one fit and a diagnostic, $K$-fold for $K$ fits and no approximation, and a single split when even that is too expensive. When the outcome is rare enough that a random split could leave a fold with no events in it, `loo::kfold_split_stratified()` assigns the folds instead.
+They agree, as a clean Pareto $k$ column suggested in less direct form. That is the division of labor between the three routes: `loo()` for one fit and a diagnostic, $K$-fold for $K$ fits and no approximation, and a single split when even that is too expensive. When the outcome is rare enough that a random split could leave a fold with no events in it, `loo::kfold_split_stratified()` assigns the folds instead.
 
 This is the right way to ask whether a set of variables earns its place, and it is a better question than the one variable importance answers, because it is about prediction rather than about how the forest happened to spend its splits. Here the answer is not in doubt by any of the three routes: how sick a patient is on arrival predicts whether they die, and demographics alone do not.
 
@@ -230,7 +230,7 @@ Two accelerated failure time families, or two `ph()` fits, already share a scale
 
 Often it is a good idea to compare a flexible model to a more easily interpretable (generalized) linear model to assess whether the flexibility buys us anything. There is no obstacle to this, and it is worth doing. If a logistic regression predicts as well as the forest, that is evidence the relationship is close to linear on the log-odds scale, and the simpler model is the easier one to report.
 
-The comparison has to be like for like, which means both models have to produce a pointwise log density of the same outcome on the same scale. Fitting the regression in a Bayesian framework is what arranges that: *rstanarm* fits it with `stan_glm()` and gives it a `loo()` method, and the resulting object goes into `loo_compare()` beside ours.
+The comparison has to be like for like, which means both models have to produce a pointwise log density of the same outcome on the same scale. Fitting the regression in a Bayesian framework arranges that: *rstanarm* fits it with `stan_glm()` and gives it a `loo()` method, and the resulting object goes into `loo_compare()` beside ours.
 
 ```{r stanglm, eval = run && has_rstanarm}
 logistic <- rstanarm::stan_glm(model, data = rhc, family = binomial(),
@@ -249,7 +249,7 @@ The forest is behind by roughly half a standard error of the difference, which i
 
 `p_loo` says where that came from. The regression has 16 coefficients and an effective number of parameters to match; the forest's is about twice that, which is the flexibility it spent looking for curvature and interaction that turned out not to be there. A forest that predicts no better while using twice the parameters is a forest reporting that the log-odds are close to linear here, which is a finding rather than a disappointment.
 
-Comparing `elpd_loo` from this package against `AIC()` from `glm()` is not a comparison and should not be reported as one. The two differ by a factor of $-2$ before anything else, and `AIC()`'s penalty is a count of parameters, which a forest has no fixed number of; the `p_loo` above is an estimate rather than a count. Fitting the regression the Bayesian way is what lets us compare `loo()` against `loo()`, as above.
+Comparing `elpd_loo` from this package against `AIC()` from `glm()` is not a comparison and should not be reported as one. The two differ by a factor of $-2$ before anything else, and `AIC()`'s penalty is a count of parameters, which a forest has no fixed number of; the `p_loo` above is an estimate rather than a count. Fitting the regression the Bayesian way lets us compare `loo()` against `loo()`, as above.
 
 ## Tuning
 
@@ -277,7 +277,7 @@ sapply(tuned, function(f) sum(predict(f, newdata = held, type = "density",
                                       log = TRUE)))
 ```
 
-The two orderings disagree, which is the practical content of the warning rather than a contradiction: when the spread across a grid is smaller than the noise in the estimate, whichever setting comes out top is the one the noise favored. Reporting its score as the model's performance is exactly the optimism this section opened with, and it is why the assessment has to come from observations the grid never touched. Here the honest summary is that `num_trees` does not matter on these data, and the default is what to keep.
+The two orderings disagree, which is the practical content of the warning rather than a contradiction: when the spread across a grid is smaller than the noise in the estimate, whichever setting comes out top is the one the noise favored. Reporting its score as the model's performance is exactly the optimism this section opened with, and it is why the assessment has to come from observations the grid never touched. Here the honest summary is that `num_trees` does not matter on these data, and the default should be kept.
 
 That is the usual outcome, and it is worth knowing before spending a grid on it. When tuning does pay, it tends to be for cost rather than accuracy, and `vignette("faq")` lists the settings that buy speed; `bartisan_control()` documents what each one changes.
 
@@ -313,6 +313,6 @@ So that question belongs to `variable_importance()` and to the sparsity prior, w
 
 ## Further Reading
 
-`vignette("diagnostics")` covers checking that each model fits before comparing them, which is the step most often skipped. `vignette("families")` covers what the families assume, which is what a comparison between them is really about.
+`vignette("diagnostics")` covers checking that each model fits before comparing them, which is the step most often skipped. `vignette("families")` covers what the families assume, which is the real subject of a comparison between them.
 
 ## References

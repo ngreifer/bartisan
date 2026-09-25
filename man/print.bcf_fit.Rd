@@ -19,7 +19,7 @@ otherwise ignored.}
 
 \item{level}{\code{numeric}; the level of the credible interval. Default is \code{.95}.}
 
-\item{comparison}{passed to \code{\link[=estimate_effect]{estimate_effect()}}, which is what computes the
+\item{comparison}{passed to \code{\link[=estimate_effect]{estimate_effect()}}, which computes the
 numbers.}
 
 \item{marginal}{\code{logical}; whether to draw the marginal effect beside the
