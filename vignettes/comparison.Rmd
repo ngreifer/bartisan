@@ -30,8 +30,6 @@ has_loo <- rlang::is_installed("loo")
 has_rstanarm <- rlang::is_installed("rstanarm")
 has_surv <- rlang::is_installed("survival")
 
-elpd <- function(x) unname(x$estimates["elpd_loo", "Estimate"])
-has_cobalt <- rlang::is_installed("cobalt")
 run <- has_loo
 ```
 
@@ -45,7 +43,7 @@ With `lm()` we choose which terms enter, whether to add a squared term, and whet
 2.  Which likelihood, meaning which family and link.
 3.  Occasionally, a sampler setting (e.g., the number of trees).
 
-In this guide we will compare those choices using leave-one-out cross-validation. First we'll fit a model to the `rhc` data and read its `loo()` output, including the diagnostics that say when the approximation cannot be trusted, and the two forms of cross-validation to fall back on when it cannot. Next we'll compare two sets of variables and then three links, work through the two ways two log densities end up on different scales and what to do about each, and put the forest up against a Bayesian logistic regression. Finally we'll cover how to tune a setting and how to select variables, both of which have a right way and a more tempting wrong one.
+In this guide we will compare those choices using leave-one-out cross-validation. First we'll fit a model to the `rhc` data and read its `loo()` output, including the diagnostics that say when the approximation cannot be trusted, and the two forms of cross-validation to fall back on when it cannot. Next we'll compare two sets of variables and then two links, cover the families whose log densities are on different scales and what to do when comparing them, and put the forest up against a Bayesian logistic regression. Finally we'll cover how to tune a setting and how to select variables, both of which have a right way and a more tempting wrong one.
 
 ```{r libs, eval = run}
 library(bartisan)
@@ -61,7 +59,7 @@ set.seed(2026)
 full <- bartisan(model, data = rhc, family = binomial())
 ```
 
-The fits here use the default single chain rather than the four used elsewhere; leave-one-out needs draws rather than chains, and four times as many fits would make this vignette slow to build for no gain. Convergence should still be checked separately, as in `vignette("diagnostics")`, before we trust any of these comparisons.
+The fits here use the default single chain for brevity; leave-one-out needs draws rather than chains. Convergence should still be checked separately, and the fit controls possibly changed, as described in `vignette("diagnostics")`, before we trust any of these comparisons.
 
 ## Leave-One-Out Cross-Validation (`loo()`)
 
@@ -170,7 +168,8 @@ The folds are passed rather than drawn so that the second model is scored on the
 ```{r kfoldcompare, eval = run}
 kfold_demographics <- kfold(demographics, folds = folds)
 
-loo_compare(list(full = kfold_full, demographics = kfold_demographics))
+loo_compare(list(full = kfold_full,
+                 demographics = kfold_demographics))
 ```
 
 The same reading as before, and at the same precision as the leave-one-out comparison rather than the single split's: every observation is scored, so nothing is thrown away.
@@ -188,31 +187,25 @@ This is the right way to ask whether a set of variables earns its place, and it 
 
 ## Comparing Links (`family`)
 
-The other choice is the likelihood. For a binary outcome the family is settled, and what remains is the link (i.e., the function that maps the forest's output onto a probability). Below we compare probit and complementary log-log BART models to our original logistic BART model.
+The other choice is the likelihood. For a binary outcome the family is settled, and what remains is the link (i.e., the function that maps the forest's output onto a probability). Below we compare a probit BART model to our original logistic BART model.
 
 ```{r links, eval = run}
 set.seed(2026)
 probit <- bartisan(model, data = rhc, family = binomial("probit"))
 
-set.seed(2026)
-cloglog <- bartisan(model, data = rhc, family = binomial("cloglog"))
-
 loo_compare(list(logit = loo(full),
-                 probit = loo(probit),
-                 cloglog = loo(cloglog)))
+                 probit = loo(probit)))
 ```
 
-The three are within a point or two of each other, and the differences are smaller than their standard errors, which *loo* flags directly. The reading is that the link does not matter here.
+The two are within a point of each other, and the differences are smaller than their standard errors, which *loo* flags directly. The reading is that the link does not matter here.
 
 That is a useful negative result and worth reporting as one. It is also the usual outcome: with a flexible function on the inside, the link has little left to do, because the forest can absorb the difference between one link and another. This is not true of a generalized linear model, where the link carries the whole shape of the relationship.
 
-## The Scale of the Log Density
+## The Scale of the Log Density (`scale`)
 
-`loo()` is built on the pointwise log density of each observation, so comparing two models by it assumes both densities are taken with respect to the same measure. That is usually automatic. Two different things break it: one is a change of variable and is always repairable, the other is a point mass and usually is not.
+`loo()` compares models by the log density each assigns to the observed outcomes, so the models being compared have to describe the same quantity on the same scale. That holds for every comparison above, and for any comparison between two families of the same kind. It needs a step from us when a comparison crosses between the two kinds of survival family.
 
-### A Change of Variable (`ph()` Against an AFT Family)
-
-The accelerated failure time families report the density of $\log T$, while `ph()` reports the density of $T$. Below we fit one of each to the survival outcome in these data and compare them as they come out:
+The accelerated failure time families (`weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()`, and `dpm_aft()`) model the log of the survival time, and `ph()` models the time itself. When a comparison includes both kinds, `scale = "time"` should be supplied to every call to `loo()`, which puts each model on the scale of the time. A fit already on that scale is returned unchanged, so the same argument can be given to every model in the comparison. Below, we compare a log-normal accelerated failure time model with a proportional hazards model for the survival outcome in `rhc`:
 
 ```{r survfits, eval = run && has_surv}
 library(survival)
@@ -220,93 +213,18 @@ library(survival)
 surv_model <- Surv(days, death) ~ age + sex + race + edu + aps + meanbp + surv2m
 
 set.seed(2026)
-aft <- bartisan(surv_model, data = rhc, family = weibull_aft())
+aft <- bartisan(surv_model, data = rhc, family = lognormal_aft())
 
 set.seed(2026)
 prop_haz <- bartisan(surv_model, data = rhc, family = ph())
 
-loo_compare(list(aft = loo(aft), ph = loo(prop_haz)))
-```
-
-The accelerated failure time model appears to win by thousands of points, which is implausible on its face: no choice of baseline hazard is worth that much. What the comparison is measuring is the change of variable.
-
-Writing $Y = \log T$, the density of $T$ is $f_T(t) = f_Y(\log t) / t$, so the log density on the $T$ scale is $\log f_Y(\log t) - \log t$. Subtracting $\log t$ from each of the accelerated failure time model's pointwise contributions is the whole of the correction, and it applies to events only: a censored observation contributes a survival probability, which is a probability on either scale and carries no measure to change.
-
-`scale` asks `loo()` for it. Naming one measure for every model in the comparison is enough, because a fit already on the scale named is returned untouched:
-
-```{r survjacobian, eval = run && has_surv}
 loo_compare(list(aft = loo(aft, scale = "time"),
                  ph = loo(prop_haz, scale = "time")))
 ```
 
-The ordering reverses. Read on the scale they share, the two are a hundred-odd points apart rather than three thousand, and it is the proportional hazards model that predicts these times better.
+The proportional hazards model predicts these survival times better, by about 92 points with a standard error of 16. The flag in the last column says that one of the pointwise estimates for `ph()` is unreliable (see the section on failures of the approximation above); with a difference of nearly six standard errors, it does not change the reading.
 
-The correction is not applied without being asked for, because `loo()` would then stop reporting the model's own predictive density: it would no longer agree with `log_lik()`, and a comparison against a proportional hazards fit from some other package would quietly take on the error the correction exists to remove.
-
-Which of the two scales is named does not matter, since a constant per observation cancels from a difference. Asking for `"log_time"` moves both totals and leaves the gap where it was:
-
-```{r survboth, eval = run && has_surv}
-c(on_time = elpd(loo(prop_haz, scale = "time")) - elpd(loo(aft, scale = "time")),
-  on_log_time = elpd(loo(prop_haz, scale = "log_time")) -
-    elpd(loo(aft, scale = "log_time")))
-```
-
-The everyday version of this mistake takes the same repair by hand. A model of `log(y)` reports $\log f_Y(\log y)$, so subtracting $\log y$ from each of its pointwise contributions, with `loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))`, puts it on the scale of a model of `y`.
-
-There is also a way to sidestep the correction rather than apply it. Survival at a horizon is a probability under every family, so comparing fits on `predict(type = "survival")` needs no Jacobian at all; `vignette("survival")` gives that route, along with the same correction written for a held-out log score instead of for `loo()`.
-
-### A Point Mass Against a Density (`gaussian()` Against `tweedie()`)
-
-The second break is not a transformation, and unlike the first it usually cannot be repaired. `tweedie()` places a point mass at zero and a density on the positive half-line; `gaussian()` places a density on the whole line. Earnings in the `lalonde` data are where this comes up, since a quarter of the sample earned exactly nothing.
-
-```{r tweediefits, eval = run && has_cobalt}
-data("lalonde", package = "cobalt")
-
-earnings <- re78 ~ age + educ + race + married + nodegree + re74 + re75
-
-set.seed(2026)
-normal <- bartisan(earnings, data = lalonde, family = gaussian())
-
-set.seed(2026)
-compound <- bartisan(earnings, data = lalonde, family = tweedie())
-
-loo_compare(list(gaussian = loo(normal), tweedie = loo(compound)))
-```
-
-The tweedie is ahead by more than a thousand points, and that number should not be believed. At an observation where earnings are exactly zero the tweedie reports a probability and the gaussian reports a density, which are not the same kind of quantity and do not belong in the same sum. Splitting the contributions at the zeros shows that the gap is nothing but that mismatch:
-
-```{r tweediesplit, eval = run && has_cobalt}
-zero <- lalonde$re78 == 0
-
-rbind(gaussian = c(at_zero = sum(loo(normal)$pointwise[zero, "elpd_loo"]),
-                   positive = sum(loo(normal)$pointwise[!zero, "elpd_loo"])),
-      tweedie  = c(at_zero = sum(loo(compound)$pointwise[zero, "elpd_loo"]),
-                   positive = sum(loo(compound)$pointwise[!zero, "elpd_loo"])))
-```
-
-At the positive outcomes, where both report a density, the two are within a couple of points of each other. Everything else is the atom.
-
-**The one case where the comparison is valid** is an outcome that is really recorded on a grid rather than being continuous: whole dollars, whole counts, tenths of a millimeter. Then neither model is reporting a density at all, properly speaking, and both can be put on the probability of landing in one cell of that grid, after which the totals are comparable. Doing it means turning each density into a probability by multiplying it by the cell width, which is a constant per observation and so a correction of the same shape as the Jacobian above. The width has to come from knowing how the outcome was recorded; no fitted model can supply it, and choosing it to favor a model is choosing the answer.
-
-When the zeros are exact rather than rounded, there is no width to use and no correction to make. In that case do not compare the two families by `loo()` at all. The question can be answered in other ways, which between them cover it.
-
-One is to compare them only where both describe the outcome the same way, which is the positive observations, as above: on those, here, neither family predicts better.
-
-Another is to notice that the disagreement is entirely about whether the outcome has a point mass, and that this is a question about the shape of the predictive distribution rather than about a density at a point. A posterior predictive check settles it in one line:
-
-```{r tweediecheck, eval = run && has_cobalt && rlang::is_installed("rstantools")}
-set.seed(2026)
-
-zero_share <- function(y) mean(y == 0)
-
-c(observed = zero_share(lalonde$re78),
-  gaussian = mean(apply(rstantools::posterior_predict(normal), 1, zero_share)),
-  tweedie  = mean(apply(rstantools::posterior_predict(compound), 1, zero_share)))
-```
-
-A gaussian fit never produces an exact zero and about a quarter of these outcomes are exactly zero, so `tweedie()` is the family to use here and no log score was needed to say so. `vignette("families")` covers the families that carry a point mass and `vignette("diagnostics")` covers the checks.
-
-The rule behind both halves of this section is that `loo()` compares models whose densities are taken with respect to the same measure. A transformation of the outcome is undone with its Jacobian, so those comparisons are repairable; a point mass against a density is repairable only when the outcome is recorded on a grid, and otherwise belongs to a predictive check rather than to a log score.
+Two accelerated failure time families, or two `ph()` fits, already share a scale and can be compared without the argument. Setting `scale = "log_time"` instead of `"time"` gives the same differences between models, since the correction for each observation is the same for every model and cancels from their difference. The same step is needed outside survival models: to compare a model of `log(y)` with a model of `y`, subtract `log(y)` from each pointwise log density of the first before calling `loo()` (e.g., `loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))`). `vignette("survival")` gives the equivalent correction for a held-out log score.
 
 ## Comparing Against a Bayesian GLM
 

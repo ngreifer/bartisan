@@ -329,31 +329,13 @@ ggplot(dz, aes(count)) +
   theme_bw()
 ```
 
-Nearly half the observations are zero, where a Poisson with the *marginal* mean of 1.9 would give 14%, and the variance is four and a half times the mean. On both of the marginal diagnostics usually reached for, these data look zero-inflated and overdispersed, and they are neither. Here the comparison uses fuller settings than the rest of this vignette, because a model comparison is what is being demonstrated and the small chains used elsewhere leave the differences inside their own standard errors:
+Nearly half the observations are zero, where a Poisson with the *marginal* mean of 1.9 would give 14%, and the variance is four and a half times the mean. On both of the marginal diagnostics usually reached for, these data look zero-inflated and overdispersed, and they are neither.
 
-```{r zerocompare, warning = FALSE, eval = rlang::is_installed("loo")}
-count_control <- bartisan_control(num_trees = 50, num_burn = 500,
-                                  num_draws = 500)
-
-count_fit <- function(family) {
-  set.seed(1)
-  loo::loo(bartisan(count ~ x1 + x2 + x3, data = dz, family = family,
-                    control = count_control))
-}
-
-loo::loo_compare(list(poisson = count_fit(poisson()),
-                      negbin = count_fit(negbin()),
-                      zi_poisson = count_fit(zi_poisson()),
-                      zi_negbin = count_fit(zi_negbin())))
-```
-
-Read this the way `vignette("comparison")` recommends, which is to look at the standard errors before the ordering. Every difference here is within about two standard errors, so these data do not sharply separate any of the four, and that is worth saying before anything else. What they certainly do not do is *prefer* a zero-inflated fit: both zero-inflated families come out nominally behind the plain Poisson rather than ahead of it, despite a response that is 46% zeros, and the two families that add a dispersion parameter, `negbin()` and `zi_negbin()`, sit at the bottom. Since the truth here has neither, "no better than the plain Poisson" is the right answer rather than a failure to detect something.
-
-What has happened is that the forest already accounts for the zeros by finding where the conditional mean is small, which is what a nonparametric mean is for, so a mixture has nothing left to explain and pays for its parameters. The lesson generalizes past counts: with a flexible mean, a feature of the *marginal* distribution of the response is not evidence about the conditional model. Reach for zero inflation when the zero mechanism is a process worth modeling in its own right, and let a comparison of fits, not a histogram, settle whether it is there.
+A comparison of fits says the same. Fit to these data and compared with `loo()`, the plain Poisson comes out ahead of both zero-inflated families, and of `negbin()` as well, despite a response that is 46% zeros. The forest already accounts for the zeros by finding where the conditional mean is small, which is what a nonparametric mean is for, so a mixture has nothing left to explain and pays for its extra parameters. With a flexible mean, a feature of the *marginal* distribution of the response is not evidence about the conditional model. Reach for zero inflation when the zero mechanism is a process worth modeling in its own right, and let a comparison of fits, not a histogram, settle whether it is there.
 
 ### Overdispersion in the Count Component
 
-The next question is whether the count component is overdispersed once the zeros are accounted for. A spike at zero inflates the sample variance and looks like dispersion. `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `zi_poisson()` is the better-conditioned fit.
+The next question is whether the count component is overdispersed once the zeros are accounted for. A spike at zero inflates the sample variance and looks like dispersion.`negbin()` and `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `poisson()` or `zi_poisson()` is the better-conditioned fit.
 
 Once again, the `ordinal()` family is another option worth knowing about for counts. A count is ordered and takes few distinct values, which is exactly what the cutpoint structure is for: it makes no assumption about the count distribution, needs no dispersion parameter, and handles excess zeros without a mixture, since the zero category simply gets whatever probability the cutpoints give it. Predict with `type = "mean"` to get predictions on the original response scale. The limits are that it cannot predict a count larger than the largest one observed, and that it has no rate interpretation (i.e., no log link, so no incidence-rate ratio). It can be useful to bin first if the counts range over more than a few dozen values, as below.
 
