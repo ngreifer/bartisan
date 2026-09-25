@@ -27,6 +27,12 @@ PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
 # as its default goal and this file is read before R's own `shlib.mk`. Without
 # it the goal became the first object alphabetically, that one object was
 # checked, and the old shared library was installed as it stood.
+#
+# The headers are listed by name rather than found with `$(wildcard *.h)`,
+# which is a GNU make extension: R CMD check warns about it unless
+# `SystemRequirements: GNU make` is declared, and CRAN notes that declaration in
+# turn. A new header has to be added here.
 all: $(SHLIB)
 
-$(OBJECTS): $(wildcard *.h)
+$(OBJECTS): family.h hypers.h mcmc.h node.h polyagamma.h random.h slice.h \
+  utils.h
