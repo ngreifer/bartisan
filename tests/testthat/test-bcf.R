@@ -152,6 +152,32 @@ test_that("a continuous treatment's score is its conditional mean", {
                                  bcf_args())))
 })
 
+test_that("the propensity model's family can be named in propensity_args", {
+  d <- sim_causal(seed = 6, kind = "continuous")
+
+  # Named alongside a control setting, which must still reach the model: the
+  # family is taken out before the rest is passed on.
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                             family = gaussian(),
+                             propensity_args = list(family = dpm(),
+                                                    num_trees = 20L)),
+                        bcf_args()))
+
+  model <- fit[["bcf"]][["model"]]
+  expect_identical(model[["family"]][["family"]], "dpm")
+  expect_identical(model[["num_trees"]], 20L)
+  expect_true(".propensity" %in% attr(stats::terms(fit), "term.labels"))
+
+  # And for a binary treatment, a link other than the default.
+  db <- sim_causal(seed = 2)
+  fb <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = db,
+                            family = gaussian(),
+                            propensity_args = list(family = binomial("probit"))),
+                       bcf_args()))
+
+  expect_identical(fb[["bcf"]][["model"]][["family"]][["link"]], "probit")
+})
+
 test_that("moderators restrict what the effect may vary with", {
   d <- sim_causal(seed = 7)
 

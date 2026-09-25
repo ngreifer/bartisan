@@ -176,6 +176,10 @@ package claims to support, which is what puts them here.
 
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
 
+## The family for a continuous treatment's propensity model (2026-09-25)
+
+`bcf()` fits a continuous treatment's conditional mean with `gaussian()`. Asked whether `dpm()`, which `bartisan()` picks for a numeric response, should be the default instead. Measured with `_dev/propensity-family.R` (n = 500, ten replications per design), reading the Spearman correlation between the fitted and true E[A | X], since a tree uses only a covariate's ordering. `dpm()` was a little better under t3 errors (.975 against .964) and skewed errors (.986 against .961), even under a spread that grows with x (.951 against .948) and with normal errors (.962 against .964), and far worse for a semi-continuous treatment with a point mass at zero (.505 against .902, worse in all ten), whose zeros its mixture absorbs. `tweedie()` matched `gaussian()` there (.901) at seven times the cost. So `gaussian()` stays the default, and `propensity_args = list(family = ...)` now replaces it, for any treatment type.
+
 ## Linero (2024) and Oganisian and Linero (2025): candidates, not decided (2026-09-25)
 
 Both argue that independent priors for the outcome and treatment models ("Bayesian ignorability") imply a prior on the confounding bias concentrated near zero in flexible models, and that propensity-score adjustment is the remedy. `bcf()` already follows it for the control function, and `?bcf` and `vignette("causal")` now cite Linero (2024). Candidates raised by the two papers, none started:

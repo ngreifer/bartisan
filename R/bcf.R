@@ -25,9 +25,10 @@
 #'   as given, and a one-sided formula fits it with the predictors that formula
 #'   names. For a continuous treatment the fitted values are the treatment's
 #'   conditional mean given the covariates; see Details.
-#' @param propensity_args a list of [bartisan_control()] settings for the
-#'   propensity model. Default is `list()` to leave every setting at its own
-#'   default.
+#' @param propensity_args a list of arguments for the propensity model:
+#'   [bartisan_control()] settings, and `family` to replace the family chosen
+#'   from the treatment's type (see Details). Default is `list()` to leave every
+#'   setting at its own default.
 #' @param ... passed to [bartisan()], including [bartisan_control()] settings.
 #'
 #' @returns
@@ -82,8 +83,9 @@
 #'
 #' ## Setting `treat`
 #'
-#' The treatment decides the model for the propensity score and what that score
-#' is.
+#' The treatment decides what the propensity score is and, by default, the
+#' family of the model that estimates it. A different family can be named with
+#' `propensity_args = list(family = ...)`.
 #'
 #' | treatment | propensity score | model |
 #' | --- | --- | --- |
@@ -106,6 +108,15 @@
 #' that it is the conditional mean of the treatment whose absence leaves the
 #' prior on the confounding bias concentrated near zero. A score supplied as a
 #' number is used as given.
+#'
+#' The default family is [gaussian()] rather than [dpm()], which [bartisan()]
+#' would choose for a numeric response. Only the ordering of the fitted means
+#' matters to the trees that use them, and in simulations [dpm()] ordered them
+#' slightly better when the treatment's errors were heavy-tailed or skewed but
+#' far worse when the treatment had a point mass at zero, which its error
+#' mixture absorbs. For a treatment with heavy tails,
+#' `propensity_args = list(family = dpm())` may do better, and any family whose
+#' fitted values are the conditional mean can be named the same way.
 #'
 #' A continuous treatment also carries an assumption. This fits
 #' `f0(x) + z * f1(x)`, a dose response that is linear in the dose with a slope
@@ -214,7 +225,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
 
   if (!isFALSE(propensity) && !is_null(propensity) &&
       !is.numeric(propensity) && !is.matrix(propensity)) {
-    fits <- c(fits, list(progress_spec(propensity_args)))
+    fits <- c(fits, list(progress_spec(propensity_args[names(propensity_args) != "family"])))
   }
 
   claimed <- the$claimed_progress
@@ -451,10 +462,19 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
   # balancing score. The mean is what the control function needs: it is the
   # covariate whose absence leaves the prior on the confounding bias concentrated
   # near zero (Linero 2024), which is the reason a score is added at all.
-  fit_family <- switch(kind,
-                       binary = stats::binomial(),
-                       categorical = multinomial(),
-                       continuous = stats::gaussian())
+  #
+  # gaussian() rather than dpm(), which is what bartisan() would pick for a
+  # numeric response. On _dev/propensity-family.R, dpm() ordered E[A | X] a
+  # little better under heavy-tailed or skewed errors (Spearman .975 against
+  # .964, and .986 against .961) but far worse for a treatment with a point
+  # mass at zero (.505 against .902), whose zeros its mixture absorbs; a
+  # misfitted default is the worse failure. `family` in `args` overrides it.
+  fit_family <- args[["family"]] %or%
+    switch(kind,
+           binary = stats::binomial(),
+           categorical = multinomial(),
+           continuous = stats::gaussian())
+  args[["family"]] <- NULL
 
   fit <- do.call(bartisan,
                  c(list(formula = model, data = data, family = fit_family),

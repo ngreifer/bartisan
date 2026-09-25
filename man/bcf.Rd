@@ -51,9 +51,10 @@ as given, and a one-sided formula fits it with the predictors that formula
 names. For a continuous treatment the fitted values are the treatment's
 conditional mean given the covariates; see Details.}
 
-\item{propensity_args}{a list of \code{\link[=bartisan_control]{bartisan_control()}} settings for the
-propensity model. Default is \code{list()} to leave every setting at its own
-default.}
+\item{propensity_args}{a list of arguments for the propensity model:
+\code{\link[=bartisan_control]{bartisan_control()}} settings, and \code{family} to replace the family chosen
+from the treatment's type (see Details). Default is \code{list()} to leave every
+setting at its own default.}
 
 \item{...}{passed to \code{\link[=bartisan]{bartisan()}}, including \code{\link[=bartisan_control]{bartisan_control()}} settings.}
 }
@@ -119,8 +120,9 @@ forest to select.
 
 \subsection{Setting \code{treat}}{
 
-The treatment decides the model for the propensity score and what that score
-is.\tabular{lll}{
+The treatment decides what the propensity score is and, by default, the
+family of the model that estimates it. A different family can be named with
+\code{propensity_args = list(family = ...)}.\tabular{lll}{
    treatment \tab propensity score \tab model \cr
    binary \tab one column, the probability of treatment \tab \code{\link[=binomial]{binomial()}} \cr
    \code{K} categories \tab the whole vector of assignment probabilities \tab \code{\link[=multinomial]{multinomial()}} \cr
@@ -144,6 +146,15 @@ function absorb the confounding, and Linero (2024) shows for linear models
 that it is the conditional mean of the treatment whose absence leaves the
 prior on the confounding bias concentrated near zero. A score supplied as a
 number is used as given.
+
+The default family is \code{\link[=gaussian]{gaussian()}} rather than \code{\link[=dpm]{dpm()}}, which \code{\link[=bartisan]{bartisan()}}
+would choose for a numeric response. Only the ordering of the fitted means
+matters to the trees that use them, and in simulations \code{\link[=dpm]{dpm()}} ordered them
+slightly better when the treatment's errors were heavy-tailed or skewed but
+far worse when the treatment had a point mass at zero, which its error
+mixture absorbs. For a treatment with heavy tails,
+\code{propensity_args = list(family = dpm())} may do better, and any family whose
+fitted values are the conditional mean can be named the same way.
 
 A continuous treatment also carries an assumption. This fits
 \code{f0(x) + z * f1(x)}, a dose response that is linear in the dose with a slope
