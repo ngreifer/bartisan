@@ -64,11 +64,22 @@ struct Family {
 
   virtual ~Family() {}
 
+  // An observation with a weight of zero contributes exactly nothing, so its
+  // unit density is not evaluated at all rather than evaluated and multiplied
+  // by zero. See `Concrete` for why this matters.
   double logdens(int i, const double* eta) const {
+    if (w(i) == 0.0) {
+      return 0.0;
+    }
+
     return w(i) * logdens_unit(i, eta);
   }
 
   double dlogdens(int i, const double* eta, int h) const {
+    if (w(i) == 0.0) {
+      return 0.0;
+    }
+
     return w(i) * dlogdens_unit(i, eta, h);
   }
 
@@ -76,6 +87,10 @@ struct Family {
   // floor: a saturated observation may legitimately carry no information, and
   // the prior term added at the node keeps the total curvature positive.
   double info(int i, const double* eta, int h) const {
+    if (w(i) == 0.0) {
+      return 0.0;
+    }
+
     return clamp_info(w(i) * info_unit(i, eta, h));
   }
 
@@ -84,6 +99,12 @@ struct Family {
   // the log density numerically share the evaluations: three instead of five.
   void score_info(int i, const double* eta, int h, double* d1,
                   double* d2) const {
+    if (w(i) == 0.0) {
+      *d1 = 0.0;
+      *d2 = 0.0;
+      return;
+    }
+
     double a;
     double b;
     score_info_unit(i, eta, h, &a, &b);
@@ -671,6 +692,17 @@ protected:
 // The `Derived::` qualification on each call is what forces static dispatch --
 // without it the calls would go back through the vtable and the whole point
 // would be lost.
+//
+// Every loop below skips an observation whose prior weight is zero rather than
+// evaluating it and multiplying by zero. The sums come out the same, since zero
+// times a finite value adds nothing, and an infinite unit density no longer
+// turns a sum into NaN. What it buys is `prior_only = TRUE`, which gives every
+// observation a zero weight: the augmented families need positive weights, so
+// a prior-only fit runs on the general family, and before this it paid for
+// every observation's log density and derivatives at every step in order to
+// multiply them all by zero. A weight is never exactly zero otherwise unless
+// the caller supplied one, so an ordinary fit takes the branch the same way
+// every time.
 template <typename Derived>
 struct Concrete : Family {
   Concrete(const arma::vec& y_, const arma::vec& w_, int H_)
@@ -697,11 +729,16 @@ struct Concrete : Family {
 
     for (int k = 0; k < n; k++) {
       int i = idx[k];
+      double weight = w(i);
+
+      if (weight == 0.0) {
+        continue;
+      }
+
       const double* e = block + static_cast<std::size_t>(k) * H;
       double a;
       double b;
       self.Derived::score_info_unit(i, e, h, &a, &b);
-      double weight = w(i);
       // The same three products, in the same order, as Family::score_info() and
       // Family::logdens() would have formed them.
       double da = weight * a;
@@ -740,6 +777,12 @@ struct Concrete : Family {
 
     for (int k = 0; k < n; k++) {
       int i = idx[k];
+      double weight = w(i);
+
+      if (weight == 0.0) {
+        continue;
+      }
+
       double wk = Weighted ? wt[k] : 1.0;
       const double* col = eta_ptr + static_cast<std::size_t>(i) * H;
       double value = FromBase ? base[k] + wk * amount : col[h] + wk * amount;
@@ -758,7 +801,6 @@ struct Concrete : Family {
       double a;
       double b;
       self.Derived::score_info_unit(i, e, h, &a, &b);
-      double weight = w(i);
       double da = weight * a;
       double db = clamp_info(weight * b);
       fa += weight * self.Derived::logdens_unit(i, e);
@@ -820,7 +862,14 @@ struct Concrete : Family {
 
     for (int k = 0; k < n; k++) {
       int i = idx[k];
-      out[k] = w(i) * self.Derived::logdens_unit(
+      double weight = w(i);
+
+      if (weight == 0.0) {
+        out[k] = 0.0;
+        continue;
+      }
+
+      out[k] = weight * self.Derived::logdens_unit(
         i, block + static_cast<std::size_t>(k) * H);
     }
   }
@@ -842,6 +891,12 @@ struct Concrete : Family {
 
     for (int k = 0; k < n; k++) {
       int i = idx[k];
+      double weight = w(i);
+
+      if (weight == 0.0) {
+        continue;
+      }
+
       double wl = w_left[k];
       double wr = w_right[k];
       const double* e;
@@ -867,7 +922,6 @@ struct Concrete : Family {
       double a;
       double b;
       self.Derived::score_info_unit(i, e, h, &a, &b);
-      double weight = w(i);
       double da = weight * a;
       double db = clamp_info(weight * b);
       fa += weight * self.Derived::logdens_unit(i, e);
