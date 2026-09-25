@@ -156,9 +156,10 @@ conditional mean given the covariates; see Details.</p></dd>
 
 
 <dt id="arg-propensity-args">propensity_args<a class="anchor" aria-label="anchor" href="#arg-propensity-args"></a></dt>
-<dd><p>a list of <code><a href="bartisan_control.html">bartisan_control()</a></code> settings for the
-propensity model. Default is <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> to leave every setting at its own
-default.</p></dd>
+<dd><p>a list of arguments for the propensity model:
+<code><a href="bartisan_control.html">bartisan_control()</a></code> settings, and <code>family</code> to replace the family chosen
+from the treatment's type (see Details). Default is <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> to leave every
+setting at its own default.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -227,8 +228,9 @@ forest to select.</p>
 <h3 id="setting-treat">Setting <code>treat</code><a class="anchor" aria-label="anchor" href="#setting-treat"></a></h3>
 
 
-<p>The treatment decides the model for the propensity score and what that score
-is.</p><table class="table table"><tr><td>treatment</td><td>propensity score</td><td>model</td></tr><tr><td>binary</td><td>one column, the probability of treatment</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td><code>K</code> categories</td><td>the whole vector of assignment probabilities</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>continuous</td><td>the conditional mean of the treatment</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code></td></tr></table><p>For a treatment with more than two categories the balancing score is the
+<p>The treatment decides what the propensity score is and, by default, the
+family of the model that estimates it. A different family can be named with
+<code>propensity_args = list(family = ...)</code>.</p><table class="table table"><tr><td>treatment</td><td>propensity score</td><td>model</td></tr><tr><td>binary</td><td>one column, the probability of treatment</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial()</a></code></td></tr><tr><td><code>K</code> categories</td><td>the whole vector of assignment probabilities</td><td><code><a href="bartisan-families.html">multinomial()</a></code></td></tr><tr><td>continuous</td><td>the conditional mean of the treatment</td><td><code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code></td></tr></table><p>For a treatment with more than two categories the balancing score is the
 whole vector of assignment probabilities rather than any one of them, so all
 of them go into the control function. They sum to one and are therefore
 collinear, which costs a tree ensemble nothing.</p>
@@ -246,6 +248,14 @@ function absorb the confounding, and Linero (2024) shows for linear models
 that it is the conditional mean of the treatment whose absence leaves the
 prior on the confounding bias concentrated near zero. A score supplied as a
 number is used as given.</p>
+<p>The default family is <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code> rather than <code><a href="bartisan-families.html">dpm()</a></code>, which <code><a href="bartisan.html">bartisan()</a></code>
+would choose for a numeric response. Only the ordering of the fitted means
+matters to the trees that use them, and in simulations <code><a href="bartisan-families.html">dpm()</a></code> ordered them
+slightly better when the treatment's errors were heavy-tailed or skewed but
+far worse when the treatment had a point mass at zero, which its error
+mixture absorbs. For a treatment with heavy tails,
+<code>propensity_args = list(family = dpm())</code> may do better, and any family whose
+fitted values are the conditional mean can be named the same way.</p>
 <p>A continuous treatment also carries an assumption. This fits
 <code>f0(x) + z * f1(x)</code>, a dose response that is linear in the dose with a slope
 that varies with the covariates, which for a binary treatment is no

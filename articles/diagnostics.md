@@ -611,18 +611,18 @@ diagnose(longer)
 #> Convergence and mixing
 #> 
 #>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.01      1.01      611      842
-#>                           splits.eta 1.00      1.01     2776     5906
-#>  eta.eta (average over observations) 1.00      1.00    15660    24055
-#>   eta.eta (worst 5% of observations) 1.01      1.01      932     2243
+#>                               loglik 1.01      1.01      645     1092
+#>                           splits.eta 1.00      1.01     2313     5161
+#>  eta.eta (average over observations) 1.00      1.00    16106    25219
+#>   eta.eta (worst 5% of observations) 1.01      1.01      999     2235
 #> 
 #> ✔ 4 chains, 32000 draws kept in total
 #> ✔ R-hat is below 1.01 for every reported quantity
 #> ✔ Warmup was long enough, since R-hat is already fine
 #> ✔ The chains agree about the size of the forest
-#> ✔ Bulk ESS is at least 611 for every reported quantity, above 400
-#> ✔ Tail ESS is at least 842 for every reported quantity, above 400
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 1.9 effective draws
+#> ✔ Bulk ESS is at least 645 for every reported quantity, above 400
+#> ✔ Tail ESS is at least 1092 for every reported quantity, above 400
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 2.0 effective draws
 #>   per hundred kept
 #> 
 #> ✔ Nothing to change.

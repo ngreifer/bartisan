@@ -78,9 +78,10 @@ bcf(
 
 - propensity_args:
 
-  a list of
+  a list of arguments for the propensity model:
   [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-  settings for the propensity model. Default is
+  settings, and `family` to replace the family chosen from the
+  treatment's type (see Details). Default is
   [`list()`](https://rdrr.io/r/base/list.html) to leave every setting at
   its own default.
 
@@ -157,8 +158,9 @@ and asking only the effect forest to select.
 
 ### Setting `treat`
 
-The treatment decides the model for the propensity score and what that
-score is.
+The treatment decides what the propensity score is and, by default, the
+family of the model that estimates it. A different family can be named
+with `propensity_args = list(family = ...)`.
 
 |  |  |  |
 |----|----|----|
@@ -182,6 +184,21 @@ score here is to let the control function absorb the confounding, and
 Linero (2024) shows for linear models that it is the conditional mean of
 the treatment whose absence leaves the prior on the confounding bias
 concentrated near zero. A score supplied as a number is used as given.
+
+The default family is
+[`gaussian()`](https://rdrr.io/r/stats/family.html) rather than
+[`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+which
+[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
+would choose for a numeric response. Only the ordering of the fitted
+means matters to the trees that use them, and in simulations
+[`dpm()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+ordered them slightly better when the treatment's errors were
+heavy-tailed or skewed but far worse when the treatment had a point mass
+at zero, which its error mixture absorbs. For a treatment with heavy
+tails, `propensity_args = list(family = dpm())` may do better, and any
+family whose fitted values are the conditional mean can be named the
+same way.
 
 A continuous treatment also carries an assumption. This fits
 `f0(x) + z * f1(x)`, a dose response that is linear in the dose with a
