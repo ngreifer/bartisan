@@ -52,7 +52,6 @@ function on the fit."></head><body>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
-<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -228,8 +227,7 @@ how many digits to round the prior's scales to. Default is 3.</p></dd>
 
 <dt id="arg-scale">scale<a class="anchor" aria-label="anchor" href="#arg-scale"></a></dt>
 <dd><p><code>string</code>; for <code>loo()</code>, <code>waic()</code> and <code>kfold()</code> on a survival fit,
-the
-measure to report the pointwise densities with respect to: <code>"time"</code> for the
+the measure to report the pointwise densities with respect to: <code>"time"</code> for the
 density of \(T\) and <code>"log_time"</code> for the density of \(\log T\).
 Default is <code>NULL</code> to use the family's own, which is \(\log T\) for the
 accelerated failure time families and \(T\) for <code><a href="bartisan-families.html">ph()</a></code>. A fit already on

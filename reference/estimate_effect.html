@@ -54,7 +54,6 @@ and averages over the units the estimand asks for."></head><body>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
-<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -125,7 +124,7 @@ and averages over the units the estimand asks for.</p>
 <dd><p><code>string</code>; which units the effect is averaged over. <code>"ATE"</code>
 (the default) uses all of them, and <code>"ATT"</code> and <code>"ATC"</code> those in the focal
 group, which by default is the treatment's second level for the former and
-its first for the latter. With a binary treatment that makes them the
+its first for the latter. With a binary treatment, that makes them the
 treated and the untreated without <code>focal</code> being named. <code>"CATE"</code> does not
 average at all and returns the conditional effect at each unit's
 covariates, which is not that unit's own individual effect; see Details.
@@ -270,11 +269,11 @@ reporting an average.</p>
 <h3 id="setting-comparison">Setting <code>comparison</code><a class="anchor" aria-label="anchor" href="#setting-comparison"></a></h3>
 
 
-<p>For <code>"ratio"</code>, <code>"lnratio"</code>, <code>"or"</code> and <code>"lnor"</code> the potential outcomes are
+<p>For <code>"ratio"</code>, <code>"lnratio"</code>, <code>"or"</code> and <code>"lnor"</code>, the potential outcomes are
 averaged over units first and contrasted afterward, which gives the marginal
 ratio. With <code>estimand = "CATE"</code> there is no averaging to do, so a ratio reported there is
 a conditional ratio and the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method says so.</p>
-<p>For the same reason <code>"or"</code> and <code>"lnor"</code> are not each other's <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code> and
+<p>For the same reason, <code>"or"</code> and <code>"lnor"</code> are not each other's <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code> and
 <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">log()</a></code>. Each summarizes the posterior of the quantity it names, and a
 posterior mean does not survive a nonlinear transformation: <code>"or"</code> reports the
 mean of the odds ratio and <code>"lnor"</code> the mean of its logarithm, which

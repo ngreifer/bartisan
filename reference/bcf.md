@@ -100,12 +100,14 @@ A `<bcf_fit>` object, which is the `<bartisan_fit>`
 returns with a class in front of it and the treatment's coefficient
 forest named for the treatment. Everything that works on a
 `<bartisan_fit>` works here unchanged; the class exists so that methods
-needing a named treatment have something to dispatch on.
-[`coef()`](https://rdrr.io/r/stats/coef.html) gives the conditional
-effect for each observation and
-[`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
-the average; see
+needing a named treatment have something to dispatch on. For a binary or
+categorical treatment,
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+can be used on the output to return interpretable marginal and
+conditional effects; for a continuous treatment, see
 [`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
+[`coef()`](https://rdrr.io/r/stats/coef.html) gives the conditional
+effect on the link scale for each observation.
 
 ## Details
 

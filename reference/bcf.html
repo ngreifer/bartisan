@@ -58,7 +58,6 @@ one."></head><body>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
-<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ngreifer/bartisan/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -172,10 +171,10 @@ setting at its own default.</p></dd>
 a class in front of it and the treatment's coefficient forest named for the
 treatment. Everything that works on a <code>&lt;bartisan_fit&gt;</code> works here unchanged;
 the class exists so that methods needing a named treatment have something to
-dispatch on. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> gives the conditional effect for each observation and
-<code><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">marginaleffects::avg_comparisons()</a></code>
- the average; see
-<code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code>.</p>
+dispatch on. For a binary or categorical treatment, <code><a href="estimate_effect.html">estimate_effect()</a></code> can be
+used on the output to return interpretable marginal and conditional effects;
+for a continuous treatment, see <code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code>. <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> gives
+the conditional effect on the link scale for each observation.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

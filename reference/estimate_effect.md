@@ -50,7 +50,7 @@ plot(x, marginal = TRUE, ...)
   `string`; which units the effect is averaged over. `"ATE"` (the
   default) uses all of them, and `"ATT"` and `"ATC"` those in the focal
   group, which by default is the treatment's second level for the former
-  and its first for the latter. With a binary treatment that makes them
+  and its first for the latter. With a binary treatment, that makes them
   the treated and the untreated without `focal` being named. `"CATE"`
   does not average at all and returns the conditional effect at each
   unit's covariates, which is not that unit's own individual effect; see
@@ -195,13 +195,13 @@ wrong one for reporting an average.
 
 ### Setting `comparison`
 
-For `"ratio"`, `"lnratio"`, `"or"` and `"lnor"` the potential outcomes
+For `"ratio"`, `"lnratio"`, `"or"` and `"lnor"`, the potential outcomes
 are averaged over units first and contrasted afterward, which gives the
 marginal ratio. With `estimand = "CATE"` there is no averaging to do, so
 a ratio reported there is a conditional ratio and the
 [`print()`](https://rdrr.io/r/base/print.html) method says so.
 
-For the same reason `"or"` and `"lnor"` are not each other's
+For the same reason, `"or"` and `"lnor"` are not each other's
 [`exp()`](https://rdrr.io/r/base/Log.html) and
 [`log()`](https://rdrr.io/r/base/Log.html). Each summarizes the
 posterior of the quantity it names, and a posterior mean does not
