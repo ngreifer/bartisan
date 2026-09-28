@@ -10,7 +10,7 @@
 #' @param estimand `string`; which units the effect is averaged over. `"ATE"`
 #'   (the default) uses all of them, and `"ATT"` and `"ATC"` those in the focal
 #'   group, which by default is the treatment's second level for the former and
-#'   its first for the latter. With a binary treatment that makes them the
+#'   its first for the latter. With a binary treatment, that makes them the
 #'   treated and the untreated without `focal` being named. `"CATE"` does not
 #'   average at all and returns the conditional effect at each unit's
 #'   covariates, which is not that unit's own individual effect; see Details.
@@ -109,12 +109,12 @@
 #'
 #' ## Setting `comparison`
 #'
-#' For `"ratio"`, `"lnratio"`, `"or"` and `"lnor"` the potential outcomes are
+#' For `"ratio"`, `"lnratio"`, `"or"` and `"lnor"`, the potential outcomes are
 #' averaged over units first and contrasted afterward, which gives the marginal
 #' ratio. With `estimand = "CATE"` there is no averaging to do, so a ratio reported there is
 #' a conditional ratio and the `print()` method says so.
 #'
-#' For the same reason `"or"` and `"lnor"` are not each other's `exp()` and
+#' For the same reason, `"or"` and `"lnor"` are not each other's `exp()` and
 #' `log()`. Each summarizes the posterior of the quantity it names, and a
 #' posterior mean does not survive a nonlinear transformation: `"or"` reports the
 #' mean of the odds ratio and `"lnor"` the mean of its logarithm, which
@@ -207,24 +207,22 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
   # since in that subset the treatment takes one value and a one-valued numeric
   # column is indistinguishable from a continuous one.
   fitted_z <- {
-    if (is_null(object[["model"]]) || is_null(object[["model"]][[treat]])) {
+    if (is_null(object[["model"]]) || is_null(object[["model"]][[treat]]))
       newdata[[treat]]
-    }
-    else {
+    else
       object[["model"]][[treat]]
-    }
   }
 
   z <- newdata[[treat]]
   kind <- treatment_kind(fitted_z)
 
   if (identical(kind, "continuous")) {
-    arg::err(c("{.arg treat} {.val {treat}} is continuous, and the
+    arg::err(c("The treatment variable {.var {treat}} is continuous, and the
                 effect of a continuous treatment is a slope rather than a
                 contrast of levels",
                i = "Use {.fn marginaleffects::avg_slopes} for an average slope
                     or {.fn marginaleffects::plot_predictions} for a
-                    dose-response curve; see {.topic `bartisan-marginaleffects`}.",
+                    dose-response curve; see {.topic `bartisan-marginaleffects`} for more information.",
                i = "A treatment of more than two levels is supported when it is
                     a {.cls factor}."))
   }
@@ -304,12 +302,10 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
   pairs <- effect_pairs(levs)
 
   out <- {
-    if (identical(estimand, "CATE")) {
+    if (identical(estimand, "CATE"))
       effect_cate(po, pairs, comparison, level, interval, keep, newdata)
-    }
-    else {
+    else
       effect_marginal(po, pairs, comparison, level, interval, keep, newdata, by)
-    }
   }
 
   attr(out, "contrast_map") <- data.frame(
@@ -371,15 +367,15 @@ effect_treatment <- function(object, treat) {
 
   spec <- object[["bcf"]]
 
-  if (!is_null(spec) && !is_null(spec[["treatment"]])) {
-    return(spec[["treatment"]])
-  }
-
-  arg::err(c("{.arg treat} must name the treatment variable.",
-             i = "A fit from {.fn bcf} carries the name and needs none, but
+  if (is_null(spec) || is_null(spec[["treatment"]])) {
+    arg::err(c("{.arg treat} must name the treatment variable.",
+               i = "A fit from {.fn bcf} carries the name and doesn't need one specified, but
                   nothing in a fit from {.fn bartisan} marks one predictor as
                   the treatment.",
-             i = "For example {.code treat = \"z\"}."))
+               i = "For example {.code treat = \"z\"}."))
+  }
+
+  spec[["treatment"]]
 }
 
 # The units to average over, and the check that the treatment is among them.
@@ -643,17 +639,19 @@ contrast_label <- function(pair, comparison) {
 # The legend the labels above need, which depends on the comparison and on
 # whether an average or a single unit is being reported.
 contrast_legend <- function(comparison, treat, estimand) {
-  what <- if (identical(estimand, "CATE")) {
-    sprintf("{.field Y[a]} is the predicted response for that unit with
+  what <- {
+    if (identical(estimand, "CATE"))
+      sprintf("{.field Y[a]} is the predicted response for that unit with
              {.var %s} set to {.val a}", treat)
-  } else {
-    sprintf("{.field Y[a]} is the average response with {.var %s} set to
+    else
+      sprintf("{.field Y[a]} is the average response with {.var %s} set to
              {.val a}", treat)
   }
 
   if (comparison %in% c("or", "lnor")) {
     paste0(what, ", and {.field O(y)} is the odds {.code y/(1-y)}.")
-  } else {
+  }
+  else {
     paste0(what, ".")
   }
 }
@@ -758,9 +756,11 @@ effect_marginal <- function(po, pairs, comparison, level, interval, keep,
         row <- row[c(by[["name"]], "contrast")]
       }
 
-      s <- effect_summary(d, level, interval)
-      rows[[k]] <- cbind(row, as.data.frame(as.list(s)),
-                         n = sum(g[["keep"]]))
+      s <- effect_summary(d, level, interval) |>
+        as.list() |>
+        as.data.frame()
+
+      rows[[k]] <- cbind(row, s, n = sum(g[["keep"]]))
     }
   }
 

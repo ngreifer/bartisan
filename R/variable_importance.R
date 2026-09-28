@@ -15,8 +15,7 @@
 #' @returns
 #' A `<bartisan_importance>` object, which is a data frame with one row per
 #' predictor and its own `print()` and `plot()` methods, sorted by `prop_used`
-#' and then
-#' `splits`, both decreasing, and with the following columns:
+#' and then `splits`, both decreasing, and with the following columns:
 #' * `variable`: the predictor, under the name the formula gave it
 #' * `prop_used`: the proportion of draws in which it received at least one rule
 #' * `prop_splits`: its share of all the splitting rules in the forest, averaged

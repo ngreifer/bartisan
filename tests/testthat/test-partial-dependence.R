@@ -113,11 +113,6 @@ test_that("plot() draws partial dependence from the result or the fit", {
     expect_s3_class(plot(partial_dependence(fit, v, grid = 5L)), "ggplot")
   }
 
-  # `plot` is not an argument. The dots would otherwise carry it to `predict()`,
-  # which ignores it, and the table would come back without complaint.
-  expect_error(partial_dependence(fit, ~ x1, grid = 5L, plot = TRUE),
-               "no `plot` argument")
-
   # `plot()` on the fit is the same drawing, which is what makes it sugar.
   expect_equal(plot(fit, ~ x1, grid = 5L)[["data"]],
                plot(partial_dependence(fit, ~ x1, grid = 5L))[["data"]])

@@ -306,7 +306,7 @@ me_draws <- function(model, newdata, type, extra = list()) {
   if (is.list(out)) {
     if (length(out) > 1L) {
       arg::err("this family has {length(out)} additive predictors, so
-                {.val link} is not a single quantity. Ask for {.val response},
+                {.code type = \"link\"} is not a single quantity. Ask for {.code type = \"response\"},
                 or use {.fn predict} directly to reach a particular predictor")
     }
 

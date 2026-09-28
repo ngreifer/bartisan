@@ -63,9 +63,10 @@ A \verb{<bcf_fit>} object, which is the \verb{<bartisan_fit>} \code{\link[=barti
 a class in front of it and the treatment's coefficient forest named for the
 treatment. Everything that works on a \verb{<bartisan_fit>} works here unchanged;
 the class exists so that methods needing a named treatment have something to
-dispatch on. \code{\link[=coef]{coef()}} gives the conditional effect for each observation and
-\pkgfun{marginaleffects}{avg_comparisons} the average; see
-\code{\link{bartisan-marginaleffects}}.
+dispatch on. For a binary or categorical treatment, \code{\link[=estimate_effect]{estimate_effect()}} can be
+used on the output to return interpretable marginal and conditional effects;
+for a continuous treatment, see \code{\link{bartisan-marginaleffects}}. \code{\link[=coef]{coef()}} gives
+the conditional effect on the link scale for each observation.
 }
 \description{
 Fits a varying-coefficient model set up for estimating a treatment effect: a

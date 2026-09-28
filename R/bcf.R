@@ -36,9 +36,10 @@
 #' a class in front of it and the treatment's coefficient forest named for the
 #' treatment. Everything that works on a `<bartisan_fit>` works here unchanged;
 #' the class exists so that methods needing a named treatment have something to
-#' dispatch on. [coef()] gives the conditional effect for each observation and
-#' \pkgfun{marginaleffects}{avg_comparisons} the average; see
-#' [`bartisan-marginaleffects`].
+#' dispatch on. For a binary or categorical treatment, [estimate_effect()] can be
+#' used on the output to return interpretable marginal and conditional effects;
+#' for a continuous treatment, see [`bartisan-marginaleffects`]. [coef()] gives
+#' the conditional effect on the link scale for each observation.
 #'
 #' @details
 #' ## The Model
@@ -244,12 +245,10 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   # which is the whole point of estimating it: it lets the control function
   # absorb the selection without letting the effect vary with it.
   moderator_terms <- {
-    if (is_null(moderators)) {
+    if (is_null(moderators))
       setdiff(covariates, colnames(score))
-    }
-    else {
+    else
       attr(stats::terms(moderators, data = data), "term.labels")
-    }
   }
 
   # A binary treatment gets its coding drawn rather than fixed, which is what
@@ -278,8 +277,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   # `bcf(control = bartisan_control(num_trees = 7))` was overridden by the
   # asymmetric default below without saying so, where `bcf(num_trees = 7)` was
   # honored and `bartisan()` documents the two as equivalent.
-  supplied_trees <- "num_trees" %in%
-    c(names(dots), names(attr(dots[["control"]], "supplied")))
+  supplied_trees <- "num_trees" %in% c(names(dots), names(attr(dots[["control"]], "supplied")))
 
   # Both the formula and the default tree count follow the coding: a drawn coding
   # is one effect forest whatever the number of levels, where the symmetric one
@@ -332,34 +330,42 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   # is wrong when that happens: the attempt was this function's own initiative
   # and it is about to be handled. So the trial's warnings are held and only
   # passed on if the trial is what the caller ended up with.
-  out <- {
-    if (!adaptive) fit_with(FALSE)
-    else {
+  if (adaptive) {
+    held <- list()
+    refused <- FALSE
+
+    # The handlers of `try_fetch()` run before the trial unwinds, so the refusal
+    # is only recorded there and the fixed coding is fit once it has returned.
+    # Fit inside the handler and the trial's `run_chains()` has not yet restored
+    # the session's random number stream, so with more than one chain the
+    # fallback takes its seeds from the trial's stream and its draws change.
+    out <- rlang::try_fetch(
+      fit_with(TRUE),
+      warning = function(w) {
+        held[[length(held) + 1L]] <<- w
+        invokeRestart("muffleWarning")
+      },
+      error = function(e) {
+        if (!grepl("leaf target is\\s+quadratic", conditionMessage(e))) {
+          stop(e)
+        }
+
+        refused <<- TRUE
+        NULL
+      })
+
+    if (refused) {
       held <- list()
-
-      fit <- tryCatch(
-        withCallingHandlers(
-          fit_with(TRUE),
-          warning = function(w) {
-            held[[length(held) + 1L]] <<- w
-            invokeRestart("muffleWarning")
-          }),
-        error = function(e) {
-          if (!grepl("leaf target is\\s+quadratic", conditionMessage(e))) {
-            stop(e)
-          }
-
-          held <<- list()
-          fit_with(FALSE)
-        })
-
-      # Replayed out here rather than inside the handler's reach, which would
-      # catch and swallow them a second time. A caller therefore sees a
-      # successful trial's warnings after the fit rather than during it.
-      for (w in held) warning(w)
-
-      fit
+      out <- fit_with(FALSE)
     }
+
+    # Replayed out here rather than inside the handler's reach, which would
+    # catch and swallow them a second time. A caller therefore sees a
+    # successful trial's warnings after the fit rather than during it.
+    for (w in held) warning(w)
+  }
+  else {
+    out <- fit_with(FALSE)
   }
 
   # `bartisan()` is reached through `do.call()`, so the call it recorded is the
@@ -447,12 +453,10 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
   }
 
   terms <- {
-    if (rlang::is_formula(propensity)) {
+    if (rlang::is_formula(propensity))
       attr(stats::terms(propensity, data = data), "term.labels")
-    }
-    else {
+    else
       covariates
-    }
   }
 
   model <- stats::reformulate(terms, response = as.symbol(name))
@@ -469,11 +473,10 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
   # .964, and .986 against .961) but far worse for a treatment with a point
   # mass at zero (.505 against .902), whose zeros its mixture absorbs; a
   # misfitted default is the worse failure. `family` in `args` overrides it.
-  fit_family <- args[["family"]] %or%
-    switch(kind,
-           binary = stats::binomial(),
-           categorical = multinomial(),
-           continuous = stats::gaussian())
+  fit_family <- args[["family"]] %or% switch(kind,
+                                             binary = stats::binomial(),
+                                             categorical = multinomial(),
+                                             continuous = stats::gaussian())
   args[["family"]] <- NULL
 
   fit <- do.call(bartisan,
@@ -506,5 +509,6 @@ treatment_kind <- function(z) {
 }
 
 bcf_score_names <- function(k) {
-  if (k == 1L) ".propensity" else sprintf(".propensity%d", seq_len(k))
+  if (k == 1L) ".propensity"
+  else sprintf(".propensity%d", seq_len(k))
 }

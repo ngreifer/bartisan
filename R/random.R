@@ -50,13 +50,13 @@ random_terms <- function(bars, mf) {
     value <- eval(expr, mf, environment())
 
     if (is_null(value)) {
-      arg::err("grouping variable {.val {label}} was not found in the data")
+      arg::err("grouping variable {.var {label}} was not found in the data")
     }
 
     f <- as.factor(value)
 
     if (anyNA(f)) {
-      arg::err("grouping variable {.val {label}} has missing values, and a row
+      arg::err("grouping variable {.var {label}} has missing values, and a row
                 with no group cannot be given a group effect. Drop those rows,
                 or give them a level of their own")
     }
@@ -64,7 +64,7 @@ random_terms <- function(bars, mf) {
     levs <- levels(f)
 
     if (length(levs) < 2L) {
-      arg::err("grouping variable {.val {label}} has {length(levs)} level{?s},
+      arg::err("grouping variable {.var {label}} has {length(levs)} level{?s},
                 so there is nothing for a group effect to vary over")
     }
 
@@ -86,7 +86,8 @@ random_terms <- function(bars, mf) {
 # What the engine needs: the label, the codes and the level count.
 random_spec <- function(terms) {
   lapply(terms, function(z) {
-    list(label = z[["label"]], levels = z[["codes"]],
+    list(label = z[["label"]],
+         levels = z[["codes"]],
          num_levels = z[["num_levels"]])
   })
 }
@@ -110,7 +111,9 @@ random_predict <- function(object, newdata, iterations) {
   n_new <- nrow(newdata)
   unseen <- character()
 
-  out <- lapply(seq_along(draws), function(h) {
+  out <- vector("list", length(draws))
+
+  for (h in seq_along(draws)) {
     total <- matrix(0, nrow = length(iterations), ncol = n_new)
     at <- 0L
 
@@ -121,7 +124,7 @@ random_predict <- function(object, newdata, iterations) {
                           drop = FALSE]
 
       if (anyNA(code)) {
-        unseen <<- c(unseen, z[["label"]])
+        unseen <- c(unseen, z[["label"]])
         # A column of zeros for the unseen levels, which is the prior mean.
         block <- cbind(block, 0)
         code[is.na(code)] <- z[["num_levels"]] + 1L
@@ -131,12 +134,12 @@ random_predict <- function(object, newdata, iterations) {
       at <- at + z[["num_levels"]]
     }
 
-    total
-  })
+    out[[h]] <- total
+  }
 
   if (!is_null(unseen)) {
     bad <- unique(unseen)
-    arg::wrn(c("{.arg newdata} has levels of {.val {bad}} that were not
+    arg::wrn(c("{.arg newdata} has levels of {.var {bad}} that were not
                 present when the model was fit.",
                i = "Those rows get the group effect's prior mean of zero,
                     the only value a group with no data can be given."))

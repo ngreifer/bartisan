@@ -40,8 +40,7 @@
 #'   in the result's `fits` element. Default is `FALSE`, since each is a whole
 #'   fit.
 #' @param scale `string`; for `loo()`, `waic()` and `kfold()` on a survival fit,
-#'   the
-#'   measure to report the pointwise densities with respect to: `"time"` for the
+#'   the measure to report the pointwise densities with respect to: `"time"` for the
 #'   density of \eqn{T} and `"log_time"` for the density of \eqn{\log T}.
 #'   Default is `NULL` to use the family's own, which is \eqn{\log T} for the
 #'   accelerated failure time families and \eqn{T} for [ph()]. A fit already on
@@ -1279,8 +1278,7 @@ kfold_call <- function(x, data) {
 
   call[[1L]] <- eval(call[[1L]], env)
 
-  for (nm in setdiff(names(call), c("", "data", "subset", "weights",
-                                    "offset"))) {
+  for (nm in setdiff(names(call), c("", "data", "subset", "weights", "offset"))) {
     call[[nm]] <- eval(call[[nm]], env)
   }
 
@@ -1311,8 +1309,7 @@ kfold_object <- function(elpd, lpd, folds, K, draws, fits = NULL) {
                      kfoldic = -2 * elpd)
 
   estimates <- cbind(Estimate = colSums(pointwise),
-                     SE = sqrt(nrow(pointwise) * apply(pointwise, 2L,
-                                                       stats::var)))
+                     SE = sqrt(nrow(pointwise) * apply(pointwise, 2L, stats::var)))
 
   out <- list(estimates = estimates, pointwise = pointwise, folds = folds)
 
@@ -1409,11 +1406,7 @@ survival_shift <- function(object, scale) {
 # reweight by. `loo()` computes these on its way to an ELPD; only the weights
 # are wanted here, so `psis()` is called directly.
 loo_weights <- function(object) {
-  if (!rlang::is_installed("loo")) {
-    arg::err(c("A leave-one-out check needs the {.pkg loo} package.",
-               i = "Install it, or use a check that compares the replicates
-                    against the response directly."))
-  }
+  rlang::check_installed("loo", "to perform a leave-one-out check.")
 
   ll <- log_lik.bartisan_fit(object)
   r_eff <- loo::relative_eff(exp(ll), chain_id = chain_ids(object))
@@ -1515,12 +1508,7 @@ pp_check.bartisan_fit <- function(object, type = "dens_overlay", ndraws = 10, ..
 
   # All of them for a leave-one-out check, and for one whose weights the caller
   # computed themselves, since those came from every draw too.
-  iterations <- if (loo_check || supplied) {
-    NULL
-  }
-  else {
-    sample.int(num_draws, size = min(ndraws, num_draws))
-  }
+  iterations <- if (!loo_check && !supplied) sample.int(num_draws, size = min(ndraws, num_draws))
 
   # A binned residual plot and a calibration plot are about the predicted
   # probabilities, not about replicate outcomes: both bin the second argument
@@ -1533,23 +1521,26 @@ pp_check.bartisan_fit <- function(object, type = "dens_overlay", ndraws = 10, ..
                              "calibration_grouped", "calibration_overlay",
                              "calibration_overlay_grouped")
 
-  reps <- if (epred_check) {
+  if (epred_check) {
     epred <- posterior_epred.bartisan_fit(object)
 
-    if (is.null(iterations)) epred else epred[iterations, , drop = FALSE]
+    reps <- {
+      if (is_null(iterations)) epred
+      else epred[iterations, , drop = FALSE]
+    }
   }
   else {
-    posterior_predict.bartisan_fit(object, iterations = iterations)
+    reps <- posterior_predict.bartisan_fit(object, iterations = iterations)
   }
 
   # `ppc_calibration()` names that argument `prep`, and takes `yrep` as an
   # alternative it converts; the two differ in position between the members of
   # its own family, so it is named rather than passed along.
-  args <- if (startsWith(type, "calibration")) {
-    c(list(observed_response(object), prep = reps), dots)
-  }
-  else {
-    c(list(observed_response(object), reps), dots)
+  args <- {
+    if (startsWith(type, "calibration"))
+      c(list(observed_response(object), prep = reps), dots)
+    else
+      c(list(observed_response(object), reps), dots)
   }
 
   do.call(getExportedValue("bayesplot", fun), args)
@@ -1577,9 +1568,9 @@ as_draws.bartisan_fit <- function(x, eta = TRUE, ...) {
   chains <- x[["chains"]]
   per <- nrow(x[["sigma_mu"]]) / chains
 
-  array(unlist(scalars, use.names = FALSE),
-        dim = c(per, chains, length(scalars)),
-        dimnames = list(NULL, NULL, names(scalars))) |>
+  unlist(scalars, use.names = FALSE) |>
+    array(dim = c(per, chains, length(scalars)),
+          dimnames = list(NULL, NULL, names(scalars))) |>
     posterior::as_draws_array()
 }
 
@@ -1597,23 +1588,23 @@ eta_draws <- function(object, which = TRUE, size = 10L) {
     draws <- object[["eta"]][[h]]
     n <- ncol(draws)
 
-    index <- {
-      if (isTRUE(which)) {
-        if (n <= size) seq_len(n)
-        else {
-          ordered <- order(colMeans(draws))
-          ordered[unique(round(seq(1, n, length.out = size)))]
-        }
+    if (isTRUE(which)) {
+      if (n <= size) {
+        index <- seq_len(n)
       }
       else {
-        arg::arg_numeric(which)
-
-        if (any(which < 1) || any(which > n)) {
-          arg::err("{.arg eta} must be observation indices between 1 and {n}")
-        }
-
-        as.integer(which)
+        ordered <- order(colMeans(draws))
+        index <- ordered[unique(round(seq(1, n, length.out = size)))]
       }
+    }
+    else {
+      arg::arg_numeric(which)
+
+      if (any(which < 1) || any(which > n)) {
+        arg::err("{.arg eta} must be observation indices between 1 and {n}")
+      }
+
+      index <- as.integer(which)
     }
 
     # With one forest there is nothing to disambiguate, so `eta[3]` rather than

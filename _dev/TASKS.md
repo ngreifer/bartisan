@@ -91,7 +91,7 @@ each other, which is the sort of thing to check rather than read.
 
 - [ ] **Vignette build time is over CRAN's budget.** 9.2 minutes for all eleven on 2026-09-24 (`_dev/vignette-timing.R`), after `bartisan`, `causal` and `importance` moved from four chains to one (238, 139 and 22 seconds down to 56, 39 and 9). `diagnostics` (140) and `comparison` (128) are the two to deal with. The choices, and the numbers, are in `_dev/SHIP.md`'s 2026-09-24 section, and every chunk's time is in `_dev/vignette-chunk-times.md`.
 
-- [ ] **Settle the engine's license with Linero.** The engine is adapted from `FlexBart`, the package in the Linero (2025) reproduction materials, whose `DESCRIPTION` says `License: GPL 2.0` with no LICENSE file. If that means version 2 only, `GPL (>= 2)` is not available to a derivative. Either he confirms "or later" or the package becomes `GPL-2`.
+- [x] **Settle the engine's license with Linero.** (Done 2026-09-28: `DESCRIPTION` now says `GPL-2`.) The engine is adapted from `FlexBart`, the package in the Linero (2025) reproduction materials, whose `DESCRIPTION` says `License: GPL 2.0` with no LICENSE file. If that means version 2 only, `GPL (>= 2)` is not available to a derivative. Either he confirms "or later" or the package becomes `GPL-2`.
 
 - [ ] **`cran-comments.md`, and the README's install line.** Neither is done; `_dev/SHIP.md` has what each needs.
 
@@ -175,6 +175,10 @@ package claims to support, which is what puts them here.
   full working; what is needed before it returns is in "What is still owed" there.
 
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
+
+## `try_fetch()` in `bcf()`, and where the fallback fit runs (2026-09-28)
+
+The adaptive branch of `bcf()` was rewritten from `tryCatch(withCallingHandlers())` to `rlang::try_fetch()`, with the fixed-coding refit left inside the error handler. `try_fetch()` handlers are calling handlers, so that refit ran before the refused trial unwound, and before the trial's `run_chains()` restored the session's random number stream in its `on.exit()`. Checked with `_dev/try-fetch-equivalence.R`, which evaluates the committed and the edited `R/bcf.R` over the same installed namespace and fits each case under both from one seed. With the refit in the handler, a refused `tweedie()` fit gave different draws at 4 serial chains and at 2 serial chains with missing responses, the same draws at 1 chain, and the same draws but a different session seed afterward under a two-worker multisession plan; the accepted `binomial()` coding was unaffected. The handler now only records the refusal, and the refit runs after `try_fetch()` returns, which made all five cases identical to the committed version in draws, seed and warnings.
 
 ## The family for a continuous treatment's propensity model (2026-09-25)
 

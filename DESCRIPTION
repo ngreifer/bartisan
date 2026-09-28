@@ -23,18 +23,18 @@ Description: Fits Bayesian additive regression trees (BART) models for
     <doi:10.1111/rssb.12293>, which yields smoother fits. The interface follows
     that of glm(), so that a model is specified with a formula, a data frame,
     and a family.
-License: GPL (>= 2)
+License: GPL-2
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Imports:
-    arg,
-    cli,
-    rlang,
+    arg (>= 0.2.1),
+    cli (>= 3.6.4),
+    rlang (>= 1.2.0),
     Matrix,
-    Rcpp (>= 1.0.6),
+    Rcpp (>= 1.1.2),
     parallel,
-    reformulas,
-    ggplot2,
+    reformulas (>= 0.4.4),
+    ggplot2 (>= 4.0.1),
     stats,
     utils
 LinkingTo:
@@ -43,6 +43,7 @@ LinkingTo:
 Suggests:
     bayesplot,
     cobalt,
+    collapse,
     future,
     future.apply,
     insight,
@@ -59,7 +60,6 @@ Suggests:
     rstanarm,
     rstantools,
     survival,
-    collapse,
     testthat (>= 3.0.0),
     WeightIt
 VignetteBuilder: knitr

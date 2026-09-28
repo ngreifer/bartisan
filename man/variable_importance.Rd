@@ -29,8 +29,7 @@ does not offer. Default is \code{FALSE}.}
 \value{
 A \verb{<bartisan_importance>} object, which is a data frame with one row per
 predictor and its own \code{print()} and \code{plot()} methods, sorted by \code{prop_used}
-and then
-\code{splits}, both decreasing, and with the following columns:
+and then \code{splits}, both decreasing, and with the following columns:
 \itemize{
 \item \code{variable}: the predictor, under the name the formula gave it
 \item \code{prop_used}: the proportion of draws in which it received at least one rule

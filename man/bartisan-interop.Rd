@@ -120,8 +120,7 @@ lists them.}
 how many digits to round the prior's scales to. Default is 3.}
 
 \item{scale}{\code{string}; for \code{loo()}, \code{waic()} and \code{kfold()} on a survival fit,
-the
-measure to report the pointwise densities with respect to: \code{"time"} for the
+the measure to report the pointwise densities with respect to: \code{"time"} for the
 density of \eqn{T} and \code{"log_time"} for the density of \eqn{\log T}.
 Default is \code{NULL} to use the family's own, which is \eqn{\log T} for the
 accelerated failure time families and \eqn{T} for \code{\link[=ph]{ph()}}. A fit already on

@@ -110,17 +110,6 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
                                ...) {
 
   arg::arg_is(object, "bartisan_fit")
-
-  # `plot` was an argument, and the dots pass anything else through to
-  # `predict()`, which ignores what it does not know, so an old `plot = TRUE`
-  # would quietly return the table. The other functions that dropped it fail on
-  # an unused argument; this one has to be told to.
-  if ("plot" %in% ...names()) {
-    arg::err(c("{.fn partial_dependence} has no {.arg plot} argument.",
-               i = "Call {.fn plot} on its result, or {.code plot(fit, ~ x)}
-                    on the fit."))
-  }
-
   arg::arg_whole_number(grid)
   arg::arg_gte(grid, 2)
   arg::arg_number(level)
@@ -152,7 +141,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
   # nobody can read, so it is summarized unless the caller said otherwise. The
   # message is the point as much as the default is: a reader who wanted all of
   # them has to be told they did not get them, and told what to set.
-  group <- if (length(vars) > 1L) vars[[2L]] else NULL
+  group <- if (length(vars) > 1L) vars[[2L]]
 
   if (!is_null(group) && is_null(values[[group]]) &&
       is.numeric(newdata[[group]])) {
@@ -168,7 +157,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
     }
   }
 
-  points <- lapply(vars, function(v) {
+  combos <- lapply(vars, function(v) {
     given <- values[[v]]
 
     if (is.function(given)) {
@@ -176,10 +165,10 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
     }
 
     pd_grid(newdata[[v]], grid, given)
-  })
-  names(points) <- vars
-  combos <- expand.grid(points, KEEP.OUT.ATTRS = FALSE,
-                        stringsAsFactors = FALSE)
+  }) |>
+    setNames(vars) |>
+    expand.grid(KEEP.OUT.ATTRS = FALSE,
+                stringsAsFactors = FALSE)
 
   predictor <- pd_predictor(object, newdata, vars, type, list(...))
 
@@ -195,12 +184,12 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
     if (!is.matrix(draws)) {
       arg::err(c("{.code type = \"{type}\"} does not give one number per
                   observation for this family, so there is nothing to average",
-                 i = "Try {.code type = \"mean\"} or
-                      {.code type = \"stdlv\"}."))
+                 i = "Try {.code type = \"mean\"} or {.code type = \"stdlv\"}."))
     }
 
     # Averaged within each draw, so the interval is on the average prediction.
     s <- post_summary(rowMeans(draws), level = level)
+
     data.frame(estimate = s[["mean"]], lower = s[["lower"]],
                upper = s[["upper"]])
   }
@@ -297,7 +286,7 @@ pd_grid <- function(z, grid, given) {
 pd_values_from <- function(f, z, name) {
   out <- f(z)
 
-  if (is_null(out) || !is.atomic(out) || length(out) == 0L) {
+  if (is_null(out) || !is.atomic(out)) {
     arg::err("the function {.arg values} gives for {.var {name}} must return
               the values to evaluate it at, and it returned
               {.cls {class(out)}} of length {length(out)}")
@@ -305,7 +294,7 @@ pd_values_from <- function(f, z, name) {
 
   out <- out[!is.na(out)]
 
-  if (length(out) == 0L) {
+  if (is_null(out)) {
     arg::err("the function {.arg values} gives for {.var {name}} returned
               nothing but {.val {NA}}")
   }
@@ -463,7 +452,7 @@ plot.bartisan_partial <- function(x, ...) {
 
   # The second predictor becomes the grouping, so two numeric predictors give a
   # family of curves rather than a surface nobody can read the uncertainty off.
-  group <- if (length(vars) > 1L) vars[[2L]] else NULL
+  group <- if (length(vars) > 1L) vars[[2L]]
 
   if (!is_null(group)) {
     d[[group]] <- factor(d[[group]], levels = unique(d[[group]]))
@@ -518,11 +507,12 @@ plot.bartisan_fit <- function(x, y, ...) {
     arg::err(c("{.fn plot} on a fit draws partial dependence and needs to be
                 told which predictors to draw it on.",
                i = "For example {.code plot(fit, ~ age)}.",
-               i = "{.fn variable_importance} is where to look for which
+               i = "Use {.fn variable_importance} to look for which
                     predictors are worth asking about."))
   }
 
-  plot(partial_dependence(x, variables = y, ...))
+  partial_dependence(x, variables = y, ...) |>
+    plot()
 }
 
 # How a grid point is predicted, chosen once for the whole grid.
@@ -583,10 +573,7 @@ pd_predictor <- function(object, newdata, vars, type, dots) {
   base <- predict_eta(object, newdata, offset, iterations,
                       tree_mask = !uses, constants = TRUE)
 
-  aux <- {
-    if (is_null(object[["aux"]])) NULL
-    else object[["aux"]][iterations, , drop = FALSE]
-  }
+  aux <- if (!is_null(object[["aux"]])) object[["aux"]][iterations, , drop = FALSE]
 
   function(d) {
     eta <- predict_eta(object, d, offset, iterations,

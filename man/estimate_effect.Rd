@@ -34,7 +34,7 @@ estimate_effect(
 \item{estimand}{\code{string}; which units the effect is averaged over. \code{"ATE"}
 (the default) uses all of them, and \code{"ATT"} and \code{"ATC"} those in the focal
 group, which by default is the treatment's second level for the former and
-its first for the latter. With a binary treatment that makes them the
+its first for the latter. With a binary treatment, that makes them the
 treated and the untreated without \code{focal} being named. \code{"CATE"} does not
 average at all and returns the conditional effect at each unit's
 covariates, which is not that unit's own individual effect; see Details.
@@ -151,12 +151,12 @@ reporting an average.
 
 \subsection{Setting \code{comparison}}{
 
-For \code{"ratio"}, \code{"lnratio"}, \code{"or"} and \code{"lnor"} the potential outcomes are
+For \code{"ratio"}, \code{"lnratio"}, \code{"or"} and \code{"lnor"}, the potential outcomes are
 averaged over units first and contrasted afterward, which gives the marginal
 ratio. With \code{estimand = "CATE"} there is no averaging to do, so a ratio reported there is
 a conditional ratio and the \code{print()} method says so.
 
-For the same reason \code{"or"} and \code{"lnor"} are not each other's \code{exp()} and
+For the same reason, \code{"or"} and \code{"lnor"} are not each other's \code{exp()} and
 \code{log()}. Each summarizes the posterior of the quantity it names, and a
 posterior mean does not survive a nonlinear transformation: \code{"or"} reports the
 mean of the odds ratio and \code{"lnor"} the mean of its logarithm, which
