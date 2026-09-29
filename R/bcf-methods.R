@@ -31,16 +31,19 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
-#'            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
+#' fit <- bcf(death ~ age + sex + meanbp + aps,
+#'            treat = ~ rhc, data = rhc, num_trees = 10,
+#'            num_burn = 50, num_draws = 50,
 #'            verbose = FALSE)
 #'
 #' fit
 #'
-#' # The effect, with the potential outcomes it is a difference of
+#' # The effect, with the potential outcomes it is a
+#' # difference of
 #' estimate_effect(fit)
 #'
-#' # The conditional effects, ordered, with the marginal effect beside them
+#' # The conditional effects, ordered, with the marginal
+#' # effect beside them
 #' plot(fit)
 #'
 #' @rdname print.bcf_fit

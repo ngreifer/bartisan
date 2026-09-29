@@ -154,22 +154,29 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' # Whether a patient died, with every other variable a candidate predictor.
-#' # The sparsity prior is turned off because a contrast on one predictor is
-#' # the estimand rather than variable selection
-#' fit <- bartisan(death ~ . - days, data = rhc, sparsity = FALSE,
-#'                 num_trees = 10, num_burn = 50, num_draws = 50)
+#' # Whether a patient died, with the treatment and every
+#' # covariate recorded on admission as candidate
+#' # predictors
+#' model <- death ~ rhc + age + sex + race + edu + aps +
+#'   meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+#'   card
 #'
-#' # The effect of catheterization on the probability of death, as an average
-#' # contrast of counterfactual predictions
+#' fit <- bartisan(model, data = rhc, num_trees = 10,
+#'                 num_burn = 50, num_draws = 50)
+#'
+#' # The effect of catheterization on the probability of
+#' # death, as an average contrast of counterfactual
+#' # predictions
 #' marginaleffects::avg_comparisons(fit, variables = "rhc")
 #'
-#' # The same contrast within each sex, and a test that the two are equal
-#' marginaleffects::avg_comparisons(fit, variables = "rhc", by = "sex",
+#' # The same contrast within each sex, and a test that the
+#' # two are equal
+#' marginaleffects::avg_comparisons(fit, variables = "rhc",
+#'                                  by = "sex",
 #'                                  hypothesis = ~pairwise)
 #'
-#' # Centering each posterior at its mean rather than its median, which is the
-#' # summary `predict()` reports
+#' # Centering each posterior at its mean rather than its
+#' # median, which is the summary `predict()` reports
 #' op <- options(marginaleffects_posterior_center = mean)
 #' marginaleffects::avg_comparisons(fit, variables = "rhc")
 #' options(op)

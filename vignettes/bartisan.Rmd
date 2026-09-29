@@ -176,14 +176,15 @@ estimand itself when there is one to take:
 diagnose(estimate_effect(fit, treat = "rhc"))
 ```
 
-The contrast carries far fewer effective draws than the average fitted value in
-the table above, which the fit's own table could not have shown, since the other
-predictors keep the fitted function moving even where the contrast mixes slowly.
-Under the default splitting prior there is a further way this can happen:
-`rhc` gets no rule in some draws, which puts the contrast at exactly zero and can
-hold it there for a long run. `diagnose()` notes that atom when it finds one, and
-`vignette("causal")` covers the settings that remove it when an effect is being
-reported.
+The contrast's tail effective sample size falls short where the average fitted
+value's in the table above did not, which the fit's own table could not have
+shown, since the other predictors keep the fitted function moving even where the
+contrast mixes slowly.
+With the sparsity prior turned on (`sparsity = TRUE`), there is a further way
+this can happen: `rhc` gets no rule in some draws, which puts the contrast at
+exactly zero and can hold it there for a long run. `diagnose()` notes that atom
+when it finds one, and it is one reason the prior is off by default;
+`?bartisan_control` covers when to turn it on.
 
 The table is in `diagnose(fit)$table` when the numbers are wanted rather than
 the report.
@@ -217,13 +218,16 @@ variable_importance(fit)
 ```
 
 `splits` is the average number of splitting rules the forest spends on each
-predictor per draw, and `prop_used` is the proportion of draws in which the
-predictor received any rule at all.
+predictor per draw, `prop_splits` is its share of all the rules, and `prop_used`
+is the proportion of draws in which the predictor received any rule at all.
+Under the default splitting prior every predictor keeps a share of the rules,
+so `prop_used` sits near 1 for all of them, as the note below the table says,
+and the ranking is in the other two columns.
 
 `surv2m` takes the most rules, which is unsurprising: it is a prognostic score
-built to predict survival. `age` follows. At the bottom, `sex`, `race` and
-several of the physiological measurements are used in only about half of the
-draws, which says the model can often do without them.
+built to predict survival. `age` and `aps` follow. The rest sit close together,
+at four to five rules per draw, and this table alone cannot say whether that
+spread means anything.
 
 It's important to remember that usage is not effect size: a predictor can be split on constantly
 and still move the prediction very little, and the comparisons in the next
@@ -260,20 +264,11 @@ before the call switches it to the mean; we do this in `vignette("causal")`.]
 For a categorical predictor it is a difference between two levels, and for a
 numeric one it is an increase of one unit, which is a default rather than
 anything the data suggested. The comparisons are on the probability scale, so
-`rhc` reads as an increase of about six and a half percentage points in the
-probability of death and `age` as three tenths of a point per year of age. A
+`rhc` reads as an increase of about six percentage points in the probability of
+death and `age` as three tenths of a point per year of age. A
 logistic regression would report each of these as one slope on the log-odds
 scale; these are averages over the sample of a quantity the model allows to
 differ from patient to patient.
-
-Several rows are exactly zero rather than merely small, which is worth knowing
-about. The default splitting prior can leave a predictor out of the forest
-altogether in a given draw, and in such a draw every comparison involving it is
-exactly zero, so the posterior has a point mass there. Where that mass covers
-the middle of the posterior the median falls inside it and the estimate prints
-as exactly zero, as it has for the predictors at the bottom of the importance
-table. The same mass is why the lower bound for `aps` is exactly
-zero rather than merely close to it.
 
 The one-unit default deserves a second look whenever a predictor does not span a
 unit. `surv2m` is a probability, so an increase of one is wider than its whole
@@ -286,7 +281,7 @@ marginaleffects::avg_comparisons(fit, variables = list(surv2m = "iqr"))
 ```
 
 Moving a patient from the first quartile of the prognostic score to the third
-lowers the predicted probability of death by about .29, against the .18 the
+lowers the predicted probability of death by about .28, against the .18 the
 one-unit contrast reported.
 
 ### The Shape of a Relationship
@@ -303,7 +298,7 @@ plot(fit, ~ surv2m) +
                 y = "Fitted probability of death")
 ```
 
-The fitted probability of death falls from close to .9 to about .5 as the
+The fitted probability of death falls from about .85 to just under .5 as the
 prognostic score rises, and the fall is not a straight line, which is why the
 two contrasts above disagree about its size. A logistic regression reports one
 slope on the log-odds scale for the whole range. Nothing had to be specified to
@@ -348,13 +343,11 @@ levels. The effect of a continuous treatment is a slope or a dose-response curve
 instead, and `estimate_effect()` says so and names the functions that produce
 one.
 
-The defaults are not necessarily the best settings for estimating a causal
-effect. A sparsity prior that can drop a predictor, which put several rows of
-the comparisons table at exactly zero, is reasonable for prediction and
-poor for a treatment whose effect is being reported. More specialized methods, such
-as Bayesian causal forests (BCF) and BART without a sparsity-inducing prior, are
-described in `vignette("causal")`, which also covers what has to be true of the
-data before any of this can be read as an effect of the procedure.
+A single forest with the treatment among its predictors is not necessarily the
+best model for estimating a causal effect. Bayesian causal forests (BCF), which
+give the treatment effect a forest of its own, are described in
+`vignette("causal")`, which also covers what has to be true of the data before
+any of this can be read as an effect of the procedure.
 
 ## Predicting New Observations
 

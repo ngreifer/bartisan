@@ -32,10 +32,11 @@ test_that("bcf sets up the model the way it says it does", {
 
   # Fewer trees for the effect than the control function, since effect
   # heterogeneity is usually simpler than a prognostic surface. The sparsity
-  # prior is left at its default: the treatment is the coefficient rather than a
-  # predictor the forest splits on, so nothing can drop it.
+  # prior is left at the package default of off; a caller can turn it on for
+  # the effect forest alone, since the treatment is the coefficient rather than
+  # a predictor the forest splits on and nothing can drop it.
   expect_identical(fit[["num_trees"]], c(50L, 25L))
-  expect_true(fit[["control"]][["sparsity"]])
+  expect_false(fit[["control"]][["sparsity"]])
 
   # The propensity score is a predictor of the control function.
   expect_true(".propensity" %in% attr(stats::terms(fit), "term.labels"))

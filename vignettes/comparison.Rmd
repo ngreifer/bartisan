@@ -222,7 +222,7 @@ loo_compare(list(aft = loo(aft, scale = "time"),
                  ph = loo(prop_haz, scale = "time")))
 ```
 
-The proportional hazards model predicts these survival times better, by about 92 points with a standard error of 16. The flag in the last column says that one of the pointwise estimates for `ph()` is unreliable (see the section on failures of the approximation above); with a difference of nearly six standard errors, it does not change the reading.
+The proportional hazards model predicts these survival times better, by about 90 points with a standard error of 15. The flag in the last column says that one of the pointwise estimates for `ph()` is unreliable (see the section on failures of the approximation above); with a difference of nearly six standard errors, it does not change the reading.
 
 Two accelerated failure time families, or two `ph()` fits, already share a scale and can be compared without the argument. Setting `scale = "log_time"` instead of `"time"` gives the same differences between models, since the correction for each observation is the same for every model and cancels from their difference. The same step is needed outside survival models: to compare a model of `log(y)` with a model of `y`, subtract `log(y)` from each pointwise log density of the first before calling `loo()` (e.g., `loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))`). `vignette("survival")` gives the equivalent correction for a held-out log score.
 
@@ -270,7 +270,7 @@ names(tuned) <- paste0("trees_", trees)
 loo_compare(lapply(tuned, loo))
 ```
 
-Nothing separates them: every difference is smaller than its own standard error, and *loo* flags both comparisons as too small to read. Scoring the same three fits on the held-out observations says it again, and is the assessment the selection is not allowed to see:
+Nothing separates them: the differences are a couple of points at most, about the size of their standard errors, and *loo* flags both comparisons as too small to read. Scoring the same three fits on the held-out observations says it again, and is the assessment the selection is not allowed to see:
 
 ```{r tunedheld, eval = run}
 sapply(tuned, function(f) sum(predict(f, newdata = held, type = "density",
@@ -309,7 +309,7 @@ rbind(surv2m = drop_one("surv2m"), rhc = drop_one("rhc"))
 
 Losing `surv2m`, the prognostic score, costs about forty points and is plainly detectable. Losing `rhc` costs about two, which is smaller than its own standard error, and yet `rhc` is real enough that `vignette("causal")` puts its effect at around six percentage points on the probability of death. The remaining predictors carry that information too, so the forest reroutes around the one that was removed, and a comparison of predictive density cannot see a variable whose job something else can do. Running one such comparison per predictor would also be the search this section began by warning against.
 
-So that question belongs to `variable_importance()` and to the sparsity prior, which does the selection inside the model rather than across refits. `vignette("importance")` covers reading it, including the noise-predictor calibration that says which end of the table carries information, and `vignette("effects")` covers the step after: asking what a predictor does to the outcome rather than whether it is used.
+So that question belongs to `variable_importance()` on a fit with `sparsity = TRUE`, whose prior does the selection inside the model rather than across refits. `vignette("importance")` covers reading it, including the noise-predictor calibration that says which end of the table carries information, and `vignette("effects")` covers the step after: asking what a predictor does to the outcome rather than whether it is used.
 
 ## Further Reading
 

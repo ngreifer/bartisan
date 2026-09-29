@@ -534,26 +534,39 @@ posterior predictive distribution and a fitted mean.
 data("rhc")
 set.seed(123)
 
-# A right-censored response, given as the time and the event indicator,
-# with the error distribution estimated rather than assumed
-fit <- bartisan(cbind(days, death) ~ ., data = rhc, family = dpm_aft(),
-                num_trees = 10, num_burn = 50, num_draws = 50)
+# A right-censored response, given as the time and the
+# event indicator, with the error distribution estimated
+# rather than assumed
+surv_model <- cbind(days, death) ~ rhc + age + sex +
+  race + edu + aps + meanbp + resp + hema + pafi +
+  paco2 + crea + surv2m + card
+
+fit <- bartisan(surv_model, data = rhc,
+                family = dpm_aft(), num_trees = 10,
+                num_burn = 50, num_draws = 50)
 
 # The shape the errors came out
 head(error_density(fit))
 
-# The same response under proportional hazards, whose predictor is a log
-# hazard ratio and whose baseline is free to take any shape
-bartisan(cbind(days, death) ~ ., data = rhc, family = ph(),
+# The same response under proportional hazards, whose
+# predictor is a log hazard ratio and whose baseline is
+# free to take any shape
+bartisan(surv_model, data = rhc, family = ph(),
          num_trees = 10, num_burn = 50, num_draws = 50)
 
-# An unordered response, with one forest per category and a prior that is
-# symmetric in them
-bartisan(race ~ . - days - death, data = rhc, family = multinomial(),
+# An unordered response, with one forest per category
+# and a prior that is symmetric in them
+bartisan(race ~ rhc + age + sex + edu + aps + meanbp +
+           resp + hema + pafi + paco2 + crea + surv2m +
+           card,
+         data = rhc, family = multinomial(),
          num_trees = 10, num_burn = 50, num_draws = 50)
 
 # A link the engine does not compile, applied from R
-bartisan(death ~ . - days, data = rhc, family = binomial("cauchit"),
+bartisan(death ~ rhc + age + sex + race + edu + aps +
+           meanbp + resp + hema + pafi + paco2 + crea +
+           surv2m + card,
+         data = rhc, family = binomial("cauchit"),
          num_trees = 10, num_burn = 50, num_draws = 50)
 
 }

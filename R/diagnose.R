@@ -188,15 +188,22 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' # Two chains, both deliberately short, so that there is something to report
-#' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10, chains = 2,
-#'                 num_burn = 50, num_draws = 50, verbose = FALSE)
+#' model <- death ~ rhc + age + sex + race + edu + aps +
+#'   meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+#'   card
 #'
-#' # The table, the checks, and what to do about whichever of them failed
+#' # Two chains, both deliberately short, so that there is
+#' # something to report
+#' fit <- bartisan(model, data = rhc, num_trees = 10,
+#'                 chains = 2, num_burn = 50, num_draws = 50,
+#'                 verbose = FALSE)
+#'
+#' # The table, the checks, and what to do about whichever
+#' # of them failed
 #' diagnose(fit)
 #'
-#' # A stricter effective sample size, which an interval endpoint needs and a
-#' # posterior mean does not
+#' # A stricter effective sample size, which an interval
+#' # endpoint needs and a posterior mean does not
 #' diagnose(fit, ess_min = 1000)
 #'
 #' @export
@@ -338,7 +345,8 @@ diagnose.bartisan_effect <- function(object, rhat_max = 1.01, ess_min = 400,
       "Note the atom at zero. The splitting prior drops the treatment in some",
       "draws, and the sampler can stay there for a long run, which costs",
       "effective draws here without costing them in the fit. If the effect is",
-      "the quantity being reported, `sparsity = FALSE` removes the atom, and",
+      "the quantity being reported, `sparsity = FALSE` (the default) removes",
+      "the atom, and",
       "`bcf()` gives the treatment a forest the prior cannot take it out of;",
       "`vignette(\"causal\")` covers both."))
   }

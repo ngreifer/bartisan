@@ -52,19 +52,24 @@ commits to one normal, this says what shape the errors actually have.
 data("rhc")
 set.seed(123)
 
-# How long a patient survived, among those who died, so that the outcome is
-# a complete rather than a censored time
+# How long a patient survived, among those who died, so
+# that the outcome is a complete rather than a censored
+# time
 died <- rhc[rhc$death == 1, ]
-died$log_days <- log(died$days)
 
-fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
-                num_trees = 10, num_burn = 50, num_draws = 50)
+fit <- bartisan(log(days) ~ rhc + age + sex + race +
+                  edu + aps + meanbp + resp + hema +
+                  pafi + paco2 + crea + surv2m + card,
+                data = died, family = dpm(),
+                num_trees = 10, num_burn = 50,
+                num_draws = 50)
 
-# The shape of the errors, which a Gaussian fit would have assumed to be
-# normal
+# The shape of the errors, which a Gaussian fit would
+# have assumed to be normal
 head(error_density(fit, at = c(-2, 0, 2)))
 
-# The same thing drawn, with the pointwise interval as a ribbon
+# The same thing drawn, with the pointwise interval as a
+# ribbon
 plot(error_density(fit))
 
 }

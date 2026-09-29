@@ -159,13 +159,11 @@ The kernel is Epanechnikov rather than Gaussian because its support is bounded, 
 
 ### Sparsity (`sparsity`)
 
-By default, the variable a rule splits on is drawn from a categorical distribution whose probabilities have a Dirichlet prior [@linero2018sparse]:
+By default (`sparsity = FALSE`), every predictor has the same probability of being the variable a rule splits on, which is classic BART. Setting `sparsity = TRUE` draws that variable from a categorical distribution whose probabilities have a Dirichlet prior instead [@linero2018sparse]:
 
 $$s \sim \mathrm{Dirichlet}(\alpha/p, \dots, \alpha/p),$$
 
-with $\alpha$ itself drawn. Small $\alpha$ concentrates the probability on a few predictors, so the forest can stop splitting on the rest entirely. This is DART, and setting `sparsity = TRUE` requests it. It is the default.
-
-The alternative, `sparsity = FALSE`, gives every predictor the same splitting probability, which is classic BART.
+with $\alpha$ itself drawn. Small $\alpha$ concentrates the probability on a few predictors, so the forest can stop splitting on the rest entirely. This is DART.
 
 The difference matters for variable selection. @chipman2010 note that counting splits works poorly when there are many trees, "because the redundancy offered by so many trees tends to mix many irrelevant predictors in with the relevant ones", and recommend reducing the number of trees so that predictors compete. The Dirichlet prior addresses the same problem directly, by letting irrelevant predictors be dropped rather than crowded out.
 
@@ -182,7 +180,9 @@ knitr::kable(data.frame(
   caption = "Mean prop_used for the five noise predictors. The five real predictors sit at 1.00 in every cell.")
 ```
 
-Without the sparsity prior, the advice to use fewer trees is essential: at 50 trees the noise predictors are used in 95% of draws and are indistinguishable from the real ones. With it, the noise predictors stay near zero at every tree count, and reducing the trees buys little. The recommendation is a workaround for the absence of the prior rather than a property of variable selection in general. However, sparsity needs signal, so on a small sample with a weak fit, nothing separates, and the honest reading of a flat table is that the data cannot rule anything out; and it says nothing about effect size, since a predictor can be split on constantly and move the prediction very little. `vignette("importance")` covers both.
+Under the default, the advice to use fewer trees is essential if the table is to be read for selection: at 50 trees the noise predictors are used in 95% of draws and are indistinguishable from the real ones. With the sparsity prior on, the noise predictors stay near zero at every tree count, and reducing the trees buys little. The recommendation is a workaround for the absence of the prior rather than a property of variable selection in general. However, sparsity needs signal, so on a small sample with a weak fit, nothing separates, and the honest reading of a flat table is that the data cannot rule anything out; and it says nothing about effect size, since a predictor can be split on constantly and move the prediction very little. `vignette("importance")` covers both.
+
+The prior is off by default because it is a poor choice when an effect is the estimand: a predictor it drops from the forest has a contrast of exactly zero in that draw, so the posterior of the effect carries a point mass at zero and a weak effect is attenuated. `?bartisan_control` explains the trade-off and `vignette("effects")` covers what it does to an estimate.
 
 ## The Sampler
 
@@ -298,7 +298,7 @@ Most of `bartisan_control()` does not need to be touched. In rough order of how 
 | `num_trees` | more for a complex function and a large sample; fewer to speed up |
 | `gate` | `"hard"` when the truth really is a step function, or for speed |
 | `x_transform` | `"range"` when a slope is the quantity being reported |
-| `sparsity` | `FALSE` to recover classic BART, which is rarely the goal |
+| `sparsity` | `TRUE` when there are many predictors, few are expected to matter, or the goal is to identify which predictors the model needs; not when an effect is being estimated |
 | `k` | to shrink harder toward the mean, in a very small sample |
 
 Everything else exists so that the checks in the test suite can be written, or because a specific family needs it.

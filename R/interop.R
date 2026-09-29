@@ -252,18 +252,26 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
-#'                 num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
+#' model <- death ~ rhc + age + sex + race + edu + aps +
+#'   meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+#'   card
 #'
-#' # Replicate outcomes, one per draw per observation, whose mean
-#' # `fitted()` reports
+#' fit <- bartisan(model, data = rhc, num_trees = 10,
+#'                 num_burn = 50, num_draws = 50, chains = 2,
+#'                 verbose = FALSE)
+#'
+#' # Replicate outcomes, one per draw per observation,
+#' # whose mean `fitted()` reports
 #' yrep <- rstantools::posterior_predict(fit)
-#' range(colMeans(rstantools::posterior_epred(fit)) - fitted(fit))
+#' epred <- rstantools::posterior_epred(fit)
+#' range(colMeans(epred) - fitted(fit))
 #'
-#' # Pointwise log likelihood, and the fit statistics built on it
+#' # Pointwise log likelihood, and the fit statistics
+#' # built on it
 #' loo::waic(rstantools::log_lik(fit))
 #'
-#' # Every prior the fit was given, on the scale it was given on
+#' # Every prior the fit was given, on the scale it was
+#' # given on
 #' rstantools::prior_summary(fit)
 #'
 #' # Whether replicate outcomes look like the observed ones
@@ -271,7 +279,8 @@
 #'   bayesplot::pp_check(fit, type = "bars")
 #' }
 #'
-#' # The scalar parameters and a spread of the predictor, as a draws array
+#' # The scalar parameters and a spread of the predictor,
+#' # as a draws array
 #' if (rlang::is_installed("posterior")) {
 #'   posterior::summarise_draws(posterior::as_draws(fit))
 #' }

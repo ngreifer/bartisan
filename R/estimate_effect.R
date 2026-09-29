@@ -161,18 +161,21 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
-#'            data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
+#' fit <- bcf(death ~ age + sex + meanbp + aps,
+#'            treat = ~ rhc, data = rhc, num_trees = 10,
+#'            num_burn = 50, num_draws = 50,
 #'            verbose = FALSE)
 #'
 #' # The risk difference, averaged over everyone
 #' estimate_effect(fit)
 #'
-#' # Among the treated, and as a risk ratio rather than a difference
-#' estimate_effect(fit, estimand = "ATT", comparison = "ratio")
+#' # Among the treated, and as a risk ratio rather than a
+#' # difference
+#' estimate_effect(fit, estimand = "ATT",
+#'                 comparison = "ratio")
 #'
-#' # The effect at each unit's covariates, ordered, with the marginal effect
-#' # beside them
+#' # The effect at each unit's covariates, ordered, with
+#' # the marginal effect beside them
 #' cate <- estimate_effect(fit, estimand = "CATE")
 #' plot(cate)
 #'

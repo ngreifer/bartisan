@@ -284,7 +284,7 @@ ggplot(haz, aes(t, h, group = interaction(family, label))) +
 ## The Families Compared by Simulation
 
 `r sprintf("The simulation behind this section fits each family to %d training observations and scores it on %d held-out observations, with %d trees and %d draws after %d warmup, over %d replicates and at about 30%% censoring.", res$meta$n_train, res$meta$n_test, res$meta$num_trees, res$meta$num_save, res$meta$num_burn, res$meta$n_rep)`
-The script is `_dev/survival-sim.R` in the package sources.
+The script is `_dev/survival-sim.R` in the package sources. The fits in this and the later simulation sections were made with `sparsity = TRUE`, the package default at the time; the default is now `FALSE`.
 
 Every truth we built uses the same nonlinear function of five covariates, so the families differ only in how well they cope with the *shape* of the time distribution built around it. The six truths are:
 

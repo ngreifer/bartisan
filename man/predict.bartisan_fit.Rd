@@ -185,19 +185,29 @@ undefined draw is enough to make an observation \code{NaN}.
 data("rhc")
 set.seed(123)
 
-# Whether a patient died, with every other variable a candidate predictor
-fit <- bartisan(death ~ . - days, data = rhc,
-                num_trees = 10, num_burn = 50, num_draws = 50)
+# Whether a patient died, with the treatment and every
+# covariate recorded on admission as candidate
+# predictors
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50)
 
 # Fitted probabilities of death, averaged over the draws
 head(predict(fit, type = "response"))
 
-# The whole posterior for the first five patients rather than its mean
+# The whole posterior for the first five patients rather
+# than its mean
 post <- predict(fit, newdata = rhc[1:5, ], draws = TRUE)
 apply(post, 2, quantile, c(.025, .5, .975))
 
-# A held-out log score, which needs the outcome, so the `newdata` argument carries it
-sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
+# A held-out log score, which needs the outcome, so the
+# `newdata` argument carries it
+dens <- predict(fit, newdata = rhc[1:100, ],
+                type = "density")
+sum(log(dens))
 
 }
 \seealso{

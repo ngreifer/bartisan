@@ -54,19 +54,22 @@ intercept is one the forest did not take.
 \examples{
 \dontshow{if (rlang::is_installed("nlme")) withAutoprint(\{ # examplesIf}
 set.seed(123)
-d <- data.frame(x = runif(200),
-                site = factor(sample(letters[1:5], 200, TRUE)))
+sites <- factor(sample(letters[1:5], 200, TRUE))
+d <- data.frame(x = runif(200), site = sites)
 d$y <- rnorm(200, d$x + as.numeric(d$site) / 3)
 
-fit <- bartisan(y ~ x + (1 | site), data = d, num_trees = 10,
-                num_burn = 50, num_draws = 50, verbose = FALSE)
+fit <- bartisan(y ~ x + (1 | site), data = d,
+                num_trees = 10, num_burn = 50,
+                num_draws = 50, verbose = FALSE)
 
-# One intercept per site, as posterior means. The generic is \pkg{nlme}'s,
-# which \pkg{lme4} re-exports, so either qualification reaches this.
+# One intercept per site, as posterior means. The
+# generic is \pkg{nlme}'s, which \pkg{lme4} re-exports,
+# so either qualification reaches this.
 nlme::ranef(fit)
 
 # With the draws, so the intercepts come with intervals
-apply(nlme::ranef(fit, draws = TRUE)$site[["(Intercept)"]], 2L, quantile,
+re <- nlme::ranef(fit, draws = TRUE)
+apply(re$site[["(Intercept)"]], 2L, quantile,
       c(.025, .975))
 \dontshow{\}) # examplesIf}
 }

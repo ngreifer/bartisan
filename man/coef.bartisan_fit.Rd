@@ -45,11 +45,12 @@ choice made here rather than at fitting time.
 data("rhc")
 set.seed(123)
 
-# The effect of catheterization is allowed to vary with the other
-# predictors, so its coefficient is a function rather than a number
-fit <- bartisan(death ~ age + aps + surv2m + vc(rhc), data = rhc,
-                num_trees = 10, num_burn = 50, num_draws = 50,
-                verbose = FALSE)
+# The effect of catheterization is allowed to vary with
+# the other predictors, so its coefficient is a function
+# rather than a number
+fit <- bartisan(death ~ age + aps + surv2m + vc(rhc),
+                data = rhc, num_trees = 10, num_burn = 50,
+                num_draws = 50, verbose = FALSE)
 
 # One coefficient per patient, on the link scale
 head(coef(fit))

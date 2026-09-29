@@ -79,7 +79,8 @@ test_that("the concentration's scale is resolved the way the engine resolves it"
   expect_identical(row[["candidates"]], 2L)
   expect_identical(row[["alpha_scale"]], 2L)
 
-  # `sparsity = "moderate"`, the default, is Beta(0.5, 1).
+  # The shapes carried for the default `sparsity = FALSE` are those of
+  # `"moderate"`, Beta(0.5, 1), which is what a fit switched on would get.
   expect_identical(row[["shape_1"]], 0.5)
   expect_identical(row[["shape_2"]], 1)
 })

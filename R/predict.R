@@ -158,19 +158,29 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' # Whether a patient died, with every other variable a candidate predictor
-#' fit <- bartisan(death ~ . - days, data = rhc,
-#'                 num_trees = 10, num_burn = 50, num_draws = 50)
+#' # Whether a patient died, with the treatment and every
+#' # covariate recorded on admission as candidate
+#' # predictors
+#' model <- death ~ rhc + age + sex + race + edu + aps +
+#'   meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+#'   card
+#'
+#' fit <- bartisan(model, data = rhc, num_trees = 10,
+#'                 num_burn = 50, num_draws = 50)
 #'
 #' # Fitted probabilities of death, averaged over the draws
 #' head(predict(fit, type = "response"))
 #'
-#' # The whole posterior for the first five patients rather than its mean
+#' # The whole posterior for the first five patients rather
+#' # than its mean
 #' post <- predict(fit, newdata = rhc[1:5, ], draws = TRUE)
 #' apply(post, 2, quantile, c(.025, .5, .975))
 #'
-#' # A held-out log score, which needs the outcome, so the `newdata` argument carries it
-#' sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
+#' # A held-out log score, which needs the outcome, so the
+#' # `newdata` argument carries it
+#' dens <- predict(fit, newdata = rhc[1:100, ],
+#'                 type = "density")
+#' sum(log(dens))
 #'
 #' @export
 predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
@@ -1364,19 +1374,24 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' data("rhc")
 #' set.seed(123)
 #'
-#' # How long a patient survived, among those who died, so that the outcome is
-#' # a complete rather than a censored time
+#' # How long a patient survived, among those who died, so
+#' # that the outcome is a complete rather than a censored
+#' # time
 #' died <- rhc[rhc$death == 1, ]
-#' died$log_days <- log(died$days)
 #'
-#' fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
-#'                 num_trees = 10, num_burn = 50, num_draws = 50)
+#' fit <- bartisan(log(days) ~ rhc + age + sex + race +
+#'                   edu + aps + meanbp + resp + hema +
+#'                   pafi + paco2 + crea + surv2m + card,
+#'                 data = died, family = dpm(),
+#'                 num_trees = 10, num_burn = 50,
+#'                 num_draws = 50)
 #'
-#' # The shape of the errors, which a Gaussian fit would have assumed to be
-#' # normal
+#' # The shape of the errors, which a Gaussian fit would
+#' # have assumed to be normal
 #' head(error_density(fit, at = c(-2, 0, 2)))
 #'
-#' # The same thing drawn, with the pointwise interval as a ribbon
+#' # The same thing drawn, with the pointwise interval as a
+#' # ribbon
 #' plot(error_density(fit))
 #'
 #' @export

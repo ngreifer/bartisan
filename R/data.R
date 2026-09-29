@@ -65,11 +65,12 @@
 #' # The treatment against the binary outcome
 #' table(rhc$rhc, rhc$death)
 #'
-#' # The covariates the confounding runs through, all recorded on admission
+#' # The covariates the confounding runs through, all
+#' # recorded on admission
 #' summary(rhc[c("age", "aps", "meanbp", "surv2m")])
 #'
-#' # The same event as a survival outcome, a patient who did not die being
-#' # censored at their last contact
+#' # The same event as a survival outcome, a patient who
+#' # did not die being censored at their last contact
 #' if (rlang::is_installed("survival")) {
 #'   with(rhc, summary(survival::Surv(days, death)))
 #' }

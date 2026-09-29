@@ -294,11 +294,11 @@ estimate_effect(bcf_fit, estimand = "ATE") |>
 ```
 
 The output has a row for the contrast and one for each of the two average
-potential outcomes it is a contrast of. The effect is the row that falls short,
-at a bulk effective sample
-size well under 400 and an R-hat above the threshold, while the two averages it
-is built from are in better shape than it is. A difference can be worse than
-either of its parts, and that is the reading here.
+potential outcomes it is a contrast of. Here the contrast clears the thresholds
+and one of the averages, `Y[1]`, falls just short on bulk effective sample
+size. It does not always come out that way round: a difference can mix worse
+than either of its parts, so all three rows are worth reading rather than the
+contrast alone.
 
 Now compare what the fit's own table says about the same sampler:
 
@@ -306,9 +306,9 @@ Now compare what the fit's own table says about the same sampler:
 diagnose(bcf_fit)$table
 ```
 
-The two forests are far worse than the estimand. Their R-hats are in the region
-of 1.4 to 1.7 with effective sample sizes in single figures, where the effect
-manages a bulk size in the low hundreds. That is not a contradiction: a varying
+The two forests are far worse than the estimand. Their R-hats run from 1.2 to
+1.6 with effective sample sizes in the tens, where the effect clears 400. That
+is not a contradiction: a varying
 coefficient model is $f_0(x) + z\,f_1(x)$, and on the treated units the two
 forests are only jointly identified, so the sampler can move level between them
 while their sum, and much of what is built from it, stays where it was. The
@@ -316,8 +316,8 @@ effect inherits part of that wandering and not all of it.
 
 So the estimand's diagnosis cannot be deduced from the fit's in either
 direction. Read only the `eta` rows here and the fit looks unusable; read only
-the effect's own table and the sampler looks merely short of the thresholds;
-neither reading gives the other. Both are worth
+the effect's own table and the sampler looks close to adequate; neither reading
+gives the other. Both are worth
 running, and it is the second that decides whether the number being reported can
 be reported.
 
@@ -415,28 +415,33 @@ longer <- update(short, num_burn = 2000, num_draws = 8000)
 diagnose(longer)
 ```
 
-Nothing is flagged. The checks report R-hat below 1.01 throughout, though the
-table rounds too coarsely to show it, and both effective sample sizes clear 400
-with room. What is left of it sits on the log likelihood and the worst-5% row,
-which is where a forest's largest R-hat usually sits. This fit can be reported
-from.
+Most of it is cleared. The split-count row and both `eta` rows are well past
+the thresholds, and every tail effective sample size is above 900. What is left
+sits on the log likelihood alone: its bulk effective sample size rose from 84 to
+207 rather than tenfold, and its R-hat of 1.02 is again the kind the check calls
+unreadable, since four chains average 1.019 at that count even when they agree.
+The log likelihood is usually the slowest-mixing row in a forest, because it
+moves with every fitted value at once, and it is not a quantity we report; the
+fitted function and its contrasts are, and those are fine here. This fit can be
+reported from, with the log-likelihood row noted rather than chased.
 
-The arithmetic of that fix carries over to other fits. Effective sample size
-grows roughly in proportion to the draws, so the shortfall
+The arithmetic of that fix carries over to other fits, with one qualification.
+Effective sample size grows roughly in proportion to the draws, so the shortfall
 tells you the factor you need: a fit an order of magnitude short of 400 needs
-about an order of magnitude more draws, not a little more. An intermediate run at
-`num_burn = 1000` and `num_draws = 4000` cleared both effective-sample-size
-warnings on these data and still left R-hat at 1.010, a hair over the line, which
-is the usual shape of the last stretch.
+about an order of magnitude more draws, not a little more. The `eta` rows and
+the split count grew five- to ninefold here on ten times the draws.
 
-The estimate of effective sample size is also itself noisy, and can
-fall as the chain lengthens: a short chain cannot see autocorrelation at long
-lags, so it reports an efficiency the chain does not have. Reading a single ESS
-figure as exact invites chasing it; the factor should be read instead.
+The qualification is that the estimate of effective sample size is itself
+noisy, and can fall as the chain lengthens: a short chain cannot see
+autocorrelation at long lags, so it reports an efficiency the chain does not
+have. The log likelihood above did exactly that: its efficiency fell from 2.6
+to 0.6 effective draws per hundred kept once the longer chain could see its
+slow component. Reading a single ESS figure as exact invites chasing
+it; the factor should be read instead.
 
-Increasing draws does not always suffice. Doing so sufficed
-here because the flagged R-hat was the unreadable kind, resting on too few
-effective draws. Where R-hat instead stays above the threshold however many
+Increasing draws does not always suffice. It did most of the work here because
+the flagged R-hat was the unreadable kind, resting on too few effective draws.
+Where R-hat instead stays above the threshold however many
 draws are added, as it does for
 the Friedman fit above, the chains genuinely disagree and more of them will not
 help. That is when the remedies that change the model come up, and the order in
@@ -500,7 +505,7 @@ quantile(predict(fit, type = "response", draws = TRUE), p)
 
 The prior runs from about .01 to about .99, as we would want of a prior on a
 probability: it rules almost nothing out and asserts almost nothing. The fitted
-model runs from about .19 to about .95 over the same quantiles, so the data have
+model runs from about .18 to about .95 over the same quantiles, so the data have
 brought it a long way in from where it started. A prior that had come back
 concentrated near zero and one, or confined to a narrow band in the middle, would
 be worth changing before going any further.

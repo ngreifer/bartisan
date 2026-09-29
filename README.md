@@ -15,15 +15,13 @@ rather than specified. *bartisan* does that for response distributions
 that standard BART cannot reach, using the Laplace-approximation
 reversible-jump sampler of Linero ([2025](#ref-linero2025)), which
 relaxes the requirement that the leaf parameters be integrable in closed
-form. That requirement ties standard BART to a Gaussian likelihood, and
-lifting it is the sense in which the model here is *generalized*: the
-same sense a generalized linear model is, in which the response
-distribution is a choice the analyst makes rather than an assumption the
-sampler imposes.
+form. That requirement ties standard BART to a Gaussian likelihood.
+Relaxing it generalizes BART much as a generalized linear model extends
+linear regression: the analyst can choose the response distribution.
 
-A model is written the way it is in `glm()`, with a formula, a data
-frame, and a family, and the `stats::family` objects `glm()` takes are
-accepted unchanged. Beyond them come the families that have no `glm()`
+Models are specified with a formula, a data frame, and a family, just as
+in `glm()`. *bartisan* accepts standard `stats::family` objects without
+modification. Beyond them come the families that have no `glm()`
 counterpart: negative binomial, ordinal, multinomial, beta and ordered
 beta, zero-inflated counts, a Tweedie compound Poisson, accelerated
 failure time and proportional hazards models for right-censored times,
@@ -107,17 +105,17 @@ summary(fit)
 #> 
 #> Predictor usage
 #> Splitting rules per draw, and how often used at all.
-#>          mean     sd lower upper prop_used
-#> age    12.422  6.583     3 28.02     1.000
-#> surv2m 26.810 10.464    11 49.00     1.000
-#> rhc     4.916  4.248     0 17.00     0.960
-#> pafi    7.811  5.587     0 21.00     0.941
-#> paco2   5.221  4.787     0 17.00     0.909
-#> crea   10.167  9.482     0 34.02     0.897
-#> edu     3.114  3.225     0 11.03     0.789
-#> card    2.980  3.626     0 12.00     0.608
-#> sex     2.354  3.245     0 10.00     0.521
-#> race    1.176  1.762     0  6.00     0.439
+#>          mean    sd lower upper prop_used
+#> rhc     6.339 2.589     2    12     1.000
+#> age     8.304 2.762     3    14     1.000
+#> sex     7.033 2.594     3    13     1.000
+#> race    6.911 2.587     3    13     1.000
+#> edu     7.207 2.587     3    14     1.000
+#> paco2   8.210 2.629     4    14     1.000
+#> crea    6.852 2.640     2    12     1.000
+#> surv2m 10.647 2.619     6    16     1.000
+#> card    6.812 2.792     2    13     0.999
+#> pafi    7.379 2.739     3    14     0.998
 ```
 
 Nothing had to be said about which predictors matter, which are curved,
@@ -132,7 +130,7 @@ partial_dependence(fit, ~ surv2m) |>
                 y = "Fitted probability of death")
 ```
 
-<img src="man/figures/README-pdp-1.png" alt="Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .48, inside a credible band that widens at both ends." width="90%" style="display: block; margin: auto;" />
+<img src="man/figures/README-pdp-1.png" alt="Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .47, inside a credible band that widens at both ends." width="90%" style="display: block; margin: auto;" />
 
 A forest has no coefficients, so an effect is a contrast between what
 the model predicts under one value of a predictor and under another,
@@ -147,14 +145,14 @@ estimate_effect(fit, treat = "rhc")
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate lower upper    n
-#>  Y[1] - Y[0]   0.0568     0 0.107 1500
+#>     contrast estimate  lower upper    n
+#>  Y[1] - Y[0]    0.064 0.0143  0.11 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.633 0.605 0.664
-#>      Y[1]    0.690 0.649 0.725
+#>      Y[0]    0.631 0.602 0.659
+#>      Y[1]    0.695 0.656 0.732
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

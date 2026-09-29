@@ -59,11 +59,13 @@ as a data frame rather than displayed (i.e., ready to sort, filter, or plot).
 \details{
 \subsection{Reading the Columns}{
 
-\code{prop_used} is the one to read first. It behaves like a posterior probability
-that the predictor belongs in the model, and it separates signal from noise
-sharply once \code{sparsity = TRUE} in \code{\link[=bartisan_control]{bartisan_control()}}. With
-\code{sparsity = FALSE} every predictor keeps a share of the rules and \code{prop_used}
-sits near 1 throughout, which the \code{print()} method notes.
+What \code{prop_used} means depends on the splitting prior. Under the default
+(\code{sparsity = FALSE} in \code{\link[=bartisan_control]{bartisan_control()}}), every predictor keeps a share
+of the rules and \code{prop_used} sits near 1 throughout, which the \code{print()}
+method notes; the ranking is then carried by the other two columns. With
+\code{sparsity = TRUE}, it behaves like a posterior probability that the predictor
+belongs in the model, separates signal from noise sharply, and is the column
+to read first.
 
 \code{prop_splits} is the one to reach for when two fits are being compared. The
 share is computed within each draw before averaging, so the shares add to one
@@ -87,7 +89,8 @@ rather than what would happen if a predictor were changed.
 
 \subsection{Reading It as Variable Selection}{
 
-With \code{sparsity = TRUE}, \code{prop_used} is usable as a selection rule: the
+When the question is which predictors the model needs, the fit should be made
+with \code{sparsity = TRUE}. \code{prop_used} is then usable as a selection rule: the
 predictors the forest genuinely needs sit near 1 and the rest fall near 0,
 usually with a wide gap rather than a continuum, and cutting that gap at .5
 gives the median probability model. No threshold is correct in general, so the
@@ -102,33 +105,43 @@ through correlated ones.
 data("rhc")
 set.seed(123)
 
-# The sparsity prior concentrates the splitting rules on the predictors that
-# earn them, which makes `prop_used` readable as a selection rule
-fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
-                num_burn = 50, num_draws = 50, sparsity = TRUE,
-                verbose = FALSE)
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+# The sparsity prior concentrates the splitting rules on
+# the predictors that earn them, which makes `prop_used`
+# readable as a selection rule
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50,
+                sparsity = TRUE, verbose = FALSE)
 
 imp <- variable_importance(fit)
 imp
 
-# The predictors the forest reaches for in nearly every draw
+# The predictors the forest reaches for in nearly every
+# draw
 subset(imp, prop_used > .9)
 
-# `prop_splits` is the column that survives a change of forest size, since
-# the shares add to one however many rules there are to share
-big <- bartisan(death ~ . - days, data = rhc, num_trees = 40,
-                num_burn = 50, num_draws = 50, sparsity = TRUE,
-                verbose = FALSE)
+# `prop_splits` is the column that survives a change of
+# forest size, since the shares add to one however many
+# rules there are to share
+big <- bartisan(model, data = rhc, num_trees = 40,
+                num_burn = 50, num_draws = 50,
+                sparsity = TRUE, verbose = FALSE)
 
-merge(variable_importance(fit)[c("variable", "prop_splits")],
-      variable_importance(big)[c("variable", "prop_splits")],
+shares <- c("variable", "prop_splits")
+merge(variable_importance(fit)[shares],
+      variable_importance(big)[shares],
       by = "variable", suffixes = c("_10", "_40"))
 
-# The counts themselves, for a comparison the summary does not make
+# The counts themselves, for a comparison the summary
+# does not make
 counts <- variable_importance(fit, draws = TRUE)
 mean(counts[, "aps"] > counts[, "meanbp"])
 
-# The ranking, drawn. Subsetting first keeps a wide model readable.
+# The ranking, drawn. Subsetting first keeps a wide
+# model readable.
 plot(head(imp, 8))
 
 }

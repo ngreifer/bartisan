@@ -188,15 +188,22 @@ mean is sound and the interval endpoints are not.
 data("rhc")
 set.seed(123)
 
-# Two chains, both deliberately short, so that there is something to report
-fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10, chains = 2,
-                num_burn = 50, num_draws = 50, verbose = FALSE)
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
 
-# The table, the checks, and what to do about whichever of them failed
+# Two chains, both deliberately short, so that there is
+# something to report
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                chains = 2, num_burn = 50, num_draws = 50,
+                verbose = FALSE)
+
+# The table, the checks, and what to do about whichever
+# of them failed
 diagnose(fit)
 
-# A stricter effective sample size, which an interval endpoint needs and a
-# posterior mean does not
+# A stricter effective sample size, which an interval
+# endpoint needs and a posterior mean does not
 diagnose(fit, ess_min = 1000)
 
 }

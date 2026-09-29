@@ -127,12 +127,6 @@ Because the estimator averages the model's predictions over the covariates of th
 
 It differs from the sample average treatment effect and the population average treatment effect, the two averages usually defined, in what it holds fixed. The sample average treatment effect is the average of each unit's own $Y_i(1) - Y_i(0)$, which conditions on the units' observed outcomes as well as their covariates. Inference for it requires imputing each unit's missing potential outcome, and that imputation depends on how strongly a unit's two potential outcomes are associated, about which the data carry no information. The population average treatment effect is the average over the population the sample was drawn from, which treats the covariates as random as well and is the most uncertain of the three [@liBayesianCausalInference2023]. The mixed average needs neither a model for the covariates nor an assumption about how the potential outcomes are associated, which is why it is the usual target. `estimate_effect()` estimates it for the ATE, the ATT, and the ATC alike, averaging over the treated or untreated units' covariates for the latter two.
 
-### Controlling Sparsity
-
-Before we fit the outcome model, we need to change one setting to make traditional BART suitable for estimating the ATE. The default splitting prior is a variable-selection prior. It can drop a predictor from every tree in the forest at once, which makes it worth having when the goal is prediction, but not when the estimand is a contrast on one particular predictor. The traditional BART outcome model below is fitted with `sparsity = FALSE`, which weights the predictors equally and cannot drop any of them.
-
-The propensity score model above keeps the default, and should: predicting who was treated is a prediction problem, and no contrast is read off it. `?bartisan_control` explains both halves of this, and using the `split_prior` argument can be an alternative when there are enough covariates that weighting them all alike is wasteful.
-
 ## The Outcome Model
 
 We can fit the outcome model as a binary BART regression of the outcome on the treatment and covariates, as in @hill2011, with the propensity score estimated above added as one more covariate:
@@ -142,10 +136,12 @@ rhc$prop_score <- prop_score
 
 fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
                   hema + pafi + paco2 + crea + surv2m + card + prop_score,
-                data = rhc, family = binomial(), sparsity = FALSE)
+                data = rhc, family = binomial())
 ```
 
-We include the treatment, the covariates, and the propensity score in the formula's right-hand side, set `family = binomial()` to model the binary outcome with logistic regression, and `sparsity = FALSE` to remove the sparsity-inducing prior. Including the propensity score is recommended by @carnegie2019, though @soutoAblationStudiesNovel2024 report that it often makes little difference to the estimate. @lineroNonparametricHighDimensionalModels2024 gives the Bayesian reason for including it: when the outcome model is flexible and its prior is independent of the model for the treatment, the prior it implies for the amount of confounding bias is concentrated near zero, strongly enough that the data may not overcome it, and adjusting for the propensity score is one way to relax that. Because the score is a function of the covariates, adding it does not change what the model conditions on, and the g-computation below holds it at each patient's own value.
+We include the treatment, the covariates, and the propensity score in the formula's right-hand side, and set `family = binomial()` to model the binary outcome with logistic regression. Including the propensity score is recommended by @carnegie2019, though @soutoAblationStudiesNovel2024 report that it often makes little difference to the estimate. @lineroNonparametricHighDimensionalModels2024 gives the Bayesian reason for including it: when the outcome model is flexible and its prior is independent of the model for the treatment, the prior it implies for the amount of confounding bias is concentrated near zero, strongly enough that the data may not overcome it, and adjusting for the propensity score is one way to relax that. Because the score is a function of the covariates, adding it does not change what the model conditions on, and the g-computation below holds it at each patient's own value.
+
+The splitting prior is left at its default, which weights the predictors equally and cannot drop any of them. Setting `sparsity = TRUE` would place a variable-selection prior on them instead, which can drop the treatment from the forest in some draws and put a point mass at exactly zero in the posterior of its effect, so it is not the setting for a model whose purpose is a contrast on one predictor; `?bartisan_control` explains the trade-off and `vignette("effects")` covers what the point mass does to an estimate. The propensity score model is a prediction problem with no contrast read off it, so the sparsity prior can be turned on there when there are many covariates.
 
 The fits in this vignette use the default single chain for brevity. Normally, we would run several chains, possibly change the number of burn-in and retained draws, and examine convergence diagnostics to make sure the model was fit correctly; see `vignette("diagnostics")` for how to set these fit controls and check them.
 
@@ -211,7 +207,7 @@ Using `bcf()` rather than writing the varying coefficient BART model by hand set
 3.  the effect forest gets fewer trees because effect heterogeneity is usually simpler than a prognostic surface
 4.  a binary treatment's coding is drawn rather than fixed, so the answer does not depend on which arm was written as 1.
 
-Note that `sparsity = FALSE` is not among them: the reason for it in the section above is that the prior can drop the predictor whose contrast we want, and here the treatment is the coefficient rather than a predictor the forest splits on, so nothing can drop it.
+The splitting prior stays at its default of off for both forests. Because the treatment is the coefficient rather than a predictor the forest splits on, nothing can drop it, so the sparsity prior can be turned on for the effect forest alone with `sparsity = c(FALSE, TRUE)`, which asks that forest to select among the moderators; `?bcf` discusses when that is worth doing.
 
 Because the treatment is named in the call, `estimate_effect()` needs nothing else:
 
@@ -219,7 +215,7 @@ Because the treatment is named in the call, `estimate_effect()` needs nothing el
 estimate_effect(fit_bcf)
 ```
 
-The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 64% and another against 5%; setting `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` is, adding what `O(y)` is once an odds ratio is asked for.
+The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 63% and another against 5%; setting `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` is, adding what `O(y)` is once an odds ratio is asked for.
 
 The output of `summary()` on a `bcf()` fit is the same summary of the forests it is on any other fit, and says at the end where the effect is reported. That way the same call means the same thing whichever way the model was written.
 
@@ -289,7 +285,7 @@ And the conditional effects, drawn:
 plot(cate_att)
 ```
 
-Most of the conditional effects are positive, as the ATT is, and only two of their 185 intervals exclude zero. That is the usual picture: the effect at one unit's covariates is estimated from far less information than an average over all of them, so its interval is much wider.
+Most of the conditional effects are positive, as the ATT is, and `r if (run) {k <- sum(cate_att$lower > 0 | cate_att$upper < 0); if (k == 0) "none" else paste("only", k)} else "none"` of their 185 intervals exclude zero. That is the usual picture: the effect at one unit's covariates is estimated from far less information than an average over all of them, so its interval is much wider.
 
 ## Interpreting the Credible Interval
 

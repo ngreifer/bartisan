@@ -190,7 +190,7 @@ fit_sub <- bartisan(list(mean   = het ~ x1 + x2,
 summary(fit_sub)
 ```
 
-Separate proportions are not always desirable. Each forest draws its own splitting proportions by default, so each has to work out on its own which predictors matter, and one component is often far better placed to answer that than the other: the mean of a location-scale model usually carries much more signal about the relevant predictors than the spread does. Setting `share_sparsity = TRUE` pools the splitting counts of the forests behind one Dirichlet draw, so a predictor that earns its rules in one forest keeps its weight in the others. The forests stay separate in every other respect, with their own trees, cut points and leaf scales.
+Separate proportions are not always desirable. With `sparsity = TRUE`, each forest draws its own splitting proportions, so each has to work out on its own which predictors matter, and one component is often far better placed to answer that than the other: the mean of a location-scale model usually carries much more signal about the relevant predictors than the spread does. Setting `share_sparsity = TRUE` pools the splitting counts of the forests behind one Dirichlet draw, so a predictor that earns its rules in one forest keeps its weight in the others. The forests stay separate in every other respect, with their own trees, cut points and leaf scales.
 
 ```{r sharesparsity}
 set.seed(9)
@@ -198,9 +198,10 @@ dw <- data.frame(matrix(runif(400 * 25), 400, 25))
 names(dw) <- paste0("x", 1:25)
 dw$y <- rnorm(400, 2 + 1.4 * sin(pi * dw$x1 * dw$x2) + 0.9 * dw$x4, 0.5)
 
-apart <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl)
+apart <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl,
+                  sparsity = TRUE)
 shared <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl,
-                   share_sparsity = TRUE)
+                   sparsity = TRUE, share_sparsity = TRUE)
 
 top3 <- function(fit, forest) {
   imp <- variable_importance(fit)

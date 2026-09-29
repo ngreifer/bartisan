@@ -79,9 +79,9 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' fit <- bartisan(death ~ age + sex + meanbp + aps, data = rhc,
-#'                 num_trees = 10, num_burn = 50, num_draws = 50,
-#'                 verbose = FALSE)
+#' fit <- bartisan(death ~ age + sex + meanbp + aps,
+#'                 data = rhc, num_trees = 10, num_burn = 50,
+#'                 num_draws = 50, verbose = FALSE)
 #'
 #' # How the fitted risk moves with mean blood pressure
 #' pd <- partial_dependence(fit, ~ meanbp)
@@ -92,17 +92,19 @@
 #' # The same thing from the fit, using the `plot()` method
 #' plot(fit, ~ meanbp)
 #'
-#' # Two predictors, one of them a factor, which gives a curve per level
+#' # Two predictors, one of them a factor, which gives a
+#' # curve per level
 #' plot(fit, ~ meanbp + sex)
 #'
-#' # Two numeric predictors, where the second is held at three values and a
-#' # message says which
+#' # Two numeric predictors, where the second is held at
+#' # three values and a message says which
 #' plot(fit, ~ meanbp + aps)
 #'
-#' # An entry of `values` may be a function of the predictor, which is how to
-#' # ask for values of your own without naming them
-#' plot(fit, ~ meanbp + aps,
-#'      values = list(aps = function(x) quantile(x, c(.1, .5, .9))))
+#' # An entry of `values` may be a function of the
+#' # predictor, which is how to ask for values of your own
+#' # without naming them
+#' three_values <- function(x) quantile(x, c(.1, .5, .9))
+#' plot(fit, ~ meanbp + aps, values = list(aps = three_values))
 #'
 #' @export
 partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,

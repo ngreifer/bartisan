@@ -330,19 +330,24 @@ three columns built on them.
 data("rhc")
 set.seed(123)
 
-# Whether a patient died, with every other variable a candidate predictor
-# and the family read off the response. `days` is the timing of the same
-# event, so it is excluded rather than conditioned on
-fit <- bartisan(death ~ . - days, data = rhc,
-                num_trees = 10, num_burn = 50, num_draws = 50,
+# Whether a patient died, with the treatment and every
+# covariate recorded on admission as candidate
+# predictors, and the family read off the response
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50,
                 verbose = FALSE)
 fit
 
 # Fitted probabilities
 head(predict(fit, type = "response"))
 
-# The forest has no coefficients, so an effect is a contrast of
-# predictions, here of catheterization on the probability of death
+# The forest has no coefficients, so an effect is a
+# contrast of predictions, here of catheterization on
+# the probability of death
 if (rlang::is_installed("marginaleffects")) {
   marginaleffects::avg_comparisons(fit, variables = "rhc")
 }

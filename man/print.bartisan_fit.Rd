@@ -42,21 +42,30 @@ model's variable-selection output.
 data("rhc")
 set.seed(123)
 
-# Whether a patient died, with catheterization among the predictors
-fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
-                num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
+# Whether a patient died, with catheterization among the
+# predictors
+fit <- bartisan(death ~ rhc + age + sex + race + edu +
+                  aps + meanbp + resp + hema + pafi +
+                  paco2 + crea + surv2m + card,
+                data = rhc, num_trees = 10, num_burn = 50,
+                num_draws = 50, chains = 2, verbose = FALSE)
 
 # What was fit, and how many draws it rests on
 fit
 
-# The splitting counts, which say which predictors the forest reaches for
+# The splitting counts, which say which predictors the
+# forest reaches for
 summary(fit)
 
-# A family with a nuisance parameter reports its posterior too, here the
-# residual standard deviation of the log survival time
-fit2 <- bartisan(log(days) ~ . - death, data = rhc, family = gaussian(),
-                 num_trees = 10, num_burn = 50, num_draws = 50,
-                 verbose = FALSE)
+# A family with a nuisance parameter reports its
+# posterior too, here the residual standard deviation of
+# the log survival time
+fit2 <- bartisan(log(days) ~ rhc + age + sex + race +
+                   edu + aps + meanbp + resp + hema +
+                   pafi + paco2 + crea + surv2m + card,
+                 data = rhc, family = gaussian(),
+                 num_trees = 10, num_burn = 50,
+                 num_draws = 50, verbose = FALSE)
 
 summary(fit2, level = .8)
 

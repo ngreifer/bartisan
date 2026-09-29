@@ -83,7 +83,7 @@ We can examine the structure of the forest for the `rhc` coefficient using `summ
 summary(fit_vc)
 ```
 
-We can see that `age`, `paco2`, and `surv2m` were used in every tree in the control function (`(Intercept)`) forest, but `hema` was the most frequently used predictor in the varying coefficient (`rhc`) forest.
+Under the default splitting prior every predictor is used in nearly every draw of both forests, so the `prop_used` column says little here and the `mean` column carries the ranking: `surv2m` and `age` take the most rules in the control function (`(Intercept)`) forest, and `hema` in the varying coefficient (`rhc`) forest.
 
 ### Effect Modifiers (`modifiers`)
 
@@ -219,7 +219,7 @@ A forest a named argument does not mention keeps that argument's own default rat
 
 Fewer trees for a coefficient than for the control function is the setting worth knowing about, and it is the one `bcf()` makes by default. A coefficient forest describes how an effect varies, and that is usually a simpler surface than the outcome's, so it needs less capacity; and with less capacity it competes less with the control function for the same variation, which keeps the two well separated in the posterior. When a fit with a varying coefficient mixes badly, a coefficient forest that is too large is the first thing to try.
 
-The `sparsity` argument is the other setting that reads differently on a coefficient forest. On the control function it selects among the predictors the way it does in any BART fit. On a coefficient forest what it selects among is the *modifiers*, and dropping all of them leaves an effect that does not vary rather than an effect that is zero, since nothing can drop the covariate the forest multiplies. That is the shrinkage a heterogeneity model wants, and it is why `bcf()` leaves `sparsity` on where a single-forest treatment model turns it off; `vignette("effects")` covers the single-forest case.
+The `sparsity` argument is the other setting that reads differently on a coefficient forest. On the control function it selects among the predictors the way it does in any BART fit. On a coefficient forest what it selects among is the *modifiers*, and dropping all of them leaves an effect that does not vary rather than an effect that is zero, since nothing can drop the covariate the forest multiplies. That is the shrinkage a heterogeneity model wants, and it makes the sparsity prior safe to turn on for a coefficient forest where it is not for a single forest with the treatment among its predictors. `bcf()` keeps the default of off for both forests, and setting `sparsity = c(FALSE, TRUE)` turns it on for the coefficient forest alone; `vignette("effects")` covers the single-forest case.
 
 ### Families With Several Additive Predictors
 
@@ -277,10 +277,12 @@ fit_bcf
 
 `bcf()` makes the following modifications to a standard `bartisan()` call:
 
-1. The treatment gets a `vc()` term, so its effect is a forest with a prior of its own, which is everything above. 2. The estimated propensity score, fitted by a logistic BART model on the same covariates, goes into the control function as a predictor named `.propensity` and not into the effect forest, so that the control function absorbs the selection into treatment while the effect stays free of it; that is the remedy @hahn2020 propose for what they call regularization-induced confounding.
+1. The treatment gets a `vc()` term, so its effect is a forest with a prior of its own, which is everything above.
+2. The estimated propensity score, fitted by a logistic BART model on the same covariates, goes into the control function as a predictor named `.propensity` and not into the effect forest, so that the control function absorbs the selection into treatment while the effect stays free of it; that is the remedy @hahn2020 propose for what they call regularization-induced confounding.
 3. The effect forest gets fewer trees than the control function, 25 against 50, for the reason given in the section above.
-4. A binary treatment's coding is drawn rather than fixed, which is `center = "estimate"`, so the answer is the same whichever arm was written as 1. 
-5. The `sparsity` argument is left on, since the treatment is the coefficient rather than a predictor a splitting proportion could drop (note this is in line with the `bartisan()` default, but not what is otherwise recommend for treatment effect estimation without a varying coefficient model).
+4. A binary treatment's coding is drawn rather than fixed, which is `center = "estimate"`, so the answer is the same whichever arm was written as 1.
+
+The `sparsity` argument is left at its default of off for both forests. Because the treatment is the coefficient rather than a predictor a splitting proportion could drop, the prior can be turned on for the coefficient forest alone with `sparsity = c(FALSE, TRUE)`, as the section above describes.
 
 The `moderators` argument is `vc()`'s `modifiers` under the name the causal literature uses, and the propensity model is `bartisan()` with `propensity_args` for its settings.
 

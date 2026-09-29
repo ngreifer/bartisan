@@ -25,13 +25,17 @@ top_by_forest <- function(fit, k = 5L) {
 
 test_that("share_sparsity is validated where it is set", {
   expect_false(bartisan_control()[["share_sparsity"]])
-  expect_true(bartisan_control(share_sparsity = TRUE)[["share_sparsity"]])
+  expect_true(bartisan_control(sparsity = TRUE,
+                               share_sparsity = TRUE)[["share_sparsity"]])
 
-  expect_error(bartisan_control(share_sparsity = 1), "logical")
-  expect_error(bartisan_control(share_sparsity = c(TRUE, TRUE)), "logical")
+  expect_error(bartisan_control(sparsity = TRUE, share_sparsity = 1), "logical")
+  expect_error(bartisan_control(sparsity = TRUE, share_sparsity = c(TRUE, TRUE)),
+               "logical")
 
-  # Nothing to pool when the proportions are fixed rather than drawn, in either
-  # of the two ways they can be fixed.
+  # Nothing to pool when the proportions are fixed rather than drawn, in any of
+  # the three ways they can be fixed: the default, an explicit `FALSE`, and
+  # supplied weights.
+  expect_error(bartisan_control(share_sparsity = TRUE), "nothing to share")
   expect_error(bartisan_control(sparsity = FALSE, share_sparsity = TRUE),
                "nothing to share")
   expect_error(bartisan_control(split_prior = c(x1 = 2), share_sparsity = TRUE),
@@ -46,8 +50,8 @@ test_that("share_sparsity is validated where it is set", {
 test_that("one forest is nothing to share, and is not an error", {
   d <- sim_share(n = 150L, p = 5L, seed = 21L)
 
-  fit <- bartisan(y ~ ., d, family = stats::gaussian(), share_sparsity = TRUE,
-                  control = quick_control(num_trees = 5L))
+  fit <- bartisan(y ~ ., d, family = stats::gaussian(), sparsity = TRUE,
+                  share_sparsity = TRUE, control = quick_control(num_trees = 5L))
 
   expect_s3_class(fit, "bartisan_fit")
   expect_length(fit[["counts"]], 1L)
@@ -61,7 +65,7 @@ test_that("a shared prior moves a signal-free forest onto the other's predictors
 
   ctrl <- function(share) {
     quick_control(num_trees = 20L, num_burn = 300L, num_draws = 500L,
-                  share_sparsity = share)
+                  sparsity = TRUE, share_sparsity = share)
   }
 
   set.seed(2L)
@@ -99,7 +103,8 @@ test_that("forests that may split on different predictors refuse to share", {
   # supports and a pooled Dirichlet over them would not be one distribution.
   expect_error(
     bartisan(y ~ vc(z, ~ x1 + x2) + x1 + x2 + x3, d, family = stats::gaussian(),
-             control = quick_control(num_trees = 5L, share_sparsity = TRUE)),
+             control = quick_control(num_trees = 5L, sparsity = TRUE,
+                                     share_sparsity = TRUE)),
     "same predictors")
 
   # One modifier is not that case, and is not an error: a forest held to a
@@ -107,7 +112,8 @@ test_that("forests that may split on different predictors refuse to share", {
   # proportions at all and there is nothing for it to share.
   expect_s3_class(
     bartisan(y ~ vc(z, ~ x1) + x1 + x2, d, family = stats::gaussian(),
-             control = quick_control(num_trees = 5L, share_sparsity = TRUE)),
+             control = quick_control(num_trees = 5L, sparsity = TRUE,
+                                     share_sparsity = TRUE)),
     "bartisan_fit")
 })
 
@@ -118,7 +124,7 @@ test_that("sharing leaves the forests their own trees and leaf scales", {
 
   fit <- bartisan(y ~ ., d, family = gaussian_ls(),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_draws = 300L,
+                                          num_draws = 300L, sparsity = TRUE,
                                           share_sparsity = TRUE))
 
   # Only the prior over predictors is common. The forests still differ in how

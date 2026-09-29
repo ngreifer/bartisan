@@ -40,7 +40,7 @@ Two of those questions *bartisan* answers itself: `estimate_effect()` considers 
 
 This vignette covers the questions worth asking and how to phrase them. `vignette("bartisan")` is the shorter tour, and this expands its section on interpreting the fit.
 
-In this guide, we will start from the three kinds of question the package answers and then work through them in turn. First, we'll consider average effects of categorical and numeric predictors, along with the prior setting (`sparsity`) that can quietly attenuate a contrast. Next we'll split those effects by subgroup and test a moderation with the difference of the two, then plot the shape of a fitted relationship and choose the scale on which an effect is reported, and close with what these estimates can and cannot be taken to mean.
+In this guide, we will start from the three kinds of question the package answers and then work through them in turn. First, we'll consider average effects of categorical and numeric predictors, along with the prior setting (`sparsity`) that can quietly attenuate a contrast when it is turned on. Next we'll split those effects by subgroup and test a moderation with the difference of the two, then plot the shape of a fitted relationship and choose the scale on which an effect is reported, and close with what these estimates can and cannot be taken to mean.
 
 Below, we load in the `rhc` dataset (see `vignette("bartisan")` or `help("rhc", package = "bartisan")` for details) and fit a BART logistic regression model predicting `death` from the available predictors. (Normally we would use multiple chains, perform diagnostics on mixing, and possibly modify the fitting parameters; we skip those here for brevity.)
 
@@ -86,11 +86,11 @@ The comparison for `age`, for example, means that increasing all units' age by 1
 
 ### The Splitting Prior and a Contrast (`sparsity`)
 
-An estimate here can come back as exactly zero, and an interval bound with it; that is not a rounding artifact. The default splitting prior is a variable-selection prior (i.e., one that can leave a predictor out of the forest altogether), so in a draw where it uses the predictor in no tree, the prediction does not depend on it, and the contrast is exactly zero; the posterior of the contrast is a mixture with a point mass there, holding whatever share of draws dropped the predictor. *marginaleffects* centers a posterior at its median by default, so once that point mass holds half of it the reported estimate is exactly zero however far the rest of the posterior sits from zero. Setting `options(marginaleffects_posterior_center = mean)` asks for the mean instead, which is the how `predict()` and `estimate_effect()` report predictions.
+The default splitting prior gives every predictor the same chance of being chosen for a splitting rule, so no predictor can be left out of the forest. Setting `sparsity = TRUE` replaces it with a variable-selection prior (i.e., one that can leave a predictor out of the forest altogether), which is useful when there are many predictors and only a few are expected to matter, but it changes what a contrast means. In a draw where the prior uses a predictor in no tree, the prediction does not depend on it and the contrast is exactly zero, so the posterior of the contrast is a mixture with a point mass at zero, holding whatever share of draws dropped the predictor. An estimate can then come back as exactly zero, and an interval bound with it; that is not a rounding artifact. *marginaleffects* centers a posterior at its median by default, so once that point mass holds half of it the reported estimate is exactly zero however far the rest of the posterior sits from zero. Setting `options(marginaleffects_posterior_center = mean)` asks for the mean instead, which is how `predict()` and `estimate_effect()` report predictions.
 
 This can matter more than it sounds: on a weak signal, the prior can attenuate the estimate substantially, and its interval can cover the truth well below its nominal rate. A strong effect is untouched, because the prior never has reason to drop a predictor that is earning its splits, so this is a weak-signal problem rather than a general one.
 
-If we are reporting a contrast, we can fit the model with `sparsity = FALSE`, or by supplying `split_prior`, which fixes the weights (i.e., the probability that each predictor is chosen for a split) and so cannot drop anything. `?bartisan_control` explains both options.
+If we are reporting a contrast, we recommend keeping the default. When there are too many predictors to weight alike, supplying `split_prior`, which fixes the weights (i.e., the probability that each predictor is chosen for a split) and so cannot drop anything, is the middle course. `?bartisan_control` explains both options.
 
 ### Choosing the Step (`variables`)
 
@@ -110,7 +110,7 @@ Supplying `by` to `avg_comparisons()` and other functions in *marginaleffects* s
 avg_comparisons(fit, variables = "rhc", by = "card")
 ```
 
-The two subgroup estimates are close, and both intervals reach zero. A common mistake is to stop here and conclude that the effect differs between groups; that comparison is not a test. The question is whether the two effects differ from each other, which needs the difference of the two (i.e., a difference of differences) with an interval of its own. This can be requested by specifying `hypothesis = ~pairwise`.
+The two subgroup estimates are close, and both intervals exclude zero by a small margin. A common mistake is to stop here and conclude that the effect differs between groups; that comparison is not a test. The question is whether the two effects differ from each other, which needs the difference of the two (i.e., a difference of differences) with an interval of its own. This can be requested by specifying `hypothesis = ~pairwise`.
 
 ```{r hypo, eval = run}
 avg_comparisons(fit, variables = "rhc", by = "card",

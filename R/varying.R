@@ -184,19 +184,30 @@
 #'
 #' set.seed(123)
 #'
-#' # The effect of right heart catheterization on death, free to vary with
-#' # every other covariate. `rhc` reaches the fixed part through `.`, so it is
-#' # dropped from the control function, which keeps the two identified
-#' fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
-#'                 family = binomial(), num_trees = 10, num_burn = 50,
+#' # The effect of right heart catheterization on death,
+#' # free to vary with every other covariate. `rhc` is left
+#' # out of the control function, which keeps the two
+#' # forests identified
+#' model <- death ~ age + sex + race + edu + aps + meanbp +
+#'   resp + hema + pafi + paco2 + crea + surv2m + card +
+#'   vc(rhc)
+#'
+#' fit <- bartisan(model, data = rhc, family = binomial(),
+#'                 num_trees = 10, num_burn = 50,
 #'                 num_draws = 50)
 #'
-#' # One coefficient per patient: the coefficient function at each observation
+#' # One coefficient per patient: the coefficient function
+#' # at each observation
 #' head(coef(fit))
 #'
-#' # The same effect, free to vary with severity of illness alone
-#' fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
-#'                  family = binomial(), num_trees = 10, num_burn = 50,
+#' # The same effect, free to vary with severity of illness
+#' # alone
+#' model2 <- death ~ age + sex + race + edu + aps + meanbp +
+#'   resp + hema + pafi + paco2 + crea + surv2m + card +
+#'   vc(rhc, ~ aps)
+#'
+#' fit2 <- bartisan(model2, data = rhc, family = binomial(),
+#'                  num_trees = 10, num_burn = 50,
 #'                  num_draws = 50)
 #'
 #' head(coef(fit2))

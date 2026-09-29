@@ -31,21 +31,30 @@
 #' data("rhc")
 #' set.seed(123)
 #'
-#' # Whether a patient died, with catheterization among the predictors
-#' fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
-#'                 num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
+#' # Whether a patient died, with catheterization among the
+#' # predictors
+#' fit <- bartisan(death ~ rhc + age + sex + race + edu +
+#'                   aps + meanbp + resp + hema + pafi +
+#'                   paco2 + crea + surv2m + card,
+#'                 data = rhc, num_trees = 10, num_burn = 50,
+#'                 num_draws = 50, chains = 2, verbose = FALSE)
 #'
 #' # What was fit, and how many draws it rests on
 #' fit
 #'
-#' # The splitting counts, which say which predictors the forest reaches for
+#' # The splitting counts, which say which predictors the
+#' # forest reaches for
 #' summary(fit)
 #'
-#' # A family with a nuisance parameter reports its posterior too, here the
-#' # residual standard deviation of the log survival time
-#' fit2 <- bartisan(log(days) ~ . - death, data = rhc, family = gaussian(),
-#'                  num_trees = 10, num_burn = 50, num_draws = 50,
-#'                  verbose = FALSE)
+#' # A family with a nuisance parameter reports its
+#' # posterior too, here the residual standard deviation of
+#' # the log survival time
+#' fit2 <- bartisan(log(days) ~ rhc + age + sex + race +
+#'                    edu + aps + meanbp + resp + hema +
+#'                    pafi + paco2 + crea + surv2m + card,
+#'                  data = rhc, family = gaussian(),
+#'                  num_trees = 10, num_burn = 50,
+#'                  num_draws = 50, verbose = FALSE)
 #'
 #' summary(fit2, level = .8)
 #'
@@ -329,11 +338,12 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 #' data("rhc")
 #' set.seed(123)
 #'
-#' # The effect of catheterization is allowed to vary with the other
-#' # predictors, so its coefficient is a function rather than a number
-#' fit <- bartisan(death ~ age + aps + surv2m + vc(rhc), data = rhc,
-#'                 num_trees = 10, num_burn = 50, num_draws = 50,
-#'                 verbose = FALSE)
+#' # The effect of catheterization is allowed to vary with
+#' # the other predictors, so its coefficient is a function
+#' # rather than a number
+#' fit <- bartisan(death ~ age + aps + surv2m + vc(rhc),
+#'                 data = rhc, num_trees = 10, num_burn = 50,
+#'                 num_draws = 50, verbose = FALSE)
 #'
 #' # One coefficient per patient, on the link scale
 #' head(coef(fit))
@@ -434,19 +444,22 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
 #'
 #' @examplesIf rlang::is_installed("nlme")
 #' set.seed(123)
-#' d <- data.frame(x = runif(200),
-#'                 site = factor(sample(letters[1:5], 200, TRUE)))
+#' sites <- factor(sample(letters[1:5], 200, TRUE))
+#' d <- data.frame(x = runif(200), site = sites)
 #' d$y <- rnorm(200, d$x + as.numeric(d$site) / 3)
 #'
-#' fit <- bartisan(y ~ x + (1 | site), data = d, num_trees = 10,
-#'                 num_burn = 50, num_draws = 50, verbose = FALSE)
+#' fit <- bartisan(y ~ x + (1 | site), data = d,
+#'                 num_trees = 10, num_burn = 50,
+#'                 num_draws = 50, verbose = FALSE)
 #'
-#' # One intercept per site, as posterior means. The generic is \pkg{nlme}'s,
-#' # which \pkg{lme4} re-exports, so either qualification reaches this.
+#' # One intercept per site, as posterior means. The
+#' # generic is \pkg{nlme}'s, which \pkg{lme4} re-exports,
+#' # so either qualification reaches this.
 #' nlme::ranef(fit)
 #'
 #' # With the draws, so the intercepts come with intervals
-#' apply(nlme::ranef(fit, draws = TRUE)$site[["(Intercept)"]], 2L, quantile,
+#' re <- nlme::ranef(fit, draws = TRUE)
+#' apply(re$site[["(Intercept)"]], 2L, quantile,
 #'       c(.025, .975))
 #'
 #' @exportS3Method nlme::ranef

@@ -44,14 +44,17 @@
 #'   smooth fits. Which soft gate is chosen matters much less than that one is.
 #'   See Details.
 #' @param sparsity `logical` or string; the prior on which predictors are split
-#'   on. `TRUE` (the default) is the Dirichlet sparsity prior of Linero (2018)
-#'   (i.e., DART), which can drop a predictor from the forest entirely, and
-#'   `FALSE` gives every predictor the same splitting probability, which is
-#'   classic BART. The strings `"none"`, `"weak"`, `"moderate"`, and `"strong"`
-#'   name four strengths, `"none"` equal to `FALSE` and `"moderate"` to `TRUE`.
-#'   Note that this sets `update_s`, `update_alpha`, `alpha_shape_1` and
-#'   `alpha_shape_2` together, and that supplying any of those overrides it.
-#'   Read the trade-off in Details before turning it off.
+#'   on. `FALSE` (the default) gives every predictor the same splitting
+#'   probability, which is classic BART, and `TRUE` is the Dirichlet sparsity
+#'   prior of Linero (2018) (i.e., DART), which can drop a predictor from the
+#'   forest entirely. The strings `"none"`, `"weak"`, `"moderate"`, and
+#'   `"strong"` name four strengths, `"none"` equal to `FALSE` and `"moderate"`
+#'   to `TRUE`. Setting `sparsity = TRUE` is for when there are many predictors,
+#'   when only a few of them are expected to matter, or when the goal is to
+#'   identify the predictors the model needs; it is not recommended when an
+#'   effect is being estimated. See Details. Note that this sets `update_s`,
+#'   `update_alpha`, `alpha_shape_1` and `alpha_shape_2` together, and that
+#'   supplying any of those overrides it.
 #' @param k *Advanced.* `numeric`; controls the leaf prior. The prior standard
 #'   deviation of a forest is `3 / k` times the natural scale of its additive
 #'   predictor, so larger values shrink the fit harder toward the intercept-only
@@ -72,8 +75,8 @@
 #'   from one pooled Dirichlet rather than one each. Default is `FALSE`. `TRUE`
 #'   is an assumption about the data rather than a free improvement, and
 #'   requires that the proportions be drawn at all and over the same predictors,
-#'   so the forests that are to share must not have `sparsity = FALSE`.
-#'   Ignored for a family with a single forest. See Details.
+#'   so the forests that are to share must have `sparsity = TRUE`, which is not
+#'   the default. Ignored for a family with a single forest. See Details.
 #' @param categorical *Advanced.* string; how a splitting rule divides the
 #'   levels of a factor. Allowable options include `"subset"` (the default),
 #'   which draws a subset of the levels still available at the node and sends
@@ -285,37 +288,45 @@
 #'
 #' ## Controlling Sparsity
 #'
-#' `sparsity = TRUE` (the default) is the Dirichlet prior of Linero (2018) on
-#' the splitting proportions, and it is a genuine variable-selection prior: it
-#' can and does drop a predictor from every tree at once, which is the point of
-#' it in the high-dimensional problems it was built for.
+#' By default (`sparsity = FALSE`), every predictor has the same prior
+#' probability of being chosen for a splitting rule, as in classic BART, so no
+#' predictor can be left out of the forest. Setting `sparsity = TRUE` places the
+#' Dirichlet prior of Linero (2018) on the splitting proportions instead, which
+#' is a genuine variable-selection prior: it can and does drop a predictor from
+#' every tree at once, which is the point of it in the high-dimensional problems
+#' it was built for.
 #'
-#' That has a consequence which is easy to misread. A contrast on a predictor
-#' the prior has dropped is exactly zero because in that draw the fit does not
-#' depend on that predictor at all, so the posterior of a contrast has an atom
-#' at zero whose mass is one minus the predictor's inclusion probability; any
-#' summary reporting a median lands on it once it holds half the mass. More
-#' trees does not fix it, because a predictor whose splitting proportion has
-#' gone small is rarely proposed and so is hard to get back in.
+#' The sparsity prior is worth turning on when there are many predictors, when
+#' only a few of them are expected to matter, or when the goal is to identify
+#' the subset of predictors the model needs. Under it, the `prop_used` column of
+#' [variable_importance()] is readable as a posterior probability that a
+#' predictor belongs in the model, which it is not under the default;
+#' `vignette("importance")` covers that use. It also tends to improve prediction
+#' when many of the predictors are irrelevant.
 #'
-#' How to specify `sparsity` follows from the estimand. For prediction or
-#' variable selection, keep the default; reaching past `TRUE` is warranted only
-#' when the predictors are many and nearly all are expected to be irrelevant.
-#' For a contrast, a partial effect, or a treatment effect, set `sparsity =
-#' FALSE`, or use `split_prior`, which cannot drop anything: on a weak signal
-#' the sparsity prior attenuates the estimate substantially and its interval
-#' covers below its nominal rate, while a strong effect is untouched.
-#' `vignette("effects")` works this through and [`bartisan-marginaleffects`]
-#' covers the atom.
+#' It is not recommended when a contrast, a partial effect, or a treatment
+#' effect is being estimated. A contrast on a predictor the prior has dropped is
+#' exactly zero because in that draw the fit does not depend on that predictor
+#' at all, so the posterior of a contrast has an atom at zero whose mass is one
+#' minus the predictor's inclusion probability; any summary reporting a median
+#' lands on it once it holds half the mass. On a weak signal the estimate is
+#' attenuated substantially and its interval covers below its nominal rate,
+#' while a strong effect is untouched. More trees does not fix it, because a
+#' predictor whose splitting proportion has gone small is rarely proposed and so
+#' is hard to get back in. `vignette("effects")` works this through and
+#' [`bartisan-marginaleffects`] covers the atom. When an effect is the estimand
+#' but there are too many predictors to weight alike, `split_prior` is the
+#' middle course, since fixed weights cannot drop anything.
 #'
 #' For a varying-coefficient model, the sparsity choice can differ by forest
 #' (see more details below). What the prior can drop is a predictor a forest
 #' splits on, and in a [vc()] model the treatment is the coefficient rather than
 #' one of those, carried by a forest of its own, so no splitting proportion can
 #' drop it; the prior on that forest selects among the moderators instead. So
-#' `sparsity = c(FALSE, TRUE)`, which disables the sparsity prior for the
-#' control function forest and enables it for the varying coefficient forest, is
-#' coherent, and in [bcf()] it is the asymmetry worth considering.
+#' `sparsity = c(FALSE, TRUE)`, which keeps the default for the control
+#' function forest and enables the sparsity prior for the varying coefficient
+#' forest, is coherent, and in [bcf()] it is the setting worth considering when
+#' there are many candidate moderators.
 #'
 #' Sparsity can also be controlled by choosing the sparsity parameter `alpha` or
 #' drawing it from a prior determined by the parameters `alpha_scale`,
@@ -337,7 +348,7 @@
 #' the data can still overrule it in either direction. Because the weights are
 #' fixed, `split_prior` does not accumulate the atom-at-zero mass above, which
 #' makes it a reasonable middle course when a particular contrast is the
-#' estimand but the predictors are too many to treat alike. One weight per term
+#' estimand but there are too many predictors to treat alike. One weight per term
 #' in the formula, not per column of the design matrix, so a factor is named
 #' once and its levels share the weight.
 #'
@@ -428,22 +439,31 @@
 #' set.seed(123)
 #'
 #' # Settings can be built up once and reused across fits
-#' ctrl <- bartisan_control(num_trees = 20, gate = "hard", num_burn = 50,
+#' ctrl <- bartisan_control(num_trees = 20,
+#'                          gate = "hard",
+#'                          num_burn = 50,
 #'                          num_draws = 50)
 #'
-#' fit <- bartisan(death ~ . - days, data = rhc, control = ctrl)
+#' model <- death ~ rhc + age + sex + race + edu + aps +
+#'   meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+#'   card
 #'
-#' # The same call, with the settings passed through `...` instead
-#' fit2 <- bartisan(death ~ . - days, data = rhc, num_trees = 20,
-#'                  gate = "hard", num_burn = 50, num_draws = 50)
+#' fit <- bartisan(model, data = rhc, control = ctrl)
 #'
-#' # A setting given once applies to every forest, and a vector gives each
-#' # forest its own value. A variance surface needs less capacity than a
-#' # mean surface
+#' # The same call, with the settings passed through `...`
+#' # instead
+#' fit2 <- bartisan(model, data = rhc,
+#'                  num_trees = 20, gate = "hard",
+#'                  num_burn = 50, num_draws = 50)
+#'
+#' # A setting given once applies to every forest, and a
+#' # vector gives each forest its own value. A variance
+#' # surface needs less capacity than a mean surface
 #' bartisan_control(num_trees = c(mean = 50, log_sd = 10))
 #'
-#' # Weighting the splitting prior toward the treatment, which the sparsity
-#' # prior would otherwise be free to drop
+#' # Weighting the splitting prior toward the treatment, for
+#' # a model with more predictors than are worth weighting
+#' # alike
 #' bartisan_control(split_prior = c(rhc = 10))
 #'
 #' @export
@@ -451,7 +471,7 @@ bartisan_control <- function(chains = 1L,
                              num_burn = 200L, num_draws = 800L, num_thin = 1L,
                              num_trees = 50L,
                              gate = "smoothstep",
-                             sparsity = TRUE,
+                             sparsity = FALSE,
                              split_prior = NULL,
                              x_transform = "smoothcdf",
                              k = 2,
@@ -570,7 +590,8 @@ bartisan_control <- function(chains = 1L,
   # they do know and want it honored. Drawing `s` from a Dirichlet centered on
   # the supplied weights would answer neither question, so the weights are held
   # fixed and `sparsity` is ignored. Said out loud only when the caller asked
-  # for both, since `sparsity = TRUE` is the default and is not a request.
+  # for both, since the default `sparsity = FALSE` is not a request and a
+  # caller who wrote `sparsity = FALSE` asked for what they are getting.
   if (!is_null(split_prior)) {
     if (!missing(sparsity) && !isFALSE(sparsity)) {
       arg::wrn(c("{.arg split_prior} overrides {.arg sparsity}, which is ignored.",
@@ -587,7 +608,8 @@ bartisan_control <- function(chains = 1L,
     arg::err(c("{.arg share_sparsity} has nothing to share when the splitting
                 proportions are not drawn.",
                i = "It pools the counts behind one Dirichlet draw, which
-                    setting {.code sparsity = TRUE} requests."))
+                    setting {.code sparsity = TRUE} requests and the default
+                    {.code sparsity = FALSE} does not."))
   }
 
   sparse <- resolve_sparsity(sparsity)
