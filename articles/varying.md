@@ -150,41 +150,43 @@ summary(fit_vc)
 #> Splitting rules per draw, and how often used at all.
 #> 
 #> Predictor "(Intercept)":
-#>          mean    sd lower  upper prop_used
-#> age     9.807 5.448     2 23.025     1.000
-#> paco2   8.586 4.770     2 21.000     1.000
-#> surv2m 19.680 7.587     7 36.000     1.000
-#> aps     6.207 4.572     0 18.000     0.932
-#> pafi    4.781 3.338     0 13.000     0.911
-#> hema    5.468 4.189     0 16.000     0.907
-#> card    4.411 3.431     0 13.000     0.895
-#> race    3.421 2.636     0  9.000     0.855
-#> edu     2.791 2.812     0  9.000     0.739
-#> meanbp  2.920 3.443     0 13.000     0.730
-#> sex     2.901 2.916     0 10.000     0.725
-#> crea    2.996 3.068     0 10.000     0.689
-#> resp    2.118 2.478     0  8.025     0.639
+#>         mean    sd lower  upper prop_used
+#> age    7.384 2.409     3 12.000     1.000
+#> race   5.081 2.389     1 10.000     1.000
+#> pafi   6.109 2.121     2 11.000     1.000
+#> paco2  6.383 2.178     2 11.000     1.000
+#> surv2m 8.919 2.292     5 14.000     1.000
+#> edu    5.575 2.315     1 11.000     0.999
+#> aps    6.254 2.297     2 11.000     0.999
+#> card   5.237 2.008     2  9.025     0.999
+#> sex    4.869 2.031     1  9.000     0.998
+#> meanbp 5.378 2.099     2 10.000     0.998
+#> hema   5.402 2.432     1 11.000     0.998
+#> crea   4.934 2.234     1 10.000     0.989
+#> resp   4.540 2.237     1  9.025     0.984
 #> 
 #> Predictor "rhc":
-#>          mean     sd lower upper prop_used
-#> hema    9.485  8.290     1 34.00     0.984
-#> aps    13.332 14.347     0 51.02     0.961
-#> paco2   4.935  3.961     0 15.00     0.884
-#> card    7.888  6.355     0 26.02     0.881
-#> crea    5.249  5.043     0 19.00     0.880
-#> surv2m  4.880  4.291     0 15.03     0.804
-#> sex     5.505  5.161     0 18.00     0.801
-#> edu     4.211  4.053     0 15.03     0.769
-#> resp    3.825  3.625     0 12.00     0.755
-#> pafi    3.859  3.090     0 10.00     0.754
-#> meanbp  5.155  6.639     0 26.00     0.733
-#> age     3.639  3.873     0 14.00     0.684
-#> race    2.609  2.855     0  9.00     0.655
+#>         mean    sd lower upper prop_used
+#> race   5.991 2.449 2.000 11.00     1.000
+#> aps    6.211 2.272 2.975 11.00     1.000
+#> meanbp 5.989 2.205 2.000 11.00     1.000
+#> resp   5.928 2.390 2.000 11.00     1.000
+#> card   5.830 2.129 2.000 10.00     1.000
+#> hema   6.275 2.388 2.000 11.00     0.999
+#> surv2m 5.651 2.381 2.000 11.00     0.999
+#> age    5.866 2.295 2.000 11.00     0.998
+#> sex    5.608 2.296 2.000 10.00     0.996
+#> pafi   5.734 2.296 2.000 10.00     0.996
+#> paco2  5.525 2.243 1.000 10.00     0.996
+#> edu    5.745 2.516 1.975 11.00     0.995
+#> crea   5.520 2.357 1.000 10.03     0.995
 ```
 
-We can see that `age`, `paco2`, and `surv2m` were used in every tree in
-the control function (`(Intercept)`) forest, but `hema` was the most
-frequently used predictor in the varying coefficient (`rhc`) forest.
+Under the default splitting prior every predictor is used in nearly
+every draw of both forests, so the `prop_used` column says little here
+and the `mean` column carries the ranking: `surv2m` and `age` take the
+most rules in the control function (`(Intercept)`) forest, and `hema` in
+the varying coefficient (`rhc`) forest.
 
 ### Effect Modifiers (`modifiers`)
 
@@ -237,36 +239,36 @@ summary(fit_aps)
 #> Splitting rules per draw, and how often used at all.
 #> 
 #> Predictor "(Intercept)":
-#>          mean     sd lower upper prop_used
-#> age    10.666  6.365     3    28     1.000
-#> pafi    7.726  5.283     1    21     1.000
-#> surv2m 21.008 12.399     7    52     1.000
-#> paco2   6.676  4.327     1    17     0.986
-#> aps     6.971  6.712     0    27     0.930
-#> crea    6.746  5.745     0    22     0.889
-#> meanbp  3.087  3.506     0    14     0.740
-#> race    3.476  3.649     0    12     0.729
-#> hema    2.631  2.916     0     9     0.620
-#> card    1.866  2.427     0     8     0.603
-#> edu     1.866  2.164     0     7     0.588
-#> sex     1.826  2.329     0     8     0.552
-#> resp    1.484  2.077     0     7     0.498
+#>         mean    sd lower  upper prop_used
+#> age    7.210 2.315 3.000 12.000     1.000
+#> paco2  6.131 2.100 2.000 10.000     1.000
+#> surv2m 9.199 2.351 4.975 14.000     1.000
+#> edu    5.222 2.132 1.000 10.000     0.999
+#> aps    6.207 2.185 2.000 10.000     0.999
+#> hema   5.516 2.272 2.000 10.025     0.999
+#> pafi   5.559 2.155 2.000 11.000     0.998
+#> sex    4.858 2.121 1.000  9.000     0.996
+#> meanbp 5.522 2.444 2.000 11.000     0.996
+#> crea   5.263 2.555 1.000 11.000     0.996
+#> card   4.994 2.256 1.000  9.025     0.994
+#> resp   4.841 2.070 1.000  9.000     0.993
+#> race   4.834 2.356 1.000 10.000     0.990
 #> 
 #> Predictor "rhc":
 #>         mean    sd lower upper prop_used
-#> age    55.78 17.51 18.98    85     1.000
-#> aps    19.67 16.93  0.00    54     0.796
-#> sex     0.00  0.00  0.00     0     0.000
-#> race    0.00  0.00  0.00     0     0.000
-#> edu     0.00  0.00  0.00     0     0.000
-#> meanbp  0.00  0.00  0.00     0     0.000
-#> resp    0.00  0.00  0.00     0     0.000
-#> hema    0.00  0.00  0.00     0     0.000
-#> pafi    0.00  0.00  0.00     0     0.000
-#> paco2   0.00  0.00  0.00     0     0.000
-#> crea    0.00  0.00  0.00     0     0.000
-#> surv2m  0.00  0.00  0.00     0     0.000
-#> card    0.00  0.00  0.00     0     0.000
+#> age    37.62 5.445    27 49.02         1
+#> aps    37.70 5.585    28 49.00         1
+#> sex     0.00 0.000     0  0.00         0
+#> race    0.00 0.000     0  0.00         0
+#> edu     0.00 0.000     0  0.00         0
+#> meanbp  0.00 0.000     0  0.00         0
+#> resp    0.00 0.000     0  0.00         0
+#> hema    0.00 0.000     0  0.00         0
+#> pafi    0.00 0.000     0  0.00         0
+#> paco2   0.00 0.000     0  0.00         0
+#> crea    0.00 0.000     0  0.00         0
+#> surv2m  0.00 0.000     0  0.00         0
+#> card    0.00 0.000     0  0.00         0
 ```
 
 When the modified variable is continuous, `modifiers` decides whether
@@ -378,7 +380,7 @@ library(loo)
 loo_compare(list(constant = loo(constant), varying = loo(fit_vc)))
 #>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
 #>  constant       0.0     0.0      NA                          
-#>   varying      -1.4     1.3    0.85 |elpd_diff| < 4
+#>   varying      -0.5     1.0    0.68 |elpd_diff| < 4
 ```
 
 The constant coefficient is not beaten, so there is no evidence here
@@ -396,7 +398,7 @@ c(log_OR = mean(b),
   upper = quantile(exp(b), .975, names = FALSE)) |>
   round(3)
 #> log_OR     OR  lower  upper 
-#>  0.356  1.428  1.115  1.859
+#>  0.338  1.402  1.059  1.799
 ```
 
 An odds ratio of about 1.4, conditional on the predictors in the forest.
@@ -437,19 +439,19 @@ rather than a coefficient, and
 
 head(coef(fit_vc))
 #>         rhc
-#> [1,] 0.5112
-#> [2,] 0.2193
-#> [3,] 0.2502
-#> [4,] 0.3295
-#> [5,] 0.3445
-#> [6,] 0.3514
+#> [1,] 0.3886
+#> [2,] 0.1962
+#> [3,] 0.2041
+#> [4,] 0.2841
+#> [5,] 0.2481
+#> [6,] 0.2463
 ```
 
 [`coef()`](https://rdrr.io/r/stats/coef.html) returns one row per
 observation and one column per coefficient, since a coefficient allowed
 to vary has a value for each observation: for the first patient, or more
 precisely for a patient with the first patient’s covariate profile, the
-log odds of death move by 0.511 under catheterization. The values are on
+log odds of death move by 0.389 under catheterization. The values are on
 the link scale, so for a binary outcome they are differences in log odds
 rather than in probability. Supplying `newdata` evaluates the
 coefficients at other covariate profiles, and setting `draws = TRUE`
@@ -463,10 +465,10 @@ draws <- coef(fit_vc, draws = TRUE)[["rhc"]]
 
 # A 95% interval on the coefficient for the first three patients
 t(apply(draws[, 1:3], 2L, quantile, c(.025, .975)))
-#>          2.5%  97.5%
-#> [1,] -0.01713 1.1921
-#> [2,] -0.31305 0.7657
-#> [3,] -0.36013 0.8276
+#>           2.5%  97.5%
+#> [1,] -0.002961 0.9387
+#> [2,] -0.240273 0.6338
+#> [3,] -0.214174 0.6488
 ```
 
 [`summary()`](https://rdrr.io/r/base/summary.html) on the fit reports
@@ -557,9 +559,13 @@ predictors the way it does in any BART fit. On a coefficient forest what
 it selects among is the *modifiers*, and dropping all of them leaves an
 effect that does not vary rather than an effect that is zero, since
 nothing can drop the covariate the forest multiplies. That is the
-shrinkage a heterogeneity model wants, and it is why
-[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) leaves
-`sparsity` on where a single-forest treatment model turns it off;
+shrinkage a heterogeneity model wants, and it makes the sparsity prior
+safe to turn on for a coefficient forest where it is not for a single
+forest with the treatment among its predictors.
+[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) keeps
+the default of off for both forests, and setting
+`sparsity = c(FALSE, TRUE)` turns it on for the coefficient forest
+alone;
 [`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
 covers the single-forest case.
 
@@ -657,7 +663,7 @@ fit_bcf
 #> Structure: 2 forests of 50 and 25 trees, soft decision rules
 #> Draws: 800 kept after 200 warmup
 #> 
-#> Posterior means: b.rhc.0 = -0.0532, b.rhc.1 = -0.523
+#> Posterior means: b.rhc.0 = -0.0312, b.rhc.1 = 0.0635
 #> 
 #> Treatment: "rhc"
 #> Effect moderators: "age", "sex", "race", "edu", "aps", "meanbp", "resp", "hema", "pafi", "paco2", "crea", "surv2m", and "card"
@@ -673,24 +679,25 @@ call:
 1.  The treatment gets a
     [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) term,
     so its effect is a forest with a prior of its own, which is
-    everything above. 2. The estimated propensity score, fitted by a
-    logistic BART model on the same covariates, goes into the control
-    function as a predictor named `.propensity` and not into the effect
-    forest, so that the control function absorbs the selection into
-    treatment while the effect stays free of it; that is the remedy Hahn
-    et al. ([2020](#ref-hahn2020)) propose for what they call
+    everything above.
+2.  The estimated propensity score, fitted by a logistic BART model on
+    the same covariates, goes into the control function as a predictor
+    named `.propensity` and not into the effect forest, so that the
+    control function absorbs the selection into treatment while the
+    effect stays free of it; that is the remedy Hahn et al.
+    ([2020](#ref-hahn2020)) propose for what they call
     regularization-induced confounding.
-2.  The effect forest gets fewer trees than the control function, 25
+3.  The effect forest gets fewer trees than the control function, 25
     against 50, for the reason given in the section above.
-3.  A binary treatment’s coding is drawn rather than fixed, which is
+4.  A binary treatment’s coding is drawn rather than fixed, which is
     `center = "estimate"`, so the answer is the same whichever arm was
     written as 1.
-4.  The `sparsity` argument is left on, since the treatment is the
-    coefficient rather than a predictor a splitting proportion could
-    drop (note this is in line with the
-    [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-    default, but not what is otherwise recommend for treatment effect
-    estimation without a varying coefficient model).
+
+The `sparsity` argument is left at its default of off for both forests.
+Because the treatment is the coefficient rather than a predictor a
+splitting proportion could drop, the prior can be turned on for the
+coefficient forest alone with `sparsity = c(FALSE, TRUE)`, as the
+section above describes.
 
 The `moderators` argument is
 [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md)’s

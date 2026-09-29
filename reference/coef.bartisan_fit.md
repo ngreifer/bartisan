@@ -69,26 +69,27 @@ for which predictors a forest uses at all
 data("rhc")
 set.seed(123)
 
-# The effect of catheterization is allowed to vary with the other
-# predictors, so its coefficient is a function rather than a number
-fit <- bartisan(death ~ age + aps + surv2m + vc(rhc), data = rhc,
-                num_trees = 10, num_burn = 50, num_draws = 50,
-                verbose = FALSE)
+# The effect of catheterization is allowed to vary with
+# the other predictors, so its coefficient is a function
+# rather than a number
+fit <- bartisan(death ~ age + aps + surv2m + vc(rhc),
+                data = rhc, num_trees = 10, num_burn = 50,
+                num_draws = 50, verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
 # One coefficient per patient, on the link scale
 head(coef(fit))
-#>            rhc
-#> [1,] 0.1809135
-#> [2,] 0.1729184
-#> [3,] 0.1645372
-#> [4,] 0.3381249
-#> [5,] 0.2977704
-#> [6,] 0.2981658
+#>               rhc
+#> [1,]  0.370664770
+#> [2,] -0.005113301
+#> [3,]  0.129570231
+#> [4,]  0.307429405
+#> [5,]  0.269363681
+#> [6,]  0.186869057
 
 # How much it varies across patients
 quantile(coef(fit)[, "rhc"])
-#>         0%        25%        50%        75%       100% 
-#> 0.07870672 0.24303614 0.28768352 0.32487712 0.52437022 
+#>           0%          25%          50%          75%         100% 
+#> -0.005113301  0.171367444  0.271716353  0.395163994  0.671462755 
 ```

@@ -291,36 +291,43 @@ including posterior predictive checks</p></div>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Two chains, both deliberately short, so that there is something to report</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>, chains <span class="op">=</span> <span class="fl">2</span>,</span></span>
-<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">card</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Two chains, both deliberately short, so that there is</span></span></span>
+<span class="r-in"><span><span class="co"># something to report</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                chains <span class="op">=</span> <span class="fl">2</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The table, the checks, and what to do about whichever of them failed</span></span></span>
+<span class="r-in"><span><span class="co"># The table, the checks, and what to do about whichever</span></span></span>
+<span class="r-in"><span><span class="co"># of them failed</span></span></span>
 <span class="r-in"><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.456     1.161        5       24</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.141     1.834       11       13</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 0.990     1.000       79      117</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.386     1.468        5       17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.055     1.131       39       81</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.212     1.423        7        7</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.000     0.990       88      100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.608     1.723        4       15</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   when they agree</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 39 effective draws, where 2 chains average 1.051</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   even when they agree</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   1.14)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 5 for loglik, below 400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 17 for eta.eta (worst 5% of observations), below 400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1.21)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 15 for eta.eta (worst 5% of observations), below 400</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 0.99, 79 effective draws)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   per hundred kept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 88 effective draws)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   carries 3.8 effective draws per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -354,31 +361,31 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws to `posterior::summarise_draws()` for anything else.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># A stricter effective sample size, which an interval endpoint needs and a</span></span></span>
-<span class="r-in"><span><span class="co"># posterior mean does not</span></span></span>
+<span class="r-in"><span><span class="co"># A stricter effective sample size, which an interval</span></span></span>
+<span class="r-in"><span><span class="co"># endpoint needs and a posterior mean does not</span></span></span>
 <span class="r-in"><span><span class="fu">diagnose</span><span class="op">(</span><span class="va">fit</span>, ess_min <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                             quantity  rhat rhat_late ess_bulk ess_tail</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.456     1.161        5       24</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.141     1.834       11       13</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 0.990     1.000       79      117</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.386     1.468        5       17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                               loglik 1.055     1.131       39       81</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.212     1.423        7        7</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.000     0.990       88      100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.608     1.723        4       15</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   when they agree</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> That R-hat rests on only 39 effective draws, where 2 chains average 1.051</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   even when they agree</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   1.14)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 5 for loglik, below 1000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 17 for eta.eta (worst 5% of observations), below 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1.21)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 15 for eta.eta (worst 5% of observations), below 1000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 0.99, 79 effective draws)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   per hundred kept</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 88 effective draws)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   carries 3.8 effective draws per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

@@ -317,27 +317,37 @@ let other packages assess the fit</p></div>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Whether a patient died, with every other variable a candidate predictor</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
-<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Whether a patient died, with the treatment and every</span></span></span>
+<span class="r-in"><span><span class="co"># covariate recorded on admission as candidate</span></span></span>
+<span class="r-in"><span><span class="co"># predictors</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">card</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Fitted probabilities of death, averaged over the draws</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.7685691 0.8202057 0.2465819 0.3451376 0.3927522 0.5274813</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.7959859 0.7976197 0.2008229 0.5216073 0.4393714 0.5232934</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The whole posterior for the first five patients rather than its mean</span></span></span>
+<span class="r-in"><span><span class="co"># The whole posterior for the first five patients rather</span></span></span>
+<span class="r-in"><span><span class="co"># than its mean</span></span></span>
 <span class="r-in"><span><span class="va">post</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">rhc</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, <span class="op">]</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">post</span>, <span class="fl">2</span>, <span class="va">quantile</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.025</span>, <span class="fl">.5</span>, <span class="fl">.975</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>            [,1]      [,2]      [,3]      [,4]      [,5]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2.5%  0.6886183 0.7198000 0.1446598 0.2570470 0.2670428</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 50%   0.7746833 0.8244962 0.2644145 0.3468819 0.3781887</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 97.5% 0.8232087 0.9118594 0.3225904 0.4547626 0.6209257</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2.5%  0.7378238 0.6893544 0.1062475 0.4105328 0.3025466</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 50%   0.7921700 0.8089335 0.1979082 0.5251180 0.4428998</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 97.5% 0.8489815 0.8587385 0.3142898 0.6063779 0.5359435</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># A held-out log score, which needs the outcome, so the `newdata` argument carries it</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">rhc</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span>, <span class="op">]</span>, type <span class="op">=</span> <span class="st">"density"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -59.81794</span>
+<span class="r-in"><span><span class="co"># A held-out log score, which needs the outcome, so the</span></span></span>
+<span class="r-in"><span><span class="co"># `newdata` argument carries it</span></span></span>
+<span class="r-in"><span><span class="va">dens</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">rhc</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span>, <span class="op">]</span>,</span></span>
+<span class="r-in"><span>                type <span class="op">=</span> <span class="st">"density"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">dens</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -58.29588</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

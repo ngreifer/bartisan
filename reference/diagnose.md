@@ -241,36 +241,43 @@ for the fuller treatment, including posterior predictive checks
 data("rhc")
 set.seed(123)
 
-# Two chains, both deliberately short, so that there is something to report
-fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10, chains = 2,
-                num_burn = 50, num_draws = 50, verbose = FALSE)
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+# Two chains, both deliberately short, so that there is
+# something to report
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                chains = 2, num_burn = 50, num_draws = 50,
+                verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
-# The table, the checks, and what to do about whichever of them failed
+# The table, the checks, and what to do about whichever
+# of them failed
 diagnose(fit)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.456     1.161        5       24
-#>                           splits.eta 1.141     1.834       11       13
-#>  eta.eta (average over observations) 0.990     1.000       79      117
-#>   eta.eta (worst 5% of observations) 1.386     1.468        5       17
+#>                               loglik 1.055     1.131       39       81
+#>                           splits.eta 1.212     1.423        7        7
+#>  eta.eta (average over observations) 1.000     0.990       88      100
+#>   eta.eta (worst 5% of observations) 1.608     1.723        4       15
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even
-#>   when they agree
+#> ✖ That R-hat rests on only 39 effective draws, where 2 chains average 1.051
+#>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
-#>   1.14)
-#> ✖ Bulk ESS is 5 for loglik, below 400
-#> ✖ Tail ESS is 17 for eta.eta (worst 5% of observations), below 400
+#>   1.21)
+#> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400
+#> ✖ Tail ESS is 15 for eta.eta (worst 5% of observations), below 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 0.99, 79 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws
-#>   per hundred kept
+#>   average (R-hat 1.00, 88 effective draws)
+#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
+#>   carries 3.8 effective draws per hundred kept
 #> 
 #> What to do
 #> 
@@ -304,31 +311,31 @@ diagnose(fit)
 #>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
 #>   draws to `posterior::summarise_draws()` for anything else.
 
-# A stricter effective sample size, which an interval endpoint needs and a
-# posterior mean does not
+# A stricter effective sample size, which an interval
+# endpoint needs and a posterior mean does not
 diagnose(fit, ess_min = 1000)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.456     1.161        5       24
-#>                           splits.eta 1.141     1.834       11       13
-#>  eta.eta (average over observations) 0.990     1.000       79      117
-#>   eta.eta (worst 5% of observations) 1.386     1.468        5       17
+#>                               loglik 1.055     1.131       39       81
+#>                           splits.eta 1.212     1.423        7        7
+#>  eta.eta (average over observations) 1.000     0.990       88      100
+#>   eta.eta (worst 5% of observations) 1.608     1.723        4       15
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 5 effective draws, where 2 chains average 1.441 even
-#>   when they agree
+#> ✖ That R-hat rests on only 39 effective draws, where 2 chains average 1.051
+#>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
-#>   1.14)
-#> ✖ Bulk ESS is 5 for loglik, below 1000
-#> ✖ Tail ESS is 17 for eta.eta (worst 5% of observations), below 1000
+#>   1.21)
+#> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000
+#> ✖ Tail ESS is 15 for eta.eta (worst 5% of observations), below 1000
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 0.99, 79 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 4.5 effective draws
-#>   per hundred kept
+#>   average (R-hat 1.00, 88 effective draws)
+#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
+#>   carries 3.8 effective draws per hundred kept
 #> 
 #> What to do
 #> 

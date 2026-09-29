@@ -188,7 +188,8 @@ patients. <em>JAMA</em>, 276(11), 889–897. <a href="https://doi.org/10.1001/ja
 <span class="r-out co"><span class="r-pr">#&gt;</span>   0 356 579</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   1 163 402</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The covariates the confounding runs through, all recorded on admission</span></span></span>
+<span class="r-in"><span><span class="co"># The covariates the confounding runs through, all</span></span></span>
+<span class="r-in"><span><span class="co"># recorded on admission</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"aps"</span>, <span class="st">"meanbp"</span>, <span class="st">"surv2m"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       age              aps             meanbp           surv2m     </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Min.   : 18.19   Min.   :  4.00   Min.   :  0.00   Min.   :0.000  </span>
@@ -198,8 +199,8 @@ patients. <em>JAMA</em>, 276(11), 889–897. <a href="https://doi.org/10.1001/ja
 <span class="r-out co"><span class="r-pr">#&gt;</span>  3rd Qu.: 73.86   3rd Qu.: 68.00   3rd Qu.:113.00   3rd Qu.:0.747  </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Max.   :100.25   Max.   :147.00   Max.   :222.00   Max.   :0.940  </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The same event as a survival outcome, a patient who did not die being</span></span></span>
-<span class="r-in"><span><span class="co"># censored at their last contact</span></span></span>
+<span class="r-in"><span><span class="co"># The same event as a survival outcome, a patient who</span></span></span>
+<span class="r-in"><span><span class="co"># did not die being censored at their last contact</span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"survival"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/with.html" class="external-link">with</a></span><span class="op">(</span><span class="va">rhc</span>, <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">days</span>, <span class="va">death</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>

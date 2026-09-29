@@ -67,9 +67,13 @@ for whether the chains the summaries are computed from have converged
 data("rhc")
 set.seed(123)
 
-# Whether a patient died, with catheterization among the predictors
-fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
-                num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
+# Whether a patient died, with catheterization among the
+# predictors
+fit <- bartisan(death ~ rhc + age + sex + race + edu +
+                  aps + meanbp + resp + hema + pafi +
+                  paco2 + crea + surv2m + card,
+                data = rhc, num_trees = 10, num_burn = 50,
+                num_draws = 50, chains = 2, verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
@@ -78,21 +82,26 @@ fit
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, 
-#>     num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
+#> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + 
+#>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, 
+#>     data = rhc, num_trees = 10, num_burn = 50, num_draws = 50, 
+#>     chains = 2, verbose = FALSE)
 #> 
 #> Family: "binomial" with the "logit" link
 #> Observations: 1500
 #> Structure: 1 forest of 10 trees, soft decision rules
 #> Draws: 100 kept across 2 chains after 50 warmup
 
-# The splitting counts, which say which predictors the forest reaches for
+# The splitting counts, which say which predictors the
+# forest reaches for
 summary(fit)
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, 
-#>     num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
+#> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + 
+#>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, 
+#>     data = rhc, num_trees = 10, num_burn = 50, num_draws = 50, 
+#>     chains = 2, verbose = FALSE)
 #> 
 #> Family: "binomial" with the "logit" link
 #> Observations: 1500
@@ -102,33 +111,39 @@ summary(fit)
 #> Predictor usage
 #> Splitting rules per draw, and how often used at all.
 #>        mean    sd lower upper prop_used
-#> age    1.94 0.897     1 4.000      1.00
-#> paco2  1.40 0.725     1 3.000      1.00
-#> surv2m 2.35 0.626     2 4.000      1.00
-#> rhc    1.82 0.770     1 3.000      0.99
-#> pafi   1.98 1.189     1 5.000      0.99
-#> hema   1.42 1.017     0 3.000      0.78
-#> aps    1.11 0.942     0 3.000      0.71
-#> resp   0.65 0.757     0 2.000      0.49
-#> edu    0.54 0.744     0 2.000      0.40
-#> card   0.49 0.674     0 2.000      0.39
-#> race   0.41 0.588     0 2.000      0.36
-#> meanbp 0.45 0.770     0 3.000      0.32
-#> crea   0.23 0.489     0 1.525      0.20
-#> sex    0.19 0.465     0 1.525      0.16
+#> age    1.84 0.929     1 4.000      1.00
+#> aps    1.97 0.834     1 4.000      1.00
+#> pafi   1.78 0.824     1 3.000      1.00
+#> paco2  2.44 0.857     1 4.525      1.00
+#> surv2m 2.94 0.908     2 5.000      1.00
+#> rhc    1.20 0.725     0 3.000      0.89
+#> meanbp 1.13 0.734     0 2.525      0.82
+#> edu    1.16 0.992     0 3.525      0.75
+#> crea   0.78 0.786     0 2.000      0.58
+#> card   0.83 0.900     0 3.000      0.57
+#> resp   0.70 0.798     0 2.525      0.54
+#> hema   0.52 0.643     0 2.000      0.44
+#> sex    0.39 0.665     0 2.000      0.30
+#> race   0.20 0.471     0 1.525      0.17
 
-# A family with a nuisance parameter reports its posterior too, here the
-# residual standard deviation of the log survival time
-fit2 <- bartisan(log(days) ~ . - death, data = rhc, family = gaussian(),
-                 num_trees = 10, num_burn = 50, num_draws = 50,
-                 verbose = FALSE)
+# A family with a nuisance parameter reports its
+# posterior too, here the residual standard deviation of
+# the log survival time
+fit2 <- bartisan(log(days) ~ rhc + age + sex + race +
+                   edu + aps + meanbp + resp + hema +
+                   pafi + paco2 + crea + surv2m + card,
+                 data = rhc, family = gaussian(),
+                 num_trees = 10, num_burn = 50,
+                 num_draws = 50, verbose = FALSE)
 
 summary(fit2, level = .8)
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = log(days) ~ . - death, data = rhc, family = gaussian(), 
-#>     num_trees = 10, num_burn = 50, num_draws = 50, verbose = FALSE)
+#> bartisan(formula = log(days) ~ rhc + age + sex + race + edu + 
+#>     aps + meanbp + resp + hema + pafi + paco2 + crea + surv2m + 
+#>     card, data = rhc, family = gaussian(), num_trees = 10, num_burn = 50, 
+#>     num_draws = 50, verbose = FALSE)
 #> 
 #> Family: "gaussian" with the "identity" link
 #> Observations: 1500
@@ -136,24 +151,24 @@ summary(fit2, level = .8)
 #> Draws: 50
 #> 
 #> Nuisance parameters
-#>        mean    sd lower upper
-#> sigma 1.541 0.028 1.505 1.573
+#>       mean    sd lower upper
+#> sigma 1.54 0.028 1.505 1.573
 #> 
 #> Predictor usage
 #> Splitting rules per draw, and how often used at all.
 #>        mean    sd lower upper prop_used
-#> rhc    3.42 0.992     2   5.0      1.00
-#> aps    3.82 1.976     2   7.0      1.00
-#> surv2m 5.04 1.603     3   7.0      1.00
-#> meanbp 0.78 1.148     0   3.0      0.44
-#> paco2  0.56 0.972     0   2.0      0.32
-#> race   0.56 0.907     0   2.0      0.30
-#> pafi   0.32 0.621     0   1.0      0.24
-#> resp   0.22 0.418     0   1.0      0.22
-#> hema   0.28 0.607     0   1.0      0.22
-#> crea   0.10 0.303     0   0.1      0.10
-#> card   0.10 0.303     0   0.1      0.10
-#> sex    0.08 0.274     0   0.0      0.08
-#> edu    0.04 0.198     0   0.0      0.04
-#> age    0.00 0.000     0   0.0      0.00
+#> rhc    1.40 0.670   1.0     2      1.00
+#> aps    1.24 0.431   1.0     2      1.00
+#> surv2m 2.44 1.033   1.0     4      1.00
+#> paco2  1.38 0.780   0.9     2      0.90
+#> meanbp 1.04 0.755   0.0     2      0.78
+#> resp   1.64 1.102   0.0     3      0.78
+#> edu    0.92 0.944   0.0     2      0.58
+#> race   0.46 0.613   0.0     1      0.40
+#> crea   0.54 0.788   0.0     2      0.38
+#> sex    0.42 0.642   0.0     1      0.34
+#> card   0.24 0.476   0.0     1      0.22
+#> hema   0.18 0.388   0.0     1      0.18
+#> age    0.08 0.274   0.0     0      0.08
+#> pafi   0.08 0.274   0.0     0      0.08
 ```

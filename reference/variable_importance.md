@@ -85,13 +85,15 @@ object. The result can be subset first, so
 
 ### Reading the Columns
 
-`prop_used` is the one to read first. It behaves like a posterior
-probability that the predictor belongs in the model, and it separates
-signal from noise sharply once `sparsity = TRUE` in
-[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md).
-With `sparsity = FALSE` every predictor keeps a share of the rules and
-`prop_used` sits near 1 throughout, which the
-[`print()`](https://rdrr.io/r/base/print.html) method notes.
+What `prop_used` means depends on the splitting prior. Under the default
+(`sparsity = FALSE` in
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)),
+every predictor keeps a share of the rules and `prop_used` sits near 1
+throughout, which the [`print()`](https://rdrr.io/r/base/print.html)
+method notes; the ranking is then carried by the other two columns. With
+`sparsity = TRUE`, it behaves like a posterior probability that the
+predictor belongs in the model, separates signal from noise sharply, and
+is the column to read first.
 
 `prop_splits` is the one to reach for when two fits are being compared.
 The share is computed within each draw before averaging, so the shares
@@ -116,14 +118,15 @@ what would happen if a predictor were changed.
 
 ### Reading It as Variable Selection
 
-With `sparsity = TRUE`, `prop_used` is usable as a selection rule: the
-predictors the forest genuinely needs sit near 1 and the rest fall near
-0, usually with a wide gap rather than a continuum, and cutting that gap
-at .5 gives the median probability model. No threshold is correct in
-general, so the gap is the thing to look at, and a conclusion worth
-reporting will not depend on where in it the cut is made. A forest asked
-to fit noise still puts its rules somewhere, so the cut chooses a
-predictive submodel rather than testing one.
+When the question is which predictors the model needs, the fit should be
+made with `sparsity = TRUE`. `prop_used` is then usable as a selection
+rule: the predictors the forest genuinely needs sit near 1 and the rest
+fall near 0, usually with a wide gap rather than a continuum, and
+cutting that gap at .5 gives the median probability model. No threshold
+is correct in general, so the gap is the thing to look at, and a
+conclusion worth reporting will not depend on where in it the cut is
+made. A forest asked to fit noise still puts its rules somewhere, so the
+cut chooses a predictive submodel rather than testing one.
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md)
 calibrates it against noise predictors and works through correlated
 ones.
@@ -143,11 +146,16 @@ for effects rather than usage
 data("rhc")
 set.seed(123)
 
-# The sparsity prior concentrates the splitting rules on the predictors that
-# earn them, which makes `prop_used` readable as a selection rule
-fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
-                num_burn = 50, num_draws = 50, sparsity = TRUE,
-                verbose = FALSE)
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+# The sparsity prior concentrates the splitting rules on
+# the predictors that earn them, which makes `prop_used`
+# readable as a selection rule
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50,
+                sparsity = TRUE, verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
@@ -173,7 +181,8 @@ imp
 #> 
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 
-# The predictors the forest reaches for in nearly every draw
+# The predictors the forest reaches for in nearly every
+# draw
 subset(imp, prop_used > .9)
 #> Variable importance
 #> 
@@ -185,16 +194,18 @@ subset(imp, prop_used > .9)
 #>     paco2         1       0.090    1.5
 #> 
 
-# `prop_splits` is the column that survives a change of forest size, since
-# the shares add to one however many rules there are to share
-big <- bartisan(death ~ . - days, data = rhc, num_trees = 40,
-                num_burn = 50, num_draws = 50, sparsity = TRUE,
-                verbose = FALSE)
+# `prop_splits` is the column that survives a change of
+# forest size, since the shares add to one however many
+# rules there are to share
+big <- bartisan(model, data = rhc, num_trees = 40,
+                num_burn = 50, num_draws = 50,
+                sparsity = TRUE, verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
-merge(variable_importance(fit)[c("variable", "prop_splits")],
-      variable_importance(big)[c("variable", "prop_splits")],
+shares <- c("variable", "prop_splits")
+merge(variable_importance(fit)[shares],
+      variable_importance(big)[shares],
       by = "variable", suffixes = c("_10", "_40"))
 #>    variable prop_splits_10 prop_splits_40
 #> 1       age     0.09145554    0.081909718
@@ -212,12 +223,14 @@ merge(variable_importance(fit)[c("variable", "prop_splits")],
 #> 13      sex     0.01862418    0.048068330
 #> 14   surv2m     0.11156079    0.245226062
 
-# The counts themselves, for a comparison the summary does not make
+# The counts themselves, for a comparison the summary
+# does not make
 counts <- variable_importance(fit, draws = TRUE)
 mean(counts[, "aps"] > counts[, "meanbp"])
 #> [1] 0.56
 
-# The ranking, drawn. Subsetting first keeps a wide model readable.
+# The ranking, drawn. Subsetting first keeps a wide
+# model readable.
 plot(head(imp, 8))
 
 ```

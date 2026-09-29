@@ -136,8 +136,8 @@ loo::loo_compare(
 #> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 #> Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
 #>   model elpd_diff se_diff p_worse       diag_diff       diag_elpd
-#>  model2       0.0     0.0      NA                 1 k_psis > 0.54
-#>  model1      -0.4     1.4    0.61 |elpd_diff| < 4 6 k_psis > 0.54
+#>  model1       0.0     0.0      NA                 8 k_psis > 0.54
+#>  model2      -1.0     1.6    0.73 |elpd_diff| < 4 1 k_psis > 0.54
 #> 
 #> Diagnostic flags present.
 #> See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)
@@ -328,26 +328,26 @@ summary(fit_sub)
 #> Splitting rules per draw, and how often used at all.
 #> 
 #> Predictor "mean":
-#>     mean   sd lower upper prop_used
-#> x1 14.64 3.34     8  20.3     1.000
-#> x2  1.76 1.89     0   6.0     0.667
+#>      mean    sd lower upper prop_used
+#> x1 15.133 2.825    11  22.3     1.000
+#> x2  0.053 0.225     0   1.0     0.053
 #> 
 #> Predictor "log_sd":
 #>    mean   sd lower upper prop_used
-#> x2 6.39 1.52     4    11         1
+#> x2 7.15 1.96     4    11         1
 #> x1 0.00 0.00     0     0         0
 ```
 
-Separate proportions are not always desirable. Each forest draws its own
-splitting proportions by default, so each has to work out on its own
-which predictors matter, and one component is often far better placed to
-answer that than the other: the mean of a location-scale model usually
-carries much more signal about the relevant predictors than the spread
-does. Setting `share_sparsity = TRUE` pools the splitting counts of the
-forests behind one Dirichlet draw, so a predictor that earns its rules
-in one forest keeps its weight in the others. The forests stay separate
-in every other respect, with their own trees, cut points and leaf
-scales.
+Separate proportions are not always desirable. With `sparsity = TRUE`,
+each forest draws its own splitting proportions, so each has to work out
+on its own which predictors matter, and one component is often far
+better placed to answer that than the other: the mean of a
+location-scale model usually carries much more signal about the relevant
+predictors than the spread does. Setting `share_sparsity = TRUE` pools
+the splitting counts of the forests behind one Dirichlet draw, so a
+predictor that earns its rules in one forest keeps its weight in the
+others. The forests stay separate in every other respect, with their own
+trees, cut points and leaf scales.
 
 ``` r
 
@@ -356,9 +356,10 @@ dw <- data.frame(matrix(runif(400 * 25), 400, 25))
 names(dw) <- paste0("x", 1:25)
 dw$y <- rnorm(400, 2 + 1.4 * sin(pi * dw$x1 * dw$x2) + 0.9 * dw$x4, 0.5)
 
-apart <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl)
+apart <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl,
+                  sparsity = TRUE)
 shared <- bartisan(y ~ ., dw, family = gaussian_ls(), control = ctrl,
-                   share_sparsity = TRUE)
+                   sparsity = TRUE, share_sparsity = TRUE)
 
 top3 <- function(fit, forest) {
   imp <- variable_importance(fit)
@@ -875,7 +876,7 @@ fit_oc <- bartisan(binned ~ x1 + x2,
                    family = ordinal("probit"))
 
 head(predict(fit_oc, type = "mean"))
-#> [1] 2.253 2.553 1.369 2.012 2.784 0.136
+#> [1] 2.147 2.470 1.351 2.252 2.746 0.884
 ```
 
 This approach has limits. The prediction from `type = "mean"` is a
@@ -956,7 +957,7 @@ fit_beta <- bartisan(rate ~ x1 + x2, data = d,
                      family = Beta(), control = ctrl)
 
 mean(fit_beta$aux[, "phi"])
-#> [1] 13
+#> [1] 13.8
 ```
 
 The
@@ -1027,7 +1028,7 @@ fit_tw <- bartisan(spend ~ x1 + x2, data = d,
 
 c(zeros = mean(d$spend == 0), phi = mean(fit_tw$aux[, "phi"]))
 #> zeros   phi 
-#>  0.23  4.20
+#> 0.217 3.863
 ```
 
 The `power` argument is fixed at 1.5 by default rather than drawn, which
@@ -1116,7 +1117,7 @@ fit_aft <- bartisan(survival::Surv(time, event) ~ x1 + x2,
 
 colMeans(fit_aft$aux)
 #> sigma 
-#> 0.995
+#> 0.979
 ```
 
 The survival function comes from `predict(., type = "survival")`, which
@@ -1131,9 +1132,9 @@ fit_ph <- bartisan(survival::Surv(time, event) ~ x1 + x2,
 predict(fit_ph, type = "survival", times = c(1, 2, 5)) |>
   head(3)
 #>          1     2     5
-#> [1,] 0.888 0.769 0.512
-#> [2,] 0.862 0.720 0.433
-#> [3,] 0.853 0.703 0.407
+#> [1,] 0.904 0.765 0.524
+#> [2,] 0.896 0.745 0.493
+#> [3,] 0.830 0.609 0.303
 ```
 
 It is also the estimand we usually want. The question is rarely about
@@ -1214,7 +1215,7 @@ fit_pois <- bartisan(count ~ x1 + x2,
 
 cor(predict(fit_custom, type = "link"),
     predict(fit_pois, type = "link"))
-#> [1] 0.998
+#> [1] 0.997
 ```
 
 The function is called once per leaf per Fisher-scoring step with the
@@ -1252,15 +1253,15 @@ fit_gauss <- bartisan(heavy ~ x1 + x2,
 
 cor(predict(fit_aux, type = "link"),
     predict(fit_gauss, type = "link"))
-#> [1] 0.999
+#> [1] 0.991
 
 # Estimate of the auxiliary parameter
 summary(exp(fit_aux$aux[, "log_sigma"]))
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>    1.32    1.44    1.47    1.48    1.53    1.63
+#>    1.55    1.69    1.75    1.75    1.80    1.93
 summary(fit_gauss$aux[, "sigma"])
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>    1.34    1.44    1.47    1.48    1.51    1.63
+#>    1.59    1.70    1.75    1.75    1.80    2.00
 ```
 
 There is no prior argument and no bounds argument. A parameter with a

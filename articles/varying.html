@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/varying.Rmd" class="external-link"><code>vignettes/varying.Rmd</code></a></small>
       <div class="d-none name"><code>varying.Rmd</code></div>
@@ -239,40 +239,42 @@ each forest in the model:</p>
 <span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"(Intercept)"</span>:</span></span>
-<span><span class="co">#&gt;          mean    sd lower  upper prop_used</span></span>
-<span><span class="co">#&gt; age     9.807 5.448     2 23.025     1.000</span></span>
-<span><span class="co">#&gt; paco2   8.586 4.770     2 21.000     1.000</span></span>
-<span><span class="co">#&gt; surv2m 19.680 7.587     7 36.000     1.000</span></span>
-<span><span class="co">#&gt; aps     6.207 4.572     0 18.000     0.932</span></span>
-<span><span class="co">#&gt; pafi    4.781 3.338     0 13.000     0.911</span></span>
-<span><span class="co">#&gt; hema    5.468 4.189     0 16.000     0.907</span></span>
-<span><span class="co">#&gt; card    4.411 3.431     0 13.000     0.895</span></span>
-<span><span class="co">#&gt; race    3.421 2.636     0  9.000     0.855</span></span>
-<span><span class="co">#&gt; edu     2.791 2.812     0  9.000     0.739</span></span>
-<span><span class="co">#&gt; meanbp  2.920 3.443     0 13.000     0.730</span></span>
-<span><span class="co">#&gt; sex     2.901 2.916     0 10.000     0.725</span></span>
-<span><span class="co">#&gt; crea    2.996 3.068     0 10.000     0.689</span></span>
-<span><span class="co">#&gt; resp    2.118 2.478     0  8.025     0.639</span></span>
+<span><span class="co">#&gt;         mean    sd lower  upper prop_used</span></span>
+<span><span class="co">#&gt; age    7.384 2.409     3 12.000     1.000</span></span>
+<span><span class="co">#&gt; race   5.081 2.389     1 10.000     1.000</span></span>
+<span><span class="co">#&gt; pafi   6.109 2.121     2 11.000     1.000</span></span>
+<span><span class="co">#&gt; paco2  6.383 2.178     2 11.000     1.000</span></span>
+<span><span class="co">#&gt; surv2m 8.919 2.292     5 14.000     1.000</span></span>
+<span><span class="co">#&gt; edu    5.575 2.315     1 11.000     0.999</span></span>
+<span><span class="co">#&gt; aps    6.254 2.297     2 11.000     0.999</span></span>
+<span><span class="co">#&gt; card   5.237 2.008     2  9.025     0.999</span></span>
+<span><span class="co">#&gt; sex    4.869 2.031     1  9.000     0.998</span></span>
+<span><span class="co">#&gt; meanbp 5.378 2.099     2 10.000     0.998</span></span>
+<span><span class="co">#&gt; hema   5.402 2.432     1 11.000     0.998</span></span>
+<span><span class="co">#&gt; crea   4.934 2.234     1 10.000     0.989</span></span>
+<span><span class="co">#&gt; resp   4.540 2.237     1  9.025     0.984</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"rhc"</span>:</span></span>
-<span><span class="co">#&gt;          mean     sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; hema    9.485  8.290     1 34.00     0.984</span></span>
-<span><span class="co">#&gt; aps    13.332 14.347     0 51.02     0.961</span></span>
-<span><span class="co">#&gt; paco2   4.935  3.961     0 15.00     0.884</span></span>
-<span><span class="co">#&gt; card    7.888  6.355     0 26.02     0.881</span></span>
-<span><span class="co">#&gt; crea    5.249  5.043     0 19.00     0.880</span></span>
-<span><span class="co">#&gt; surv2m  4.880  4.291     0 15.03     0.804</span></span>
-<span><span class="co">#&gt; sex     5.505  5.161     0 18.00     0.801</span></span>
-<span><span class="co">#&gt; edu     4.211  4.053     0 15.03     0.769</span></span>
-<span><span class="co">#&gt; resp    3.825  3.625     0 12.00     0.755</span></span>
-<span><span class="co">#&gt; pafi    3.859  3.090     0 10.00     0.754</span></span>
-<span><span class="co">#&gt; meanbp  5.155  6.639     0 26.00     0.733</span></span>
-<span><span class="co">#&gt; age     3.639  3.873     0 14.00     0.684</span></span>
-<span><span class="co">#&gt; race    2.609  2.855     0  9.00     0.655</span></span></code></pre></div>
-<p>We can see that <code>age</code>, <code>paco2</code>, and
-<code>surv2m</code> were used in every tree in the control function
-(<code>(Intercept)</code>) forest, but <code>hema</code> was the most
-frequently used predictor in the varying coefficient (<code>rhc</code>)
+<span><span class="co">#&gt;         mean    sd lower upper prop_used</span></span>
+<span><span class="co">#&gt; race   5.991 2.449 2.000 11.00     1.000</span></span>
+<span><span class="co">#&gt; aps    6.211 2.272 2.975 11.00     1.000</span></span>
+<span><span class="co">#&gt; meanbp 5.989 2.205 2.000 11.00     1.000</span></span>
+<span><span class="co">#&gt; resp   5.928 2.390 2.000 11.00     1.000</span></span>
+<span><span class="co">#&gt; card   5.830 2.129 2.000 10.00     1.000</span></span>
+<span><span class="co">#&gt; hema   6.275 2.388 2.000 11.00     0.999</span></span>
+<span><span class="co">#&gt; surv2m 5.651 2.381 2.000 11.00     0.999</span></span>
+<span><span class="co">#&gt; age    5.866 2.295 2.000 11.00     0.998</span></span>
+<span><span class="co">#&gt; sex    5.608 2.296 2.000 10.00     0.996</span></span>
+<span><span class="co">#&gt; pafi   5.734 2.296 2.000 10.00     0.996</span></span>
+<span><span class="co">#&gt; paco2  5.525 2.243 1.000 10.00     0.996</span></span>
+<span><span class="co">#&gt; edu    5.745 2.516 1.975 11.00     0.995</span></span>
+<span><span class="co">#&gt; crea   5.520 2.357 1.000 10.03     0.995</span></span></code></pre></div>
+<p>Under the default splitting prior every predictor is used in nearly
+every draw of both forests, so the <code>prop_used</code> column says
+little here and the <code>mean</code> column carries the ranking:
+<code>surv2m</code> and <code>age</code> take the most rules in the
+control function (<code>(Intercept)</code>) forest, and
+<code>hema</code> in the varying coefficient (<code>rhc</code>)
 forest.</p>
 <div class="section level3">
 <h3 id="effect-modifiers-modifiers">Effect Modifiers (<code>modifiers</code>)<a class="anchor" aria-label="anchor" href="#effect-modifiers-modifiers"></a>
@@ -318,36 +320,36 @@ indeed <code>aps</code> and <code>age</code>, as requested:</p>
 <span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"(Intercept)"</span>:</span></span>
-<span><span class="co">#&gt;          mean     sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; age    10.666  6.365     3    28     1.000</span></span>
-<span><span class="co">#&gt; pafi    7.726  5.283     1    21     1.000</span></span>
-<span><span class="co">#&gt; surv2m 21.008 12.399     7    52     1.000</span></span>
-<span><span class="co">#&gt; paco2   6.676  4.327     1    17     0.986</span></span>
-<span><span class="co">#&gt; aps     6.971  6.712     0    27     0.930</span></span>
-<span><span class="co">#&gt; crea    6.746  5.745     0    22     0.889</span></span>
-<span><span class="co">#&gt; meanbp  3.087  3.506     0    14     0.740</span></span>
-<span><span class="co">#&gt; race    3.476  3.649     0    12     0.729</span></span>
-<span><span class="co">#&gt; hema    2.631  2.916     0     9     0.620</span></span>
-<span><span class="co">#&gt; card    1.866  2.427     0     8     0.603</span></span>
-<span><span class="co">#&gt; edu     1.866  2.164     0     7     0.588</span></span>
-<span><span class="co">#&gt; sex     1.826  2.329     0     8     0.552</span></span>
-<span><span class="co">#&gt; resp    1.484  2.077     0     7     0.498</span></span>
+<span><span class="co">#&gt;         mean    sd lower  upper prop_used</span></span>
+<span><span class="co">#&gt; age    7.210 2.315 3.000 12.000     1.000</span></span>
+<span><span class="co">#&gt; paco2  6.131 2.100 2.000 10.000     1.000</span></span>
+<span><span class="co">#&gt; surv2m 9.199 2.351 4.975 14.000     1.000</span></span>
+<span><span class="co">#&gt; edu    5.222 2.132 1.000 10.000     0.999</span></span>
+<span><span class="co">#&gt; aps    6.207 2.185 2.000 10.000     0.999</span></span>
+<span><span class="co">#&gt; hema   5.516 2.272 2.000 10.025     0.999</span></span>
+<span><span class="co">#&gt; pafi   5.559 2.155 2.000 11.000     0.998</span></span>
+<span><span class="co">#&gt; sex    4.858 2.121 1.000  9.000     0.996</span></span>
+<span><span class="co">#&gt; meanbp 5.522 2.444 2.000 11.000     0.996</span></span>
+<span><span class="co">#&gt; crea   5.263 2.555 1.000 11.000     0.996</span></span>
+<span><span class="co">#&gt; card   4.994 2.256 1.000  9.025     0.994</span></span>
+<span><span class="co">#&gt; resp   4.841 2.070 1.000  9.000     0.993</span></span>
+<span><span class="co">#&gt; race   4.834 2.356 1.000 10.000     0.990</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"rhc"</span>:</span></span>
 <span><span class="co">#&gt;         mean    sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; age    55.78 17.51 18.98    85     1.000</span></span>
-<span><span class="co">#&gt; aps    19.67 16.93  0.00    54     0.796</span></span>
-<span><span class="co">#&gt; sex     0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; race    0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; edu     0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; meanbp  0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; resp    0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; hema    0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; pafi    0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; paco2   0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; crea    0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; surv2m  0.00  0.00  0.00     0     0.000</span></span>
-<span><span class="co">#&gt; card    0.00  0.00  0.00     0     0.000</span></span></code></pre></div>
+<span><span class="co">#&gt; age    37.62 5.445    27 49.02         1</span></span>
+<span><span class="co">#&gt; aps    37.70 5.585    28 49.00         1</span></span>
+<span><span class="co">#&gt; sex     0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; race    0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; edu     0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; meanbp  0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; resp    0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; hema    0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; pafi    0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; paco2   0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; crea    0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; surv2m  0.00 0.000     0  0.00         0</span></span>
+<span><span class="co">#&gt; card    0.00 0.000     0  0.00         0</span></span></code></pre></div>
 <p>When the modified variable is continuous, <code>modifiers</code>
 decides whether the effect is linear in the covariate. As written, the
 model is <span class="math inline">\(z\, f_1(Z)\)</span>, which for a
@@ -451,7 +453,7 @@ it; <code><a href="../articles/comparison.html">vignette("comparison")</a></code
 <span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>constant <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">constant</span><span class="op">)</span>, varying <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">fit_vc</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;  constant       0.0     0.0      NA                          </span></span>
-<span><span class="co">#&gt;   varying      -1.4     1.3    0.85 |elpd_diff| &lt; 4</span></span></code></pre></div>
+<span><span class="co">#&gt;   varying      -0.5     1.0    0.68 |elpd_diff| &lt; 4</span></span></code></pre></div>
 <p>The constant coefficient is not beaten, so there is no evidence here
 that the effect of catheterization on the log odds of death varies with
 the other covariates. That buys an interpretation the varying fit cannot
@@ -465,7 +467,7 @@ offer, because one number describes the whole sample:</p>
 <span>  upper <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">b</span><span class="op">)</span>, <span class="fl">.975</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; log_OR     OR  lower  upper </span></span>
-<span><span class="co">#&gt;  0.356  1.428  1.115  1.859</span></span></code></pre></div>
+<span><span class="co">#&gt;  0.338  1.402  1.059  1.799</span></span></code></pre></div>
 <p>An odds ratio of about 1.4, conditional on the predictors in the
 forest. A constant conditional odds ratio is a much more clinically
 meaningful effect summary than a marginal effect measure because it
@@ -503,17 +505,17 @@ and <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">p
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit_vc</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         rhc</span></span>
-<span><span class="co">#&gt; [1,] 0.5112</span></span>
-<span><span class="co">#&gt; [2,] 0.2193</span></span>
-<span><span class="co">#&gt; [3,] 0.2502</span></span>
-<span><span class="co">#&gt; [4,] 0.3295</span></span>
-<span><span class="co">#&gt; [5,] 0.3445</span></span>
-<span><span class="co">#&gt; [6,] 0.3514</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,] 0.3886</span></span>
+<span><span class="co">#&gt; [2,] 0.1962</span></span>
+<span><span class="co">#&gt; [3,] 0.2041</span></span>
+<span><span class="co">#&gt; [4,] 0.2841</span></span>
+<span><span class="co">#&gt; [5,] 0.2481</span></span>
+<span><span class="co">#&gt; [6,] 0.2463</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code> returns one row per observation and one column
 per coefficient, since a coefficient allowed to vary has a value for
 each observation: for the first patient, or more precisely for a patient
 with the first patient’s covariate profile, the log odds of death move
-by 0.511 under catheterization. The values are on the link scale, so for
+by 0.389 under catheterization. The values are on the link scale, so for
 a binary outcome they are differences in log odds rather than in
 probability. Supplying <code>newdata</code> evaluates the coefficients
 at other covariate profiles, and setting <code>draws = TRUE</code>
@@ -525,10 +527,10 @@ one patient’s coefficient needs.</p>
 <span></span>
 <span><span class="co"># A 95% interval on the coefficient for the first three patients</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">draws</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2L</span>, <span class="va">quantile</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.025</span>, <span class="fl">.975</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;          2.5%  97.5%</span></span>
-<span><span class="co">#&gt; [1,] -0.01713 1.1921</span></span>
-<span><span class="co">#&gt; [2,] -0.31305 0.7657</span></span>
-<span><span class="co">#&gt; [3,] -0.36013 0.8276</span></span></code></pre></div>
+<span><span class="co">#&gt;           2.5%  97.5%</span></span>
+<span><span class="co">#&gt; [1,] -0.002961 0.9387</span></span>
+<span><span class="co">#&gt; [2,] -0.240273 0.6338</span></span>
+<span><span class="co">#&gt; [3,] -0.214174 0.6488</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on the fit reports the forests as it does for
 any fit, and <code>prior_summary()</code> writes out the prior each one
 was drawn under, including the leaf scale of the coefficient forest,
@@ -603,10 +605,13 @@ among the predictors the way it does in any BART fit. On a coefficient
 forest what it selects among is the <em>modifiers</em>, and dropping all
 of them leaves an effect that does not vary rather than an effect that
 is zero, since nothing can drop the covariate the forest multiplies.
-That is the shrinkage a heterogeneity model wants, and it is why
-<code><a href="../reference/bcf.html">bcf()</a></code> leaves <code>sparsity</code> on where a single-forest
-treatment model turns it off; <code><a href="../articles/effects.html">vignette("effects")</a></code> covers
-the single-forest case.</p>
+That is the shrinkage a heterogeneity model wants, and it makes the
+sparsity prior safe to turn on for a coefficient forest where it is not
+for a single forest with the treatment among its predictors.
+<code><a href="../reference/bcf.html">bcf()</a></code> keeps the default of off for both forests, and
+setting <code>sparsity = c(FALSE, TRUE)</code> turns it on for the
+coefficient forest alone; <code><a href="../articles/effects.html">vignette("effects")</a></code> covers the
+single-forest case.</p>
 <div class="section level3">
 <h3 id="families-with-several-additive-predictors">Families With Several Additive Predictors<a class="anchor" aria-label="anchor" href="#families-with-several-additive-predictors"></a>
 </h3>
@@ -690,7 +695,7 @@ have been written directly:</p>
 <span><span class="co">#&gt; Structure: 2 forests of 50 and 25 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 800 kept after 200 warmup</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Posterior means: b.rhc.0 = -0.0532, b.rhc.1 = -0.523</span></span>
+<span><span class="co">#&gt; Posterior means: b.rhc.0 = -0.0312, b.rhc.1 = 0.0635</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Treatment: <span style="color: #0000BB;">"rhc"</span></span></span>
 <span><span class="co">#&gt; Effect moderators: <span style="color: #0000BB;">"age"</span>, <span style="color: #0000BB;">"sex"</span>, <span style="color: #0000BB;">"race"</span>, <span style="color: #0000BB;">"edu"</span>, <span style="color: #0000BB;">"aps"</span>, <span style="color: #0000BB;">"meanbp"</span>, <span style="color: #0000BB;">"resp"</span>, <span style="color: #0000BB;">"hema"</span>, <span style="color: #0000BB;">"pafi"</span>, <span style="color: #0000BB;">"paco2"</span>, <span style="color: #0000BB;">"crea"</span>, <span style="color: #0000BB;">"surv2m"</span>, and <span style="color: #0000BB;">"card"</span></span></span>
@@ -700,9 +705,9 @@ have been written directly:</p>
 <code><a href="../reference/bartisan.html">bartisan()</a></code> call:</p>
 <ol style="list-style-type: decimal">
 <li>The treatment gets a <code><a href="../reference/vc.html">vc()</a></code> term, so its effect is a
-forest with a prior of its own, which is everything above. 2. The
-estimated propensity score, fitted by a logistic BART model on the same
-covariates, goes into the control function as a predictor named
+forest with a prior of its own, which is everything above.</li>
+<li>The estimated propensity score, fitted by a logistic BART model on
+the same covariates, goes into the control function as a predictor named
 <code>.propensity</code> and not into the effect forest, so that the
 control function absorbs the selection into treatment while the effect
 stays free of it; that is the remedy <span class="citation">Hahn et al.
@@ -713,12 +718,13 @@ against 50, for the reason given in the section above.</li>
 <li>A binary treatment’s coding is drawn rather than fixed, which is
 <code>center = "estimate"</code>, so the answer is the same whichever
 arm was written as 1.</li>
-<li>The <code>sparsity</code> argument is left on, since the treatment
-is the coefficient rather than a predictor a splitting proportion could
-drop (note this is in line with the <code><a href="../reference/bartisan.html">bartisan()</a></code> default, but
-not what is otherwise recommend for treatment effect estimation without
-a varying coefficient model).</li>
 </ol>
+<p>The <code>sparsity</code> argument is left at its default of off for
+both forests. Because the treatment is the coefficient rather than a
+predictor a splitting proportion could drop, the prior can be turned on
+for the coefficient forest alone with
+<code>sparsity = c(FALSE, TRUE)</code>, as the section above
+describes.</p>
 <p>The <code>moderators</code> argument is <code><a href="../reference/vc.html">vc()</a></code>’s
 <code>modifiers</code> under the name the causal literature uses, and
 the propensity model is <code><a href="../reference/bartisan.html">bartisan()</a></code> with

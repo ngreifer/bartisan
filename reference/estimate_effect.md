@@ -265,8 +265,9 @@ ones not offered here
 data("rhc")
 set.seed(123)
 
-fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
-           data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
+fit <- bcf(death ~ age + sex + meanbp + aps,
+           treat = ~ rhc, data = rhc, num_trees = 10,
+           num_burn = 50, num_draws = 50,
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
@@ -278,41 +279,43 @@ estimate_effect(fit)
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate    lower  upper    n
-#>  Y[1] - Y[0]   0.0334 -0.00348 0.0878 1500
+#>     contrast estimate    lower upper    n
+#>  Y[1] - Y[0]   0.0386 -0.00216 0.097 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.610 0.665
-#>      Y[1]    0.675 0.638 0.704
+#>      Y[0]    0.642 0.616 0.665
+#>      Y[1]    0.680 0.652 0.716
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
 #> ℹ Y[a] is the average response with `rhc` set to "a".
 
-# Among the treated, and as a risk ratio rather than a difference
-estimate_effect(fit, estimand = "ATT", comparison = "ratio")
+# Among the treated, and as a risk ratio rather than a
+# difference
+estimate_effect(fit, estimand = "ATT",
+                comparison = "ratio")
 #> Average treatment effect on the treated (ratio)
 #> 
 #> Treatment: `rhc`
 #> Averaged over the 565 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
-#>  Y[1] / Y[0]     1.04 0.994  1.12 565
+#>  Y[1] / Y[0]     1.05 0.997  1.14 565
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.670 0.634 0.693
-#>      Y[1]    0.699 0.668 0.728
+#>      Y[0]    0.670 0.644 0.697
+#>      Y[1]    0.706 0.685 0.740
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
 #> ℹ Y[a] is the average response with `rhc` set to "a".
 
-# The effect at each unit's covariates, ordered, with the marginal effect
-# beside them
+# The effect at each unit's covariates, ordered, with
+# the marginal effect beside them
 cate <- estimate_effect(fit, estimand = "CATE")
 plot(cate)
 
@@ -326,14 +329,14 @@ estimate_effect(fit, by = ~ sex)
 #> Within levels of `sex`
 #> 
 #>     sex    contrast estimate    lower  upper   n
-#>  female Y[1] - Y[0]   0.0490 -0.00818 0.1270 676
-#>    male Y[1] - Y[0]   0.0206 -0.01960 0.0634 824
+#>  female Y[1] - Y[0]   0.0504 -0.00393 0.1340 676
+#>    male Y[1] - Y[0]   0.0290 -0.01010 0.0799 824
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.610 0.665
-#>      Y[1]    0.675 0.638 0.704
+#>      Y[0]    0.642 0.616 0.665
+#>      Y[1]    0.680 0.652 0.716
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

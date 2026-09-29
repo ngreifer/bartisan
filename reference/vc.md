@@ -224,34 +224,45 @@ data("rhc")
 
 set.seed(123)
 
-# The effect of right heart catheterization on death, free to vary with
-# every other covariate. `rhc` reaches the fixed part through `.`, so it is
-# dropped from the control function, which keeps the two identified
-fit <- bartisan(death ~ . - days + vc(rhc), data = rhc,
-                family = binomial(), num_trees = 10, num_burn = 50,
+# The effect of right heart catheterization on death,
+# free to vary with every other covariate. `rhc` is left
+# out of the control function, which keeps the two
+# forests identified
+model <- death ~ age + sex + race + edu + aps + meanbp +
+  resp + hema + pafi + paco2 + crea + surv2m + card +
+  vc(rhc)
+
+fit <- bartisan(model, data = rhc, family = binomial(),
+                num_trees = 10, num_burn = 50,
                 num_draws = 50)
 
-# One coefficient per patient: the coefficient function at each observation
+# One coefficient per patient: the coefficient function
+# at each observation
 head(coef(fit))
 #>            rhc
-#> [1,] 0.3852362
-#> [2,] 0.2000175
-#> [3,] 0.2619060
-#> [4,] 0.2908669
-#> [5,] 0.4621013
-#> [6,] 0.3784168
+#> [1,] 0.5098281
+#> [2,] 0.2377270
+#> [3,] 0.2123576
+#> [4,] 0.2790761
+#> [5,] 0.3253521
+#> [6,] 0.4182815
 
-# The same effect, free to vary with severity of illness alone
-fit2 <- bartisan(death ~ . - days + vc(rhc, ~ aps), data = rhc,
-                 family = binomial(), num_trees = 10, num_burn = 50,
+# The same effect, free to vary with severity of illness
+# alone
+model2 <- death ~ age + sex + race + edu + aps + meanbp +
+  resp + hema + pafi + paco2 + crea + surv2m + card +
+  vc(rhc, ~ aps)
+
+fit2 <- bartisan(model2, data = rhc, family = binomial(),
+                 num_trees = 10, num_burn = 50,
                  num_draws = 50)
 
 head(coef(fit2))
 #>            rhc
-#> [1,] 0.3902913
-#> [2,] 0.2556783
-#> [3,] 0.2023919
-#> [4,] 0.3963084
-#> [5,] 0.3731666
-#> [6,] 0.3302474
+#> [1,] 0.4040734
+#> [2,] 0.2496033
+#> [3,] 0.1571161
+#> [4,] 0.4555922
+#> [5,] 0.3282443
+#> [6,] 0.1985482
 ```

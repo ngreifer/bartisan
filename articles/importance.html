@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/importance.Rmd" class="external-link"><code>vignettes/importance.Rmd</code></a></small>
       <div class="d-none name"><code>importance.Rmd</code></div>
@@ -133,6 +133,11 @@ variables.</p>
 we would run several chains and possibly change the number of burn-in
 and retained draws; <code><a href="../articles/diagnostics.html">vignette("diagnostics")</a></code> covers how to
 set these fit controls and how to check that they were enough.</p>
+<p>The fits also set <code>sparsity = TRUE</code>, which turns on the
+variable-selection prior. It is off by default, because it is a poor
+choice when an effect is being estimated, but when the question is which
+predictors the model needs it is the setting to use, for the reason the
+next section gives.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span></span>
@@ -148,7 +153,7 @@ set these fit controls and how to check that they were enough.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">imp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span></span>
@@ -176,9 +181,9 @@ set these fit controls and how to check that they were enough.</p>
 and the three read first answer different questions.</p>
 <p><code>prop_used</code> is the proportion of draws in which the
 predictor received at least one rule, and it is the column to read
-first: under the default prior it behaves like a posterior probability
-that the predictor belongs in the model, which makes it the one to use
-when the question is which variables to keep.</p>
+first: with the sparsity prior on it behaves like a posterior
+probability that the predictor belongs in the model, which makes it the
+one to use when the question is which variables to keep.</p>
 <p><code>prop_splits</code> is the predictor’s share of all the
 splitting rules in the forest. It is the column to use when two fits are
 being compared, for the reason the section on <code>num_trees</code>
@@ -189,17 +194,21 @@ fitted structure the predictor accounts for. Its interval is in the
 returned data frame as <code>splits_lower</code> and
 <code>splits_upper</code>, and the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method leaves it
 out of the displayed table to keep the ranking readable.</p>
-<p>The reason it behaves that way is the prior. By default (i.e., with
-<code>sparsity = TRUE</code>) the variable a rule splits on is drawn
+<p>The reason it behaves that way is the prior. With
+<code>sparsity = TRUE</code>, the variable a rule splits on is drawn
 from a Dirichlet-distributed set of probabilities <span class="citation">(<a href="#ref-linero2018sparse">Linero
 2018</a>)</span>, which lets the forest concentrate on a few predictors
 and drop the rest entirely. A predictor that contributes nothing can
 fall to <code>prop_used</code> near zero, which is not possible under
-classic BART, where every predictor keeps a fixed share of the splitting
-probability.</p>
-<p>The prognostic score, age, and two of the illness measures sit at the
-top, as we would expect; at the other end, several predictors are used
-in only about half the draws.</p>
+the default (<code>sparsity = FALSE</code>), where every predictor keeps
+a fixed share of the splitting probability, as in classic BART. In a
+forest of ordinary size every predictor is then used in nearly every
+draw, <code>prop_used</code> sits near 1 throughout, and the ranking is
+carried by the other two columns, which the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method
+notes.</p>
+<p>The prognostic score, age, the treatment, and two of the
+physiological measurements sit at the top, as we would expect; at the
+other end, several predictors are used in only about half the draws.</p>
 <p>For a ranking this long the picture is easier to read than the table,
 and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws it:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -235,7 +244,7 @@ means adding a few.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">fit_noise</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">.</span> <span class="op">~</span> <span class="va">.</span> <span class="op">+</span> <span class="va">noise1</span> <span class="op">+</span> <span class="va">noise2</span> <span class="op">+</span> <span class="va">noise3</span><span class="op">)</span>,</span>
-<span>                      data <span class="op">=</span> <span class="va">rhc_noise</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>                      data <span class="op">=</span> <span class="va">rhc_noise</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span>, sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_noise</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
@@ -292,7 +301,8 @@ Below we use the Friedman function, in which <code>x1</code> through
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">7</span><span class="op">)</span></span>
-<span><span class="va">fit_fr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="fu">friedman</span><span class="op">(</span><span class="fl">500</span><span class="op">)</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">fit_fr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="fu">friedman</span><span class="op">(</span><span class="fl">500</span><span class="op">)</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>                   sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_fr</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
@@ -310,13 +320,11 @@ Below we use the Friedman function, in which <code>x1</code> through
 <span><span class="co">#&gt;        x9     0.021       0.000    0.0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
-<p>The five real predictors sit at 1.00 and four of the five noise
-predictors near zero. The fifth sits above the other noise variables and
-still well below the real ones, which is a useful reminder that even a
-clean separation has a straggler: a noise variable will occasionally be
-picked up, and a single moderate value is not evidence of anything. The
-gap that matters runs from the top of the noise to 1.00, and it is
-wide.</p>
+<p>The five real predictors sit at 1.00 and the five noise predictors
+below .06. None of them is exactly zero, which is a useful reminder that
+a noise variable is occasionally picked up for a draw or two, and a
+single moderate value is not evidence of anything. The gap that matters
+runs from the top of the noise to 1.00, and it is wide.</p>
 <p>There is no threshold that is correct in general, so we look for the
 gap, cut inside it, and check that the conclusion does not depend on
 exactly where.</p>
@@ -335,7 +343,7 @@ a confident and wrong answer rather than an uninformative one.</p>
 <span><span class="va">cd</span><span class="op">$</span><span class="va">x3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
 <span><span class="va">cd</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fl">3</span> <span class="op">*</span> <span class="va">cd</span><span class="op">$</span><span class="va">x1</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span>, sd <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span>      <span class="co"># only x1 is in the truth</span></span>
 <span></span>
-<span><span class="va">fit_corr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">cd</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">fit_corr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">cd</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian</a></span><span class="op">(</span><span class="op">)</span>, sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_corr</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
@@ -420,15 +428,15 @@ splits works poorly with many trees because “the redundancy offered by
 so many trees tends to mix many irrelevant predictors in with the
 relevant ones”, and that predictors compete for splits when the forest
 is small.</p>
-<p>The advice is correct for classic BART and largely unnecessary here.
-Measured on the Friedman function at 500 observations over three
-replicates, the mean <code>prop_used</code> for the five noise
-predictors was:</p>
+<p>The advice is correct for classic BART, which is the default here,
+and largely unnecessary once the sparsity prior is on. Measured on the
+Friedman function at 500 observations over three replicates, the mean
+<code>prop_used</code> for the five noise predictors was:</p>
 <table class="table">
 <thead><tr class="header">
 <th align="right">Trees</th>
-<th align="right">sparsity = FALSE</th>
-<th align="right">sparsity = TRUE (default)</th>
+<th align="right">sparsity = FALSE (default)</th>
+<th align="right">sparsity = TRUE</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
@@ -453,16 +461,15 @@ predictors was:</p>
 </tr>
 </tbody>
 </table>
-<p>Without the sparsity prior the advice is essential: at 50 trees the
-noise predictors are used in 95% of draws and cannot be told apart from
-the real ones. With the prior, which is on by default
-(<code>sparsity = TRUE</code>), they stay near zero at every tree count.
-The recommendation addresses the same problem the prior addresses, and
-there is little left for it to do; a smaller forest also mixes worse, so
-it is not free.</p>
-<p>To check on a given dataset, we can fit at the default and again at
-20 trees and see whether the conclusion changes. It usually will
-not.</p>
+<p>Under the default the advice is essential if the table is to be read
+for selection: at 50 trees the noise predictors are used in 95% of draws
+and cannot be told apart from the real ones. With the prior on, they
+stay near zero at every tree count. The recommendation addresses the
+same problem the prior addresses, and there is little left for it to do;
+a smaller forest also mixes worse, so it is not free.</p>
+<p>To check on a given dataset, we can fit at the default forest size
+and again at 20 trees and see whether the conclusion changes. It usually
+will not.</p>
 <p><code>prop_splits</code> is the column to compare when we do, because
 <code>splits</code> cannot be: it counts rules, so a forest of 50 trees
 reports several times the count of a forest of 20 without being several

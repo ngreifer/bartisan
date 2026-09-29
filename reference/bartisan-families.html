@@ -584,47 +584,58 @@ estimates; <code><a href="../articles/families.html">vignette("families", packag
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># A right-censored response, given as the time and the event indicator,</span></span></span>
-<span class="r-in"><span><span class="co"># with the error distribution estimated rather than assumed</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">days</span>, <span class="va">death</span><span class="op">)</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu">dpm_aft</span><span class="op">(</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># A right-censored response, given as the time and the</span></span></span>
+<span class="r-in"><span><span class="co"># event indicator, with the error distribution estimated</span></span></span>
+<span class="r-in"><span><span class="co"># rather than assumed</span></span></span>
+<span class="r-in"><span><span class="va">surv_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">days</span>, <span class="va">death</span><span class="op">)</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">surv_model</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
+<span class="r-in"><span>                family <span class="op">=</span> <span class="fu">dpm_aft</span><span class="op">(</span><span class="op">)</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The shape the errors came out</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="error_density.html">error_density</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          at         mean        lower        upper</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 -8.149747 6.990040e-05 3.117357e-05 0.0001222741</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 -8.068250 8.174272e-05 3.713237e-05 0.0001414876</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3 -7.986752 9.544615e-05 4.415258e-05 0.0001634804</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4 -7.905255 1.112774e-04 5.240790e-05 0.0001886150</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5 -7.823757 1.295371e-04 6.209755e-05 0.0002172952</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6 -7.742260 1.505634e-04 7.344957e-05 0.0002499697</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 -7.697070 5.094349e-08 7.964088e-09 2.344879e-07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 -7.620099 6.454796e-08 1.086150e-08 2.870340e-07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 -7.543129 8.309478e-08 1.525619e-08 3.528593e-07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4 -7.466158 1.086236e-07 2.085271e-08 4.456931e-07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5 -7.389187 1.440406e-07 2.922824e-08 5.675857e-07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6 -7.312217 1.934784e-07 4.056200e-08 7.274986e-07</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The same response under proportional hazards, whose predictor is a log</span></span></span>
-<span class="r-in"><span><span class="co"># hazard ratio and whose baseline is free to take any shape</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">days</span>, <span class="va">death</span><span class="op">)</span> <span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu">ph</span><span class="op">(</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span><span class="co"># The same response under proportional hazards, whose</span></span></span>
+<span class="r-in"><span><span class="co"># predictor is a log hazard ratio and whose baseline is</span></span></span>
+<span class="r-in"><span><span class="co"># free to take any shape</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">surv_model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu">ph</span><span class="op">(</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>         num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = cbind(days, death) ~ ., data = rhc, family = ph(), </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     num_trees = 10, num_burn = 50, num_draws = 50)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = surv_model, data = rhc, family = ph(), num_trees = 10, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     num_burn = 50, num_draws = 50)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"ph"</span> with the <span style="color: #0000BB;">"log"</span> link</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50 kept after 50 warmup</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Posterior means: lambda1 = 0.0105, lambda2 = 0.0158, lambda3 = 0.0107, lambda4 = 0.0071, lambda5 = 0.0029, lambda6 = 0.00137, lambda7 = 0.00101, lambda8 = 0.000722, lambda9 = 0.00135, lambda10 = 0.00203, lambda11 = 0.00164, lambda12 = 0.00185, lambda_rate = 233</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Posterior means: lambda1 = 0.0133, lambda2 = 0.0197, lambda3 = 0.0133, lambda4 = 0.00902, lambda5 = 0.00377, lambda6 = 0.00169, lambda7 = 0.00128, lambda8 = 0.000808, lambda9 = 0.00179, lambda10 = 0.00283, lambda11 = 0.00215, lambda12 = 0.00236, lambda_rate = 186</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># An unordered response, with one forest per category and a prior that is</span></span></span>
-<span class="r-in"><span><span class="co"># symmetric in them</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">race</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span> <span class="op">-</span> <span class="va">death</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu">multinomial</span><span class="op">(</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span><span class="co"># An unordered response, with one forest per category</span></span></span>
+<span class="r-in"><span><span class="co"># and a prior that is symmetric in them</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">race</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>           <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>           <span class="va">card</span>,</span></span>
+<span class="r-in"><span>         data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu">multinomial</span><span class="op">(</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>         num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = race ~ . - days - death, data = rhc, family = multinomial(), </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     num_trees = 10, num_burn = 50, num_draws = 50)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = race ~ rhc + age + sex + edu + aps + meanbp + </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     resp + hema + pafi + paco2 + crea + surv2m + card, data = rhc, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     family = multinomial(), num_trees = 10, num_burn = 50, num_draws = 50)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"multinomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>
@@ -632,13 +643,18 @@ estimates; <code><a href="../articles/families.html">vignette("families", packag
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50 kept after 50 warmup</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># A link the engine does not compile, applied from R</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="st">"cauchit"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span><span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>           <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>           <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span></span>
+<span class="r-in"><span>         data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="st">"cauchit"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>         num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ . - days, data = rhc, family = binomial("cauchit"), </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     num_trees = 10, num_burn = 50, num_draws = 50)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     data = rhc, family = binomial("cauchit"), num_trees = 10, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     num_burn = 50, num_draws = 50)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"cauchit"</span> link (supplied from R)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>

@@ -92,7 +92,7 @@ Yang (2018), and are meant to be usable without adjustment.</p>
 <span>  num_thin <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  num_trees <span class="op">=</span> <span class="fl">50L</span>,</span>
 <span>  gate <span class="op">=</span> <span class="st">"smoothstep"</span>,</span>
-<span>  sparsity <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  sparsity <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  split_prior <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  x_transform <span class="op">=</span> <span class="st">"smoothcdf"</span>,</span>
 <span>  k <span class="op">=</span> <span class="fl">2</span>,</span>
@@ -184,14 +184,17 @@ See Details.</p></dd>
 
 <dt id="arg-sparsity">sparsity<a class="anchor" aria-label="anchor" href="#arg-sparsity"></a></dt>
 <dd><p><code>logical</code> or string; the prior on which predictors are split
-on. <code>TRUE</code> (the default) is the Dirichlet sparsity prior of Linero (2018)
-(i.e., DART), which can drop a predictor from the forest entirely, and
-<code>FALSE</code> gives every predictor the same splitting probability, which is
-classic BART. The strings <code>"none"</code>, <code>"weak"</code>, <code>"moderate"</code>, and <code>"strong"</code>
-name four strengths, <code>"none"</code> equal to <code>FALSE</code> and <code>"moderate"</code> to <code>TRUE</code>.
-Note that this sets <code>update_s</code>, <code>update_alpha</code>, <code>alpha_shape_1</code> and
-<code>alpha_shape_2</code> together, and that supplying any of those overrides it.
-Read the trade-off in Details before turning it off.</p></dd>
+on. <code>FALSE</code> (the default) gives every predictor the same splitting
+probability, which is classic BART, and <code>TRUE</code> is the Dirichlet sparsity
+prior of Linero (2018) (i.e., DART), which can drop a predictor from the
+forest entirely. The strings <code>"none"</code>, <code>"weak"</code>, <code>"moderate"</code>, and
+<code>"strong"</code> name four strengths, <code>"none"</code> equal to <code>FALSE</code> and <code>"moderate"</code>
+to <code>TRUE</code>. Setting <code>sparsity = TRUE</code> is for when there are many predictors,
+when only a few of them are expected to matter, or when the goal is to
+identify the predictors the model needs; it is not recommended when an
+effect is being estimated. See Details. Note that this sets <code>update_s</code>,
+<code>update_alpha</code>, <code>alpha_shape_1</code> and <code>alpha_shape_2</code> together, and that
+supplying any of those overrides it.</p></dd>
 
 
 <dt id="arg-split-prior">split_prior<a class="anchor" aria-label="anchor" href="#arg-split-prior"></a></dt>
@@ -239,8 +242,8 @@ additive predictor, whether the forests draw their splitting proportions
 from one pooled Dirichlet rather than one each. Default is <code>FALSE</code>. <code>TRUE</code>
 is an assumption about the data rather than a free improvement, and
 requires that the proportions be drawn at all and over the same predictors,
-so the forests that are to share must not have <code>sparsity = FALSE</code>.
-Ignored for a family with a single forest. See Details.</p></dd>
+so the forests that are to share must have <code>sparsity = TRUE</code>, which is not
+the default. Ignored for a family with a single forest. See Details.</p></dd>
 
 
 <dt id="arg-categorical">categorical<a class="anchor" aria-label="anchor" href="#arg-categorical"></a></dt>
@@ -503,33 +506,42 @@ in accuracy where the mean function jumps.</p>
 <h3 id="controlling-sparsity">Controlling Sparsity<a class="anchor" aria-label="anchor" href="#controlling-sparsity"></a></h3>
 
 
-<p><code>sparsity = TRUE</code> (the default) is the Dirichlet prior of Linero (2018) on
-the splitting proportions, and it is a genuine variable-selection prior: it
-can and does drop a predictor from every tree at once, which is the point of
-it in the high-dimensional problems it was built for.</p>
-<p>That has a consequence which is easy to misread. A contrast on a predictor
-the prior has dropped is exactly zero because in that draw the fit does not
-depend on that predictor at all, so the posterior of a contrast has an atom
-at zero whose mass is one minus the predictor's inclusion probability; any
-summary reporting a median lands on it once it holds half the mass. More
-trees does not fix it, because a predictor whose splitting proportion has
-gone small is rarely proposed and so is hard to get back in.</p>
-<p>How to specify <code>sparsity</code> follows from the estimand. For prediction or
-variable selection, keep the default; reaching past <code>TRUE</code> is warranted only
-when the predictors are many and nearly all are expected to be irrelevant.
-For a contrast, a partial effect, or a treatment effect, set <code>sparsity = FALSE</code>, or use <code>split_prior</code>, which cannot drop anything: on a weak signal
-the sparsity prior attenuates the estimate substantially and its interval
-covers below its nominal rate, while a strong effect is untouched.
-<code><a href="../articles/effects.html">vignette("effects")</a></code> works this through and <code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code>
-covers the atom.</p>
+<p>By default (<code>sparsity = FALSE</code>), every predictor has the same prior
+probability of being chosen for a splitting rule, as in classic BART, so no
+predictor can be left out of the forest. Setting <code>sparsity = TRUE</code> places the
+Dirichlet prior of Linero (2018) on the splitting proportions instead, which
+is a genuine variable-selection prior: it can and does drop a predictor from
+every tree at once, which is the point of it in the high-dimensional problems
+it was built for.</p>
+<p>The sparsity prior is worth turning on when there are many predictors, when
+only a few of them are expected to matter, or when the goal is to identify
+the subset of predictors the model needs. Under it, the <code>prop_used</code> column of
+<code><a href="variable_importance.html">variable_importance()</a></code> is readable as a posterior probability that a
+predictor belongs in the model, which it is not under the default;
+<code><a href="../articles/importance.html">vignette("importance")</a></code> covers that use. It also tends to improve prediction
+when many of the predictors are irrelevant.</p>
+<p>It is not recommended when a contrast, a partial effect, or a treatment
+effect is being estimated. A contrast on a predictor the prior has dropped is
+exactly zero because in that draw the fit does not depend on that predictor
+at all, so the posterior of a contrast has an atom at zero whose mass is one
+minus the predictor's inclusion probability; any summary reporting a median
+lands on it once it holds half the mass. On a weak signal the estimate is
+attenuated substantially and its interval covers below its nominal rate,
+while a strong effect is untouched. More trees does not fix it, because a
+predictor whose splitting proportion has gone small is rarely proposed and so
+is hard to get back in. <code><a href="../articles/effects.html">vignette("effects")</a></code> works this through and
+<code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code> covers the atom. When an effect is the estimand
+but there are too many predictors to weight alike, <code>split_prior</code> is the
+middle course, since fixed weights cannot drop anything.</p>
 <p>For a varying-coefficient model, the sparsity choice can differ by forest
 (see more details below). What the prior can drop is a predictor a forest
 splits on, and in a <code><a href="vc.html">vc()</a></code> model the treatment is the coefficient rather than
 one of those, carried by a forest of its own, so no splitting proportion can
 drop it; the prior on that forest selects among the moderators instead. So
-<code>sparsity = c(FALSE, TRUE)</code>, which disables the sparsity prior for the
-control function forest and enables it for the varying coefficient forest, is
-coherent, and in <code><a href="bcf.html">bcf()</a></code> it is the asymmetry worth considering.</p>
+<code>sparsity = c(FALSE, TRUE)</code>, which keeps the default for the control
+function forest and enables the sparsity prior for the varying coefficient
+forest, is coherent, and in <code><a href="bcf.html">bcf()</a></code> it is the setting worth considering when
+there are many candidate moderators.</p>
 <p>Sparsity can also be controlled by choosing the sparsity parameter <code>alpha</code> or
 drawing it from a prior determined by the parameters <code>alpha_scale</code>,
 <code>alpha_shape_1</code>, and <code>alpha_shape_2</code>. The <code>sparsity</code> argument is a shortcut
@@ -549,7 +561,7 @@ changes how often a split on a predictor is proposed, which is a prior, so
 the data can still overrule it in either direction. Because the weights are
 fixed, <code>split_prior</code> does not accumulate the atom-at-zero mass above, which
 makes it a reasonable middle course when a particular contrast is the
-estimand but the predictors are too many to treat alike. One weight per term
+estimand but there are too many predictors to treat alike. One weight per term
 in the formula, not per column of the design matrix, so a factor is named
 once and its levels share the weight.</p>
 </div>
@@ -643,22 +655,30 @@ by</p>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Settings can be built up once and reused across fits</span></span></span>
-<span class="r-in"><span><span class="va">ctrl</span> <span class="op">&lt;-</span> <span class="fu">bartisan_control</span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">20</span>, gate <span class="op">=</span> <span class="st">"hard"</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span><span class="va">ctrl</span> <span class="op">&lt;-</span> <span class="fu">bartisan_control</span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">20</span>,</span></span>
+<span class="r-in"><span>                         gate <span class="op">=</span> <span class="st">"hard"</span>,</span></span>
+<span class="r-in"><span>                         num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
 <span class="r-in"><span>                         num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">card</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The same call, with the settings passed through `...` instead</span></span></span>
-<span class="r-in"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">20</span>,</span></span>
-<span class="r-in"><span>                 gate <span class="op">=</span> <span class="st">"hard"</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># The same call, with the settings passed through `...`</span></span></span>
+<span class="r-in"><span><span class="co"># instead</span></span></span>
+<span class="r-in"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
+<span class="r-in"><span>                 num_trees <span class="op">=</span> <span class="fl">20</span>, gate <span class="op">=</span> <span class="st">"hard"</span>,</span></span>
+<span class="r-in"><span>                 num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># A setting given once applies to every forest, and a vector gives each</span></span></span>
-<span class="r-in"><span><span class="co"># forest its own value. A variance surface needs less capacity than a</span></span></span>
-<span class="r-in"><span><span class="co"># mean surface</span></span></span>
+<span class="r-in"><span><span class="co"># A setting given once applies to every forest, and a</span></span></span>
+<span class="r-in"><span><span class="co"># vector gives each forest its own value. A variance</span></span></span>
+<span class="r-in"><span><span class="co"># surface needs less capacity than a mean surface</span></span></span>
 <span class="r-in"><span><span class="fu">bartisan_control</span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fl">50</span>, log_sd <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $num_trees</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   mean log_sd </span>
@@ -671,7 +691,7 @@ by</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $sparsity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $share_sparsity</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
@@ -747,10 +767,10 @@ by</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $update_s</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $update_alpha</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $verbose</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
@@ -775,8 +795,9 @@ by</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     50     10 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Weighting the splitting prior toward the treatment, which the sparsity</span></span></span>
-<span class="r-in"><span><span class="co"># prior would otherwise be free to drop</span></span></span>
+<span class="r-in"><span><span class="co"># Weighting the splitting prior toward the treatment, for</span></span></span>
+<span class="r-in"><span><span class="co"># a model with more predictors than are worth weighting</span></span></span>
+<span class="r-in"><span><span class="co"># alike</span></span></span>
 <span class="r-in"><span><span class="fu">bartisan_control</span><span class="op">(</span>split_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>rhc <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $num_trees</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 50</span>

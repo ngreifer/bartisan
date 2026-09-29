@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/effects.Rmd" class="external-link"><code>vignettes/effects.Rmd</code></a></small>
       <div class="d-none name"><code>effects.Rmd</code></div>
@@ -146,11 +146,11 @@ expands its section on interpreting the fit.</p>
 package answers and then work through them in turn. First, we’ll
 consider average effects of categorical and numeric predictors, along
 with the prior setting (<code>sparsity</code>) that can quietly
-attenuate a contrast. Next we’ll split those effects by subgroup and
-test a moderation with the difference of the two, then plot the shape of
-a fitted relationship and choose the scale on which an effect is
-reported, and close with what these estimates can and cannot be taken to
-mean.</p>
+attenuate a contrast when it is turned on. Next we’ll split those
+effects by subgroup and test a moderation with the difference of the
+two, then plot the shape of a fitted relationship and choose the scale
+on which an effect is reported, and close with what these estimates can
+and cannot be taken to mean.</p>
 <p>Below, we load in the <code>rhc</code> dataset (see
 <code><a href="../articles/bartisan.html">vignette("bartisan")</a></code> or
 <code><a href="../reference/rhc.html">help("rhc", package = "bartisan")</a></code> for details) and fit a
@@ -213,9 +213,9 @@ are of primary interest anyway <span class="citation">(<a href="#ref-keeleCausal
 <span><span class="va">comp</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Term Contrast Estimate    2.5 %  97.5 %</span></span>
-<span><span class="co">#&gt;  age  +1        0.00321  0.00160 0.00495</span></span>
-<span><span class="co">#&gt;  card yes - no  0.01300 -0.00558 0.08184</span></span>
-<span><span class="co">#&gt;  rhc  1 - 0     0.06492  0.01007 0.11539</span></span>
+<span><span class="co">#&gt;  age  +1        0.00309  0.00153 0.00467</span></span>
+<span><span class="co">#&gt;  card yes - no  0.04164 -0.00868 0.08973</span></span>
+<span><span class="co">#&gt;  rhc  1 - 0     0.05968  0.01182 0.11118</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>This reads as a coefficient table. Each estimate is an average
@@ -227,35 +227,41 @@ increase of one unit. <code>rhc</code> is coded <code>0</code> and
 <p>The comparison for <code>age</code>, for example, means that
 increasing all units’ age by 1, keeping all other predictors at their
 observed values, would yield an increase in the overall probability of
-death of 0.321 percentage points (a very small effect on this scale),
+death of 0.309 percentage points (a very small effect on this scale),
 with a 95% credible interval excluding 0. This isn’t a causal estimate;
 it’s just what the model predicts would happen.</p>
 <div class="section level3">
 <h3 id="the-splitting-prior-and-a-contrast-sparsity">The Splitting Prior and a Contrast (<code>sparsity</code>)<a class="anchor" aria-label="anchor" href="#the-splitting-prior-and-a-contrast-sparsity"></a>
 </h3>
-<p>An estimate here can come back as exactly zero, and an interval bound
-with it; that is not a rounding artifact. The default splitting prior is
-a variable-selection prior (i.e., one that can leave a predictor out of
-the forest altogether), so in a draw where it uses the predictor in no
-tree, the prediction does not depend on it, and the contrast is exactly
-zero; the posterior of the contrast is a mixture with a point mass
-there, holding whatever share of draws dropped the predictor.
-<em>marginaleffects</em> centers a posterior at its median by default,
-so once that point mass holds half of it the reported estimate is
-exactly zero however far the rest of the posterior sits from zero.
-Setting <code>options(marginaleffects_posterior_center = mean)</code>
-asks for the mean instead, which is the how <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> and
+<p>The default splitting prior gives every predictor the same chance of
+being chosen for a splitting rule, so no predictor can be left out of
+the forest. Setting <code>sparsity = TRUE</code> replaces it with a
+variable-selection prior (i.e., one that can leave a predictor out of
+the forest altogether), which is useful when there are many predictors
+and only a few are expected to matter, but it changes what a contrast
+means. In a draw where the prior uses a predictor in no tree, the
+prediction does not depend on it and the contrast is exactly zero, so
+the posterior of the contrast is a mixture with a point mass at zero,
+holding whatever share of draws dropped the predictor. An estimate can
+then come back as exactly zero, and an interval bound with it; that is
+not a rounding artifact. <em>marginaleffects</em> centers a posterior at
+its median by default, so once that point mass holds half of it the
+reported estimate is exactly zero however far the rest of the posterior
+sits from zero. Setting
+<code>options(marginaleffects_posterior_center = mean)</code> asks for
+the mean instead, which is how <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> and
 <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> report predictions.</p>
 <p>This can matter more than it sounds: on a weak signal, the prior can
 attenuate the estimate substantially, and its interval can cover the
 truth well below its nominal rate. A strong effect is untouched, because
 the prior never has reason to drop a predictor that is earning its
 splits, so this is a weak-signal problem rather than a general one.</p>
-<p>If we are reporting a contrast, we can fit the model with
-<code>sparsity = FALSE</code>, or by supplying <code>split_prior</code>,
-which fixes the weights (i.e., the probability that each predictor is
-chosen for a split) and so cannot drop anything.
-<code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> explains both options.</p>
+<p>If we are reporting a contrast, we recommend keeping the default.
+When there are too many predictors to weight alike, supplying
+<code>split_prior</code>, which fixes the weights (i.e., the probability
+that each predictor is chosen for a split) and so cannot drop anything,
+is the middle course. <code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> explains both
+options.</p>
 </div>
 <div class="section level3">
 <h3 id="choosing-the-step-variables">Choosing the Step (<code>variables</code>)<a class="anchor" aria-label="anchor" href="#choosing-the-step-variables"></a>
@@ -268,8 +274,8 @@ a comparison corresponding to increasing its value by 10.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    0.0108     0 0.0283</span></span>
+<span><span class="co">#&gt;  Estimate   2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;    0.0157 0.00171 0.0309</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: aps</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
@@ -290,26 +296,26 @@ variable.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  card Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no    0.0658 0.01324  0.116</span></span>
-<span><span class="co">#&gt;   yes   0.0636 0.00852  0.114</span></span>
+<span><span class="co">#&gt;  card Estimate  2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;   no    0.0616 0.0115  0.116</span></span>
+<span><span class="co">#&gt;   yes   0.0558 0.0037  0.110</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: 1 - 0</span></span></code></pre></div>
-<p>The two subgroup estimates are close, and both intervals reach zero.
-A common mistake is to stop here and conclude that the effect differs
-between groups; that comparison is not a test. The question is whether
-the two effects differ from each other, which needs the difference of
-the two (i.e., a difference of differences) with an interval of its own.
-This can be requested by specifying
+<p>The two subgroup estimates are close, and both intervals exclude zero
+by a small margin. A common mistake is to stop here and conclude that
+the effect differs between groups; that comparison is not a test. The
+question is whether the two effects differ from each other, which needs
+the difference of the two (i.e., a difference of differences) with an
+interval of its own. This can be requested by specifying
 <code>hypothesis = ~pairwise</code>.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span>,</span>
 <span>                hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    Hypothesis  Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  (yes) - (no) -0.000921 -0.0236 0.0109</span></span>
+<span><span class="co">#&gt;    Hypothesis Estimate   2.5 % 97.5 %</span></span>
+<span><span class="co">#&gt;  (yes) - (no) -0.00259 -0.0611 0.0248</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>The difference is small with an interval covering zero, so there is
@@ -324,8 +330,8 @@ rather than differences, which is useful for describing groups:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no     0.636 0.608  0.661</span></span>
-<span><span class="co">#&gt;   yes    0.687 0.657  0.728</span></span>
+<span><span class="co">#&gt;   no     0.630 0.604  0.661</span></span>
+<span><span class="co">#&gt;   yes    0.699 0.660  0.733</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>These correspond to the fitted predictions among those in each
@@ -337,8 +343,8 @@ following:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no     0.646 0.617  0.672</span></span>
-<span><span class="co">#&gt;   yes    0.666 0.635  0.713</span></span>
+<span><span class="co">#&gt;   no     0.639 0.613  0.670</span></span>
+<span><span class="co">#&gt;   yes    0.682 0.639  0.719</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>In the latter, <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> computes predictions
@@ -370,17 +376,17 @@ average prediction rather than on any one patient’s.
 <span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     aps estimate lower upper</span></span>
-<span><span class="co">#&gt;    4.00    0.613 0.518 0.668</span></span>
-<span><span class="co">#&gt;    9.72    0.613 0.518 0.668</span></span>
-<span><span class="co">#&gt;   15.44    0.613 0.520 0.668</span></span>
-<span><span class="co">#&gt;   21.16    0.615 0.531 0.668</span></span>
-<span><span class="co">#&gt;   26.88    0.620 0.555 0.668</span></span>
+<span><span class="co">#&gt;    4.00    0.592 0.491 0.657</span></span>
+<span><span class="co">#&gt;    9.72    0.593 0.495 0.657</span></span>
+<span><span class="co">#&gt;   15.44    0.593 0.499 0.657</span></span>
+<span><span class="co">#&gt;   21.16    0.597 0.513 0.656</span></span>
+<span><span class="co">#&gt;   26.88    0.606 0.543 0.658</span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">  --- 16 rows omitted ---</span></span></span>
-<span><span class="co">#&gt;  124.12    0.701 0.639 0.797</span></span>
-<span><span class="co">#&gt;  129.84    0.701 0.639 0.797</span></span>
-<span><span class="co">#&gt;  135.56    0.701 0.639 0.798</span></span>
-<span><span class="co">#&gt;  141.28    0.701 0.639 0.798</span></span>
-<span><span class="co">#&gt;  147.00    0.701 0.639 0.798</span></span>
+<span><span class="co">#&gt;  124.12    0.724 0.651 0.811</span></span>
+<span><span class="co">#&gt;  129.84    0.724 0.651 0.811</span></span>
+<span><span class="co">#&gt;  135.56    0.724 0.651 0.811</span></span>
+<span><span class="co">#&gt;  141.28    0.724 0.651 0.812</span></span>
+<span><span class="co">#&gt;  147.00    0.724 0.651 0.812</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
@@ -417,17 +423,17 @@ groups.</p>
 <span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     aps rhc estimate lower upper</span></span>
-<span><span class="co">#&gt;    4.00   0    0.587 0.488 0.645</span></span>
-<span><span class="co">#&gt;    9.72   0    0.587 0.488 0.645</span></span>
-<span><span class="co">#&gt;   15.44   0    0.587 0.489 0.645</span></span>
-<span><span class="co">#&gt;   21.16   0    0.589 0.502 0.645</span></span>
-<span><span class="co">#&gt;   26.88   0    0.594 0.521 0.645</span></span>
+<span><span class="co">#&gt;    4.00   0    0.568 0.460 0.638</span></span>
+<span><span class="co">#&gt;    9.72   0    0.568 0.462 0.637</span></span>
+<span><span class="co">#&gt;   15.44   0    0.569 0.472 0.637</span></span>
+<span><span class="co">#&gt;   21.16   0    0.573 0.493 0.637</span></span>
+<span><span class="co">#&gt;   26.88   0    0.581 0.518 0.640</span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">    --- 42 rows omitted ---</span></span></span>
-<span><span class="co">#&gt;  124.12   1    0.738 0.671 0.831</span></span>
-<span><span class="co">#&gt;  129.84   1    0.738 0.671 0.831</span></span>
-<span><span class="co">#&gt;  135.56   1    0.738 0.671 0.831</span></span>
-<span><span class="co">#&gt;  141.28   1    0.738 0.671 0.831</span></span>
-<span><span class="co">#&gt;  147.00   1    0.738 0.671 0.831</span></span>
+<span><span class="co">#&gt;  124.12   1    0.758 0.680 0.840</span></span>
+<span><span class="co">#&gt;  129.84   1    0.758 0.680 0.840</span></span>
+<span><span class="co">#&gt;  135.56   1    0.759 0.680 0.841</span></span>
+<span><span class="co">#&gt;  141.28   1    0.759 0.680 0.841</span></span>
+<span><span class="co">#&gt;  147.00   1    0.759 0.680 0.841</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
@@ -485,9 +491,9 @@ options that may be helpful, but otherwise the syntax is similar.</p>
 <span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   aps estimate lower upper</span></span>
-<span><span class="co">#&gt;  29.9    0.623 0.562 0.668</span></span>
-<span><span class="co">#&gt;  54.0    0.656 0.624 0.687</span></span>
-<span><span class="co">#&gt;  83.0    0.687 0.639 0.757</span></span>
+<span><span class="co">#&gt;  29.9    0.610 0.552 0.657</span></span>
+<span><span class="co">#&gt;  54.0    0.656 0.623 0.695</span></span>
+<span><span class="co">#&gt;  83.0    0.703 0.649 0.765</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
 <span></span>
@@ -495,9 +501,9 @@ options that may be helpful, but otherwise the syntax is similar.</p>
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   aps Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  29.9    0.626 0.562  0.668</span></span>
-<span><span class="co">#&gt;  54.0    0.655 0.624  0.687</span></span>
-<span><span class="co">#&gt;  83.0    0.685 0.639  0.757</span></span>
+<span><span class="co">#&gt;  29.9    0.611 0.552  0.657</span></span>
+<span><span class="co">#&gt;  54.0    0.656 0.623  0.695</span></span>
+<span><span class="co">#&gt;  83.0    0.701 0.649  0.765</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>The two summarize one posterior two ways.
@@ -514,9 +520,9 @@ estimates:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions</a></span><span class="op">(</span><span class="va">fit</span>, condition <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span>, draw <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   rowid estimate conf.low conf.high  df   age card  crea   edu  hema meanbp</span></span>
-<span><span class="co">#&gt; 1     1   0.6296   0.5008    0.7477 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
-<span><span class="co">#&gt; 2     2   0.6661   0.5464    0.7775 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
-<span><span class="co">#&gt; 3     3   0.7051   0.5697    0.8176 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 1     1   0.6299   0.4969    0.7594 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 2     2   0.6817   0.5604    0.7867 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 3     3   0.7386   0.6018    0.8416 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
 <span><span class="co">#&gt;   paco2  pafi  race resp rhc  sex surv2m  aps</span></span>
 <span><span class="co">#&gt; 1 38.85 217.4 white   28   0 male  0.587 29.9</span></span>
 <span><span class="co">#&gt; 2 38.85 217.4 white   28   0 male  0.587 54.0</span></span>

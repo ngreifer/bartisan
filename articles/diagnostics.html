@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/diagnostics.Rmd" class="external-link"><code>vignettes/diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>diagnostics.Rmd</code></div>
@@ -160,23 +160,24 @@ it needs no other package.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.16      1.34       17       64</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.01      1.02      332      540</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.01     1698     2754</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.06      1.11       56      330</span></span>
+<span><span class="co">#&gt;                               loglik 1.04      1.04      120      737</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.03      1.05      322      549</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.01     1577     2695</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.02      1.03      287      802</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 17 effective draws, where 4 chains average 1.235</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 120 effective draws, where 4 chains average 1.033</span></span>
 <span><span class="co">#&gt;   even when they agree</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 17 for loglik, below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 64 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span></span>
+<span><span class="co">#&gt;   1.03)</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 120 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 737 for every reported quantity, above 400</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span></span>
-<span><span class="co">#&gt;   average (R-hat 1.00, 1698 effective draws)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 0.5 effective draws</span></span>
+<span><span class="co">#&gt;   average (R-hat 1.00, 1577 effective draws)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 3.8 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
@@ -194,6 +195,15 @@ it needs no other package.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span></span>
 <span><span class="co">#&gt;   posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
 <span><span class="co">#&gt;   diagnostic.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> The forest's own size is a different kind of failure from the others and does</span></span>
+<span><span class="co">#&gt;   not take the same advice. A sum of trees represents one function through many</span></span>
+<span><span class="co">#&gt;   different partitions, so two chains can agree about every fitted value while</span></span>
+<span><span class="co">#&gt;   disagreeing about how many rules they used to get there, and the quantities a</span></span>
+<span><span class="co">#&gt;   fit reports are integrals over that structure. Raising `num_draws` moves this</span></span>
+<span><span class="co">#&gt;   row slowly and may not clear the threshold at any affordable length. Act on</span></span>
+<span><span class="co">#&gt;   it when split counts are themselves what gets reported --</span></span>
+<span><span class="co">#&gt;   `variable_importance()` and `vignette("importance")` -- and not when fitted</span></span>
+<span><span class="co">#&gt;   values, predictions or effects are.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span></span>
 <span><span class="co">#&gt;   observations and not about their average, which is the usual shape of this in</span></span>
 <span><span class="co">#&gt;   a forest. What that means for an estimand cannot be read off this table</span></span>
@@ -327,17 +337,17 @@ function, first with a chain far too short and then at the defaults.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">too_short</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
-<span><span class="co">#&gt; 1                              loglik 1.69      2.21     6.99     12.2   0.0350</span></span>
-<span><span class="co">#&gt; 2                           aux.sigma 1.21      1.39    14.65     25.9   0.0733</span></span>
-<span><span class="co">#&gt; 3                          splits.eta 1.70      1.97     6.99     29.6   0.0350</span></span>
-<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.01      1.01   169.70    193.9   0.8485</span></span>
-<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.83      1.97     6.59     13.9   0.0329</span></span>
+<span><span class="co">#&gt; 1                              loglik 3.00      3.18     5.13     13.0   0.0257</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 2.52      2.23     5.41     22.0   0.0270</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 1.63      1.69     7.47     29.5   0.0373</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.05   235.38    240.6   1.1769</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.93      2.08     6.28     15.8   0.0314</span></span>
 <span><span class="co">#&gt;   rhat_bad late_bad</span></span>
-<span><span class="co">#&gt; 1    1.000    1.000</span></span>
-<span><span class="co">#&gt; 2    1.000    1.000</span></span>
-<span><span class="co">#&gt; 3    1.000    1.000</span></span>
-<span><span class="co">#&gt; 4    0.000    0.000</span></span>
-<span><span class="co">#&gt; 5    0.998    0.998</span></span></code></pre></div>
+<span><span class="co">#&gt; 1        1        1</span></span>
+<span><span class="co">#&gt; 2        1        1</span></span>
+<span><span class="co">#&gt; 3        1        1</span></span>
+<span><span class="co">#&gt; 4        0        1</span></span>
+<span><span class="co">#&gt; 5        1        1</span></span></code></pre></div>
 <p>Almost everything is bad. Every <code>rhat</code> but the average
 over observations is far above the 1.01 threshold, and the effective
 sample sizes are a fraction of the 200 draws kept (4 chains x 50 kept
@@ -352,17 +362,17 @@ be used.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">long_enough</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
-<span><span class="co">#&gt; 1                              loglik 1.12      1.17     23.2     58.1  0.00725</span></span>
-<span><span class="co">#&gt; 2                           aux.sigma 1.03      1.04    101.1   1004.4  0.03160</span></span>
-<span><span class="co">#&gt; 3                          splits.eta 1.11      1.22     29.5    192.9  0.00921</span></span>
-<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.00   3275.0   3194.3  1.02343</span></span>
-<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.15      1.21     17.9     66.0  0.00561</span></span>
+<span><span class="co">#&gt; 1                              loglik 1.08      1.05     45.2    160.7  0.01413</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 1.02      1.01    318.9   1324.8  0.09966</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 1.10      1.17     31.3    188.4  0.00978</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.00   3355.6   3015.1  1.04861</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.17      1.22     16.3     69.4  0.00508</span></span>
 <span><span class="co">#&gt;   rhat_bad late_bad</span></span>
-<span><span class="co">#&gt; 1     1.00        1</span></span>
-<span><span class="co">#&gt; 2     1.00        1</span></span>
-<span><span class="co">#&gt; 3     1.00        1</span></span>
-<span><span class="co">#&gt; 4     0.00        0</span></span>
-<span><span class="co">#&gt; 5     0.99        1</span></span></code></pre></div>
+<span><span class="co">#&gt; 1    1.000    1.000</span></span>
+<span><span class="co">#&gt; 2    1.000    0.000</span></span>
+<span><span class="co">#&gt; 3    1.000    1.000</span></span>
+<span><span class="co">#&gt; 4    0.000    0.000</span></span>
+<span><span class="co">#&gt; 5    0.993    0.995</span></span></code></pre></div>
 <p>Everything has improved by a large factor, and the residual standard
 deviation is nearly at the threshold. But the log likelihood and
 <code>eta</code> are both still above 1.01, and <code>eta</code>’s
@@ -383,7 +393,7 @@ is more informative than the maximum:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu">per_observation_rhat</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.9</span>, <span class="fl">0.99</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  50%  90%  99% 100% </span></span>
-<span><span class="co">#&gt; 1.02 1.04 1.08 1.11</span></span></code></pre></div>
+<span><span class="co">#&gt; 1.01 1.02 1.03 1.04</span></span></code></pre></div>
 <p>The median is a little above 1 and so is most of the distribution, so
 the worst-5% row in the table is not one badly behaved observation: the
 fitted function as a whole mixes slowly here. That is the phenomenon
@@ -410,18 +420,18 @@ representative set of <code>eta</code> columns.</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 12 × 10</span></span></span>
 <span><span class="co">#&gt;    variable         mean   median     sd    mad       q5      q95  rhat ess_bulk</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> loglik       -<span style="color: #BB0000;">8.32</span><span style="color: #949494;">e</span>+2 -<span style="color: #BB0000;">8.32</span><span style="color: #949494;">e</span>+2 6.68   6.64   -<span style="color: #BB0000;">843.</span>    -<span style="color: #BB0000;">821.</span>     1.16     17.1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> sigma_mu.eta  2.34<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.30<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.045<span style="text-decoration: underline;">7</span> 0.042<span style="text-decoration: underline;">2</span>    0.172    0.315  1.18     16.6</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> eta[119]     -<span style="color: #BB0000;">1.50</span><span style="color: #949494;">e</span>+0 -<span style="color: #BB0000;">1.49</span><span style="color: #949494;">e</span>+0 0.404  0.393    -<span style="color: #BB0000;">2.17</span>    -<span style="color: #BB0000;">0.831</span>  1.07     40.8</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> eta[45]      -<span style="color: #BB0000;">4.32</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> -<span style="color: #BB0000;">4.43</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.347  0.337    -<span style="color: #BB0000;">0.992</span>    0.163  1.04     83.6</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> eta[209]     -<span style="color: #BB0000;">1.14</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span>  4.95<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span> 0.319  0.331    -<span style="color: #BB0000;">0.521</span>    0.505  1.02    238. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> eta[222]      2.83<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.76<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.315  0.295    -<span style="color: #BB0000;">0.230</span>    0.820  1.02    268. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> eta[955]      5.82<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  5.82<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.271  0.276     0.141    1.03   1.01    302. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> eta[559]      8.79<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  8.79<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.300  0.301     0.388    1.37   1.01    398. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> eta[377]      1.29<span style="color: #949494;">e</span>+0  1.27<span style="color: #949494;">e</span>+0 0.331  0.325     0.752    1.86   1.02    369. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> eta[1038]     1.66<span style="color: #949494;">e</span>+0  1.65<span style="color: #949494;">e</span>+0 0.392  0.372     1.02     2.30   1.01    376. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> eta[496]      2.01<span style="color: #949494;">e</span>+0  2.01<span style="color: #949494;">e</span>+0 0.354  0.348     1.44     2.60   1.01    348. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> eta[1135]     3.09<span style="color: #949494;">e</span>+0  3.08<span style="color: #949494;">e</span>+0 0.509  0.499     2.28     3.95   1.07     45.1</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> loglik       -<span style="color: #BB0000;">8.28</span><span style="color: #949494;">e</span>+2 -<span style="color: #BB0000;">8.28</span><span style="color: #949494;">e</span>+2 5.94   6.06   -<span style="color: #BB0000;">8.38</span><span style="color: #949494;">e</span>+2 -<span style="color: #BB0000;">818.</span>     1.04    121. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> sigma_mu.eta  2.49<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  2.49<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.039<span style="text-decoration: underline;">6</span> 0.041<span style="text-decoration: underline;">4</span>  1.87<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>    0.315  1.15     18.7</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> eta[119]     -<span style="color: #BB0000;">1.65</span><span style="color: #949494;">e</span>+0 -<span style="color: #BB0000;">1.65</span><span style="color: #949494;">e</span>+0 0.398  0.402  -<span style="color: #BB0000;">2.30</span><span style="color: #949494;">e</span>+0   -<span style="color: #BB0000;">0.998</span>  1.02    307. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> eta[441]     -<span style="color: #BB0000;">4.21</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> -<span style="color: #BB0000;">4.18</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.343  0.335  -<span style="color: #BB0000;">9.79</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>    0.144  1.02    497. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> eta[459]     -<span style="color: #BB0000;">1.04</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> -<span style="color: #BB0000;">1.50</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-2</span> 0.333  0.335  -<span style="color: #BB0000;">5.48</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>    0.536  1.00    735. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> eta[180]      2.97<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  3.00<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.391  0.388  -<span style="color: #BB0000;">3.59</span><span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>    0.926  1.01    270. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> eta[70]       5.97<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  5.95<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.371  0.368   2.35<span style="color: #949494;">e</span><span style="color: #BB0000;">-3</span>    1.21   1.01    710. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> eta[639]      9.05<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>  9.08<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span> 0.365  0.358   3.13<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>    1.50   1.01    492. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> eta[1063]     1.29<span style="color: #949494;">e</span>+0  1.28<span style="color: #949494;">e</span>+0 0.355  0.348   7.23<span style="color: #949494;">e</span><span style="color: #BB0000;">-1</span>    1.87   1.01    515. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> eta[197]      1.66<span style="color: #949494;">e</span>+0  1.65<span style="color: #949494;">e</span>+0 0.352  0.345   1.09<span style="color: #949494;">e</span>+0    2.26   1.01    647. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> eta[760]      2.03<span style="color: #949494;">e</span>+0  2.02<span style="color: #949494;">e</span>+0 0.516  0.518   1.20<span style="color: #949494;">e</span>+0    2.89   1.00    645. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> eta[1135]     3.36<span style="color: #949494;">e</span>+0  3.33<span style="color: #949494;">e</span>+0 0.482  0.481   2.63<span style="color: #949494;">e</span>+0    4.19   1.03    220. </span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: ess_tail &lt;dbl&gt;</span></span></span></code></pre></div>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/bayesplot/" class="external-link">bayesplot</a></span><span class="op">)</span></span>
@@ -459,60 +469,65 @@ causal forest model to estimate the ATE:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0]    1      1.03      533      626</span></span>
-<span><span class="co">#&gt;         Y[0]    1      1.01     1000     1602</span></span>
-<span><span class="co">#&gt;         Y[1]    1      1.02      633     1055</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0] 1.01      1.01      410     1041</span></span>
+<span><span class="co">#&gt;         Y[0] 1.00      1.00      755     1677</span></span>
+<span><span class="co">#&gt;         Y[1] 1.00      1.02      367      976</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 for every reported quantity</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 533 for every reported quantity, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 626 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 367 for Y[1], below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 976 for every reported quantity, above 400</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Nothing to change.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `800`. The chains agree and are stationary, so</span></span>
+<span><span class="co">#&gt;   they simply have not run long enough. Do not reach for `num_thin`: thinning</span></span>
+<span><span class="co">#&gt;   discards draws already paid for and lowers the effective sample size per unit</span></span>
+<span><span class="co">#&gt;   of time.</span></span></code></pre></div>
 <p>The output has a row for the contrast and one for each of the two
-average potential outcomes it is a contrast of. The effect is the row
-that falls short, at a bulk effective sample size well under 400 and an
-R-hat above the threshold, while the two averages it is built from are
-in better shape than it is. A difference can be worse than either of its
-parts, and that is the reading here.</p>
+average potential outcomes it is a contrast of. Here the contrast clears
+the thresholds and one of the averages, <code>Y[1]</code>, falls just
+short on bulk effective sample size. It does not always come out that
+way round: a difference can mix worse than either of its parts, so all
+three rows are worth reading rather than the contrast alone.</p>
 <p>Now compare what the fit’s own table says about the same sampler:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">bcf_fit</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                                      quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt; 1                                      loglik 1.02      1.06    94.41    270.1</span></span>
-<span><span class="co">#&gt; 2                                 aux.b.rhc.0 1.22      1.25    14.12     30.6</span></span>
-<span><span class="co">#&gt; 3                                 aux.b.rhc.1 1.14      1.25    32.96     68.2</span></span>
-<span><span class="co">#&gt; 4                          splits.(Intercept) 1.01      1.02   434.98    908.9</span></span>
-<span><span class="co">#&gt; 5                                  splits.rhc 1.02      1.02   326.82    531.0</span></span>
-<span><span class="co">#&gt; 6 eta.(Intercept) (average over observations) 1.21      1.36    14.61     58.2</span></span>
-<span><span class="co">#&gt; 7  eta.(Intercept) (worst 5% of observations) 1.20      1.33    14.73     80.8</span></span>
-<span><span class="co">#&gt; 8         eta.rhc (average over observations) 1.34      1.49     9.88     67.8</span></span>
-<span><span class="co">#&gt; 9          eta.rhc (worst 5% of observations) 1.40      1.54     8.73     39.0</span></span>
+<span><span class="co">#&gt; 1                                      loglik 1.06      1.06     51.2    360.7</span></span>
+<span><span class="co">#&gt; 2                                 aux.b.rhc.0 1.07      1.31     48.0     82.5</span></span>
+<span><span class="co">#&gt; 3                                 aux.b.rhc.1 1.14      1.31     21.3     73.0</span></span>
+<span><span class="co">#&gt; 4                          splits.(Intercept) 1.03      1.02    222.8    537.7</span></span>
+<span><span class="co">#&gt; 5                                  splits.rhc 1.01      1.01    315.2    655.8</span></span>
+<span><span class="co">#&gt; 6 eta.(Intercept) (average over observations) 1.23      1.61     12.8     31.5</span></span>
+<span><span class="co">#&gt; 7  eta.(Intercept) (worst 5% of observations) 1.16      1.41     17.9     36.3</span></span>
+<span><span class="co">#&gt; 8         eta.rhc (average over observations) 1.20      1.40     14.0     40.0</span></span>
+<span><span class="co">#&gt; 9          eta.rhc (worst 5% of observations) 1.20      1.37     15.2     29.9</span></span>
 <span><span class="co">#&gt;   ess_frac rhat_bad late_bad</span></span>
-<span><span class="co">#&gt; 1  0.02950        1        1</span></span>
-<span><span class="co">#&gt; 2  0.00441        1        1</span></span>
-<span><span class="co">#&gt; 3  0.01030        1        1</span></span>
-<span><span class="co">#&gt; 4  0.13593        1        1</span></span>
-<span><span class="co">#&gt; 5  0.10213        1        1</span></span>
-<span><span class="co">#&gt; 6  0.00457        1        1</span></span>
-<span><span class="co">#&gt; 7  0.00460        1        1</span></span>
-<span><span class="co">#&gt; 8  0.00309        1        1</span></span>
-<span><span class="co">#&gt; 9  0.00273        1        1</span></span></code></pre></div>
-<p>The two forests are far worse than the estimand. Their R-hats are in
-the region of 1.4 to 1.7 with effective sample sizes in single figures,
-where the effect manages a bulk size in the low hundreds. That is not a
-contradiction: a varying coefficient model is <span class="math inline">\(f_0(x) + z\,f_1(x)\)</span>, and on the treated
-units the two forests are only jointly identified, so the sampler can
-move level between them while their sum, and much of what is built from
-it, stays where it was. The effect inherits part of that wandering and
-not all of it.</p>
+<span><span class="co">#&gt; 1  0.01599    1.000        1</span></span>
+<span><span class="co">#&gt; 2  0.01500    1.000        1</span></span>
+<span><span class="co">#&gt; 3  0.00666    1.000        1</span></span>
+<span><span class="co">#&gt; 4  0.06964    1.000        1</span></span>
+<span><span class="co">#&gt; 5  0.09851    0.000        1</span></span>
+<span><span class="co">#&gt; 6  0.00399    1.000        1</span></span>
+<span><span class="co">#&gt; 7  0.00560    0.997        1</span></span>
+<span><span class="co">#&gt; 8  0.00438    1.000        1</span></span>
+<span><span class="co">#&gt; 9  0.00475    1.000        1</span></span></code></pre></div>
+<p>The two forests are far worse than the estimand. Their R-hats run
+from 1.2 to 1.6 with effective sample sizes in the tens, where the
+effect clears 400. That is not a contradiction: a varying coefficient
+model is <span class="math inline">\(f_0(x) + z\,f_1(x)\)</span>, and on
+the treated units the two forests are only jointly identified, so the
+sampler can move level between them while their sum, and much of what is
+built from it, stays where it was. The effect inherits part of that
+wandering and not all of it.</p>
 <p>So the estimand’s diagnosis cannot be deduced from the fit’s in
 either direction. Read only the <code>eta</code> rows here and the fit
 looks unusable; read only the effect’s own table and the sampler looks
-merely short of the thresholds; neither reading gives the other. Both
-are worth running, and it is the second that decides whether the number
-being reported can be reported.</p>
+close to adequate; neither reading gives the other. Both are worth
+running, and it is the second that decides whether the number being
+reported can be reported.</p>
 </div>
 <div class="section level3">
 <h3 id="diagnosing-anything-else-summarise_draws">Diagnosing Anything Else (<code>summarise_draws()</code>)<a class="anchor" aria-label="anchor" href="#diagnosing-anything-else-summarise_draws"></a>
@@ -545,7 +560,7 @@ computed by <em>marginaleffects</em>, whose draws come out of
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 5</span></span></span>
 <span><span class="co">#&gt;   variable   mean  rhat ess_bulk ess_tail</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> ATE      0.053<span style="text-decoration: underline;">8</span>  1.06     57.1     64.1</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> ATE      0.062<span style="text-decoration: underline;">1</span>  1.00    <span style="text-decoration: underline;">1</span>872.    <span style="text-decoration: underline;">2</span>645.</span></span></code></pre></div>
 <p>The same statistics <code><a href="../reference/diagnose.html">diagnose()</a></code> reports, computed by a
 different route on a quantity it has no method for, which is the point:
 any posterior quantity can be diagnosed this way, including ones neither
@@ -598,24 +613,24 @@ and every prior setting are identical between the two, and only
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.05      1.07       58      406</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.01      1.03      429      800</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00     1568     2501</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.06      1.10       49      402</span></span>
+<span><span class="co">#&gt;                               loglik 1.04      1.11       84      277</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.00      1.02      348      444</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00     1809     2614</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.02      1.03      344      676</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 3200 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 58 effective draws, where 4 chains average 1.069</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 84 effective draws, where 4 chains average 1.047</span></span>
 <span><span class="co">#&gt;   even when they agree</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 49 for eta.eta (worst 5% of observations), below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 402 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 84 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 277 for loglik, below 400</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span></span>
-<span><span class="co">#&gt;   average (R-hat 1.00, 1568 effective draws)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span></span>
-<span><span class="co">#&gt;   carries 1.5 effective draws per hundred kept</span></span>
+<span><span class="co">#&gt;   average (R-hat 1.00, 1809 effective draws)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 2.6 effective draws</span></span>
+<span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
 <span><span class="co">#&gt; </span></span>
@@ -659,46 +674,63 @@ supplied:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.01      1.01      645     1092</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.00      1.01     2313     5161</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    16106    25219</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01      999     2235</span></span>
+<span><span class="co">#&gt;                               loglik 1.01      1.01      464      866</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.00      1.00     2819     6078</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    17270    24295</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.00      1.01     2228     3643</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 32000 draws kept in total</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 for every reported quantity</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the whole story: R-hat stays high on the second half</span></span>
+<span><span class="co">#&gt;   of the draws alone, so the chains disagree rather than merely start badly</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 645 for every reported quantity, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 1092 for every reported quantity, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 2.0 effective draws</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 464 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 866 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 1.4 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Nothing to change.</span></span></code></pre></div>
-<p>Nothing is flagged. The checks report R-hat below 1.01 throughout,
-though the table rounds too coarsely to show it, and both effective
-sample sizes clear 400 with room. What is left of it sits on the log
-likelihood and the worst-5% row, which is where a forest’s largest R-hat
-usually sits. This fit can be reported from.</p>
-<p>The arithmetic of that fix carries over to other fits. Effective
-sample size grows roughly in proportion to the draws, so the shortfall
-tells you the factor you need: a fit an order of magnitude short of 400
-needs about an order of magnitude more draws, not a little more. An
-intermediate run at <code>num_burn = 1000</code> and
-<code>num_draws = 4000</code> cleared both effective-sample-size
-warnings on these data and still left R-hat at 1.010, a hair over the
-line, which is the usual shape of the last stretch.</p>
-<p>The estimate of effective sample size is also itself noisy, and can
-fall as the chain lengthens: a short chain cannot see autocorrelation at
-long lags, so it reports an efficiency the chain does not have. Reading
-a single ESS figure as exact invites chasing it; the factor should be
-read instead.</p>
-<p>Increasing draws does not always suffice. Doing so sufficed here
-because the flagged R-hat was the unreadable kind, resting on too few
-effective draws. Where R-hat instead stays above the threshold however
-many draws are added, as it does for the Friedman fit above, the chains
-genuinely disagree and more of them will not help. That is when the
-remedies that change the model come up, and the order in the list above
-is the order to try them in.</p>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_burn` and `num_draws` together, which were `2000` and `8000`.</span></span>
+<span><span class="co">#&gt;   R-hat stays high even on the second half of the draws alone, so the chains</span></span>
+<span><span class="co">#&gt;   have each settled somewhere different rather than merely started badly.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `50`. A smaller</span></span>
+<span><span class="co">#&gt;   forest has fewer ways to represent the same fit, so the sampler has less room</span></span>
+<span><span class="co">#&gt;   to move between them.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span></span>
+<span><span class="co">#&gt;   posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
+<span><span class="co">#&gt;   diagnostic.</span></span></code></pre></div>
+<p>Most of it is cleared. The split-count row and both <code>eta</code>
+rows are well past the thresholds, and every tail effective sample size
+is above 900. What is left sits on the log likelihood alone: its bulk
+effective sample size rose from 84 to 207 rather than tenfold, and its
+R-hat of 1.02 is again the kind the check calls unreadable, since four
+chains average 1.019 at that count even when they agree. The log
+likelihood is usually the slowest-mixing row in a forest, because it
+moves with every fitted value at once, and it is not a quantity we
+report; the fitted function and its contrasts are, and those are fine
+here. This fit can be reported from, with the log-likelihood row noted
+rather than chased.</p>
+<p>The arithmetic of that fix carries over to other fits, with one
+qualification. Effective sample size grows roughly in proportion to the
+draws, so the shortfall tells you the factor you need: a fit an order of
+magnitude short of 400 needs about an order of magnitude more draws, not
+a little more. The <code>eta</code> rows and the split count grew five-
+to ninefold here on ten times the draws.</p>
+<p>The qualification is that the estimate of effective sample size is
+itself noisy, and can fall as the chain lengthens: a short chain cannot
+see autocorrelation at long lags, so it reports an efficiency the chain
+does not have. The log likelihood above did exactly that: its efficiency
+fell from 2.6 to 0.6 effective draws per hundred kept once the longer
+chain could see its slow component. Reading a single ESS figure as exact
+invites chasing it; the factor should be read instead.</p>
+<p>Increasing draws does not always suffice. It did most of the work
+here because the flagged R-hat was the unreadable kind, resting on too
+few effective draws. Where R-hat instead stays above the threshold
+however many draws are added, as it does for the Friedman fit above, the
+chains genuinely disagree and more of them will not help. That is when
+the remedies that change the model come up, and the order in the list
+above is the order to try them in.</p>
 </div>
 </div>
 <div class="section level2">
@@ -728,9 +760,8 @@ has been spent, and the first is simply to read the prior back.</p>
 <span><span class="co">#&gt;   given a half-Cauchy prior centred there and is estimated.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Splitting variables</span></span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> The share of the rules each of the 14 predictors receives is Dirichlet(1 /</span></span>
-<span><span class="co">#&gt;   14), whose concentration enters as a / (a + 14) ~ Beta(0.5, 1). Both are</span></span>
-<span><span class="co">#&gt;   estimated.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Each of the 14 predictors is equally likely to be split on, and that is not</span></span>
+<span><span class="co">#&gt;   drawn (`sparsity = FALSE`).</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Decision rules</span></span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Soft, with <span style="color: #0000BB;">"smoothstep"</span> gates. Each tree's bandwidth is drawn from an</span></span>
@@ -779,14 +810,14 @@ ill patient could actually have.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">prior</span>, type <span class="op">=</span> <span class="st">"response"</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="va">p</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      1%     10%     50%     90%     99% </span></span>
-<span><span class="co">#&gt; 0.00963 0.21435 0.65584 0.93317 0.99522</span></span>
+<span><span class="co">#&gt; 0.00534 0.20691 0.65381 0.93274 0.99801</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"response"</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="va">p</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    1%   10%   50%   90%   99% </span></span>
-<span><span class="co">#&gt; 0.192 0.368 0.677 0.892 0.948</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.183 0.365 0.679 0.895 0.952</span></span></code></pre></div>
 <p>The prior runs from about .01 to about .99, as we would want of a
 prior on a probability: it rules almost nothing out and asserts almost
-nothing. The fitted model runs from about .19 to about .95 over the same
+nothing. The fitted model runs from about .18 to about .95 over the same
 quantiles, so the data have brought it a long way in from where it
 started. A prior that had come back concentrated near zero and one, or
 confined to a narrow band in the middle, would be worth changing before
@@ -908,7 +939,7 @@ check above should be used instead.</p>
 <code class="sourceCode R"><span><span class="fu">performance</span><span class="fu">::</span><span class="fu"><a href="https://easystats.github.io/performance/reference/r2.html" class="external-link">r2</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # Bayesian R2 with Compatibility Interval</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;   Conditional R2: 0.172 (95% CI [0.138, 0.204])</span></span></code></pre></div>
+<span><span class="co">#&gt;   Conditional R2: 0.176 (95% CI [0.144, 0.207])</span></span></code></pre></div>
 <p>This is the Bayesian <span class="math inline">\(R^2\)</span> of
 <span class="citation">Gelman et al. (<a href="#ref-gelman2019">2019</a>)</span>, computed from the posterior
 rather than from a single fit, so it comes with an interval and cannot

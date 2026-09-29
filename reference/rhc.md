@@ -130,7 +130,8 @@ table(rhc$rhc, rhc$death)
 #>   0 356 579
 #>   1 163 402
 
-# The covariates the confounding runs through, all recorded on admission
+# The covariates the confounding runs through, all
+# recorded on admission
 summary(rhc[c("age", "aps", "meanbp", "surv2m")])
 #>       age              aps             meanbp           surv2m     
 #>  Min.   : 18.19   Min.   :  4.00   Min.   :  0.00   Min.   :0.000  
@@ -140,8 +141,8 @@ summary(rhc[c("age", "aps", "meanbp", "surv2m")])
 #>  3rd Qu.: 73.86   3rd Qu.: 68.00   3rd Qu.:113.00   3rd Qu.:0.747  
 #>  Max.   :100.25   Max.   :147.00   Max.   :222.00   Max.   :0.940  
 
-# The same event as a survival outcome, a patient who did not die being
-# censored at their last contact
+# The same event as a survival outcome, a patient who
+# did not die being censored at their last contact
 if (rlang::is_installed("survival")) {
   with(rhc, summary(survival::Surv(days, death)))
 }

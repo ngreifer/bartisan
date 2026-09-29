@@ -83,8 +83,9 @@ model
 data("rhc")
 set.seed(123)
 
-fit <- bcf(death ~ age + sex + meanbp + aps, treat = ~ rhc,
-           data = rhc, num_trees = 10, num_burn = 50, num_draws = 50,
+fit <- bcf(death ~ age + sex + meanbp + aps,
+           treat = ~ rhc, data = rhc, num_trees = 10,
+           num_burn = 50, num_draws = 50,
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
@@ -102,34 +103,36 @@ fit
 #> Structure: 2 forests of 10 trees, soft decision rules
 #> Draws: 50 kept after 50 warmup
 #> 
-#> Posterior means: b.rhc.0 = 0.161, b.rhc.1 = 6.89e-05
+#> Posterior means: b.rhc.0 = 0.791, b.rhc.1 = 0.398
 #> 
 #> Treatment: "rhc"
 #> Effect moderators: "age", "sex", "meanbp", and "aps"
 #> ℹ `estimate_effect()` reports the treatment effect, with the average potential
 #>   outcomes beside it; `plot()` draws the conditional ones.
 
-# The effect, with the potential outcomes it is a difference of
+# The effect, with the potential outcomes it is a
+# difference of
 estimate_effect(fit)
 #> Average treatment effect (difference)
 #> 
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate    lower  upper    n
-#>  Y[1] - Y[0]   0.0334 -0.00348 0.0878 1500
+#>     contrast estimate    lower upper    n
+#>  Y[1] - Y[0]   0.0386 -0.00216 0.097 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.610 0.665
-#>      Y[1]    0.675 0.638 0.704
+#>      Y[0]    0.642 0.616 0.665
+#>      Y[1]    0.680 0.652 0.716
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
 #> ℹ Y[a] is the average response with `rhc` set to "a".
 
-# The conditional effects, ordered, with the marginal effect beside them
+# The conditional effects, ordered, with the marginal
+# effect beside them
 plot(fit)
 
 ```

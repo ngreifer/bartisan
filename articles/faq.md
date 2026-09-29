@@ -309,12 +309,15 @@ smooth relationships, but they cost substantially more computation,
 because every observation reaches every leaf with some weight rather
 than taking one side of each split. Setting `gate = "hard"` is the fast
 option when the relationship is expected to be a step function anyway.
-The `sparsity` argument controls how much sparsity is induced in the
-covariates chosen for splitting; the default is to have sparsity on,
-which is especially useful with many predictors, but sometimes it can be
-valuable to turn the sparsity prior off to ensure all variables are used
-in the model. The `split_prior` argument can also be used instead of
-`sparsity` to manually decide which variables should be split on more
+The `sparsity` argument controls whether a variable-selection prior is
+placed on the covariates chosen for splitting; it is off by default, so
+every covariate keeps a share of the splits. Setting `sparsity = TRUE`
+is worth considering when there are many predictors, when only a few of
+them are expected to matter, or when the goal is to identify the subset
+of predictors the model needs, but not when an effect is being
+estimated, since a predictor the prior drops has an effect of exactly
+zero in that draw. The `split_prior` argument can also be used instead
+of `sparsity` to manually decide which variables should be split on more
 often, though in general the Bayesian updates can discover this from the
 data anyway. See
 [`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)

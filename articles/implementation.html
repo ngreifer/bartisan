@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/implementation.Rmd" class="external-link"><code>vignettes/implementation.Rmd</code></a></small>
       <div class="d-none name"><code>implementation.Rmd</code></div>
@@ -273,8 +273,8 @@ usually worth it:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu">timed</span><span class="op">(</span><span class="st">"smoothstep"</span><span class="op">)</span>, <span class="fu">timed</span><span class="op">(</span><span class="st">"hard"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        rules test_rmse seconds</span></span>
-<span><span class="co">#&gt; 1 smoothstep     0.416     1.2</span></span>
-<span><span class="co">#&gt; 2       hard     1.079     0.4</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 smoothstep     0.401     1.2</span></span>
+<span><span class="co">#&gt; 2       hard     1.169     0.4</span></span></code></pre></div>
 <p>The true function has a standard deviation of about 4.9, so both are
 fitting real structure and the soft fit is the more accurate.</p>
 </div>
@@ -357,18 +357,17 @@ each is found by a pointer that never goes back and the sweep costs
 <div class="section level3">
 <h3 id="sparsity-sparsity">Sparsity (<code>sparsity</code>)<a class="anchor" aria-label="anchor" href="#sparsity-sparsity"></a>
 </h3>
-<p>By default, the variable a rule splits on is drawn from a categorical
-distribution whose probabilities have a Dirichlet prior <span class="citation">(<a href="#ref-linero2018sparse">Linero
-2018</a>)</span>:</p>
+<p>By default (<code>sparsity = FALSE</code>), every predictor has the
+same probability of being the variable a rule splits on, which is
+classic BART. Setting <code>sparsity = TRUE</code> draws that variable
+from a categorical distribution whose probabilities have a Dirichlet
+prior instead <span class="citation">(<a href="#ref-linero2018sparse">Linero 2018</a>)</span>:</p>
 <p><span class="math display">\[s \sim \mathrm{Dirichlet}(\alpha/p,
 \dots, \alpha/p),\]</span></p>
 <p>with <span class="math inline">\(\alpha\)</span> itself drawn. Small
 <span class="math inline">\(\alpha\)</span> concentrates the probability
 on a few predictors, so the forest can stop splitting on the rest
-entirely. This is DART, and setting <code>sparsity = TRUE</code>
-requests it. It is the default.</p>
-<p>The alternative, <code>sparsity = FALSE</code>, gives every predictor
-the same splitting probability, which is classic BART.</p>
+entirely. This is DART.</p>
 <p>The difference matters for variable selection. <span class="citation">Chipman et al. (<a href="#ref-chipman2010">2010</a>)</span> note that counting splits works
 poorly when there are many trees, “because the redundancy offered by so
 many trees tends to mix many irrelevant predictors in with the relevant
@@ -406,17 +405,24 @@ predictors sit at 1.00 in every cell.</caption>
 </tr>
 </tbody>
 </table>
-<p>Without the sparsity prior, the advice to use fewer trees is
-essential: at 50 trees the noise predictors are used in 95% of draws and
-are indistinguishable from the real ones. With it, the noise predictors
-stay near zero at every tree count, and reducing the trees buys little.
-The recommendation is a workaround for the absence of the prior rather
-than a property of variable selection in general. However, sparsity
-needs signal, so on a small sample with a weak fit, nothing separates,
-and the honest reading of a flat table is that the data cannot rule
-anything out; and it says nothing about effect size, since a predictor
-can be split on constantly and move the prediction very little.
-<code><a href="../articles/importance.html">vignette("importance")</a></code> covers both.</p>
+<p>Under the default, the advice to use fewer trees is essential if the
+table is to be read for selection: at 50 trees the noise predictors are
+used in 95% of draws and are indistinguishable from the real ones. With
+the sparsity prior on, the noise predictors stay near zero at every tree
+count, and reducing the trees buys little. The recommendation is a
+workaround for the absence of the prior rather than a property of
+variable selection in general. However, sparsity needs signal, so on a
+small sample with a weak fit, nothing separates, and the honest reading
+of a flat table is that the data cannot rule anything out; and it says
+nothing about effect size, since a predictor can be split on constantly
+and move the prediction very little. <code><a href="../articles/importance.html">vignette("importance")</a></code>
+covers both.</p>
+<p>The prior is off by default because it is a poor choice when an
+effect is the estimand: a predictor it drops from the forest has a
+contrast of exactly zero in that draw, so the posterior of the effect
+carries a point mass at zero and a weak effect is attenuated.
+<code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> explains the trade-off and
+<code><a href="../articles/effects.html">vignette("effects")</a></code> covers what it does to an estimate.</p>
 </div>
 </div>
 <div class="section level2">
@@ -582,7 +588,7 @@ imputation is required and rows are not dropped.</p>
 <span>                     control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_miss</span>, newdata <span class="op">=</span> <span class="va">test</span><span class="op">)</span> <span class="op">-</span> <span class="va">test</span><span class="op">$</span><span class="va">eta</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.504</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.61</span></span></code></pre></div>
 <p>The fit uses the incomplete variable rather than discarding it. Note
 that this is a prediction tool and not a substitute for thinking about
 why values are missing: what it estimates is the mean of the response
@@ -606,14 +612,14 @@ sampling does, so they run when they are asked for.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit_chains</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
-<span><span class="co">#&gt; 1                              loglik 1.07     1.064    58.56    325.1  0.04880</span></span>
-<span><span class="co">#&gt; 2                           aux.sigma 1.01     1.018   408.53    496.5  0.34044</span></span>
-<span><span class="co">#&gt; 3                          splits.eta 1.27     1.346    12.56     18.7  0.01046</span></span>
-<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00     0.999  1060.22   1172.6  0.88352</span></span>
-<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.44     1.607     7.98     27.4  0.00665</span></span>
+<span><span class="co">#&gt; 1                              loglik 1.71     1.965     6.46     19.3  0.00539</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 1.12     1.158    23.71    444.8  0.01976</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 2.14     2.408     5.21     23.3  0.00434</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00     0.997  1184.07   1121.3  0.98672</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.61     1.708     6.70     19.9  0.00558</span></span>
 <span><span class="co">#&gt;   rhat_bad late_bad</span></span>
 <span><span class="co">#&gt; 1        1        1</span></span>
-<span><span class="co">#&gt; 2        0        1</span></span>
+<span><span class="co">#&gt; 2        1        1</span></span>
 <span><span class="co">#&gt; 3        1        1</span></span>
 <span><span class="co">#&gt; 4        0        0</span></span>
 <span><span class="co">#&gt; 5        1        1</span></span></code></pre></div>
@@ -727,8 +733,9 @@ reported</td>
 <tr class="odd">
 <td><code>sparsity</code></td>
 <td>
-<code>FALSE</code> to recover classic BART, which is rarely the
-goal</td>
+<code>TRUE</code> when there are many predictors, few are expected
+to matter, or the goal is to identify which predictors the model needs;
+not when an effect is being estimated</td>
 </tr>
 <tr class="even">
 <td><code>k</code></td>

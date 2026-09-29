@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -265,24 +265,23 @@ about whichever of them fall short.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity  rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.090     1.062       18       89</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.004     1.015      109      216</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.006     1.006      550      663</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.106     1.107       15      128</span></span>
+<span><span class="co">#&gt;                               loglik 1.039     1.049       94      187</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.073     1.152       23      134</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.000     1.003      437      723</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.038     1.069       76      197</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Only one chain, so R-hat can only compare it with itself; set `chains = 4`</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 18 effective draws, where a single chain averages</span></span>
-<span><span class="co">#&gt;   1.054 even when its two halves agree</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 94 effective draws, where a single chain averages</span></span>
+<span><span class="co">#&gt;   1.011 even when its two halves agree</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 15 for eta.eta (worst 5% of observations), below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 89 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span></span>
+<span><span class="co">#&gt;   1.07)</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 76 for eta.eta (worst 5% of observations), below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 187 for loglik, below 400</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span></span>
-<span><span class="co">#&gt;   average (R-hat 1.01, 550 effective draws)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span></span>
-<span><span class="co">#&gt;   carries 1.8 effective draws per hundred kept</span></span>
+<span><span class="co">#&gt;   average (R-hat 1.00, 437 effective draws)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
 <span><span class="co">#&gt; </span></span>
@@ -302,6 +301,15 @@ about whichever of them fall short.</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span></span>
 <span><span class="co">#&gt;   posterior with no single place to be; `bayesplot::pp_check()` is the</span></span>
 <span><span class="co">#&gt;   diagnostic.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> The forest's own size is a different kind of failure from the others and does</span></span>
+<span><span class="co">#&gt;   not take the same advice. A sum of trees represents one function through many</span></span>
+<span><span class="co">#&gt;   different partitions, so two chains can agree about every fitted value while</span></span>
+<span><span class="co">#&gt;   disagreeing about how many rules they used to get there, and the quantities a</span></span>
+<span><span class="co">#&gt;   fit reports are integrals over that structure. Raising `num_draws` moves this</span></span>
+<span><span class="co">#&gt;   row slowly and may not clear the threshold at any affordable length. Act on</span></span>
+<span><span class="co">#&gt;   it when split counts are themselves what gets reported --</span></span>
+<span><span class="co">#&gt;   `variable_importance()` and `vignette("importance")` -- and not when fitted</span></span>
+<span><span class="co">#&gt;   values, predictions or effects are.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span></span>
 <span><span class="co">#&gt;   observations and not about their average, which is the usual shape of this in</span></span>
 <span><span class="co">#&gt;   a forest. What that means for an estimand cannot be read off this table</span></span>
@@ -337,34 +345,38 @@ one to take:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     quantity  rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0] 1.022     1.009      130      216</span></span>
-<span><span class="co">#&gt;         Y[0] 1.010     1.004      334      605</span></span>
-<span><span class="co">#&gt;         Y[1] 1.013     1.007      191      249</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0] 1.008     0.998      499      393</span></span>
+<span><span class="co">#&gt;         Y[0] 1.002     1.002      502      736</span></span>
+<span><span class="co">#&gt;         Y[1] 1.008     1.007      575      615</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Only one chain, so R-hat can only compare it with itself; set `chains = 4`</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for Y[1] - Y[0]</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Warmup was too short: R-hat is fine on the second half of the draws alone, as</span></span>
-<span><span class="co">#&gt;   it would be with more `num_burn`</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 130 for Y[1] - Y[0], below 400</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 216 for Y[1] - Y[0], below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 for every reported quantity</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 499 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 393 for Y[1] - Y[0], below 400</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Refit with `chains = 4`. R-hat compares chains against each other, and one</span></span>
 <span><span class="co">#&gt;   chain can only be compared with itself, so nothing below is reliable until</span></span>
 <span><span class="co">#&gt;   there are several. With *future* installed the chains run in parallel.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_burn`, which was `200`. R-hat is already acceptable on the second</span></span>
-<span><span class="co">#&gt;   half of the retained draws on their own, as it would be after a longer</span></span>
-<span><span class="co">#&gt;   warmup, so it is the early draws the chains disagree about.</span></span></code></pre></div>
-<p>The contrast carries far fewer effective draws than the average
-fitted value in the table above, which the fit’s own table could not
-have shown, since the other predictors keep the fitted function moving
-even where the contrast mixes slowly. Under the default splitting prior
-there is a further way this can happen: <code>rhc</code> gets no rule in
-some draws, which puts the contrast at exactly zero and can hold it
-there for a long run. <code><a href="../reference/diagnose.html">diagnose()</a></code> notes that atom when it
-finds one, and <code><a href="../articles/causal.html">vignette("causal")</a></code> covers the settings that
-remove it when an effect is being reported.</p>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `800`. The chains agree and are stationary, so</span></span>
+<span><span class="co">#&gt;   they simply have not run long enough. Do not reach for `num_thin`: thinning</span></span>
+<span><span class="co">#&gt;   discards draws already paid for and lowers the effective sample size per unit</span></span>
+<span><span class="co">#&gt;   of time.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> The tail is the binding constraint, so a posterior mean is already fine and</span></span>
+<span><span class="co">#&gt;   an interval endpoint is not. Raise `num_draws`, which was `800` if intervals</span></span>
+<span><span class="co">#&gt;   are what gets reported.</span></span></code></pre></div>
+<p>The contrast’s tail effective sample size falls short where the
+average fitted value’s in the table above did not, which the fit’s own
+table could not have shown, since the other predictors keep the fitted
+function moving even where the contrast mixes slowly. With the sparsity
+prior turned on (<code>sparsity = TRUE</code>), there is a further way
+this can happen: <code>rhc</code> gets no rule in some draws, which puts
+the contrast at exactly zero and can hold it there for a long run.
+<code><a href="../reference/diagnose.html">diagnose()</a></code> notes that atom when it finds one, and it is one
+reason the prior is off by default; <code><a href="../reference/bartisan_control.html">?bartisan_control</a></code>
+covers when to turn it on.</p>
 <p>The table is in <code>diagnose(fit)$table</code> when the numbers are
 wanted rather than the report.</p>
 </div>
@@ -400,31 +412,37 @@ statistics about the use of each predictor in the trees.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
-<span><span class="co">#&gt;    surv2m     1.000       0.211   15.6</span></span>
-<span><span class="co">#&gt;       age     1.000       0.182   13.6</span></span>
-<span><span class="co">#&gt;       rhc     0.995       0.098    7.3</span></span>
-<span><span class="co">#&gt;      pafi     0.995       0.080    6.0</span></span>
-<span><span class="co">#&gt;     paco2     0.991       0.105    7.9</span></span>
-<span><span class="co">#&gt;       aps     0.764       0.062    4.7</span></span>
-<span><span class="co">#&gt;       edu     0.684       0.053    4.0</span></span>
-<span><span class="co">#&gt;      resp     0.667       0.059    4.4</span></span>
-<span><span class="co">#&gt;      race     0.637       0.031    2.3</span></span>
-<span><span class="co">#&gt;      card     0.621       0.025    1.8</span></span>
-<span><span class="co">#&gt;      hema     0.574       0.033    2.5</span></span>
-<span><span class="co">#&gt;    meanbp     0.555       0.022    1.7</span></span>
-<span><span class="co">#&gt;      crea     0.514       0.018    1.4</span></span>
-<span><span class="co">#&gt;       sex     0.479       0.020    1.5</span></span>
+<span><span class="co">#&gt;    surv2m     1.000       0.116    8.5</span></span>
+<span><span class="co">#&gt;       age     1.000       0.089    6.5</span></span>
+<span><span class="co">#&gt;     paco2     1.000       0.073    5.4</span></span>
+<span><span class="co">#&gt;       rhc     1.000       0.070    5.1</span></span>
+<span><span class="co">#&gt;      pafi     1.000       0.069    5.1</span></span>
+<span><span class="co">#&gt;       aps     0.999       0.082    6.1</span></span>
+<span><span class="co">#&gt;       edu     0.998       0.062    4.6</span></span>
+<span><span class="co">#&gt;      hema     0.996       0.065    4.8</span></span>
+<span><span class="co">#&gt;      card     0.996       0.060    4.4</span></span>
+<span><span class="co">#&gt;      resp     0.990       0.064    4.7</span></span>
+<span><span class="co">#&gt;       sex     0.988       0.068    5.0</span></span>
+<span><span class="co">#&gt;    meanbp     0.988       0.063    4.7</span></span>
+<span><span class="co">#&gt;      race     0.986       0.059    4.4</span></span>
+<span><span class="co">#&gt;      crea     0.980       0.060    4.5</span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fitted with `sparsity = FALSE` (the default), so every predictor keeps a</span></span>
+<span><span class="co">#&gt;   share of the rules and <span style="color: #00BB00;">prop_used</span> is near 1 throughout. Refit with `sparsity =</span></span>
+<span><span class="co">#&gt;   TRUE` to read it as a selection rule.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p><code>splits</code> is the average number of splitting rules the
-forest spends on each predictor per draw, and <code>prop_used</code> is
-the proportion of draws in which the predictor received any rule at
-all.</p>
+forest spends on each predictor per draw, <code>prop_splits</code> is
+its share of all the rules, and <code>prop_used</code> is the proportion
+of draws in which the predictor received any rule at all. Under the
+default splitting prior every predictor keeps a share of the rules, so
+<code>prop_used</code> sits near 1 for all of them, as the note below
+the table says, and the ranking is in the other two columns.</p>
 <p><code>surv2m</code> takes the most rules, which is unsurprising: it
-is a prognostic score built to predict survival. <code>age</code>
-follows. At the bottom, <code>sex</code>, <code>race</code> and several
-of the physiological measurements are used in only about half of the
-draws, which says the model can often do without them.</p>
+is a prognostic score built to predict survival. <code>age</code> and
+<code>aps</code> follow. The rest sit close together, at four to five
+rules per draw, and this table alone cannot say whether that spread
+means anything.</p>
 <p>It’s important to remember that usage is not effect size: a predictor
 can be split on constantly and still move the prediction very little,
 and the comparisons in the next section are the better guide to that.
@@ -454,21 +472,21 @@ twice, and averages the difference over the sample.</p>
 <code class="sourceCode R"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;    Term      Contrast  Estimate     2.5 %    97.5 %</span></span>
-<span><span class="co">#&gt;  age    +1             0.003208  1.60e-03  0.004945</span></span>
-<span><span class="co">#&gt;  aps    +1             0.001103  0.00e+00  0.002956</span></span>
-<span><span class="co">#&gt;  card   yes - no       0.013003 -5.58e-03  0.081843</span></span>
-<span><span class="co">#&gt;  crea   +1             0.000000 -1.24e-02  0.028496</span></span>
-<span><span class="co">#&gt;  edu    +1            -0.002408 -1.82e-02  0.002613</span></span>
-<span><span class="co">#&gt;  hema   +1             0.000000 -3.53e-03  0.002072</span></span>
-<span><span class="co">#&gt;  meanbp +1             0.000000 -2.79e-04  0.001771</span></span>
-<span><span class="co">#&gt;  paco2  +1             0.003430  3.38e-04  0.006562</span></span>
-<span><span class="co">#&gt;  pafi   +1             0.000243  1.34e-05  0.000462</span></span>
-<span><span class="co">#&gt;  race   black - white  0.000000 -4.01e-02  0.054990</span></span>
-<span><span class="co">#&gt;  race   other - white  0.000000 -2.37e-02  0.097147</span></span>
-<span><span class="co">#&gt;  resp   +1             0.000146 -1.44e-03  0.002950</span></span>
-<span><span class="co">#&gt;  rhc    1 - 0          0.064924  1.01e-02  0.115394</span></span>
-<span><span class="co">#&gt;  sex    male - female  0.000000 -1.84e-02  0.052023</span></span>
-<span><span class="co">#&gt;  surv2m +1            -0.177240 -2.68e-01 -0.101514</span></span>
+<span><span class="co">#&gt;  age    +1             0.003094  1.53e-03  0.004670</span></span>
+<span><span class="co">#&gt;  aps    +1             0.001602  1.82e-04  0.003181</span></span>
+<span><span class="co">#&gt;  card   yes - no       0.041645 -8.68e-03  0.089733</span></span>
+<span><span class="co">#&gt;  crea   +1             0.005024 -1.80e-02  0.034841</span></span>
+<span><span class="co">#&gt;  edu    +1            -0.006093 -1.84e-02  0.002854</span></span>
+<span><span class="co">#&gt;  hema   +1            -0.000788 -3.99e-03  0.002115</span></span>
+<span><span class="co">#&gt;  meanbp +1             0.000620 -4.11e-04  0.001858</span></span>
+<span><span class="co">#&gt;  paco2  +1             0.003676  8.53e-04  0.006552</span></span>
+<span><span class="co">#&gt;  pafi   +1             0.000256  5.17e-05  0.000528</span></span>
+<span><span class="co">#&gt;  race   black - white  0.006047 -5.00e-02  0.059730</span></span>
+<span><span class="co">#&gt;  race   other - white  0.024162 -5.21e-02  0.105626</span></span>
+<span><span class="co">#&gt;  resp   +1             0.000480 -1.39e-03  0.002773</span></span>
+<span><span class="co">#&gt;  rhc    1 - 0          0.059675  1.18e-02  0.111183</span></span>
+<span><span class="co">#&gt;  sex    male - female  0.018854 -2.81e-02  0.059946</span></span>
+<span><span class="co">#&gt;  surv2m +1            -0.177557 -2.60e-01 -0.114545</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p><code>Contrast</code> says what change was made.<a class="footnote-ref" tabindex="0" data-bs-toggle="popover" data-bs-content='&lt;p&gt;By default &lt;em&gt;marginaleffects&lt;/em&gt; reports the
@@ -481,21 +499,11 @@ call switches it to the mean; we do this in
 predictor it is a difference between two levels, and for a numeric one
 it is an increase of one unit, which is a default rather than anything
 the data suggested. The comparisons are on the probability scale, so
-<code>rhc</code> reads as an increase of about six and a half percentage
-points in the probability of death and <code>age</code> as three tenths
-of a point per year of age. A logistic regression would report each of
-these as one slope on the log-odds scale; these are averages over the
-sample of a quantity the model allows to differ from patient to
-patient.</p>
-<p>Several rows are exactly zero rather than merely small, which is
-worth knowing about. The default splitting prior can leave a predictor
-out of the forest altogether in a given draw, and in such a draw every
-comparison involving it is exactly zero, so the posterior has a point
-mass there. Where that mass covers the middle of the posterior the
-median falls inside it and the estimate prints as exactly zero, as it
-has for the predictors at the bottom of the importance table. The same
-mass is why the lower bound for <code>aps</code> is exactly zero rather
-than merely close to it.</p>
+<code>rhc</code> reads as an increase of about six percentage points in
+the probability of death and <code>age</code> as three tenths of a point
+per year of age. A logistic regression would report each of these as one
+slope on the log-odds scale; these are averages over the sample of a
+quantity the model allows to differ from patient to patient.</p>
 <p>The one-unit default deserves a second look whenever a predictor does
 not span a unit. <code>surv2m</code> is a probability, so an increase of
 one is wider than its whole observed range, and the model holds its
@@ -506,13 +514,13 @@ answer:</p>
 <code class="sourceCode R"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>surv2m <span class="op">=</span> <span class="st">"iqr"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate  2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;    -0.285 -0.362 -0.214</span></span>
+<span><span class="co">#&gt;    -0.282 -0.355 -0.207</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: surv2m</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
 <span><span class="co">#&gt; Comparison: Q3 - Q1</span></span></code></pre></div>
 <p>Moving a patient from the first quartile of the prognostic score to
-the third lowers the predicted probability of death by about .29,
+the third lowers the predicted probability of death by about .28,
 against the .18 the one-unit contrast reported.</p>
 </div>
 <div class="section level3">
@@ -528,9 +536,9 @@ over the other predictors at each value.</p>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Estimated probability of surviving two months"</span>,</span>
 <span>                y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="bartisan_files/figure-html/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
-<p>The fitted probability of death falls from close to .9 to about .5 as
-the prognostic score rises, and the fall is not a straight line, which
-is why the two contrasts above disagree about its size. A logistic
+<p>The fitted probability of death falls from about .85 to just under .5
+as the prognostic score rises, and the fall is not a straight line,
+which is why the two contrasts above disagree about its size. A logistic
 regression reports one slope on the log-odds scale for the whole range.
 Nothing had to be specified to find the shape.</p>
 <p>The band is a credible interval on the <em>average</em> prediction at
@@ -561,13 +569,13 @@ outcomes the contrast is a difference of.</p>
 <span><span class="co">#&gt; Averaged over 1500 units</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     contrast estimate  lower upper    n</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0]   0.0643 0.0101 0.115 1500</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0]   0.0608 0.0118 0.111 1500</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Average potential outcomes</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  quantity estimate lower upper</span></span>
-<span><span class="co">#&gt;      Y[0]    0.630 0.600 0.656</span></span>
-<span><span class="co">#&gt;      Y[1]    0.694 0.654 0.730</span></span>
+<span><span class="co">#&gt;      Y[0]    0.631 0.602 0.661</span></span>
+<span><span class="co">#&gt;      Y[1]    0.692 0.656 0.733</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
 <span><span class="co">#&gt;   credible interval.</span></span>
@@ -588,15 +596,12 @@ actually occur in this sample.</p>
 between its levels. The effect of a continuous treatment is a slope or a
 dose-response curve instead, and <code><a href="../reference/estimate_effect.html">estimate_effect()</a></code> says so
 and names the functions that produce one.</p>
-<p>The defaults are not necessarily the best settings for estimating a
-causal effect. A sparsity prior that can drop a predictor, which put
-several rows of the comparisons table at exactly zero, is reasonable for
-prediction and poor for a treatment whose effect is being reported. More
-specialized methods, such as Bayesian causal forests (BCF) and BART
-without a sparsity-inducing prior, are described in
-<code><a href="../articles/causal.html">vignette("causal")</a></code>, which also covers what has to be true
-of the data before any of this can be read as an effect of the
-procedure.</p>
+<p>A single forest with the treatment among its predictors is not
+necessarily the best model for estimating a causal effect. Bayesian
+causal forests (BCF), which give the treatment effect a forest of its
+own, are described in <code><a href="../articles/causal.html">vignette("causal")</a></code>, which also covers
+what has to be true of the data before any of this can be read as an
+effect of the procedure.</p>
 </div>
 </div>
 <div class="section level2">
@@ -608,7 +613,7 @@ procedure.</p>
 <span><span class="va">new_patient</span><span class="op">$</span><span class="va">rhc</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.8371</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.8366</span></span></code></pre></div>
 <p>For a prediction with an interval, use
 <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">marginaleffects::predictions()</a></code>, which reports the posterior
 median rather than the mean <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> reports:</p>
@@ -616,7 +621,7 @@ median rather than the mean <code><a href="https://rdrr.io/r/stats/predict.html"
 <code class="sourceCode R"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">predictions</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">new_patient</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.843 0.749  0.908</span></span>
+<span><span class="co">#&gt;     0.841 0.732  0.911</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>This describes the probability that a patient with these
@@ -638,12 +643,12 @@ predicts data it has not seen.</p>
 <span><span class="co">#&gt; Computed from 800 by 1500 log-likelihood matrix.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;          Estimate   SE</span></span>
-<span><span class="co">#&gt; elpd_loo   -848.3 17.4</span></span>
-<span><span class="co">#&gt; p_loo        32.2  0.9</span></span>
-<span><span class="co">#&gt; looic      1696.7 34.7</span></span>
+<span><span class="co">#&gt; elpd_loo   -847.6 17.3</span></span>
+<span><span class="co">#&gt; p_loo        35.7  1.0</span></span>
+<span><span class="co">#&gt; looic      1695.2 34.6</span></span>
 <span><span class="co">#&gt; ------</span></span>
-<span><span class="co">#&gt; MCSE of elpd_loo is 0.9.</span></span>
-<span><span class="co">#&gt; MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.4]).</span></span>
+<span><span class="co">#&gt; MCSE of elpd_loo is 0.5.</span></span>
+<span><span class="co">#&gt; MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.5]).</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.66).</span></span>
 <span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
@@ -665,7 +670,7 @@ its keep over the demographics alone:</p>
 <span>                 demographics <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">demographics</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
-<span><span class="co">#&gt;  demographics     -68.1    11.1    1.00</span></span></code></pre></div>
+<span><span class="co">#&gt;  demographics     -67.9    11.2    1.00</span></span></code></pre></div>
 <p>The full model predicts better by around six times the standard error
 of the difference, as we would expect: how sick a patient is on arrival
 is the main thing that predicts whether they die.</p>

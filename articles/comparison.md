@@ -55,12 +55,12 @@ loo(full)
 #> Computed from 800 by 1500 log-likelihood matrix.
 #> 
 #>          Estimate   SE
-#> elpd_loo   -848.3 17.4
-#> p_loo        32.2  0.9
-#> looic      1696.7 34.7
+#> elpd_loo   -847.6 17.3
+#> p_loo        35.7  1.0
+#> looic      1695.2 34.6
 #> ------
-#> MCSE of elpd_loo is 0.9.
-#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.4]).
+#> MCSE of elpd_loo is 0.5.
+#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.5]).
 #> 
 #> All Pareto k estimates are good (k < 0.66).
 #> See help('pareto-k-diagnostic') for details.
@@ -109,7 +109,7 @@ fit_train <- bartisan(model, data = train, family = binomial())
 score <- predict(fit_train, newdata = held, type = "density", log = TRUE)
 
 sum(score)
-#> [1] -171.9
+#> [1] -172.7
 ```
 
 Setting `type = "density"` evaluates the outcome under each posterior
@@ -125,8 +125,8 @@ elpd_total <- loo(full)$estimates["elpd_loo", "Estimate"]
 rbind(loo     = c(total = elpd_total, n = nrow(rhc),     per_obs = elpd_total / nrow(rhc)),
       heldout = c(total = sum(score), n = length(score), per_obs = mean(score)))
 #>          total    n per_obs
-#> loo     -848.3 1500 -0.5656
-#> heldout -171.9  300 -0.5730
+#> loo     -847.6 1500 -0.5651
+#> heldout -172.7  300 -0.5756
 ```
 
 The totals differ by a factor of five because they sum different numbers
@@ -161,7 +161,7 @@ loo_compare(list(full = loo(full),
                  demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -68.1    11.1    1.00
+#>  demographics     -67.9    11.2    1.00
 ```
 
 The full model predicts better by around six times the standard error of
@@ -232,7 +232,7 @@ d <- score - score_demographics
 c(mean_diff = mean(d), se = sd(d) / sqrt(length(d)),
   ratio = mean(d) / (sd(d) / sqrt(length(d))))
 #> mean_diff        se     ratio 
-#>   0.03927   0.01604   2.44809
+#>   0.03713   0.01677   2.21404
 ```
 
 That is
@@ -267,9 +267,9 @@ kfold_full
 #> Based on 5-fold cross-validation.
 #> 
 #>            Estimate   SE
-#> elpd_kfold   -845.3 17.2
-#> p_kfold        29.2  2.2
-#> kfoldic      1690.6 34.4
+#> elpd_kfold   -843.5 17.0
+#> p_kfold        31.5  2.0
+#> kfoldic      1686.9 33.9
 ```
 
 `elpd_kfold` is the held-out log score, summed over every observation,
@@ -290,7 +290,7 @@ loo_compare(list(full = kfold_full,
                  demographics = kfold_demographics))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -70.3    11.1    1.00
+#>  demographics     -72.7    11.0    1.00
 ```
 
 The same reading as before, and at the same precision as the
@@ -307,7 +307,7 @@ thing:
 c(kfold = kfold_full$estimates["elpd_kfold", "Estimate"] / nrow(rhc),
   loo = elpd_total / nrow(rhc))
 #>   kfold     loo 
-#> -0.5635 -0.5656
+#> -0.5623 -0.5651
 ```
 
 They agree, as a clean Pareto \\k\\ column suggested in less direct
@@ -342,7 +342,7 @@ loo_compare(list(logit = loo(full),
                  probit = loo(probit)))
 #>   model elpd_diff se_diff p_worse       diag_diff diag_elpd
 #>   logit       0.0     0.0      NA                          
-#>  probit      -0.1     1.2    0.53 |elpd_diff| < 4
+#>  probit      -0.2     1.0    0.60 |elpd_diff| < 4
 ```
 
 The two are within a point of each other, and the differences are
@@ -397,11 +397,11 @@ loo_compare(list(aft = loo(aft, scale = "time"),
                  ph = loo(prop_haz, scale = "time")))
 #>  model elpd_diff se_diff p_worse diag_diff       diag_elpd
 #>     ph       0.0     0.0      NA           1 k_psis > 0.66
-#>    aft     -91.6    15.6    1.00
+#>    aft     -90.0    15.4    1.00
 ```
 
 The proportional hazards model predicts these survival times better, by
-about 92 points with a standard error of 16. The flag in the last column
+about 90 points with a standard error of 15. The flag in the last column
 says that one of the pointwise estimates for
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is unreliable (see the section on failures of the approximation above);
@@ -466,7 +466,7 @@ loo(logistic)
 loo_compare(list(bart = loo(full), logistic = loo(logistic)))
 #>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
 #>  logistic       0.0     0.0      NA                          
-#>      bart      -3.5     5.0    0.76 |elpd_diff| < 4
+#>      bart      -2.8     5.0    0.71 |elpd_diff| < 4
 ```
 
 The forest is behind by roughly half a standard error of the difference,
@@ -521,22 +521,23 @@ names(tuned) <- paste0("trees_", trees)
 
 loo_compare(lapply(tuned, loo))
 #>      model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>   trees_50       0.0     0.0      NA                          
-#>   trees_20      -0.5     1.1    0.67 |elpd_diff| < 4          
-#>  trees_200      -1.2     1.1    0.86 |elpd_diff| < 4
+#>   trees_20       0.0     0.0      NA                          
+#>  trees_200      -1.6     2.2    0.77 |elpd_diff| < 4          
+#>   trees_50      -2.1     1.7    0.89 |elpd_diff| < 4
 ```
 
-Nothing separates them: every difference is smaller than its own
-standard error, and *loo* flags both comparisons as too small to read.
-Scoring the same three fits on the held-out observations says it again,
-and is the assessment the selection is not allowed to see:
+Nothing separates them: the differences are a couple of points at most,
+about the size of their standard errors, and *loo* flags both
+comparisons as too small to read. Scoring the same three fits on the
+held-out observations says it again, and is the assessment the selection
+is not allowed to see:
 
 ``` r
 
 sapply(tuned, function(f) sum(predict(f, newdata = held, type = "density",
                                       log = TRUE)))
 #>  trees_20  trees_50 trees_200 
-#>    -172.9    -172.6    -171.4
+#>    -172.5    -172.3    -172.3
 ```
 
 The two orderings disagree, which is the practical content of the
@@ -606,8 +607,8 @@ drop_one <- function(v) {
 
 rbind(surv2m = drop_one("surv2m"), rhc = drop_one("rhc"))
 #>        elpd_diff se_diff
-#> surv2m    40.252   9.477
-#> rhc        1.023   2.811
+#> surv2m    43.655   8.757
+#> rhc        2.019   2.476
 ```
 
 Losing `surv2m`, the prognostic score, costs about forty points and is
@@ -623,8 +624,8 @@ this section began by warning against.
 
 So that question belongs to
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
-and to the sparsity prior, which does the selection inside the model
-rather than across refits.
+on a fit with `sparsity = TRUE`, whose prior does the selection inside
+the model rather than across refits.
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md)
 covers reading it, including the noise-predictor calibration that says
 which end of the table carries information, and

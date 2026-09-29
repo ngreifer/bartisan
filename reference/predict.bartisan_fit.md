@@ -257,25 +257,35 @@ for the methods that let other packages assess the fit
 data("rhc")
 set.seed(123)
 
-# Whether a patient died, with every other variable a candidate predictor
-fit <- bartisan(death ~ . - days, data = rhc,
-                num_trees = 10, num_burn = 50, num_draws = 50)
+# Whether a patient died, with the treatment and every
+# covariate recorded on admission as candidate
+# predictors
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
 # Fitted probabilities of death, averaged over the draws
 head(predict(fit, type = "response"))
-#> [1] 0.7685691 0.8202057 0.2465819 0.3451376 0.3927522 0.5274813
+#> [1] 0.7959859 0.7976197 0.2008229 0.5216073 0.4393714 0.5232934
 
-# The whole posterior for the first five patients rather than its mean
+# The whole posterior for the first five patients rather
+# than its mean
 post <- predict(fit, newdata = rhc[1:5, ], draws = TRUE)
 apply(post, 2, quantile, c(.025, .5, .975))
 #>            [,1]      [,2]      [,3]      [,4]      [,5]
-#> 2.5%  0.6886183 0.7198000 0.1446598 0.2570470 0.2670428
-#> 50%   0.7746833 0.8244962 0.2644145 0.3468819 0.3781887
-#> 97.5% 0.8232087 0.9118594 0.3225904 0.4547626 0.6209257
+#> 2.5%  0.7378238 0.6893544 0.1062475 0.4105328 0.3025466
+#> 50%   0.7921700 0.8089335 0.1979082 0.5251180 0.4428998
+#> 97.5% 0.8489815 0.8587385 0.3142898 0.6063779 0.5359435
 
-# A held-out log score, which needs the outcome, so the `newdata` argument carries it
-sum(log(predict(fit, newdata = rhc[1:100, ], type = "density")))
-#> [1] -59.81794
+# A held-out log score, which needs the outcome, so the
+# `newdata` argument carries it
+dens <- predict(fit, newdata = rhc[1:100, ],
+                type = "density")
+sum(log(dens))
+#> [1] -58.29588
 ```

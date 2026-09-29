@@ -626,47 +626,58 @@ for the long form
 data("rhc")
 set.seed(123)
 
-# A right-censored response, given as the time and the event indicator,
-# with the error distribution estimated rather than assumed
-fit <- bartisan(cbind(days, death) ~ ., data = rhc, family = dpm_aft(),
-                num_trees = 10, num_burn = 50, num_draws = 50)
+# A right-censored response, given as the time and the
+# event indicator, with the error distribution estimated
+# rather than assumed
+surv_model <- cbind(days, death) ~ rhc + age + sex +
+  race + edu + aps + meanbp + resp + hema + pafi +
+  paco2 + crea + surv2m + card
+
+fit <- bartisan(surv_model, data = rhc,
+                family = dpm_aft(), num_trees = 10,
+                num_burn = 50, num_draws = 50)
 
 # The shape the errors came out
 head(error_density(fit))
 #>          at         mean        lower        upper
-#> 1 -8.149747 6.990040e-05 3.117357e-05 0.0001222741
-#> 2 -8.068250 8.174272e-05 3.713237e-05 0.0001414876
-#> 3 -7.986752 9.544615e-05 4.415258e-05 0.0001634804
-#> 4 -7.905255 1.112774e-04 5.240790e-05 0.0001886150
-#> 5 -7.823757 1.295371e-04 6.209755e-05 0.0002172952
-#> 6 -7.742260 1.505634e-04 7.344957e-05 0.0002499697
+#> 1 -7.697070 5.094349e-08 7.964088e-09 2.344879e-07
+#> 2 -7.620099 6.454796e-08 1.086150e-08 2.870340e-07
+#> 3 -7.543129 8.309478e-08 1.525619e-08 3.528593e-07
+#> 4 -7.466158 1.086236e-07 2.085271e-08 4.456931e-07
+#> 5 -7.389187 1.440406e-07 2.922824e-08 5.675857e-07
+#> 6 -7.312217 1.934784e-07 4.056200e-08 7.274986e-07
 
-# The same response under proportional hazards, whose predictor is a log
-# hazard ratio and whose baseline is free to take any shape
-bartisan(cbind(days, death) ~ ., data = rhc, family = ph(),
+# The same response under proportional hazards, whose
+# predictor is a log hazard ratio and whose baseline is
+# free to take any shape
+bartisan(surv_model, data = rhc, family = ph(),
          num_trees = 10, num_burn = 50, num_draws = 50)
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = cbind(days, death) ~ ., data = rhc, family = ph(), 
-#>     num_trees = 10, num_burn = 50, num_draws = 50)
+#> bartisan(formula = surv_model, data = rhc, family = ph(), num_trees = 10, 
+#>     num_burn = 50, num_draws = 50)
 #> 
 #> Family: "ph" with the "log" link
 #> Observations: 1500
 #> Structure: 1 forest of 10 trees, soft decision rules
 #> Draws: 50 kept after 50 warmup
 #> 
-#> Posterior means: lambda1 = 0.0105, lambda2 = 0.0158, lambda3 = 0.0107, lambda4 = 0.0071, lambda5 = 0.0029, lambda6 = 0.00137, lambda7 = 0.00101, lambda8 = 0.000722, lambda9 = 0.00135, lambda10 = 0.00203, lambda11 = 0.00164, lambda12 = 0.00185, lambda_rate = 233
+#> Posterior means: lambda1 = 0.0133, lambda2 = 0.0197, lambda3 = 0.0133, lambda4 = 0.00902, lambda5 = 0.00377, lambda6 = 0.00169, lambda7 = 0.00128, lambda8 = 0.000808, lambda9 = 0.00179, lambda10 = 0.00283, lambda11 = 0.00215, lambda12 = 0.00236, lambda_rate = 186
 
-# An unordered response, with one forest per category and a prior that is
-# symmetric in them
-bartisan(race ~ . - days - death, data = rhc, family = multinomial(),
+# An unordered response, with one forest per category
+# and a prior that is symmetric in them
+bartisan(race ~ rhc + age + sex + edu + aps + meanbp +
+           resp + hema + pafi + paco2 + crea + surv2m +
+           card,
+         data = rhc, family = multinomial(),
          num_trees = 10, num_burn = 50, num_draws = 50)
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = race ~ . - days - death, data = rhc, family = multinomial(), 
-#>     num_trees = 10, num_burn = 50, num_draws = 50)
+#> bartisan(formula = race ~ rhc + age + sex + edu + aps + meanbp + 
+#>     resp + hema + pafi + paco2 + crea + surv2m + card, data = rhc, 
+#>     family = multinomial(), num_trees = 10, num_burn = 50, num_draws = 50)
 #> 
 #> Family: "multinomial" with the "logit" link
 #> Observations: 1500
@@ -674,13 +685,18 @@ bartisan(race ~ . - days - death, data = rhc, family = multinomial(),
 #> Draws: 50 kept after 50 warmup
 
 # A link the engine does not compile, applied from R
-bartisan(death ~ . - days, data = rhc, family = binomial("cauchit"),
+bartisan(death ~ rhc + age + sex + race + edu + aps +
+           meanbp + resp + hema + pafi + paco2 + crea +
+           surv2m + card,
+         data = rhc, family = binomial("cauchit"),
          num_trees = 10, num_burn = 50, num_draws = 50)
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = death ~ . - days, data = rhc, family = binomial("cauchit"), 
-#>     num_trees = 10, num_burn = 50, num_draws = 50)
+#> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + 
+#>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, 
+#>     data = rhc, family = binomial("cauchit"), num_trees = 10, 
+#>     num_burn = 50, num_draws = 50)
 #> 
 #> Family: "binomial" with the "cauchit" link (supplied from R)
 #> Observations: 1500

@@ -141,28 +141,29 @@ predictors a forest uses at all</p></div>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The effect of catheterization is allowed to vary with the other</span></span></span>
-<span class="r-in"><span><span class="co"># predictors, so its coefficient is a function rather than a number</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="fu"><a href="vc.html">vc</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">rhc</span>,</span></span>
-<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
-<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># The effect of catheterization is allowed to vary with</span></span></span>
+<span class="r-in"><span><span class="co"># the other predictors, so its coefficient is a function</span></span></span>
+<span class="r-in"><span><span class="co"># rather than a number</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="fu"><a href="vc.html">vc</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                num_draws <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># One coefficient per patient, on the link scale</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>            rhc</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 0.1809135</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] 0.1729184</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3,] 0.1645372</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [4,] 0.3381249</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5,] 0.2977704</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6,] 0.2981658</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>               rhc</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  0.370664770</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,] -0.005113301</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]  0.129570231</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [4,]  0.307429405</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5,]  0.269363681</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6,]  0.186869057</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># How much it varies across patients</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">[</span>, <span class="st">"rhc"</span><span class="op">]</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         0%        25%        50%        75%       100% </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 0.07870672 0.24303614 0.28768352 0.32487712 0.52437022 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           0%          25%          50%          75%         100% </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -0.005113301  0.171367444  0.271716353  0.395163994  0.671462755 </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

@@ -159,9 +159,9 @@ draws the same thing with more control over the grid
 data("rhc")
 set.seed(123)
 
-fit <- bartisan(death ~ age + sex + meanbp + aps, data = rhc,
-                num_trees = 10, num_burn = 50, num_draws = 50,
-                verbose = FALSE)
+fit <- bartisan(death ~ age + sex + meanbp + aps,
+                data = rhc, num_trees = 10, num_burn = 50,
+                num_draws = 50, verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
@@ -175,17 +175,17 @@ pd
 #>            "response" scale
 #> 
 #>  meanbp estimate lower upper
-#>    0.00    0.654 0.638 0.680
-#>    8.88    0.654 0.638 0.680
-#>   17.76    0.654 0.638 0.680
-#>   26.64    0.654 0.638 0.680
-#>   35.52    0.654 0.638 0.680
+#>    0.00    0.657 0.615 0.709
+#>    8.88    0.657 0.615 0.709
+#>   17.76    0.657 0.615 0.709
+#>   26.64    0.657 0.615 0.708
+#>   35.52    0.657 0.615 0.707
 #>   --- 16 rows omitted ---
-#>  186.48    0.655 0.638 0.679
-#>  195.36    0.655 0.638 0.679
-#>  204.24    0.655 0.638 0.679
-#>  213.12    0.655 0.638 0.679
-#>  222.00    0.655 0.638 0.679
+#>  186.48    0.637 0.544 0.688
+#>  195.36    0.637 0.543 0.688
+#>  204.24    0.637 0.542 0.688
+#>  213.12    0.636 0.542 0.688
+#>  222.00    0.636 0.542 0.688
 #> 
 #> ℹ lower and upper bound the 95% credible interval on the average prediction.
 #> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
@@ -199,20 +199,22 @@ plot(pd)
 plot(fit, ~ meanbp)
 
 
-# Two predictors, one of them a factor, which gives a curve per level
+# Two predictors, one of them a factor, which gives a
+# curve per level
 plot(fit, ~ meanbp + sex)
 
 
-# Two numeric predictors, where the second is held at three values and a
-# message says which
+# Two numeric predictors, where the second is held at
+# three values and a message says which
 plot(fit, ~ meanbp + aps)
 #> ℹ Grouping by `aps` at 41, 54, and 68, three of its values near its quartiles.
 #> ℹ Set `values` to choose them yourself.
 
 
-# An entry of `values` may be a function of the predictor, which is how to
-# ask for values of your own without naming them
-plot(fit, ~ meanbp + aps,
-     values = list(aps = function(x) quantile(x, c(.1, .5, .9))))
+# An entry of `values` may be a function of the
+# predictor, which is how to ask for values of your own
+# without naming them
+three_values <- function(x) quantile(x, c(.1, .5, .9))
+plot(fit, ~ meanbp + aps, values = list(aps = three_values))
 
 ```

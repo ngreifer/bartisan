@@ -229,25 +229,6 @@ target.
 estimates it for the ATE, the ATT, and the ATC alike, averaging over the
 treated or untreated units’ covariates for the latter two.
 
-### Controlling Sparsity
-
-Before we fit the outcome model, we need to change one setting to make
-traditional BART suitable for estimating the ATE. The default splitting
-prior is a variable-selection prior. It can drop a predictor from every
-tree in the forest at once, which makes it worth having when the goal is
-prediction, but not when the estimand is a contrast on one particular
-predictor. The traditional BART outcome model below is fitted with
-`sparsity = FALSE`, which weights the predictors equally and cannot drop
-any of them.
-
-The propensity score model above keeps the default, and should:
-predicting who was treated is a prediction problem, and no contrast is
-read off it.
-[`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-explains both halves of this, and using the `split_prior` argument can
-be an alternative when there are enough covariates that weighting them
-all alike is wasteful.
-
 ## The Outcome Model
 
 We can fit the outcome model as a binary BART regression of the outcome
@@ -260,16 +241,15 @@ rhc$prop_score <- prop_score
 
 fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
                   hema + pafi + paco2 + crea + surv2m + card + prop_score,
-                data = rhc, family = binomial(), sparsity = FALSE)
+                data = rhc, family = binomial())
 ```
 
 We include the treatment, the covariates, and the propensity score in
-the formula’s right-hand side, set `family = binomial()` to model the
-binary outcome with logistic regression, and `sparsity = FALSE` to
-remove the sparsity-inducing prior. Including the propensity score is
-recommended by Carnegie ([2019](#ref-carnegie2019)), though Souto and
-Louzada ([2024](#ref-soutoAblationStudiesNovel2024)) report that it
-often makes little difference to the estimate. Linero
+the formula’s right-hand side, and set `family = binomial()` to model
+the binary outcome with logistic regression. Including the propensity
+score is recommended by Carnegie ([2019](#ref-carnegie2019)), though
+Souto and Louzada ([2024](#ref-soutoAblationStudiesNovel2024)) report
+that it often makes little difference to the estimate. Linero
 ([2024](#ref-lineroNonparametricHighDimensionalModels2024)) gives the
 Bayesian reason for including it: when the outcome model is flexible and
 its prior is independent of the model for the treatment, the prior it
@@ -279,6 +259,19 @@ propensity score is one way to relax that. Because the score is a
 function of the covariates, adding it does not change what the model
 conditions on, and the g-computation below holds it at each patient’s
 own value.
+
+The splitting prior is left at its default, which weights the predictors
+equally and cannot drop any of them. Setting `sparsity = TRUE` would
+place a variable-selection prior on them instead, which can drop the
+treatment from the forest in some draws and put a point mass at exactly
+zero in the posterior of its effect, so it is not the setting for a
+model whose purpose is a contrast on one predictor;
+[`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+explains the trade-off and
+[`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
+covers what the point mass does to an estimate. The propensity score
+model is a prediction problem with no contrast read off it, so the
+sparsity prior can be turned on there when there are many covariates.
 
 The fits in this vignette use the default single chain for brevity.
 Normally, we would run several chains, possibly change the number of
@@ -309,14 +302,14 @@ ate
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate   lower upper    n
-#>  Y[1] - Y[0]   0.0638 0.00742  0.12 1500
+#>     contrast estimate  lower upper    n
+#>  Y[1] - Y[0]    0.063 0.0145 0.113 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.630 0.599 0.660
-#>      Y[1]    0.694 0.654 0.733
+#>      Y[0]    0.631 0.600 0.659
+#>      Y[1]    0.694 0.655 0.730
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -325,7 +318,7 @@ ate
 
 Under the assumptions above this is the average treatment effect:
 catheterization raises the probability of death by about 6 percentage
-points, with an interval running from roughly 0.7 to 12.
+points, with an interval running from roughly 1.4 to 11.3.
 
 The two rows below the contrast are the estimates of \\E\[Y(0)\]\\ and
 \\E\[Y(1)\]\\, each averaged over the observed covariate distribution.
@@ -368,13 +361,13 @@ estimate_effect(fit, treat = "rhc", comparison = "lnor")
 #> Averaged over 1500 units
 #> 
 #>                contrast estimate  lower upper    n
-#>  log(O(Y[1]) / O(Y[0]))    0.287 0.0329 0.544 1500
+#>  log(O(Y[1]) / O(Y[0]))    0.284 0.0633 0.513 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.630 0.599 0.660
-#>      Y[1]    0.694 0.654 0.733
+#>      Y[0]    0.631 0.600 0.659
+#>      Y[1]    0.694 0.655 0.730
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -398,8 +391,8 @@ options(marginaleffects_posterior_center = mean)
 
 avg_comparisons(fit, variables = "rhc")
 #> 
-#>  Estimate   2.5 % 97.5 %
-#>    0.0638 0.00742   0.12
+#>  Estimate  2.5 % 97.5 %
+#>     0.063 0.0145  0.113
 #> 
 #> Term: rhc
 #> Type: response
@@ -464,7 +457,7 @@ fit_bcf
 #> Structure: 2 forests of 50 and 25 trees, soft decision rules
 #> Draws: 800 kept after 200 warmup
 #> 
-#> Posterior means: b.rhc.0 = -0.357, b.rhc.1 = -0.396
+#> Posterior means: b.rhc.0 = -0.13, b.rhc.1 = -0.209
 #> 
 #> Treatment: "rhc"
 #> Effect moderators: "age", "sex", "race", "edu", "aps", "meanbp", "resp", "hema", "pafi", "paco2", "crea", "surv2m", and "card"
@@ -484,10 +477,13 @@ settings to improve effect estimation:
 4.  a binary treatment’s coding is drawn rather than fixed, so the
     answer does not depend on which arm was written as 1.
 
-Note that `sparsity = FALSE` is not among them: the reason for it in the
-section above is that the prior can drop the predictor whose contrast we
-want, and here the treatment is the coefficient rather than a predictor
-the forest splits on, so nothing can drop it.
+The splitting prior stays at its default of off for both forests.
+Because the treatment is the coefficient rather than a predictor the
+forest splits on, nothing can drop it, so the sparsity prior can be
+turned on for the effect forest alone with `sparsity = c(FALSE, TRUE)`,
+which asks that forest to select among the moderators;
+[`?bcf`](https://ngreifer.github.io/bartisan/reference/bcf.md) discusses
+when that is worth doing.
 
 Because the treatment is named in the call,
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
@@ -501,14 +497,14 @@ estimate_effect(fit_bcf)
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate    lower  upper    n
-#>  Y[1] - Y[0]   0.0385 -0.00195 0.0953 1500
+#>     contrast estimate   lower upper    n
+#>  Y[1] - Y[0]   0.0563 0.00241 0.108 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.639 0.607  0.67
-#>      Y[1]    0.678 0.641  0.72
+#>      Y[0]    0.633 0.605 0.662
+#>      Y[1]    0.689 0.650 0.728
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -517,7 +513,7 @@ estimate_effect(fit_bcf)
 
 The two potential outcomes are printed beneath the contrast, since a
 difference of a few percentage points means one thing against a baseline
-of 64% and another against 5%; setting `potential_outcomes = FALSE` in
+of 63% and another against 5%; setting `potential_outcomes = FALSE` in
 [`print()`](https://rdrr.io/r/base/print.html) suppresses them. The
 contrast’s label names the quantity rather than leaving it to the
 heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a
@@ -551,7 +547,7 @@ cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
 #>    0%   25%   50%   75%  100% 
-#> 1.092 1.223 1.274 1.326 1.469
+#> 1.141 1.324 1.420 1.523 1.839
 ```
 
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws the
@@ -629,13 +625,13 @@ estimate_effect(fit_earn_bcf, estimand = "ATT")
 #> Averaged over the 185 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
-#>  Y[1] - Y[0]     1010  -316  2590 185
+#>  Y[1] - Y[0]     1120  -363  2540 185
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]     5370  4280  6500
-#>      Y[1]     6390  5400  7380
+#>      Y[0]     5230  4240  6330
+#>      Y[1]     6350  5410  7410
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -662,7 +658,7 @@ cate_att <- estimate_effect(fit_earn_bcf, estimand = "CATE",
 
 c(ATT = att$estimate, mean_CATE = mean(cate_att$estimate))
 #>       ATT mean_CATE 
-#>      1015      1015
+#>      1125      1125
 ```
 
 And the conditional effects, drawn:
@@ -674,10 +670,10 @@ plot(cate_att)
 
 ![](causal_files/figure-html/lalondeplot-1.png)
 
-Most of the conditional effects are positive, as the ATT is, and only
-two of their 185 intervals exclude zero. That is the usual picture: the
-effect at one unit’s covariates is estimated from far less information
-than an average over all of them, so its interval is much wider.
+Most of the conditional effects are positive, as the ATT is, and none of
+their 185 intervals exclude zero. That is the usual picture: the effect
+at one unit’s covariates is estimated from far less information than an
+average over all of them, so its interval is much wider.
 
 ## Interpreting the Credible Interval
 

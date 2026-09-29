@@ -333,8 +333,9 @@ same estimands through
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bcf.html">bcf</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span>, treat <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>,</span></span>
-<span class="r-in"><span>           data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bcf.html">bcf</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span>,</span></span>
+<span class="r-in"><span>           treat <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>           num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
 <span class="r-in"><span>           verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
@@ -346,41 +347,43 @@ same estimands through
 <span class="r-out co"><span class="r-pr">#&gt;</span> Treatment: `rhc`</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over 1500 units</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     contrast estimate    lower  upper    n</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] - Y[0]   0.0334 -0.00348 0.0878 1500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     contrast estimate    lower upper    n</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] - Y[0]   0.0386 -0.00216 0.097 1500</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Average potential outcomes</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  quantity estimate lower upper</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.642 0.610 0.665</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.675 0.638 0.704</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.642 0.616 0.665</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.680 0.652 0.716</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">Y[a]</span> is the average response with `rhc` set to <span style="color: #0000BB;">"a"</span>.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Among the treated, and as a risk ratio rather than a difference</span></span></span>
-<span class="r-in"><span><span class="fu">estimate_effect</span><span class="op">(</span><span class="va">fit</span>, estimand <span class="op">=</span> <span class="st">"ATT"</span>, comparison <span class="op">=</span> <span class="st">"ratio"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Among the treated, and as a risk ratio rather than a</span></span></span>
+<span class="r-in"><span><span class="co"># difference</span></span></span>
+<span class="r-in"><span><span class="fu">estimate_effect</span><span class="op">(</span><span class="va">fit</span>, estimand <span class="op">=</span> <span class="st">"ATT"</span>,</span></span>
+<span class="r-in"><span>                comparison <span class="op">=</span> <span class="st">"ratio"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Average treatment effect on the treated (ratio)</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Treatment: `rhc`</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over the 565 units in group <span style="color: #0000BB;">"1"</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     contrast estimate lower upper   n</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] / Y[0]     1.04 0.994  1.12 565</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] / Y[0]     1.05 0.997  1.14 565</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Average potential outcomes</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  quantity estimate lower upper</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.670 0.634 0.693</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.699 0.668 0.728</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.670 0.644 0.697</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.706 0.685 0.740</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">Y[a]</span> is the average response with `rhc` set to <span style="color: #0000BB;">"a"</span>.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The effect at each unit's covariates, ordered, with the marginal effect</span></span></span>
-<span class="r-in"><span><span class="co"># beside them</span></span></span>
+<span class="r-in"><span><span class="co"># The effect at each unit's covariates, ordered, with</span></span></span>
+<span class="r-in"><span><span class="co"># the marginal effect beside them</span></span></span>
 <span class="r-in"><span><span class="va">cate</span> <span class="op">&lt;-</span> <span class="fu">estimate_effect</span><span class="op">(</span><span class="va">fit</span>, estimand <span class="op">=</span> <span class="st">"CATE"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">cate</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="estimate_effect-1.png" alt="" width="700" height="433"></span>
@@ -394,14 +397,14 @@ same estimands through
 <span class="r-out co"><span class="r-pr">#&gt;</span> Within levels of `sex`</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     sex    contrast estimate    lower  upper   n</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  female Y[1] - Y[0]   0.0490 -0.00818 0.1270 676</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    male Y[1] - Y[0]   0.0206 -0.01960 0.0634 824</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  female Y[1] - Y[0]   0.0504 -0.00393 0.1340 676</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    male Y[1] - Y[0]   0.0290 -0.01010 0.0799 824</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Average potential outcomes</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  quantity estimate lower upper</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.642 0.610 0.665</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.675 0.638 0.704</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.642 0.616 0.665</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.680 0.652 0.716</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>

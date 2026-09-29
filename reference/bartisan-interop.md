@@ -451,28 +451,36 @@ for the fuller treatment
 data("rhc")
 set.seed(123)
 
-fit <- bartisan(death ~ . - days, data = rhc, num_trees = 10,
-                num_burn = 50, num_draws = 50, chains = 2, verbose = FALSE)
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50, chains = 2,
+                verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
 
-# Replicate outcomes, one per draw per observation, whose mean
-# `fitted()` reports
+# Replicate outcomes, one per draw per observation,
+# whose mean `fitted()` reports
 yrep <- rstantools::posterior_predict(fit)
-range(colMeans(rstantools::posterior_epred(fit)) - fitted(fit))
+epred <- rstantools::posterior_epred(fit)
+range(colMeans(epred) - fitted(fit))
 #> [1] 0 0
 
-# Pointwise log likelihood, and the fit statistics built on it
+# Pointwise log likelihood, and the fit statistics
+# built on it
 loo::waic(rstantools::log_lik(fit))
 #> 
 #> Computed from 100 by 1500 log-likelihood matrix.
 #> 
 #>           Estimate   SE
-#> elpd_waic   -847.6 17.4
-#> p_waic        21.4  0.7
-#> waic        1695.3 34.9
+#> elpd_waic   -846.8 17.2
+#> p_waic        26.8  0.9
+#> waic        1693.6 34.4
 
-# Every prior the fit was given, on the scale it was given on
+# Every prior the fit was given, on the scale it was
+# given on
 rstantools::prior_summary(fit)
 #> Priors
 #> 
@@ -487,9 +495,8 @@ rstantools::prior_summary(fit)
 #>   given a half-Cauchy prior centred there and is estimated.
 #> 
 #> Splitting variables
-#> • The share of the rules each of the 14 predictors receives is Dirichlet(1 /
-#>   14), whose concentration enters as a / (a + 14) ~ Beta(0.5, 1). Both are
-#>   estimated.
+#> • Each of the 14 predictors is equally likely to be split on, and that is not
+#>   drawn (`sparsity = FALSE`).
 #> 
 #> Decision rules
 #> • Soft, with "smoothstep" gates. Each tree's bandwidth is drawn from an
@@ -509,24 +516,25 @@ if (rlang::is_installed("bayesplot")) {
 }
 
 
-# The scalar parameters and a spread of the predictor, as a draws array
+# The scalar parameters and a spread of the predictor,
+# as a draws array
 if (rlang::is_installed("posterior")) {
   posterior::summarise_draws(posterior::as_draws(fit))
 }
 #> # A tibble: 12 × 10
 #>    variable          mean    median    sd   mad       q5      q95  rhat ess_bulk
 #>    <chr>            <dbl>     <dbl> <dbl> <dbl>    <dbl>    <dbl> <dbl>    <dbl>
-#>  1 loglik       -837.      -8.37e+2 5.25  4.99  -8.45e+2 -827.     1.46     4.93
-#>  2 sigma_mu.eta    0.734    7.07e-1 0.205 0.196  4.53e-1    1.11   1.45     4.92
-#>  3 eta[933]       -1.61    -1.58e+0 0.406 0.307 -2.39e+0   -1.05   1.31     6.25
-#>  4 eta[1014]      -0.416   -4.17e-1 0.311 0.302 -9.22e-1    0.190  1.14    11.2 
-#>  5 eta[709]       -0.0134  -2.28e-3 0.259 0.270 -4.34e-1    0.376  1.44     5.23
-#>  6 eta[487]        0.290    2.85e-1 0.178 0.168  3.07e-2    0.602  1.03    59.3 
-#>  7 eta[962]        0.573    5.61e-1 0.229 0.230  2.36e-1    1.00   1.18    10.4 
-#>  8 eta[156]        0.903    9.32e-1 0.266 0.239  4.66e-1    1.26   1.35     5.64
-#>  9 eta[785]        1.30     1.30e+0 0.253 0.255  9.22e-1    1.72   1.04    36.2 
-#> 10 eta[307]        1.62     1.62e+0 0.229 0.228  1.20e+0    1.98   1.02    42.4 
-#> 11 eta[612]        1.99     2.01e+0 0.239 0.203  1.53e+0    2.42   1.07    19.4 
-#> 12 eta[1135]       3.04     3.00e+0 0.324 0.299  2.64e+0    3.57   1.08    18.5 
+#>  1 loglik       -833.     -833.     3.63  3.79  -839.    -8.27e+2  1.06    38.0 
+#>  2 sigma_mu.eta    0.544     0.534  0.106 0.112    0.377  7.19e-1  1.26     7.05
+#>  3 eta[119]       -1.38     -1.33   0.299 0.303   -1.87  -9.69e-1  1.25     7.63
+#>  4 eta[861]       -0.413    -0.413  0.213 0.195   -0.716 -9.11e-2  1.04    45.0 
+#>  5 eta[302]       -0.0416   -0.0167 0.381 0.425   -0.637  4.85e-1  1.60     4.23
+#>  6 eta[7]          0.307     0.292  0.277 0.227   -0.151  7.96e-1  1.14    10.9 
+#>  7 eta[1274]       0.579     0.564  0.242 0.254    0.216  9.30e-1  1.02    45.3 
+#>  8 eta[122]        0.904     0.888  0.239 0.242    0.564  1.31e+0  1.10    18.6 
+#>  9 eta[533]        1.28      1.24   0.320 0.289    0.834  1.76e+0  1.16    10.1 
+#> 10 eta[852]        1.63      1.61   0.519 0.633    0.868  2.40e+0  1.74     3.79
+#> 11 eta[526]        2.00      2.01   0.446 0.509    1.31   2.77e+0  1.85     3.57
+#> 12 eta[1135]       3.29      3.28   0.490 0.541    2.54   4.07e+0  1.43     4.94
 #> # ℹ 1 more variable: ess_tail <dbl>
 ```

@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/faq.Rmd" class="external-link"><code>vignettes/faq.Rmd</code></a></small>
       <div class="d-none name"><code>faq.Rmd</code></div>
@@ -405,15 +405,18 @@ computation, because every observation reaches every leaf with some
 weight rather than taking one side of each split. Setting
 <code>gate = "hard"</code> is the fast option when the relationship is
 expected to be a step function anyway. The <code>sparsity</code>
-argument controls how much sparsity is induced in the covariates chosen
-for splitting; the default is to have sparsity on, which is especially
-useful with many predictors, but sometimes it can be valuable to turn
-the sparsity prior off to ensure all variables are used in the model.
-The <code>split_prior</code> argument can also be used instead of
-<code>sparsity</code> to manually decide which variables should be split
-on more often, though in general the Bayesian updates can discover this
-from the data anyway. See <code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> for a full
-list.</p>
+argument controls whether a variable-selection prior is placed on the
+covariates chosen for splitting; it is off by default, so every
+covariate keeps a share of the splits. Setting
+<code>sparsity = TRUE</code> is worth considering when there are many
+predictors, when only a few of them are expected to matter, or when the
+goal is to identify the subset of predictors the model needs, but not
+when an effect is being estimated, since a predictor the prior drops has
+an effect of exactly zero in that draw. The <code>split_prior</code>
+argument can also be used instead of <code>sparsity</code> to manually
+decide which variables should be split on more often, though in general
+the Bayesian updates can discover this from the data anyway. See
+<code><a href="../reference/bartisan_control.html">?bartisan_control</a></code> for a full list.</p>
 </div>
 <div class="section level3">
 <h3 id="how-should-i-choose-how-many-chains-and-burn-in-and-posterior-draws">How should I choose how many chains and burn-in and posterior

@@ -198,24 +198,23 @@ diagnose(fit)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.090     1.062       18       89
-#>                           splits.eta 1.004     1.015      109      216
-#>  eta.eta (average over observations) 1.006     1.006      550      663
-#>   eta.eta (worst 5% of observations) 1.106     1.107       15      128
+#>                               loglik 1.039     1.049       94      187
+#>                           splits.eta 1.073     1.152       23      134
+#>  eta.eta (average over observations) 1.000     1.003      437      723
+#>   eta.eta (worst 5% of observations) 1.038     1.069       76      197
 #> 
 #> ✖ Only one chain, so R-hat can only compare it with itself; set `chains = 4`
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 18 effective draws, where a single chain averages
-#>   1.054 even when its two halves agree
+#> ✖ That R-hat rests on only 94 effective draws, where a single chain averages
+#>   1.011 even when its two halves agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
-#> ✔ The chains agree about the size of the forest
-#> ✖ Bulk ESS is 15 for eta.eta (worst 5% of observations), below 400
-#> ✖ Tail ESS is 89 for loglik, below 400
+#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
+#>   1.07)
+#> ✖ Bulk ESS is 76 for eta.eta (worst 5% of observations), below 400
+#> ✖ Tail ESS is 187 for loglik, below 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.01, 550 effective draws)
-#> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
-#>   carries 1.8 effective draws per hundred kept
+#>   average (R-hat 1.00, 437 effective draws)
 #> 
 #> What to do
 #> 
@@ -235,6 +234,15 @@ diagnose(fit)
 #> • Then check the family. A likelihood that fits the data badly can give a
 #>   posterior with no single place to be; `bayesplot::pp_check()` is the
 #>   diagnostic.
+#> • The forest's own size is a different kind of failure from the others and does
+#>   not take the same advice. A sum of trees represents one function through many
+#>   different partitions, so two chains can agree about every fitted value while
+#>   disagreeing about how many rules they used to get there, and the quantities a
+#>   fit reports are integrals over that structure. Raising `num_draws` moves this
+#>   row slowly and may not clear the threshold at any affordable length. Act on
+#>   it when split counts are themselves what gets reported --
+#>   `variable_importance()` and `vignette("importance")` -- and not when fitted
+#>   values, predictions or effects are.
 #> • Note that the chains disagree about the fitted values of individual
 #>   observations and not about their average, which is the usual shape of this in
 #>   a forest. What that means for an estimand cannot be read off this table
@@ -277,38 +285,42 @@ diagnose(estimate_effect(fit, treat = "rhc"))
 #> Convergence and mixing
 #> 
 #>     quantity  rhat rhat_late ess_bulk ess_tail
-#>  Y[1] - Y[0] 1.022     1.009      130      216
-#>         Y[0] 1.010     1.004      334      605
-#>         Y[1] 1.013     1.007      191      249
+#>  Y[1] - Y[0] 1.008     0.998      499      393
+#>         Y[0] 1.002     1.002      502      736
+#>         Y[1] 1.008     1.007      575      615
 #> 
 #> ✖ Only one chain, so R-hat can only compare it with itself; set `chains = 4`
-#> ✖ R-hat is above 1.01 for Y[1] - Y[0]
-#> ✖ Warmup was too short: R-hat is fine on the second half of the draws alone, as
-#>   it would be with more `num_burn`
-#> ✖ Bulk ESS is 130 for Y[1] - Y[0], below 400
-#> ✖ Tail ESS is 216 for Y[1] - Y[0], below 400
+#> ✔ R-hat is below 1.01 for every reported quantity
+#> ✔ Warmup was long enough, since R-hat is already fine
+#> ✔ Bulk ESS is at least 499 for every reported quantity, above 400
+#> ✖ Tail ESS is 393 for Y[1] - Y[0], below 400
 #> 
 #> What to do
 #> 
 #> • Refit with `chains = 4`. R-hat compares chains against each other, and one
 #>   chain can only be compared with itself, so nothing below is reliable until
 #>   there are several. With *future* installed the chains run in parallel.
-#> • Raise `num_burn`, which was `200`. R-hat is already acceptable on the second
-#>   half of the retained draws on their own, as it would be after a longer
-#>   warmup, so it is the early draws the chains disagree about.
+#> • Raise `num_draws`, which was `800`. The chains agree and are stationary, so
+#>   they simply have not run long enough. Do not reach for `num_thin`: thinning
+#>   discards draws already paid for and lowers the effective sample size per unit
+#>   of time.
+#> • The tail is the binding constraint, so a posterior mean is already fine and
+#>   an interval endpoint is not. Raise `num_draws`, which was `800` if intervals
+#>   are what gets reported.
 ```
 
-The contrast carries far fewer effective draws than the average fitted
-value in the table above, which the fit’s own table could not have
-shown, since the other predictors keep the fitted function moving even
-where the contrast mixes slowly. Under the default splitting prior there
-is a further way this can happen: `rhc` gets no rule in some draws,
-which puts the contrast at exactly zero and can hold it there for a long
-run.
+The contrast’s tail effective sample size falls short where the average
+fitted value’s in the table above did not, which the fit’s own table
+could not have shown, since the other predictors keep the fitted
+function moving even where the contrast mixes slowly. With the sparsity
+prior turned on (`sparsity = TRUE`), there is a further way this can
+happen: `rhc` gets no rule in some draws, which puts the contrast at
+exactly zero and can hold it there for a long run.
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-notes that atom when it finds one, and
-[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
-covers the settings that remove it when an effect is being reported.
+notes that atom when it finds one, and it is one reason the prior is off
+by default;
+[`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+covers when to turn it on.
 
 The table is in `diagnose(fit)$table` when the numbers are wanted rather
 than the report.
@@ -354,32 +366,39 @@ variable_importance(fit)
 #> Variable importance
 #> 
 #>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.211   15.6
-#>       age     1.000       0.182   13.6
-#>       rhc     0.995       0.098    7.3
-#>      pafi     0.995       0.080    6.0
-#>     paco2     0.991       0.105    7.9
-#>       aps     0.764       0.062    4.7
-#>       edu     0.684       0.053    4.0
-#>      resp     0.667       0.059    4.4
-#>      race     0.637       0.031    2.3
-#>      card     0.621       0.025    1.8
-#>      hema     0.574       0.033    2.5
-#>    meanbp     0.555       0.022    1.7
-#>      crea     0.514       0.018    1.4
-#>       sex     0.479       0.020    1.5
+#>    surv2m     1.000       0.116    8.5
+#>       age     1.000       0.089    6.5
+#>     paco2     1.000       0.073    5.4
+#>       rhc     1.000       0.070    5.1
+#>      pafi     1.000       0.069    5.1
+#>       aps     0.999       0.082    6.1
+#>       edu     0.998       0.062    4.6
+#>      hema     0.996       0.065    4.8
+#>      card     0.996       0.060    4.4
+#>      resp     0.990       0.064    4.7
+#>       sex     0.988       0.068    5.0
+#>    meanbp     0.988       0.063    4.7
+#>      race     0.986       0.059    4.4
+#>      crea     0.980       0.060    4.5
 #> 
+#> ℹ Fitted with `sparsity = FALSE` (the default), so every predictor keeps a
+#>   share of the rules and prop_used is near 1 throughout. Refit with `sparsity =
+#>   TRUE` to read it as a selection rule.
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 `splits` is the average number of splitting rules the forest spends on
-each predictor per draw, and `prop_used` is the proportion of draws in
-which the predictor received any rule at all.
+each predictor per draw, `prop_splits` is its share of all the rules,
+and `prop_used` is the proportion of draws in which the predictor
+received any rule at all. Under the default splitting prior every
+predictor keeps a share of the rules, so `prop_used` sits near 1 for all
+of them, as the note below the table says, and the ranking is in the
+other two columns.
 
 `surv2m` takes the most rules, which is unsurprising: it is a prognostic
-score built to predict survival. `age` follows. At the bottom, `sex`,
-`race` and several of the physiological measurements are used in only
-about half of the draws, which says the model can often do without them.
+score built to predict survival. `age` and `aps` follow. The rest sit
+close together, at four to five rules per draw, and this table alone
+cannot say whether that spread means anything.
 
 It’s important to remember that usage is not effect size: a predictor
 can be split on constantly and still move the prediction very little,
@@ -413,21 +432,21 @@ sample.
 marginaleffects::avg_comparisons(fit)
 #> 
 #>    Term      Contrast  Estimate     2.5 %    97.5 %
-#>  age    +1             0.003208  1.60e-03  0.004945
-#>  aps    +1             0.001103  0.00e+00  0.002956
-#>  card   yes - no       0.013003 -5.58e-03  0.081843
-#>  crea   +1             0.000000 -1.24e-02  0.028496
-#>  edu    +1            -0.002408 -1.82e-02  0.002613
-#>  hema   +1             0.000000 -3.53e-03  0.002072
-#>  meanbp +1             0.000000 -2.79e-04  0.001771
-#>  paco2  +1             0.003430  3.38e-04  0.006562
-#>  pafi   +1             0.000243  1.34e-05  0.000462
-#>  race   black - white  0.000000 -4.01e-02  0.054990
-#>  race   other - white  0.000000 -2.37e-02  0.097147
-#>  resp   +1             0.000146 -1.44e-03  0.002950
-#>  rhc    1 - 0          0.064924  1.01e-02  0.115394
-#>  sex    male - female  0.000000 -1.84e-02  0.052023
-#>  surv2m +1            -0.177240 -2.68e-01 -0.101514
+#>  age    +1             0.003094  1.53e-03  0.004670
+#>  aps    +1             0.001602  1.82e-04  0.003181
+#>  card   yes - no       0.041645 -8.68e-03  0.089733
+#>  crea   +1             0.005024 -1.80e-02  0.034841
+#>  edu    +1            -0.006093 -1.84e-02  0.002854
+#>  hema   +1            -0.000788 -3.99e-03  0.002115
+#>  meanbp +1             0.000620 -4.11e-04  0.001858
+#>  paco2  +1             0.003676  8.53e-04  0.006552
+#>  pafi   +1             0.000256  5.17e-05  0.000528
+#>  race   black - white  0.006047 -5.00e-02  0.059730
+#>  race   other - white  0.024162 -5.21e-02  0.105626
+#>  resp   +1             0.000480 -1.39e-03  0.002773
+#>  rhc    1 - 0          0.059675  1.18e-02  0.111183
+#>  sex    male - female  0.018854 -2.81e-02  0.059946
+#>  surv2m +1            -0.177557 -2.60e-01 -0.114545
 #> 
 #> Type: response
 ```
@@ -436,21 +455,11 @@ marginaleffects::avg_comparisons(fit)
 is a difference between two levels, and for a numeric one it is an
 increase of one unit, which is a default rather than anything the data
 suggested. The comparisons are on the probability scale, so `rhc` reads
-as an increase of about six and a half percentage points in the
-probability of death and `age` as three tenths of a point per year of
-age. A logistic regression would report each of these as one slope on
-the log-odds scale; these are averages over the sample of a quantity the
-model allows to differ from patient to patient.
-
-Several rows are exactly zero rather than merely small, which is worth
-knowing about. The default splitting prior can leave a predictor out of
-the forest altogether in a given draw, and in such a draw every
-comparison involving it is exactly zero, so the posterior has a point
-mass there. Where that mass covers the middle of the posterior the
-median falls inside it and the estimate prints as exactly zero, as it
-has for the predictors at the bottom of the importance table. The same
-mass is why the lower bound for `aps` is exactly zero rather than merely
-close to it.
+as an increase of about six percentage points in the probability of
+death and `age` as three tenths of a point per year of age. A logistic
+regression would report each of these as one slope on the log-odds
+scale; these are averages over the sample of a quantity the model allows
+to differ from patient to patient.
 
 The one-unit default deserves a second look whenever a predictor does
 not span a unit. `surv2m` is a probability, so an increase of one is
@@ -463,7 +472,7 @@ Asking instead for a change the data contains gives a larger answer:
 marginaleffects::avg_comparisons(fit, variables = list(surv2m = "iqr"))
 #> 
 #>  Estimate  2.5 % 97.5 %
-#>    -0.285 -0.362 -0.214
+#>    -0.282 -0.355 -0.207
 #> 
 #> Term: surv2m
 #> Type: response
@@ -471,7 +480,7 @@ marginaleffects::avg_comparisons(fit, variables = list(surv2m = "iqr"))
 ```
 
 Moving a patient from the first quartile of the prognostic score to the
-third lowers the predicted probability of death by about .29, against
+third lowers the predicted probability of death by about .28, against
 the .18 the one-unit contrast reported.
 
 ### The Shape of a Relationship
@@ -491,7 +500,7 @@ plot(fit, ~ surv2m) +
 
 ![](bartisan_files/figure-html/pdp-1.png)
 
-The fitted probability of death falls from close to .9 to about .5 as
+The fitted probability of death falls from about .85 to just under .5 as
 the prognostic score rises, and the fall is not a straight line, which
 is why the two contrasts above disagree about its size. A logistic
 regression reports one slope on the log-odds scale for the whole range.
@@ -530,13 +539,13 @@ eff
 #> Averaged over 1500 units
 #> 
 #>     contrast estimate  lower upper    n
-#>  Y[1] - Y[0]   0.0643 0.0101 0.115 1500
+#>  Y[1] - Y[0]   0.0608 0.0118 0.111 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.630 0.600 0.656
-#>      Y[1]    0.694 0.654 0.730
+#>      Y[0]    0.631 0.602 0.661
+#>      Y[1]    0.692 0.656 0.733
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -563,12 +572,10 @@ dose-response curve instead, and
 [`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
 says so and names the functions that produce one.
 
-The defaults are not necessarily the best settings for estimating a
-causal effect. A sparsity prior that can drop a predictor, which put
-several rows of the comparisons table at exactly zero, is reasonable for
-prediction and poor for a treatment whose effect is being reported. More
-specialized methods, such as Bayesian causal forests (BCF) and BART
-without a sparsity-inducing prior, are described in
+A single forest with the treatment among its predictors is not
+necessarily the best model for estimating a causal effect. Bayesian
+causal forests (BCF), which give the treatment effect a forest of its
+own, are described in
 [`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md),
 which also covers what has to be true of the data before any of this can
 be read as an effect of the procedure.
@@ -584,7 +591,7 @@ new_patient <- rhc[1, ]
 new_patient$rhc <- 1
 
 predict(fit, newdata = new_patient)
-#> [1] 0.8371
+#> [1] 0.8366
 ```
 
 For a prediction with an interval, use
@@ -597,7 +604,7 @@ which reports the posterior median rather than the mean
 marginaleffects::predictions(fit, newdata = new_patient)
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>     0.843 0.749  0.908
+#>     0.841 0.732  0.911
 #> 
 #> Type: response
 ```
@@ -621,12 +628,12 @@ loo(fit)
 #> Computed from 800 by 1500 log-likelihood matrix.
 #> 
 #>          Estimate   SE
-#> elpd_loo   -848.3 17.4
-#> p_loo        32.2  0.9
-#> looic      1696.7 34.7
+#> elpd_loo   -847.6 17.3
+#> p_loo        35.7  1.0
+#> looic      1695.2 34.6
 #> ------
-#> MCSE of elpd_loo is 0.9.
-#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.4]).
+#> MCSE of elpd_loo is 0.5.
+#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.5]).
 #> 
 #> All Pareto k estimates are good (k < 0.66).
 #> See help('pareto-k-diagnostic') for details.
@@ -653,7 +660,7 @@ loo_compare(list(full = loo(fit),
                  demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -68.1    11.1    1.00
+#>  demographics     -67.9    11.2    1.00
 ```
 
 The full model predicts better by around six times the standard error of

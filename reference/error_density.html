@@ -150,23 +150,28 @@ distribution; <code><a href="bartisan.html">bartisan()</a></code></p></div>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># How long a patient survived, among those who died, so that the outcome is</span></span></span>
-<span class="r-in"><span><span class="co"># a complete rather than a censored time</span></span></span>
+<span class="r-in"><span><span class="co"># How long a patient survived, among those who died, so</span></span></span>
+<span class="r-in"><span><span class="co"># that the outcome is a complete rather than a censored</span></span></span>
+<span class="r-in"><span><span class="co"># time</span></span></span>
 <span class="r-in"><span><span class="va">died</span> <span class="op">&lt;-</span> <span class="va">rhc</span><span class="op">[</span><span class="va">rhc</span><span class="op">$</span><span class="va">death</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">died</span><span class="op">$</span><span class="va">log_days</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">died</span><span class="op">$</span><span class="va">days</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">log_days</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">death</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">died</span>, family <span class="op">=</span> <span class="fu"><a href="bartisan-families.html">dpm</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">days</span><span class="op">)</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>                  <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>                  <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span> <span class="va">card</span>,</span></span>
+<span class="r-in"><span>                data <span class="op">=</span> <span class="va">died</span>, family <span class="op">=</span> <span class="fu"><a href="bartisan-families.html">dpm</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The shape of the errors, which a Gaussian fit would have assumed to be</span></span></span>
-<span class="r-in"><span><span class="co"># normal</span></span></span>
+<span class="r-in"><span><span class="co"># The shape of the errors, which a Gaussian fit would</span></span></span>
+<span class="r-in"><span><span class="co"># have assumed to be normal</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">error_density</span><span class="op">(</span><span class="va">fit</span>, at <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">2</span>, <span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   at      mean     lower     upper</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 -2 0.1149222 0.1129846 0.1167409</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2  0 0.2460588 0.2382741 0.2537277</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3  2 0.1149235 0.1130015 0.1167404</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 -2 0.1673471 0.1510216 0.1824858</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  0 0.1845297 0.1555829 0.2068041</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  2 0.1278928 0.1182302 0.1396826</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The same thing drawn, with the pointwise interval as a ribbon</span></span></span>
+<span class="r-in"><span><span class="co"># The same thing drawn, with the pointwise interval as a</span></span></span>
+<span class="r-in"><span><span class="co"># ribbon</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">error_density</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="error_density-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>

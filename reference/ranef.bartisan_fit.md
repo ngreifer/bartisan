@@ -77,31 +77,34 @@ for the prior on these
 
 ``` r
 set.seed(123)
-d <- data.frame(x = runif(200),
-                site = factor(sample(letters[1:5], 200, TRUE)))
+sites <- factor(sample(letters[1:5], 200, TRUE))
+d <- data.frame(x = runif(200), site = sites)
 d$y <- rnorm(200, d$x + as.numeric(d$site) / 3)
 
-fit <- bartisan(y ~ x + (1 | site), data = d, num_trees = 10,
-                num_burn = 50, num_draws = 50, verbose = FALSE)
+fit <- bartisan(y ~ x + (1 | site), data = d,
+                num_trees = 10, num_burn = 50,
+                num_draws = 50, verbose = FALSE)
 #> ℹ Using `family = dpm()`.
 #> ℹ Set `family` explicitly to silence this message.
 
-# One intercept per site, as posterior means. The generic is \pkg{nlme}'s,
-# which \pkg{lme4} re-exports, so either qualification reaches this.
+# One intercept per site, as posterior means. The
+# generic is \pkg{nlme}'s, which \pkg{lme4} re-exports,
+# so either qualification reaches this.
 nlme::ranef(fit)
 #> $site
-#>     (Intercept)
-#> a -0.7852989913
-#> b -0.4494857398
-#> c -0.0092514420
-#> d  0.0003933138
-#> e  0.7338711283
+#>   (Intercept)
+#> a -0.41478565
+#> b -0.10486625
+#> c  0.38239000
+#> d  0.08158241
+#> e  0.62043215
 #> 
 
 # With the draws, so the intercepts come with intervals
-apply(nlme::ranef(fit, draws = TRUE)$site[["(Intercept)"]], 2L, quantile,
+re <- nlme::ranef(fit, draws = TRUE)
+apply(re$site[["(Intercept)"]], 2L, quantile,
       c(.025, .975))
-#>                a           b          c          d         e
-#> 2.5%  -1.0886060 -0.87397240 -0.4809000 -0.4275375 0.3910354
-#> 97.5% -0.4415373 -0.05452073  0.5507739  0.4072018 1.1632560
+#>                 a          b            c          d         e
+#> 2.5%  -0.72736163 -0.4163580 -0.006805168 -0.3149343 0.2263356
+#> 97.5% -0.06789739  0.2126821  0.646165066  0.3988610 0.9472335
 ```

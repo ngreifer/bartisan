@@ -31,6 +31,12 @@ retained draws;
 covers how to set these fit controls and how to check that they were
 enough.
 
+The fits also set `sparsity = TRUE`, which turns on the
+variable-selection prior. It is off by default, because it is a poor
+choice when an effect is being estimated, but when the question is which
+predictors the model needs it is the setting to use, for the reason the
+next section gives.
+
 ``` r
 
 library(bartisan)
@@ -47,7 +53,7 @@ model <- death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
 
 set.seed(2026)
 
-fit <- bartisan(model, data = rhc, family = binomial())
+fit <- bartisan(model, data = rhc, family = binomial(), sparsity = TRUE)
 
 imp <- variable_importance(fit)
 
@@ -78,10 +84,10 @@ The output has six columns, of which
 read first answer different questions.
 
 `prop_used` is the proportion of draws in which the predictor received
-at least one rule, and it is the column to read first: under the default
-prior it behaves like a posterior probability that the predictor belongs
-in the model, which makes it the one to use when the question is which
-variables to keep.
+at least one rule, and it is the column to read first: with the sparsity
+prior on it behaves like a posterior probability that the predictor
+belongs in the model, which makes it the one to use when the question is
+which variables to keep.
 
 `prop_splits` is the predictor’s share of all the splitting rules in the
 forest. It is the column to use when two fits are being compared, for
@@ -94,18 +100,21 @@ data frame as `splits_lower` and `splits_upper`, and the
 [`print()`](https://rdrr.io/r/base/print.html) method leaves it out of
 the displayed table to keep the ranking readable.
 
-The reason it behaves that way is the prior. By default (i.e., with
-`sparsity = TRUE`) the variable a rule splits on is drawn from a
-Dirichlet-distributed set of probabilities ([Linero
-2018](#ref-linero2018sparse)), which lets the forest concentrate on a
-few predictors and drop the rest entirely. A predictor that contributes
-nothing can fall to `prop_used` near zero, which is not possible under
-classic BART, where every predictor keeps a fixed share of the splitting
-probability.
+The reason it behaves that way is the prior. With `sparsity = TRUE`, the
+variable a rule splits on is drawn from a Dirichlet-distributed set of
+probabilities ([Linero 2018](#ref-linero2018sparse)), which lets the
+forest concentrate on a few predictors and drop the rest entirely. A
+predictor that contributes nothing can fall to `prop_used` near zero,
+which is not possible under the default (`sparsity = FALSE`), where
+every predictor keeps a fixed share of the splitting probability, as in
+classic BART. In a forest of ordinary size every predictor is then used
+in nearly every draw, `prop_used` sits near 1 throughout, and the
+ranking is carried by the other two columns, which the
+[`print()`](https://rdrr.io/r/base/print.html) method notes.
 
-The prognostic score, age, and two of the illness measures sit at the
-top, as we would expect; at the other end, several predictors are used
-in only about half the draws.
+The prognostic score, age, the treatment, and two of the physiological
+measurements sit at the top, as we would expect; at the other end,
+several predictors are used in only about half the draws.
 
 For a ranking this long the picture is easier to read than the table,
 and [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws it:
@@ -153,7 +162,7 @@ for (j in 1:3) rhc_noise[[paste0("noise", j)]] <- rnorm(nrow(rhc_noise))
 
 set.seed(2026)
 fit_noise <- bartisan(update(model, . ~ . + noise1 + noise2 + noise3),
-                      data = rhc_noise, family = binomial())
+                      data = rhc_noise, family = binomial(), sparsity = TRUE)
 
 variable_importance(fit_noise)
 #> Variable importance
@@ -213,7 +222,8 @@ friedman <- function(n) {
 }
 
 set.seed(7)
-fit_fr <- bartisan(y ~ ., data = friedman(500), family = gaussian())
+fit_fr <- bartisan(y ~ ., data = friedman(500), family = gaussian(),
+                   sparsity = TRUE)
 
 variable_importance(fit_fr)
 #> Variable importance
@@ -233,12 +243,11 @@ variable_importance(fit_fr)
 #> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
-The five real predictors sit at 1.00 and four of the five noise
-predictors near zero. The fifth sits above the other noise variables and
-still well below the real ones, which is a useful reminder that even a
-clean separation has a straggler: a noise variable will occasionally be
-picked up, and a single moderate value is not evidence of anything. The
-gap that matters runs from the top of the noise to 1.00, and it is wide.
+The five real predictors sit at 1.00 and the five noise predictors below
+.06. None of them is exactly zero, which is a useful reminder that a
+noise variable is occasionally picked up for a draw or two, and a single
+moderate value is not evidence of anything. The gap that matters runs
+from the top of the noise to 1.00, and it is wide.
 
 There is no threshold that is correct in general, so we look for the
 gap, cut inside it, and check that the conclusion does not depend on
@@ -259,7 +268,7 @@ cd$x2 <- runif(n)
 cd$x3 <- runif(n)
 cd$y <- 3 * cd$x1 + rnorm(n, sd = 0.3)      # only x1 is in the truth
 
-fit_corr <- bartisan(y ~ ., data = cd, family = gaussian())
+fit_corr <- bartisan(y ~ ., data = cd, family = gaussian(), sparsity = TRUE)
 
 variable_importance(fit_corr)
 #> Variable importance
@@ -359,27 +368,28 @@ poorly with many trees because “the redundancy offered by so many trees
 tends to mix many irrelevant predictors in with the relevant ones”, and
 that predictors compete for splits when the forest is small.
 
-The advice is correct for classic BART and largely unnecessary here.
-Measured on the Friedman function at 500 observations over three
-replicates, the mean `prop_used` for the five noise predictors was:
+The advice is correct for classic BART, which is the default here, and
+largely unnecessary once the sparsity prior is on. Measured on the
+Friedman function at 500 observations over three replicates, the mean
+`prop_used` for the five noise predictors was:
 
-| Trees | sparsity = FALSE | sparsity = TRUE (default) |
-|------:|-----------------:|--------------------------:|
-|    10 |             0.28 |                      0.09 |
-|    20 |             0.50 |                      0.08 |
-|    50 |             0.95 |                      0.09 |
-|   100 |             1.00 |                      0.14 |
+| Trees | sparsity = FALSE (default) | sparsity = TRUE |
+|------:|---------------------------:|----------------:|
+|    10 |                       0.28 |            0.09 |
+|    20 |                       0.50 |            0.08 |
+|    50 |                       0.95 |            0.09 |
+|   100 |                       1.00 |            0.14 |
 
-Without the sparsity prior the advice is essential: at 50 trees the
-noise predictors are used in 95% of draws and cannot be told apart from
-the real ones. With the prior, which is on by default
-(`sparsity = TRUE`), they stay near zero at every tree count. The
-recommendation addresses the same problem the prior addresses, and there
-is little left for it to do; a smaller forest also mixes worse, so it is
-not free.
+Under the default the advice is essential if the table is to be read for
+selection: at 50 trees the noise predictors are used in 95% of draws and
+cannot be told apart from the real ones. With the prior on, they stay
+near zero at every tree count. The recommendation addresses the same
+problem the prior addresses, and there is little left for it to do; a
+smaller forest also mixes worse, so it is not free.
 
-To check on a given dataset, we can fit at the default and again at 20
-trees and see whether the conclusion changes. It usually will not.
+To check on a given dataset, we can fit at the default forest size and
+again at 20 trees and see whether the conclusion changes. It usually
+will not.
 
 `prop_splits` is the column to compare when we do, because `splits`
 cannot be: it counts rules, so a forest of 50 trees reports several

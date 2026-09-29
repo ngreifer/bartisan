@@ -185,8 +185,8 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.416     1.2
-#> 2       hard     1.079     0.4
+#> 1 smoothstep     0.401     1.2
+#> 2       hard     1.169     0.4
 ```
 
 The true function has a standard deviation of about 4.9, so both are
@@ -272,19 +272,17 @@ goes back and the sweep costs \\O(n + m)\\.
 
 ### Sparsity (`sparsity`)
 
-By default, the variable a rule splits on is drawn from a categorical
-distribution whose probabilities have a Dirichlet prior ([Linero
+By default (`sparsity = FALSE`), every predictor has the same
+probability of being the variable a rule splits on, which is classic
+BART. Setting `sparsity = TRUE` draws that variable from a categorical
+distribution whose probabilities have a Dirichlet prior instead ([Linero
 2018](#ref-linero2018sparse)):
 
 \\s \sim \mathrm{Dirichlet}(\alpha/p, \dots, \alpha/p),\\
 
 with \\\alpha\\ itself drawn. Small \\\alpha\\ concentrates the
 probability on a few predictors, so the forest can stop splitting on the
-rest entirely. This is DART, and setting `sparsity = TRUE` requests it.
-It is the default.
-
-The alternative, `sparsity = FALSE`, gives every predictor the same
-splitting probability, which is classic BART.
+rest entirely. This is DART.
 
 The difference matters for variable selection. Chipman et al.
 ([2010](#ref-chipman2010)) note that counting splits works poorly when
@@ -307,18 +305,28 @@ posterior probability of being used, over three replicates at \\n =
 Mean prop_used for the five noise predictors. The five real predictors
 sit at 1.00 in every cell. {.table}
 
-Without the sparsity prior, the advice to use fewer trees is essential:
-at 50 trees the noise predictors are used in 95% of draws and are
-indistinguishable from the real ones. With it, the noise predictors stay
-near zero at every tree count, and reducing the trees buys little. The
-recommendation is a workaround for the absence of the prior rather than
-a property of variable selection in general. However, sparsity needs
-signal, so on a small sample with a weak fit, nothing separates, and the
-honest reading of a flat table is that the data cannot rule anything
-out; and it says nothing about effect size, since a predictor can be
-split on constantly and move the prediction very little.
+Under the default, the advice to use fewer trees is essential if the
+table is to be read for selection: at 50 trees the noise predictors are
+used in 95% of draws and are indistinguishable from the real ones. With
+the sparsity prior on, the noise predictors stay near zero at every tree
+count, and reducing the trees buys little. The recommendation is a
+workaround for the absence of the prior rather than a property of
+variable selection in general. However, sparsity needs signal, so on a
+small sample with a weak fit, nothing separates, and the honest reading
+of a flat table is that the data cannot rule anything out; and it says
+nothing about effect size, since a predictor can be split on constantly
+and move the prediction very little.
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md)
 covers both.
+
+The prior is off by default because it is a poor choice when an effect
+is the estimand: a predictor it drops from the forest has a contrast of
+exactly zero in that draw, so the posterior of the effect carries a
+point mass at zero and a weak effect is attenuated.
+[`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+explains the trade-off and
+[`vignette("effects")`](https://ngreifer.github.io/bartisan/articles/effects.md)
+covers what it does to an estimate.
 
 ## The Sampler
 
@@ -468,7 +476,7 @@ fit_miss <- bartisan(y ~ . - eta, data = d_miss, family = gaussian(),
                      control = ctrl)
 
 sqrt(mean((predict(fit_miss, newdata = test) - test$eta)^2))
-#> [1] 0.504
+#> [1] 0.61
 ```
 
 The fit uses the incomplete variable rather than discarding it. Note
@@ -496,14 +504,14 @@ fit_chains <- bartisan(y ~ . - eta, data = train, family = gaussian(),
 
 diagnose(fit_chains)$table
 #>                              quantity rhat rhat_late ess_bulk ess_tail ess_frac
-#> 1                              loglik 1.07     1.064    58.56    325.1  0.04880
-#> 2                           aux.sigma 1.01     1.018   408.53    496.5  0.34044
-#> 3                          splits.eta 1.27     1.346    12.56     18.7  0.01046
-#> 4 eta.eta (average over observations) 1.00     0.999  1060.22   1172.6  0.88352
-#> 5  eta.eta (worst 5% of observations) 1.44     1.607     7.98     27.4  0.00665
+#> 1                              loglik 1.71     1.965     6.46     19.3  0.00539
+#> 2                           aux.sigma 1.12     1.158    23.71    444.8  0.01976
+#> 3                          splits.eta 2.14     2.408     5.21     23.3  0.00434
+#> 4 eta.eta (average over observations) 1.00     0.997  1184.07   1121.3  0.98672
+#> 5  eta.eta (worst 5% of observations) 1.61     1.708     6.70     19.9  0.00558
 #>   rhat_bad late_bad
 #> 1        1        1
-#> 2        0        1
+#> 2        1        1
 #> 3        1        1
 #> 4        0        0
 #> 5        1        1
@@ -606,7 +614,7 @@ worth it:
 | `num_trees` | more for a complex function and a large sample; fewer to speed up |
 | `gate` | `"hard"` when the truth really is a step function, or for speed |
 | `x_transform` | `"range"` when a slope is the quantity being reported |
-| `sparsity` | `FALSE` to recover classic BART, which is rarely the goal |
+| `sparsity` | `TRUE` when there are many predictors, few are expected to matter, or the goal is to identify which predictors the model needs; not when an effect is being estimated |
 | `k` | to shrink harder toward the mean, in a very small sample |
 
 Everything else exists so that the checks in the test suite can be

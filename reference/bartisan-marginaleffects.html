@@ -301,16 +301,21 @@ computed on; <code><a href="bartisan_control.html">bartisan_control()</a></code>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Whether a patient died, with every other variable a candidate predictor.</span></span></span>
-<span class="r-in"><span><span class="co"># The sparsity prior is turned off because a contrast on one predictor is</span></span></span>
-<span class="r-in"><span><span class="co"># the estimand rather than variable selection</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, sparsity <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
-<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Whether a patient died, with the treatment and every</span></span></span>
+<span class="r-in"><span><span class="co"># covariate recorded on admission as candidate</span></span></span>
+<span class="r-in"><span><span class="co"># predictors</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">card</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The effect of catheterization on the probability of death, as an average</span></span></span>
-<span class="r-in"><span><span class="co"># contrast of counterfactual predictions</span></span></span>
+<span class="r-in"><span><span class="co"># The effect of catheterization on the probability of</span></span></span>
+<span class="r-in"><span><span class="co"># death, as an average contrast of counterfactual</span></span></span>
+<span class="r-in"><span><span class="co"># predictions</span></span></span>
 <span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Estimate 2.5 % 97.5 %</span>
@@ -321,8 +326,10 @@ computed on; <code><a href="bartisan_control.html">bartisan_control()</a></code>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Comparison: 1 - 0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The same contrast within each sex, and a test that the two are equal</span></span></span>
-<span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"sex"</span>,</span></span>
+<span class="r-in"><span><span class="co"># The same contrast within each sex, and a test that the</span></span></span>
+<span class="r-in"><span><span class="co"># two are equal</span></span></span>
+<span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>,</span></span>
+<span class="r-in"><span>                                 by <span class="op">=</span> <span class="st">"sex"</span>,</span></span>
 <span class="r-in"><span>                                 hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         Hypothesis Estimate   2.5 %  97.5 %</span>
@@ -331,8 +338,8 @@ computed on; <code><a href="bartisan_control.html">bartisan_control()</a></code>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Type: response</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Centering each posterior at its mean rather than its median, which is the</span></span></span>
-<span class="r-in"><span><span class="co"># summary `predict()` reports</span></span></span>
+<span class="r-in"><span><span class="co"># Centering each posterior at its mean rather than its</span></span></span>
+<span class="r-in"><span><span class="co"># median, which is the summary `predict()` reports</span></span></span>
 <span class="r-in"><span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>marginaleffects_posterior_center <span class="op">=</span> <span class="va">mean</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">marginaleffects</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

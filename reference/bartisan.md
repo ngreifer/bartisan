@@ -448,11 +448,15 @@ for reading effects off a fit
 data("rhc")
 set.seed(123)
 
-# Whether a patient died, with every other variable a candidate predictor
-# and the family read off the response. `days` is the timing of the same
-# event, so it is excluded rather than conditioned on
-fit <- bartisan(death ~ . - days, data = rhc,
-                num_trees = 10, num_burn = 50, num_draws = 50,
+# Whether a patient died, with the treatment and every
+# covariate recorded on admission as candidate
+# predictors, and the family read off the response
+model <- death ~ rhc + age + sex + race + edu + aps +
+  meanbp + resp + hema + pafi + paco2 + crea + surv2m +
+  card
+
+fit <- bartisan(model, data = rhc, num_trees = 10,
+                num_burn = 50, num_draws = 50,
                 verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
@@ -460,8 +464,8 @@ fit
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = death ~ . - days, data = rhc, num_trees = 10, 
-#>     num_burn = 50, num_draws = 50, verbose = FALSE)
+#> bartisan(formula = model, data = rhc, num_trees = 10, num_burn = 50, 
+#>     num_draws = 50, verbose = FALSE)
 #> 
 #> Family: "binomial" with the "logit" link
 #> Observations: 1500
@@ -470,16 +474,17 @@ fit
 
 # Fitted probabilities
 head(predict(fit, type = "response"))
-#> [1] 0.7685691 0.8202057 0.2465819 0.3451376 0.3927522 0.5274813
+#> [1] 0.7959859 0.7976197 0.2008229 0.5216073 0.4393714 0.5232934
 
-# The forest has no coefficients, so an effect is a contrast of
-# predictions, here of catheterization on the probability of death
+# The forest has no coefficients, so an effect is a
+# contrast of predictions, here of catheterization on
+# the probability of death
 if (rlang::is_installed("marginaleffects")) {
   marginaleffects::avg_comparisons(fit, variables = "rhc")
 }
 #> 
 #>  Estimate 2.5 % 97.5 %
-#>    0.0585     0  0.102
+#>    0.0453     0  0.101
 #> 
 #> Term: rhc
 #> Type: response

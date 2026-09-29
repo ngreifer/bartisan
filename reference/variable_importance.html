@@ -149,11 +149,13 @@ and returns a <span class="pkg">ggplot2</span> object. The result can be subset 
 <h3 id="reading-the-columns">Reading the Columns<a class="anchor" aria-label="anchor" href="#reading-the-columns"></a></h3>
 
 
-<p><code>prop_used</code> is the one to read first. It behaves like a posterior probability
-that the predictor belongs in the model, and it separates signal from noise
-sharply once <code>sparsity = TRUE</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>. With
-<code>sparsity = FALSE</code> every predictor keeps a share of the rules and <code>prop_used</code>
-sits near 1 throughout, which the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method notes.</p>
+<p>What <code>prop_used</code> means depends on the splitting prior. Under the default
+(<code>sparsity = FALSE</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>), every predictor keeps a share
+of the rules and <code>prop_used</code> sits near 1 throughout, which the <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>
+method notes; the ranking is then carried by the other two columns. With
+<code>sparsity = TRUE</code>, it behaves like a posterior probability that the predictor
+belongs in the model, separates signal from noise sharply, and is the column
+to read first.</p>
 <p><code>prop_splits</code> is the one to reach for when two fits are being compared. The
 share is computed within each draw before averaging, so the shares add to one
 whatever the forest size, where <code>splits</code> counts rules and so scales with
@@ -181,7 +183,8 @@ rather than what would happen if a predictor were changed.</p>
 <h3 id="reading-it-as-variable-selection">Reading It as Variable Selection<a class="anchor" aria-label="anchor" href="#reading-it-as-variable-selection"></a></h3>
 
 
-<p>With <code>sparsity = TRUE</code>, <code>prop_used</code> is usable as a selection rule: the
+<p>When the question is which predictors the model needs, the fit should be made
+with <code>sparsity = TRUE</code>. <code>prop_used</code> is then usable as a selection rule: the
 predictors the forest genuinely needs sit near 1 and the rest fall near 0,
 usually with a wide gap rather than a continuum, and cutting that gap at .5
 gives the median probability model. No threshold is correct in general, so the
@@ -205,11 +208,16 @@ rather than usage</p></div>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The sparsity prior concentrates the splitting rules on the predictors that</span></span></span>
-<span class="r-in"><span><span class="co"># earn them, which makes `prop_used` readable as a selection rule</span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
-<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>, sparsity <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
-<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span> <span class="op">+</span> <span class="va">aps</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">meanbp</span> <span class="op">+</span> <span class="va">resp</span> <span class="op">+</span> <span class="va">hema</span> <span class="op">+</span> <span class="va">pafi</span> <span class="op">+</span> <span class="va">paco2</span> <span class="op">+</span> <span class="va">crea</span> <span class="op">+</span> <span class="va">surv2m</span> <span class="op">+</span></span></span>
+<span class="r-in"><span>  <span class="va">card</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The sparsity prior concentrates the splitting rules on</span></span></span>
+<span class="r-in"><span><span class="co"># the predictors that earn them, which makes `prop_used`</span></span></span>
+<span class="r-in"><span><span class="co"># readable as a selection rule</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                sparsity <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
@@ -235,7 +243,8 @@ rather than usage</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The predictors the forest reaches for in nearly every draw</span></span></span>
+<span class="r-in"><span><span class="co"># The predictors the forest reaches for in nearly every</span></span></span>
+<span class="r-in"><span><span class="co"># draw</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">imp</span>, <span class="va">prop_used</span> <span class="op">&gt;</span> <span class="fl">.9</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Variable importance</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -247,16 +256,18 @@ rather than usage</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     paco2         1       0.090    1.5</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># `prop_splits` is the column that survives a change of forest size, since</span></span></span>
-<span class="r-in"><span><span class="co"># the shares add to one however many rules there are to share</span></span></span>
-<span class="r-in"><span><span class="va">big</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">days</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">40</span>,</span></span>
-<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>, sparsity <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
-<span class="r-in"><span>                verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># `prop_splits` is the column that survives a change of</span></span></span>
+<span class="r-in"><span><span class="co"># forest size, since the shares add to one however many</span></span></span>
+<span class="r-in"><span><span class="co"># rules there are to share</span></span></span>
+<span class="r-in"><span><span class="va">big</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">40</span>,</span></span>
+<span class="r-in"><span>                num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                sparsity <span class="op">=</span> <span class="cn">TRUE</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"variable"</span>, <span class="st">"prop_splits"</span><span class="op">)</span><span class="op">]</span>,</span></span>
-<span class="r-in"><span>      <span class="fu">variable_importance</span><span class="op">(</span><span class="va">big</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"variable"</span>, <span class="st">"prop_splits"</span><span class="op">)</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span><span class="va">shares</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"variable"</span>, <span class="st">"prop_splits"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="fu">variable_importance</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">[</span><span class="va">shares</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span>      <span class="fu">variable_importance</span><span class="op">(</span><span class="va">big</span><span class="op">)</span><span class="op">[</span><span class="va">shares</span><span class="op">]</span>,</span></span>
 <span class="r-in"><span>      by <span class="op">=</span> <span class="st">"variable"</span>, suffixes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"_10"</span>, <span class="st">"_40"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    variable prop_splits_10 prop_splits_40</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1       age     0.09145554    0.081909718</span>
@@ -274,12 +285,14 @@ rather than usage</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 13      sex     0.01862418    0.048068330</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 14   surv2m     0.11156079    0.245226062</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The counts themselves, for a comparison the summary does not make</span></span></span>
+<span class="r-in"><span><span class="co"># The counts themselves, for a comparison the summary</span></span></span>
+<span class="r-in"><span><span class="co"># does not make</span></span></span>
 <span class="r-in"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu">variable_importance</span><span class="op">(</span><span class="va">fit</span>, draws <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">counts</span><span class="op">[</span>, <span class="st">"aps"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="va">counts</span><span class="op">[</span>, <span class="st">"meanbp"</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.56</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The ranking, drawn. Subsetting first keeps a wide model readable.</span></span></span>
+<span class="r-in"><span><span class="co"># The ranking, drawn. Subsetting first keeps a wide</span></span></span>
+<span class="r-in"><span><span class="co"># model readable.</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">imp</span>, <span class="fl">8</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="variable_importance-1.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>

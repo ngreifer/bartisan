@@ -87,23 +87,28 @@ for the families with an estimated error distribution;
 data("rhc")
 set.seed(123)
 
-# How long a patient survived, among those who died, so that the outcome is
-# a complete rather than a censored time
+# How long a patient survived, among those who died, so
+# that the outcome is a complete rather than a censored
+# time
 died <- rhc[rhc$death == 1, ]
-died$log_days <- log(died$days)
 
-fit <- bartisan(log_days ~ . - death - days, data = died, family = dpm(),
-                num_trees = 10, num_burn = 50, num_draws = 50)
+fit <- bartisan(log(days) ~ rhc + age + sex + race +
+                  edu + aps + meanbp + resp + hema +
+                  pafi + paco2 + crea + surv2m + card,
+                data = died, family = dpm(),
+                num_trees = 10, num_burn = 50,
+                num_draws = 50)
 
-# The shape of the errors, which a Gaussian fit would have assumed to be
-# normal
+# The shape of the errors, which a Gaussian fit would
+# have assumed to be normal
 head(error_density(fit, at = c(-2, 0, 2)))
 #>   at      mean     lower     upper
-#> 1 -2 0.1149222 0.1129846 0.1167409
-#> 2  0 0.2460588 0.2382741 0.2537277
-#> 3  2 0.1149235 0.1130015 0.1167404
+#> 1 -2 0.1673471 0.1510216 0.1824858
+#> 2  0 0.1845297 0.1555829 0.2068041
+#> 3  2 0.1278928 0.1182302 0.1396826
 
-# The same thing drawn, with the pointwise interval as a ribbon
+# The same thing drawn, with the pointwise interval as a
+# ribbon
 plot(error_density(fit))
 
 ```

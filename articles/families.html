@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-28</h4>
+            <h4 data-toc-skip class="date">2026-09-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/families.Rmd" class="external-link"><code>vignettes/families.Rmd</code></a></small>
       <div class="d-none name"><code>families.Rmd</code></div>
@@ -402,8 +402,8 @@ empirically rather than reason about them; <code><a href="https://mc-stan.org/lo
 <span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
 <span><span class="co">#&gt; Warning: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.</span></span>
 <span><span class="co">#&gt;   model elpd_diff se_diff p_worse       diag_diff       diag_elpd</span></span>
-<span><span class="co">#&gt;  model2       0.0     0.0      NA                 1 k_psis &gt; 0.54</span></span>
-<span><span class="co">#&gt;  model1      -0.4     1.4    0.61 |elpd_diff| &lt; 4 6 k_psis &gt; 0.54</span></span>
+<span><span class="co">#&gt;  model1       0.0     0.0      NA                 8 k_psis &gt; 0.54</span></span>
+<span><span class="co">#&gt;  model2      -1.0     1.6    0.73 |elpd_diff| &lt; 4 1 k_psis &gt; 0.54</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Diagnostic flags present.</span></span>
 <span><span class="co">#&gt; See ?`loo-glossary` (sections `diag_diff` and `diag_elpd`)</span></span>
@@ -662,33 +662,35 @@ or fewer:</p>
 <span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"mean"</span>:</span></span>
-<span><span class="co">#&gt;     mean   sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; x1 14.64 3.34     8  20.3     1.000</span></span>
-<span><span class="co">#&gt; x2  1.76 1.89     0   6.0     0.667</span></span>
+<span><span class="co">#&gt;      mean    sd lower upper prop_used</span></span>
+<span><span class="co">#&gt; x1 15.133 2.825    11  22.3     1.000</span></span>
+<span><span class="co">#&gt; x2  0.053 0.225     0   1.0     0.053</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"log_sd"</span>:</span></span>
 <span><span class="co">#&gt;    mean   sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; x2 6.39 1.52     4    11         1</span></span>
+<span><span class="co">#&gt; x2 7.15 1.96     4    11         1</span></span>
 <span><span class="co">#&gt; x1 0.00 0.00     0     0         0</span></span></code></pre></div>
-<p>Separate proportions are not always desirable. Each forest draws its
-own splitting proportions by default, so each has to work out on its own
-which predictors matter, and one component is often far better placed to
-answer that than the other: the mean of a location-scale model usually
-carries much more signal about the relevant predictors than the spread
-does. Setting <code>share_sparsity = TRUE</code> pools the splitting
-counts of the forests behind one Dirichlet draw, so a predictor that
-earns its rules in one forest keeps its weight in the others. The
-forests stay separate in every other respect, with their own trees, cut
-points and leaf scales.</p>
+<p>Separate proportions are not always desirable. With
+<code>sparsity = TRUE</code>, each forest draws its own splitting
+proportions, so each has to work out on its own which predictors matter,
+and one component is often far better placed to answer that than the
+other: the mean of a location-scale model usually carries much more
+signal about the relevant predictors than the spread does. Setting
+<code>share_sparsity = TRUE</code> pools the splitting counts of the
+forests behind one Dirichlet draw, so a predictor that earns its rules
+in one forest keeps its weight in the others. The forests stay separate
+in every other respect, with their own trees, cut points and leaf
+scales.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">9</span><span class="op">)</span></span>
 <span><span class="va">dw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">400</span> <span class="op">*</span> <span class="fl">25</span><span class="op">)</span>, <span class="fl">400</span>, <span class="fl">25</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">dw</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"x"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">25</span><span class="op">)</span></span>
 <span><span class="va">dw</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">400</span>, <span class="fl">2</span> <span class="op">+</span> <span class="fl">1.4</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="va">pi</span> <span class="op">*</span> <span class="va">dw</span><span class="op">$</span><span class="va">x1</span> <span class="op">*</span> <span class="va">dw</span><span class="op">$</span><span class="va">x2</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0.9</span> <span class="op">*</span> <span class="va">dw</span><span class="op">$</span><span class="va">x4</span>, <span class="fl">0.5</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">apart</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, <span class="va">dw</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
+<span><span class="va">apart</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, <span class="va">dw</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span>,</span>
+<span>                  sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">shared</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">.</span>, <span class="va">dw</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span>,</span>
-<span>                   share_sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>                   sparsity <span class="op">=</span> <span class="cn">TRUE</span>, share_sparsity <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">top3</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fit</span>, <span class="va">forest</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">imp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
@@ -1181,7 +1183,7 @@ still reports on the outcome’s scale. See below for an example:</p>
 <span>                   family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">ordinal</a></span><span class="op">(</span><span class="st">"probit"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_oc</span>, type <span class="op">=</span> <span class="st">"mean"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 2.253 2.553 1.369 2.012 2.784 0.136</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 2.147 2.470 1.351 2.252 2.746 0.884</span></span></code></pre></div>
 <p>This approach has limits. The prediction from
 <code>type = "mean"</code> is a convex combination of observed outcome
 values, so it can never predict outside the range of the training
@@ -1255,7 +1257,7 @@ as <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">bin
 <span>                     family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">Beta</a></span><span class="op">(</span><span class="op">)</span>, control <span class="op">=</span> <span class="va">ctrl</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_beta</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"phi"</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 13</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 13.8</span></span></code></pre></div>
 <p>The <code><a href="../reference/bartisan-families.html">ordbeta()</a></code> family requests the ordered beta
 regression of <span class="citation">Kubinec (<a href="#ref-kubinec2023">2023</a>)</span>, for a response on the
 <em>closed</em> unit interval <span class="math inline">\([0,
@@ -1310,7 +1312,7 @@ alternative, and <code><a href="../reference/custom_family.html">custom_family()
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>zeros <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">spend</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span>, phi <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_tw</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"phi"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; zeros   phi </span></span>
-<span><span class="co">#&gt;  0.23  4.20</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.217 3.863</span></span></code></pre></div>
 <p>The <code>power</code> argument is fixed at 1.5 by default rather
 than drawn, which is the one place this family differs from the rest in
 how its nuisance parameters are treated. The power is weakly identified
@@ -1426,7 +1428,7 @@ reading.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">fit_aft</span><span class="op">$</span><span class="va">aux</span><span class="op">)</span></span>
 <span><span class="co">#&gt; sigma </span></span>
-<span><span class="co">#&gt; 0.995</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.979</span></span></code></pre></div>
 <p>The survival function comes from
 <code>predict(., type = "survival")</code>, which takes the times to
 report it at and works for every family in the table:</p>
@@ -1438,9 +1440,9 @@ report it at and works for every family in the table:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_ph</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          1     2     5</span></span>
-<span><span class="co">#&gt; [1,] 0.888 0.769 0.512</span></span>
-<span><span class="co">#&gt; [2,] 0.862 0.720 0.433</span></span>
-<span><span class="co">#&gt; [3,] 0.853 0.703 0.407</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,] 0.904 0.765 0.524</span></span>
+<span><span class="co">#&gt; [2,] 0.896 0.745 0.493</span></span>
+<span><span class="co">#&gt; [3,] 0.830 0.609 0.303</span></span></code></pre></div>
 <p>It is also the estimand we usually want. The question is rarely about
 the predictor but about survival at a horizon (e.g., the difference in
 one-year survival between two groups), and that is a contrast of
@@ -1507,7 +1509,7 @@ they cancel from every acceptance ratio. See below for an example of a
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_custom</span>, type <span class="op">=</span> <span class="st">"link"</span><span class="op">)</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_pois</span>, type <span class="op">=</span> <span class="st">"link"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.998</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.997</span></span></code></pre></div>
 <p>The function is called once per leaf per Fisher-scoring step with the
 observations reaching that leaf, so it must be vectorized over
 <code>y</code> and the rows of <code>eta</code> and must return exactly
@@ -1538,15 +1540,15 @@ under the names given, covered by <code><a href="https://rdrr.io/r/base/summary.
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_aux</span>, type <span class="op">=</span> <span class="st">"link"</span><span class="op">)</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_gauss</span>, type <span class="op">=</span> <span class="st">"link"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.999</span></span>
+<span><span class="co">#&gt; [1] 0.991</span></span>
 <span></span>
 <span><span class="co"># Estimate of the auxiliary parameter</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">fit_aux</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"log_sigma"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
-<span><span class="co">#&gt;    1.32    1.44    1.47    1.48    1.53    1.63</span></span>
+<span><span class="co">#&gt;    1.55    1.69    1.75    1.75    1.80    1.93</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_gauss</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"sigma"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
-<span><span class="co">#&gt;    1.34    1.44    1.47    1.48    1.51    1.63</span></span></code></pre></div>
+<span><span class="co">#&gt;    1.59    1.70    1.75    1.75    1.80    2.00</span></span></code></pre></div>
 <p>There is no prior argument and no bounds argument. A parameter with a
 restricted range is handled the way it would be for a real predictor, by
 writing the transform into <code>logdens</code>, as the

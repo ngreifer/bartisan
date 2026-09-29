@@ -128,8 +128,8 @@ binary treatment has its coding drawn rather than fixed, which is
 `center = "estimate"` in
 [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) and makes
 the answer the same whichever level was written as 1; a treatment with
-more levels keeps the symmetric per-level coding. And `sparsity` is left
-at its default, which is on.
+more levels keeps the symmetric per-level coding. The `sparsity`
+argument keeps its default of `FALSE` for both forests.
 
 The propensity score that enters the control function is the posterior
 mean of a separate model for the treatment, fit before the outcome model
@@ -144,19 +144,29 @@ concentrates near zero (Linero, 2024).
 
 ### Setting `sparsity`
 
-A variable-selection prior can drop a predictor from the forest entirely
-and put a point mass at exactly zero in the posterior of a contrast on
-it, which is why `sparsity = FALSE` is the setting to reach for when a
-treatment is one predictor among many in a single forest.
+The default splitting prior weights the predictors equally and cannot
+drop one. That is the right setting when a treatment is one predictor
+among many in a single forest, since a variable-selection prior can drop
+it from the forest entirely and put a point mass at exactly zero in the
+posterior of a contrast on it. Here the treatment is the coefficient
+rather than a predictor the forest splits on, so no splitting proportion
+can drop it, and the sparsity prior can be turned on without that risk.
+What it selects among on the effect forest is the moderators, and
+dropping all of them leaves an effect that does not vary rather than one
+that is zero, which is the shrinkage a heterogeneity model wants.
 
-Here the treatment is the coefficient rather than a predictor the forest
-splits on, so no splitting proportion can drop it and there is no mass
-to pile at zero. What the prior selects among on the effect forest is
-the moderators, and dropping all of them leaves an effect that does not
-vary rather than one that is zero, which is the shrinkage a
-heterogeneity model wants. Either forest can still be set on its own,
-`sparsity = c(FALSE, TRUE)` leaving the control function every predictor
-and asking only the effect forest to select.
+Setting `sparsity = c(FALSE, TRUE)` leaves every predictor in the
+control function and asks only the effect forest to select among them,
+which is worth considering when there are many candidate moderators and
+a few of them are expected to matter. It is not the default because it
+costs accuracy when the effect does not vary: with nothing real to
+select, the prior concentrates the effect forest's splits on one or two
+of the nuisance moderators and produces heterogeneity that is not there,
+where the uniform prior spreads them thinly and averages it away. In
+simulations with twenty candidate moderators, turning it on lowered the
+error of the conditional effect by about 14% when two moderators were
+real and raised it by about 18% when none was, and left the average
+effect unchanged either way.
 
 ### Setting `treat`
 
@@ -260,42 +270,47 @@ data("rhc")
 
 set.seed(123)
 
-# The effect of right heart catheterization on death, free to vary with
-# every covariate, with the propensity score entering the control function
-# alone
-fit <- bcf(death ~ . - days, treat = ~ rhc, data = rhc,
-           family = binomial(), num_trees = c(10, 5), num_burn = 50,
-           num_draws = 50,
-           propensity_args = list(num_trees = 10, num_burn = 50,
+# The effect of right heart catheterization on death,
+# free to vary with every covariate, with the propensity
+# score entering the control function alone
+model <- death ~ age + sex + race + edu + aps + meanbp +
+  resp + hema + pafi + paco2 + crea + surv2m + card
+
+fit <- bcf(model, treat = ~ rhc, data = rhc,
+           family = binomial(), num_trees = c(10, 5),
+           num_burn = 50, num_draws = 50,
+           propensity_args = list(num_trees = 10,
+                                  num_burn = 50,
                                   num_draws = 50))
 
-# One conditional effect per patient: the effect forest evaluated at each
-# observation
+# One conditional effect per patient: the effect forest
+# evaluated at each observation
 head(coef(fit))
-#>               rhc
-#> [1,]  0.276254026
-#> [2,]  0.220726838
-#> [3,] -0.057821159
-#> [4,]  0.025513898
-#> [5,] -0.005822382
-#> [6,]  0.071148221
+#>            rhc
+#> [1,] 0.4756940
+#> [2,] 0.3163041
+#> [3,] 0.4294872
+#> [4,] 0.4411156
+#> [5,] 0.4012815
+#> [6,] 0.4145970
 
-# The average effect over the sample, on the response scale, which for a
-# binomial fit makes it a risk difference rather than a log odds ratio
+# The average effect over the sample, on the response
+# scale, which for a binomial fit makes it a risk
+# difference rather than a log odds ratio
 estimate_effect(fit)
 #> Average treatment effect (difference)
 #> 
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate    lower  upper    n
-#>  Y[1] - Y[0]   0.0289 -0.00395 0.0687 1500
+#>     contrast estimate  lower upper    n
+#>  Y[1] - Y[0]   0.0673 0.0255 0.111 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.643 0.624 0.667
-#>      Y[1]    0.672 0.645 0.699
+#>      Y[0]    0.626 0.602 0.658
+#>      Y[1]    0.693 0.664 0.720
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -306,7 +321,7 @@ summary(fit)
 #> Generalized BART
 #> 
 #> Call:
-#> bcf(formula = death ~ . - days, treat = ~rhc, data = rhc, family = binomial(), 
+#> bcf(formula = model, treat = ~rhc, data = rhc, family = binomial(), 
 #>     propensity_args = list(num_trees = 10, num_burn = 50, num_draws = 50), 
 #>     num_trees = c(10, 5), num_burn = 50, num_draws = 50)
 #> 
@@ -316,46 +331,46 @@ summary(fit)
 #> Draws: 50
 #> 
 #> Nuisance parameters
-#>          mean    sd lower upper
-#> b.rhc.0 0.834 0.172 0.503 1.084
-#> b.rhc.1 1.165 0.288 0.745 1.610
+#>           mean    sd  lower  upper
+#> b.rhc.0 -0.649 0.183 -0.975 -0.391
+#> b.rhc.1 -0.362 0.137 -0.566 -0.140
 #> 
 #> Predictor usage
 #> Splitting rules per draw, and how often used at all.
 #> 
 #> Predictor "(Intercept)":
-#>             mean    sd lower  upper prop_used
-#> aps         2.02 1.672     1  6.000      1.00
-#> paco2       2.42 0.702     2  4.000      1.00
-#> surv2m      7.14 1.830     4 11.000      1.00
-#> pafi        1.34 0.823     0  2.775      0.82
-#> card        0.70 0.614     0  2.000      0.62
-#> crea        0.80 0.990     0  3.000      0.46
-#> meanbp      0.48 0.646     0  2.000      0.40
-#> hema        0.50 0.814     0  2.775      0.34
-#> age         0.34 0.519     0  1.000      0.32
-#> edu         0.10 0.303     0  1.000      0.10
-#> race        0.04 0.198     0  0.775      0.04
-#> resp        0.04 0.198     0  0.775      0.04
-#> sex         0.00 0.000     0  0.000      0.00
-#> .propensity 0.00 0.000     0  0.000      0.00
+#>             mean    sd lower upper prop_used
+#> age         1.42 0.538     1 2.000      1.00
+#> surv2m      2.82 0.850     2 4.000      1.00
+#> meanbp      1.46 0.762     0 3.000      0.94
+#> aps         1.46 0.862     0 3.000      0.88
+#> pafi        1.80 1.525     0 5.000      0.82
+#> resp        0.94 0.740     0 2.000      0.70
+#> card        1.02 0.869     0 2.000      0.70
+#> hema        0.78 0.708     0 2.000      0.62
+#> race        0.82 0.774     0 2.000      0.60
+#> edu         0.80 0.948     0 2.775      0.48
+#> sex         0.44 0.541     0 1.000      0.42
+#> .propensity 0.50 0.735     0 2.000      0.38
+#> crea        0.32 0.471     0 1.000      0.32
+#> paco2       0.44 0.861     0 2.775      0.24
 #> 
 #> Predictor "rhc":
 #>             mean    sd lower upper prop_used
-#> age         6.02 2.005 2.225 9.775      1.00
-#> surv2m      1.46 1.705 0.000 5.775      0.54
-#> resp        0.22 0.465 0.000 1.000      0.20
-#> crea        0.10 0.303 0.000 1.000      0.10
-#> sex         0.08 0.274 0.000 1.000      0.08
-#> hema        0.10 0.463 0.000 1.000      0.06
-#> edu         0.06 0.314 0.000 0.775      0.04
-#> aps         0.04 0.198 0.000 0.775      0.04
-#> pafi        0.04 0.198 0.000 0.775      0.04
-#> paco2       0.04 0.198 0.000 0.775      0.04
-#> race        0.02 0.141 0.000 0.000      0.02
-#> meanbp      0.02 0.141 0.000 0.000      0.02
-#> card        0.02 0.141 0.000 0.000      0.02
-#> .propensity 0.00 0.000 0.000 0.000      0.00
+#> paco2       1.74 0.828     1 3.775      0.98
+#> pafi        0.90 0.789     0 3.000      0.70
+#> hema        0.76 0.625     0 2.000      0.66
+#> edu         0.56 0.577     0 1.775      0.52
+#> meanbp      0.58 0.642     0 2.000      0.50
+#> sex         0.42 0.609     0 2.000      0.36
+#> aps         0.48 0.735     0 2.000      0.36
+#> surv2m      0.42 0.609     0 2.000      0.36
+#> crea        0.32 0.471     0 1.000      0.32
+#> age         0.30 0.463     0 1.000      0.30
+#> race        0.26 0.443     0 1.000      0.26
+#> resp        0.32 0.621     0 2.000      0.24
+#> card        0.16 0.422     0 1.000      0.14
+#> .propensity 0.00 0.000     0 0.000      0.00
 #> 
 #> ℹ This fit has a treatment, "rhc". `estimate_effect()` reports its effect, with
 #>   the average potential outcomes beside it.
