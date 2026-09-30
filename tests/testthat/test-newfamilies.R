@@ -110,10 +110,14 @@ test_that("zero-inflated recovery: both components are found", {
   expect_gt(stats::cor(link[, "count"], log_mu), 0.85)
   expect_gt(stats::cor(link[, "zero"], stats::qlogis(p_zero)), 0.7)
 
-  # Each component's forest should lean on its own predictor.
+  # Each component's forest should lean on its own predictor. Ranked by the mean
+  # number of splits rather than by the table's own order, which sorts by
+  # `prop_used`: under the default splitting prior every predictor is used in
+  # nearly every draw, so the first row of that table is a tie and says nothing.
   usage <- summary(fit)[["usage"]]
-  expect_identical(rownames(usage[["count"]])[1L], "x1")
-  expect_identical(rownames(usage[["zero"]])[1L], "x2")
+  top <- function(u) rownames(u)[which.max(u[, "mean"])]
+  expect_identical(top(usage[["count"]]), "x1")
+  expect_identical(top(usage[["zero"]]), "x2")
 })
 
 test_that("ordered beta recovery: cutpoints and precision are found", {

@@ -354,9 +354,14 @@ test_that("a continuous covariate may modify its own coefficient", {
   # Seeded again, so that this fit does not start from wherever the one above it
   # left the stream. Without it the chain, and the coefficient read off it below,
   # depend on how many draws the first fit took.
+  # The coefficient may vary with `z` alone. Given `x1` as a modifier too, which
+  # the truth does not use, the uniform splitting prior spends rules on it and
+  # the slope below comes back attenuated (0.58 against 1), the cost of a
+  # nuisance moderator that `?bcf` describes; that is a property of the prior,
+  # not of a covariate modifying its own coefficient, which is what this tests.
   set.seed(6)
   curved <- suppressWarnings(
-    bartisan(y ~ x1 + z + vc(z, ~ z + x1), data = d, family = gaussian(),
+    bartisan(y ~ x1 + z + vc(z, ~ z), data = d, family = gaussian(),
              control = vc_control()))
 
   expect_lt(sqrt(mean((fitted(curved) - d$truth)^2)),

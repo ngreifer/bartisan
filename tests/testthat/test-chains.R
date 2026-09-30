@@ -157,8 +157,12 @@ test_that("the diagnostics are reported as a table of the right shape", {
   one <- bartisan(y ~ ., data = d, control = quick_control())
   expect_null(one[["rhat"]])
 
+  # A warmup long enough for the chains to reach the target, so that the R-hat
+  # asserted below tests that they share one rather than that 200 iterations
+  # were enough: at 200 the log likelihood's R-hat was 1.36 under the default
+  # splitting prior and 1.02 at 500.
   fit <- bartisan(y ~ ., data = d, chains = 4,
-                  control = quick_control(num_burn = 200L, num_draws = 200L))
+                  control = quick_control(num_burn = 500L, num_draws = 200L))
 
   expect_null(fit[["rhat"]])
 

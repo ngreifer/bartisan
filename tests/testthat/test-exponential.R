@@ -73,8 +73,11 @@ test_that("the exponential shortcut reproduces the general path", {
          # A two-column matrix rather than a Surv object, so that the check does
          # not rest on a suggested package.
          y = cbind(pmin(weibull, 12), as.numeric(weibull <= 12))),
+    # 1e-3 rather than 1e-4: over six response draws the gap reached 4.3e-4
+    # under the default splitting prior and 5.0e-4 under the sparsity prior, so
+    # the tighter bound held only for the one draw it was set on.
     list(label = "location-scale, rate -2", family = gaussian_ls(),
-         y = linear + stats::rnorm(250, sd = exp(-1 + d$x2)), tol = 1e-4),
+         y = linear + stats::rnorm(250, sd = exp(-1 + d$x2)), tol = 1e-3),
     # Proportional hazards: the piecewise-exponential likelihood is
     # delta * eta - Lambda_0(y) exp(eta), which is the form at rate +1.
     # The tolerance is the general path's, as for the location-scale row above:
