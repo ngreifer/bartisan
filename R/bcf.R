@@ -202,6 +202,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
                 propensity = TRUE, propensity_args = list(), ...) {
 
   cl <- match.call()
+  values <- call_values(cl, environment())
 
   arg::arg_formula(formula, one_sided = FALSE)
   arg::arg_formula(treat, one_sided = TRUE)
@@ -388,6 +389,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   # anonymous function it was handed rather than anything a reader would
   # recognize. What `print()` should show is the call the caller made.
   out[["call"]] <- cl
+  out[["call_values"]] <- values
 
   # The propensity model is kept so that `predict()` on data the caller has can
   # rebuild the score. Without it the fit depends on a column the caller's data

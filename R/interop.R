@@ -1227,7 +1227,21 @@ kfold_data <- function(x) {
                i = "Refit with {.arg data} given as a data frame."))
   }
 
-  out <- eval(expr, environment(stats::formula(x)))
+  # The data is the one argument `call_values()` does not keep, since keeping it
+  # would store a second copy in every fit. So a fit made where the data was a
+  # local, as in `lapply(datasets, function(d) bartisan(model, data = d))` with
+  # `model` written outside, cannot be refit, and the message says how to make
+  # one that can.
+  out <- tryCatch(
+    eval(expr, environment(stats::formula(x))),
+    error = function(e) {
+      arg::err(c("The data this fit was made from, {.code {deparse1(expr)}},
+                  cannot be found from where its formula was written.",
+                 i = "K-fold refits from the original call, which finds the
+                      data through the formula's environment.",
+                 i = "Write the formula in the same place as the data, for
+                      example inside the function that fits the model."))
+    })
 
   if (!is.data.frame(out)) {
     out <- as.data.frame(out)
@@ -1284,11 +1298,18 @@ kfold_folds <- function(folds, K, n) {
 kfold_call <- function(x, data) {
   env <- environment(stats::formula(x))
   call <- x[["call"]]
+  values <- x[["call_values"]] %or% list()
 
   call[[1L]] <- eval(call[[1L]], env)
 
+  # The values recorded when the fit was made, where there are any; see
+  # `call_values()`. Assigned as one-element lists so that an argument given as
+  # NULL stays in the call rather than being dropped from it.
   for (nm in setdiff(names(call), c("", "data", "subset", "weights", "offset"))) {
-    call[[nm]] <- eval(call[[nm]], env)
+    call[nm] <- {
+      if (nm %in% names(values)) values[nm]
+      else list(eval(call[[nm]], env))
+    }
   }
 
   # The rows are chosen by name below, so a `subset` would choose them twice.
@@ -1303,6 +1324,36 @@ kfold_call <- function(x, data) {
   }
 
   call
+}
+
+# The values a call's arguments had when the call was made, recorded by
+# `bartisan()` and `bcf()` so that `kfold()` can make the call again. An argument
+# written as an expression means something only in the frame it was written in:
+# in `lapply(trees, function(n) bartisan(model, data = d, num_trees = n))`, `n`
+# lives in the anonymous function's frame, and evaluating it anywhere else fails
+# or, worse, finds some other `n` and refits a different model without saying
+# so. The values are kept rather than the frame, because a frame keeps everything
+# in it alive for as long as the fit exists, and the fit is sent to every worker
+# `kfold()` uses. The data and the three arguments evaluated inside it stay as
+# expressions, since a refit replaces the first and takes the others from the
+# model frame.
+#
+# `frame` is the caller's own frame, so its formals are bindings there and its
+# dots are reachable as `...`. Forcing them here only moves forward an evaluation
+# that happens anyway.
+call_values <- function(cl, frame) {
+  keep <- setdiff(names(cl), c("", "data", "subset", "weights", "offset"))
+  dots <- eval(quote(list(...)), frame)
+
+  out <- lapply(keep, function(nm) {
+    if (nm %in% names(dots)) {
+      return(dots[[nm]])
+    }
+
+    get(nm, envir = frame, inherits = FALSE)
+  })
+
+  setNames(out, keep)
 }
 
 # The three columns \pkg{loo} expects, and the shape its own

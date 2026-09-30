@@ -1471,11 +1471,26 @@ density_response_vector <- function(object, newdata) {
               {.val {absent}}")
   }
 
-  mf <- stats::model.frame(object[["terms"]], newdata,
+  mf <- stats::model.frame(object[["terms"]], with_bcf_score(object, newdata),
                            na.action = stats::na.pass,
                            xlev = object[["xlevels"]])
 
   stats::model.response(mf, "any")
+}
+
+# `newdata` with a `bcf()` fit's propensity score added when it lacks one, as
+# `predict_eta()` adds it. The response's model frame is built from the full
+# terms, which for such a fit include the score, so without this every density
+# on new data from one, and with it every `kfold()` on one, failed on a column
+# the caller never named.
+with_bcf_score <- function(object, newdata) {
+  score <- bcf_newdata_score(object, newdata)
+
+  if (is_null(score)) {
+    return(newdata)
+  }
+
+  cbind(newdata, score)
 }
 
 # Coerce the outcome in `newdata` the same way it was coerced at fitting time,
@@ -1496,7 +1511,7 @@ density_response <- function(object, newdata, weights) {
               {.val {absent}}")
   }
 
-  mf <- stats::model.frame(object[["terms"]], newdata,
+  mf <- stats::model.frame(object[["terms"]], with_bcf_score(object, newdata),
                            na.action = stats::na.pass,
                            xlev = object[["xlevels"]])
   y <- stats::model.response(mf, "any")

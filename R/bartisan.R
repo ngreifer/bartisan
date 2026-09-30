@@ -340,6 +340,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
                      control = bartisan_control(), prior_only = FALSE, ...) {
 
   cl <- match.call()
+  values <- call_values(cl, environment())
 
   arg::arg_flag(prior_only)
 
@@ -836,6 +837,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   control[["augment"]] <- isTRUE(draws[["augmented"]])
 
   out <- list(call = cl,
+              call_values = values,
               formula = formula,
               terms = mt,
               family = family,

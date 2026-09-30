@@ -835,6 +835,91 @@ test_that("kfold() returns what loo_compare() accepts", {
   expect_length(loo::kfold(fit, K = 2L, save_fits = TRUE)[["fits"]], 2L)
 })
 
+# `kfold()` refits from the recorded call, whose arguments were evaluated in the
+# formula's environment. A fit made inside `lapply(trees, function(n) ...)` has
+# `num_trees = n` in its call, and `n` lives only in the anonymous function's
+# frame: with no `n` elsewhere the refit failed, and with one it silently refit
+# a different model. `vignette("comparison")` hit the first; the second is the
+# worse of the two and is the one set up here, with an `n` beside the formula.
+test_that("kfold() refits a model made inside lapply() as it was made", {
+  skip_on_cran()
+  skip_if_not_installed("loo")
+
+  d <- sim_x(n = 120L, p = 2L, seed = 103L)
+  d$y <- stats::rnorm(nrow(d), sin(3 * d$x1))
+
+  model <- y ~ x1 + x2
+  n <- 3L
+  folds <- rep(1:2, length.out = nrow(d))
+
+  fit_one <- function(n) {
+    bartisan(model, data = d, family = stats::gaussian(), num_trees = n,
+             num_burn = 20L, num_draws = 20L, verbose = FALSE)
+  }
+
+  set.seed(1L)
+  inside <- lapply(c(6L, 9L), fit_one)
+
+  refits <- lapply(inside, loo::kfold, folds = folds, save_fits = TRUE)
+
+  expect_identical(vapply(refits, function(k) k[["fits"]][[1L]][["num_trees"]],
+                          integer(1L)),
+                   c(6L, 9L))
+
+  # And the same as the fit made outside a loop, draw for draw.
+  set.seed(1L)
+  outside <- bartisan(model, data = d, family = stats::gaussian(),
+                      num_trees = 6L, num_burn = 20L, num_draws = 20L,
+                      verbose = FALSE)
+  expect_identical(outside[["eta"]], inside[[1L]][["eta"]])
+
+  set.seed(2L)
+  a <- loo::kfold(outside, folds = folds)
+  set.seed(2L)
+  b <- loo::kfold(inside[[1L]], folds = folds)
+  expect_identical(a[["pointwise"]], b[["pointwise"]])
+
+  # The data is the one argument not kept, so data that lived only in the loop
+  # is an error saying how to make a fit that can be refit.
+  local_data <- lapply(list(d), function(dd) {
+    bartisan(model, data = dd, family = stats::gaussian(), num_trees = 5L,
+             num_burn = 10L, num_draws = 10L, verbose = FALSE)
+  })
+  expect_error(loo::kfold(local_data[[1L]], folds = folds),
+               "cannot be found from where its formula was written")
+})
+
+# A `bcf()` fit's forests split on a propensity score the caller never named, and
+# the held-out density rebuilt the response from the full terms without it, so
+# `predict(type = "density")` on new data, and `kfold()` with it, failed on
+# `.propensity` for every such fit.
+test_that("kfold() and held-out densities work on a bcf() fit", {
+  skip_on_cran()
+  skip_if_not_installed("loo")
+
+  d <- sim_x(n = 120L, p = 2L, seed = 104L)
+  d$z <- stats::rbinom(nrow(d), 1L, 0.5)
+  d$y <- stats::rnorm(nrow(d), sin(3 * d$x1) + d$z)
+
+  fit <- lapply(4L, function(m) {
+    bcf(y ~ x1 + x2, treat = ~ z, data = d, family = stats::gaussian(),
+        num_trees = c(m, 3L), num_burn = 20L, num_draws = 20L,
+        verbose = FALSE,
+        propensity_args = list(num_trees = 5L, num_burn = 10L,
+                               num_draws = 10L))
+  })[[1L]]
+
+  dens <- stats::predict(fit, newdata = d[1:5, c("y", "x1", "x2", "z")],
+                         type = "density", log = TRUE)
+  expect_length(dens, 5L)
+  expect_true(all(is.finite(dens)))
+
+  kf <- loo::kfold(fit, folds = rep(1:2, length.out = nrow(d)),
+                   save_fits = TRUE)
+  expect_false(anyNA(kf[["pointwise"]]))
+  expect_identical(kf[["fits"]][[1L]][["num_trees"]], c(4L, 3L))
+})
+
 # `predict(type = "density")` falls back to the fit's own prior weights when it
 # is given none, so a weighted fit scored on held-out rows without them came
 # back wrong rather than erroring. The refits and the scores both have to carry
