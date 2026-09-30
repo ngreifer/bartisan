@@ -95,9 +95,12 @@ rather than by inspection.
 ## Package specifics
 
 - `_dev/` is development scratch and is gitignored apart from an allowlist in
-  `.gitignore`: `TASKS.md`, `SHIP.md`, `benchmark.Rmd`, `check.sh` and the
-  `survival-*.R` scripts. `TASKS.md` is the running record of what was tried,
-  measured and rejected; `SHIP.md` is the release assessment.
+  `.gitignore`, whose comment gives the rule: the records, the tools, every
+  script behind a number the package ships or its code cites, and parked work.
+  A new script that a shipped number comes to rest on joins the allowlist; one
+  whose question is settled and recorded in `TASKS.md` does not need to stay.
+  `TASKS.md` is the running record of what was tried, measured and rejected;
+  `SHIP.md` is the release assessment.
 - `src/Makevars` sets `CXX_STD = CXX17`. The code needs it, and without it a
   `-O0` build fails to link where `-O2` silently succeeds.
 - The simulations behind `vignette("survival")` are reproducible from

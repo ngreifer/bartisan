@@ -19,32 +19,46 @@ docs/
 .claude/
 .positai/
 
-# Development scratch. `TASKS.md`, `SHIP.md`, `benchmark.Rmd`, `check.sh` and the
-# `survival-*.R` scripts are maintained, so they are kept; the rest is not part
-# of the package. In particular `_dev/Reproduce/` is Linero's JASA replication
-# package -- seven third-party GPL-2 packages -- which is here as a reference and
-# is not ours to redistribute, and `benchmark.html` is regenerable output.
+# Side effect of rendering README.Rmd to github_document.
+README.html
+docs
+
+# Live-progress run records: rebuildable churn, served over loopback.
+.progress-runs/
+
+# Figures from knitting a vignette outside the package build. `fig.path` is
+# relative to the working directory, so knitting from the package root rather
+# than from `vignettes/` puts them one level up.
+vignettes/figure/
+figure/
+
+# Development scratch, which is not part of the package. What is kept, as of
+# the 2026-09-30 cleanup, is what something still rests on:
 #
-# The `survival-*.R` scripts are the provenance of every number in
-# `vignette("survival")`, which names them, so they are kept while their `.rds`
-# outputs are not: `vignettes/survival-results.rds` is the one that ships. The
-# same rule keeps the varying-coefficient measurements, which `?vc`, the README
-# and `varying-coefficients.md` all cite by filename.
+# - the records (`TASKS.md`, `SHIP.md`, and the notes package code or the tests
+#   cite by filename);
+# - the tools (`check.sh`, `benchmark.Rmd`, the timing and bit-exactness
+#   benches, `justfile`);
+# - every script behind a number the package ships or its code cites, and the
+#   ones `CLAUDE.md` names as the pattern for a simulation script;
+# - parked work, which is `_dev/did/` and the Gibbs-prior patch.
+#
+# Results (`.rds`) are not tracked. The one exception that matters,
+# `vignettes/survival-results.rds`, lives outside `_dev/` and ships; the
+# survival outputs it is built from stay on disk. Scripts removed in the cleanup
+# are in the history before it. `_dev/Reproduce/` is Linero's JASA replication
+# package -- seven third-party GPL-2 packages -- kept as a reference and not
+# ours to redistribute, so it is never tracked.
 #
 # `_dev/did/` is the parked difference-in-differences work: three designs that
 # were built, measured and not shipped, kept because the measurements are worth
-# more than the code and will be wanted if the field settles. Nothing in the
-# package references it. Note the ordering below: `_dev/*` excludes the
-# directory itself, so `!_dev/did/` has to re-include it before any file inside
-# can be un-ignored, and `_dev/did/*` then drops the `.rds` outputs the way the
-# `survival-*` rule does.
+# more than the code and will be wanted if the field settles. Note the ordering:
+# `_dev/*` excludes the directory itself, so `!_dev/did/` has to re-include it
+# before any file inside can be un-ignored, and `_dev/did/*` then drops the
+# `.rds` outputs.
 _dev/*
 !_dev/did/
 _dev/did/*
-!_dev/TASKS.md
-!_dev/SHIP.md
-!_dev/REVIEW.md
-!_dev/review-bench.R
 !_dev/did/PLAN-categories-B-and-D.md
 !_dev/did/DID.md
 !_dev/did/did-bcf-dgp.R
@@ -65,91 +79,68 @@ _dev/did/*
 !_dev/did/catB-persist.R
 !_dev/did/catB-mpdta.R
 !_dev/did/catB-extract.R
-!_dev/vc-bench.R
-!_dev/benchmark.Rmd
+
+# Records
+!_dev/TASKS.md
+!_dev/SHIP.md
+!_dev/REVIEW.md
+!_dev/AUDITING.md
+!_dev/SIMULATION.md
+!_dev/MIXING.md
+!_dev/XBART.md
+!_dev/varying-coefficients.md
+
+# Tools
 !_dev/check.sh
+!_dev/justfile
+!_dev/benchmark.Rmd
+!_dev/review-bench.R
+!_dev/vc-bench.R
+!_dev/vignette-timing.R
+!_dev/vignette-chunk-timing.R
+!_dev/vignette-chunk-times.md
+
+# Behind shipped numbers, cited by code, or named in CLAUDE.md
 !_dev/survival-sim.R
 !_dev/survival-bins.R
 !_dev/survival-timing.R
 !_dev/survival-results.R
 !_dev/xtransform-sim.R
-!_dev/xtransform-results.R
 !_dev/xtransform-candidates.R
-!_dev/xtransform-candidates-results.R
 !_dev/xtransform-kernel.R
-!_dev/bcf-interfaces.md
-!_dev/bcf-proof.R
-!_dev/bcf-mixing.R
-!_dev/sigma-mu-mixing.R
-!_dev/sigma-mu-cause.R
-!_dev/sigma-mu-others.R
-!_dev/ate-atom.R
-!_dev/sparsity-default.R
-!_dev/sparsity-effect-size.R
-!_dev/categorical-priors.R
-!_dev/categorical-check.R
-!_dev/categorical-benchmark.R
-!_dev/factor-random-vs-fixed.R
-!_dev/bookkeeping-cost.R
-!_dev/varying-coefficients.md
-!_dev/coding-comparison.R
-!_dev/vcbart-benchmark.R
-!_dev/sparsity-null.R
-!_dev/parity-benchmark.R
+!_dev/augment-benchmark.R
+!_dev/relative-cost.R
+!_dev/coverage-calibration.R
+!_dev/error-shapes-sim.R
 !_dev/positive-sim.R
-!_dev/diagnose-timing.R
-!_dev/transient-scaling.R
-!_dev/transient-trace.R
-!_dev/chains-vs-length.R
-!_dev/chains-convergence.R
-!_dev/mixing-against-n.R
-!_dev/ordinal-cut-chart.R
-!_dev/ordinal-cut-chart-results.R
-!_dev/ordinal-cut-chart-table.R
-!_dev/ordinal-cut-reversed.R
-!_dev/ordinal-cut-reaches.R
-
-# Side effect of rendering README.Rmd to github_document.
-README.html
-docs
-!_dev/SIMULATION.md
-!_dev/propensity-settings.R
-!_dev/acic2016.R
-!_dev/AUDITING.md
-!_dev/sbc.R
-!_dev/MIXING.md
+!_dev/categorical-benchmark.R
+!_dev/coding-comparison.R
+!_dev/bcf-proof.R
+!_dev/factor-random-vs-fixed.R
+!_dev/bandwidth-confirm.R
+!_dev/sparsity-effect-size.R
+!_dev/sigma-mu-others.R
 !_dev/ess-rhat-calibration.R
 !_dev/chains-vs-draws.R
-!_dev/where-mixing-lives.R
-!_dev/mixing-anatomy.R
-!_dev/lalonde-reproduce.R
-!_dev/tweedie-feasibility.R
-!_dev/zero-augmented-prototype.R
-!_dev/shared-forests-sim.R
+!_dev/chains-vs-length.R
+!_dev/transient-scaling.R
+!_dev/transient-trace.R
+!_dev/sbc.R
+!_dev/varsel-check.R
 !_dev/share-sparsity-sim.R
+!_dev/shared-forests-sim.R
 !_dev/shared-topology-sim.R
 !_dev/shared-topology-timing.R
 !_dev/shared-topology-results.R
 !_dev/shared-topology-mixing.R
-!_dev/bandwidth-every.R
-!_dev/hetero-dpm.R
-!_dev/bandwidth-confirm.R
-!_dev/relative-cost.R
-!_dev/augment-benchmark.R
-!_dev/ordinal-stall.R
-!_dev/coverage-calibration.R
-!_dev/justfile
-# Live-progress run records: rebuildable churn, served over loopback.
-.progress-runs/
-!_dev/varsel-check.R
-!_dev/plot-methods.md
+!_dev/propensity-settings.R
+!_dev/acic2016.R
+!_dev/propensity-family.R
+!_dev/overlap-uncertainty.R
+!_dev/bcf-effect-sparsity.R
+!_dev/bcf-effect-sparsity-results.R
 
-# Figures from knitting a vignette outside the package build. `fig.path` is
-# relative to the working directory, so knitting from the package root rather
-# than from `vignettes/` puts them one level up.
-vignettes/figure/
-figure/
-!_dev/XBART.md
+# Parked
 !_dev/gibbs-prior-smoke.R
 !_dev/gibbs-recall.R
 !_dev/gibbs-prior.patch
