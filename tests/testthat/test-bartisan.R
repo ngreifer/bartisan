@@ -150,6 +150,14 @@ test_that("weights, offsets and subsets are honored", {
   expect_error(predict(fit, newdata = d), "requires .*offset")
   expect_length(predict(fit, newdata = d, offset = log(d$logn)), n)
 
+  # Handed the training rows and their offset, the replay reproduces the fitted
+  # predictor. The stored intercept was once the first column of the combined
+  # offset, which is the intercept plus the first observation's offset, so
+  # every prediction on new data was shifted by that one value.
+  expect_equal(unname(predict(fit, newdata = d, type = "link",
+                              offset = log(d$logn))),
+               unname(predict(fit, type = "link")), tolerance = 1e-6)
+
   # Predictions on the fitting data still work, since the offset is already
   # baked into the stored predictor.
   expect_length(predict(fit), n)

@@ -680,6 +680,14 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   response <- expand_for_vc(response, vc, y, response[["intercept"]])
   response[["offset"]] <- build_offset(response[["intercept"]], model_offset,
                                        response[["n_forest"]], n)
+
+  # Kept apart from the offset, one value per forest, because `predict()` adds
+  # it to the replayed trees along with the caller's offset for the new rows.
+  # It was once read back as the first column of the combined offset, which
+  # with a user offset is the intercept plus that first observation's offset,
+  # so every prediction on new data from such a fit was shifted by that one
+  # value. The matrix test in `test-invariants.R` found it.
+  intercept <- rep(response[["intercept"]], length.out = response[["n_forest"]])
   response[["intercept"]] <- NULL
 
   # The enlarged set: one label per forest the engine builds, which is what every
@@ -878,7 +886,7 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
               # draw, because its component count changes from draw to draw.
               mixture_flat = draws[["mixture_flat"]],
               mixture_start = draws[["mixture_start"]],
-              intercept = response[["offset"]][, 1L],
+              intercept = intercept,
               has_offset = !is_null(model_offset),
               # Kept so that the conditional density of the training data can be
               # evaluated without asking the caller to hand the outcome back.

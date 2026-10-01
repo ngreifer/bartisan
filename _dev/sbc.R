@@ -39,12 +39,39 @@ source(path.expand("~/.claude/skills/live-progress/assets/progress.R"))
 
 library(bartisan)
 
-# `Rscript _dev/sbc.R <reps> <n> <gate>`. Naming an n and a gate runs that cell
-# and writes its own file, so the grid can go to the queue at once.
+# `Rscript _dev/sbc.R <reps> <n> <gate> <family>`. Naming an n and a gate runs
+# that cell and writes its own file, so the grid can go to the queue at once.
+#
+# The family (added 2026-10-01) is one of "logit", the original and the
+# default; "probit", which fits binomial("probit") with its augmentation on,
+# so that the latent-variable sampler rather than the Laplace one is what is
+# calibrated; and "poisson". Each has a likelihood with no parameter beyond the
+# predictor, so the prior is the tree prior alone and SBC is well posed; the
+# Gaussian's residual scale and the negative binomial's dispersion are
+# calibrated from the data and are not. The target stays the contrast between
+# the two extreme observations, for the reason above.
+#
+# What the two new arms test: that the probit augmentation and the Poisson
+# target draw from the posterior they define, which the identity and recovery
+# matrices cannot say, since an interval that is too narrow or too wide passes
+# both. Uniform ranks and 95% coverage near 0.95 say they do; a U-shaped
+# histogram says the posterior is too narrow, a hump too wide, a slope a bias.
 args <- commandArgs(trailingOnly = TRUE)
 reps <- if (length(args) > 0L) as.integer(args[1L]) else 200L
 N <- if (length(args) > 1L) as.integer(args[2L]) else 400L
 GATE <- if (length(args) > 2L) args[3L] else "hard"
+FAMILY <- if (length(args) > 3L) args[4L] else "logit"
+
+family <- switch(FAMILY,
+                 logit = stats::binomial(),
+                 probit = stats::binomial("probit"),
+                 poisson = stats::poisson(),
+                 stop("family must be logit, probit or poisson"))
+
+draw_response <- switch(FAMILY,
+                        logit = function(eta) stats::rbinom(N, 1L, stats::plogis(eta)),
+                        probit = function(eta) stats::rbinom(N, 1L, stats::pnorm(eta)),
+                        poisson = function(eta) stats::rpois(N, exp(eta)))
 
 P <- 2L
 TREES <- 20L
@@ -138,14 +165,19 @@ control <- bartisan_control(num_trees = TREES, num_burn = 400L,
                             num_draws = 1000L, chains = 1L, gate = GATE,
                             sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
                             sparsity = FALSE, x_transform = "range",
-                            bandwidth = BANDWIDTH, augment = FALSE)
+                            bandwidth = BANDWIDTH,
+                            augment = identical(FAMILY, "probit"))
 
 ranks <- integer(0)
 truths <- widths <- covered <- numeric(0)
 
-OUT <- sprintf("_dev/sbc-%s-%d.rds", GATE, N)
+OUT <- {
+  if (identical(FAMILY, "logit")) sprintf("_dev/sbc-%s-%d.rds", GATE, N)
+  else sprintf("_dev/sbc-%s-%s-%d.rds", FAMILY, GATE, N)
+}
 
-pr <- prog_init(total = reps, title = sprintf("SBC: %s rules, n = %d", GATE, N),
+pr <- prog_init(total = reps,
+                title = sprintf("SBC: %s, %s rules, n = %d", FAMILY, GATE, N),
                 unit = "replicate", kind = "simulation")
 on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
         add = TRUE)
@@ -168,7 +200,7 @@ for (r in seq_len(reps)) {
   truth <- eta[A] - eta[B]
 
   d <- d0
-  d$y <- stats::rbinom(N, 1L, stats::plogis(eta))
+  d$y <- draw_response(eta)
 
   # A response with no variation carries no likelihood and the fit refuses it.
   if (length(unique(d$y)) < 2L) {
@@ -177,7 +209,7 @@ for (r in seq_len(reps)) {
     next
   }
 
-  fit <- bartisan(y ~ ., data = d, family = stats::binomial(), control = control)
+  fit <- bartisan(y ~ ., data = d, family = family, control = control)
 
   e <- fit[["eta"]][[1L]]
   contrast <- e[, A] - e[, B]
@@ -209,8 +241,8 @@ counts <- table(cut(out$rank, breaks = seq(0, L + 1, length.out = bins + 1L),
 expected <- nrow(out) / bins
 chisq <- sum((as.numeric(counts) - expected)^2) / expected
 
-cat(sprintf("\nn = %d, %s rules: %d replicates, %d thinned draws each\n\n",
-            N, GATE, nrow(out), L))
+cat(sprintf("\n%s, n = %d, %s rules: %d replicates, %d thinned draws each\n\n",
+            FAMILY, N, GATE, nrow(out), L))
 cat("rank histogram, 10 bins (uniform is what a correct sampler gives):\n")
 cat(sprintf("  %s\n", paste(sprintf("%4d", as.numeric(counts)), collapse = "")))
 cat(sprintf("  expected %.1f per bin\n", expected))

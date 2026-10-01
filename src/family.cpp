@@ -2905,12 +2905,20 @@ struct BetaFamily final : Concrete<BetaFamily> {
 
   arma::vec aux_values() const override { return arma::vec{phi}; }
 
+  // The eta-free terms carry `lgamma(phi)`, so they move with the precision
+  // and have to be refreshed here as `update_aux()` refreshes them. Without
+  // this the density route priced every draw with the constructor's `phi`:
+  // `predict(type = "density")`, and `loo()` with it, were off by
+  // `lgamma(phi_d) - lgamma(phi_0)` per observation on every `Beta()` fit,
+  // while the sampler's own log likelihood was right. Found by the matrix
+  // test in `test-invariants.R`.
   void set_aux(const arma::vec& values) override {
     if (values.n_elem > 0) {
       phi = values(0);
       if (phi != tab_phi) {
         build_tables();
       }
+      refresh_eta_free();
     }
   }
 };
@@ -5299,7 +5307,7 @@ struct LinkedFamily : Family {
   }
 
   void update_aux(const arma::mat& eta) override {
-    inner->update_aux(inner_eta(eta));
+    inner->run_update_aux(inner_eta(eta));
     refresh_eta_free();
   }
 
@@ -5308,11 +5316,18 @@ struct LinkedFamily : Family {
   // matches on the native link names, so the wrapped family is never an
   // augmented one and never has an augmentation to refresh. They are here
   // because the same two hooks were missing from the varying-coefficient
-  // wrapper, where they were reachable and wrong for a year, and a decorator
+  // wrapper, where they were reachable and wrong for four days, and a decorator
   // that forwards some of a base class's hooks and not others is a bug waiting
   // for the composition that reaches it.
   void before_forest(int h, const arma::mat& eta) override {
-    inner->before_forest(h, inner_eta(eta));
+    inner->run_before_forest(h, inner_eta(eta));
+  }
+
+  // Both counts are read so that both reset; the wrapped family's is the one
+  // that matters.
+  bool sweep_delivered() override {
+    bool mine = Family::sweep_delivered();
+    return inner->sweep_delivered() && mine;
   }
 
   double reported_loglik(const arma::mat& eta) const override {
@@ -5899,7 +5914,7 @@ struct VaryingCoefficientFamily final : Concrete<VaryingCoefficientFamily> {
 
   void update_aux(const arma::mat& eta) override {
     draw_coding(eta);
-    inner->update_aux(inner_eta(eta));
+    inner->run_update_aux(inner_eta(eta));
     refresh_eta_free();
   }
 
@@ -5915,7 +5930,12 @@ struct VaryingCoefficientFamily final : Concrete<VaryingCoefficientFamily> {
   // pseudo-likelihood and shrinks the coefficient it is supposed to be
   // estimating by an order of magnitude.
   void before_forest(int h, const arma::mat& eta) override {
-    inner->before_forest(param(h), inner_eta(eta));
+    inner->run_before_forest(param(h), inner_eta(eta));
+  }
+
+  bool sweep_delivered() override {
+    bool mine = Family::sweep_delivered();
+    return inner->sweep_delivered() && mine;
   }
 
   // Likewise. Reporting is all this affects, but an augmented family's target is
@@ -6262,11 +6282,16 @@ Family* make_base_family(const std::string& name, const std::string& link,
                                   nb ? as<bool>(opts["update_theta"]) : false));
   }
 
+  // Only the logit link is compiled; `probit` and `cloglog` arrive composed
+  // from R like any uncompiled link, so this family takes `with_link()` as the
+  // others do. Without it the composition was dropped here: the sampler fit the
+  // logit model whatever link was named, and R then back-transformed the
+  // predictor through the named link as though it had been honored.
   if (name == "beta") {
-    return finish(new BetaFamily(y, w, as<double>(opts["phi"]),
-                          as<double>(opts["phi_prior_shape"]),
-                          as<double>(opts["phi_prior_rate"]),
-                          as<bool>(opts["update_phi"])));
+    return with_link(finish(new BetaFamily(y, w, as<double>(opts["phi"]),
+                                    as<double>(opts["phi_prior_shape"]),
+                                    as<double>(opts["phi_prior_rate"]),
+                                    as<bool>(opts["update_phi"]))), opts);
   }
 
   if (name == "tweedie") {

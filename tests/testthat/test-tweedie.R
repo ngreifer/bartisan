@@ -300,7 +300,7 @@ test_that("the family is reachable by name and drawn power moves", {
 })
 
 # The cell of the audit matrix that a new family most needs filled in. A `vc()`
-# model failed to refresh its inner family's augmentation for a year without
+# model failed to refresh its inner family's augmentation for four days without
 # anything looking wrong, and the tell was a *positive* log likelihood, so every
 # structure gets checked for one here.
 test_that("the family survives every structure that wraps a forest", {

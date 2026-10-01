@@ -4,7 +4,7 @@
 # itself, turned into assertions.
 #
 # The one that matters most is the augmentation agreement. `?bartisan_control`
-# says of `augment` that "the posterior is the same either way", and for a year
+# says of `augment` that "the posterior is the same either way", and for four days
 # it was not: a `vc()` model never forwarded `before_forest()` to the family it
 # wrapped, so an augmented family's augmentation was never refreshed and a logit
 # binomial recovered a sixth of the effect it was given. Nothing in the code
@@ -102,36 +102,82 @@ test_that("every hook a decorator inherits is one it means to inherit", {
   skip_on_cran()
   skip_if_not(dir.exists(test_path("..", "..", "src")))
 
-  # The varying-coefficient bug was a decorator that forwarded some of the base
-  # class's hooks and silently inherited the rest. This is the mechanical form
-  # of that question: for each wrapper, which of the base's virtual hooks does
-  # it neither override nor deliberately leave alone? The answer should be a
-  # list someone has looked at, which is what the expectation below pins.
-  header <- readLines(test_path("..", "..", "src", "family.h"))
-  hooks <- unique(sub(".*\\b(\\w+)\\($", "\\1",
-                      regmatches(header, regexpr("virtual [^;{]*\\w+\\(",
-                                                 header))))
-  hooks <- hooks[nzchar(hooks)]
+  # The varying-coefficient bugs were a decorator that forwarded some of the
+  # base class's hooks and silently inherited the rest: `before_forest()` and
+  # `reported_loglik()` first, then `report_shift()`, which left a `bcf()` fit
+  # with `family = dpm()` reporting the raw forest and its level unidentified.
+  # Reading the wrapper finds none of these, because the bug is an absence.
+  # This is the mechanical form of the question: for each wrapper, which of the
+  # base's virtual hooks does it neither override nor deliberately leave alone?
+  # The lists below are the ones someone has looked at, with the reason each
+  # hook can be inherited. A hook added to `family.h` lands in the difference
+  # until it is either forwarded or added to a list with its reason.
+  # The header is searched as one string, since a declaration's return type
+  # and its name can sit on different lines.
+  header <- paste(readLines(test_path("..", "..", "src", "family.h")),
+                  collapse = "\n")
+  hooks <- regmatches(header,
+                      gregexpr("(?m)^\\s*virtual\\s+[^;{(]*?\\b\\w+\\s*\\(",
+                               header, perl = TRUE))[[1L]]
+  hooks <- unique(sub(".*\\b(\\w+)\\s*\\($", "\\1", hooks))
+  hooks <- setdiff(hooks[nzchar(hooks)], "Family")
 
   expect_gt(length(hooks), 10L)
 
   body <- readLines(test_path("..", "..", "src", "family.cpp"))
+  ends <- grep("^};", body)
 
-  for (wrapper in c("LinkedFamily", "VaryingCoefficientFamily")) {
-    at <- grep(paste0("^struct ", wrapper), body)
+  # Declarations span lines, so the struct is searched as one string: a hook
+  # is overridden when its name opens a parameter list that closes on
+  # `override`, which a forwarding call to `inner->hook()` never does.
+  inherited_by <- function(wrapper) {
+    at <- grep(paste0("^struct ", wrapper, "\\b"), body)
     expect_length(at, 1L)
-
-    ends <- grep("^};", body)
     text <- paste(body[at:min(ends[ends > at])], collapse = "\n")
 
-    # These two are what the bug was. Whatever else a wrapper decides about the
-    # rest of the hooks, a decorator that does not pass a sweep boundary or a
-    # likelihood report through to what it wraps is broken.
-    expect_true(grepl("before_forest", text),
-                label = paste(wrapper, "forwards before_forest()"))
-    expect_true(grepl("reported_loglik", text),
-                label = paste(wrapper, "forwards reported_loglik()"))
+    overridden <- vapply(hooks, function(hook) {
+      grepl(sprintf("\\b%s\\s*\\([^;]*?\\)\\s*(const\\s*)?override", hook),
+            text, perl = TRUE)
+    }, logical(1L))
+
+    sort(hooks[!overridden])
   }
+
+  # Generic over the unit hooks every wrapper does override: the blocked sums
+  # and the likelihood deltas call `logdens_block()`, `logdens_unit()` and the
+  # score hooks, so a wrapper that forwards those gets these right for free.
+  generic <- c("accumulate1", "accumulate1_at", "accumulate1_from",
+               "accumulate2", "accumulate2_from", "loglik_delta",
+               "loglik_delta_rows")
+
+  expect_setequal(inherited_by("VaryingCoefficientFamily"), generic)
+
+  # A link applied from R puts the predictor on the caller's scale, so a shift
+  # of the wrapped family's predictor is not a shift of this one, and the
+  # sampler's own chart is the one to report in: `report_shift()`,
+  # `aux_values_shifted()` and `mixture_flat()` stay at the base. The
+  # derivatives are central differences through the link by design, the target
+  # form is general for the same reason, which makes `exp_rate()` and the
+  # coding exactness moot, and the wrapper has one predictor, so no family with
+  # pinned forests reaches it. None of the families `with_link()` accepts
+  # shifts its chart or pins a forest; one that did would have to be decided
+  # here.
+  expect_setequal(inherited_by("LinkedFamily"),
+                  c(generic, "aux_values_shifted", "coding_is_exact",
+                    "coding_not_exact", "dlogdens_unit", "exp_rate",
+                    "info_unit", "mixture_flat", "num_pinned", "report_shift",
+                    "target_form"))
+
+  # `RFamily` wraps an R function rather than another family, so what it does
+  # not override is its implementation and not a forward it forgot: the base
+  # defaults are the behavior of a likelihood that is a black box, and as the
+  # innermost family its own hook count is the answer to `sweep_delivered()`.
+  expect_setequal(inherited_by("RFamily"),
+                  c(generic, "aux_values_shifted", "before_forest",
+                    "coding_is_exact", "coding_not_exact", "compute_eta_free",
+                    "dlogdens_unit", "exp_rate", "info_unit", "log_norm_const",
+                    "logdens_extra_total", "mixture_flat", "report_shift",
+                    "reported_loglik", "sweep_delivered", "target_form"))
 })
 
 test_that("a binomial fit keeps its invariants under every structural wrapper", {
@@ -367,4 +413,451 @@ test_that("print methods write nothing to stderr", {
   # vignette will see it.
   expect_match(printed_text(shown[["diagnosis"]]), "What to do")
   expect_match(printed_text(shown[["lnor"]]), "O(y) is the odds", fixed = TRUE)
+})
+
+# The family-by-structure matrix of `_dev/AUDITING.md` § 3. One data set with a
+# predictor, a binary treatment and a grouping factor, and a response for every
+# family drawn from a known linear predictor on that family's own scale. The
+# survival responses each use their family's own error so that the predictor
+# is the location of log T in every case.
+sim_matrix <- function(n = 400L, seed = 31L) {
+  set.seed(seed)
+  d <- as.data.frame(matrix(stats::runif(n * 3L), n, 3L))
+  names(d) <- paste0("x", 1:3)
+  d$z <- stats::rbinom(n, 1L, 0.5)
+  d$g <- factor(sample(letters[1:6], n, TRUE))
+  d$off <- stats::rnorm(n, 0, 0.3)
+  d$w <- sample(1:3, n, TRUE)
+  u <- stats::setNames(stats::rnorm(6L, 0, 0.4), letters[1:6])
+  f <- 1.2 * d$x1 - 1.2 * d$x2
+  lp <- f - mean(f) + 0.8 * d$z + u[as.character(d$g)]
+
+  d$ynorm <- lp + stats::rnorm(n, 0, 0.5)
+  d$ybin <- stats::rbinom(n, 1L, stats::plogis(lp))
+  d$yprob <- stats::rbinom(n, 1L, stats::pnorm(lp))
+  d$ycnt <- stats::rpois(n, exp(lp - 0.5))
+  d$ynb <- stats::rnbinom(n, mu = exp(lp - 0.5), size = 3)
+  d$yzi <- d$ycnt * stats::rbinom(n, 1L, 0.75)
+  d$ygam <- stats::rgamma(n, shape = 4, rate = 4 / exp(lp - 0.5))
+  mu <- stats::plogis(lp)
+  d$ybeta <- pmin(pmax(stats::rbeta(n, mu * 10, (1 - mu) * 10), 1e-4), 1 - 1e-4)
+  d$yob <- d$ybeta
+  d$yob[lp < stats::quantile(lp, 0.08)] <- 0
+  d$yob[lp > stats::quantile(lp, 0.92)] <- 1
+  events <- stats::rpois(n, exp(lp - 0.5))
+  d$ytw <- ifelse(events > 0, stats::rgamma(n, shape = 2 * pmax(events, 1), rate = 2), 0)
+  d$yord <- cut(lp + stats::rlogis(n), c(-Inf, -0.5, 0.5, Inf), labels = 1:3,
+                ordered_result = TRUE)
+  d$ymult <- factor(cut(lp + stats::rlogis(n), c(-Inf, -0.5, 0.5, Inf),
+                        labels = c("a", "b", "c")), ordered = FALSE)
+  d$ydpm <- lp + 2 * (stats::rgamma(n, 1.5, 1.5) - 1)
+
+  cens <- lp + stats::rnorm(n, 0.6, 0.7)
+  for (nm in c("weib", "llog", "lnorm", "dpma")) {
+    e <- switch(nm,
+                weib = log(stats::rexp(n)),
+                llog = stats::rlogis(n),
+                lnorm = stats::rnorm(n),
+                dpma = 1.2 * (stats::rgamma(n, 1.5, 1.5) - 1))
+    lt <- lp + 0.5 * e
+    d[[paste0("t_", nm)]] <- exp(pmin(lt, cens))
+    d[[paste0("e_", nm)]] <- as.integer(lt <= cens)
+  }
+
+  # Proportional hazards with a Weibull baseline.
+  lt <- log((-log(stats::runif(n)) / exp(lp))^(1 / 1.5))
+  d$t_ph <- exp(pmin(lt, cens))
+  d$e_ph <- as.integer(lt <= cens)
+
+  attr(d, "lp") <- lp
+  d
+}
+
+# `structures` names the cells a family is fit in; `multinomial()` and `mnp()`
+# refuse a varying coefficient by design. `mnp()`'s density is simulated rather
+# than computed, so the density identity is not exact for it and is skipped;
+# its replay, range and sign checks still run.
+matrix_cases <- list(
+  list(name = "gaussian", family = gaussian(), response = "ynorm"),
+  list(name = "gaussian_ls", family = gaussian_ls(), response = "ynorm"),
+  list(name = "binomial logit", family = binomial(), response = "ybin",
+       discrete = TRUE),
+  list(name = "binomial probit", family = binomial("probit"), response = "yprob",
+       discrete = TRUE),
+  list(name = "poisson", family = poisson(), response = "ycnt", discrete = TRUE),
+  list(name = "negbin", family = negbin(), response = "ynb", discrete = TRUE),
+  list(name = "zi_poisson", family = zi_poisson(), response = "yzi",
+       discrete = TRUE),
+  list(name = "zi_negbin", family = zi_negbin(), response = "yzi",
+       discrete = TRUE),
+  list(name = "Gamma", family = Gamma("log"), response = "ygam"),
+  list(name = "Gamma_ls", family = Gamma_ls(), response = "ygam"),
+  list(name = "Beta", family = Beta(), response = "ybeta"),
+  list(name = "ordbeta", family = ordbeta(), response = "yob"),
+  list(name = "tweedie", family = tweedie(), response = "ytw"),
+  list(name = "ordinal logit", family = ordinal(), response = "yord",
+       discrete = TRUE),
+  list(name = "ordinal probit", family = ordinal("probit"), response = "yord",
+       discrete = TRUE),
+  list(name = "ordinal cloglog", family = ordinal("cloglog"), response = "yord",
+       discrete = TRUE),
+  list(name = "multinomial", family = multinomial(), response = "ymult",
+       discrete = TRUE, structures = c("plain", "ranef", "offset", "weights")),
+  list(name = "mnp", family = multinomial("probit", replicates = 20L),
+       response = "ymult", discrete = TRUE, simulated_density = TRUE,
+       structures = c("plain", "ranef", "offset", "weights")),
+  list(name = "dpm", family = dpm(), response = "ydpm"),
+  list(name = "weibull_aft", family = weibull_aft(),
+       response = "cbind(t_weib, e_weib)"),
+  list(name = "loglogistic_aft", family = loglogistic_aft(),
+       response = "cbind(t_llog, e_llog)"),
+  list(name = "lognormal_aft", family = lognormal_aft(),
+       response = "cbind(t_lnorm, e_lnorm)"),
+  list(name = "dpm_aft", family = dpm_aft(), response = "cbind(t_dpma, e_dpma)"),
+  list(name = "ph", family = ph(), response = "cbind(t_ph, e_ph)"),
+  list(name = "custom", response = "ynorm",
+       family = custom_family(function(y, eta) {
+         stats::dnorm(y, eta[, 1], 0.5, log = TRUE)
+       }))
+)
+
+matrix_structures <- c("plain", "vc", "drawn", "ranef", "vc + ranef", "offset",
+                       "weights")
+
+matrix_formula <- function(response, structure) {
+  terms <- switch(structure,
+                  plain = ,
+                  offset = ,
+                  weights = c("z", "x1", "x2", "x3"),
+                  vc = c("x1", "x2", "x3", "vc(z)"),
+                  drawn = c("x1", "x2", "x3", 'vc(z, center = "estimate")'),
+                  ranef = c("z", "x1", "x2", "x3", "(1 | g)"),
+                  `vc + ranef` = c("x1", "x2", "x3", "vc(z)", "(1 | g)"))
+
+  stats::as.formula(paste(response, "~", paste(terms, collapse = " + ")),
+                    env = globalenv())
+}
+
+# NULL when the cell does not exist: a drawn coding needs a leaf target that is
+# quadratic in the predictor, and the Dirichlet process families take no prior
+# weights; both refusals say so. Any other error is a failure of the cell. The
+# cells refused are collected so that the set can be pinned below.
+matrix_skipped <- new.env()
+
+matrix_fit <- function(case, structure, d, control) {
+  form <- matrix_formula(case$response, structure)
+  args <- list(form, data = d, family = case$family, control = control)
+
+  if (identical(structure, "offset")) {
+    args[["offset"]] <- d$off
+  }
+
+  if (identical(structure, "weights")) {
+    args[["weights"]] <- d$w
+  }
+
+  tryCatch(
+    do.call(bartisan, args),
+    error = function(e) {
+      msg <- conditionMessage(e)
+      refused <- (identical(structure, "drawn") &&
+                    grepl("leaf target is\\s+quadratic", msg)) ||
+        (identical(structure, "weights") &&
+           grepl("does not take prior weights", msg))
+
+      if (refused) {
+        assign(paste(case$name, structure), TRUE, envir = matrix_skipped)
+        return(NULL)
+      }
+
+      stop(sprintf("%s under %s: %s", case$name, structure, msg), call. = FALSE)
+    })
+}
+
+# Nuisance parameters that are scales, counts or rates and so cannot be
+# negative, by the column names the families report them under.
+positive_aux <- function(aux) {
+  if (is.null(aux)) {
+    return(numeric(0))
+  }
+
+  named <- intersect(colnames(aux),
+                     c("sigma", "phi", "theta", "shape", "error_sd", "alpha",
+                       "clusters", "power"))
+  hazards <- grep("^lambda[0-9]+$", colnames(aux), value = TRUE)
+  aux[, c(named, hazards), drop = FALSE]
+}
+
+test_that("every family keeps its chart and its density under every structural wrapper", {
+  skip_on_cran()
+
+  # Two identities that need no truth and hold draw by draw, so a short chain
+  # is enough. The density route reproduces the recorded log likelihood only
+  # when the recorded predictor and the family's recorded nuisance parameters
+  # are in one chart, which is what a `bcf()` fit with `family = dpm()` lost.
+  # Replaying the stored forests reproduces the recorded predictor only when
+  # the leaves were written in the same chart as the predictor. The cells are
+  # what get tested rather than the wrappers one at a time, because a hook
+  # dropped by a wrapper shows up only where it meets a family that needed it.
+  # Both gates, since the replay of a soft tree goes through the membership
+  # weights and the bandwidth, which a hard tree never touches.
+  d <- sim_matrix()
+  rm(list = ls(matrix_skipped), envir = matrix_skipped)
+
+  for (gate in c("hard", "smoothstep")) {
+    control <- quick_control(num_trees = 5L, num_burn = 30L, num_draws = 30L,
+                             gate = gate)
+
+    for (case in matrix_cases) {
+      for (structure in case$structures %||% matrix_structures) {
+        fit <- matrix_fit(case, structure, d, control)
+
+        if (is.null(fit)) {
+          next
+        }
+
+        label <- paste(case$name, "under", structure, "with", gate, "rules")
+
+        expect_true(all(is.finite(fit[["loglik"]])), label = label)
+
+        if (isTRUE(case$discrete)) {
+          expect_lt(mean(fit[["loglik"]]), 0,
+                    label = paste(label, "reported log likelihood"))
+        }
+
+        if (!isTRUE(case$simulated_density)) {
+          dens <- stats::predict(fit, type = "density", draws = TRUE,
+                                 log = TRUE)
+          expect_equal(rowSums(dens), fit[["loglik"]], tolerance = 1e-8,
+                       label = paste(label, "density against log likelihood"))
+        }
+
+        eta <- stats::predict(fit, type = "link", draws = TRUE)
+        # Values only: the replay carries the data's row names and the stored
+        # predictor does not. An offset is part of the predictor the sampler
+        # recorded, so the replay is handed it.
+        replayed <- stats::predict(
+          fit, newdata = d, type = "link", draws = TRUE,
+          offset = if (identical(structure, "offset")) d$off)
+        expect_equal(replayed, eta, tolerance = 1e-6, ignore_attr = TRUE,
+                     label = paste(label, "replayed predictor"))
+
+        # Range checks: nothing a fit reports should be outside its support.
+        # A probability sits in [0, 1] and a row of them sums to one; a scale,
+        # count or rate is positive. R-hat and the effective sample sizes are
+        # finite and positive, which is as far as a range check can go on the
+        # rank-normalized estimators: split R-hat can read a little below one
+        # and bulk ESS can exceed the number of draws for antithetic chains, so
+        # neither "at least one" nor "at most the draws" is a valid bound.
+        response <- stats::predict(fit, type = "response")
+        expect_true(all(is.finite(response)),
+                    label = paste(label, "finite response"))
+
+        if (fit[["family"]][["family"]] %in% c("binomial", "ordinal",
+                                                "multinomial", "mnp")) {
+          prob <- stats::predict(fit, type = "prob")
+          expect_true(all(prob >= 0 & prob <= 1),
+                      label = paste(label, "probabilities in [0, 1]"))
+
+          if (is.matrix(prob) && ncol(prob) > 1L) {
+            expect_equal(unname(rowSums(prob)), rep.int(1, nrow(prob)),
+                         tolerance = 1e-8, label = paste(label, "rows sum to one"))
+          }
+        }
+
+        positive <- positive_aux(fit[["aux"]])
+        if (length(positive)) {
+          expect_true(all(positive > 0),
+                      label = paste(label, "positive nuisance parameters"))
+        }
+
+        table <- suppressWarnings(diagnose(fit))[["table"]]
+        rhat <- table[["rhat"]][is.finite(table[["rhat"]])]
+        expect_true(all(rhat > 0.9), label = paste(label, "R-hat in range"))
+        for (col in c("ess_bulk", "ess_tail")) {
+          ess <- table[[col]][!is.na(table[[col]])]
+          expect_true(all(is.finite(ess) & ess > 0),
+                      label = paste(label, col, "positive and finite"))
+        }
+      }
+    }
+  }
+
+  # The cells the fitter refused, which is a list someone has looked at: a
+  # drawn coding is refused wherever the family's leaf target is not quadratic
+  # (the two `_ls` families through their scale predictor), and prior weights
+  # by the two Dirichlet process families. A family that changes its target
+  # form, or starts or stops taking weights, moves a name here.
+  refused <- sort(ls(matrix_skipped))
+  expected <- sort(c(
+    paste(c("gaussian_ls", "poisson", "negbin", "zi_poisson", "zi_negbin",
+            "Gamma", "Gamma_ls", "Beta", "ordbeta", "tweedie",
+            "ordinal cloglog", "weibull_aft", "ph", "custom"), "drawn"),
+    paste(c("dpm", "dpm_aft"), "weights")))
+  expect_setequal(refused, expected)
+})
+
+test_that("a family with a reporting chart keeps it under every structural wrapper", {
+  skip_on_cran()
+
+  # Three families record their draws in a chart other than the sampler's:
+  # `ordinal()` centers the predictor over the fitted sample, and `dpm()` and
+  # `dpm_aft()` put the mixture at mean zero so that the predictor is the
+  # conditional mean. The level of the recorded predictor is then an identified
+  # quantity and moves little; in the sampler's own chart it is the coordinate
+  # the likelihood does not pin, and it follows `center`, the raw mixture mean,
+  # at a correlation near minus one with the spread of `center` itself. That
+  # is what a `bcf()` fit reported before the wrapper forwarded the shift.
+  d <- sim_matrix(n = 500L, seed = 37L)
+  chains <- 2L
+  draws <- 200L
+  control <- bartisan_control(num_trees = 20L, num_burn = 200L,
+                              num_draws = draws, chains = chains,
+                              gate = "hard", verbose = FALSE)
+
+  chart_cases <- list(
+    list(name = "ordinal logit", family = ordinal(), response = "yord"),
+    list(name = "ordinal probit", family = ordinal("probit"),
+         response = "yord"),
+    list(name = "dpm", family = dpm(), response = "ydpm"),
+    list(name = "dpm_aft", family = dpm_aft(), response = "cbind(t_dpma, e_dpma)")
+  )
+
+  for (case in chart_cases) {
+    for (structure in matrix_structures) {
+      fit <- matrix_fit(case, structure, d, control)
+
+      if (is.null(fit)) {
+        next
+      }
+
+      label <- paste(case$name, "under", structure)
+      eta <- stats::predict(fit, type = "link", draws = TRUE)
+      level <- rowMeans(eta)
+
+      if (startsWith(case$name, "ordinal")) {
+        expect_lt(max(abs(level)), 1e-8, label = paste(label, "centered"))
+      }
+      else {
+        center <- fit[["aux"]][, "center"]
+        expect_lt(stats::sd(level), 0.5 * stats::sd(center),
+                  label = paste(label, "level against the raw center"))
+        expect_lt(abs(stats::cor(level, center)), 0.8,
+                  label = paste(label, "level follows the raw center"))
+      }
+    }
+  }
+})
+
+# Invariants the documentation states, `_dev/AUDITING.md` § 1: each is a pair of
+# routes to one answer, needs no known truth, and is written down as a claim
+# already. The augmentation claim is the model for these and sits above.
+
+invariant_data <- function(n = 600L, seed = 43L) {
+  set.seed(seed)
+  d <- as.data.frame(matrix(stats::runif(n * 3L), n, 3L))
+  names(d) <- paste0("x", 1:3)
+  d$z <- stats::rbinom(n, 1L, 0.5)
+  f <- 1.2 * d$x1 - 1.2 * d$x2
+  d$y <- f - mean(f) + 0.8 * d$z + stats::rnorm(n, 0, 0.5)
+  d
+}
+
+invariant_control <- function(...) {
+  bartisan_control(num_trees = 20L, num_burn = 200L, num_draws = 300L,
+                   chains = 1L, gate = "hard", verbose = FALSE, ...)
+}
+
+ate_of <- function(fit) {
+  mean(attr(estimate_effect(fit, treat = "z", estimand = "ATE"), "draws")[[1L]])
+}
+
+test_that("a vc() estimand does not depend on the centering", {
+  skip_on_cran()
+
+  # `?vc` says every coefficient and every estimand is identical under any
+  # choice of `center`. Two samplers for one posterior, so identical up to
+  # Monte Carlo error: the control function moves by the effect times the
+  # reference and the estimand does not move at all.
+  d <- invariant_data()
+  fits <- lapply(list("mean", "zero", 0.25), function(center) {
+    set.seed(11)
+    bartisan(y ~ x1 + x2 + x3 + vc(z, center = center), data = d,
+             family = gaussian(), control = invariant_control())
+  })
+
+  ates <- vapply(fits, ate_of, numeric(1L))
+  expect_lt(diff(range(ates)), 0.15)
+  expect_lt(abs(ates[1L] - 0.8), 0.25)
+
+  # The effect is the same for every unit here, so the per-unit coefficients
+  # are compared in level rather than by correlation, which has nothing to
+  # correlate when the truth is a constant.
+  effects <- lapply(fits, function(fit) coef(fit)[, "z"])
+  expect_lt(mean(abs(effects[[1L]] - effects[[2L]])), 0.15)
+  expect_lt(mean(abs(effects[[1L]] - effects[[3L]])), 0.15)
+})
+
+test_that("an empty scale forest makes gaussian_ls() a Gaussian", {
+  skip_on_cran()
+
+  # `?bartisan-families`: `gaussian_ls()` with `~ 1` on its scale is
+  # `gaussian()`, to within the difference in the prior on the scale, which is
+  # a leaf prior on one constant against the Gaussian family's half-Cauchy.
+  d <- invariant_data()
+  set.seed(12)
+  plain <- bartisan(y ~ x1 + x2 + x3 + z, data = d, family = gaussian(),
+                    control = invariant_control())
+  set.seed(12)
+  empty <- bartisan(list(y ~ x1 + x2 + x3 + z, ~ 1), data = d,
+                    family = gaussian_ls(), control = invariant_control())
+
+  mean_plain <- colMeans(plain[["eta"]][[1L]])
+  mean_empty <- colMeans(empty[["eta"]][[1L]])
+  expect_gt(stats::cor(mean_plain, mean_empty), 0.98)
+  expect_lt(mean(abs(mean_plain - mean_empty)), 0.1)
+
+  # The scale forest is one constant per draw, and it is the residual sd.
+  sd_empty <- exp(empty[["eta"]][[2L]])
+  expect_lt(max(apply(sd_empty, 1L, function(x) diff(range(x)))), 1e-8)
+  expect_equal(mean(sd_empty[, 1L]), mean(plain[["aux"]][, "sigma"]),
+               tolerance = 0.2)
+})
+
+test_that("the drawn coding restricts nothing at two levels", {
+  skip_on_cran()
+
+  # `?vc` says the drawn coding restricts nothing with two levels, so the
+  # estimand should not move when it is switched off.
+  d <- invariant_data()
+  set.seed(13)
+  fixed <- bartisan(y ~ x1 + x2 + x3 + vc(z), data = d, family = gaussian(),
+                    control = invariant_control())
+  set.seed(13)
+  drawn <- bartisan(y ~ x1 + x2 + x3 + vc(z, center = "estimate"), data = d,
+                    family = gaussian(), control = invariant_control())
+
+  expect_lt(abs(ate_of(fixed) - ate_of(drawn)), 0.15)
+  expect_lt(mean(abs(coef(fixed)[, "z"] - coef(drawn)[, "z"])), 0.15)
+})
+
+test_that("sparsity = FALSE is the uniform split_prior", {
+  skip_on_cran()
+
+  # `?bartisan_control`: turning the sparsity prior off recovers a uniform
+  # prior over predictors, which is a `split_prior` a caller can write out.
+  # Both hold the splitting proportions fixed, so with one seed the two fits
+  # are the same chain.
+  d <- invariant_data(n = 300L)
+  set.seed(14)
+  off <- bartisan(y ~ x1 + x2 + x3 + z, data = d, family = gaussian(),
+                  control = invariant_control(sparsity = FALSE))
+  set.seed(14)
+  uniform <- bartisan(y ~ x1 + x2 + x3 + z, data = d, family = gaussian(),
+                      control = invariant_control(
+                        split_prior = c(x1 = 1, x2 = 1, x3 = 1, z = 1)))
+
+  expect_equal(off[["eta"]], uniform[["eta"]], tolerance = 1e-10)
+  expect_equal(off[["counts"]], uniform[["counts"]], tolerance = 1e-10)
+  expect_equal(off[["loglik"]], uniform[["loglik"]], tolerance = 1e-10)
 })

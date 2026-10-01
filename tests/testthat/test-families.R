@@ -153,6 +153,28 @@ test_that("`Beta()` is the interior of `ordbeta()` and says so about boundaries"
   expect_false(identical(fit_link("logit")[["eta"]],
                          fit_link("cloglog")[["eta"]]))
 
+  # That the predictors differ is not enough: the predictor's starting offset
+  # is the named link of the mean, so two fits of the logit model differ a
+  # little when one of them was asked for probit. The link reached the sampler
+  # only if the recorded log likelihood is the beta density at the named
+  # link's inverse of the recorded predictor, draw by draw. The factory once
+  # dropped the composition for this family alone, and this passed above.
+  inverse <- list(probit = stats::pnorm,
+                  cloglog = function(eta) 1 - exp(-exp(eta)))
+
+  for (link in names(inverse)) {
+    fit <- fit_link(link)
+    eta <- fit[["eta"]][[1L]]
+    phi <- fit[["aux"]][, "phi"]
+
+    by_draw <- vapply(seq_len(nrow(eta)), function(s) {
+      mu <- inverse[[link]](eta[s, ])
+      sum(stats::dbeta(d$y, mu * phi[s], (1 - mu) * phi[s], log = TRUE))
+    }, numeric(1L))
+
+    expect_equal(by_draw, fit[["loglik"]], tolerance = 1e-8, label = link)
+  }
+
   # A response at either endpoint has no beta density, so it is an error rather
   # than something to nudge inward, and the message names the family that does
   # model the endpoints.

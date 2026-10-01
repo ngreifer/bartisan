@@ -149,6 +149,17 @@ forest, whose level the likelihood does not identify. Fixed in `src/family.cpp`;
 seeds the treated `Y[1]` now spreads 44 across four fits against a Monte Carlo error of 10 to 18.
 The `TASKS.md` entry of that date has the measurements.
 
+That finding led to four pre-ship checks the same day, recorded in `TASKS.md` and
+`_dev/AUDITING.md`: the decorator audit pinned to the exact inherited set per wrapper, a
+density-and-replay identity test over 24 families and five structures, a reporting-chart
+test for the three families that have one, and a known-truth recovery matrix over 23
+families. The identity test found two more bugs on its first run, both in `Beta()`:
+`set_aux()` did not refresh the eta-free terms, so `predict(type = "density")` and
+`loo()` on a `Beta()` fit priced every draw with the constructor's precision; and the
+factory never passed the family through `with_link()`, so `Beta("probit")` and
+`Beta("cloglog")` fit the logit model and back-transformed through the named link. Both
+fixed, both with tests that fail before the fix. No shipped number depended on either.
+
 Checked and not a problem: every exported help page has `\value` and examples,
 there is no `\dontrun{}` and no commented-out example code, there are no `http://`
 links and no relative links in the README, the Title is title case and under 65

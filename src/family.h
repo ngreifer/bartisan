@@ -192,6 +192,36 @@ struct Family {
   // after the other categories have already moved this sweep.
   virtual void before_forest(int h, const arma::mat& eta) {}
 
+  // Delivery of the two notification hooks. The engine and every wrapper call
+  // them through these, which count, and `sweep_delivered()` is asked at the
+  // end of each sweep whether the family under all its wrappers was told of
+  // it: `before_forest()` at least once and `update_aux()` exactly once. A
+  // wrapper that forwards a hook calls `inner->run_*()`, so the count lands on
+  // the innermost family, which is the one whose augmentation or nuisance draw
+  // depends on being told. This is the counter `_dev/AUDITING.md` sec. 5 asks
+  // for: a hook whose contract is "you will be called" can only be tested by
+  // counting, and the one the varying-coefficient wrapper dropped for its first
+  // four days shrank an effect by a factor of five without a failing test.
+  int before_forest_calls = 0;
+  int update_aux_calls = 0;
+
+  void run_before_forest(int h, const arma::mat& eta) {
+    before_forest_calls++;
+    before_forest(h, eta);
+  }
+
+  void run_update_aux(const arma::mat& eta) {
+    update_aux_calls++;
+    update_aux(eta);
+  }
+
+  virtual bool sweep_delivered() {
+    bool ok = before_forest_calls > 0 && update_aux_calls == 1;
+    before_forest_calls = 0;
+    update_aux_calls = 0;
+    return ok;
+  }
+
   // How many of this family's additive predictors are nuisance parameters
   // carried as forests pinned at depth zero. The engine pins the trailing
   // `num_pinned()` forests -- one tree, no splits, a fixed leaf scale -- and

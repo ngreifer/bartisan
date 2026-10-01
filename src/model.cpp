@@ -604,7 +604,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     if (share_forests) {
       for (std::size_t k = 0; k < share_members.size(); k++) {
         int h = share_members[k];
-        family->before_forest(h, eta);
+        family->run_before_forest(h, eta);
       }
 
       update_shared_forests(forests, share_members, ctx, hypers);
@@ -625,7 +625,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
       ctx.h = h;
       ctx.form = family->target_form(h);
       ctx.quadratic = family->is_quadratic(h);
-      family->before_forest(h, eta);
+      family->run_before_forest(h, eta);
       update_forest(forests[h], ctx, *hypers[h], !share_sparsity);
       // After the forest, so that the intercepts are drawn against the
       // predictor the trees have just settled on rather than the one before it.
@@ -637,7 +637,16 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
       update_shared_s(forests, hypers);
     }
 
-    family->update_aux(eta);
+    family->run_update_aux(eta);
+
+    // Every sweep tells the family twice over: `before_forest()` for each
+    // forest and `update_aux()` once. The count is kept by the innermost
+    // family through whatever wraps it, so a wrapper that drops a hook fails
+    // here on the first sweep rather than shrinking an effect quietly.
+    if (!family->sweep_delivered()) {
+      stop("a sweep ended without the family being told of it: a wrapper "
+           "dropped before_forest() or update_aux()");
+    }
   };
 
   if (verbose) {

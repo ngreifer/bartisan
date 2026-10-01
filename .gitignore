@@ -148,6 +148,10 @@ _dev/did/*
 !_dev/dpm-level-shift.R
 !_dev/dpm-lalonde-level.R
 !_dev/dpm-diagnose-rows.R
+!_dev/recovery-matrix.R
+!_dev/recovery-replicates.R
+!_dev/recovery-followup.R
+!_dev/ordinal-soft-check.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R
