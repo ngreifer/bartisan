@@ -2,6 +2,12 @@
 # _dev/survival-sim.R because the `secs` column recorded there is measured while
 # other work may be running, and the speed comparison is only meaningful when
 # nothing is competing for the machine.
+#
+# Rerun 2026-10-01 under the new default, `sparsity = FALSE`, which skips the
+# update of the splitting probabilities and so may change the times. The claim at
+# stake is the vignette's speed ranking, the two augmented families fastest at
+# about 1.2 seconds; if the ranking changes, so does that paragraph. Run alone,
+# after the other two.
 
 suppressPackageStartupMessages({
   library(bartisan)

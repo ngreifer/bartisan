@@ -8,6 +8,30 @@
 #
 # which writes _dev/survival-sim.rds. The vignette embeds the numbers rather
 # than sourcing this, so that it builds without refitting anything.
+#
+# Rerun 2026-10-01 under the new default prior. The first run (2026-08-28) took
+# the default of the time, `sparsity = TRUE`; the default is now
+# `sparsity = FALSE`, uniform splitting probabilities. This script takes the
+# default, as do -bins.R and -timing.R.
+#
+# What is being tested. That the vignette's conclusions do not depend on that
+# prior: ph() best where the baseline turns over; dpm_aft() far ahead on the
+# bimodal error and costing nothing on log-normal errors; every family
+# recovering the ordering of subjects (rank correlation .91 to .99) except
+# under crossing hazards; the censoring sweep's ranking. It could be false
+# because x4 and x5 are pure noise here, and the Dirichlet prior kept splits
+# off them where the uniform prior does not.
+#
+# The measurement. The same seeds give the same data, so a change is the
+# prior's effect plus Monte Carlo noise in the fits. Read the ranking of the
+# families within each truth on S(t | x) RMSE first, then the rank and
+# log-score columns, then the numbers.
+#
+# What each outcome means. Every ranking and claim holding with the numbers
+# moving: the vignette's numbers are updated in place and its prose stands. A
+# claim reversing: that part of the prose is rewritten to the new result, the
+# old one was partly an artifact of the Dirichlet prior, and the decision rule
+# in vignette("families") is checked against it.
 
 A <- path.expand("~/.claude/skills/live-progress/assets")
 source(file.path(A, "progress.R"))

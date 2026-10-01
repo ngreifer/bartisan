@@ -4,6 +4,11 @@
 # truths from _dev/survival-sim.R, recording the error in S(t | x), the error in
 # the log hazard ratio r(x) -- which is exactly signal() for these two truths --
 # and the loo diagnostics. Writes _dev/survival-bins.rds.
+#
+# Rerun 2026-10-01 with survival-sim.R under the new default, `sparsity = FALSE`;
+# that header says what the rerun tests. The claim at stake here is that the
+# estimates are flat from 4 bins to 100 and over-parameterized at 250. If the
+# flat range moves, the vignette's advice on `num_bins` moves with it.
 
 suppressPackageStartupMessages({
   library(bartisan)
