@@ -1,17 +1,17 @@
-# Choosing Between Models
+# Model Comparison
 
 ## Introduction
 
 Model selection means something different for a BART model than it does
 for a linear model, and the difference is worth stating before any code.
 
-With [`lm()`](https://rdrr.io/r/stats/lm.html) we choose which terms
+With [`glm()`](https://rdrr.io/r/stats/glm.html), we choose which terms
 enter, whether to add a squared term, and whether to include an
-interaction; those choices are the model. With BART the forest makes
+interaction; those choices are the model. With BART, the forest makes
 them, so they are not ours to make. What remains is a shorter list:
 
 1.  Which variables the model is allowed to see.
-2.  Which likelihood, meaning which family and link.
+2.  Which likelihood is used, i.e., which family and link.
 3.  Occasionally, a sampler setting (e.g., the number of trees).
 
 In this guide we will compare those choices using leave-one-out
@@ -21,9 +21,9 @@ the diagnostics that say when the approximation cannot be trusted, and
 the two forms of cross-validation to fall back on when it cannot. Next
 we’ll compare two sets of variables and then two links, cover the
 families whose log densities are on different scales and what to do when
-comparing them, and put the forest up against a Bayesian logistic
+comparing them, and compare a logistic BART model to a Bayesian logistic
 regression. Finally we’ll cover how to tune a setting and how to select
-variables, both of which have a right way and a more tempting wrong one.
+variables.
 
 ``` r
 
@@ -69,14 +69,15 @@ loo(full)
 `elpd_loo` estimates the log predictive density on data the model has
 not seen, with higher values being better. It is computed by importance
 sampling from the fitted posterior rather than by refitting, which is
-why it is fast ([Vehtari et al. 2017](#ref-vehtari2017)).
+why it is fast ([Vehtari et al. 2017](#ref-vehtari2017)). `looic` is the
+same measure multiplied by -2 to be on the deviance scale.
 
-`p_loo` is the effective number of parameters, a little over thirty
-here; for a forest with hundreds of leaves across its trees that number
-is small, because the prior shrinks most of them toward zero. It is a
-useful measure of how much of the data the model is actually using.
+`p_loo` is the effective number of parameters, a little over 35 here;
+for a forest with hundreds of leaves across its trees, that number is
+small; the prior shrinks most of them toward zero. It can be a useful
+measure of how much of the data the model is actually using.
 
-The Pareto \\k\\ diagnostics are the thing to check: leave-one-out by
+The Pareto \\k\\ diagnostics are worth checking: leave-one-out by
 importance sampling is trustworthy only when the importance weights are
 well behaved, and a \\k\\ above the threshold *loo* prints with them,
 which is at most .7 and a little lower for a fit with this many draws,
@@ -84,69 +85,50 @@ says that for that observation they are not. Here they are all good.
 
 ### Failures of the Approximation
 
-A forest is a flexible function, so a single observation can have a good
-deal of influence on the leaves it falls into, and the worry is
-therefore that high \\k\\ values will be more common than they are for a
-parametric model. Measured, they usually are not: the leaf prior shrinks
-every leaf toward zero and the fit is a sum over many trees, so no
-single observation dominates the leaves it reaches. The exceptions that
-do turn up are usually about the likelihood rather than the trees, which
-makes the warning worth reading rather than expecting. If many
-observations are flagged, the estimate is unreliable, and the remedy is
-held-out data rather than a different diagnostic: fit to part of the
-sample and score the part the model was not shown.
+When high Pareto \\k\\ values are observed, the posterior importance
+sampling approximation to leave-one-out cross-validation can be
+inaccurate. An alternative is to use k-fold cross-validation, which
+avoids this approximation but requires refitting the model several
+times, which can be computationally expensive.K-fold cross-validation
+involves splitting the sample into \\K\\ parts, fitting the model \\K\\
+times (leaving out one fold each time), and using that fold to compute
+the log likelihood contribution of each unit. This can be done using
+[`loo::kfold()`](https://mc-stan.org/loo/reference/kfold-generic.html):
 
 ``` r
 
 set.seed(2026)
-train_id <- sample.int(nrow(rhc), 1200)
 
-train <- rhc[train_id, ]
-held  <- rhc[-train_id, ]
+# K = 5 here; more is better but slower
+folds <- loo::kfold_split_random(K = 5, N = nrow(rhc))
 
-fit_train <- bartisan(model, data = train, family = binomial())
+# Refit the models K times
+kfold_full <- kfold(full, folds = folds)
 
-score <- predict(fit_train, newdata = held, type = "density", log = TRUE)
-
-sum(score)
-#> [1] -172.7
+kfold_full
+#> 
+#> Based on 5-fold cross-validation.
+#> 
+#>            Estimate   SE
+#> elpd_kfold   -843.5 17.0
+#> p_kfold        31.5  2.0
+#> kfoldic      1686.9 33.9
 ```
 
-Setting `type = "density"` evaluates the outcome under each posterior
-draw and averages over the draws before taking the log, which is the
-same form as one pointwise `elpd_loo` contribution. The two are
-therefore estimates of the same thing, which the two numbers do not make
-obvious:
-
-``` r
-
-elpd_total <- loo(full)$estimates["elpd_loo", "Estimate"]
-
-rbind(loo     = c(total = elpd_total, n = nrow(rhc),     per_obs = elpd_total / nrow(rhc)),
-      heldout = c(total = sum(score), n = length(score), per_obs = mean(score)))
-#>          total    n per_obs
-#> loo     -847.6 1500 -0.5651
-#> heldout -172.7  300 -0.5756
-```
-
-The totals differ by a factor of five because they sum different numbers
-of terms: [`loo()`](https://mc-stan.org/loo/reference/loo.html) scores
-every observation and the split scores only the ones held out. It is in
-the per-observation column that the two can be read against each other,
-and there they nearly agree. The gap that remains is in the direction to
-expect, since leave-one-out trains on 1499 observations and the split
-trains on 1200.
-
-That is the whole of what a held-out score gives us on its own, which is
-not much: a log score has no scale, and the only thing to do with one is
-put it beside another. The next section does that, first through
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) and then through
-this split.
+[`kfold()`](https://mc-stan.org/loo/reference/kfold-generic.html)
+produces results that can be interpreted like those from
+[`loo()`](https://mc-stan.org/loo/reference/loo.html), but without
+relying on the importance sampling approximation. When the outcome is
+rare enough that a random split could leave a fold with no events in it,
+[`loo::kfold_split_stratified()`](https://mc-stan.org/loo/reference/kfold-helpers.html)
+can be used to assign the folds instead.
 
 ## Comparing Two Models (`loo_compare()`)
 
 We can compare the fit of two models by supplying their
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) output to
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) or
+[`kfold()`](https://mc-stan.org/loo/reference/kfold-generic.html) output
+to
 [`loo::loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html).
 Below, we fit a model that only includes demographic variables as
 predictors to compare to our full model.
@@ -170,117 +152,27 @@ of many standard errors is clear, and a difference smaller than its own
 standard error is not evidence of anything.
 
 `p_worse` reports that reading as a probability. It is
-`pnorm(0, elpd_diff, se_diff)`, the chance that the model on that row is
-really the worse of the two given how far apart they came out and how
-precisely the difference is known. The best-ranked model has nothing to
-be compared against and gets `NA`. Some of its properties are worth
-knowing before reading one. Because the models are sorted by `elpd_loo`
-before it is computed, every reported value is at least .5 by
-construction, so .5 does not mean “even odds after weighing the
-evidence” but “the ranking is arbitrary and another sample could reverse
-it”; and because it comes from the normal approximation behind
+`pnorm(abs(epld_diff / se_diff))`, the probability that the model on
+that row is really the worse of the two given how far apart they came
+out and how precisely the difference is known. The best-ranked model has
+nothing to be compared against and gets `NA`. Some of its properties are
+worth knowing before reading one. Because the models are sorted by
+`elpd_loo` before `p_worse` is computed, every reported value is at
+least .5 by construction, so .5 does not mean “even odds after weighing
+the evidence” but “the ranking is arbitrary and another sample could
+reverse it”; and because it comes from the normal approximation behind
 `se_diff`, it inherits that approximation’s failures, which is why *loo*
 flags them in `diag_diff` and `diag_elpd` when it detects them. Here it
 is 1.00, and the reading is that a sample like this one would
 essentially never put the demographic model ahead.
 
-### Totals and Averages
-
-`elpd_diff` is a difference of *totals*, and the reason is that a log
-score is additive. Summing it over observations gives a log predictive
-likelihood, so the difference between two models is a log likelihood
-ratio: the evidence the sample carries about which model predicts
-better, in nats. On that reading the total is the quantity with meaning,
-and it should grow with the sample, because more data is more evidence.
-It also keeps `elpd` a total over observations, as AIC, WAIC and DIC
-are, though those three are quoted on the deviance scale, which is
-\\-2\\ times a log score.
-
-Nothing is lost by preferring the average, because the decision does not
-depend on the choice. The mean difference and the total differ by a
-factor of \\n\\, its standard error differs by the same factor, and the
-ratio of the two, which says whether the difference is real, is
-identical either way.
-
-What the average is better for is a comparison whose two halves do not
-sum over the same observations. The section above ran into exactly that:
-`elpd_loo` totals 1500 terms and the held-out score totals 300, so the
-totals are not comparable and the per-observation averages are. The same
-is true of a score quoted across datasets, or across subgroups of
-different sizes. Within one
-[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
-call it never arises, since every model there is scored on the same
-rows, which is why the convention can afford to be a total.
-
-### The Same Comparison Through the Split
-
-When the Pareto diagnostics say leave-one-out cannot be trusted, this
-comparison is the one to rebuild on held-out data. Both candidates are
-fitted to the training half and scored on the observations neither of
-them saw:
-
-``` r
-
-demographics_train <- bartisan(death ~ rhc + age + sex + race + edu,
-                               data = train, family = binomial())
-
-score_demographics <- predict(demographics_train, newdata = held,
-                              type = "density", log = TRUE)
-
-d <- score - score_demographics
-
-c(mean_diff = mean(d), se = sd(d) / sqrt(length(d)),
-  ratio = mean(d) / (sd(d) / sqrt(length(d))))
-#> mean_diff        se     ratio 
-#>   0.03713   0.01677   2.21404
-```
-
-That is
-[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)’s
-arithmetic done by hand and quoted per observation: the average
-difference in log score, its standard error, and the ratio that decides
-whether to believe it. The full model is ahead by a little over two
-standard errors rather than six, and the difference is the cost of the
-split. It sees 300 observations where
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) sees 1500, and the
-precision of a difference goes as the square root of the count.
-
-### Every Observation Held Out Once (K-Fold)
-
-A single split is honest but wasteful: it scores 300 observations and
-throws the other 1200 into training, where they tell us nothing about
-prediction. Splitting the sample into \\K\\ parts instead, and fitting
-\\K\\ times so that each part is scored by a model that never saw it,
-holds every observation out exactly once.
-[`kfold()`](https://mc-stan.org/loo/reference/kfold-generic.html) does
-that:
-
-``` r
-
-set.seed(2026)
-folds <- loo::kfold_split_random(K = 5, N = nrow(rhc))
-
-kfold_full <- kfold(full, folds = folds)
-
-kfold_full
-#> 
-#> Based on 5-fold cross-validation.
-#> 
-#>            Estimate   SE
-#> elpd_kfold   -843.5 17.0
-#> p_kfold        31.5  2.0
-#> kfoldic      1686.9 33.9
-```
-
-`elpd_kfold` is the held-out log score, summed over every observation,
-and it owes nothing to an importance-sampling approximation: the model
-really was refitted without each fold. `p_kfold` is the gap between what
-the model predicts for an observation it was fitted to and what it
-predicts for the same one held out, which is the price of having used
-it. The cost is five fits rather than one.
-
-The folds are passed rather than drawn so that the second model is
-scored on the same split, which makes the two comparable:
+When using k-fold cross-validation for model comparison instead of the
+importance sampling approximation, it’s important that the same folds
+are used across fits so that each model is scored on the same split,
+which makes them comparable. We can then supply the
+[`kfold()`](https://mc-stan.org/loo/reference/kfold-generic.html) output
+to [`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+to compare the models.
 
 ``` r
 
@@ -290,47 +182,23 @@ loo_compare(list(full = kfold_full,
                  demographics = kfold_demographics))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
-#>  demographics     -72.7    11.0    1.00
+#>  demographics     -72.3    10.9    1.00
 ```
 
-The same reading as before, and at the same precision as the
-leave-one-out comparison rather than the single split’s: every
-observation is scored, so nothing is thrown away.
-
-It also gives a way to check
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) rather than taking
-the Pareto diagnostics’ word for it, since the two estimate the same
-thing:
-
-``` r
-
-c(kfold = kfold_full$estimates["elpd_kfold", "Estimate"] / nrow(rhc),
-  loo = elpd_total / nrow(rhc))
-#>   kfold     loo 
-#> -0.5623 -0.5651
-```
-
-They agree, as a clean Pareto \\k\\ column suggested in less direct
-form. That is the division of labor between the three routes:
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) for one fit and a
-diagnostic, \\K\\-fold for \\K\\ fits and no approximation, and a single
-split when even that is too expensive. When the outcome is rare enough
-that a random split could leave a fold with no events in it,
-[`loo::kfold_split_stratified()`](https://mc-stan.org/loo/reference/kfold-helpers.html)
-assigns the folds instead.
+Here, we find the same reading as before, consistent with the Pareto
+\\k\\ diagnostics’s indication that the approximation is valid.
 
 This is the right way to ask whether a set of variables earns its place,
 and it is a better question than the one variable importance answers,
 because it is about prediction rather than about how the forest happened
-to spend its splits. Here the answer is not in doubt by any of the three
-routes: how sick a patient is on arrival predicts whether they die, and
-demographics alone do not.
+to spend its splits. Here the answer is not in doubt: how sick a patient
+is on arrival predicts whether they die, and demographics alone do not.
 
 ## Comparing Links (`family`)
 
-The other choice is the likelihood. For a binary outcome the family is
-settled, and what remains is the link (i.e., the function that maps the
-forest’s output onto a probability). Below we compare a probit BART
+Another model choice is the likelihood. For a binary outcome, the family
+is settled, and what remains is the link (i.e., the function that maps
+the forest’s output onto a probability). Below we compare a probit BART
 model to our original logistic BART model.
 
 ``` r
@@ -355,7 +223,124 @@ little left to do, because the forest can absorb the difference between
 one link and another. This is not true of a generalized linear model,
 where the link carries the whole shape of the relationship.
 
-## The Scale of the Log Density (`scale`)
+## Comparing Against a Bayesian GLM
+
+Often it is a good idea to compare a flexible model to a more easily
+interpretable (generalized) linear model to assess whether the
+flexibility buys us anything. There is no obstacle to this, and it is
+worth doing. If a logistic regression predicts as well as the forest,
+that is evidence the relationship is close to linear on the log-odds
+scale, and the simpler model is the easier one to report.
+
+The comparison has to be like for like, which means both models have to
+produce a pointwise log density of the same outcome on the same scale.
+Fitting the regression in a Bayesian framework arranges that: *rstanarm*
+fits it with `stan_glm()` and gives it a
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) method, and the
+resulting object goes into
+[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+beside ours.
+
+``` r
+
+# Fit a Bayesian logistic GLM
+logistic <- rstanarm::stan_glm(model, data = rhc, family = binomial(),
+                               chains = 4, refresh = 0, seed = 2026)
+
+loo(logistic)
+#> 
+#> Computed from 4000 by 1500 log-likelihood matrix.
+#> 
+#>          Estimate   SE
+#> elpd_loo   -844.9 18.4
+#> p_loo        16.6  0.6
+#> looic      1689.7 36.8
+#> ------
+#> MCSE of elpd_loo is 0.1.
+#> MCSE and ESS estimates assume independent draws (r_eff=1).
+#> 
+#> All Pareto k estimates are good (k < 0.7).
+#> See help('pareto-k-diagnostic') for details.
+```
+
+``` r
+
+loo_compare(list(bart = loo(full),
+                 logistic = loo(logistic)))
+#>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
+#>  logistic       0.0     0.0      NA                          
+#>      bart      -2.8     5.0    0.71 |elpd_diff| < 4
+```
+
+The forest is behind by roughly half a standard error of the difference,
+which is to say the two predict this outcome equally well[^1]. Nothing
+was lost by fitting the forest and nothing was gained, and the honest
+report of that is the one above: the flexible model was tried and did
+not find anything the linear one missed.
+
+## Tuning
+
+The number of trees, `k`, and the gate should not be chosen by
+cross-validation as a matter of routine. The priors are chosen so that
+the defaults work across a wide range of problems, and tuning them
+typically produces small gains together with an optimistically biased
+estimate of performance when the same data chose the setting. When there
+is a reason to tune, the shape of it is a grid fixed in advance.
+Leave-one-out or K-fold cross-validation can be used to compare the
+fits:
+
+``` r
+
+trees <- c(20, 50, 200)
+
+tuned <- lapply(trees, function(n) {
+  set.seed(2026)
+  bartisan(model, data = rhc, family = binomial(),
+           num_trees = n)
+})
+
+names(tuned) <- paste0("trees_", trees)
+
+# LOOCV
+loo_compare(lapply(tuned, loo))
+#>      model elpd_diff se_diff p_worse       diag_diff diag_elpd
+#>  trees_200       0.0     0.0      NA                          
+#>   trees_50       0.0     1.2    0.51 |elpd_diff| < 4          
+#>   trees_20      -2.2     2.0    0.87 |elpd_diff| < 4
+
+# K-fold CV
+# loo_compare(lapply(tuned, kfold, folds = folds))
+```
+
+In this case, nothing separates them: the differences are a couple of
+points at most, about the size of their standard errors. Here the honest
+summary is that `num_trees` does not matter on these data, and the
+default can be kept, which is the usual outcome. When tuning does pay,
+it tends to be for computational cost rather than accuracy, and
+[`vignette("faq")`](https://ngreifer.github.io/bartisan/articles/faq.md)
+lists the settings that buy speed;
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+documents what each one changes.
+
+## Additional Topics
+
+### A Constant Coefficient Against a Varying One (`vc()`)
+
+`vc(z)` gives `z` a coefficient that is itself a forest, free to vary
+with the other predictors, and `vc(z, ~ 1)` pins that coefficient to a
+single number, so `z` enters as a linear term while everything else
+stays nonparametric. Comparing the two by
+[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+asks a question neither variable importance nor a dropped predictor
+answers: not whether `z` matters, but whether what it does depends on
+anything else.
+[`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md)
+works that comparison through on this data, and covers what to keep in
+mind when reading it: that the constant coefficient is drawn under the
+leaf prior and so is shrunk toward zero, and that the comparison is far
+better powered on a Gaussian outcome than on a binary one.
+
+### The Scale of the Log Density (`scale`)
 
 [`loo()`](https://mc-stan.org/loo/reference/loo.html) compares models by
 the log density each assigns to the observed outcomes, so the models
@@ -385,7 +370,8 @@ model with a proportional hazards model for the survival outcome in
 
 library(survival)
 
-surv_model <- Surv(days, death) ~ age + sex + race + edu + aps + meanbp + surv2m
+surv_model <- Surv(days, death) ~ age + sex + race + edu +
+                 aps + meanbp + surv2m
 
 set.seed(2026)
 aft <- bartisan(surv_model, data = rhc, family = lognormal_aft())
@@ -405,175 +391,10 @@ about 90 points with a standard error of 15. The flag in the last column
 says that one of the pointwise estimates for
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 is unreliable (see the section on failures of the approximation above);
-with a difference of nearly six standard errors, it does not change the
-reading.
+however, with a difference of nearly six standard errors, it does not
+change the reading.
 
-Two accelerated failure time families, or two
-[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-fits, already share a scale and can be compared without the argument.
-Setting `scale = "log_time"` instead of `"time"` gives the same
-differences between models, since the correction for each observation is
-the same for every model and cancels from their difference. The same
-step is needed outside survival models: to compare a model of `log(y)`
-with a model of `y`, subtract `log(y)` from each pointwise log density
-of the first before calling
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) (e.g.,
-`loo(sweep(rstantools::log_lik(fit), 2, log(y), "-"))`).
-[`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-gives the equivalent correction for a held-out log score.
-
-## Comparing Against a Bayesian GLM
-
-Often it is a good idea to compare a flexible model to a more easily
-interpretable (generalized) linear model to assess whether the
-flexibility buys us anything. There is no obstacle to this, and it is
-worth doing. If a logistic regression predicts as well as the forest,
-that is evidence the relationship is close to linear on the log-odds
-scale, and the simpler model is the easier one to report.
-
-The comparison has to be like for like, which means both models have to
-produce a pointwise log density of the same outcome on the same scale.
-Fitting the regression in a Bayesian framework arranges that: *rstanarm*
-fits it with `stan_glm()` and gives it a
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) method, and the
-resulting object goes into
-[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
-beside ours.
-
-``` r
-
-logistic <- rstanarm::stan_glm(model, data = rhc, family = binomial(),
-                               chains = 4, refresh = 0, seed = 2026)
-
-loo(logistic)
-#> 
-#> Computed from 4000 by 1500 log-likelihood matrix.
-#> 
-#>          Estimate   SE
-#> elpd_loo   -844.9 18.4
-#> p_loo        16.6  0.6
-#> looic      1689.7 36.8
-#> ------
-#> MCSE of elpd_loo is 0.1.
-#> MCSE and ESS estimates assume independent draws (r_eff=1).
-#> 
-#> All Pareto k estimates are good (k < 0.7).
-#> See help('pareto-k-diagnostic') for details.
-```
-
-``` r
-
-loo_compare(list(bart = loo(full), logistic = loo(logistic)))
-#>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>  logistic       0.0     0.0      NA                          
-#>      bart      -2.8     5.0    0.71 |elpd_diff| < 4
-```
-
-The forest is behind by roughly half a standard error of the difference,
-which is to say the two predict this outcome equally well[^1]. Nothing
-was lost by fitting the forest and nothing was gained, and the honest
-report of that is the one above: the flexible model was tried and did
-not find anything the linear one missed.
-
-`p_loo` says where that came from. The regression has 16 coefficients
-and an effective number of parameters to match; the forest’s is about
-twice that, which is the flexibility it spent looking for curvature and
-interaction that turned out not to be there. A forest that predicts no
-better while using twice the parameters is a forest reporting that the
-log-odds are close to linear here, which is a finding rather than a
-disappointment.
-
-Comparing `elpd_loo` from this package against
-[`AIC()`](https://rdrr.io/r/stats/AIC.html) from
-[`glm()`](https://rdrr.io/r/stats/glm.html) is not a comparison and
-should not be reported as one. The two differ by a factor of \\-2\\
-before anything else, and [`AIC()`](https://rdrr.io/r/stats/AIC.html)’s
-penalty is a count of parameters, which a forest has no fixed number of;
-the `p_loo` above is an estimate rather than a count. Fitting the
-regression the Bayesian way lets us compare
-[`loo()`](https://mc-stan.org/loo/reference/loo.html) against
-[`loo()`](https://mc-stan.org/loo/reference/loo.html), as above.
-
-## Tuning
-
-The number of trees, `k`, and the gate should not be chosen by
-cross-validation as a matter of routine. The priors are chosen so that
-the defaults work across a wide range of problems, and tuning them
-typically produces small gains together with an optimistically biased
-estimate of performance when the same data chose the setting.
-
-When there is a reason to tune, the shape of it is a grid fixed in
-advance, chosen on one set of observations and assessed on another. The
-split from the earlier section is already in hand, so the grid goes
-through [`loo()`](https://mc-stan.org/loo/reference/loo.html) on the
-training set:
-
-``` r
-
-trees <- c(20, 50, 200)
-
-tuned <- lapply(trees, function(n) {
-  set.seed(2026)
-  bartisan(model, data = train, family = binomial(), num_trees = n)
-})
-
-names(tuned) <- paste0("trees_", trees)
-
-loo_compare(lapply(tuned, loo))
-#>      model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>   trees_20       0.0     0.0      NA                          
-#>  trees_200      -1.6     2.2    0.77 |elpd_diff| < 4          
-#>   trees_50      -2.1     1.7    0.89 |elpd_diff| < 4
-```
-
-Nothing separates them: the differences are a couple of points at most,
-about the size of their standard errors, and *loo* flags both
-comparisons as too small to read. Scoring the same three fits on the
-held-out observations says it again, and is the assessment the selection
-is not allowed to see:
-
-``` r
-
-sapply(tuned, function(f) sum(predict(f, newdata = held, type = "density",
-                                      log = TRUE)))
-#>  trees_20  trees_50 trees_200 
-#>    -172.5    -172.3    -172.3
-```
-
-The two orderings disagree, which is the practical content of the
-warning rather than a contradiction: when the spread across a grid is
-smaller than the noise in the estimate, whichever setting comes out top
-is the one the noise favored. Reporting its score as the model’s
-performance is exactly the optimism this section opened with, and it is
-why the assessment has to come from observations the grid never touched.
-Here the honest summary is that `num_trees` does not matter on these
-data, and the default should be kept.
-
-That is the usual outcome, and it is worth knowing before spending a
-grid on it. When tuning does pay, it tends to be for cost rather than
-accuracy, and
-[`vignette("faq")`](https://ngreifer.github.io/bartisan/articles/faq.md)
-lists the settings that buy speed;
-[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-documents what each one changes.
-
-## A Constant Coefficient Against a Varying One (`vc()`)
-
-`vc(z)` gives `z` a coefficient that is itself a forest, free to vary
-with the other predictors, and `vc(z, ~ 1)` pins that coefficient to a
-single number, so `z` enters as a linear term while everything else
-stays nonparametric. Comparing the two by
-[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
-asks a question neither variable importance nor a dropped predictor
-answers: not whether `z` matters, but whether what it does depends on
-anything else.
-[`vignette("varying")`](https://ngreifer.github.io/bartisan/articles/varying.md)
-works that comparison through on this data, and covers what to keep in
-mind when reading it: that the constant coefficient is drawn under the
-leaf prior and so is shrunk toward zero, and that the comparison is far
-better powered on a Gaussian outcome than on a binary one.
-
-## Variable Selection
+### Variable Selection
 
 Variables should not be selected by fitting many models and keeping the
 best. With a search over all subsets, the winner is chosen partly for
@@ -591,38 +412,7 @@ decided beforehand is informative in a way a search is not.
 When the question is which *individual* predictor matters, dropping one
 at a time and reading
 [`loo()`](https://mc-stan.org/loo/reference/loo.html) is a weak
-instrument. It works for a dominant predictor and fails for the rest:
-
-``` r
-
-drop_one <- function(v) {
-  set.seed(2026)
-  reduced <- bartisan(update(model, paste(". ~ . -", v)), data = rhc,
-                      family = binomial())
-
-  d <- loo(full)$pointwise[, "elpd_loo"] - loo(reduced)$pointwise[, "elpd_loo"]
-
-  c(elpd_diff = sum(d), se_diff = sqrt(length(d)) * sd(d))
-}
-
-rbind(surv2m = drop_one("surv2m"), rhc = drop_one("rhc"))
-#>        elpd_diff se_diff
-#> surv2m    43.655   8.757
-#> rhc        2.019   2.476
-```
-
-Losing `surv2m`, the prognostic score, costs about forty points and is
-plainly detectable. Losing `rhc` costs about two, which is smaller than
-its own standard error, and yet `rhc` is real enough that
-[`vignette("causal")`](https://ngreifer.github.io/bartisan/articles/causal.md)
-puts its effect at around six percentage points on the probability of
-death. The remaining predictors carry that information too, so the
-forest reroutes around the one that was removed, and a comparison of
-predictive density cannot see a variable whose job something else can
-do. Running one such comparison per predictor would also be the search
-this section began by warning against.
-
-So that question belongs to
+instrument. That question belongs to
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
 on a fit with `sparsity = TRUE`, whose prior does the selection inside
 the model rather than across refits.
@@ -655,9 +445,5 @@ Model Evaluation Using Leave-One-Out Cross-Validation and WAIC.”
     *rstanarm* and *brms* attach to their
     [`loo()`](https://mc-stan.org/loo/reference/loo.html) output and
     this package does not, so it is holding a hash up against nothing.
-    Attaching one would not help: the hash is taken of the response as
-    each package stores it, and an outcome held as `integer` on one side
-    and `double` on the other hashes differently, so the warning would
-    start firing on identical data rather than stop firing. What we
-    should check instead, and directly, is that both models were fitted
-    to the same rows.
+    What one should check instead, and directly, is that both models
+    were fitted to the same rows.

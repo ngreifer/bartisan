@@ -1,4 +1,4 @@
-# Which Variables Matter
+# Variable Importance
 
 ## Introduction
 

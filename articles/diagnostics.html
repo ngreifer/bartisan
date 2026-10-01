@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-09-29</h4>
+            <h4 data-toc-skip class="date">2026-10-01</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/diagnostics.Rmd" class="external-link"><code>vignettes/diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>diagnostics.Rmd</code></div>
@@ -674,26 +674,32 @@ supplied:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.01      1.01      464      866</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.00      1.00     2819     6078</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    17270    24295</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.00      1.01     2228     3643</span></span>
+<span><span class="co">#&gt;                               loglik 1.02      1.02      380      700</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.00      1.00     2697     5834</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    15112    23036</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.00      1.01     1699     2893</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 4 chains, 32000 draws kept in total</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the whole story: R-hat stays high on the second half</span></span>
-<span><span class="co">#&gt;   of the draws alone, so the chains disagree rather than merely start badly</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 380 effective draws, where 4 chains average 1.011</span></span>
+<span><span class="co">#&gt;   even when they agree</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
+<span><span class="co">#&gt;   draws alone as well</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> The chains agree about the size of the forest</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 464 for every reported quantity, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 866 for every reported quantity, above 400</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 1.4 effective draws</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 380 for loglik, below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Tail ESS is at least 700 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for loglik, which carries 1.2 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_burn` and `num_draws` together, which were `2000` and `8000`.</span></span>
-<span><span class="co">#&gt;   R-hat stays high even on the second half of the draws alone, so the chains</span></span>
-<span><span class="co">#&gt;   have each settled somewhere different rather than merely started badly.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `8000`. R-hat is above the threshold for a</span></span>
+<span><span class="co">#&gt;   quantity that carries too few effective draws for the threshold to mean</span></span>
+<span><span class="co">#&gt;   anything: with this many chains it would sit about where it does even if the</span></span>
+<span><span class="co">#&gt;   chains agreed exactly, as the check above reports. A larger effective sample</span></span>
+<span><span class="co">#&gt;   size makes it readable, and that grows with the total number of draws; using</span></span>
+<span><span class="co">#&gt;   fewer chains lowers the bar as well, since R-hat's null rises with the number</span></span>
+<span><span class="co">#&gt;   of chains being compared.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `50`. A smaller</span></span>
 <span><span class="co">#&gt;   forest has fewer ways to represent the same fit, so the sampler has less room</span></span>
 <span><span class="co">#&gt;   to move between them.</span></span>

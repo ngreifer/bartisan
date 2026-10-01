@@ -431,8 +431,8 @@ splitting rules on, and what it takes to read an effect as causal.
 
 - [Effects, Curves, and
   Interactions](https://ngreifer.github.io/bartisan/articles/effects.md):
-- [Which Variables
-  Matter](https://ngreifer.github.io/bartisan/articles/importance.md):
+- [Variable
+  Importance](https://ngreifer.github.io/bartisan/articles/importance.md):
 - [Causal Inference with
   BART](https://ngreifer.github.io/bartisan/articles/causal.md):
 
@@ -443,8 +443,8 @@ and how to choose between two models that both do.
 
 - [Checking Convergence and
   Fit](https://ngreifer.github.io/bartisan/articles/diagnostics.md):
-- [Choosing Between
-  Models](https://ngreifer.github.io/bartisan/articles/comparison.md):
+- [Model
+  Comparison](https://ngreifer.github.io/bartisan/articles/comparison.md):
 
 ### Reference
 

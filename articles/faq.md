@@ -397,7 +397,7 @@ Regression Trees.” *Public Opinion Quarterly* 76 (3): 491–511.
 
 Hahn, P. Richard, Vincent Dorie, and Jared S. Murray. 2019. “Atlantic
 Causal Inference Conference (ACIC) Data Analysis Challenge 2017.”
-*arXiv:1905.09515 \[Stat\]*, May. <http://arxiv.org/abs/1905.09515>.
+*arXiv:1905.09515 \[Stat\]*, May. <https://arxiv.org/abs/1905.09515>.
 
 Hahn, P. Richard, Jared S. Murray, and Carlos M. Carvalho. 2020.
 “Bayesian Regression Tree Models for Causal Inference: Regularization,
