@@ -318,60 +318,41 @@ estimate_effect(fit)
 
 # Or the whole picture at once
 summary(fit)
-#> Generalized BART
-#> 
-#> Call:
-#> bcf(formula = model, treat = ~rhc, data = rhc, family = binomial(), 
-#>     propensity_args = list(num_trees = 10, num_burn = 50, num_draws = 50), 
-#>     num_trees = c(10, 5), num_burn = 50, num_draws = 50)
-#> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 2 forests of 10 and 5 trees, soft decision rules
-#> Draws: 50
-#> 
 #> Nuisance parameters
 #>           mean    sd  lower  upper
 #> b.rhc.0 -0.649 0.183 -0.975 -0.391
 #> b.rhc.1 -0.362 0.137 -0.566 -0.140
 #> 
-#> Predictor usage
-#> Splitting rules per draw, and how often used at all.
+#> Convergence and mixing
 #> 
-#> Predictor "(Intercept)":
-#>             mean    sd lower upper prop_used
-#> age         1.42 0.538     1 2.000      1.00
-#> surv2m      2.82 0.850     2 4.000      1.00
-#> meanbp      1.46 0.762     0 3.000      0.94
-#> aps         1.46 0.862     0 3.000      0.88
-#> pafi        1.80 1.525     0 5.000      0.82
-#> resp        0.94 0.740     0 2.000      0.70
-#> card        1.02 0.869     0 2.000      0.70
-#> hema        0.78 0.708     0 2.000      0.62
-#> race        0.82 0.774     0 2.000      0.60
-#> edu         0.80 0.948     0 2.775      0.48
-#> sex         0.44 0.541     0 1.000      0.42
-#> .propensity 0.50 0.735     0 2.000      0.38
-#> crea        0.32 0.471     0 1.000      0.32
-#> paco2       0.44 0.861     0 2.775      0.24
+#> Log likelihood: R-hat 1.157, bulk ESS 9, tail ESS 30, over 1 chain
 #> 
-#> Predictor "rhc":
-#>             mean    sd lower upper prop_used
-#> paco2       1.74 0.828     1 3.775      0.98
-#> pafi        0.90 0.789     0 3.000      0.70
-#> hema        0.76 0.625     0 2.000      0.66
-#> edu         0.56 0.577     0 1.775      0.52
-#> meanbp      0.58 0.642     0 2.000      0.50
-#> sex         0.42 0.609     0 2.000      0.36
-#> aps         0.48 0.735     0 2.000      0.36
-#> surv2m      0.42 0.609     0 2.000      0.36
-#> crea        0.32 0.471     0 1.000      0.32
-#> age         0.30 0.463     0 1.000      0.30
-#> race        0.26 0.443     0 1.000      0.26
-#> resp        0.32 0.621     0 2.000      0.24
-#> card        0.16 0.422     0 1.000      0.14
-#> .propensity 0.00 0.000     0 0.000      0.00
+#> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
+#>   diagnostics.
 #> 
-#> ℹ This fit has a treatment, "rhc". `estimate_effect()` reports its effect, with
-#>   the average potential outcomes beside it.
+#> Variable importance
+#> 
+#> Predictors in the "(Intercept)" forest ranked by use; 5 of 14 shown.
+#>  variable prop_used prop_splits splits
+#>    surv2m      1.00       0.196    2.8
+#>       age      1.00       0.096    1.4
+#>    meanbp      0.94       0.095    1.5
+#>       aps      0.88       0.100    1.5
+#>      pafi      0.82       0.125    1.8
+#> 
+#> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
+#>   variable importance.
+#> 
+#> Further tools
+#> 
+#> ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or
+#>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k
+#>   values above 0.7.
+#> ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()
+#>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the
+#>   predictions on a predictor.
+#> ℹ This fit has a treatment, "rhc". estimate_effect()
+#>   (`?bartisan::estimate_effect`) reports its effect, with the average potential
+#>   outcomes beside it.
+#> 
 ```

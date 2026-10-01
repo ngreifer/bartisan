@@ -312,30 +312,31 @@ fit_sub <- bartisan(list(mean   = het ~ x1 + x2,
                     sparsity = c(mean = TRUE, log_sd = FALSE))
 
 summary(fit_sub)
-#> Generalized BART
+#> Convergence and mixing
 #> 
-#> Call:
-#> bartisan(formula = list(mean = het ~ x1 + x2, log_sd = ~x2), 
-#>     data = d, family = gaussian_ls(), control = ctrl, num_trees = c(mean = 10, 
-#>         log_sd = 5), sparsity = c(mean = TRUE, log_sd = FALSE))
+#> Log likelihood: R-hat 0.998, bulk ESS 113, tail ESS 108, over 1 chain
 #> 
-#> Family: "gaussian_ls" with the "identity" link
-#> Observations: 300
-#> Structure: 2 forests of 10 and 5 trees, soft decision rules
-#> Draws: 150
+#> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
+#>   diagnostics.
 #> 
-#> Predictor usage
-#> Splitting rules per draw, and how often used at all.
+#> Variable importance
 #> 
-#> Predictor "mean":
-#>      mean    sd lower upper prop_used
-#> x1 15.133 2.825    11  22.3     1.000
-#> x2  0.053 0.225     0   1.0     0.053
+#> Predictors in the "mean" forest ranked by use; 2 of 2 shown.
+#>  variable prop_used prop_splits splits
+#>        x1     1.000       0.997   15.1
+#>        x2     0.053       0.003    0.1
 #> 
-#> Predictor "log_sd":
-#>    mean   sd lower upper prop_used
-#> x2 7.15 1.96     4    11         1
-#> x1 0.00 0.00     0     0         0
+#> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
+#>   variable importance.
+#> 
+#> Further tools
+#> 
+#> ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or
+#>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k
+#>   values above 0.7.
+#> ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()
+#>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the
+#>   predictions on a predictor.
 ```
 
 Separate proportions are not always desirable. With `sparsity = TRUE`,
@@ -1146,8 +1147,9 @@ We recommend
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 as the default when we have no view about the shape of anything;
 measured against five alternatives over six data-generating truths, it
-was best or tied-best on four and never worse than third, and it matched
-the correctly specified family on the two truths where one existed. Use
+was best or tied-best on three and never worse than third, and it came
+within .004 of the correctly specified family on the two truths where
+one existed. Use
 [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 or
 [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)

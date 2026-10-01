@@ -5,13 +5,13 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet"><meta property="og:title" content="Summarize a generalized BART model — print.bartisan_fit"><meta name="description" content="print() reports what was fit and how long the chain is. summary() adds
-posterior summaries of the nuisance parameters, of the random-effect scales,
-and of how often each predictor was used in a splitting rule, which is the
-model's variable-selection output."><meta property="og:description" content="print() reports what was fit and how long the chain is. summary() adds
-posterior summaries of the nuisance parameters, of the random-effect scales,
-and of how often each predictor was used in a splitting rule, which is the
-model's variable-selection output."></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet"><meta property="og:title" content="Summarize a generalized BART model — print.bartisan_fit"><meta name="description" content="print() reports what was fit and how long the chain is. summary() reports
+what print() does not: posterior summaries of the nuisance parameters and
+the random-effect scales, a quick check of convergence, and the most used
+predictors, with pointers to the functions that examine each of these in full."><meta property="og:description" content="print() reports what was fit and how long the chain is. summary() reports
+what print() does not: posterior summaries of the nuisance parameters and
+the random-effect scales, a quick check of convergence, and the most used
+predictors, with pointers to the functions that examine each of these in full."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -31,11 +31,7 @@ model's variable-selection output."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/index.html">All articles</a></li>
-    <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/bartisan.html">Getting Started with bartisan</a></li>
-    <li><hr class="dropdown-divider"></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Fitting a Model</h6></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response Families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival Analysis in bartisan</a></li>
@@ -43,15 +39,18 @@ model's variable-selection output."></head><body>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reading a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, Curves, and Interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which Variables Matter</a></li>
+    <li><a class="dropdown-item" href="../articles/importance.html">Variable Importance</a></li>
     <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Checking a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking Convergence and Fit</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing Between Models</a></li>
+    <li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference</h6></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">Frequently Asked Questions</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -77,10 +76,10 @@ model's variable-selection output."></head><body>
     </div>
 
     <div class="ref-description section level2">
-    <p><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> reports what was fit and how long the chain is. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> adds
-posterior summaries of the nuisance parameters, of the random-effect scales,
-and of how often each predictor was used in a splitting rule, which is the
-model's variable-selection output.</p>
+    <p><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> reports what was fit and how long the chain is. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> reports
+what <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> does not: posterior summaries of the nuisance parameters and
+the random-effect scales, a quick check of convergence, and the most used
+predictors, with pointers to the functions that examine each of these in full.</p>
     </div>
 
     <div class="section level2">
@@ -124,8 +123,24 @@ reports. Default is .95 for 95% intervals.</p></dd>
     <p><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> returns its argument invisibly. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> returns a
 <code>&lt;summary.bartisan_fit&gt;</code> object, a list of the posterior summaries its own
 <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method displays: the nuisance parameters when the family has any,
-the scale of each random-effect term, and the splitting counts of each
-predictor group.</p>
+the scale of each random-effect term, the splitting counts of each predictor
+group, the output of <code><a href="variable_importance.html">variable_importance()</a></code>, and R-hat and the effective
+sample sizes of the log likelihood.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The printed summary is a starting point for the functions that examine a fit
+in full, and it computes only what is cheap. Its convergence line gives R-hat
+and the bulk and tail effective sample sizes of the log likelihood, which take
+milliseconds because the log likelihood is a single series. It can look fine
+while individual fitted values mix badly, which is what <code><a href="diagnose.html">diagnose()</a></code> checks,
+at a cost that grows with the number of observations. The variable importance
+table shows at most the five most used predictors of the first forest;
+<code><a href="variable_importance.html">variable_importance()</a></code> gives every predictor in every forest. The summary
+also points to <a href="bartisan-interop.html">loo()</a> and <a href="bartisan-interop.html">kfold()</a> for
+comparing fits and to <code><a href="partial_dependence.html">partial_dependence()</a></code> for how the predictions depend
+on a predictor, none of which it runs, since each can take seconds or more on
+a large fit.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -167,36 +182,35 @@ are computed from have converged</p></div>
 <span class="r-in"><span><span class="co"># The splitting counts, which say which predictors the</span></span></span>
 <span class="r-in"><span><span class="co"># forest reaches for</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     data = rhc, num_trees = 10, num_burn = 50, num_draws = 50, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     chains = 2, verbose = FALSE)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Log likelihood: R-hat 1.055, bulk ESS 39, tail ESS 81, over 2 chains</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   diagnostics.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Predictor usage</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        mean    sd lower upper prop_used</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> age    1.84 0.929     1 4.000      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> aps    1.97 0.834     1 4.000      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> pafi   1.78 0.824     1 3.000      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> paco2  2.44 0.857     1 4.525      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> surv2m 2.94 0.908     2 5.000      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rhc    1.20 0.725     0 3.000      0.89</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> meanbp 1.13 0.734     0 2.525      0.82</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> edu    1.16 0.992     0 3.525      0.75</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> crea   0.78 0.786     0 2.000      0.58</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> card   0.83 0.900     0 3.000      0.57</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> resp   0.70 0.798     0 2.525      0.54</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> hema   0.52 0.643     0 2.000      0.44</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> sex    0.39 0.665     0 2.000      0.30</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> race   0.20 0.471     0 1.525      0.17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Variable importance</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Predictors ranked by use; 5 of 14 shown.</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  variable prop_used prop_splits splits</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    surv2m         1       0.167    2.9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     paco2         1       0.138    2.4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       aps         1       0.111    2.0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       age         1       0.103    1.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      pafi         1       0.098    1.8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use variable_importance() (`?bartisan::variable_importance`) to examine</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   variable importance.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Further tools</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto <span style="font-style: italic;">k</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   values above 0.7.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use partial_dependence() (`?bartisan::partial_dependence`) and plot()</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   predictions on a predictor.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># A family with a nuisance parameter reports its</span></span></span>
 <span class="r-in"><span><span class="co"># posterior too, here the residual standard deviation of</span></span></span>
@@ -209,40 +223,39 @@ are computed from have converged</p></div>
 <span class="r-in"><span>                 num_draws <span class="op">=</span> <span class="fl">50</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit2</span>, level <span class="op">=</span> <span class="fl">.8</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = log(days) ~ rhc + age + sex + race + edu + </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     aps + meanbp + resp + hema + pafi + paco2 + crea + surv2m + </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     card, data = rhc, family = gaussian(), num_trees = 10, num_burn = 50, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     num_draws = 50, verbose = FALSE)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"gaussian"</span> with the <span style="color: #0000BB;">"identity"</span> link</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 1500</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Nuisance parameters</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       mean    sd lower upper</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> sigma 1.54 0.028 1.505 1.573</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Predictor usage</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        mean    sd lower upper prop_used</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rhc    1.40 0.670   1.0     2      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> aps    1.24 0.431   1.0     2      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> surv2m 2.44 1.033   1.0     4      1.00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> paco2  1.38 0.780   0.9     2      0.90</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> meanbp 1.04 0.755   0.0     2      0.78</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> resp   1.64 1.102   0.0     3      0.78</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> edu    0.92 0.944   0.0     2      0.58</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> race   0.46 0.613   0.0     1      0.40</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> crea   0.54 0.788   0.0     2      0.38</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> sex    0.42 0.642   0.0     1      0.34</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> card   0.24 0.476   0.0     1      0.22</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> hema   0.18 0.388   0.0     1      0.18</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> age    0.08 0.274   0.0     0      0.08</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> pafi   0.08 0.274   0.0     0      0.08</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Convergence and mixing</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Log likelihood: R-hat 1.43, bulk ESS 5, tail ESS 13, over 1 chain</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   diagnostics.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Variable importance</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="font-style: italic;">Predictors ranked by use; 5 of 14 shown.</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  variable prop_used prop_splits splits</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    surv2m      1.00       0.205    2.4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       rhc      1.00       0.115    1.4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       aps      1.00       0.106    1.2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     paco2      0.90       0.115    1.4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      resp      0.78       0.138    1.6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use variable_importance() (`?bartisan::variable_importance`) to examine</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   variable importance.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Further tools</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto <span style="font-style: italic;">k</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   values above 0.7.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Use partial_dependence() (`?bartisan::partial_dependence`) and plot()</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   predictions on a predictor.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

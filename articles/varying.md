@@ -128,63 +128,52 @@ any function of `rhc` can move from one to the other without changing a
 single prediction.
 
 We can examine the structure of the forest for the `rhc` coefficient
-using [`summary()`](https://rdrr.io/r/base/summary.html), which includes
-a table for each forest in the model:
+using
+[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md),
+which gives a table for each forest in the model:
 
 ``` r
 
-summary(fit_vc)
-#> Generalized BART
+variable_importance(fit_vc)
+#> Variable importance
 #> 
-#> Call:
-#> bartisan(formula = death ~ age + sex + race + edu + aps + meanbp + 
-#>     resp + hema + pafi + paco2 + crea + surv2m + card + vc(rhc), 
-#>     data = rhc, family = binomial())
+#>    predictor variable prop_used prop_splits splits
+#>  (Intercept)   surv2m     1.000       0.117    8.9
+#>  (Intercept)      age     1.000       0.097    7.4
+#>  (Intercept)    paco2     1.000       0.084    6.4
+#>          rhc      aps     1.000       0.082    6.2
+#>  (Intercept)     pafi     1.000       0.081    6.1
+#>          rhc     race     1.000       0.079    6.0
+#>          rhc   meanbp     1.000       0.079    6.0
+#>          rhc     resp     1.000       0.078    5.9
+#>          rhc     card     1.000       0.077    5.8
+#>  (Intercept)     race     1.000       0.067    5.1
+#>          rhc     hema     0.999       0.083    6.3
+#>  (Intercept)      aps     0.999       0.082    6.3
+#>          rhc   surv2m     0.999       0.075    5.7
+#>  (Intercept)      edu     0.999       0.073    5.6
+#>  (Intercept)     card     0.999       0.069    5.2
+#>          rhc      age     0.998       0.077    5.9
+#>  (Intercept)     hema     0.998       0.071    5.4
+#>  (Intercept)   meanbp     0.998       0.071    5.4
+#>  (Intercept)      sex     0.998       0.064    4.9
+#>          rhc     pafi     0.996       0.076    5.7
+#>          rhc      sex     0.996       0.074    5.6
+#>          rhc    paco2     0.996       0.073    5.5
+#>          rhc      edu     0.995       0.075    5.7
+#>          rhc     crea     0.995       0.073    5.5
+#>  (Intercept)     crea     0.989       0.065    4.9
+#>  (Intercept)     resp     0.984       0.060    4.5
 #> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 2 forests of 50 trees, soft decision rules
-#> Draws: 800
-#> 
-#> Predictor usage
-#> Splitting rules per draw, and how often used at all.
-#> 
-#> Predictor "(Intercept)":
-#>         mean    sd lower  upper prop_used
-#> age    7.384 2.409     3 12.000     1.000
-#> race   5.081 2.389     1 10.000     1.000
-#> pafi   6.109 2.121     2 11.000     1.000
-#> paco2  6.383 2.178     2 11.000     1.000
-#> surv2m 8.919 2.292     5 14.000     1.000
-#> edu    5.575 2.315     1 11.000     0.999
-#> aps    6.254 2.297     2 11.000     0.999
-#> card   5.237 2.008     2  9.025     0.999
-#> sex    4.869 2.031     1  9.000     0.998
-#> meanbp 5.378 2.099     2 10.000     0.998
-#> hema   5.402 2.432     1 11.000     0.998
-#> crea   4.934 2.234     1 10.000     0.989
-#> resp   4.540 2.237     1  9.025     0.984
-#> 
-#> Predictor "rhc":
-#>         mean    sd lower upper prop_used
-#> race   5.991 2.449 2.000 11.00     1.000
-#> aps    6.211 2.272 2.975 11.00     1.000
-#> meanbp 5.989 2.205 2.000 11.00     1.000
-#> resp   5.928 2.390 2.000 11.00     1.000
-#> card   5.830 2.129 2.000 10.00     1.000
-#> hema   6.275 2.388 2.000 11.00     0.999
-#> surv2m 5.651 2.381 2.000 11.00     0.999
-#> age    5.866 2.295 2.000 11.00     0.998
-#> sex    5.608 2.296 2.000 10.00     0.996
-#> pafi   5.734 2.296 2.000 10.00     0.996
-#> paco2  5.525 2.243 1.000 10.00     0.996
-#> edu    5.745 2.516 1.975 11.00     0.995
-#> crea   5.520 2.357 1.000 10.03     0.995
+#> ℹ Fitted with `sparsity = FALSE` (the default), so every predictor keeps a
+#>   share of the rules and prop_used is near 1 throughout. Refit with `sparsity =
+#>   TRUE` to read it as a selection rule.
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 Under the default splitting prior every predictor is used in nearly
 every draw of both forests, so the `prop_used` column says little here
-and the `mean` column carries the ranking: `surv2m` and `age` take the
+and the `splits` column carries the ranking: `surv2m` and `age` take the
 most rules in the control function (`(Intercept)`) forest, and `hema` in
 the varying coefficient (`rhc`) forest.
 
@@ -216,59 +205,48 @@ few specific predictors, since a forest asked to search fourteen
 predictors for heterogeneity that lives in two will spend some of its
 prior on the other twelve.
 
-Calling [`summary()`](https://rdrr.io/r/base/summary.html) on `fit_aps`,
-we can see that the only variables used in the varying coefficient
-forest are indeed `aps` and `age`, as requested:
+Calling
+[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
+on `fit_aps`, we can see that the only variables used in the varying
+coefficient forest are indeed `aps` and `age`, as requested:
 
 ``` r
 
-summary(fit_aps)
-#> Generalized BART
+variable_importance(fit_aps)
+#> Variable importance
 #> 
-#> Call:
-#> bartisan(formula = death ~ age + sex + race + edu + aps + meanbp + 
-#>     resp + hema + pafi + paco2 + crea + surv2m + card + vc(rhc, 
-#>     ~aps + age), data = rhc, family = binomial())
+#>    predictor variable prop_used prop_splits splits
+#>          rhc      aps     1.000       0.500   37.7
+#>          rhc      age     1.000       0.500   37.6
+#>  (Intercept)   surv2m     1.000       0.122    9.2
+#>  (Intercept)      age     1.000       0.096    7.2
+#>  (Intercept)    paco2     1.000       0.081    6.1
+#>  (Intercept)      aps     0.999       0.082    6.2
+#>  (Intercept)     hema     0.999       0.073    5.5
+#>  (Intercept)      edu     0.999       0.069    5.2
+#>  (Intercept)     pafi     0.998       0.074    5.6
+#>  (Intercept)   meanbp     0.996       0.073    5.5
+#>  (Intercept)     crea     0.996       0.070    5.3
+#>  (Intercept)      sex     0.996       0.065    4.9
+#>  (Intercept)     card     0.994       0.066    5.0
+#>  (Intercept)     resp     0.993       0.064    4.8
+#>  (Intercept)     race     0.990       0.064    4.8
+#>          rhc      sex     0.000       0.000    0.0
+#>          rhc     race     0.000       0.000    0.0
+#>          rhc      edu     0.000       0.000    0.0
+#>          rhc   meanbp     0.000       0.000    0.0
+#>          rhc     resp     0.000       0.000    0.0
+#>          rhc     hema     0.000       0.000    0.0
+#>          rhc     pafi     0.000       0.000    0.0
+#>          rhc    paco2     0.000       0.000    0.0
+#>          rhc     crea     0.000       0.000    0.0
+#>          rhc   surv2m     0.000       0.000    0.0
+#>          rhc     card     0.000       0.000    0.0
 #> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 2 forests of 50 trees, soft decision rules
-#> Draws: 800
-#> 
-#> Predictor usage
-#> Splitting rules per draw, and how often used at all.
-#> 
-#> Predictor "(Intercept)":
-#>         mean    sd lower  upper prop_used
-#> age    7.210 2.315 3.000 12.000     1.000
-#> paco2  6.131 2.100 2.000 10.000     1.000
-#> surv2m 9.199 2.351 4.975 14.000     1.000
-#> edu    5.222 2.132 1.000 10.000     0.999
-#> aps    6.207 2.185 2.000 10.000     0.999
-#> hema   5.516 2.272 2.000 10.025     0.999
-#> pafi   5.559 2.155 2.000 11.000     0.998
-#> sex    4.858 2.121 1.000  9.000     0.996
-#> meanbp 5.522 2.444 2.000 11.000     0.996
-#> crea   5.263 2.555 1.000 11.000     0.996
-#> card   4.994 2.256 1.000  9.025     0.994
-#> resp   4.841 2.070 1.000  9.000     0.993
-#> race   4.834 2.356 1.000 10.000     0.990
-#> 
-#> Predictor "rhc":
-#>         mean    sd lower upper prop_used
-#> age    37.62 5.445    27 49.02         1
-#> aps    37.70 5.585    28 49.00         1
-#> sex     0.00 0.000     0  0.00         0
-#> race    0.00 0.000     0  0.00         0
-#> edu     0.00 0.000     0  0.00         0
-#> meanbp  0.00 0.000     0  0.00         0
-#> resp    0.00 0.000     0  0.00         0
-#> hema    0.00 0.000     0  0.00         0
-#> pafi    0.00 0.000     0  0.00         0
-#> paco2   0.00 0.000     0  0.00         0
-#> crea    0.00 0.000     0  0.00         0
-#> surv2m  0.00 0.000     0  0.00         0
-#> card    0.00 0.000     0  0.00         0
+#> ℹ Fitted with `sparsity = FALSE` (the default), so every predictor keeps a
+#>   share of the rules and prop_used is near 1 throughout. Refit with `sparsity =
+#>   TRUE` to read it as a selection rule.
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 When the modified variable is continuous, `modifiers` decides whether

@@ -41,11 +41,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/index.html">All articles</a></li>
-    <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/bartisan.html">Getting Started with bartisan</a></li>
-    <li><hr class="dropdown-divider"></li>
+<li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Fitting a Model</h6></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response Families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival Analysis in bartisan</a></li>
@@ -53,15 +49,18 @@
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reading a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, Curves, and Interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which Variables Matter</a></li>
+    <li><a class="dropdown-item" href="../articles/importance.html">Variable Importance</a></li>
     <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Checking a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking Convergence and Fit</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing Between Models</a></li>
+    <li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference</h6></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">Frequently Asked Questions</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
@@ -646,30 +645,31 @@ or fewer:</p>
 <span>                    sparsity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="cn">TRUE</span>, log_sd <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_sub</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; bartisan(formula = list(mean = het ~ x1 + x2, log_sd = ~x2), </span></span>
-<span><span class="co">#&gt;     data = d, family = gaussian_ls(), control = ctrl, num_trees = c(mean = 10, </span></span>
-<span><span class="co">#&gt;         log_sd = 5), sparsity = c(mean = TRUE, log_sd = FALSE))</span></span>
+<span><span class="co">#&gt; Log likelihood: R-hat 0.998, bulk ESS 113, tail ESS 108, over 1 chain</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: <span style="color: #0000BB;">"gaussian_ls"</span> with the <span style="color: #0000BB;">"identity"</span> link</span></span>
-<span><span class="co">#&gt; Observations: 300</span></span>
-<span><span class="co">#&gt; Structure: 2 forests of 10 and 5 trees, soft decision rules</span></span>
-<span><span class="co">#&gt; Draws: 150</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing</span></span>
+<span><span class="co">#&gt;   diagnostics.</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="text-decoration: underline;">Predictor usage</span></span></span>
-<span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"mean"</span>:</span></span>
-<span><span class="co">#&gt;      mean    sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; x1 15.133 2.825    11  22.3     1.000</span></span>
-<span><span class="co">#&gt; x2  0.053 0.225     0   1.0     0.053</span></span>
+<span><span class="co">#&gt; <span style="font-style: italic;">Predictors in the </span><span style="color: #0000BB; font-style: italic;">"mean"</span><span style="font-style: italic;"> forest ranked by use; 2 of 2 shown.</span></span></span>
+<span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
+<span><span class="co">#&gt;        x1     1.000       0.997   15.1</span></span>
+<span><span class="co">#&gt;        x2     0.053       0.003    0.1</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"log_sd"</span>:</span></span>
-<span><span class="co">#&gt;    mean   sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; x2 7.15 1.96     4    11         1</span></span>
-<span><span class="co">#&gt; x1 0.00 0.00     0     0         0</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Use variable_importance() (`?bartisan::variable_importance`) to examine</span></span>
+<span><span class="co">#&gt;   variable importance.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Further tools</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or</span></span>
+<span><span class="co">#&gt;   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto <span style="font-style: italic;">k</span></span></span>
+<span><span class="co">#&gt;   values above 0.7.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Use partial_dependence() (`?bartisan::partial_dependence`) and plot()</span></span>
+<span><span class="co">#&gt;   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the</span></span>
+<span><span class="co">#&gt;   predictions on a predictor.</span></span></code></pre></div>
 <p>Separate proportions are not always desirable. With
 <code>sparsity = TRUE</code>, each forest draws its own splitting
 proportions, so each has to work out on its own which predictors matter,
@@ -1449,15 +1449,15 @@ one-year survival between two groups), and that is a contrast of
 <code>type = "survival"</code> at one time.</p>
 <p>We recommend <code><a href="../reference/bartisan-families.html">dpm_aft()</a></code> as the default when we have no
 view about the shape of anything; measured against five alternatives
-over six data-generating truths, it was best or tied-best on four and
-never worse than third, and it matched the correctly specified family on
-the two truths where one existed. Use <code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> or
-<code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> when the fit has to be quick,
-<code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> when a hazard-ratio reading is wanted from a
-parametric fit, and <code><a href="../reference/bartisan-families.html">ph()</a></code> when the shape of the baseline
-hazard is the point. If the covariate effect may move with time, so that
-survival curves cross, none of the five is right and the discrete-time
-route is.</p>
+over six data-generating truths, it was best or tied-best on three and
+never worse than third, and it came within .004 of the correctly
+specified family on the two truths where one existed. Use
+<code><a href="../reference/bartisan-families.html">lognormal_aft()</a></code> or <code><a href="../reference/bartisan-families.html">loglogistic_aft()</a></code> when the
+fit has to be quick, <code><a href="../reference/bartisan-families.html">weibull_aft()</a></code> when a hazard-ratio
+reading is wanted from a parametric fit, and <code><a href="../reference/bartisan-families.html">ph()</a></code> when the
+shape of the baseline hazard is the point. If the covariate effect may
+move with time, so that survival curves cross, none of the five is right
+and the discrete-time route is.</p>
 <p>The trade-offs behind these choices are measured in
 <code><a href="../articles/survival.html">vignette("survival", package = "bartisan")</a></code>, which covers
 what each estimand is, which hazard shapes each family can and cannot

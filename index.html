@@ -43,11 +43,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/index.html">All articles</a></li>
-    <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="articles/bartisan.html">Getting Started with bartisan</a></li>
-    <li><hr class="dropdown-divider"></li>
+<li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Fitting a Model</h6></li>
     <li><a class="dropdown-item" href="articles/families.html">Response Families in bartisan</a></li>
     <li><a class="dropdown-item" href="articles/survival.html">Survival Analysis in bartisan</a></li>
@@ -55,15 +51,18 @@
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reading a Fit</h6></li>
     <li><a class="dropdown-item" href="articles/effects.html">Effects, Curves, and Interactions</a></li>
-    <li><a class="dropdown-item" href="articles/importance.html">Which Variables Matter</a></li>
+    <li><a class="dropdown-item" href="articles/importance.html">Variable Importance</a></li>
     <li><a class="dropdown-item" href="articles/causal.html">Causal Inference with BART</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Checking a Fit</h6></li>
     <li><a class="dropdown-item" href="articles/diagnostics.html">Checking Convergence and Fit</a></li>
-    <li><a class="dropdown-item" href="articles/comparison.html">Choosing Between Models</a></li>
+    <li><a class="dropdown-item" href="articles/comparison.html">Model Comparison</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference</h6></li>
     <li><a class="dropdown-item" href="articles/implementation.html">Generalized BART with bartisan</a></li>
+    <li><a class="dropdown-item" href="articles/faq.html">Frequently Asked Questions</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="articles/index.html">More articles...</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="articles/faq.html">FAQ</a></li>
@@ -136,34 +135,38 @@
 <span><span class="co">#&gt; Observations: 1500</span></span>
 <span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 800 kept after 200 warmup</span></span></code></pre></div>
-<p>Calling <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on the fit displays a measure of variable importance, how often predictors were used to split the trees:</p>
+<p>Calling <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on the fit gives a quick check of convergence and the predictors used most often to split the trees, and points to the functions that examine each of these in full:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Generalized BART</span></span>
+<span><span class="co">#&gt; Convergence and mixing</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; bartisan(formula = death ~ rhc + age + sex + race + edu + pafi + </span></span>
-<span><span class="co">#&gt;     paco2 + crea + surv2m + card, data = rhc, family = binomial())</span></span>
+<span><span class="co">#&gt; Log likelihood: R-hat 1.039, bulk ESS 98, tail ESS 185, over 1 chain</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: "binomial" with the "logit" link</span></span>
-<span><span class="co">#&gt; Observations: 1500</span></span>
-<span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
-<span><span class="co">#&gt; Draws: 800</span></span>
+<span><span class="co">#&gt; ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing</span></span>
+<span><span class="co">#&gt;   diagnostics.</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor usage</span></span>
-<span><span class="co">#&gt; Splitting rules per draw, and how often used at all.</span></span>
-<span><span class="co">#&gt;          mean    sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; rhc     6.339 2.589     2    12     1.000</span></span>
-<span><span class="co">#&gt; age     8.304 2.762     3    14     1.000</span></span>
-<span><span class="co">#&gt; sex     7.033 2.594     3    13     1.000</span></span>
-<span><span class="co">#&gt; race    6.911 2.587     3    13     1.000</span></span>
-<span><span class="co">#&gt; edu     7.207 2.587     3    14     1.000</span></span>
-<span><span class="co">#&gt; paco2   8.210 2.629     4    14     1.000</span></span>
-<span><span class="co">#&gt; crea    6.852 2.640     2    12     1.000</span></span>
-<span><span class="co">#&gt; surv2m 10.647 2.619     6    16     1.000</span></span>
-<span><span class="co">#&gt; card    6.812 2.792     2    13     0.999</span></span>
-<span><span class="co">#&gt; pafi    7.379 2.739     3    14     0.998</span></span></code></pre></div>
-<p>Nothing had to be said about which predictors matter, which are curved, or which interact. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> shows what the model made of one of them, here the study’s own estimate of each patient’s chance of surviving two months:</p>
+<span><span class="co">#&gt; Variable importance</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Predictors ranked by use; 5 of 10 shown.</span></span>
+<span><span class="co">#&gt;  variable prop_used prop_splits splits</span></span>
+<span><span class="co">#&gt;    surv2m         1       0.141   10.6</span></span>
+<span><span class="co">#&gt;       age         1       0.109    8.3</span></span>
+<span><span class="co">#&gt;     paco2         1       0.109    8.2</span></span>
+<span><span class="co">#&gt;       edu         1       0.095    7.2</span></span>
+<span><span class="co">#&gt;       sex         1       0.093    7.0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine</span></span>
+<span><span class="co">#&gt;   variable importance.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Further tools</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or</span></span>
+<span><span class="co">#&gt;   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k</span></span>
+<span><span class="co">#&gt;   values above 0.7.</span></span>
+<span><span class="co">#&gt; ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()</span></span>
+<span><span class="co">#&gt;   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the</span></span>
+<span><span class="co">#&gt;   predictions on a predictor.</span></span></code></pre></div>
+<p>Nothing had to be said about which predictors matter, which are curved, or which interact. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> after <code><a href="reference/partial_dependence.html">partial_dependence()</a></code> shows what the model made of one of them, here the study’s own estimate of each patient’s chance of surviving two months:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>

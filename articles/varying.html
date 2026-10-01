@@ -41,11 +41,7 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/index.html">All articles</a></li>
-    <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/bartisan.html">Getting Started with bartisan</a></li>
-    <li><hr class="dropdown-divider"></li>
+<li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Fitting a Model</h6></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response Families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival Analysis in bartisan</a></li>
@@ -53,15 +49,18 @@
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reading a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, Curves, and Interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which Variables Matter</a></li>
+    <li><a class="dropdown-item" href="../articles/importance.html">Variable Importance</a></li>
     <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Checking a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking Convergence and Fit</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing Between Models</a></li>
+    <li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference</h6></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">Frequently Asked Questions</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
@@ -219,59 +218,47 @@ the control function. Were <code>rhc</code> among <span class="math inline">\(f_
 separately identified, since any function of <code>rhc</code> can move
 from one to the other without changing a single prediction.</p>
 <p>We can examine the structure of the forest for the <code>rhc</code>
-coefficient using <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, which includes a table for
-each forest in the model:</p>
+coefficient using <code><a href="../reference/variable_importance.html">variable_importance()</a></code>, which gives a
+table for each forest in the model:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_vc</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_vc</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; bartisan(formula = death ~ age + sex + race + edu + aps + meanbp + </span></span>
-<span><span class="co">#&gt;     resp + hema + pafi + paco2 + crea + surv2m + card + vc(rhc), </span></span>
-<span><span class="co">#&gt;     data = rhc, family = binomial())</span></span>
+<span><span class="co">#&gt;    predictor variable prop_used prop_splits splits</span></span>
+<span><span class="co">#&gt;  (Intercept)   surv2m     1.000       0.117    8.9</span></span>
+<span><span class="co">#&gt;  (Intercept)      age     1.000       0.097    7.4</span></span>
+<span><span class="co">#&gt;  (Intercept)    paco2     1.000       0.084    6.4</span></span>
+<span><span class="co">#&gt;          rhc      aps     1.000       0.082    6.2</span></span>
+<span><span class="co">#&gt;  (Intercept)     pafi     1.000       0.081    6.1</span></span>
+<span><span class="co">#&gt;          rhc     race     1.000       0.079    6.0</span></span>
+<span><span class="co">#&gt;          rhc   meanbp     1.000       0.079    6.0</span></span>
+<span><span class="co">#&gt;          rhc     resp     1.000       0.078    5.9</span></span>
+<span><span class="co">#&gt;          rhc     card     1.000       0.077    5.8</span></span>
+<span><span class="co">#&gt;  (Intercept)     race     1.000       0.067    5.1</span></span>
+<span><span class="co">#&gt;          rhc     hema     0.999       0.083    6.3</span></span>
+<span><span class="co">#&gt;  (Intercept)      aps     0.999       0.082    6.3</span></span>
+<span><span class="co">#&gt;          rhc   surv2m     0.999       0.075    5.7</span></span>
+<span><span class="co">#&gt;  (Intercept)      edu     0.999       0.073    5.6</span></span>
+<span><span class="co">#&gt;  (Intercept)     card     0.999       0.069    5.2</span></span>
+<span><span class="co">#&gt;          rhc      age     0.998       0.077    5.9</span></span>
+<span><span class="co">#&gt;  (Intercept)     hema     0.998       0.071    5.4</span></span>
+<span><span class="co">#&gt;  (Intercept)   meanbp     0.998       0.071    5.4</span></span>
+<span><span class="co">#&gt;  (Intercept)      sex     0.998       0.064    4.9</span></span>
+<span><span class="co">#&gt;          rhc     pafi     0.996       0.076    5.7</span></span>
+<span><span class="co">#&gt;          rhc      sex     0.996       0.074    5.6</span></span>
+<span><span class="co">#&gt;          rhc    paco2     0.996       0.073    5.5</span></span>
+<span><span class="co">#&gt;          rhc      edu     0.995       0.075    5.7</span></span>
+<span><span class="co">#&gt;          rhc     crea     0.995       0.073    5.5</span></span>
+<span><span class="co">#&gt;  (Intercept)     crea     0.989       0.065    4.9</span></span>
+<span><span class="co">#&gt;  (Intercept)     resp     0.984       0.060    4.5</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span></span>
-<span><span class="co">#&gt; Observations: 1500</span></span>
-<span><span class="co">#&gt; Structure: 2 forests of 50 trees, soft decision rules</span></span>
-<span><span class="co">#&gt; Draws: 800</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="text-decoration: underline;">Predictor usage</span></span></span>
-<span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"(Intercept)"</span>:</span></span>
-<span><span class="co">#&gt;         mean    sd lower  upper prop_used</span></span>
-<span><span class="co">#&gt; age    7.384 2.409     3 12.000     1.000</span></span>
-<span><span class="co">#&gt; race   5.081 2.389     1 10.000     1.000</span></span>
-<span><span class="co">#&gt; pafi   6.109 2.121     2 11.000     1.000</span></span>
-<span><span class="co">#&gt; paco2  6.383 2.178     2 11.000     1.000</span></span>
-<span><span class="co">#&gt; surv2m 8.919 2.292     5 14.000     1.000</span></span>
-<span><span class="co">#&gt; edu    5.575 2.315     1 11.000     0.999</span></span>
-<span><span class="co">#&gt; aps    6.254 2.297     2 11.000     0.999</span></span>
-<span><span class="co">#&gt; card   5.237 2.008     2  9.025     0.999</span></span>
-<span><span class="co">#&gt; sex    4.869 2.031     1  9.000     0.998</span></span>
-<span><span class="co">#&gt; meanbp 5.378 2.099     2 10.000     0.998</span></span>
-<span><span class="co">#&gt; hema   5.402 2.432     1 11.000     0.998</span></span>
-<span><span class="co">#&gt; crea   4.934 2.234     1 10.000     0.989</span></span>
-<span><span class="co">#&gt; resp   4.540 2.237     1  9.025     0.984</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"rhc"</span>:</span></span>
-<span><span class="co">#&gt;         mean    sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; race   5.991 2.449 2.000 11.00     1.000</span></span>
-<span><span class="co">#&gt; aps    6.211 2.272 2.975 11.00     1.000</span></span>
-<span><span class="co">#&gt; meanbp 5.989 2.205 2.000 11.00     1.000</span></span>
-<span><span class="co">#&gt; resp   5.928 2.390 2.000 11.00     1.000</span></span>
-<span><span class="co">#&gt; card   5.830 2.129 2.000 10.00     1.000</span></span>
-<span><span class="co">#&gt; hema   6.275 2.388 2.000 11.00     0.999</span></span>
-<span><span class="co">#&gt; surv2m 5.651 2.381 2.000 11.00     0.999</span></span>
-<span><span class="co">#&gt; age    5.866 2.295 2.000 11.00     0.998</span></span>
-<span><span class="co">#&gt; sex    5.608 2.296 2.000 10.00     0.996</span></span>
-<span><span class="co">#&gt; pafi   5.734 2.296 2.000 10.00     0.996</span></span>
-<span><span class="co">#&gt; paco2  5.525 2.243 1.000 10.00     0.996</span></span>
-<span><span class="co">#&gt; edu    5.745 2.516 1.975 11.00     0.995</span></span>
-<span><span class="co">#&gt; crea   5.520 2.357 1.000 10.03     0.995</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fitted with `sparsity = FALSE` (the default), so every predictor keeps a</span></span>
+<span><span class="co">#&gt;   share of the rules and <span style="color: #00BB00;">prop_used</span> is near 1 throughout. Refit with `sparsity =</span></span>
+<span><span class="co">#&gt;   TRUE` to read it as a selection rule.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>Under the default splitting prior every predictor is used in nearly
 every draw of both forests, so the <code>prop_used</code> column says
-little here and the <code>mean</code> column carries the ranking:
+little here and the <code>splits</code> column carries the ranking:
 <code>surv2m</code> and <code>age</code> take the most rules in the
 control function (<code>(Intercept)</code>) forest, and
 <code>hema</code> in the varying coefficient (<code>rhc</code>)
@@ -299,57 +286,46 @@ Restricting the modifiers is worth doing when there is reason to think
 the effect depends only on a few specific predictors, since a forest
 asked to search fourteen predictors for heterogeneity that lives in two
 will spend some of its prior on the other twelve.</p>
-<p>Calling <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on <code>fit_aps</code>, we can see
-that the only variables used in the varying coefficient forest are
-indeed <code>aps</code> and <code>age</code>, as requested:</p>
+<p>Calling <code><a href="../reference/variable_importance.html">variable_importance()</a></code> on <code>fit_aps</code>,
+we can see that the only variables used in the varying coefficient
+forest are indeed <code>aps</code> and <code>age</code>, as
+requested:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_aps</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/variable_importance.html">variable_importance</a></span><span class="op">(</span><span class="va">fit_aps</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Variable importance</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Call:</span></span>
-<span><span class="co">#&gt; bartisan(formula = death ~ age + sex + race + edu + aps + meanbp + </span></span>
-<span><span class="co">#&gt;     resp + hema + pafi + paco2 + crea + surv2m + card + vc(rhc, </span></span>
-<span><span class="co">#&gt;     ~aps + age), data = rhc, family = binomial())</span></span>
+<span><span class="co">#&gt;    predictor variable prop_used prop_splits splits</span></span>
+<span><span class="co">#&gt;          rhc      aps     1.000       0.500   37.7</span></span>
+<span><span class="co">#&gt;          rhc      age     1.000       0.500   37.6</span></span>
+<span><span class="co">#&gt;  (Intercept)   surv2m     1.000       0.122    9.2</span></span>
+<span><span class="co">#&gt;  (Intercept)      age     1.000       0.096    7.2</span></span>
+<span><span class="co">#&gt;  (Intercept)    paco2     1.000       0.081    6.1</span></span>
+<span><span class="co">#&gt;  (Intercept)      aps     0.999       0.082    6.2</span></span>
+<span><span class="co">#&gt;  (Intercept)     hema     0.999       0.073    5.5</span></span>
+<span><span class="co">#&gt;  (Intercept)      edu     0.999       0.069    5.2</span></span>
+<span><span class="co">#&gt;  (Intercept)     pafi     0.998       0.074    5.6</span></span>
+<span><span class="co">#&gt;  (Intercept)   meanbp     0.996       0.073    5.5</span></span>
+<span><span class="co">#&gt;  (Intercept)     crea     0.996       0.070    5.3</span></span>
+<span><span class="co">#&gt;  (Intercept)      sex     0.996       0.065    4.9</span></span>
+<span><span class="co">#&gt;  (Intercept)     card     0.994       0.066    5.0</span></span>
+<span><span class="co">#&gt;  (Intercept)     resp     0.993       0.064    4.8</span></span>
+<span><span class="co">#&gt;  (Intercept)     race     0.990       0.064    4.8</span></span>
+<span><span class="co">#&gt;          rhc      sex     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc     race     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc      edu     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc   meanbp     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc     resp     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc     hema     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc     pafi     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc    paco2     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc     crea     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc   surv2m     0.000       0.000    0.0</span></span>
+<span><span class="co">#&gt;          rhc     card     0.000       0.000    0.0</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span></span>
-<span><span class="co">#&gt; Observations: 1500</span></span>
-<span><span class="co">#&gt; Structure: 2 forests of 50 trees, soft decision rules</span></span>
-<span><span class="co">#&gt; Draws: 800</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="text-decoration: underline;">Predictor usage</span></span></span>
-<span><span class="co">#&gt; <span style="font-style: italic;">Splitting rules per draw, and how often used at all.</span></span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"(Intercept)"</span>:</span></span>
-<span><span class="co">#&gt;         mean    sd lower  upper prop_used</span></span>
-<span><span class="co">#&gt; age    7.210 2.315 3.000 12.000     1.000</span></span>
-<span><span class="co">#&gt; paco2  6.131 2.100 2.000 10.000     1.000</span></span>
-<span><span class="co">#&gt; surv2m 9.199 2.351 4.975 14.000     1.000</span></span>
-<span><span class="co">#&gt; edu    5.222 2.132 1.000 10.000     0.999</span></span>
-<span><span class="co">#&gt; aps    6.207 2.185 2.000 10.000     0.999</span></span>
-<span><span class="co">#&gt; hema   5.516 2.272 2.000 10.025     0.999</span></span>
-<span><span class="co">#&gt; pafi   5.559 2.155 2.000 11.000     0.998</span></span>
-<span><span class="co">#&gt; sex    4.858 2.121 1.000  9.000     0.996</span></span>
-<span><span class="co">#&gt; meanbp 5.522 2.444 2.000 11.000     0.996</span></span>
-<span><span class="co">#&gt; crea   5.263 2.555 1.000 11.000     0.996</span></span>
-<span><span class="co">#&gt; card   4.994 2.256 1.000  9.025     0.994</span></span>
-<span><span class="co">#&gt; resp   4.841 2.070 1.000  9.000     0.993</span></span>
-<span><span class="co">#&gt; race   4.834 2.356 1.000 10.000     0.990</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor <span style="color: #0000BB;">"rhc"</span>:</span></span>
-<span><span class="co">#&gt;         mean    sd lower upper prop_used</span></span>
-<span><span class="co">#&gt; age    37.62 5.445    27 49.02         1</span></span>
-<span><span class="co">#&gt; aps    37.70 5.585    28 49.00         1</span></span>
-<span><span class="co">#&gt; sex     0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; race    0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; edu     0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; meanbp  0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; resp    0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; hema    0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; pafi    0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; paco2   0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; crea    0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; surv2m  0.00 0.000     0  0.00         0</span></span>
-<span><span class="co">#&gt; card    0.00 0.000     0  0.00         0</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fitted with `sparsity = FALSE` (the default), so every predictor keeps a</span></span>
+<span><span class="co">#&gt;   share of the rules and <span style="color: #00BB00;">prop_used</span> is near 1 throughout. Refit with `sparsity =</span></span>
+<span><span class="co">#&gt;   TRUE` to read it as a selection rule.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">splits_lower</span> and <span style="color: #00BB00;">splits_upper</span> hold the 95% interval, not shown above.</span></span></code></pre></div>
 <p>When the modified variable is continuous, <code>modifiers</code>
 decides whether the effect is linear in the covariate. As written, the
 model is <span class="math inline">\(z\, f_1(Z)\)</span>, which for a

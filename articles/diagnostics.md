@@ -78,14 +78,14 @@ diagnose(fit)
 #> 
 #> What to do
 #> 
-#> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
-#>   quantity that carries too few effective draws for the threshold to mean
-#>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. A larger effective sample
-#>   size makes it readable, and that grows with the total number of draws; using
-#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
-#>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`, which was `50`. A smaller
+#> • Raise `num_draws`, which was 800. R-hat is above the threshold for a quantity
+#>   that carries too few effective draws for the threshold to mean anything: with
+#>   this many chains it would sit about where it does even if the chains agreed
+#>   exactly, as the check above reports. A larger effective sample size makes it
+#>   readable, and that grows with the total number of draws; using fewer chains
+#>   lowers the bar as well, since R-hat's null rises with the number of chains
+#>   being compared.
+#> • If that does not settle it, reduce `num_trees`, which was 50. A smaller
 #>   forest has fewer ways to represent the same fit, so the sampler has less room
 #>   to move between them.
 #> • Then check the family. A likelihood that fits the data badly can give a
@@ -408,7 +408,7 @@ estimate_effect(bcf_fit, estimand = "ATE") |>
 #> 
 #> What to do
 #> 
-#> • Raise `num_draws`, which was `800`. The chains agree and are stationary, so
+#> • Raise `num_draws`, which was 800. The chains agree and are stationary, so
 #>   they simply have not run long enough. Do not reach for `num_thin`: thinning
 #>   discards draws already paid for and lowers the effective sample size per unit
 #>   of time.
@@ -581,14 +581,14 @@ diagnose(short)
 #> 
 #> What to do
 #> 
-#> • Raise `num_draws`, which was `800`. R-hat is above the threshold for a
-#>   quantity that carries too few effective draws for the threshold to mean
-#>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. A larger effective sample
-#>   size makes it readable, and that grows with the total number of draws; using
-#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
-#>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`, which was `50`. A smaller
+#> • Raise `num_draws`, which was 800. R-hat is above the threshold for a quantity
+#>   that carries too few effective draws for the threshold to mean anything: with
+#>   this many chains it would sit about where it does even if the chains agreed
+#>   exactly, as the check above reports. A larger effective sample size makes it
+#>   readable, and that grows with the total number of draws; using fewer chains
+#>   lowers the bar as well, since R-hat's null rises with the number of chains
+#>   being compared.
+#> • If that does not settle it, reduce `num_trees`, which was 50. A smaller
 #>   forest has fewer ways to represent the same fit, so the sampler has less room
 #>   to move between them.
 #> • Then check the family. A likelihood that fits the data badly can give a
@@ -644,14 +644,14 @@ diagnose(longer)
 #> 
 #> What to do
 #> 
-#> • Raise `num_draws`, which was `8000`. R-hat is above the threshold for a
+#> • Raise `num_draws`, which was 8000. R-hat is above the threshold for a
 #>   quantity that carries too few effective draws for the threshold to mean
 #>   anything: with this many chains it would sit about where it does even if the
 #>   chains agreed exactly, as the check above reports. A larger effective sample
 #>   size makes it readable, and that grows with the total number of draws; using
 #>   fewer chains lowers the bar as well, since R-hat's null rises with the number
 #>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`, which was `50`. A smaller
+#> • If that does not settle it, reduce `num_trees`, which was 50. A smaller
 #>   forest has fewer ways to represent the same fit, so the sampler has less room
 #>   to move between them.
 #> • Then check the family. A likelihood that fits the data badly can give a

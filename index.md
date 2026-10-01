@@ -85,43 +85,49 @@ fit
 ```
 
 Calling [`summary()`](https://rdrr.io/r/base/summary.html) on the fit
-displays a measure of variable importance, how often predictors were
-used to split the trees:
+gives a quick check of convergence and the predictors used most often to
+split the trees, and points to the functions that examine each of these
+in full:
 
 ``` r
 
 summary(fit)
-#> Generalized BART
+#> Convergence and mixing
 #> 
-#> Call:
-#> bartisan(formula = death ~ rhc + age + sex + race + edu + pafi + 
-#>     paco2 + crea + surv2m + card, data = rhc, family = binomial())
+#> Log likelihood: R-hat 1.039, bulk ESS 98, tail ESS 185, over 1 chain
 #> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 1 forest of 50 trees, soft decision rules
-#> Draws: 800
+#> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
+#>   diagnostics.
 #> 
-#> Predictor usage
-#> Splitting rules per draw, and how often used at all.
-#>          mean    sd lower upper prop_used
-#> rhc     6.339 2.589     2    12     1.000
-#> age     8.304 2.762     3    14     1.000
-#> sex     7.033 2.594     3    13     1.000
-#> race    6.911 2.587     3    13     1.000
-#> edu     7.207 2.587     3    14     1.000
-#> paco2   8.210 2.629     4    14     1.000
-#> crea    6.852 2.640     2    12     1.000
-#> surv2m 10.647 2.619     6    16     1.000
-#> card    6.812 2.792     2    13     0.999
-#> pafi    7.379 2.739     3    14     0.998
+#> Variable importance
+#> 
+#> Predictors ranked by use; 5 of 10 shown.
+#>  variable prop_used prop_splits splits
+#>    surv2m         1       0.141   10.6
+#>       age         1       0.109    8.3
+#>     paco2         1       0.109    8.2
+#>       edu         1       0.095    7.2
+#>       sex         1       0.093    7.0
+#> 
+#> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
+#>   variable importance.
+#> 
+#> Further tools
+#> 
+#> ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or
+#>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k
+#>   values above 0.7.
+#> ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()
+#>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the
+#>   predictions on a predictor.
 ```
 
 Nothing had to be said about which predictors matter, which are curved,
 or which interact.
-[`plot()`](https://rdrr.io/r/graphics/plot.default.html) shows what the
-model made of one of them, here the study’s own estimate of each
-patient’s chance of surviving two months:
+[`plot()`](https://rdrr.io/r/graphics/plot.default.html) after
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+shows what the model made of one of them, here the study’s own estimate
+of each patient’s chance of surviving two months:
 
 ``` r
 

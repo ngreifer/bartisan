@@ -375,9 +375,6 @@ The simulation behind this section fits each family to 700 training
 observations and scores it on 700 held-out observations, with 50 trees
 and 500 draws after 500 warmup, over 5 replicates and at about 30%
 censoring. The script is `_dev/survival-sim.R` in the package sources.
-The fits in this and the later simulation sections were made with
-`sparsity = TRUE`, the package default at the time; the default is now
-`FALSE`.
 
 Every truth we built uses the same nonlinear function of five
 covariates, so the families differ only in how well they cope with the
@@ -402,12 +399,12 @@ the predictors are not.
 
 | Family | Weibull PH | hazard turns over | log-normal errors | bimodal errors | heavy-tailed errors | crossing hazards |
 |:---|---:|---:|---:|---:|---:|---:|
-| weibull_aft() | 0.045 | 0.062 | 0.072 | 0.111 | 0.078 | 0.095 |
-| loglogistic_aft() | 0.060 | 0.055 | 0.052 | 0.113 | 0.052 | 0.080 |
-| lognormal_aft() | 0.068 | 0.062 | 0.050 | 0.109 | 0.066 | 0.080 |
-| dpm_aft() | 0.046 | 0.057 | 0.049 | 0.034 | 0.051 | 0.081 |
-| ph() | 0.046 | 0.045 | 0.069 | 0.101 | 0.073 | 0.092 |
-| discrete-time probit | 0.076 | 0.073 | 0.071 | 0.109 | 0.083 | 0.085 |
+| weibull_aft() | 0.053 | 0.067 | 0.079 | 0.113 | 0.083 | 0.094 |
+| loglogistic_aft() | 0.064 | 0.061 | 0.058 | 0.116 | 0.059 | 0.076 |
+| lognormal_aft() | 0.073 | 0.066 | 0.055 | 0.111 | 0.074 | 0.078 |
+| dpm_aft() | 0.056 | 0.059 | 0.056 | 0.038 | 0.059 | 0.079 |
+| ph() | 0.055 | 0.050 | 0.072 | 0.104 | 0.077 | 0.089 |
+| discrete-time probit | 0.082 | 0.078 | 0.076 | 0.113 | 0.087 | 0.086 |
 
 RMSE of S(t \| x) on held-out data. Lower is better. {.table}
 
@@ -420,49 +417,50 @@ and
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 both describe exactly,
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-leads at .045, and
+leads at .053, and
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-neither of which is given the shape, are level with it at .046. Being
-*wrong* costs far more than being right gains:
+neither of which is given the shape, are close behind at .055 and .056.
+Being *wrong* costs far more than being right gains:
 [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-pays .068 on the same data. So the question worth asking of a family is
+pays .073 on the same data. So the question worth asking of a family is
 not how much it wins when its assumption holds, but how much it loses
 when it does not.
 
 **[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-wins where the baseline turns over, and only there.** At .045 against
-.055 for the best parametric alternative, it is clearly ahead on the
+wins where the baseline turns over, and only there.** At .050 against
+.061 for the best parametric alternative, it is clearly ahead on the
 case the three parametric families structurally cannot fit. But this is
 the one truth in the table where it leads. On the log-normal and
-heavy-tailed accelerated failure time truths it is among the worst (.069
-on log-normal errors against .049) because proportional hazards is an
+heavy-tailed accelerated failure time truths it is among the worst (.072
+on log-normal errors against .055) because proportional hazards is an
 assumption too, and it is the wrong one there.
 
 **When the error is badly shaped,
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-wins by a wide margin.** On the two-component error it is three times
-more accurate than anything else and 300 log points ahead, because no
-other family in the set can represent a bimodal time distribution at any
-value of its parameters. The heavy-tailed case is milder, and there
+wins by a wide margin.** On the two-component error it is almost three
+times more accurate than anything else and 300 log points ahead, because
+no other family in the set can represent a bimodal time distribution at
+any value of its parameters. The heavy-tailed case is milder, and there
 [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 matches it, as its heavy tails are designed to.
 
 **[`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-costs nothing when it is not needed, and it is the most consistent
-family in the table.** On log-normal errors it sits at .0491 against the
+costs little when it is not needed, and it is the most consistent family
+in the table.** On log-normal errors it sits at .0555 against the
 correctly specified
 [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s
-.0498; on the Weibull truth, .0457 against
+.0551, a difference well inside the replicate-to-replicate noise; on the
+Weibull truth it pays more, .0564 against
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s
-.0449. It is best or tied-best on four of the six truths and never worse
-than third on any. That asymmetry (large gains when the assumption is
-wrong, no measurable loss when it is right) makes it a sensible default
-for anyone without a view about the error’s shape.
+.0530. It is best or tied-best on three of the six truths and never
+worse than third on any. That asymmetry (large gains when the assumption
+is wrong, a small loss when it is right) makes it a sensible default for
+anyone without a view about the error’s shape.
 
 **When hazards cross, the survival RMSE understates the damage.** Every
-family lands between .080 and .096, which looks like a mild penalty. It
+family lands between .076 and .094, which looks like a mild penalty. It
 is not: the [ranking column](#ordering) shows that the models have
 absorbed a reversing covariate effect into almost no covariate effect at
 all. See [the discrete-time route](#nonprop) below.
@@ -480,37 +478,36 @@ In the top row every fit recovers the separation between the three
 subjects; they differ in the level.
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 sends the good-prognosis curve to zero well before the truth does,
-because a monotone hazard cannot flatten out the way this baseline does;
+because a monotone hazard cannot flatten out the way this baseline does.
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and
+follows it further and
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-track it, and the discrete-time fit is visibly steppy at this grid
-resolution.
+only partway, and the discrete-time fit, visibly steppy at this grid
+resolution, comes closest in the tail.
 
 The bottom row is the one to look at. The true curves separate widely
 and then **reverse**: the subject with the best prognosis at the middle
 of the grid has the worst survival by the end of it, and the three
-curves cross. No fit reproduces that, which is the structural limitation
-stated as a picture. But the symptom is not a distorted covariate
-effect; it is a missing one.
-[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and the discrete-time fit put all three subjects on essentially the same
-curve.
-[`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and
+curves cross. None of the families reproduces that, which is the
+structural limitation stated as a picture. But the symptom is not a
+distorted covariate effect; it is a missing one.
+[`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-keep a little separation, in one fixed order, which is right over part
-of the range and wrong over the rest. A model that must apply the same
-covariate effect at every time, given an effect that is positive early
-and negative late, averages it to approximately nothing.
-
-This panel needs some care in reading. It shows three subjects, not the
-sample: the discrete-time route scores much better than
+and
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-on the ranking measured over all 700, and that advantage is not what
-this figure is showing. And the survival RMSE for this row was an
-unremarkable .08 to .10, so the failure is severe and the headline
-metric does not say so.
+put all three subjects on nearly the same curve. A model that must apply
+the same covariate effect at every time, given an effect that is
+positive early and negative late, averages it to approximately nothing.
+The discrete-time fit, which is not bound by that, is the only one whose
+curves cross, and in the right order, though with far less separation
+than the truth.
+
+This panel needs some care in reading. It shows three subjects from one
+replicate, not the sample, so the discrete-time route’s advantage is
+better judged by the ranking measured over all 700 below, where it is
+real but partial. And the survival RMSE for this row was an unremarkable
+.08 to .09, so the failure is severe and the headline metric does not
+say so.
 
 ### Recovering the Ordering of Risk
 
@@ -528,11 +525,11 @@ three.
 
 The crossing truth is the exception, and there the column collapses: the
 discrete-time model reaches .47, the accelerated failure time families
-.24 to .29, and
+.28 to .34, and
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-essentially zero (.04 and \\-.03\\), which is to say no information
+essentially zero (.01 and \\-.02\\), which is to say no information
 about who is at risk at a given time. This is the same erasure the
 curves showed, measured.
 
@@ -564,11 +561,11 @@ subject of [a trap below](#measure). With the correction applied:
 
 | Family | Weibull PH | hazard turns over | log-normal errors | bimodal errors | heavy-tailed errors | crossing hazards |
 |:---|---:|---:|---:|---:|---:|---:|
-| weibull_aft() | -191 | -301 | -856 | -1062 | -912 | -474 |
-| loglogistic_aft() | -212 | -289 | -822 | -1058 | -866 | -468 |
-| lognormal_aft() | -226 | -305 | -815 | -1027 | -915 | -476 |
-| dpm_aft() | -193 | -289 | -815 | -711 | -859 | -468 |
-| ph() | -200 | -292 | -864 | -1017 | -899 | -474 |
+| weibull_aft() | -195 | -302 | -857 | -1064 | -913 | -473 |
+| loglogistic_aft() | -215 | -292 | -825 | -1058 | -868 | -466 |
+| lognormal_aft() | -229 | -308 | -818 | -1029 | -919 | -475 |
+| dpm_aft() | -198 | -291 | -820 | -718 | -862 | -467 |
+| ph() | -205 | -293 | -865 | -1018 | -900 | -473 |
 
 Held-out log predictive score on the density of T, summed over the 700
 held-out observations. Higher is better. {.table}
@@ -580,16 +577,16 @@ leads on the survival curve but sits third on the log score, behind
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and by three log points, which is inside the noise. The reason is that
-the log score is evaluated at each subject’s own observed time, which is
-by construction where the data are dense, while the survival RMSE is
+and by two log points, which is inside the noise. The reason is that the
+log score is evaluated at each subject’s own observed time, which is by
+construction where the data are dense, while the survival RMSE is
 averaged over a grid that reaches into the tail. Families differ less in
 the middle than at the edges.
 
 Where the shape of the density is genuinely wrong the log score is the
 harsher of the two: on the bimodal truth
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-is ahead by more than 300 log points, a much larger gap than the
+is ahead by more than 300 log points, a much larger gap than the nearly
 threefold one in the RMSE table.
 
 That the correction works at all is worth one check. On the Weibull
@@ -597,8 +594,8 @@ truth, where
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-fit the same model by different parameterizations, they score \\-191\\
-and \\-200\\. Without the Jacobian they would be several hundred apart,
+fit the same model by different parameterizations, they score \\-195\\
+and \\-205\\. Without the Jacobian they would be several hundred apart,
 which is the size of \\\sum \delta_i \log t_i\\ on this data and has
 nothing to do with either fit.
 
@@ -616,7 +613,7 @@ stable in the amount of censoring, which is the question that mattered.
 
 The degradation is gentle up to about half the observations censored
 ([`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-goes from .044 to .055), which is the usual reassurance about
+goes from .053 to .063), which is the usual reassurance about
 likelihood-based survival analysis: a censored observation is not a
 missing one, since it contributes \\S(t)\\ and that is real information.
 Beyond half, the curves steepen.
@@ -624,29 +621,32 @@ Beyond half, the curves steepen.
 **One line does not behave**, and it is worth understanding rather than
 passing over.
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-is the *worst* family in the panel with no censoring at all, at .096,
-and it gets **better** as censoring increases, reaching .072 at 70%.
-Everything else degrades monotonically, apart from the discrete-time
-route, which dips a little between no censoring and 25% before climbing
-again. The likely reason is that this truth has a heavy, polynomial
-tail, which a smallest extreme value error in log time cannot represent;
-with no censoring the fit is dragged by observed times far out in that
-tail, and censoring truncates exactly the observations it cannot
-accommodate. Censoring is protecting a misspecified model from the part
-of the distribution it gets wrong. That is a caution about reading a
-fit’s apparent quality off a heavily censored sample, not a reason to
-want censoring.
+is the *worst* family in the panel with no censoring at all, at .104,
+and it gets **better** as censoring increases, reaching .076 at 70%.
+Everything else degrades monotonically, apart from
+[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+and the discrete-time route, which both dip a little between no
+censoring and 25% before climbing again. The likely reason is that this
+truth has a heavy, polynomial tail, which a smallest extreme value error
+in log time cannot represent; with no censoring the fit is dragged by
+observed times far out in that tail, and censoring truncates exactly the
+observations it cannot accommodate. Censoring is protecting a
+misspecified model from the part of the distribution it gets wrong. That
+is a caution about reading a fit’s apparent quality off a heavily
+censored sample, not a reason to want censoring.
 
-One expectation the sweep did not bear out: we might have expected
+We might have expected
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 to suffer most under heavy censoring, since it estimates a whole density
-from log-times that are increasingly imputed rather than observed. It
-does not. Over the sweep its error grows by a factor of 1.4, against 1.5
-for both
+from log-times that are increasingly imputed rather than observed, and
+the sweep bears that out mildly. Over the sweep its error grows by a
+factor of 1.5, against 1.3 for
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and
-[`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
-Its advantage is not fragile in the way the extra machinery suggests.
+and 1.4 for
+[`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+so it is second best with no censoring and fourth at 70%, though within
+.007 of the second. Its advantage narrows under heavy censoring rather
+than disappearing.
 
 ## The Discrete-Time Route for Non-Proportional Hazards
 
@@ -717,21 +717,21 @@ separate it from
 
 | Truth             | Family               | S RMSE | worst t | ranking |
 |:------------------|:---------------------|-------:|--------:|--------:|
-| hazard turns over | ph()                 |  0.045 |   0.057 |   0.974 |
-| hazard turns over | dpm_aft()            |  0.057 |   0.068 |   0.964 |
-| hazard turns over | weibull_aft()        |  0.062 |   0.083 |   0.969 |
-| hazard turns over | discrete-time probit |  0.073 |   0.091 |   0.970 |
-| crossing hazards  | dpm_aft()            |  0.081 |   0.106 |   0.240 |
-| crossing hazards  | discrete-time probit |  0.085 |   0.111 |   0.466 |
-| crossing hazards  | ph()                 |  0.092 |   0.130 |   0.036 |
-| crossing hazards  | weibull_aft()        |  0.095 |   0.133 |  -0.034 |
+| hazard turns over | ph()                 |  0.050 |   0.062 |   0.967 |
+| hazard turns over | dpm_aft()            |  0.059 |   0.072 |   0.961 |
+| hazard turns over | weibull_aft()        |  0.067 |   0.086 |   0.958 |
+| hazard turns over | discrete-time probit |  0.078 |   0.099 |   0.960 |
+| crossing hazards  | dpm_aft()            |  0.079 |   0.107 |   0.280 |
+| crossing hazards  | discrete-time probit |  0.086 |   0.110 |   0.474 |
+| crossing hazards  | ph()                 |  0.089 |   0.127 |   0.014 |
+| crossing hazards  | weibull_aft()        |  0.094 |   0.133 |  -0.020 |
 
 The trade is sharper than we might hope, in both directions.
 
 **Under proportional hazards it is the worst model in the whole
-comparison**, not a close second: .073 against
+comparison**, not a close second: .078 against
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)’s
-.045 on the turning-over baseline, and .076 against .046 on the Weibull.
+.050 on the turning-over baseline, and .082 against .055 on the Weibull.
 It nests proportional hazards, so this is not bias; it is the cost of
 making the forest learn the baseline through splits on time while it is
 also learning the covariate effect, where
@@ -740,11 +740,12 @@ draws the baseline in closed form and spends the whole forest on \\x\\.
 Freedom is not free, and here it is expensive.
 
 **Under crossing hazards it does not win on the survival curve either**,
-at .085 against the accelerated failure time families’ .080. What it
-wins is the thing that matters: the ranking, at .47 against .29 and
-below for everything else. It is the only model in the set that recovers
-*any* of the reordering, and recovering some of a reversing effect while
-getting the level slightly worse is the better failure of the two.
+at .086 against the accelerated failure time families’ .076 to .079.
+What it wins is the thing that matters: the ranking, at .47 against .34
+and below for everything else. It is the only model in the set that
+recovers *any* of the reordering, and recovering some of a reversing
+effect while getting the level slightly worse is the better failure of
+the two.
 
 The route has further costs. The expansion inflates the data, so a large
 study with a fine grid gets slow. The grid is a real choice, unlike
@@ -833,24 +834,25 @@ the default is 9:
 
 | Bins | S(t \| x) RMSE | r(x) RMSE     | effective parameters | Pareto k above 0.7 |
 |-----:|:---------------|:--------------|:---------------------|:-------------------|
-|    4 | 0.052 / 0.044  | 0.199 / 0.176 | 27 / 23              | 0.0% / 0.0%        |
-|    9 | 0.051 / 0.042  | 0.194 / 0.166 | 31 / 28              | 0.0% / 0.0%        |
-|   20 | 0.051 / 0.044  | 0.191 / 0.176 | 41 / 39              | 0.0% / 0.0%        |
-|   50 | 0.054 / 0.044  | 0.200 / 0.178 | 69 / 66              | 0.1% / 0.0%        |
-|  100 | 0.055 / 0.043  | 0.200 / 0.176 | 108 / 106            | 0.0% / 0.0%        |
-|  250 | 0.063 / 0.050  | 0.222 / 0.206 | 203 / 201            | 1.3% / 1.0%        |
+|    4 | 0.058 / 0.050  | 0.225 / 0.198 | 35 / 28              | 0.2% / 0.0%        |
+|    9 | 0.055 / 0.050  | 0.213 / 0.199 | 40 / 33              | 0.1% / 0.0%        |
+|   20 | 0.057 / 0.050  | 0.218 / 0.199 | 50 / 46              | 0.2% / 0.2%        |
+|   50 | 0.057 / 0.050  | 0.213 / 0.201 | 75 / 70              | 0.1% / 0.0%        |
+|  100 | 0.060 / 0.050  | 0.223 / 0.206 | 112 / 113            | 0.1% / 0.0%        |
+|  250 | 0.066 / 0.056  | 0.240 / 0.234 | 205 / 205            | 1.0% / 0.9%        |
 
 Each cell is the turning-over baseline first, the Weibull baseline
 second. {.table}
 
 **From 4 bins to 100 the estimates are flat** over a twenty-five-fold
-range, with no trend in either error column and every difference inside
-the replicate-to-replicate spread, which is about .009 and .005
-respectively. The default sits near the bottom of that plateau, and
+range, with no clear trend in either error column and every difference
+inside the replicate-to-replicate spread, a standard deviation at a
+fixed bin count of about .008 in the survival error and .026 in the log
+hazard ratio. The default sits near the bottom of that plateau, and
 moving anywhere inside it changes nothing anyone would notice.
 
 At 250 bins something does happen, consistently in both truths and both
-error columns: the error rises by about 20% and the Pareto-\\k\\
+error columns: the error rises by about 15% and the Pareto-\\k\\
 diagnostics start to be troubled. This is over-parameterization becoming
 visible, since 250 bins on 700 observations gives about 200 effective
 parameters and the shrinkage through `lambda_rate` is no longer enough
@@ -884,26 +886,26 @@ reason above.
 
 ![](survival_files/figure-html/timefig-1.png)
 
-The spread is about eightfold, and it does not follow the families’
+The spread is more than sevenfold, and it does not follow the families’
 flexibility at all.
 
 [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 and
 [`loglogistic_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-are the fastest, at about 1.2 seconds, because both reach the sampler’s
-quadratic fast path through data augmentation, under which the augmented
-target is exactly quadratic in the predictor, so the leaf draw is a
-closed form rather than a Laplace approximation.
+are the fastest, at about 1.3 to 1.4 seconds, because both reach the
+sampler’s quadratic fast path through data augmentation, under which the
+augmented target is exactly quadratic in the predictor, so the leaf draw
+is a closed form rather than a Laplace approximation.
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-comes next at about 2.8 seconds, because conditional on which mixture
+comes next at about 3.5 seconds, because conditional on which mixture
 component each observation currently sits in it is *also* exactly
 Gaussian, and so takes the same fast path; the Dirichlet process update
 on top of that is cheap.
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and the discrete-time route sit at about six seconds. The slowest family
-is
+and the discrete-time route sit at about seven seconds. The slowest
+family is
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-at about 8.4 seconds, for the opposite reason to the one its form
+at about 9.7 seconds, for the opposite reason to the one its form
 suggests. Its likelihood is already exponential in the predictor,
 censoring included, so it needs no imputation at all. But the
 exponential route is unavailable under the default soft rules, so its
@@ -929,12 +931,12 @@ only when many models are being fit rather than one.
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 heads the table, and is the default for an unnamed `Surv` response, on
 the evidence above rather than on principle: it was best or tied-best on
-four of the six truths and never worse than third, and on the two truths
-where a parametric family was exactly right it matched that family to
-the third decimal. It is also, contrary to what its flexibility
-suggests, one of the cheaper families to fit, at about twice
+three of the six truths and never worse than third, and on the two
+truths where a parametric family was exactly right it lost at most .004
+to that family. It is also, contrary to what its flexibility suggests,
+one of the cheaper families to fit, at under three times
 [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-and a third of
+and about a third of
 [`weibull_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 The second row is for fitting many models rather than one.
 
@@ -951,8 +953,8 @@ worth taking seriously.
 And the failure that costs most is non-proportionality, not the shape of
 the error. Getting the error wrong cost a factor of three at worst, and
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
-insures against it for nothing. A covariate effect that reverses over
-time cost every family in the table the entire covariate signal: an
+insures against it for very little. A covariate effect that reverses
+over time cost every family in the table the entire covariate signal: an
 effect estimated at approximately zero, with a survival RMSE that looked
 unremarkable while it happened.
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)

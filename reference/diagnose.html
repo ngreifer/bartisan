@@ -31,11 +31,7 @@ needed."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/index.html">All articles</a></li>
-    <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Start Here</h6></li>
-    <li><a class="dropdown-item" href="../articles/bartisan.html">Getting Started with bartisan</a></li>
-    <li><hr class="dropdown-divider"></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Fitting a Model</h6></li>
     <li><a class="dropdown-item" href="../articles/families.html">Response Families in bartisan</a></li>
     <li><a class="dropdown-item" href="../articles/survival.html">Survival Analysis in bartisan</a></li>
@@ -43,15 +39,18 @@ needed."></head><body>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reading a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/effects.html">Effects, Curves, and Interactions</a></li>
-    <li><a class="dropdown-item" href="../articles/importance.html">Which Variables Matter</a></li>
+    <li><a class="dropdown-item" href="../articles/importance.html">Variable Importance</a></li>
     <li><a class="dropdown-item" href="../articles/causal.html">Causal Inference with BART</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Checking a Fit</h6></li>
     <li><a class="dropdown-item" href="../articles/diagnostics.html">Checking Convergence and Fit</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">Choosing Between Models</a></li>
+    <li><a class="dropdown-item" href="../articles/comparison.html">Model Comparison</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference</h6></li>
     <li><a class="dropdown-item" href="../articles/implementation.html">Generalized BART with bartisan</a></li>
+    <li><a class="dropdown-item" href="../articles/faq.html">Frequently Asked Questions</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../articles/faq.html">FAQ</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -331,14 +330,14 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   quantity that carries too few effective draws for the threshold to mean</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   anything: with this many chains it would sit about where it does even if the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. A larger effective sample</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   size makes it readable, and that grows with the total number of draws; using</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   fewer chains lowers the bar as well, since R-hat's null rises with the number</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   of chains being compared.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was <span style="color: #0000BB;">50</span>. R-hat is above the threshold for a quantity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   that carries too few effective draws for the threshold to mean anything: with</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   this many chains it would sit about where it does even if the chains agreed</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   exactly, as the check above reports. A larger effective sample size makes it</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   readable, and that grows with the total number of draws; using fewer chains</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   lowers the bar as well, since R-hat's null rises with the number of chains</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   being compared.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was <span style="color: #0000BB;">10</span>. A smaller</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   forest has fewer ways to represent the same fit, so the sampler has less room</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   to move between them.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span>
@@ -389,14 +388,14 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">What to do</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was `50`. R-hat is above the threshold for a</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   quantity that carries too few effective draws for the threshold to mean</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   anything: with this many chains it would sit about where it does even if the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   chains agreed exactly, as the check above reports. A larger effective sample</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   size makes it readable, and that grows with the total number of draws; using</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   fewer chains lowers the bar as well, since R-hat's null rises with the number</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   of chains being compared.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was `10`. A smaller</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Raise `num_draws`, which was <span style="color: #0000BB;">50</span>. R-hat is above the threshold for a quantity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   that carries too few effective draws for the threshold to mean anything: with</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   this many chains it would sit about where it does even if the chains agreed</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   exactly, as the check above reports. A larger effective sample size makes it</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   readable, and that grows with the total number of draws; using fewer chains</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   lowers the bar as well, since R-hat's null rises with the number of chains</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   being compared.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> If that does not settle it, reduce `num_trees`, which was <span style="color: #0000BB;">10</span>. A smaller</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   forest has fewer ways to represent the same fit, so the sampler has less room</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   to move between them.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Then check the family. A likelihood that fits the data badly can give a</span>

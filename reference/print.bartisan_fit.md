@@ -2,10 +2,11 @@
 
 [`print()`](https://rdrr.io/r/base/print.html) reports what was fit and
 how long the chain is.
-[`summary()`](https://rdrr.io/r/base/summary.html) adds posterior
-summaries of the nuisance parameters, of the random-effect scales, and
-of how often each predictor was used in a splitting rule, which is the
-model's variable-selection output.
+[`summary()`](https://rdrr.io/r/base/summary.html) reports what
+[`print()`](https://rdrr.io/r/base/print.html) does not: posterior
+summaries of the nuisance parameters and the random-effect scales, a
+quick check of convergence, and the most used predictors, with pointers
+to the functions that examine each of these in full.
 
 ## Usage
 
@@ -51,7 +52,32 @@ invisibly. [`summary()`](https://rdrr.io/r/base/summary.html) returns a
 `<summary.bartisan_fit>` object, a list of the posterior summaries its
 own [`print()`](https://rdrr.io/r/base/print.html) method displays: the
 nuisance parameters when the family has any, the scale of each
-random-effect term, and the splitting counts of each predictor group.
+random-effect term, the splitting counts of each predictor group, the
+output of
+[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md),
+and R-hat and the effective sample sizes of the log likelihood.
+
+## Details
+
+The printed summary is a starting point for the functions that examine a
+fit in full, and it computes only what is cheap. Its convergence line
+gives R-hat and the bulk and tail effective sample sizes of the log
+likelihood, which take milliseconds because the log likelihood is a
+single series. It can look fine while individual fitted values mix
+badly, which is what
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
+checks, at a cost that grows with the number of observations. The
+variable importance table shows at most the five most used predictors of
+the first forest;
+[`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
+gives every predictor in every forest. The summary also points to
+[loo()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+and
+[kfold()](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
+for comparing fits and to
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+for how the predictions depend on a predictor, none of which it runs,
+since each can take seconds or more on a large fit.
 
 ## See also
 
@@ -95,36 +121,35 @@ fit
 # The splitting counts, which say which predictors the
 # forest reaches for
 summary(fit)
-#> Generalized BART
+#> Convergence and mixing
 #> 
-#> Call:
-#> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + 
-#>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, 
-#>     data = rhc, num_trees = 10, num_burn = 50, num_draws = 50, 
-#>     chains = 2, verbose = FALSE)
+#> Log likelihood: R-hat 1.055, bulk ESS 39, tail ESS 81, over 2 chains
 #> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 1 forest of 10 trees, soft decision rules
-#> Draws: 100
+#> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
+#>   diagnostics.
 #> 
-#> Predictor usage
-#> Splitting rules per draw, and how often used at all.
-#>        mean    sd lower upper prop_used
-#> age    1.84 0.929     1 4.000      1.00
-#> aps    1.97 0.834     1 4.000      1.00
-#> pafi   1.78 0.824     1 3.000      1.00
-#> paco2  2.44 0.857     1 4.525      1.00
-#> surv2m 2.94 0.908     2 5.000      1.00
-#> rhc    1.20 0.725     0 3.000      0.89
-#> meanbp 1.13 0.734     0 2.525      0.82
-#> edu    1.16 0.992     0 3.525      0.75
-#> crea   0.78 0.786     0 2.000      0.58
-#> card   0.83 0.900     0 3.000      0.57
-#> resp   0.70 0.798     0 2.525      0.54
-#> hema   0.52 0.643     0 2.000      0.44
-#> sex    0.39 0.665     0 2.000      0.30
-#> race   0.20 0.471     0 1.525      0.17
+#> Variable importance
+#> 
+#> Predictors ranked by use; 5 of 14 shown.
+#>  variable prop_used prop_splits splits
+#>    surv2m         1       0.167    2.9
+#>     paco2         1       0.138    2.4
+#>       aps         1       0.111    2.0
+#>       age         1       0.103    1.8
+#>      pafi         1       0.098    1.8
+#> 
+#> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
+#>   variable importance.
+#> 
+#> Further tools
+#> 
+#> ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or
+#>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k
+#>   values above 0.7.
+#> ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()
+#>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the
+#>   predictions on a predictor.
+#> 
 
 # A family with a nuisance parameter reports its
 # posterior too, here the residual standard deviation of
@@ -137,38 +162,37 @@ fit2 <- bartisan(log(days) ~ rhc + age + sex + race +
                  num_draws = 50, verbose = FALSE)
 
 summary(fit2, level = .8)
-#> Generalized BART
-#> 
-#> Call:
-#> bartisan(formula = log(days) ~ rhc + age + sex + race + edu + 
-#>     aps + meanbp + resp + hema + pafi + paco2 + crea + surv2m + 
-#>     card, data = rhc, family = gaussian(), num_trees = 10, num_burn = 50, 
-#>     num_draws = 50, verbose = FALSE)
-#> 
-#> Family: "gaussian" with the "identity" link
-#> Observations: 1500
-#> Structure: 1 forest of 10 trees, soft decision rules
-#> Draws: 50
-#> 
 #> Nuisance parameters
 #>       mean    sd lower upper
 #> sigma 1.54 0.028 1.505 1.573
 #> 
-#> Predictor usage
-#> Splitting rules per draw, and how often used at all.
-#>        mean    sd lower upper prop_used
-#> rhc    1.40 0.670   1.0     2      1.00
-#> aps    1.24 0.431   1.0     2      1.00
-#> surv2m 2.44 1.033   1.0     4      1.00
-#> paco2  1.38 0.780   0.9     2      0.90
-#> meanbp 1.04 0.755   0.0     2      0.78
-#> resp   1.64 1.102   0.0     3      0.78
-#> edu    0.92 0.944   0.0     2      0.58
-#> race   0.46 0.613   0.0     1      0.40
-#> crea   0.54 0.788   0.0     2      0.38
-#> sex    0.42 0.642   0.0     1      0.34
-#> card   0.24 0.476   0.0     1      0.22
-#> hema   0.18 0.388   0.0     1      0.18
-#> age    0.08 0.274   0.0     0      0.08
-#> pafi   0.08 0.274   0.0     0      0.08
+#> Convergence and mixing
+#> 
+#> Log likelihood: R-hat 1.43, bulk ESS 5, tail ESS 13, over 1 chain
+#> 
+#> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
+#>   diagnostics.
+#> 
+#> Variable importance
+#> 
+#> Predictors ranked by use; 5 of 14 shown.
+#>  variable prop_used prop_splits splits
+#>    surv2m      1.00       0.205    2.4
+#>       rhc      1.00       0.115    1.4
+#>       aps      1.00       0.106    1.2
+#>     paco2      0.90       0.115    1.4
+#>      resp      0.78       0.138    1.6
+#> 
+#> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
+#>   variable importance.
+#> 
+#> Further tools
+#> 
+#> ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or
+#>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k
+#>   values above 0.7.
+#> ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()
+#>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the
+#>   predictions on a predictor.
+#> 
 ```
