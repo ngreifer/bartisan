@@ -1,12 +1,12 @@
 ---
-title: "Choosing Between Models"
+title: "Model Comparison"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Choosing Between Models}
+  %\VignetteIndexEntry{Model Comparison}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib

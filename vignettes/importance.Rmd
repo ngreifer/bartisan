@@ -1,12 +1,12 @@
 ---
-title: "Which Variables Matter"
+title: "Variable Importance"
 author: "Noah Greifer"
 date: "`r Sys.Date()`"
 output:
   html_vignette:
     toc: yes
 vignette: >
-  %\VignetteIndexEntry{Which Variables Matter}
+  %\VignetteIndexEntry{Variable Importance}
   %\VignetteEngine{knitr::rmarkdown_notangle}
   %\VignetteEncoding{UTF-8}
 bibliography: references.bib

@@ -1237,7 +1237,7 @@ kfold_data <- function(x) {
     error = function(e) {
       arg::err(c("The data this fit was made from, {.code {deparse1(expr)}},
                   cannot be found from where its formula was written.",
-                 i = "K-fold refits from the original call, which finds the
+                 i = "{.fun kfold} refits from the original call, which finds the
                       data through the formula's environment.",
                  i = "Write the formula in the same place as the data, for
                       example inside the function that fits the model."))
@@ -1252,7 +1252,7 @@ kfold_data <- function(x) {
   if (!is_null(missing)) {
     arg::err(c("The data this fit was made from is not the data that name now
                 reaches: {length(missing)} of its rows are gone.",
-               i = "K-fold refits from the original call, so the data has to be
+               i = "{.fun kfold} refits from the original call, so the data has to be
                     what it was."))
   }
 
