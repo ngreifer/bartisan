@@ -5991,9 +5991,9 @@ struct VaryingCoefficientFamily final : Concrete<VaryingCoefficientFamily> {
     return out;
   }
 
-  arma::vec aux_values() const override {
-    arma::vec inner_values = inner->aux_values();
-
+  // The wrapped family's nuisance values followed by the drawn codings, when
+  // there are any.
+  arma::vec with_codings(const arma::vec& inner_values) const {
     if (b_labels.empty()) {
       return inner_values;
     }
@@ -6014,17 +6014,63 @@ struct VaryingCoefficientFamily final : Concrete<VaryingCoefficientFamily> {
     return out;
   }
 
+  arma::vec aux_values() const override {
+    return with_codings(inner->aux_values());
+  }
+
   void set_aux(const arma::vec& values) override {
     inner->set_aux(values);
     refresh_eta_free();
   }
 
-  arma::vec aux_values_shifted(const arma::vec& shift) const override {
-    if (b_labels.empty()) {
-      return inner->aux_values_shifted(shift);
+  // The chart a draw is recorded in belongs to the wrapped family, whose shift
+  // is one number per inner predictor (see `Family::report_shift()`). A
+  // constant can only be carried by a control function, whose slope is one
+  // everywhere: a coefficient forest is multiplied by its basis column, so
+  // moving its leaves would move the predictor by a different amount at every
+  // observation. Each predictor's shift therefore goes on the first control
+  // function feeding it, and stays at zero for a predictor that has none,
+  // which leaves that predictor in the sampler's own chart.
+  //
+  // Left to the base class this returned zeros, and a `bcf()` fit with
+  // `family = dpm()` recorded the raw forest: the mixture's mean was never
+  // added back, so the recorded level was the coordinate the likelihood does
+  // not identify, and it wandered between runs while every contrast held.
+  // `_dev/dpm-level-shift.R` has the measurement, before and after.
+  arma::vec report_shift(const arma::mat& eta) const override {
+    arma::vec inner_shift = inner->report_shift(inner_eta(eta));
+    arma::vec out(H, arma::fill::zeros);
+
+    for (arma::uword p = 0; p < inner_shift.n_elem; p++) {
+      if (inner_shift(p) == 0.0) {
+        continue;
+      }
+
+      for (arma::uword h = 0; h < param.n_elem; h++) {
+        if (param(h) == static_cast<int>(p) && column(h) < 0) {
+          out(h) = inner_shift(p);
+          break;
+        }
+      }
     }
 
-    return aux_values();
+    return out;
+  }
+
+  // The shift arrives indexed by forest, as `report_shift()` returned it, and
+  // the inner family wants it by predictor.
+  arma::vec inner_shift_of(const arma::vec& shift) const {
+    arma::vec out(inner->H, arma::fill::zeros);
+
+    for (arma::uword h = 0; h < param.n_elem; h++) {
+      out(param(h)) += shift(h);
+    }
+
+    return out;
+  }
+
+  arma::vec aux_values_shifted(const arma::vec& shift) const override {
+    return with_codings(inner->aux_values_shifted(inner_shift_of(shift)));
   }
 
   arma::vec mixture_flat() const override { return inner->mixture_flat(); }

@@ -272,3 +272,68 @@ test_that("the error density carries a class and a plot method", {
   # And a subset of the grid is still something the method accepts.
   expect_s3_class(plot(out[1:5, ]), "ggplot")
 })
+
+test_that("the reporting chart holds through a varying coefficient", {
+  # `bcf()` fits through the varying-coefficient wrapper, which once left the
+  # shift at zero: the recorded predictor was the raw forest, whose level is the
+  # coordinate the likelihood does not identify, so levels wandered between runs
+  # while every contrast held. `_dev/dpm-level-shift.R` has the measurement.
+  set.seed(1309)
+  d <- data.frame(x = stats::runif(500, -1, 1),
+                  z = stats::rbinom(500, 1L, 0.5))
+  truth <- 10 * d$x^3 + 2 * d$z
+  d$y <- truth + 3 * (stats::rgamma(nrow(d), 1.5, 1.5) - 1)
+
+  fit <- bcf(y ~ x, treat = ~ z, data = d, family = dpm(), propensity = FALSE,
+             num_trees = c(40L, 10L), num_burn = 300L, num_draws = 300L)
+
+  # The stored mixture is centered and the recorded predictor carries the
+  # shift, so the density at the recorded residuals reproduces the log
+  # likelihood the sampler computed in its own chart. With the shift dropped on
+  # the way through the wrapper the two disagree by thousands.
+  dens <- stats::predict(fit, type = "density", draws = TRUE, log = TRUE)
+  expect_equal(rowSums(dens), fit[["loglik"]], tolerance = 1e-8)
+
+  on_link <- stats::predict(fit, type = "link")
+  expect_identical(stats::predict(fit, type = "response"), on_link)
+
+  # And the stored forests, whose control function carries the shift in its
+  # leaves, replay to the recorded predictor.
+  eta <- stats::predict(fit, type = "link", draws = TRUE)
+  replayed <- stats::predict(fit, newdata = d, type = "link", draws = TRUE)
+  expect_equal(as.vector(replayed), as.vector(eta), tolerance = 1e-6)
+
+  # The level is the identified sum, so it no longer follows the raw center.
+  level <- rowMeans(eta)
+  expect_lt(abs(stats::cor(level, fit[["aux"]][, "center"])), 0.8)
+  expect_lt(stats::sd(level), 0.5)
+  expect_lt(abs(mean(on_link - truth)), 0.5)
+})
+
+test_that("the chart holds through a varying coefficient under dpm_aft() too", {
+  # `DPMAFTFamily` inherits `report_shift()` from `DPMFamily`, and the wrapper
+  # forwards whatever the wrapped family returns, so one fix covers both. The
+  # density identity is the check: a censored observation contributes the
+  # mixture's survival at the recorded residual, which the recorded log
+  # likelihood also used, so the two agree only in a shared chart.
+  set.seed(1311)
+  n <- 300L
+  d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n),
+                  z = stats::rbinom(n, 1L, 0.5))
+  lt <- 1 + d$x1 + 0.5 * d$z + 0.6 * (stats::rgamma(n, 1.5, 1.5) - 1)
+  cens <- log(stats::rexp(n, 1 / 8))
+  d$time <- exp(pmin(lt, cens))
+  d$event <- as.integer(lt <= cens)
+
+  fit <- bartisan(cbind(time, event) ~ x1 + x2 + vc(z), d, family = dpm_aft(),
+                  control = quick_control(num_trees = c(20L, 5L),
+                                          num_burn = 200L, num_draws = 200L))
+
+  dens <- stats::predict(fit, type = "density", draws = TRUE, log = TRUE)
+  expect_equal(rowSums(dens), fit[["loglik"]], tolerance = 1e-8)
+
+  eta <- stats::predict(fit, type = "link", draws = TRUE)
+  replayed <- stats::predict(fit, newdata = d, type = "link", draws = TRUE)
+  expect_equal(as.vector(replayed), as.vector(eta), tolerance = 1e-6)
+  expect_lt(stats::sd(rowMeans(eta)), 0.2)
+})

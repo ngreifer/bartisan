@@ -97,7 +97,7 @@ each other, which is the sort of thing to check rather than read.
 
 - [ ] **`cran-comments.md`, and the README's install line.** Neither is done; `_dev/SHIP.md` has what each needs.
 
-- [ ] **The level of a `dpm()` fit mixes slowly.** In `vignette("causal")`, the `lalonde` fit `bcf(family = dpm())` gave `Y[0]` among the treated at 5420 and 5650 in two four-chain builds and 3780 with one chain, against observed treated earnings of 6349; the ATT intervals overlap. The contrast is fine and the level is not. Two chains gave 4780, between the two, which is the signature of slow mixing rather than of too few chains; and even four chains put treated `Y[1]` at 5600 to 5880 against the observed 6349. The response-scale mean is the forest plus one global shift (the count-weighted mixture mean in `report_shift()`, `src/family.cpp`), so nothing ties a subgroup's level to that subgroup's data. Worth understanding before a vignette reports potential-outcome levels from `dpm()`.
+- [x] **The level of a `dpm()` fit mixes slowly.** (Done 2026-10-01: the varying-coefficient wrapper did not forward `report_shift()`, so `bcf()` reported the raw forest, whose level the likelihood does not identify. Fixed; the log entry of that date has the measurements.) In `vignette("causal")`, the `lalonde` fit `bcf(family = dpm())` gave `Y[0]` among the treated at 5420 and 5650 in two four-chain builds and 3780 with one chain, against observed treated earnings of 6349; the ATT intervals overlap. The contrast is fine and the level is not. Two chains gave 4780, between the two, which is the signature of slow mixing rather than of too few chains; and even four chains put treated `Y[1]` at 5600 to 5880 against the observed 6349. The response-scale mean is the forest plus one global shift (the count-weighted mixture mean in `report_shift()`, `src/family.cpp`), so nothing ties a subgroup's level to that subgroup's data. Worth understanding before a vignette reports potential-outcome levels from `dpm()`.
 
 - [ ] **A hex logo.** There is none, so `_pkgdown.yml` has no `logo`, the site falls back to the package name as text, and `README.Rmd` has no badge row to hang one on. Cosmetic and no part of a CRAN requirement, but it is a release artifact rather than a post-release one: the site and the README are both already built, and adding it later means regenerating both. `usethis::use_logo()` wires up `man/figures/logo.png`, the pkgdown favicons and the README line once a 1200x1390 image exists.
 
@@ -179,6 +179,55 @@ package claims to support, which is what puts them here.
   full working; what is needed before it returns is in "What is still owed" there.
 
 - [ ] **Relative survival on top of `ph()`**, per Basak et al. (2024): the excess-hazard model needs one extra Bernoulli draw per sweep, `d_i ~ Bernoulli(lambda_E / (lambda_E + lambda_P))`, with the population hazard supplied as one number per subject from a life table. Cheap now that `ph()` exists -- a nuisance draw and a data column. Narrow audience (cancer registries), so worth doing only on request.
+
+## The level of a `bcf(family = dpm())` fit was the unidentified coordinate (2026-10-01)
+
+The open item above read the moving `lalonde` levels as slow mixing of the level and guessed at a trade-off between the forest's level and the mixture's center. The mechanism was right and the place it reached the output was not. The trade-off is the one recorded under "Only the sum of the fit and the error mean is identified": the likelihood pins the sum of the forest and the error mean and nothing else, and `DPMFamily::report_shift()` already handles it by recording every draw in the chart where the mixture has mean zero. `VaryingCoefficientFamily`, which `bcf()` and every `vc()` model fit through, did not override `report_shift()`, so the base class's zero shift applied, a `bcf()` fit recorded the raw forest, and its level was the ridge coordinate itself. A plain `bartisan(family = dpm())` fit was never affected, which is why the Gaussian example in the item had a well-mixed predictor beside an `aux.center` at R-hat 1.63. Same shape as the `before_forest()` and `reported_loglik()` omissions recorded in the wrapper's own comments: a per-draw hook the wrapper has to forward and did not.
+
+**Measured before fixing, prediction in the header of `_dev/dpm-level-shift.R`.** Simulated data, skewed errors with mean zero, two chains of 200 + 400, one mean structure fit as plain `bartisan()` and as `bcf(propensity = FALSE)`. The level is the mean over observations of the reported predictor, `center` the raw mixture mean from `fit$aux`, and the density gap is the largest difference between the per-draw sum of `predict(type = "density", log = TRUE)` and `fit$loglik`, which agree only if the recorded predictor and the recorded mixture are in the same chart.
+
+| fit | cor(level, center) | sd(level) | sd(level + center) | gap between chain means | mean level (mean of y is 5.38) | density gap |
+|---|---|---|---|---|---|---|
+| plain | 0.06 | 0.045 | 0.31 | 0.003 | 5.37 | 9e-13 |
+| `bcf()`, before | −0.997 | 0.546 | 0.045 | −0.73 | 6.31 | 1668 |
+| `bcf()`, after | 0.05 | 0.045 | 0.55 | −0.001 | 5.37 | 9e-13 |
+
+Before the fix the `bcf()` level was the raw forest: it followed the center at −0.997, its spread was twelve times that of the identified sum, and the two chains sat 0.73 apart, the lalonde pattern in miniature. After it the `bcf()` row matches the plain row.
+
+**The fix** is `VaryingCoefficientFamily::report_shift()` in `src/family.cpp`, which forwards the wrapped family's shift onto the first control function feeding each predictor (a coefficient forest is multiplied by its basis column, so a constant cannot ride on its leaves), with `aux_values_shifted()` mapping the forest-indexed shift back to the predictor index so that ordinal cutpoints follow too. A predictor with no control function keeps a zero shift and stays in the sampler's chart. Tests: `test-dpm.R` "the reporting chart holds through a varying coefficient", which fails before the fix on the density identity by thousands of log points, and `test-ordinal.R` "the centered chart holds through a varying coefficient". `dpm_aft()` needs no change of its own: `DPMAFTFamily` inherits `report_shift()` and the wrapper forwards it, checked on a `vc()` fit with half the times censored (density identity 1e-13, replay 6e-11, level sd 0.021 against 0.075 for the sum) and pinned by a third test.
+
+**lalonde, the old vignette chunk (`_dev/dpm-lalonde-level.R`).** One and four chains, two seeds each, `estimate_effect(estimand = "ATT")`. Observed treated mean 6349.
+
+| chains, seed | ATT [95%] | Y[0] before | Y[1] before | Y[0] after | Y[1] after |
+|---|---|---|---|---|---|
+| 1, 11 | 269 [−302, 924] | 4817 | 5086 | 6365 | 6634 |
+| 4, 11 | 277 [−230, 1025] | 5350 | 5627 | 6379 | 6656 |
+| 1, 12 | 336 [−200, 1042] | 5195 | 5531 | 6310 | 6645 |
+| 4, 12 | 338 [−216, 1099] | 5028 | 5365 | 6274 | 6612 |
+
+The ATT draws are identical before and after to every digit, as a change of chart requires. The spread of Y[1] across the four fits fell from 541 to 44 against a Monte Carlo error of 10 to 18. Read in the raw chart, which is what the fit reported before, the same draws have R-hat 1.38 to 1.59, bulk ESS 2 to 9 and a Monte Carlo error of 540 to 900, the scale on which the record's single-chain 3780 sits. In the reported chart Y[1] has R-hat 1.00 to 1.02 and ESS 179 to 524; Y[0], the counterfactual arm, mixes slower at R-hat 1.03 to 1.07 and ESS 29 to 65, which is real and is where more draws go for this fit. Y[1] among the treated now sits at 6612 to 6656, about 300 above the observed 6349 and stable across seeds and chain counts, so that gap is the model and not the sampler: one error shape at every x, on an outcome whose share of zeros depends on x. The entry "The ATT with the observed treated mean" above measured 6373 for its model. `vignette("causal")` switched this fit to `tweedie()` on 2026-09-25 and can go back to `dpm()` if the point of the example is the mixture; the level it would report is now the identified one.
+
+**What the paper does.** George et al. (2019, sec. 3.1) subtract the mean of y, "which facilitates the relatively easy choice of μ_0 = 0", report the "fit" as the average of the function draws alone, and say nothing more about identification. Their simulated errors are symmetric or demeaned, so the mixture's mean is near zero there, and the Card example has no truth to compare against. Their chains were 10,000 sweeps with 5,000 of warmup. So the reference implementation reports the raw forest and lives with the ridge; the centered chart here is the stronger choice, and the wrapper now honors it.
+
+**The `diagnose()` rows (`_dev/dpm-diagnose-rows.R`).** The item's Gaussian example at four chains, with the error density at five residual values added from the stored mixture.
+
+| row | R-hat, 800 draws | bulk ESS, 800 | R-hat, 3200 | bulk ESS, 3200 |
+|---|---|---|---|---|
+| `aux.center` | 1.55 | 7 | 1.13 | 31 |
+| `aux.clusters` | 1.19 | 15 | 1.04 | 81 |
+| `aux.alpha` | 1.12 | 22 | 1.03 | 126 |
+| `aux.error_sd` | 1.00 | 2500 | 1.00 | 9226 |
+| `loglik` | 1.01 | 338 | 1.00 | 1340 |
+| `eta` average | 1.00 | 3357 | 1.00 | 13048 |
+| `eta` worst 5% | 1.06 | 57 | 1.01 | 462 |
+| density at 0 and ±2 sd | 1.00 | 1475 to 2104 | 1.00 | 4572 to 7917 |
+| density at ±1 sd | 1.17 to 1.22 | 196 to 230 (tail 33 to 52) | 1.02 to 1.03 | 402 to 464 (tail 117 to 156) |
+
+The prediction was that the three mixture rows are slow and nothing a user reads is. It held for the predictor, the error sd and the log likelihood and failed for the error density at the shoulders: at one residual sd the density has R-hat 1.2 and a tail ESS of 33 at the defaults, so the mixture's slow coordinates do reach `error_density()` and `predict(type = "density")`. Four times the draws cut every R-hat toward 1 and multiply the ESS of every slow row by two to eight, so it is mixing and not chains settling in different places.
+
+What follows for `diagnose()`, not done here. `aux.center` is a chart coordinate the likelihood does not identify and nothing reported depends on it, so it should leave the checked rows; `sigma_mu.*` is already dropped for the same reason, and that is the simplest place for it. `aux.clusters` and `aux.alpha` are representation counts like the splitting rules, but at present they are the only rows standing in for the density's convergence, which the ±1 sd rows show is a real question at the defaults. The clean version is to grade them apart as `splits.*` is graded and to add the density at a few residual quantiles as reported rows for `dpm()` and `dpm_aft()` fits, so the check reads the quantity and not its proxy, with advice that names `error_density()` and `predict(type = "density")` as what more draws are for when only those rows fail.
+
+Found on the way and not pursued. The `eta.*` rows of a `bcf()` fit are per forest, and under the drawn coding the control function's level trades against the codings (μ − aτ with b + a leaves every fitted value where it was), so a per-forest average row can be slow where the combined predictor is not: R-hat 1.13 and ESS 12 for one per-forest `eta` row of the fixed `bcf()` fit above, against a gap of 0.001 between the chains' combined levels. The same shape as this entry, one level up. And forwarding the shift changes the chart an ordinal fit through `vc()` is reported in: centered predictor and free cutpoints, as for a plain ordinal fit, where before it stayed in the sampler's pinned-first-cutpoint chart. Cutpoints saved from such a fit before today are in the other chart.
 
 ## The survival simulations rerun under `sparsity = FALSE` (2026-10-01)
 

@@ -139,12 +139,15 @@ paperwork and one is now fixed; see the table.
 | A hex logo | Optional, unchanged. Cheaper before the README and site are final. |
 | `inst/CITATION` | Optional, newly listed. |
 
-One side effect of the single chains is worth recording. In `vignette("causal")`, the `lalonde`
-fit, `bcf(family = dpm())`, gave average potential outcomes among the treated of 5420 to 5650 for
-`Y[0]` in two four-chain builds and 3780 with one chain, while the treated group's observed mean
-earnings are 6349. The ATT intervals overlap (183 [-248, 823] and 228 [-222, 971] against 370
-[-151, 1090]), so the contrast is not the problem; the level of a `dpm()` fit is, and it evidently
-mixes slowly enough that one chain lands somewhere else. Not investigated yet.
+One side effect of the single chains looked like slow mixing of the `dpm()` level and was not.
+In `vignette("causal")`, the `lalonde` fit, `bcf(family = dpm())`, gave average potential outcomes
+among the treated of 5420 to 5650 for `Y[0]` in two four-chain builds and 3780 with one chain,
+while the treated group's observed mean earnings are 6349, with the ATT intervals overlapping
+(183 [-248, 823] and 228 [-222, 971] against 370 [-151, 1090]). Investigated 2026-10-01: the
+varying-coefficient wrapper did not forward `report_shift()`, so a `bcf()` fit recorded the raw
+forest, whose level the likelihood does not identify. Fixed in `src/family.cpp`; with the same
+seeds the treated `Y[1]` now spreads 44 across four fits against a Monte Carlo error of 10 to 18.
+The `TASKS.md` entry of that date has the measurements.
 
 Checked and not a problem: every exported help page has `\value` and examples,
 there is no `\dontrun{}` and no commented-out example code, there are no `http://`

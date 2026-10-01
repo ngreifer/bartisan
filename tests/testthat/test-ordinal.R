@@ -240,3 +240,28 @@ test_that("the cutpoints are on the same scale as polr's", {
   eta <- colMeans(fit[["eta"]][[1L]])
   expect_gt(stats::cor(eta, raw$lp), 0.99)
 })
+
+test_that("the centered chart holds through a varying coefficient", {
+  d <- sim_x(n = 200, seed = 17)
+  set.seed(1017)
+  d$z <- stats::rbinom(nrow(d), 1L, 0.5)
+  lat <- 2 * d$x1 - d$x2 + d$z + stats::rnorm(nrow(d))
+  d$y <- ordered(rowSums(outer(lat, stats::quantile(lat, c(1, 2) / 3), ">")) + 1L)
+
+  fit <- bartisan(y ~ x1 + x2 + x3 + vc(z), d, family = ordinal(),
+                  control = quick_control(gate = "hard"))
+
+  # The shift is carried by the control function, so the combined predictor
+  # averages to zero over the fitted sample in every draw, as it does without
+  # the coefficient, and no cutpoint is pinned.
+  eta <- stats::predict(fit, type = "link", draws = TRUE)
+  expect_lt(max(abs(rowMeans(eta))), 1e-8)
+  expect_gt(stats::sd(fit[["aux"]][, "cut1"]), 0)
+
+  # The stored forests replay to the recorded predictor, which is what makes
+  # the change of chart a change of chart rather than a change of fit. The
+  # usual helper compares forest by forest and does not apply here, since the
+  # replay of a varying-coefficient model is the combined predictor.
+  replayed <- stats::predict(fit, newdata = d, type = "link", draws = TRUE)
+  expect_equal(as.vector(replayed), as.vector(eta), tolerance = 1e-6)
+})

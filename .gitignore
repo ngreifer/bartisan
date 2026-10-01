@@ -145,6 +145,9 @@ _dev/did/*
 !_dev/overlap-uncertainty.R
 !_dev/bcf-effect-sparsity.R
 !_dev/bcf-effect-sparsity-results.R
+!_dev/dpm-level-shift.R
+!_dev/dpm-lalonde-level.R
+!_dev/dpm-diagnose-rows.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R
