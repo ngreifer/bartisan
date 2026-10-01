@@ -50,7 +50,7 @@ figure/
 # package -- seven third-party GPL-2 packages -- kept as a reference and not
 # ours to redistribute, so it is never tracked.
 #
-# `_dev/did/` is the parked difference-in-differences work: three designs that
+# `_dev/did/` is the parked difference-in-differences work: four designs that
 # were built, measured and not shipped, kept because the measurements are worth
 # more than the code and will be wanted if the field settles. Note the ordering:
 # `_dev/*` excludes the directory itself, so `!_dev/did/` has to re-include it
@@ -79,6 +79,12 @@ _dev/did/*
 !_dev/did/catB-persist.R
 !_dev/did/catB-mpdta.R
 !_dev/did/catB-extract.R
+!_dev/did/etwfe-mpdta.R
+!_dev/did/etwfe-mpdta-followup.R
+!_dev/did/etwfe-dgpA.R
+!_dev/did/etwfe-sim.R
+!_dev/did/etwfe-mpdta-predictive.R
+!_dev/did/etwfe-sim-perperiod.R
 
 # Records
 !_dev/TASKS.md

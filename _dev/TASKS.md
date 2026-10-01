@@ -9513,6 +9513,24 @@ When this is picked up again, start from `_dev/did/DID.md` § "Phase 13c", whose
 rule is the one that caught every earlier mistake: **an ESS for these models
 means nothing at a single chain length.**
 
+**Phase 15 (2026-09-30).** Wooldridge's extended TWFE (2025, 2023), missed
+until now, needs no package change. The model
+`y ~ cohort + x + vc(periodf, ~ x) + (1 | id)`, with one time forest per period,
+is fit to the untreated rows, and the treated ones are imputed with
+`posterior_predict()`.
+
+- On `mpdta` it matches his linear estimator cell by cell, with an overall
+  interval 1.06 times as wide.
+- On `dgp_A`, with the additive form, it has none of Category B's bias (+0.017
+  against +0.510).
+- In a simulation with a trend nonlinear in the covariates, it removes 90% of
+  linear ETWFE's bias (84% with one additive time forest), and its intervals
+  miss the rest.
+
+Its ESS falls with chain length, as the other designs' did, and it has no
+`estimate_effect()` route. Start from `_dev/did/DID.md` § "Phase 15" now. The
+phase 13c rule still applies to it.
+
 ## Heading and Enumeration Pass (2026-09-23)
 
 - [x] Renamed 24 vignette headings and 5 roxygen `@details` subheads that opened

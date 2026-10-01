@@ -4,6 +4,9 @@
 > to do difference-in-differences with BART. The measurements below stand; the
 > recommendation is what was withdrawn. See `_dev/TASKS.md` for what was removed
 > and `PLAN-categories-B-and-D.md` for the outside design that phase 14 tests.
+> Phase 15 (2026-09-30) adds Wooldridge's extended TWFE by imputation, the
+> strongest design measured here and the one to start from if the section
+> returns.
 
 # Difference-in-differences with bartisan: investigation and vignette plan
 
@@ -767,13 +770,467 @@ Verdict: keep the stacked model in the vignette. B is worth knowing as an
 alternative, it must be written in the folded form for `estimate_effect()` to
 reach it, and it is not more precise on real panels. Scripts: `_dev/catB-*.R`.
 
+---
+
+# Phase 15: Wooldridge's extended TWFE by imputation, with forests for the covariate terms
+
+Phases 8 to 14 missed Wooldridge (2025, 2023). His extended TWFE (ETWFE) needs
+no package change in bartisan: fit two additive forests to the untreated rows
+and impute the treated ones.
+
+- **On `mpdta`** it matches his linear estimator cell by cell, inside the linear
+  intervals. With posterior predictive draws for the imputation, its overall
+  interval is 1.06 times as wide (1.14 with the single additive time forest).
+- **On `dgp_A`** it removes phase 14's Category-B bias.
+- **In a simulation** where the trend is nonlinear in the covariates, it removes
+  84% to 90% of linear ETWFE's bias, depending on the time structure. Its
+  intervals miss the rest.
+
+It is the strongest design measured in this file. Its gaps are the lack of an
+`estimate_effect()` route, an ESS that has to be read at two chain lengths (as
+in phase 13c), and that residual bias. Scripts: `_dev/did/etwfe-*.R`.
+
+## The two papers
+
+**Wooldridge (2025)**, "Two-way fixed effects, the two-way mundlak regression,
+and difference-in-differences estimators", *Empirical Economics* 69(5),
+2545–2587. Section 3 proves that TWFE equals a pooled regression that adds
+unit and period averages of the covariates, the two-way Mundlak regression
+(Theorem 3.1). The rest applies that result to staggered adoption with a
+never-treated group and time-constant covariates.
+
+- **Identification (sec. 4).** The assumptions are no anticipation, conditional
+  parallel trends and Assumption LIN. Under them, the never-treated mean
+  (eq. 4.10) is a cohort part, α + β_g d_g + xκ + (d_g·x)ξ_g, plus a time part,
+  γ_s fs_t + (fs_t·x)π_s. It has no d_g·fs_t terms, and he shows for (4.6) that
+  leaving them out *is* parallel trends. LIN is linearity of both parts in x.
+- **Cohort imputation (Procedure 4.1).** Fit OLS to the w = 0 rows, impute
+  y(∞) for the treated rows, and average y − ŷ(∞) within each (g, t). Without
+  covariates this is Gardner's two-stage DiD.
+- **The pooled forms (sec. 5).** Pooled OLS on all rows gives the same ATT(g, t)
+  (Procedure 5.1, regression 5.3). Its regressors are:
+  - the treated-cell dummies w·d_g·fs_t;
+  - their interactions with covariates centered at each cohort's mean;
+  - the control terms.
+
+  With a balanced panel and time-constant covariates, cohort imputation, POLS,
+  TWFE on (5.6), RE and the Borusyak–Jaravel–Spiess imputation are numerically
+  identical (5.16). The pooled forms give clustered standard errors directly,
+  which Procedure 4.1's two steps make awkward.
+- **Event studies (sec. 6).** The leads-and-lags regression (6.4) gives each
+  cohort's periods s ≤ g−2 their own terms, so g−1 is the reference period.
+  - With never-treated controls it reproduces Callaway and Sant'Anna's
+    regression adjustment (6.5).
+  - It has an imputation form, with the lead terms added to the first stage.
+  - The lags-only form above uses every pre-period as a control, so its
+    estimates differ from CS's.
+  - Freeing the leads protects only against parallel-trends failures that stop
+    at g−1 (sec. 6.2).
+- **Extensions.** Cohort-specific linear trends d_g·t need at least two
+  pre-periods per cohort (sec. 8). Time-varying covariates replace x_i with x_it
+  in Procedure 4.1, and imputation still equals POLS (sec. 10.1). The concluding
+  remarks name linearity in the covariates as the one thing the approach does
+  not relax. That is the part the forests replace.
+
+**Wooldridge (2023)**, "Simple approaches to nonlinear difference-in-differences
+with panel data", *The Econometrics Journal* 26(3), C31–C66. This is the
+nonlinear version.
+
+- **The assumption (CIPTS, eq. 3.4).** The never-treated mean is G(index), with
+  the same cohort-plus-time index, so parallel trends holds on the index scale.
+- **Estimation.** Procedure 1 fits the w = 0 rows by pooled quasi-MLE in the
+  linear exponential family, then imputes G(·) on the treated rows. Under the
+  canonical link, imputation equals pooled QMLE on all rows (Proposition 3.1).
+- **Overlap (p. C47).** A parametric G needs no overlap assumption in
+  principle. He still asks for Supp(X | D_g = 1) ⊂ Supp(X | D_∞ = 1) in every
+  cohort, which he calls essentially necessary for the ATTs at T.
+- **Pre-trends (sec. 4).** The tests use pre-period cohort indicators, with
+  period 1 as the reference in this paper, or cohort-specific linear trends. The
+  linear trends are also the correction.
+
+## The formula mapping
+
+Put a forest in place of each part's linear covariate terms in (4.10):
+
+    E[y_t(∞) | cohort, x] = a(cohort, x) + b(t, x)
+
+Additivity takes over the role of parallel trends: no forest sees cohort and
+period together. Fit to the untreated rows, this is Procedure 4.1 with forests.
+
+```r
+d$periodf <- factor(d$period)
+ctl <- d[d$w == 0, ]
+tr <- d[d$w == 1, ]
+fit <- bartisan(y ~ cohort + x + vc(periodf, ~ x) + (1 | id), data = ctl)
+y0 <- rstantools::posterior_predict(fit, newdata = tr)  # draws by treated rows
+gap <- sweep(-y0, 2L, tr$y, "+")                        # y - y(inf), per draw
+att <- rowMeans(gap)                                    # overall ATT, per draw
+```
+
+The time part is one forest per period, `vc(periodf, ~ x)`, the counterpart of
+Wooldridge's fs_t and fs_t·x. The cheaper alternative is one additive time
+forest, `vc(one, ~ period + x)` with `d$one <- 1` and
+`num_trees = c(100L, 50L)`. The simulation below finds that it leaves about
+twice the bias at long exposure.
+
+Averaging `gap` over each cell's treated rows gives ATT(g, t). Every aggregate
+is then a weighted average of the cell draws, weighted by cell size.
+
+The imputation draws y(∞) from the posterior predictive rather than taking its
+conditional mean with `predict(draws = TRUE)`. The simulation below shows that
+the conditional mean undercovers, and why.
+
+| Wooldridge | bartisan |
+|---|---|
+| cohort part, α + β_g d_g + xκ + (d_g·x)ξ_g | the fixed part `cohort + x`, one forest splitting on both |
+| time part, γ_s fs_t + (fs_t·x)π_s | `vc(periodf, ~ x)`, one forest per period; or `vc(one, ~ period + x)`, one additive forest over period and x |
+| no d_g·fs_t terms | no forest that sees cohort and period together |
+| unit effect c_i (eq. 5.6) | `(1 \| id)` |
+| step (i), OLS on the w = 0 rows | the fit, on the `w == 0` rows |
+| steps (ii) and (iii) | `posterior_predict()` on the `w == 1` rows, averaged by cell |
+| G(·) with pooled QMLE (2023) | the family's inverse link, with the forests additive on the link scale |
+
+The mechanics are phase 14's.
+
+- **The constant column.** `one` is a column of 1s, and `vc()`'s `"auto"`
+  centering puts a 0/1 column's center at zero. So the basis is 1 and the
+  coefficient forest is a plain additive forest.
+- **Per-period forests.** A `vc()` on a factor fits one forest per level, so
+  `vc(periodf, ~ x)` gives every period a free function of x, the analogue of
+  fs_t and fs_t·x.
+- **Nonlinear families.** The formula is the same under a nonlinear family.
+  `predict()` returns the response-scale mean by default, which on a 0/1
+  binomial fit is P(y = 1), so a conditional-mean imputation carries over
+  unchanged. The predictive version was not checked on a nonlinear family, and
+  no nonlinear family was tested for bias or coverage.
+- **No centering.** The pooled form centers the covariates at each cohort's
+  mean, ẋ_ig, so that each cell's coefficient is its ATT. The imputation
+  averages the gaps directly, so it needs no centering.
+
+The random intercept corresponds to Wooldridge's RE equivalence but does a
+different job. In his linear model the cohort dummies make RE and POLS
+identical. Here, dropping it nearly doubles the conditional-mean width on
+`mpdta` (0.045 to 0.084).
+
+- **Without it,** a county's deviation from the forests sits in the residual.
+  The model treats the residual as independent across that county's rows, so
+  the uncertainty in each cohort's level passes to the ATT whole.
+- **With it,** y(∞) includes the county's own intercept, learned from its
+  untreated rows, and the deviation cancels in the gap.
+
+The linear estimator gets that cancellation from its algebra and its clustered
+standard errors. Here the model has to supply it.
+
+## Validation on `mpdta`
+
+`etwfe-mpdta.R` regresses log employment on log population, with 4 chains,
+hard gates, 500 burn-in and 1000 kept draws per chain. The linear imputation
+equals the POLS/ETWFE regression to 5.3e-14 over the 7 cells, and the linear
+intervals use county-clustered standard errors.
+
+| | overall ATT [95%] | width | width, predictive draws | R-hat / bulk ESS | time |
+|---|---|---|---|---|---|
+| linear ETWFE | −0.0506 [−0.0751, −0.0261] | 0.049 | | | |
+| additive + RE | −0.0514 [−0.0739, −0.0292] | 0.045 | 0.056 | 1.03 / 137 | 33 s |
+| per-period + RE | −0.0558 [−0.0777, −0.0337] | 0.044 | 0.052 | 1.00 / 870 | 142 s |
+| additive, no RE | −0.0481 [−0.0909, −0.0066] | 0.084 | | 1.02 / 226 | 33 s |
+| one joint forest + RE | −0.0553 [−0.2647, +0.1527] | 0.417 | | 1.10 / 27 | 10 s |
+
+The intervals are from the conditional mean, and the predictive widths are from
+`etwfe-mpdta-predictive.R`, which refits the same posteriors. Times are single
+runs, not a quiet-machine benchmark.
+
+| | g2004 | g2006 | g2007 | e0 | e1 | e2 | e3 |
+|---|---|---|---|---|---|---|---|
+| linear ETWFE | −0.0876 | −0.0213 | −0.0460 | −0.0332 | −0.0574 | −0.1379 | −0.1095 |
+| additive + RE | −0.0906 | −0.0253 | −0.0433 | −0.0327 | −0.0596 | −0.1432 | −0.1129 |
+| per-period + RE | −0.0974 | −0.0265 | −0.0482 | −0.0361 | −0.0630 | −0.1587 | −0.1183 |
+
+- **The seven cells.** The additive + RE estimates of all seven ATT(g, t) cells
+  are within 0.006 of the linear ones.
+- **Width.** The conditional-mean interval is 0.9 times the linear width, but it
+  leaves out the treated rows' own noise (see the simulation). With predictive
+  draws the overall interval is 1.14 times the linear width for the additive
+  form and 1.06 times for the per-period form. By event time, the predictive
+  intervals match the linear width at e0 (0.053 against 0.052) and are 32% to
+  44% wider at e1 to e3. The e2 and e3 cells have 20 counties each.
+- **The per-period form.** It drifts further from the linear estimate at long
+  exposure (e2: −0.159 against −0.138), but stays inside the linear intervals.
+- **The joint forest.** It drops the additivity, so it can build cohort-by-period
+  interactions that no untreated row constrains inside the treated cells. Its
+  interval is more than eight times the linear width. The additive form is the
+  identifying restriction and has to stay.
+
+`did::att_gt(est_method = "reg")` with never-treated controls gives −0.0420
+(se 0.0116). That is a different estimator: the lags-only ETWFE uses every
+pre-period and the not-yet-treated rows as controls. Compare bartisan with the
+linear ETWFE here. The leads fit below is the one that reproduces `did`.
+
+## Convergence at two chain lengths
+
+| time structure | draws per chain | overall ATT [95%] | R-hat | bulk / tail ESS |
+|---|---|---|---|---|
+| additive + RE | 1000 | −0.0514 [−0.0739, −0.0292] | 1.03 | 137 / 2406 |
+| additive + RE | 2500 | −0.0517 [−0.0738, −0.0289] | 1.03 | 114 / 1005 |
+| per-period + RE | 1000 | −0.0558 [−0.0777, −0.0337] | 1.00 | 870 / 2362 |
+| per-period + RE | 2500 | −0.0539 [−0.0762, −0.0322] | 1.011 | 527 / 4427 |
+
+**The prediction was wrong.** The additive form's bulk ESS fell with length, and
+`etwfe-mpdta-followup.R` was run expecting the per-period form's to rise. That
+would have made the per-period form the one to recommend. Instead it fell from
+870 to 527. Both time structures have a slow component that 1000 draws do not
+show, so phase 13c's rule holds here too: read the ESS at two lengths. At each
+length the per-period form's ESS is still four to six times the additive
+form's.
+
+The damage to the estimate is small on `mpdta`. The per-period mean moved by
+0.0019, a sixth of a posterior sd, and neither interval's width changed by more
+than 0.0002. Not measured: whether the slow direction is a level trading
+between the random intercepts and the cohort split, which only the priors tell
+apart.
+
+## `dgp_A` and the Category-B failure
+
+`etwfe-dgpA.R` reuses phase 14's seeds, its two cells and its settings (hard
+gates, 2 chains, 250 + 500 draws). The model is
+`y ~ cohort + x1…x7 + vc(one, ~ t + x1…x7) + (1 | id)`. `dgp_A` redraws its
+covariates every period, so they enter both forests as time-varying covariates
+(sec. 10.1). The truth is τ = 3.
+
+| cell | ETWFE bias | width | coverage | Category B bias / coverage | stacked bias / width |
+|---|---|---|---|---|---|
+| as published | +0.017 | 0.394 | 3/3 | +0.510 / 0/3 | −0.292 / 1.029 |
+| level shift subtracted | −0.006 | 0.401 | 3/3 | −0.011 / 3/3 | −0.292 / 1.029 |
+
+- **Why Category B failed.** Its baseline was barred from seeing cohort, so the
+  0.75 × ever shift could only go into shrunk random intercepts, and the rest
+  landed on τ.
+- **Why ETWFE does not.** Its baseline includes the cohort, as Wooldridge's
+  β_g d_g, which is the selection on levels that DiD allows. Nothing is left
+  over. Within a replicate, the shift moves the estimate by 0.013 to 0.031, where
+  it moved B's by half a unit.
+- **Width.** The intervals are as narrow as B's and 2.6 times narrower than the
+  stacked design's.
+
+## The simulation with nonlinear covariate trends
+
+`etwfe-sim.R` generates 500 units over 6 periods: cohorts first treated at 4,
+5 and 6, plus a never-treated group of about 140 units.
+
+- **Covariates.** Two time-constant covariates, x1 and x2, are drawn from U(0, 1).
+- **Noise.** Unit effects have sd 1 and the noise has sd 0.3.
+- **Selection.** Cohort membership is a softmax on the covariates. Cohort 4 is
+  U-shaped in x1 and cohort 5 follows sin(2πx2).
+- **Trend.** Conditional parallel trends holds exactly: the never-treated mean
+  moves by m(x)(t − 1)/5.
+- **Cells.** In the nonlinear cell, m(x) = 6(x1 − ½)² + 2 sin(2πx2). LIN is
+  false there, and selection is on the same features. In the linear cell,
+  m(x) = 1.5x1 + x2 and LIN holds.
+- **Effect.** It is 1 + 0.25(t − g) + 0.5(x2 − ½). The truth is its average over
+  the treated rows, about 684 per replicate. Each cell has 20 replicates.
+
+The estimators are linear ETWFE by imputation, with unit-clustered intervals from
+the equivalent POLS, and the additive + RE forest version. The forest version
+used 4 chains, hard gates, 100 + 50 trees and 500 + 1000 draws, and was imputed
+two ways: with the conditional mean and with posterior predictive draws.
+
+A first design selected on features m did not share. That left linear ETWFE
+unbiased and only wider, so it could not test the claim.
+
+The table gives bias / coverage / width / RMSE. The Monte Carlo SE of the
+biases runs from 0.005 to 0.027.
+
+| cell | quantity | linear ETWFE | forests, conditional mean | forests, predictive draws |
+|---|---|---|---|---|
+| nonlinear | overall | +0.233 / 0.00 / 0.213 / 0.240 | +0.037 / 0.55 / 0.097 / 0.047 | +0.037 / 0.75 / 0.107 / 0.047 |
+| nonlinear | e0 | +0.135 / 0.10 / 0.166 / 0.143 | +0.010 / 0.80 / 0.079 / 0.032 | +0.009 / 0.85 / 0.101 / 0.032 |
+| nonlinear | e1 | +0.335 / 0.00 / 0.277 / 0.343 | +0.055 / 0.60 / 0.127 / 0.066 | +0.055 / 0.65 / 0.150 / 0.066 |
+| nonlinear | e2 | +0.359 / 0.00 / 0.417 / 0.377 | +0.096 / 0.45 / 0.193 / 0.111 | +0.096 / 0.50 / 0.226 / 0.111 |
+| linear | overall | +0.004 / 0.95 / 0.091 / 0.022 | +0.008 / 0.90 / 0.088 / 0.024 | +0.008 / 0.95 / 0.099 / 0.024 |
+| linear | e0 | +0.005 / 0.95 / 0.090 / 0.022 | +0.009 / 0.90 / 0.072 / 0.023 | +0.009 / 0.95 / 0.095 / 0.023 |
+| linear | e1 | +0.005 / 0.95 / 0.126 / 0.032 | +0.001 / 0.80 / 0.110 / 0.034 | +0.001 / 0.95 / 0.135 / 0.033 |
+| linear | e2 | +0.004 / 0.90 / 0.175 / 0.049 | +0.018 / 0.85 / 0.165 / 0.058 | +0.018 / 0.85 / 0.201 / 0.058 |
+
+Measured against the predictions:
+
+- **Where LIN fails, the forests remove most of the bias, not all of it.** The
+  prediction was near-unbiased.
+  - The overall bias is +0.037 (Monte Carlo SE 0.007) against linear ETWFE's
+    +0.233, a cut of 84%.
+  - The RMSE is a fifth of linear ETWFE's, at less than half the width.
+  - The residual bias grows with exposure: +0.010, +0.055 and +0.096 at e = 0,
+    1 and 2.
+  - The intervals do not carry it. Overall coverage is 55% with the
+    conditional mean and 75% with the predictive draws, and about half at
+    e = 2.
+
+  This is the failure branch the script's header named: the period forest
+  carries most of the trend into the treated cells but not all of it. It is
+  worst where the extrapolation is longest. At e = 2 the one cell is cohort 4 at
+  period 6, where only the never-treated inform the time part. Cohort 4 is
+  selected onto the edges of x1: 62% of its units have x1 below 0.15 or above
+  0.85, against 23% of the never-treated. The trend is steepest there.
+- **Where LIN holds, the forests cost little, as predicted.** Their RMSE is
+  0.024 against 0.022. The predictive draws' widths run 5% to 15% above linear
+  ETWFE's.
+- **The predictive draws are the imputation to use.** Where the model is right,
+  they cover at 95%, 95%, 95% and 85%. The conditional mean covers at 90%, 90%,
+  80% and 85%.
+  - Their intervals are 12% to 31% wider. For the overall ATT that is the
+    treated rows' own noise: 0.3 over √684 is 0.011, the quadrature
+    difference between the sds the two intervals imply.
+  - Neither imputation overcovered, so the header's hedge that the predictive
+    draws might overcover did not materialize.
+
+
+**One forest per period.** `etwfe-sim-perperiod.R` refit the nonlinear cell's 20
+datasets with `vc(periodf, ~ x1 + x2)` in place of the additive time forest.
+The cohort forest had 100 trees and each period's forest 50. The datasets were
+regenerated from the same seeds, and their truths match the recorded ones
+exactly, so the comparison is paired.
+
+| quantity | additive time forest | per-period forests | paired difference in bias (SE) |
+|---|---|---|---|
+| overall | +0.037 / 0.75 / 0.107 / 0.047 | +0.024 / 0.85 / 0.111 / 0.036 | −0.013 (0.002) |
+| e0 | +0.009 / 0.85 / 0.101 / 0.032 | +0.010 / 0.90 / 0.105 / 0.031 | +0.001 (0.002) |
+| e1 | +0.055 / 0.65 / 0.150 / 0.066 | +0.038 / 0.95 / 0.157 / 0.049 | −0.017 (0.003) |
+| e2 | +0.096 / 0.50 / 0.226 / 0.111 | +0.045 / 0.95 / 0.256 / 0.074 | −0.051 (0.006) |
+
+The entries are bias / coverage / width / RMSE, with predictive draws.
+
+The result lies between the two outcomes the script's header wrote down.
+
+- **The prediction.** One forest per period was to cut the bias at e = 2 to a
+  third or less. It cut it to 47%.
+- **The other outcome.** Bias about where it was is ruled out by a paired
+  difference of nearly nine standard errors.
+
+So the attenuated period-by-covariate interaction accounts for about half the
+late-exposure bias. Something else accounts for the rest, most likely the thin
+control support at the edges of x1.
+
+The per-period form is better on bias, coverage and RMSE. Its RMSE is 23% lower
+overall and 33% lower at e = 2. It costs 4% to 13% more width and several times
+the compute: about seven minutes per replicate against one for the additive
+fit. Both timings come from a machine running other jobs, so they are not a
+benchmark.
+
+## The pre-trend check
+
+Wooldridge's leads-and-lags imputation (2025, sec. 6) gives each cohort's
+periods s ≤ g−2 free terms in the first stage. Free terms for a row are the
+same as leaving the row out. So the check reuses the fit above on the
+`w == 0 & lead == 0` rows and imputes the lead rows along with the treated
+ones. The gaps on the lead rows are the placebos. `etwfe-mpdta-followup.R` ran
+it under both time structures, and `etwfe-mpdta-predictive.R` added the
+predictive draws.
+
+| e | linear = `did` universal (se) | additive + RE | per-period + RE |
+|---|---|---|---|
+| −4 | +0.0069 (0.0236) | +0.0101 [−0.0314, +0.0506] | +0.0142 [−0.0292, +0.0580] |
+| −3 | +0.0276 (0.0177) | +0.0289 [−0.0061, +0.0636] | +0.0299 [−0.0073, +0.0658] |
+| −2 | +0.0235 (0.0148) | +0.0260 [−0.0070, +0.0584] | +0.0258 [−0.0102, +0.0612] |
+
+The bartisan intervals are from the predictive draws.
+
+On these rows the linear imputation reproduces `did`'s never-treated,
+universal-base estimates to the four decimals phase 13 recorded. That holds for
+the placebos and for the post-period effects (e0 to e3: −0.0211, −0.0534,
+−0.1411, −0.1075), as eq. 6.5 says it should. With the leads freed and only
+never-treated controls, the imputation is Callaway–Sant'Anna regression
+adjustment. So one bartisan formula gives either estimator, depending on which
+untreated rows it is fit to. The bartisan post-period estimates from the
+additive leads fit are within 0.011 of `did`'s. The largest gaps are at e2 and
+e3, the two 20-county cells.
+
+Measured against the predictions:
+
+- **Point estimates.** The forest placebos sit near the linear ones, within
+  0.003 for the additive form and 0.007 for the per-period form, as predicted.
+  A cohort level resting on one reference period is not unstable.
+- **Intervals.** With the conditional mean, the additive form's e = −3 interval
+  excluded zero, by 0.001 ([+0.0010, +0.0564]), where `did`'s covers. That was
+  the half of the first prediction that failed. `etwfe-mpdta-predictive.R` was
+  then run on the prediction that the exclusion was the treated rows' omitted
+  noise, and it was. With predictive draws the interval covers zero, and the
+  three placebo widths (0.082, 0.070, 0.065) sit near `did`'s (0.093, 0.069,
+  0.058).
+
+## Limitations of the recipe
+
+- **No `estimate_effect()` route.** The fit has no treatment variable, since
+  the treated rows are left out, so `estimate_effect()`'s g-computation has
+  nothing to switch. The ATT is a hand-rolled average of the gaps between y and
+  `posterior_predict()`. A supported workflow would want a helper that does the
+  prediction and the cell weighting.
+- **Imputing the conditional mean undercovers, so impute with
+  `rstantools::posterior_predict()`.** The posterior conditions on the treated
+  rows' observed outcomes. So an interval from their conditional mean leaves out
+  their own noise, whose average over n rows has sd σ/√n.
+  - Where the model is right, the simulation found the conditional mean
+    covering 80% to 90% and the predictive draws at nominal.
+  - On `mpdta` the predictive draws widen the overall interval from 0.045 to
+    0.056, and bring the e = −3 placebo interval back over zero.
+- **Residual bias where the trend is nonlinear.** In the simulation the additive
+  time forest left +0.037 of linear ETWFE's +0.233, rising to +0.096 at e = 2,
+  and its intervals did not carry it. One forest per period halves the
+  late-exposure bias and brings coverage at e = 1 and 2 to 95%. But +0.024
+  remains overall, and the overall ATT covers 85%.
+- **Overlap.** Beyond the untreated support at a period, a forest extends its
+  edge leaves flat, where the linear model extends a line. That is no weaker an
+  assumption. Wooldridge's support condition should be checked for every cohort
+  at every treated period. At T the never-treated are the only controls. The
+  simulation's residual bias is largest where cohort 4 sits at the edges of x1.
+- **Cohort-specific trends.** Wooldridge's d_g·t (2025, sec. 8; 2023, sec. 4.2)
+  would be `vc(period, ~ cohort)`, a period slope that varies by cohort. It needs
+  at least two pre-periods per cohort, and `mpdta`'s 2004 cohort has one. Not
+  tried.
+- **Nonlinear families.** Untested beyond the `predict()` scale check above.
+
+## Assessment
+
+It is straightforward: a formula, a subset of rows and a `posterior_predict()`
+call, and nothing in the package had to change. It is also the best design
+measured in this file.
+
+- **On `dgp_A`** it is unbiased where Category B was not, and 2.6 times narrower
+  than the stacked design.
+- **On `mpdta`** it matches the linear ETWFE cell by cell, with an overall
+  interval 1.14 times as wide.
+  - It uses 100 + 50 trees, where the stacked design needed 200 nuisance trees
+    (phase 13c).
+  - Fit to the rows without the leads, it comes within 0.011 of the
+    Callaway–Sant'Anna estimates and gives a pre-trend check that agrees with
+    `did`.
+- **In the simulation** it removes 84% to 90% of linear ETWFE's bias where the
+  trend is nonlinear in the covariates, and it costs little where the trend is
+  linear. At long exposure the per-period form leaves about half the bias the
+  additive form does. Neither removes it, and what remains is not in the
+  intervals.
+
+If DiD returns to the package, build on this design. It would want:
+
+- an imputation helper that uses predictive draws, so users never write the
+  sweep;
+- the leads fit for the pre-trend check;
+- the per-period time structure by default, with the additive form as the
+  cheap alternative;
+- the two-length ESS check in its documentation;
+- a statement of the bias that remains where treated cohorts sit at the edges
+  of the controls' covariate distribution.
 
 ## Citations verified for this work, held here rather than in the package bib
 
-Both were added to `vignettes/references.bib` for the removed section and
-reverted with it, so they are recorded here. Each was checked twice, against
-the reference implementation's own `citation()` and against Crossref, per
-`~/.config/agents/PAPERS.md`.
+`callaway2021` and `santanna2020` were added to `vignettes/references.bib` for
+the removed section and reverted with it, so they are recorded here. Each was
+checked twice, against the reference implementation's own `citation()` and
+against Crossref, per `~/.config/agents/PAPERS.md`.
+
+The two Wooldridge entries were added for phase 15 and have never been in
+`references.bib`. They come from the Zotero library, where their Better BibTeX
+keys are `wooldridgeTwowayFixedEffects2025` and
+`wooldridgeSimpleApproachesNonlinear2023`. Both DOIs resolve to the publisher,
+and neither item is flagged as retracted.
 
 ```bibtex
 @article{callaway2021,
@@ -796,5 +1253,27 @@ the reference implementation's own `citation()` and against Crossref, per
   number = {1},
   pages = {101--122},
   doi = {10.1016/j.jeconom.2020.06.003}
+}
+
+@article{wooldridge2025,
+  title = {Two-way fixed effects, the two-way mundlak regression, and difference-in-differences estimators},
+  author = {Wooldridge, Jeffrey M.},
+  year = {2025},
+  journal = {Empirical Economics},
+  volume = {69},
+  number = {5},
+  pages = {2545--2587},
+  doi = {10.1007/s00181-025-02807-z}
+}
+
+@article{wooldridge2023,
+  title = {Simple approaches to nonlinear difference-in-differences with panel data},
+  author = {Wooldridge, Jeffrey M.},
+  year = {2023},
+  journal = {The Econometrics Journal},
+  volume = {26},
+  number = {3},
+  pages = {C31--C66},
+  doi = {10.1093/ectj/utad016}
 }
 ```
