@@ -1,10 +1,10 @@
 #' Summarize a generalized BART model
 #'
 #' @description
-#' `print()` reports what was fit and how long the chain is. `summary()` adds
-#' posterior summaries of the nuisance parameters, of the random-effect scales,
-#' and of how often each predictor was used in a splitting rule, which is the
-#' model's variable-selection output.
+#' `print()` reports what was fit and how long the chain is. `summary()` reports
+#' what `print()` does not: posterior summaries of the nuisance parameters and
+#' the random-effect scales, a quick check of convergence, and the most used
+#' predictors, with pointers to the functions that examine each of these in full.
 #'
 #' @param x,object a `<bartisan_fit>` object; the output of a call to
 #'   [bartisan()]. For `print.summary.bartisan_fit()`, `x` is instead the
@@ -19,8 +19,23 @@
 #' `print()` returns its argument invisibly. `summary()` returns a
 #' `<summary.bartisan_fit>` object, a list of the posterior summaries its own
 #' `print()` method displays: the nuisance parameters when the family has any,
-#' the scale of each random-effect term, and the splitting counts of each
-#' predictor group.
+#' the scale of each random-effect term, the splitting counts of each predictor
+#' group, the output of [variable_importance()], and R-hat and the effective
+#' sample sizes of the log likelihood.
+#'
+#' @details
+#' The printed summary is a starting point for the functions that examine a fit
+#' in full, and it computes only what is cheap. Its convergence line gives R-hat
+#' and the bulk and tail effective sample sizes of the log likelihood, which take
+#' milliseconds because the log likelihood is a single series. It can look fine
+#' while individual fitted values mix badly, which is what [diagnose()] checks,
+#' at a cost that grows with the number of observations. The variable importance
+#' table shows at most the five most used predictors of the first forest;
+#' [variable_importance()] gives every predictor in every forest. The summary
+#' also points to [loo()][loo.bartisan_fit] and [kfold()][kfold.bartisan_fit] for
+#' comparing fits and to [partial_dependence()] for how the predictions depend
+#' on a predictor, none of which it runs, since each can take seconds or more on
+#' a large fit.
 #'
 #' @seealso
 #' [bartisan()]; [variable_importance()] for the splitting counts as a data
@@ -215,8 +230,12 @@ summary.bartisan_fit <- function(object, level = 0.95, ...) {
               num_trees = object[["num_trees"]],
               soft = object[["soft"]],
               num_draws = nrow(object[["sigma_mu"]]),
+              chains = object[["chains"]] %or% 1L,
+              prior_only = isTRUE(object[["prior_only"]]),
               level = level,
               usage = usage,
+              importance = summary_importance(object, level),
+              convergence = summary_convergence(object),
               aux = aux,
               random = object[["random"]],
               tau = ranef_summary(object, level),
@@ -229,24 +248,49 @@ summary.bartisan_fit <- function(object, level = 0.95, ...) {
   out
 }
 
+# The one convergence check cheap enough to run on every summary. The log
+# likelihood is a single series that moves with the whole fit, so its R-hat and
+# effective sample sizes cost milliseconds, where `diagnose()` computes them for
+# every fitted value and takes seconds. It is a lead-in to that pass, not a
+# substitute for it: it can look fine while individual fitted values mix badly.
+summary_convergence <- function(object) {
+  loglik <- object[["loglik"]]
+
+  if (is_null(loglik) || !any(is.finite(loglik))) {
+    return(NULL)
+  }
+
+  diagnosis_stats(as_chains(loglik, object[["chains"]] %or% 1L))
+}
+
+# NULL rather than an error for a fit with no splitting counts, so that a summary
+# of one still prints the rest.
+summary_importance <- function(object, level) {
+  if (is_null(object[["counts"]])) {
+    return(NULL)
+  }
+
+  variable_importance(object, level = level)
+}
+
 #' @rdname print.bartisan_fit
 #' @export
 print.summary.bartisan_fit <- function(x, digits = 3, ...) {
 
-  print_header(x[["call"]])
+  # What was fit, the call and the length of the chain are what `print()` shows,
+  # so the summary leaves them to it and starts with what it adds. Each section
+  # but the first is set off by a blank line.
+  gap <- FALSE
+  section <- function() {
+    if (gap) {
+      cli::cat_line()
+    }
 
-  cli_cat("Family: {family_label(x[['family']])}")
-  cli_cat("Observations: {x$n}")
-  rules <- if (x[["soft"]]) "soft" else "hard"
-  cli_cat("Structure: {forest_label(x)}, {rules} decision rules")
-  cli_cat("Draws: {x$num_draws}")
-
-  if (!is_null(x[["random"]])) {
-    cli_cat("Random intercepts: {ranef_label(x)}")
+    gap <<- TRUE
   }
 
   if (!is_null(x[["aux"]])) {
-    cli::cat_line()
+    section()
     cli_cat("{.underline Nuisance parameters}")
 
     # A baseline hazard can have one entry per event time, which is too many to
@@ -267,34 +311,102 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
   }
 
   if (!is_null(x[["tau"]])) {
-    cli::cat_line()
+    section()
     cli_cat("{.underline Random-effect scales}")
     cli_cat("{.emph Standard deviation of the group intercepts.}")
     print(round(x[["tau"]], digits))
   }
 
-  cli::cat_line()
-  cli_cat("{.underline Predictor usage}")
-  cli_cat("{.emph Splitting rules per draw, and how often used at all.}")
+  section()
+  cli_cat("{.underline Convergence and mixing}\n")
 
-  for (h in seq_along(x[["usage"]])) {
-    if (length(x[["usage"]]) > 1L) {
-      cli::cat_line()
-      cli_cat("Predictor {.val {names(x$usage)[h]}}:")
-    }
-    print(round(x[["usage"]][[h]], digits))
+  conv <- x[["convergence"]]
+
+  if (!is_null(conv) && is.finite(conv[["rhat"]])) {
+    rhat <- round(conv[["rhat"]], digits)
+    bulk <- round(conv[["ess_bulk"]])
+    tail <- round(conv[["ess_tail"]])
+    chains <- x[["chains"]]
+
+    cli_cat("Log likelihood: R-hat {rhat}, bulk ESS {bulk}, tail ESS {tail}, over {chains} chain{?s}")
+    cli::cat_line()
   }
+
+  cli_bullets_cat(c(i = "Use {.topic [diagnose()](bartisan::diagnose)} to
+                        examine convergence and mixing diagnostics."))
+
+  # The ranking is abridged to the head of the first forest: the full table, and
+  # one for every other forest, is what `variable_importance()` is for.
+  if (!is_null(x[["importance"]]) && any(x[["importance"]][["prop_used"]] > 0)) {
+    vi <- x[["importance"]]
+    forest <- NULL
+
+    if (!is_null(vi[["predictor"]])) {
+      # The first forest in the fit's own order that splits on anything; the
+      # table is sorted across forests, so its first row need not be from it.
+      used <- unique(vi[["predictor"]][vi[["prop_used"]] > 0])
+      forest <- intersect(names(x[["usage"]]), used)[1L]
+      vi <- vi[vi[["predictor"]] == forest, , drop = FALSE]
+      vi[["predictor"]] <- NULL
+    }
+
+    # A forest is offered only some of the predictors (a coefficient forest only
+    # its modifiers), and the rest come back with no rules at all, so the count
+    # is of the ones it used rather than of every column.
+    vi <- vi[vi[["prop_used"]] > 0, , drop = FALSE]
+    top <- min(5L, nrow(vi))
+    p <- nrow(vi)
+
+    show <- as.data.frame(vi)[seq_len(top),
+                              c("variable", "prop_used", "prop_splits",
+                                "splits"), drop = FALSE]
+    show[["prop_used"]] <- round(show[["prop_used"]], digits)
+    show[["prop_splits"]] <- round(show[["prop_splits"]], digits)
+    show[["splits"]] <- round(show[["splits"]], 1L)
+
+    cli::cat_line()
+    cli_cat("{.underline Variable importance}")
+    cli::cat_line()
+
+    where <- if (is_null(forest)) "" else " in the {.val {forest}} forest"
+    sprintf("{.emph Predictors%s ranked by use; {top} of {p} shown.}", where) |>
+      gsub(pattern = "\\s+", replacement = " ") |>
+      cli_cat()
+
+    print(show, row.names = FALSE)
+
+    cli::cat_line()
+    cli_bullets_cat(c(i = "Use {.topic [variable_importance()](bartisan::variable_importance)}
+                          to examine variable importance."))
+  }
+
+  cli::cat_line()
+  cli_cat("{.underline Further tools}\n")
+
+  if (!x[["prior_only"]]) {
+    cli_bullets_cat(c(i = "Use {.topic [loo()](bartisan::loo.bartisan_fit)} to
+                          compare this fit with others, or
+                          {.topic [kfold()](bartisan::kfold.bartisan_fit)} if
+                          {.fn loo} reports many Pareto {.emph k} values above
+                          0.7."))
+  }
+
+  cli_bullets_cat(c(i = "Use {.topic [partial_dependence()](bartisan::partial_dependence)}
+                        and {.topic [plot()](bartisan::plot.bartisan_fit)} to
+                        view the partial dependence of the predictions on a
+                        predictor."))
 
   # A fit with a named treatment summarizes the same way as any other, since the
   # forests are the same object; the effect is a different question and
   # `estimate_effect()` is where it is asked.
   if (!is_null(x[["treatment"]])) {
-    cli::cat_line()
     cli_bullets_cat(c(i = "This fit has a treatment, {.val {x$treatment}}.
-                          {.fn estimate_effect} reports its effect, with the
-                          average potential outcomes beside it."))
+                          {.topic [estimate_effect()](bartisan::estimate_effect)}
+                          reports its effect, with the average potential
+                          outcomes beside it."))
   }
 
+  cli::cat_line()
   invisible(x)
 }
 

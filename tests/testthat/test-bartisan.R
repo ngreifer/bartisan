@@ -247,7 +247,15 @@ test_that("print and summary report the fit", {
   expect_identical(rownames(s[["usage"]][["eta"]]), c("x1", "x2", "x3")[
     order(colMeans(fit[["counts"]][["eta"]] > 0), decreasing = TRUE)])
   expect_true(all(s[["usage"]][["eta"]][, "prop_used"] <= 1))
-  expect_output(print(s), "Predictor usage")
+  expect_output(print(s), "Variable importance")
+
+  # The summary is a lead-in to the functions that examine a fit in full, so
+  # it names each of them.
+  expect_output(print(s), "Log likelihood: R-hat")
+  for (f in c("diagnose", "variable_importance", "loo", "kfold",
+              "partial_dependence")) {
+    expect_output(print(s), paste0(f, "()"), fixed = TRUE)
+  }
 
   expect_error(summary(fit, level = 1.5), "must be between")
 })

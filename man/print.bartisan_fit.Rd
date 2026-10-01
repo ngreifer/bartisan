@@ -29,14 +29,29 @@ reports. Default is .95 for 95\% intervals.}
 \code{print()} returns its argument invisibly. \code{summary()} returns a
 \verb{<summary.bartisan_fit>} object, a list of the posterior summaries its own
 \code{print()} method displays: the nuisance parameters when the family has any,
-the scale of each random-effect term, and the splitting counts of each
-predictor group.
+the scale of each random-effect term, the splitting counts of each predictor
+group, the output of \code{\link[=variable_importance]{variable_importance()}}, and R-hat and the effective
+sample sizes of the log likelihood.
 }
 \description{
-\code{print()} reports what was fit and how long the chain is. \code{summary()} adds
-posterior summaries of the nuisance parameters, of the random-effect scales,
-and of how often each predictor was used in a splitting rule, which is the
-model's variable-selection output.
+\code{print()} reports what was fit and how long the chain is. \code{summary()} reports
+what \code{print()} does not: posterior summaries of the nuisance parameters and
+the random-effect scales, a quick check of convergence, and the most used
+predictors, with pointers to the functions that examine each of these in full.
+}
+\details{
+The printed summary is a starting point for the functions that examine a fit
+in full, and it computes only what is cheap. Its convergence line gives R-hat
+and the bulk and tail effective sample sizes of the log likelihood, which take
+milliseconds because the log likelihood is a single series. It can look fine
+while individual fitted values mix badly, which is what \code{\link[=diagnose]{diagnose()}} checks,
+at a cost that grows with the number of observations. The variable importance
+table shows at most the five most used predictors of the first forest;
+\code{\link[=variable_importance]{variable_importance()}} gives every predictor in every forest. The summary
+also points to \link[=loo.bartisan_fit]{loo()} and \link[=kfold.bartisan_fit]{kfold()} for
+comparing fits and to \code{\link[=partial_dependence]{partial_dependence()}} for how the predictions depend
+on a predictor, none of which it runs, since each can take seconds or more on
+a large fit.
 }
 \examples{
 data("rhc")

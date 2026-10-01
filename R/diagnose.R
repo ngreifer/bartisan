@@ -336,19 +336,17 @@ diagnose.bartisan_effect <- function(object, rhat_max = 1.01, ess_min = 400,
     checks <- rbind(
       checks,
       data.frame(check = "atom", status = "note",
-                 detail = sprintf(paste("%d%% of draws put the contrast at",
-                                        "exactly zero, which is the splitting",
-                                        "prior dropping the treatment"),
+                 detail = sprintf("%d%% of draws put the contrast at exactly zero, which is the splitting prior dropping the treatment",
                                   share)))
 
     advice <- c(advice, i = paste(
       "Note the atom at zero. The splitting prior drops the treatment in some",
       "draws, and the sampler can stay there for a long run, which costs",
       "effective draws here without costing them in the fit. If the effect is",
-      "the quantity being reported, `sparsity = FALSE` (the default) removes",
+      "the quantity being reported, {.code sparsity = FALSE} (the default) removes",
       "the atom, and",
-      "`bcf()` gives the treatment a forest the prior cannot take it out of;",
-      "`vignette(\"causal\")` covers both."))
+      "{.fn bcf} gives the treatment a forest the prior cannot take it out of;",
+      "{.code vignette(\"causal\")} covers both."))
   }
 
   out <- list(table = table,
@@ -752,7 +750,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   if (chains < 2L) {
     rows <- add(rows, "chains", "warn",
                 sprintf("Only one chain, so R-hat can only compare it with itself; %s",
-                        "set `chains = 4`"))
+                        "set {.code chains = 4}"))
   }
   else {
     rows <- add(rows, "chains", "ok",
@@ -854,7 +852,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   }
   else if (bad_late[["share"]] <= FAIL_SHARE) {
     rows <- add(rows, "warmup", "warn",
-                sprintf("Warmup was too short: R-hat is fine on the second half of the draws alone, as it would be with more `num_burn`"))
+                sprintf("Warmup was too short: R-hat is fine on the second half of the draws alone, as it would be with more {.arg num_burn}"))
   }
   else if (unreadable) {
     # The stronger reading is withheld here for the same reason the check above
@@ -984,7 +982,7 @@ diagnosis_advice <- function(checks, control = NULL) {
       return("")
     }
 
-    values <- paste(sprintf("`%s`", vapply(got, format, character(1L))),
+    values <- paste(sprintf("{.val {%s}}", vapply(got, deparse, character(1L))),
                     collapse = " and ")
 
     sprintf(", %s %s", if (length(nms) > 1L) "which were" else "which was",
@@ -995,9 +993,9 @@ diagnosis_advice <- function(checks, control = NULL) {
 
   if (failed("chains")) {
     out <- c(out, paste(
-      "Refit with `chains = 4`. R-hat compares chains against each other, and",
+      "Refit with {.code chains = 4}. R-hat compares chains against each other, and",
       "one chain can only be compared with itself, so nothing below is",
-      "reliable until there are several. With *future* installed the chains run",
+      "reliable until there are several. With {.pkg future} installed the chains run",
       "in parallel."))
   }
 
@@ -1005,7 +1003,7 @@ diagnosis_advice <- function(checks, control = NULL) {
 
   if (warmup) {
     out <- c(out, paste(
-      paste0("Raise `num_burn`", had("num_burn"), "."),
+      paste0("Raise {.arg num_burn}", had("num_burn"), "."),
       "R-hat is already acceptable on the second half of the",
       "retained draws on their own, as it would be after a longer warmup,",
       "so it is the early draws the chains disagree about."))
@@ -1014,7 +1012,7 @@ diagnosis_advice <- function(checks, control = NULL) {
   if (failed("rhat") && !warmup) {
     if (failed("rhat readable")) {
       out <- c(out, paste(
-        paste0("Raise `num_draws`", had("num_draws"), "."),
+        paste0("Raise {.arg num_draws}", had("num_draws"), "."),
         "R-hat is above the threshold for a quantity that carries too few",
         "effective draws for the threshold to mean anything: with this many",
         "chains it would sit about where it does even if the chains agreed",
@@ -1025,7 +1023,7 @@ diagnosis_advice <- function(checks, control = NULL) {
     }
     else {
       out <- c(out, paste(
-        paste0("Raise `num_burn` and `num_draws` together",
+        paste0("Raise {.arg num_burn} and {.arg num_draws} together",
                had("num_burn", "num_draws"), "."),
         "R-hat stays high even on the",
         "second half of the draws alone, so the chains have each settled",
@@ -1033,14 +1031,14 @@ diagnosis_advice <- function(checks, control = NULL) {
     }
 
     out <- c(out, paste(
-      paste0("If that does not settle it, reduce `num_trees`",
+      paste0("If that does not settle it, reduce {.arg num_trees}",
              had("num_trees"), "."),
       "A smaller forest has",
       "fewer ways to represent the same fit, so the sampler has less room to",
       "move between them."))
     out <- c(out, paste(
       "Then check the family. A likelihood that fits the data badly can give a",
-      "posterior with no single place to be; `bayesplot::pp_check()` is the",
+      "posterior with no single place to be; {.fn bayesplot::pp_check} is the",
       "diagnostic."))
   }
 
@@ -1051,10 +1049,10 @@ diagnosis_advice <- function(checks, control = NULL) {
       "through many different partitions, so two chains can agree about every",
       "fitted value while disagreeing about how many rules they used to get",
       "there, and the quantities a fit reports are integrals over that",
-      "structure. Raising `num_draws` moves this row slowly and may not clear",
+      "structure. Raising {.arg num_draws} moves this row slowly and may not clear",
       "the threshold at any affordable length. Act on it when split counts are",
-      "themselves what gets reported -- `variable_importance()` and",
-      "`vignette(\"importance\")` -- and not when fitted values, predictions or",
+      "themselves what gets reported -- {.fn variable_importance} and",
+      "{.code vignette(\"importance\")} -- and not when fitted values, predictions or",
       "effects are."))
   }
 
@@ -1065,16 +1063,16 @@ diagnosis_advice <- function(checks, control = NULL) {
       "this in a forest. What that means for an estimand cannot be read off",
       "this table either way, since an estimand is a contrast and a contrast",
       "can mix badly where the function it contrasts mixes well. Compute it:",
-      "`diagnose()` takes the output of `estimate_effect()`, and",
-      "`posterior::as_draws()` hands the draws to `posterior::summarise_draws()`",
+      "{.fn diagnose} takes the output of {.fn estimate_effect}, and",
+      "{.fn posterior::as_draws} hands the draws to {.fn posterior::summarise_draws}",
       "for anything else."))
   }
 
   if ((failed("bulk ESS") || failed("tail ESS")) && !failed("rhat")) {
     out <- c(out, paste(
-      paste0("Raise `num_draws`", had("num_draws"), "."),
+      paste0("Raise {.arg num_draws}", had("num_draws"), "."),
       "The chains agree and are stationary, so they simply",
-      "have not run long enough. Do not reach for `num_thin`: thinning",
+      "have not run long enough. Do not reach for {.arg num_thin}: thinning",
       "discards draws already paid for and lowers the effective sample size",
       "per unit of time."))
   }
@@ -1082,7 +1080,7 @@ diagnosis_advice <- function(checks, control = NULL) {
   if (failed("tail ESS") && !failed("bulk ESS")) {
     out <- c(out, paste(
       "The tail is the binding constraint, so a posterior mean is already fine",
-      paste0("and an interval endpoint is not. Raise `num_draws`",
+      paste0("and an interval endpoint is not. Raise {.arg num_draws}",
              had("num_draws"), " if intervals are"),
       "what gets reported."))
   }
