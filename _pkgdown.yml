@@ -5,50 +5,17 @@ template:
   light-switch: true
   math-rendering: mathjax
 
-# The Articles menu is written out rather than generated from the `articles:`
-# index below, because pkgdown adds a link to that index only when some
-# articles are left out of the menu. A new vignette therefore needs a line here
-# as well as in `articles:`. The headings follow the index's sections, in the
-# same order. The FAQ is left out because it has its own link on the bar.
+# The Articles menu is built by pkgdown from the `articles:` index below: every
+# section with a `navbar:` heading is listed under it, with each article under
+# its own title, so a retitled vignette updates the menu by itself. "Start
+# Here" has no heading because its one article, named after the package, is
+# the "Get started" link instead, and leaving one section out is also what makes
+# pkgdown add the "More articles..." link to the full index. The FAQ is listed
+# under Reference as well as having its own link on the bar.
 navbar:
   structure:
     left: [intro, reference, articles, faq, tutorials, news]
   components:
-    articles:
-      text: Articles
-      menu:
-      - text: All articles
-        href: articles/index.html
-      - text: ---------
-      - text: Start Here
-      - text: Getting Started with bartisan
-        href: articles/bartisan.html
-      - text: ---------
-      - text: Fitting a Model
-      - text: Response Families in bartisan
-        href: articles/families.html
-      - text: Survival Analysis in bartisan
-        href: articles/survival.html
-      - text: Varying Coefficients and Random Intercepts
-        href: articles/varying.html
-      - text: ---------
-      - text: Reading a Fit
-      - text: Effects, Curves, and Interactions
-        href: articles/effects.html
-      - text: Which Variables Matter
-        href: articles/importance.html
-      - text: Causal Inference with BART
-        href: articles/causal.html
-      - text: ---------
-      - text: Checking a Fit
-      - text: Checking Convergence and Fit
-        href: articles/diagnostics.html
-      - text: Choosing Between Models
-        href: articles/comparison.html
-      - text: ---------
-      - text: Reference
-      - text: Generalized BART with bartisan
-        href: articles/implementation.html
     faq:
       text: FAQ
       href: articles/faq.html
@@ -136,6 +103,7 @@ articles:
     than any sampler setting; the response type whose families need a guide of
     their own; and the two terms that add parameters to a sum of trees, a
     coefficient that varies and an intercept per group.
+  navbar: Fitting a Model
   contents:
   - families
   - survival
@@ -146,6 +114,7 @@ articles:
     Turning a fitted forest into the quantities an analysis reports: effects and
     the shape of a relationship, which predictors the model spends its splitting
     rules on, and what it takes to read an effect as causal.
+  navbar: Reading a Fit
   contents:
   - effects
   - importance
@@ -155,6 +124,7 @@ articles:
   desc: >
     Whether the sampler converged and whether the model describes the data, and
     how to choose between two models that both do.
+  navbar: Checking a Fit
   contents:
   - diagnostics
   - comparison
@@ -163,6 +133,7 @@ articles:
   desc: >
     What the model is, how it is fitted, and why the defaults are what they are,
     with the short answers alongside.
+  navbar: Reference
   contents:
   - implementation
   - faq
