@@ -71,6 +71,10 @@ SEED_BASE <- as.integer(Sys.getenv("SBC_SEED_BASE", "5000"))
 # `SBC_DRAWS` lengthens the chain without changing anything else, which tells a
 # nuisance dimension that is merely under-explored from a target that is wrong.
 DRAWS <- as.integer(Sys.getenv("SBC_DRAWS", "1000"))
+# `SBC_WARMUP` lengthens warmup without changing the retained draws, which
+# separates a chain that starts the retained draws in the wrong place from one
+# whose draws are merely autocorrelated.
+WARMUP <- as.integer(Sys.getenv("SBC_WARMUP", "400"))
 FIX_BANDWIDTH <- nzchar(Sys.getenv("SBC_FIX_BANDWIDTH"))
 TAG <- Sys.getenv("SBC_TAG", "")
 
@@ -193,7 +197,7 @@ d0 <- as.data.frame(u)
 A <- which.min(u[, 1L])
 B <- which.max(u[, 1L])
 
-control <- bartisan_control(num_trees = TREES, num_burn = 400L,
+control <- bartisan_control(num_trees = TREES, num_burn = WARMUP,
                             num_draws = DRAWS, chains = 1L, gate = GATE,
                             sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
                             sparsity = FALSE, x_transform = "range",
@@ -213,7 +217,8 @@ OUT <- {
           else sprintf("_dev/sbc-%s-%s-%d", FAMILY, GATE, N)
   parts <- c(if (nzchar(TAG)) TAG,
              if (SEED_BASE != 5000L) sprintf("seed%d", SEED_BASE),
-             if (BANDWIDTH != 0.1) sprintf("bw%s", format(BANDWIDTH)))
+             if (BANDWIDTH != 0.1) sprintf("bw%s", format(BANDWIDTH)),
+             if (WARMUP != 400L) sprintf("warm%d", WARMUP))
   sprintf("%s%s.rds", base,
           if (length(parts)) paste0("-", paste(parts, collapse = "-")) else "")
 }
