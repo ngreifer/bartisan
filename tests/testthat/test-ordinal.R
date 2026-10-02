@@ -40,6 +40,8 @@ test_that("the complementary log-log link recovers a cloglog-generated fit", {
 })
 
 test_that("cloglog probabilities from predict() match the link's own definition", {
+  skip_on_cran()
+
   d <- sim_x(n = 150, seed = 12)
   set.seed(1012)
   z <- d$x1 - d$x2 + log(-log1p(-stats::runif(nrow(d))))

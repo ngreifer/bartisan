@@ -178,6 +178,8 @@ test_that("the standardized latent variable is refused where there is no latent"
 })
 
 test_that("a binomial fit has a standardized latent variable too", {
+  skip_on_cran()
+
   d <- sim_x(n = 400, seed = 131)
   set.seed(1131)
   signal <- 1.5 * d$x1 - d$x2
@@ -225,6 +227,8 @@ test_that("a symmetric link puts the same error in both families", {
 })
 
 test_that("a binomial and a two-category ordinal probit fit agree", {
+  skip_on_cran()
+
   d <- sim_x(n = 300, seed = 133)
   set.seed(1133)
   d$y <- stats::rbinom(nrow(d), 1L, stats::pnorm(1.5 * d$x1 - d$x2))
@@ -261,6 +265,8 @@ test_that("a binomial and a two-category ordinal probit fit agree", {
 })
 
 test_that("the complementary log-log error enters the two families with opposite signs", {
+  skip_on_cran()
+
   d <- sim_x(n = 400, seed = 135)
   set.seed(1135)
   signal <- 1.5 * d$x1 - d$x2

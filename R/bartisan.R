@@ -1296,7 +1296,15 @@ split_chains <- function(x) {
 # ranks. The point is that R-hat and the effective sample size are derived for
 # quantities with finite variance and behave badly without it, and a rank
 # transform guarantees it whatever the posterior looks like -- which also makes
-# the diagnostic invariant to any monotone reparameterization. Blom's offsets.
+# the diagnostic invariant to any monotone reparameterization. Blom's offsets,
+# (r - 3/8) / (n + 1/4); the denominator once read n - 1/4, which stretched the
+# top of the scale (3.08 against 2.56 for the largest of 120 draws) and moved
+# R-hat by up to 1% against *posterior*.
+#
+# The ranks are taken over every draw and the chains split afterwards.
+# *posterior* splits first, so with an odd number of draws per chain its ranks
+# leave out each chain's middle draw and these do not, and the two differ in
+# the fourth decimal of R-hat; with an even number they agree to rounding.
 rank_normalize <- function(x) {
   n <- length(x)
   o <- order(x)
@@ -1320,7 +1328,7 @@ rank_normalize <- function(x) {
     }
   }
 
-  stats::qnorm((r - 3 / 8) / (n - 1 / 4)) |>
+  stats::qnorm((r - 3 / 8) / (n + 1 / 4)) |>
     matrix(nrow = nrow(x), ncol = ncol(x))
 }
 
@@ -1437,12 +1445,15 @@ ess_from_split <- function(y) {
   kept[2L] <- rho[2L]
   n_kept <- 2L
   t <- 1L
+  even <- 1
+  stored <- TRUE
 
   while (t < draws - 4L && kept[n_kept - 1L] + kept[n_kept] > 0) {
     even <- rho[t + 2L]
     odd <- rho[t + 3L]
+    stored <- even + odd >= 0
 
-    if (even + odd >= 0) {
+    if (stored) {
       kept[n_kept + 1L] <- even
       kept[n_kept + 2L] <- odd
     }
@@ -1452,8 +1463,6 @@ ess_from_split <- function(y) {
   }
 
   kept <- kept[seq_len(n_kept)]
-
-  extra <- max(kept[n_kept - 1L], 0)
 
   # Force the paired sums to be non-increasing, which is what makes the
   # estimator conservative rather than merely unbiased. With too few kept lags
@@ -1470,7 +1479,18 @@ ess_from_split <- function(y) {
     }
   }
 
-  tau <- max(-1 + 2 * sum(kept) + extra,
+  # The last pair the walk reached is a bias term rather than part of the sum,
+  # which reduces the variance of the estimate for antithetic chains: its even
+  # autocorrelation enters once, and when the pair was dropped for going
+  # negative, only if that autocorrelation is itself positive. This is Stan's
+  # estimator as *posterior* implements it, and given the same split draws the
+  # two agree to rounding. It once summed the last pair twice over and dropped
+  # the even term with the pair, which moved the estimate by an effective draw or
+  # two in a hundred.
+  extra <- if (stored) kept[n_kept - 1L] else max(even, 0)
+  summed <- kept[seq_len(max(n_kept - 2L, 1L))]
+
+  tau <- max(-1 + 2 * sum(summed) + extra,
              1 / log10(draws * chains))
 
   draws * chains / tau

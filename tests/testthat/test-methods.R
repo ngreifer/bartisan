@@ -1,4 +1,6 @@
 test_that("variable_importance() reports usage and separates signal from noise", {
+  skip_on_cran()
+
   d <- sim_x(n = 300, p = 4, seed = 771)
   set.seed(7711)
   d$y <- 2 * d$x1 + sin(3 * d$x2) + stats::rnorm(nrow(d), sd = 0.3)
@@ -6,6 +8,22 @@ test_that("variable_importance() reports usage and separates signal from noise",
   fit <- bartisan(y ~ ., d, family = stats::gaussian(),
                   control = quick_control(num_trees = 20L, num_burn = 200L,
                                           num_draws = 200L, sparsity = TRUE))
+
+  vi <- variable_importance(fit)
+
+  # The two predictors in the truth are used in far more draws than the two
+  # that are not. The gap is what makes this usable as a selection rule.
+  used <- stats::setNames(vi$prop_used, vi$variable)
+  expect_gt(min(used[c("x1", "x2")]), max(used[c("x3", "x4")]))
+})
+
+test_that("variable_importance() returns a sorted table that summary() agrees with", {
+  d <- sim_x(n = 100, p = 4, seed = 771)
+  set.seed(7711)
+  d$y <- 2 * d$x1 + sin(3 * d$x2) + stats::rnorm(nrow(d), sd = 0.3)
+
+  fit <- bartisan(y ~ ., d, family = stats::gaussian(),
+                  control = quick_control(sparsity = TRUE))
 
   vi <- variable_importance(fit)
 
@@ -17,11 +35,6 @@ test_that("variable_importance() reports usage and separates signal from noise",
 
   # Sorted by prop_used then splits, both decreasing.
   expect_false(is.unsorted(rev(vi$prop_used)))
-
-  # The two predictors in the truth are used in far more draws than the two
-  # that are not. The gap is what makes this usable as a selection rule.
-  used <- stats::setNames(vi$prop_used, vi$variable)
-  expect_gt(min(used[c("x1", "x2")]), max(used[c("x3", "x4")]))
 
   expect_true(all(vi$splits_lower <= vi$splits))
   expect_true(all(vi$splits <= vi$splits_upper))
@@ -53,6 +66,8 @@ test_that("variable_importance() rejects things that are not fits", {
 })
 
 test_that("prop_splits is a share, and so survives a change of forest size", {
+  skip_on_cran()
+
   d <- sim_x(n = 300, p = 4, seed = 773)
   set.seed(7731)
   d$y <- 2 * d$x1 + sin(3 * d$x2) + stats::rnorm(nrow(d), sd = 0.3)
@@ -71,11 +86,6 @@ test_that("prop_splits is a share, and so survives a change of forest size", {
   a <- variable_importance(small)
   b <- variable_importance(large)
 
-  # The shares add to one within each fit, which is the property that makes
-  # them comparable between fits.
-  expect_equal(sum(a$prop_splits), 1)
-  expect_equal(sum(b$prop_splits), 1)
-
   # Four times the trees means several times the rules, which is what makes the
   # raw count useless for comparing the two fits.
   expect_gt(sum(b$splits) / sum(a$splits), 2)
@@ -89,8 +99,24 @@ test_that("prop_splits is a share, and so survives a change of forest size", {
   # coin flip: `y` depends on both `x1` and `x2`, and holding this data fixed
   # while the sampler's stream moved, the leading predictor matched across the
   # two forest sizes in 14 of 25 draws. The pair carries over in 25 of 25.
-  expect_true(all(a$prop_splits >= 0 & a$prop_splits <= 1))
   expect_setequal(a$variable[1:2], b$variable[1:2])
+})
+
+test_that("prop_splits is a share of the forest's rules", {
+  d <- sim_x(n = 100, p = 4, seed = 773)
+  set.seed(7731)
+  d$y <- 2 * d$x1 + sin(3 * d$x2) + stats::rnorm(nrow(d), sd = 0.3)
+
+  set.seed(7732)
+  fit <- bartisan(y ~ ., d, family = stats::gaussian(),
+                  control = quick_control(sparsity = TRUE))
+
+  vi <- variable_importance(fit)
+
+  # The shares add to one within each fit, which is the property that makes
+  # them comparable between fits.
+  expect_equal(sum(vi$prop_splits), 1)
+  expect_true(all(vi$prop_splits >= 0 & vi$prop_splits <= 1))
 })
 
 test_that("draws = TRUE hands back the counts themselves", {

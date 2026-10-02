@@ -24,16 +24,28 @@ test_that("zero-inflated models carry a forest for each component", {
   expect_null(fit[["aux"]])
   expect_predictor_invariant(fit, d)
 
-  # The fitted mean is the count mean scaled down by the inflation probability,
-  # so it must sit below the count mean itself.
-  link <- predict(fit, type = "link")
-  expect_true(all(predict(fit, type = "response") < exp(link[, "count"]) + 1e-8))
-
   nb <- bartisan(y ~ ., data = d, family = zi_negbin(),
                  control = quick_control())
   expect_identical(colnames(nb[["aux"]]), "theta")
   expect_true(all(nb[["aux"]][, "theta"] > 0))
   expect_predictor_invariant(nb, d)
+})
+
+test_that("the zero-inflated mean sits below the count mean", {
+  skip_on_cran()
+
+  d <- sim_x(seed = 51)
+  n <- nrow(d)
+  structural <- stats::rbinom(n, 1, 0.3)
+  d$y <- ifelse(structural == 1, 0, stats::rpois(n, exp(1 + d$x1)))
+
+  fit <- bartisan(y ~ ., data = d, family = zi_poisson(),
+                  control = quick_control())
+
+  # The fitted mean is the count mean scaled down by the inflation probability,
+  # so it must sit below the count mean itself.
+  link <- predict(fit, type = "link")
+  expect_true(all(predict(fit, type = "response") < exp(link[, "count"]) + 1e-8))
 })
 
 test_that("a fixed dispersion is held fixed", {

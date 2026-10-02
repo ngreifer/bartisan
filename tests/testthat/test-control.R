@@ -168,6 +168,8 @@ test_that("a split_prior weight of zero keeps a predictor out of every tree", {
 })
 
 test_that("split_prior moves the splitting rules where it says", {
+  skip_on_cran()
+
   # Pure noise, so nothing in the data prefers any predictor and the realized
   # share of rules is the prior and only the prior.
   d <- sim_x(n = 400, p = 4, seed = 52)
@@ -199,6 +201,8 @@ test_that("split_prior moves the splitting rules where it says", {
 })
 
 test_that("the leaf scale is drawn for the part of warmup after the ramp", {
+  skip_on_cran()
+
   # The ramp holds `sigma_mu` at a fraction of its target and switches its
   # update off. Nothing used to switch the update back on when the ramp ended,
   # so the scale was frozen for the rest of warmup and took its first draw at

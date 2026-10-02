@@ -230,6 +230,7 @@ OUT <- {
              if (SEED_BASE != 5000L) sprintf("seed%d", SEED_BASE),
              if (BANDWIDTH != 0.1) sprintf("bw%s", format(BANDWIDTH)),
              if (WARMUP != 400L) sprintf("warm%d", WARMUP),
+             if (DRAWS != 1000L) sprintf("draws%d", DRAWS),
              if (OFFSET != 0) sprintf("off%s", format(OFFSET)),
              if (L != 100L) sprintf("L%d", L))
   sprintf("%s%s.rds", base,
@@ -343,17 +344,23 @@ prog_end(pr, "done", sprintf("%d replicates", nrow(out)))
 
 # ---- the report --------------------------------------------------------------
 
+# A rank takes the L + 1 values 0 to L, which ten bins split evenly only when
+# L + 1 is a multiple of ten. Otherwise some bins hold one more value than the
+# others, so the expected count is per value, not per bin. Assuming 60 a bin
+# made a uniform L = 20 run read as chi-square 29.7, when it was 9.6.
 bins <- 10L
-counts <- table(cut(out$rank, breaks = seq(0, L + 1, length.out = bins + 1L),
-                    include.lowest = TRUE))
-expected <- nrow(out) / bins
-chisq <- sum((as.numeric(counts) - expected)^2) / expected
+breaks <- seq(0, L + 1, length.out = bins + 1L)
+counts <- table(cut(out$rank, breaks = breaks, include.lowest = TRUE))
+values_per_bin <- tabulate(cut(0:L, breaks = breaks, include.lowest = TRUE,
+                               labels = FALSE), nbins = bins)
+expected <- nrow(out) * values_per_bin / (L + 1)
+chisq <- sum((as.numeric(counts) - expected)^2 / expected)
 
 cat(sprintf("\n%s, n = %d, %s rules: %d replicates, %d thinned draws each\n\n",
             FAMILY, N, GATE, nrow(out), L))
 cat("rank histogram, 10 bins (uniform is what a correct sampler gives):\n")
 cat(sprintf("  %s\n", paste(sprintf("%4d", as.numeric(counts)), collapse = "")))
-cat(sprintf("  expected %.1f per bin\n", expected))
+cat(sprintf("  %s expected\n", paste(sprintf("%4.0f", expected), collapse = "")))
 cat(sprintf("\nchi-square %.1f on %d df, p = %.3f\n", chisq, bins - 1L,
             stats::pchisq(chisq, bins - 1L, lower.tail = FALSE)))
 
@@ -361,8 +368,9 @@ cat(sprintf("\nchi-square %.1f on %d df, p = %.3f\n", chisq, bins - 1L,
 # slope is a bias. Reporting the three separately says which, where a single
 # p-value does not.
 mid <- mean(out$rank > L * 0.25 & out$rank < L * 0.75)
-cat(sprintf("\nshape: %.0f%% of ranks in the middle half (50%% is uniform)\n",
-            100 * mid))
+mid_uniform <- mean((0:L) > L * 0.25 & (0:L) < L * 0.75)
+cat(sprintf("\nshape: %.0f%% of ranks in the middle half (%.0f%% is uniform)\n",
+            100 * mid, 100 * mid_uniform))
 cat(sprintf("       mean rank %.1f of %d (%.1f is uniform)\n",
             mean(out$rank), L, L / 2))
 cat(sprintf("\n95%% interval coverage of the contrast: %.3f (SE %.3f)\n",

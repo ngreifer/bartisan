@@ -43,6 +43,8 @@ test_that("the families that claim the exponential form really have it", {
 })
 
 test_that("the exponential shortcut reproduces the general path", {
+  skip_on_cran()
+
   d <- sim_x(n = 250, seed = 112)
   linear <- 1 + 1.5 * d$x1
 

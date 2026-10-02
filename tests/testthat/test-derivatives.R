@@ -23,12 +23,14 @@ derivs <- function(family, link, y, eta, opts = list(),
 expect_score_matches_difference <- function(family, link, y, eta, opts = list(),
                                             aux = matrix(0, 1L, 0L),
                                            component = 0L,
-                                           check_info = FALSE) {
+                                           check_info = FALSE,
+                                           tolerance = 1e-6) {
   analytic <- derivs(family, link, y, eta, opts, aux, component, FALSE)
   numeric <- derivs(family, link, y, eta, opts, aux, component, TRUE)
 
   scale <- max(1, max(abs(numeric[["d1"]])))
-  testthat::expect_lt(max(abs(analytic[["d1"]] - numeric[["d1"]])) / scale, 1e-6)
+  testthat::expect_lt(max(abs(analytic[["d1"]] - numeric[["d1"]])) / scale,
+                      tolerance)
 
   if (check_info) {
     scale <- max(1, max(abs(numeric[["info"]])))
@@ -86,25 +88,25 @@ test_that("the ordinal scores are correct for both links", {
   }
 })
 
+# The two beta families take their score from a per-sweep table of the two
+# digamma combinations, interpolated linearly, so the score matches a central
+# difference of the exact log density only to the table's accuracy. On these
+# grids that is 5.5e-6 of the score's scale for beta and 3.5e-6 for ordered
+# beta, and a table read one entry off would be 1.8e-2, so 2e-5 separates the
+# two. The responses are a fixed grid: drawn at random, the error crossed 1e-6
+# for more than half of 500 draws.
+y_grid <- seq(0.05, 0.95, length.out = n_grid)
+
 test_that("the beta score is correct, tabulated derivatives and all", {
-  set.seed(13)
-
-  # The score here comes from a per-sweep table of the two digamma combinations,
-  # so this is the check that the interpolation is faithful: it is compared with a
-  # central difference of the exact log density, which uses no table at all.
-  y <- stats::runif(n_grid, 0.05, 0.95)
-
   expect_score_matches_difference(
-    "beta", "logit", y, list(grid),
+    "beta", "logit", y_grid, list(grid),
     list(phi = 8, phi_prior_shape = 0.01, phi_prior_rate = 0.01,
          update_phi = TRUE),
-    matrix(8, 1L, 1L))
+    matrix(8, 1L, 1L), tolerance = 2e-5)
 })
 
 test_that("the ordered beta score is correct at both endpoints and inside", {
-  set.seed(13)
-
-  y <- stats::runif(n_grid, 0.05, 0.95)
+  y <- y_grid
   y[1:6] <- 0
   y[7:12] <- 1
 
@@ -112,7 +114,7 @@ test_that("the ordered beta score is correct at both endpoints and inside", {
     "ordbeta", "logit", y, list(grid),
     list(cut1 = -1.5, cut2 = 1.5, phi = 8, phi_prior_shape = 0.01,
          phi_prior_rate = 0.01, update_phi = TRUE),
-    matrix(c(-1.5, 1.5, 8), 1L, 3L))
+    matrix(c(-1.5, 1.5, 8), 1L, 3L), tolerance = 2e-5)
 })
 
 test_that("the survival scores are correct for events and for censoring", {

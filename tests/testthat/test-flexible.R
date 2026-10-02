@@ -384,6 +384,8 @@ test_that("the reported density is right for both R-supplied routes", {
 })
 
 test_that("a separable response is flagged rather than passed off silently", {
+  skip_on_cran()
+
   set.seed(42)
   d <- data.frame(x1 = stats::runif(200), x2 = stats::runif(200))
   d$y <- as.numeric(d$x1 > 0.5)
@@ -393,18 +395,22 @@ test_that("a separable response is flagged rather than passed off silently", {
                                                  num_draws = 200L)),
                  "close to separable")
 
-  # Pinning the leaf scale is the documented remedy, and it silences the
-  # warning because there is no longer a drawn scale to run away.
-  expect_no_warning(bartisan(y ~ ., data = d, family = binomial(),
-                            control = quick_control(num_burn = 200L,
-                                                    num_draws = 200L,
-                                                    update_sigma_mu = FALSE)))
-
   # And it does not fire on a response the predictors do not separate.
   d$y <- stats::rbinom(200, 1, stats::plogis(3 * (d$x1 - 0.5)))
   expect_no_warning(bartisan(y ~ ., data = d, family = binomial(),
                             control = quick_control(num_burn = 200L,
                                                     num_draws = 200L)))
+})
+
+test_that("a pinned leaf scale is never flagged as separable", {
+  set.seed(42)
+  d <- data.frame(x1 = stats::runif(100), x2 = stats::runif(100))
+  d$y <- as.numeric(d$x1 > 0.5)
+
+  # Pinning the leaf scale is the documented remedy, and it silences the
+  # warning because there is no longer a drawn scale to run away.
+  expect_no_warning(bartisan(y ~ ., data = d, family = binomial(),
+                            control = quick_control(update_sigma_mu = FALSE)))
 })
 
 test_that("a fit holding R closures survives a round trip through a file", {

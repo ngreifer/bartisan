@@ -107,6 +107,8 @@ each other, which is the sort of thing to check rather than read.
 
 - [ ] **The `loglik` row of a `ph()` fit mixes slowly.** On the default `ph()` fit to `rhc` it reads R-hat 1.18, `rhat_late` 1.46 and bulk ESS 9 over 800 draws, in the recorded chart and in the sampler's alike (`_dev/ph-level-shift.R`), since the log likelihood does not depend on the chart. The survival probabilities and the `rhc` contrast from the same draws have bulk ESS 660 to 810 and the centered hazards 500 to 800, so whatever moves slowly is something the reported quantities average over. Not looked at; the first thing to check is whether the log likelihood is tracking the forest's size or the bandwidth, which `diagnose()` grades apart.
 
+- [x] **The tests take 11.9 minutes under CRAN's settings.** (Done 2026-10-02: 6.6 minutes on a quiet machine, and 32 seconds after the change; see the log entry of that date.) Measured 2026-10-02; the ten-minute budget is for the whole check. The plan the measurement supports has two parts, and neither is enough alone. Skip on CRAN the 64 blocks whose assertions depend on the seed (15 wholly, 49 in part), which saves 5.4 minutes; for the mixed ones, keep any identity they check by moving it into a seed-free block on a small fit. And shrink the fits in the 22 seed-free blocks over 5 seconds, which hold 4.9 of the 6.5 minutes left, since an identity or a name check holds at any size. The flagged "almost surely" assertions (a split is used at least once, two fits differ, a warning does not fire) get weaker as fits shrink, so the shrunk blocks want running under several seeds before they are trusted.
+
 ### After submission
 
 Ordered by expected value. None of these is load-bearing for a workflow the
@@ -195,6 +197,57 @@ The six below are candidates to investigate after shipping, raised on 2026-10-02
 - [ ] **Cure models.** A cured fraction with a forest of its own on the logit scale, mixed with a latency model for the uncured, built as two forests in the way the zero-inflated families are. Common where survival curves plateau, as they do in oncology.
 - [ ] **Interval censoring**, `Surv(L, R, type = "interval2")`, for periodic follow-up. Natural for the accelerated failure time families through the imputation they already do, a truncated draw between `log L` and `log R`; harder for `ph()`, whose contribution `S(L) - S(R)` is not of the exponential form.
 
+## `diagnose()` computed R-hat and the effective sample size slightly wrong (2026-10-02)
+
+Found by the seed-shifted test runs in the entry below: at one offset the test that compares `diagnose()`'s R-hat for the log likelihood with *posterior*'s came back 1.352 against 1.366, outside its 1% tolerance. Both claim the estimators of Vehtari, Gelman, Simpson, Carpenter and Buerkner (2021), so they should agree to rounding, and the tolerance had been hiding two bugs.
+
+**The rank normalization stretched the top of its scale.** `rank_normalize()` computed `qnorm((r - 3/8) / (n - 1/4))`; Blom's offsets, which the paper and *posterior* use, divide by `n + 1/4`. The lowest of 120 draws mapped to -2.561 against -2.562 and the highest to 3.08 against 2.56, so every rank-normalized quantity was skewed at the top. It fed `rhat`, `rhat_late` and the bulk effective sample size. Present since `cdc3278` (2026-08-30). With the split R-hat computed from the same input the two implementations already agreed to zero, which is what located it.
+
+**The effective sample size counted its last autocorrelations twice.** Geyer's initial positive sequence in `ess_from_split()` kept the last pair the walk reached in the doubled sum and then added its even term again, and when that pair was dropped for going negative it dropped the even term too. Stan, and *posterior* after it, treat the last pair as a bias term: its even autocorrelation enters once, and only if positive when the pair was dropped. The rest matched line for line, which is why the two agreed exactly on some fits and differed by one or two effective draws in a hundred on others.
+
+**After both fixes the two agree to rounding**: R-hat, bulk and tail effective sample size within about 1e-15 on five fits, and on 300 synthetic AR(1) cases across 20 to 400 draws and one to four chains, except one difference of convention that is now documented rather than changed. *posterior* splits each chain before ranking, so with an odd number of draws per chain its ranks leave out the middle draw and these do not; the gap is in the fourth decimal of R-hat (7e-4 at worst) and under 1% of bulk effective sample size. Matching it would restructure the convergence pass, which reuses one normalization for R-hat and bulk ESS for speed. The default draws are even.
+
+What moved with it: the `as_draws` test in `test-interop.R` now compares R-hat, bulk and tail effective sample size with *posterior*'s at 1e-10, a test that would have caught both. The precomputed `vignette("diagnostics")` was regenerated, and its tables moved in the last digit or two (R-hat on the deliberately broken fit from 3.00 to 3.11, a bulk effective sample size from 120 to 121); one sentence quoted a bulk effective sample size rising "from 84 to 207", which is now 85 to 208. The other figures its prose quotes still hold. `test-interop.R`, `test-diagnose.R`, `test-chains.R`, `test-partial-dependence.R` and `test-derivatives.R` pass both ways. No NEWS item, since nothing has been released.
+
+## Where the test suite's time goes, and what skipping on CRAN would buy (2026-10-02)
+
+The full check of 2026-10-02 ran the tests in 11.6 minutes with `NOT_CRAN` unset, which by itself is over the ten minutes CRAN budgets for a whole check. The proposal was to run on CRAN only the tests whose assertions hold for any seed (argument checks, structure, exact identities) and skip the rest there. `_dev/test-timing.R` was written to test whether that is enough. The claim at stake was that the time sits in the seed-dependent tests; it could have been false if the identity tests' own fits were the cost.
+
+**The measurement.** Every block of the committed tests (at `5dab467`), timed with `testthat::test_file()` against the package installed from the same commit into a private library, `NOT_CRAN` unset and `_R_CHECK_LIMIT_CORES_=TRUE`, with the two `_dev/sbc.R` jobs paused. Three readers classified all 512 blocks from the test code as seed-free, seed-dependent or mixed, and the two tables joined on file and description with no block unmatched. The suite took **11.9 minutes**, so the load during the check had not inflated its 11.6, contrary to the guess in `SHIP.md` that it had.
+
+| blocks run on CRAN | count | minutes |
+|---|---|---|
+| seed-free | 342 | 6.5 |
+| mixed | 49 | 3.4 |
+| seed-dependent | 15 | 2.0 |
+| all | 406 | 11.8 |
+
+**The prediction was half right.** Skipping the seed-dependent and mixed blocks saves 5.4 minutes and leaves 6.5, which with compilation, examples and three minutes of live vignettes is still over budget. The seed-free time is not spread out: 22 blocks over 5 seconds hold 4.9 of the 6.5 minutes, and the other 320 take 1.6 together. The 22 are structural checks made on fits sized for estimation. `test-varying.R` builds most of them with `vc_control()` (20 trees, 250 + 250 iterations) on 600 to 900 observations, for assertions like the names of `fit$eta` or the text of a warning; `test-varying.R` is 6.0 of the 11.9 minutes, 4.2 of them seed-free. `test-bcf.R` fits `bcf()`'s propensity model at `bartisan_control()` defaults in every block, structural ones included. An identity holds at any size, so these fits can be made small.
+
+What a skip would give up on CRAN is worth less than it looks: a tolerance test that fails there on one platform for an unlucky draw is a false alarm the maintainer has to answer, and the same tests still run locally and in CI with `NOT_CRAN=true`. The readers flagged a few seed-free assertions that hold only almost surely (a forest splits at least once, two separate fits differ, a leaf-scale warning does not fire under `expect_silent()`); those get weaker as fits shrink and are the ones to watch.
+
+The joined table is `_dev/test-classes.tsv` (local, not tracked): one row per block with its seconds, class, whether it is already skipped, fit size, and the deciding expectation.
+
+**The 11.9 minutes were inflated, and the guess that they were not was wrong a second time.** Timed back to back in one job on an idle machine (task 283, with a process snapshot at the start), the committed suite took **6.6 minutes**, not 11.9. Something else was running during the first measurement, most likely the other session's R work, and on this M4's four performance cores that is enough to push a run onto the efficiency cores. Every per-block figure above is too large by about the same factor, so the shares and the conclusions stand, but the absolute numbers do not.
+
+**The change.** Both parts of the plan, done file by file: the three heaviest by hand (`test-varying.R`, `test-bcf.R`, `test-mnp.R`) and the other eighteen by three agents working to the same written rule, which now heads `tests/testthat/helper-bartisan.R`. Seed-dependent blocks start with `skip_on_cran()`. A mixed block was split when its seed-free assertions were not already checked elsewhere: those stay on CRAN on a small fit and keep the description, and the estimate moves to a skipped block at the original settings, so its draws are the ones it was written against. Seed-free fits were shrunk to `quick_control()` and 100 to 150 observations. `bcf()`'s propensity model, which every block in `test-bcf.R` fitted at the package defaults of 1000 iterations, is fitted at 30 + 30 except where an estimate depends on it. Every edited file passes both ways, with `NOT_CRAN` unset and with it set.
+
+| suite, CRAN's settings, idle machine | minutes | blocks | skipped on CRAN | failed |
+|---|---|---|---|---|
+| committed (`5dab467`) | 6.61 | 512 | 106 | 0 |
+| after | **0.53** | 544 | 164 | 0 |
+
+**Seed-free in fact, not only by reading.** `_dev/test-seeds.R` runs the CRAN subset with every `set.seed(s)` the tests make shifted to `set.seed(s + offset)`, through a helper written into a temporary copy of the test directory, so each run sees new data and new draws. Over offsets 1 to 8 four blocks failed, and over 1 to 16 two more, all six since fixed:
+
+- Two Beta score checks in `test-derivatives.R` (5 of 8 offsets). Their analytic score is interpolated from a per-sweep digamma table by design, and the 1e-6 tolerance was below the table's own accuracy: over 500 random draws of the responses the relative error crossed 1e-6 in more than half. On a fixed grid it is 5.5e-6 for beta and 3.5e-6 for ordered beta, against 1.8e-2 for a table read one entry off, so the responses are now that grid and the tolerance 2e-5.
+- `test-exponential.R`'s comparison of the shortcut with the general path (4 of 8). An agent reported adding `skip_on_cran()` and the edit was not on disk; it is now.
+- The shrunk "a pinned nuisance forest survives a varying coefficient" (1 of 8). Its `sd > 0` is the check that the parameter is drawn at all, and on 30 + 30 sweeps the Metropolis step stayed put through every draw in 4 of 40 seeds; at 100 + 100 in none.
+- `print()` of a long partial dependence grid (offset 10). R printed a column in scientific notation, which the test's row pattern did not accept.
+- `as_draws` against `diagnose()` (offset 16). Not a test problem: two estimator bugs in `diagnose()`, in the entry below.
+
+The five repaired files then passed all 16 offsets. Three agents' disagreements with the first classification were left on CRAN on the strength of their own sweeps (the AFT event-time, predictive-mean and loo/waic blocks in `test-interop.R`, and two in `test-partial-dependence.R` whose only draw-dependent check is that some tree splits on `x1`); all passed all 16 offsets.
+
+
 ## `ph()` records its draws in the centered chart (2026-10-02)
 
 `ph()` models `lambda(t | x) = lambda_0(t) exp(eta(x))`, and multiplying every bin hazard by `e^c` while subtracting `c` from the predictor leaves the likelihood alone, so the two levels are identified only jointly. `PHFamily` recorded each draw in the sampler's chart, where that level drifts, and `diagnose()` graded the drift: on the default fit to `rhc` (the one in `vignettes/survival.Rmd`), every `aux.lambda*` row and the predictor's average read R-hat 1.6 on 3 effective draws, with advice to add chains and draws, while `log(lambda_b) + mean(eta)` had 500 to 790. `?bartisan-families` already said the predictor was "reported centered", which was not true.
@@ -278,6 +331,39 @@ Three smaller things the check also had to get right. Knitting evaluates the inl
 **Only three stay precomputed (later on 2026-10-02).** A precomputed vignette is checked when it is regenerated rather than by CRAN on every submission, so the convention should cover only the vignettes that need it. `_dev/precompute-which.R` re-timed the six live, each in a fresh R process with `_R_CHECK_LIMIT_CORES_=TRUE`, two passes, to settle the middle of the ranking, where the 2026-09-29 timing and the precompute's own disagreed. Its header asked for an idle machine and the run did not get one: two single-threaded `_dev/sbc.R` jobs held two of the M4's four performance cores, and every vignette came out about 2.3 times its 2026-09-29 figure (diagnostics 298 seconds, effects 181, comparison 146, bartisan 124, varying 116, causal 109). A factor that uniform points to load rather than a slower package, but a regression would have put all six over the line, so it was checked: with the two jobs paused, varying rendered in 46.8 seconds and comparison in 63.4, against 53 and 72 on 2026-09-29. The 2026-09-29 numbers stand.
 
 The line at about a minute falls between comparison (63 to 72 seconds) and varying (47 to 53), the widest gap below diagnostics and effects in the quiet runs. Diagnostics, effects and comparison stay precomputed. Bartisan, varying and causal are plain `.Rmd` again, restored by `git mv` from their `.Rmd.orig` sources, which were byte-identical to the files committed before the precompute, and their seven figures are gone from `vignettes/figures/`. All three rendered cleanly live in the timing run. Eight vignettes are now live, about 185 seconds together on a quiet machine; the three precomputed would add about 280 if they were live. Comparison is the closest case, and moving it back is the same two commands.
+
+## The soft-Poisson SBC deviation is not the step floor or the thinning, and the harness miscounted its chi-square (2026-10-02)
+
+Three results on the deviation in the soft-rule Poisson SBC arm, and two defects in `_dev/sbc.R` found while reading the last of them.
+
+**It grows with the counts.** A known offset added to the generating predictor and supplied to the fit raises the response's level without changing anything else. The dispersion contrast was +2.8 at a mean count near 1, +2.9 at 8 and +4.3 at 58 (offsets 0, 2 and 4, 1000 retained draws), with coverage of the contrast falling to 0.888 at the highest. The Laplace approximation improves as a Poisson approaches a Gaussian, so its accuracy is not what tracks the damage.
+
+**The step floor is not binding.** `_dev/bandwidth-step-floor.R` asked whether the move's minimum step of 2% stops it from proposing inside a sharp bandwidth posterior. Five fits at each offset, medians over trees: the share of retained draws in which a tree's bandwidth moved was 0.46, 0.38 and 0.44 against the 0.44 the adaptation targets; the posterior's spread relative to its mean was 1.02, 0.94 and 0.70, far above 2%; no tree's bandwidth stuck. The bandwidth's effective sample size did collapse, 144, 40 and 15 of 2000 draws, so the coordinate mixes slowly while its move is accepted at the target rate. That pattern is a step sized to the bandwidth's conditional posterior given its tree, which is narrow, inside a marginal posterior that is wide.
+
+**Thinning harder does not remove it, which was the prediction and it was wrong.** At an effective sample size of 15 of 2000, keeping every tenth draw leaves autocorrelated ranks, which give a U-shaped histogram for a correct sampler. Tasks 275 and 276 ran offset 4 with 4000 retained draws, ranked once with 100 draws kept (one in 40) and once with 20 (one in 200). Same fits, so the same coverage, 0.913. The prediction was that the one-in-200 arm would come back to the fixed-bandwidth arm's dispersion of -0.2. It came back at **+2.09**, against +2.25 at one in 40. What the longer chain did change is the excess at high counts: +4.3 at 1000 draws became +2.25 at 4000, the level the other offsets sit at. So every arm that draws the bandwidth shows a dispersion contrast near +2 on 600 replicates that neither the prior's location, warmup, the step floor, the chain's length at low counts nor its thinning moves, and the arm that fixes the bandwidth does not.
+
+**The harness's chi-square assumed sixty ranks a bin**, which is right only when L + 1 is a multiple of ten. A rank takes the L + 1 values 0 to L, so at L = 100 the first bin holds 11 of them and the rest 10, and at L = 20 the first holds 3 and the rest 2. The thinned arm's printed chi-square of 29.7 (p < 0.001) is 9.6 (p = 0.38) with the expected counts per value; the "middle half" share had the same fault, since at L = 20 a uniform rank lands there 42.9% of the time and not 50%. The dispersion and mean-rank contrasts are computed from the ranks themselves, not the bins, so every conclusion above stands. Re-scored, every surviving soft-Poisson file:
+
+| run | printed chi-square | corrected | p | mean-rank z | dispersion z | coverage |
+|---|---|---|---|---|---|---|
+| default, block 5000 | 28.4 | 27.2 | 0.001 | +1.65 | +2.70 | 0.930 |
+| block 90000 | 11.4 | 11.5 | 0.245 | +1.95 | +1.50 | 0.955 |
+| bandwidth prior 0.03 | 14.7 | 12.0 | 0.211 | +0.41 | +1.92 | 0.923 |
+| bandwidth prior 0.3 | 20.7 | 17.4 | 0.043 | +0.58 | +2.68 | 0.937 |
+| 4000 warmup | 15.5 | 13.7 | 0.134 | +1.51 | +2.17 | 0.913 |
+| 4000 draws | 13.2 | 11.1 | 0.266 | +1.33 | +2.31 | 0.937 |
+| offset 2 | 12.2 | 8.8 | 0.459 | -0.26 | +2.90 | 0.933 |
+| offset 4, 4000 draws, L = 100 | 9.4 | 6.4 | 0.701 | -0.23 | +2.25 | 0.913 |
+| offset 4, 4000 draws, L = 20 | 29.7 | 9.6 | 0.380 | -0.20 | +2.09 | 0.913 |
+| bandwidth fixed | 16.1 | 12.7 | 0.178 | -0.20 | -0.20 | 0.943 |
+
+(This dispersion statistic reproduces the ones recorded earlier to within 0.08.) The fix is in the script: expected counts per value, and the uniform share of the middle half computed for the L in use.
+
+**And the output file lost a result.** The filename carried the offset but not the number of retained draws, so task 276 (offset 4, 4000 draws) wrote to the file of task 274 (offset 4, 1000 draws), which was complete, and started it over. The +4.3 above survives because it was read before the overwrite, and pueue kept 274's printed summary; its ranks do not. The filename now carries `draws` too, and the three files run at 4000 draws are renamed to what the script would now call them (`-long-draws4000`, `-draws4000-off4`, `-draws4000-off4-L20`).
+
+**What is left** is the one piece the 2026-10-02 entry below names: the predictor the move reconstructs through `accumulate()`, its support snapshot and the restore, against a fresh evaluation of the tree at the proposed bandwidth. The likelihood term the move uses was verified against two full evaluations; whether the predictor it leaves behind after an accepted or rejected move is the one the tree now encodes was not.
+
+**This is the default configuration.** `bartisan_control()` defaults to `gate = "smoothstep"` and `update_bandwidth = TRUE`, so a Poisson fit made with no settings at all is the arm that deviates. (An earlier version of this entry said soft rules were not the default, which was wrong.) The deviation is modest, a dispersion contrast near +2 on 600 replicates, meaning posteriors slightly too narrow, and coverage of 0.91 to 0.94 against 0.943 for the fixed-bandwidth arm under the same finite-chain shortfall. But it is in what users get by default, so it bears on a submission. The soft-rule logit arms are uniform with the bandwidth drawn, which says the interaction is with something the Poisson path does and the augmented logit path does not; the leaf draw is the obvious difference, a Laplace proposal with a Metropolis correction for the Poisson against an exact Gaussian conditional for the Polya-Gamma logit.
 
 ## Conditioning SBC ranks on the parameter is not a test, and two things it cost (2026-10-02)
 

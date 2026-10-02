@@ -157,13 +157,7 @@ test_that("the diagnostics are reported as a table of the right shape", {
   one <- bartisan(y ~ ., data = d, control = quick_control())
   expect_null(one[["rhat"]])
 
-  # A warmup long enough for the chains to reach the target, so that the R-hat
-  # asserted below tests that they share one rather than that 200 iterations
-  # were enough: at 200 the log likelihood's R-hat was 1.36 under the default
-  # splitting prior and 1.02 at 500.
-  fit <- bartisan(y ~ ., data = d, chains = 4,
-                  control = quick_control(num_burn = 500L, num_draws = 200L))
-
+  fit <- bartisan(y ~ ., data = d, chains = 4, control = quick_control())
   expect_null(fit[["rhat"]])
 
   diagnostics <- diagnose(fit)[["table"]]
@@ -173,6 +167,25 @@ test_that("the diagnostics are reported as a table of the right shape", {
   expect_true("loglik" %in% diagnostics$quantity)
   expect_true(any(grepl("^eta\\.", diagnostics$quantity)))
   expect_true(all(is.finite(diagnostics$rhat)))
+  expect_true(all(diagnostics$ess_bulk > 0))
+})
+
+test_that("the diagnostics of chains that share a target land in range", {
+  skip_if_not_installed("future.apply")
+  skip_on_cran()
+
+  d <- sim_x(n = 100, seed = 84)
+  d$y <- 2 * d$x1 + stats::rnorm(100, sd = 0.4)
+
+  # A warmup long enough for the chains to reach the target, so that the R-hat
+  # asserted below tests that they share one rather than that 200 iterations
+  # were enough: at 200 the log likelihood's R-hat was 1.36 under the default
+  # splitting prior and 1.02 at 500.
+  fit <- bartisan(y ~ ., data = d, chains = 4,
+                  control = quick_control(num_burn = 500L, num_draws = 200L))
+
+  diagnostics <- diagnose(fit)[["table"]]
+
   # Not bounded below by 1. Rank-normalized split R-hat compares a
   # between-chain variance with a within-chain one, and when the chains agree
   # closely the ratio lands just under: measured at 1.4e-3 below under
@@ -184,7 +197,6 @@ test_that("the diagnostics are reported as a table of the right shape", {
   # is never the larger of the two by much.
   total <- nrow(fit[["sigma_mu"]])
   expect_true(all(diagnostics$ess_bulk <= total * 1.5))
-  expect_true(all(diagnostics$ess_bulk > 0))
 
   # Independent chains from the same target.
   expect_lt(diagnostics$rhat[diagnostics$quantity == "loglik"], 1.3)
@@ -214,16 +226,26 @@ test_that("split-R-hat is the textbook quantity", {
     expect_equal(split_rhat(x), by_hand(x), tolerance = 1e-10)
   }
 
-  # And it does what a diagnostic should: near one for stationary chains, large
-  # for chains in different places, and large for a chain that drifts even when
-  # every chain drifts identically -- which is the whole reason for splitting.
-  expect_equal(split_rhat(cases[[1L]]), 1, tolerance = 0.05)
-  expect_gt(split_rhat(cases[[2L]]), 2)
+  # It is large for a chain that drifts even when every chain drifts
+  # identically, which is the whole reason for splitting.
   expect_gt(split_rhat(cases[[3L]]), 1.5)
 
   # Too few draws or a single chain leaves the diagnostic undefined.
   expect_true(is.na(split_rhat(matrix(1:6, ncol = 1L))))
   expect_true(is.na(split_rhat(matrix(1:2, ncol = 2L))))
+})
+
+test_that("split-R-hat is near one for stationary chains and large for separated ones", {
+  skip_on_cran()
+
+  set.seed(85)
+  cases <- list(matrix(stats::rnorm(4000), ncol = 4L),
+                cbind(stats::rnorm(500), stats::rnorm(500) + 5))
+
+  # It does what a diagnostic should: near one for stationary chains and large
+  # for chains in different places.
+  expect_equal(split_rhat(cases[[1L]]), 1, tolerance = 0.05)
+  expect_gt(split_rhat(cases[[2L]]), 2)
 })
 
 test_that("rank normalization makes the diagnostic scale-free", {
@@ -238,6 +260,13 @@ test_that("rank normalization makes the diagnostic scale-free", {
                split_rhat(rank_normalize(x)), tolerance = 1e-10)
   expect_equal(ess_bulk(x^3), ess_bulk(x), tolerance = 1e-10)
   expect_equal(ess_tail(exp(x)), ess_tail(x), tolerance = 1e-10)
+})
+
+test_that("the folded half answers to the spread, and a heavy tail does not break it", {
+  skip_on_cran()
+
+  set.seed(86)
+  x <- matrix(stats::rnorm(4000), ncol = 4L)
 
   # The folded half is deliberately not invariant: it is a statement about the
   # spread, and a nonlinear transformation genuinely changes that. So the
@@ -259,6 +288,8 @@ test_that("rank normalization makes the diagnostic scale-free", {
 })
 
 test_that("the effective sample size recovers what theory says it should", {
+  skip_on_cran()
+
   set.seed(87)
 
   # An AR(1) chain has integrated autocorrelation time (1+rho)/(1-rho), so its
@@ -310,9 +341,12 @@ test_that("a quantity the sampler holds fixed reports NA rather than nonsense", 
     ess_tail(const)
   })
 
-  # A constant at some value other than zero, and one where only some chains are
-  # constant, behave the same way and differently respectively.
+  # A constant at some value other than zero behaves the same way.
   expect_identical(ess_bulk(matrix(2.5, 200L, 3L)), NA_real_)
+})
+
+test_that("a quantity that varies is diagnosed rather than reported as NA", {
+  skip_on_cran()
 
   set.seed(1)
   varying <- matrix(stats::rnorm(600), 200L, 3L)

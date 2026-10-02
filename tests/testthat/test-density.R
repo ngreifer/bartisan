@@ -190,6 +190,8 @@ test_that("a held-out log score prefers the informative model", {
 })
 
 test_that("an undefined density warns rather than returning NaN silently", {
+  skip_on_cran()
+
   # A link whose inverse does not cover the line, pushed off the training range
   # so that the forest extrapolates. This is the only way a *saved* draw can be
   # out of support: `bartisan()` rejects such proposals while sampling, so the
@@ -210,10 +212,6 @@ test_that("an undefined density warns rather than returning NaN silently", {
              control = quick_control(num_trees = 20L, num_burn = 200L,
                                      num_draws = 200L)))
 
-  # In sample the predictor stays where the sampler kept it valid.
-  expect_silent(in_sample <- predict(fit, type = "density"))
-  expect_false(anyNA(in_sample))
-
   nd <- data.frame(x1 = seq(-3, 3, length.out = 40), x2 = 0, y = 1)
 
   expect_warning(out <- predict(fit, newdata = nd, type = "density"),
@@ -230,4 +228,22 @@ test_that("an undefined density warns rather than returning NaN silently", {
   drawn <- suppressWarnings(predict(fit, newdata = nd, type = "density",
                                     draws = TRUE))
   expect_lt(mean(is.na(drawn)), mean(is.na(out)))
+})
+
+test_that("the density is defined in sample under a link that does not cover the line", {
+  # `bartisan()` rejects a proposal that takes the predictor out of the link's
+  # range, so every saved draw is valid at the rows it was fitted to, however
+  # close to zero the mean runs there.
+  set.seed(12)
+  d <- data.frame(x1 = stats::runif(100, -1, 1),
+                  x2 = stats::runif(100, -1, 1))
+  d$y <- stats::rpois(nrow(d), pmax(0.2 + 2.5 * d$x1, 0.005))
+
+  fit <- suppressMessages(
+    bartisan(y ~ ., d, family = stats::poisson("identity"),
+             control = quick_control()))
+
+  # In sample the predictor stays where the sampler kept it valid.
+  expect_silent(in_sample <- predict(fit, type = "density"))
+  expect_false(anyNA(in_sample))
 })

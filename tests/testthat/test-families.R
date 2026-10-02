@@ -292,7 +292,21 @@ test_that("Gamma_ls()'s log density is the gamma density it claims to be", {
   expect_equal(as.vector(got), reference, tolerance = 1e-10)
 })
 
+test_that("Gamma_ls() with an intercept-only scale holds the dispersion constant", {
+  d <- sim_x(n = 100, p = 2, seed = 21)
+  d$y <- stats::rgamma(nrow(d), shape = 4, rate = 4 / exp(0.5 + d$x1))
+
+  fit <- bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = Gamma_ls(),
+                  control = quick_control(gate = "hard"))
+
+  # The scale forest never splits, so its predictor is one number.
+  expect_equal(sum(fit[["counts"]][["log_dispersion"]]), 0)
+  expect_equal(stats::sd(colMeans(fit[["eta"]][[2L]])), 0)
+})
+
 test_that("Gamma_ls() with an intercept-only scale matches Gamma()", {
+  skip_on_cran()
+
   # A forest whose formula names no predictor is a sum of stumps, so the
   # dispersion is one drawn scalar and the model is `Gamma("log")` written
   # another way. The two priors on that scalar differ, so this is an agreement
@@ -313,10 +327,6 @@ test_that("Gamma_ls() with an intercept-only scale matches Gamma()", {
   ls_fit <- bartisan(list(y ~ x1 + x2, ~ 1), data = d, family = Gamma_ls(),
                      control = ctrl)
 
-  # The scale forest never splits, so its predictor is one number.
-  expect_equal(sum(ls_fit[["counts"]][["log_dispersion"]]), 0)
-  expect_equal(stats::sd(colMeans(ls_fit[["eta"]][[2L]])), 0)
-
   # The implied shape agrees with the drawn one, and both with the truth.
   shape_plain <- mean(plain[["aux"]][, "shape"])
   shape_ls <- mean(exp(-ls_fit[["eta"]][[2L]]))
@@ -330,6 +340,8 @@ test_that("Gamma_ls() with an intercept-only scale matches Gamma()", {
 })
 
 test_that("Gamma_ls() recovers a dispersion that varies with the predictors", {
+  skip_on_cran()
+
   set.seed(7)
   n <- 800
   d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n))

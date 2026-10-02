@@ -13,6 +13,8 @@ sim_grouped <- function(n = 500, seed = 1) {
 }
 
 test_that("a factor's levels are pooled into groups the data support", {
+  skip_on_cran()
+
   d <- sim_grouped()
 
   fit <- bartisan(y ~ g + x1, data = d, family = gaussian(),

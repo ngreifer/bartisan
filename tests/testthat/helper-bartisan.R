@@ -1,3 +1,11 @@
+# Which tests run on CRAN. A test whose assertions hold for any seed (an
+# argument check, the structure of a fit, an identity between two computations
+# from the same draws) runs everywhere, on a fit as small as it allows. A test
+# whose outcome depends on which draws came out (recovery within a tolerance,
+# coverage, a mixing threshold) starts with skip_on_cran(), since on CRAN an
+# unlucky draw on one platform is a false alarm; it still runs under
+# devtools::test(), which sets NOT_CRAN.
+
 # Small, fast settings. These tests check that the plumbing is right, not that
 # the fits are good; the statistical behavior is checked in test-recovery.R.
 quick_control <- function(...) {

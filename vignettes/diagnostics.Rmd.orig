@@ -417,8 +417,8 @@ diagnose(longer)
 
 Most of it is cleared. The split-count row and both `eta` rows are well past
 the thresholds, and every tail effective sample size is above 900. What is left
-sits on the log likelihood alone: its bulk effective sample size rose from 84 to
-207 rather than tenfold, and its R-hat of 1.02 is again the kind the check calls
+sits on the log likelihood alone: its bulk effective sample size rose from 85 to
+208 rather than tenfold, and its R-hat of 1.02 is again the kind the check calls
 unreadable, since four chains average 1.019 at that count even when they agree.
 The log likelihood is usually the slowest-mixing row in a forest, because it
 moves with every fitted value at once, and it is not a quantity we report; the

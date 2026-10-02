@@ -521,12 +521,15 @@ test_that("print() shows the ends of a long grid and says how many it dropped", 
   expect_identical(nrow(pd), 51L)
 
   # The body rows are the ones with four numeric columns; the note that follows
-  # starts with a count, so it has to be told apart from them.
+  # starts with a count, so it has to be told apart from them. A number may print
+  # in scientific notation, which a column takes as a whole when its values span
+  # enough orders of magnitude.
+  num <- "-?[0-9.]+(e[-+][0-9]+)?"
   body <- function(...) {
     out <- utils::capture.output(print(pd, ...))
-    grep("^ *-?[0-9.]+ +-?[0-9.]+ +-?[0-9.]+ +-?[0-9.]+ *$", out, value = TRUE)
+    grep(sprintf("^ *%s +%s +%s +%s *$", num, num, num, num), out, value = TRUE)
   }
-  lead <- function(z) as.numeric(sub("^ *(-?[0-9.]+).*", "\\1", z))
+  lead <- function(z) as.numeric(sub(sprintf("^ *(%s).*", num), "\\1", z))
 
   # Ten by default, five from each end, and the count of what was left out.
   rows <- body()

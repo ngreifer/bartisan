@@ -4,6 +4,8 @@
 # density, and that the rewriting declines where it does not apply.
 
 test_that("the Polya-Gamma sampler has the moments it should", {
+  skip_on_cran()
+
   # E[PG(b, c)] = (b / 2c) tanh(c / 2) and Var[PG(b, c)] = (b / 4c^3)
   # (sinh c - c) sech^2(c / 2), with the c = 0 limits b/4 and b/24. Integer b
   # goes through Devroye's exact method and non-integer b through the series, so
@@ -24,13 +26,25 @@ test_that("the Polya-Gamma sampler has the moments it should", {
       x <- .bartisan_rpg(20000L, b, cc)
       label <- paste("b =", b, "c =", cc)
 
-      expect_true(all(x > 0), info = label)
       # Four standard errors of the mean, which is a two-sided level of 6e-5 per
       # cell and so about 7e-4 over the twelve of them.
       expect_lt(abs(mean(x) - pg_mean(b, cc)) /
                   (stats::sd(x) / sqrt(length(x))), 4)
       expect_equal(stats::var(x), pg_var(b, cc), tolerance = 0.06,
                    info = label)
+    }
+  }
+})
+
+test_that("the Polya-Gamma sampler draws only positive values", {
+  # Integer b goes through Devroye's exact method and non-integer b through the
+  # series, so both routes are checked.
+  set.seed(91)
+
+  for (b in c(1, 3, 0.5, 7.3)) {
+    for (cc in c(0, 1.5, 8)) {
+      x <- .bartisan_rpg(2000L, b, cc)
+      expect_true(all(x > 0), info = paste("b =", b, "c =", cc))
     }
   }
 })
@@ -73,6 +87,8 @@ test_that("the reported log likelihood is the probit one, not the augmented one"
 })
 
 test_that("augmentation declines where it does not apply", {
+  skip_on_cran()
+
   d <- sim_x(n = 80, seed = 72)
 
   # A binomial count response needs one latent per trial, so there is no single

@@ -28,6 +28,8 @@ test_that("the smoothstep gate is a distribution function with bounded support",
 })
 
 test_that("each gate has the smoothness it claims", {
+  skip_on_cran()
+
   # The gate is read out of the C++ through the prediction engine: a one-tree
   # fit on a fine grid of a single predictor is a sum of gates in that predictor,
   # so the numerical derivatives of the fitted curve say how smooth the gate is.
@@ -64,6 +66,8 @@ test_that("each gate has the smoothness it claims", {
 })
 
 test_that("the smoothstep gate saturates and the logistic one does not", {
+  skip_on_cran()
+
   # The claim the whole speedup rests on: past its half-width the smoothstep
   # gate is exactly zero or one, so an observation takes one side of the rule
   # outright. Checked on the C++ gate through a two-leaf tree whose split is

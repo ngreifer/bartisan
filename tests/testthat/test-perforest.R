@@ -14,6 +14,8 @@ ls_control <- function(...) {
 }
 
 test_that("a formula per forest holds each forest to its own predictors", {
+  skip_on_cran()
+
   d <- sim_ls()
 
   fit <- bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d,
@@ -88,29 +90,38 @@ test_that("an interaction written either way is one predictor", {
                   c("x1", "x2", "x1:x2"))
 })
 
-test_that("prior settings are per forest, named or positional", {
+test_that("a forest a named prior setting does not mention keeps the default", {
+  skip_on_cran()
+
   d <- sim_ls()
 
+  # Rather than borrowing the value given for the other forest.
+  partial <- bartisan(y ~ ., data = d, family = gaussian_ls(),
+                      control = ls_control(k = c(log_sd = 8)))
+
+  expect_gt(mean(partial[["sigma_mu"]][, 1L]),
+            mean(partial[["sigma_mu"]][, 2L]))
+})
+
+test_that("a named and a positional prior setting reach the same forests", {
+  d <- sim_ls(n = 100)
+
   named <- bartisan(y ~ ., data = d, family = gaussian_ls(),
-                    control = ls_control(num_trees = c(mean = 8, log_sd = 3),
-                                         sparsity = c(mean = TRUE,
-                                                      log_sd = FALSE)))
+                    control = quick_control(num_trees = c(mean = 8, log_sd = 3),
+                                            sparsity = c(mean = TRUE,
+                                                         log_sd = FALSE)))
   positional <- bartisan(y ~ ., data = d, family = gaussian_ls(),
-                         control = ls_control(num_trees = c(8, 3),
-                                              sparsity = c(TRUE, FALSE)))
+                         control = quick_control(num_trees = c(8, 3),
+                                                 sparsity = c(TRUE, FALSE)))
 
   expect_identical(named[["num_trees"]], c(8L, 3L))
   expect_identical(positional[["num_trees"]], c(8L, 3L))
   expect_identical(unname(named[["control"]][["update_s"]]), c(TRUE, FALSE))
 
-  # A forest a named argument does not mention keeps the default rather than
-  # borrowing the value given for the other forest.
   partial <- bartisan(y ~ ., data = d, family = gaussian_ls(),
-                      control = ls_control(k = c(log_sd = 8)))
+                      control = quick_control(k = c(log_sd = 8)))
 
   expect_identical(partial[["control"]][["k"]], c(log_sd = 8))
-  expect_gt(mean(partial[["sigma_mu"]][, 1L]),
-            mean(partial[["sigma_mu"]][, 2L]))
 })
 
 test_that("naming some entries and not others matches R's own rule", {

@@ -273,14 +273,23 @@ vc_control <- function(...) {
                    verbose = FALSE, ...)
 }
 
+test_that("a varying coefficient adds a forest named for its covariate", {
+  d <- sim_effect(n = 150)
+
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
+                  control = quick_control())
+
+  expect_identical(fit[["num_forest"]], 2L)
+  expect_named(fit[["eta"]], c("(Intercept)", "z"))
+})
+
 test_that("a varying coefficient is fitted and recovers its function", {
+  skip_on_cran()
+
   d <- sim_effect()
 
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
                   control = vc_control())
-
-  expect_identical(fit[["num_forest"]], 2L)
-  expect_named(fit[["eta"]], c("(Intercept)", "z"))
 
   expect_gt(cor(colMeans(fit[["eta"]][["z"]]), d$tau), 0.9)
 })
@@ -288,9 +297,9 @@ test_that("a varying coefficient is fitted and recovers its function", {
 test_that("the estimand path and the coefficient path agree", {
   skip_if_not_installed("marginaleffects")
 
-  d <- sim_effect(seed = 4)
+  d <- sim_effect(n = 150, seed = 4)
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
-                  control = vc_control())
+                  control = quick_control())
 
   # Every estimand reaches this through `predict()` on modified `newdata`, which
   # recomputes the basis and contrasts the combination. For an identity link that
@@ -320,9 +329,9 @@ test_that("the estimand path and the coefficient path agree", {
 })
 
 test_that("predict rebuilds the basis and agrees with the fit", {
-  d <- sim_effect(seed = 5)
+  d <- sim_effect(n = 150, seed = 5)
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),
-                  control = vc_control())
+                  control = quick_control())
 
   expect_equal(as.numeric(predict(fit, newdata = d)),
                as.numeric(fitted(fit)), tolerance = 1e-7)
@@ -340,6 +349,8 @@ test_that("predict rebuilds the basis and agrees with the fit", {
 })
 
 test_that("a continuous covariate may modify its own coefficient", {
+  skip_on_cran()
+
   # The effect is then no longer linear in the covariate: the slope moves across
   # its range. With the truth y = 2 x1 + z^2, the slope at z is z, which a model
   # whose coefficient cannot see z has no way to produce.
@@ -383,6 +394,8 @@ test_that("a continuous covariate may modify its own coefficient", {
 })
 
 test_that("centring moves the control function and leaves the effect alone", {
+  skip_on_cran()
+
   d <- sim_effect(seed = 7)
 
   at_mean <- bartisan(y ~ x1 + x2 + vc(z, center = "mean"), data = d,
@@ -415,14 +428,14 @@ test_that("the default reference depends on the covariate", {
 
 test_that("a factor gets one forest per level and coef recenters them", {
   set.seed(9)
-  n <- 700
+  n <- 150
   d <- data.frame(x1 = stats::rnorm(n),
                   g = factor(sample(c("a", "b", "c"), n, TRUE)))
   effect <- c(a = -1, b = 0, c = 1)[as.character(d$g)]
   d$y <- 2 * d$x1 + effect + stats::rnorm(n, sd = 0.4)
 
   fit <- bartisan(y ~ x1 + vc(g), data = d, family = gaussian(),
-                  control = vc_control())
+                  control = quick_control())
 
   expect_identical(fit[["num_forest"]], 4L)
   expect_named(fit[["eta"]], c("(Intercept)", "ga", "gb", "gc"))
@@ -442,20 +455,34 @@ test_that("a factor gets one forest per level and coef recenters them", {
   expect_equal(cf_new, cf[1:5, ], tolerance = 1e-6)
   expect_identical(nrow(coef(fit, newdata = d[1:5, ], draws = TRUE)[[1L]]),
                    nrow(fit[["sigma_mu"]]))
+})
 
-  # And the deviations order the way the truth does.
+test_that("a factor's deviations order the way the truth does", {
+  skip_on_cran()
+
+  set.seed(9)
+  n <- 700
+  d <- data.frame(x1 = stats::rnorm(n),
+                  g = factor(sample(c("a", "b", "c"), n, TRUE)))
+  effect <- c(a = -1, b = 0, c = 1)[as.character(d$g)]
+  d$y <- 2 * d$x1 + effect + stats::rnorm(n, sd = 0.4)
+
+  fit <- bartisan(y ~ x1 + vc(g), data = d, family = gaussian(),
+                  control = vc_control())
+
+  cf <- coef(fit)
   expect_lt(mean(cf[, "ga"]), mean(cf[, "gc"]))
 })
 
 test_that("a group intercept reaches the control function and not the effect", {
   set.seed(10)
-  n <- 600
+  n <- 150
   d <- data.frame(x1 = stats::rnorm(n), z = stats::rbinom(n, 1L, 0.5),
                   g = factor(sample(letters[1:5], n, TRUE)))
   d$y <- d$x1 + as.numeric(d$g) * 0.5 + 1.5 * d$z + stats::rnorm(n, sd = 0.4)
 
   fit <- bartisan(y ~ x1 + (1 | g) + vc(z), data = d, family = gaussian(),
-                  control = vc_control())
+                  control = quick_control())
 
   # A group effect on a coefficient's forest is a random slope, and
   # `split_random()` refuses `(x | g)` in as many words -- so producing one here
@@ -471,6 +498,30 @@ test_that("an augmented family carries varying coefficients too", {
   # sampler claiming one additive predictor while the rest of the fit expected
   # two. Every family that has an augmented counterpart is worth checking.
   set.seed(13)
+  n <- 150
+  d <- data.frame(x1 = stats::rnorm(n), x2 = stats::rnorm(n),
+                  z = stats::rbinom(n, 1L, 0.5))
+  d$y <- stats::rbinom(n, 1L, stats::plogis(d$x1 + d$z * (1 + d$x2)))
+
+  for (link in c("logit", "probit")) {
+    fit <- bartisan(y ~ x1 + x2 + vc(z), data = d,
+                    family = stats::binomial(link), control = quick_control())
+
+    expect_identical(fit[["num_forest"]], 2L)
+    expect_named(fit[["eta"]], c("(Intercept)", "z"))
+  }
+
+  # And a family with a nuisance parameter, which the decorator has to pass
+  # through to the wrapped family rather than claim as its own.
+  d$count <- stats::rpois(n, exp(0.5 + 0.3 * d$z))
+  expect_no_error(bartisan(count ~ x1 + vc(z), data = d,
+                           family = stats::poisson(), control = quick_control()))
+})
+
+test_that("an augmented family's varying coefficient has the truth's sign", {
+  skip_on_cran()
+
+  set.seed(13)
   n <- 600
   d <- data.frame(x1 = stats::rnorm(n), x2 = stats::rnorm(n),
                   z = stats::rbinom(n, 1L, 0.5))
@@ -480,25 +531,17 @@ test_that("an augmented family carries varying coefficients too", {
     fit <- bartisan(y ~ x1 + x2 + vc(z), data = d,
                     family = stats::binomial(link), control = vc_control())
 
-    expect_identical(fit[["num_forest"]], 2L)
-    expect_named(fit[["eta"]], c("(Intercept)", "z"))
     expect_gt(mean(coef(fit)[, "z"]), 0)
   }
-
-  # And a family with a nuisance parameter, which the decorator has to pass
-  # through to the wrapped family rather than claim as its own.
-  d$count <- stats::rpois(n, exp(0.5 + 0.3 * d$z))
-  expect_no_error(bartisan(count ~ x1 + vc(z), data = d,
-                           family = stats::poisson(), control = vc_control()))
 })
 
 test_that("one formula gives every additive predictor the same coefficients", {
-  d <- sim_effect(seed = 11)
+  d <- sim_effect(n = 150, seed = 11)
 
   # A single formula applies to every forest, which is the recycling rule every
   # per-forest argument follows, so a `vc()` term in it reaches each parameter.
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
-                  control = vc_control())
+                  control = quick_control())
 
   expect_identical(fit[["num_forest"]], 4L)
   expect_named(fit[["eta"]], c("mean", "mean:z", "log_sd", "log_sd:z"))
@@ -506,9 +549,9 @@ test_that("one formula gives every additive predictor the same coefficients", {
 })
 
 test_that("coef refuses a model that has no coefficients", {
-  d <- sim_effect(seed = 12)
+  d <- sim_effect(n = 150, seed = 12)
   fit <- bartisan(y ~ x1 + x2, data = d, family = gaussian(),
-                  control = vc_control())
+                  control = quick_control())
 
   expect_error(coef(fit), "no varying coefficients")
 })
@@ -517,25 +560,34 @@ test_that("coef refuses a model that has no coefficients", {
 # parameter expansion of Hahn, Murray and Carvalho (2020, section 5.3).
 
 test_that("a drawn coding reports one coefficient and its own coding draws", {
-  d <- sim_effect(seed = 20)
+  d <- sim_effect(n = 150, seed = 20)
 
   fit <- bartisan(y ~ x1 + x2 + vc(z, center = "estimate"), data = d,
-                  family = gaussian(), control = vc_control())
+                  family = gaussian(), control = quick_control())
 
   # One column and one forest whatever the number of levels, and the coding
   # coefficients are reported as nuisance parameters of their own.
   expect_identical(fit[["num_forest"]], 2L)
   expect_named(fit[["eta"]], c("(Intercept)", "z"))
   expect_true(all(c("b.z.0", "b.z.1") %in% colnames(fit[["aux"]])))
+})
+
+test_that("a drawn coding recovers the coefficient function", {
+  skip_on_cran()
+
+  d <- sim_effect(seed = 20)
+
+  fit <- bartisan(y ~ x1 + x2 + vc(z, center = "estimate"), data = d,
+                  family = gaussian(), control = vc_control())
 
   expect_gt(cor(coef(fit)[, "z"], d$tau), 0.85)
 })
 
 test_that("coef under a drawn coding is the identified contrast, not the forest", {
-  d <- sim_effect(seed = 21)
+  d <- sim_effect(n = 150, seed = 21)
 
   fit <- bartisan(y ~ x1 + x2 + vc(z, center = "estimate"), data = d,
-                  family = gaussian(), control = vc_control())
+                  family = gaussian(), control = quick_control())
 
   # The effect is (b_1 - b_0) * f, so the reported coefficient must be the raw
   # forest scaled by the drawn contrast. Getting this wrong is the trap the
@@ -548,6 +600,8 @@ test_that("coef under a drawn coding is the identified contrast, not the forest"
 })
 
 test_that("a drawn coding does not depend on which level was written as 1", {
+  skip_on_cran()
+
   d <- sim_vc(n = 300, seed = 19)
 
   # A treatment effect that is really there, so that "the two sum to zero" says
@@ -591,14 +645,14 @@ test_that("a drawn coding does not depend on which level was written as 1", {
 })
 
 test_that("a factor's drawn coding shares one forest across levels", {
-  d <- sim_vc(n = 300, seed = 23)
+  d <- sim_vc(seed = 23)
   d$y <- d$x1 + c(a = 0, b = 1, c = 2)[as.character(d$g)] * (1 + d$x2) +
-    stats::rnorm(300)
+    stats::rnorm(nrow(d))
 
   shared <- bartisan(y ~ x1 + x2 + vc(g, center = "estimate"), data = d,
-                     family = gaussian(), control = vc_control())
+                     family = gaussian(), control = quick_control())
   per_level <- bartisan(y ~ x1 + x2 + vc(g), data = d, family = gaussian(),
-                        control = vc_control())
+                        control = quick_control())
 
   # One shared forest against one per level: the restriction the drawn coding
   # imposes above two levels, and the reason it stays off by default.
@@ -611,33 +665,35 @@ test_that("a factor's drawn coding shares one forest across levels", {
 })
 
 test_that("a drawn coding needs a covariate with few enough values", {
-  d <- sim_effect(seed = 24)
+  d <- sim_effect(n = 150, seed = 24)
 
   expect_error(
     bartisan(y ~ x2 + vc(x1, center = "estimate"), data = d,
-             family = gaussian(), control = vc_control()),
+             family = gaussian(), control = quick_control()),
     "too many to code")
 
   d$constant <- 1
   expect_error(
     bartisan(y ~ x1 + vc(constant, center = "estimate"), data = d,
-             family = gaussian(), control = vc_control()),
+             family = gaussian(), control = quick_control()),
     "at least two values")
 })
 
 test_that("an abbreviated center is matched before it is acted on", {
-  d <- sim_effect(seed = 25)
+  d <- sim_effect(n = 150, seed = 25)
 
   # `match_arg()` completes an abbreviation, so testing the unmatched string
   # would take `"est"` down the fixed-centring path and silently fit the wrong
   # model. It has to reach the drawn coding.
   fit <- bartisan(y ~ x1 + x2 + vc(z, center = "est"), data = d,
-                  family = gaussian(), control = vc_control())
+                  family = gaussian(), control = quick_control())
 
   expect_true("b.z.0" %in% colnames(fit[["aux"]]))
 })
 
 test_that("the density is right when the coding is drawn", {
+  skip_on_cran()
+
   d <- sim_effect(seed = 26)
 
   fit <- bartisan(y ~ x1 + x2 + vc(z, center = "estimate"), data = d,
@@ -658,9 +714,9 @@ test_that("bcf draws the coding for a binary treatment and not for more levels",
   d$y <- d$x1 + d$z * (1 + d$x2) + stats::rnorm(250)
 
   binary <- bcf(y ~ x1 + x2, treat = ~ z, data = d, family = gaussian(),
-                propensity = FALSE, num_trees = 15L, control = vc_control())
+                propensity = FALSE, num_trees = 15L, control = quick_control())
   several <- bcf(y ~ x1 + x2, treat = ~ g, data = d, family = gaussian(),
-                 propensity = FALSE, num_trees = 15L, control = vc_control())
+                 propensity = FALSE, num_trees = 15L, control = quick_control())
 
   expect_true("b.z.0" %in% colnames(binary[["aux"]]))
   expect_identical(binary[["num_forest"]], 2L)
@@ -679,14 +735,14 @@ test_that("a two-level factor treatment sizes its forests from the coding", {
   # The drawn coding is one forest whatever the type, so the default tree count
   # has to follow the coding rather than the treatment being a factor.
   fit <- bcf(y ~ x1 + x2, treat = ~ zf, data = d, family = gaussian(),
-             propensity = FALSE, num_trees = 15L, control = vc_control())
+             propensity = FALSE, num_trees = 15L, control = quick_control())
 
   expect_identical(fit[["num_forest"]], 2L)
   expect_identical(colnames(coef(fit)), "zf")
 })
 
 test_that("an augmented family qualifies for a drawn coding", {
-  d <- sim_effect(seed = 29)
+  d <- sim_effect(n = 150, seed = 29)
   d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1 + d$z))
 
   # The guard has to be asked of the family that reaches the sampler, not of the
@@ -695,7 +751,7 @@ test_that("an augmented family qualifies for a drawn coding", {
   # even though the unaugmented family does not.
   for (link in c("logit", "probit")) {
     fit <- bartisan(y ~ x1 + x2 + vc(z, center = "estimate"), data = d,
-                    family = binomial(link = link), control = vc_control())
+                    family = binomial(link = link), control = quick_control())
     expect_true("b.z.0" %in% colnames(fit[["aux"]]))
   }
 
@@ -704,7 +760,7 @@ test_that("an augmented family qualifies for a drawn coding", {
   # Metropolis correction.
   expect_error(
     bartisan(y ~ x1 + x2 + vc(z, center = "estimate"), data = d,
-             family = binomial(link = "cloglog"), control = vc_control()),
+             family = binomial(link = "cloglog"), control = quick_control()),
     "leaf target is\\s+quadratic")
 })
 
@@ -715,7 +771,7 @@ test_that("bcf falls back to a fixed coding where a drawn one is not exact", {
   # The coding is bcf's choice rather than the caller's, so a family that cannot
   # have it drawn gets the fixed default instead of an error.
   fit <- bcf(count ~ x1 + x2, treat = ~ z, data = d, family = poisson(),
-             propensity = FALSE, num_trees = 15L, control = vc_control())
+             propensity = FALSE, num_trees = 15L, control = quick_control())
 
   expect_false(any(startsWith(colnames(fit[["aux"]]) %or% character(), "b.")))
   expect_identical(colnames(coef(fit)), "z")
@@ -727,9 +783,9 @@ test_that("bcf falls back to a fixed coding where a drawn one is not exact", {
 
   fell_back <- bcf(count ~ x1 + x2, treat = ~ zf, data = d,
                    family = poisson(), propensity = FALSE,
-                   control = vc_control())
+                   control = quick_control())
   drawn <- bcf(y ~ x1 + x2, treat = ~ zf, data = d, family = gaussian(),
-               propensity = FALSE, control = vc_control())
+               propensity = FALSE, control = quick_control())
 
   expect_identical(fell_back[["num_forest"]], 3L)
   expect_identical(drawn[["num_forest"]], 2L)
@@ -739,7 +795,7 @@ test_that("bcf reports its own call rather than the one do.call made", {
   d <- sim_vc(n = 200, seed = 31)
 
   fit <- bcf(y ~ x1 + x2, treat = ~ z, data = d, family = gaussian(),
-             propensity = FALSE, num_trees = 15L, control = vc_control())
+             propensity = FALSE, num_trees = 15L, control = quick_control())
 
   expect_match(deparse(fit[["call"]])[1L], "^bcf\\(")
 })
@@ -764,10 +820,10 @@ test_that("a vc() term reaches only the parameter whose formula names it", {
 
   on_mean <- bartisan(list(mean = y ~ x1 + x2 + vc(z), log_sd = ~ x1 + x2),
                       data = d, family = gaussian_ls(),
-                      control = vc_control())
+                      control = quick_control())
   on_sd <- bartisan(list(mean = y ~ x1 + x2 + z, log_sd = ~ x1 + x2 + vc(z)),
                     data = d, family = gaussian_ls(),
-                    control = vc_control())
+                    control = quick_control())
 
   expect_named(on_mean[["eta"]], c("mean", "mean:z", "log_sd"))
   expect_named(on_sd[["eta"]], c("mean", "log_sd", "log_sd:z"))
@@ -777,6 +833,8 @@ test_that("a vc() term reaches only the parameter whose formula names it", {
 })
 
 test_that("both parameters recover their own coefficient function", {
+  skip_on_cran()
+
   d <- sim_two(seed = 41)
 
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
@@ -795,11 +853,11 @@ test_that("both parameters recover their own coefficient function", {
 })
 
 test_that("each parameter's coefficient takes its own modifiers", {
-  d <- sim_two(seed = 42)
+  d <- sim_two(n = 150, seed = 42)
 
   fit <- bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
                        log_sd = ~ x1 + x2 + vc(z, ~ x1)),
-                  data = d, family = gaussian_ls(), control = vc_control())
+                  data = d, family = gaussian_ls(), control = quick_control())
 
   # A forest may only split on what its own modifiers allow, and the weights are
   # how that is enforced, so the mask is what to read.
@@ -812,7 +870,7 @@ test_that("each parameter's coefficient takes its own modifiers", {
 })
 
 test_that("the same covariate may vary on two parameters but not twice on one", {
-  d <- sim_two(seed = 43)
+  d <- sim_two(n = 150, seed = 43)
 
   # Once per parameter is the feature; twice in one formula is a mistake. The
   # union across the formulas has `z` wrapped twice either way, so the check has
@@ -821,34 +879,34 @@ test_that("the same covariate may vary on two parameters but not twice on one", 
     bartisan(list(mean = y ~ x1 + x2 + vc(z, ~ x2),
                   log_sd = ~ x1 + x2 + vc(z, ~ x1)),
              data = d, family = gaussian_ls(),
-             control = vc_control())[["eta"]],
+             control = quick_control())[["eta"]],
     c("mean", "mean:z", "log_sd", "log_sd:z"))
 
   expect_error(bartisan(y ~ x1 + vc(z) + vc(z), data = d,
-                        family = gaussian_ls(), control = vc_control()),
+                        family = gaussian_ls(), control = quick_control()),
                "a varying coefficient more than once")
 })
 
 test_that("a named formula list lines its vc() terms up with the parameter", {
-  d <- sim_two(seed = 44)
+  d <- sim_two(n = 150, seed = 44)
 
   # Given out of order, so the `vc()` term has to follow the reordering rather
   # than the position it was written in.
   fit <- bartisan(list(log_sd = ~ x1 + x2, mean = y ~ x1 + x2 + vc(z)),
-                  data = d, family = gaussian_ls(), control = vc_control())
+                  data = d, family = gaussian_ls(), control = quick_control())
 
   expect_named(fit[["eta"]], c("mean", "mean:z", "log_sd"))
 })
 
 test_that("a drawn coding is judged per parameter and named per parameter", {
-  d <- sim_two(seed = 45)
+  d <- sim_two(n = 150, seed = 45)
 
   # `gaussian_ls()` is quadratic in the mean and not in the log standard
   # deviation, so the same request is exact on one and not on the other. The
   # guard has to be asked of the predictor the coding actually feeds.
   fit <- bartisan(list(mean = y ~ x1 + x2 + vc(z, center = "estimate"),
                        log_sd = ~ x1 + x2),
-                  data = d, family = gaussian_ls(), control = vc_control())
+                  data = d, family = gaussian_ls(), control = quick_control())
 
   expect_true(all(c("b.mean:z.0", "b.mean:z.1") %in% colnames(fit[["aux"]])))
   expect_identical(colnames(coef(fit)), "mean:z")
@@ -856,16 +914,16 @@ test_that("a drawn coding is judged per parameter and named per parameter", {
   expect_error(
     bartisan(list(mean = y ~ x1 + x2,
                   log_sd = ~ x1 + x2 + vc(z, center = "estimate")),
-             data = d, family = gaussian_ls(), control = vc_control()),
+             data = d, family = gaussian_ls(), control = quick_control()),
     "leaf target is\\s+quadratic")
 })
 
 test_that("group intercepts reach every control function and no coefficient", {
-  d <- sim_two(seed = 46)
+  d <- sim_two(n = 150, seed = 46)
   d$grp <- factor(sample(1:10, nrow(d), TRUE))
 
   fit <- bartisan(y ~ x1 + x2 + vc(z) + (1 | grp), data = d,
-                  family = gaussian_ls(), control = vc_control())
+                  family = gaussian_ls(), control = quick_control())
 
   # One set per forest, and a coefficient's must be exactly zero: a group-varying
   # coefficient is a random slope, which `split_random()` refuses outright.
@@ -877,82 +935,97 @@ test_that("group intercepts reach every control function and no coefficient", {
 })
 
 test_that("per-forest settings are keyed by the two-part forest names", {
-  d <- sim_two(seed = 47)
+  d <- sim_two(n = 150, seed = 47)
 
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
                   num_trees = c(mean = 20, `mean:z` = 8, log_sd = 10,
                                 `log_sd:z` = 5),
-                  control = vc_control())
+                  control = quick_control())
 
   expect_identical(fit[["num_trees"]], c(20L, 8L, 10L, 5L))
 })
 
 test_that("a family whose forests are one parameter's levels refuses vc()", {
-  d <- sim_two(seed = 48)
+  d <- sim_two(n = 150, seed = 48)
   d$g <- factor(sample(letters[1:3], nrow(d), TRUE))
 
   # Those forests are identified only up to a shared function, which reporting
   # removes; a coefficient forest per level would add one such direction per
   # coefficient and the reporting does not carry them.
   expect_error(bartisan(g ~ x1 + x2 + vc(z), data = d, family = multinomial(),
-                        control = vc_control()),
+                        control = quick_control()),
                "not available for this family")
 })
 
-test_that("a pinned nuisance forest survives a varying coefficient", {
-  d <- sim_effect(seed = 49)
-
-  fam <- custom_family(
+normal_logsig <- function() {
+  custom_family(
     logdens = function(y, eta, aux) {
       stats::dnorm(y, eta[, 1], exp(aux[1]), log = TRUE)
     },
     num_predictors = 1L, aux_names = "logsig", start = 0, aux_start = 0)
+}
 
-  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = fam,
-                  control = vc_control())
+test_that("a pinned nuisance forest survives a varying coefficient", {
+  d <- sim_effect(n = 150, seed = 49)
+
+  # Long enough that a parameter that is drawn always moves: at 30 + 30 sweeps
+  # its Metropolis step stayed put through every draw in 4 of 40 seeds, and at
+  # 100 + 100 in none, with at least 44 distinct values of 100.
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = normal_logsig(),
+                  control = quick_control(num_burn = 100L, num_draws = 100L))
 
   # The nuisance forest trails the additive predictors, carries no coefficient
   # and stays pinned -- without which the engine treats it as an ordinary forest
   # and the parameter is never drawn.
   expect_named(fit[["eta"]], c("(Intercept)", "z"))
   expect_gt(stats::sd(fit[["aux"]][, "logsig"]), 0)
+})
+
+test_that("a pinned nuisance parameter under vc() is drawn near the truth", {
+  skip_on_cran()
+
+  d <- sim_effect(seed = 49)
+
+  fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = normal_logsig(),
+                  control = vc_control())
+
   expect_lt(abs(exp(mean(fit[["aux"]][, "logsig"])) - 0.5), 0.15)
 })
 
 test_that("a two-part family with a discrete response takes coefficients too", {
   set.seed(50)
-  n <- 700
+  n <- 150
   d <- data.frame(x1 = stats::rnorm(n), z = stats::rbinom(n, 1L, 0.5))
   d$count <- stats::rpois(n, exp(0.4 * d$x1 + 0.6 * d$z))
 
   fit <- bartisan(list(count = count ~ x1 + vc(z), zero = ~ x1), data = d,
-                  family = zi_poisson(), control = vc_control())
+                  family = zi_poisson(), control = quick_control())
 
   expect_named(fit[["eta"]], c("count", "count:z", "zero"))
   expect_identical(colnames(coef(fit)), "count:z")
 })
 
 test_that("the overlap warning says which formula it means", {
-  d <- sim_two(seed = 51)
+  d <- sim_two(n = 150, seed = 51)
 
   expect_warning(bartisan(list(mean = y ~ x1 + x2 + z + vc(z),
                                log_sd = ~ x1 + x2),
                           data = d, family = gaussian_ls(),
-                          control = vc_control()),
+                          control = quick_control()),
                  "the mean formula")
 
   # With one additive predictor there is only one formula, so naming it would be
   # noise.
   expect_warning(bartisan(y ~ x1 + x2 + z + vc(z), data = d,
-                          family = gaussian(), control = vc_control()),
+                          family = gaussian(), control = quick_control()),
                  "the model formula")
 })
 
 test_that("each parameter's estimand path and coefficient path agree", {
-  d <- sim_two(seed = 52)
+  d <- sim_two(n = 150, seed = 52)
 
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
-                  control = vc_control())
+                  control = quick_control())
 
   # Every estimand reaches the model through `predict()` on modified `newdata`,
   # which rebuilds the basis and combines the forests. The mean's link is the
@@ -975,7 +1048,7 @@ test_that("each parameter's estimand path and coefficient path agree", {
 })
 
 test_that("bcf composes with a family that has two additive predictors", {
-  d <- sim_two(seed = 53)
+  d <- sim_two(n = 150, seed = 53)
 
   # Newly reachable, and it exercises two rules at once: one formula reaches both
   # parameters, and the drawn coding a binary treatment would otherwise get is
@@ -983,7 +1056,7 @@ test_that("bcf composes with a family that has two additive predictors", {
   # coding rather than failing.
   fit <- bcf(y ~ x1 + x2, treat = ~ z, data = d,
              family = gaussian_ls(), propensity = FALSE, num_trees = 12L,
-             control = vc_control())
+             control = quick_control())
 
   expect_named(fit[["eta"]], c("mean", "mean:z", "log_sd", "log_sd:z"))
   expect_identical(colnames(coef(fit)), c("mean:z", "log_sd:z"))

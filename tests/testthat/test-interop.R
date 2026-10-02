@@ -22,6 +22,7 @@ density_at_one_draw <- function(fit, row, response, values) {
 
 test_that("the posterior predictive sampler agrees with the log density", {
   skip_if_not_installed("rstantools")
+  skip_on_cran()
 
   d <- sim_x(200, 2)
   set.seed(1201)
@@ -87,6 +88,7 @@ test_that("the posterior predictive sampler agrees with the log density", {
 
 test_that("every category of a categorical family is drawn at its probability", {
   skip_if_not_installed("rstantools")
+  skip_on_cran()
 
   d <- sim_x(200, 2)
   set.seed(1211)
@@ -121,6 +123,7 @@ test_that("every category of a categorical family is drawn at its probability", 
 
 test_that("the zero-inflated and ordered beta samplers hit their point masses", {
   skip_if_not_installed("rstantools")
+  skip_on_cran()
 
   d <- sim_x(200, 2)
   set.seed(1221)
@@ -160,8 +163,8 @@ test_that("the zero-inflated and ordered beta samplers hit their point masses", 
 test_that("a binomial replicate is a fraction of the trials", {
   skip_if_not_installed("rstantools")
 
-  d <- sim_x(200, 2)
-  set.seed(1231)
+  d <- sim_x(100, 2)
+  set.seed(1234)
   d$y <- rbinom(nrow(d), 6L, stats::plogis(2 * d$x1 - d$x2)) / 6
   d$trials <- 6
 
@@ -173,9 +176,33 @@ test_that("a binomial replicate is a fraction of the trials", {
   expect_error(rstantools::posterior_predict(fit, newdata = d[1L, ]),
                "number of trials")
 
-  set.seed(1232)
+  set.seed(1235)
   drawn <- replicates_at_one_draw(fit, d[1L, ], weights = 6)
   expect_true(all(drawn %in% ((0:6) / 6)))
+
+  # Binary data are the same statement with one trial, so they come back as
+  # zeros and ones rather than as counts.
+  set.seed(1236)
+  d$y <- rbinom(nrow(d), 1L, stats::plogis(2 * d$x1 - d$x2))
+  fit <- bartisan(y ~ x1 + x2, data = d, family = binomial(),
+                  control = quick_control())
+  expect_setequal(unique(as.vector(rstantools::posterior_predict(fit))), c(0, 1))
+})
+
+test_that("a binomial replicate is drawn at its probability", {
+  skip_if_not_installed("rstantools")
+  skip_on_cran()
+
+  d <- sim_x(200, 2)
+  set.seed(1231)
+  d$y <- rbinom(nrow(d), 6L, stats::plogis(2 * d$x1 - d$x2)) / 6
+  d$trials <- 6
+
+  fit <- bartisan(y ~ x1 + x2, data = d, family = binomial(), weights = trials,
+                  control = quick_control())
+
+  set.seed(1232)
+  drawn <- replicates_at_one_draw(fit, d[1L, ], weights = 6)
 
   nd <- d[rep(1L, 7L), ]
   nd$y <- (0:6) / 6
@@ -185,14 +212,6 @@ test_that("a binomial replicate is a fraction of the trials", {
   empirical <- vapply((0:6) / 6, function(g) mean(abs(drawn - g) < 1e-8),
                       numeric(1L))
   expect_lt(max(abs(empirical - probability)), 0.03)
-
-  # Binary data are the same statement with one trial, so they come back as
-  # zeros and ones rather than as counts.
-  set.seed(1233)
-  d$y <- rbinom(nrow(d), 1L, stats::plogis(2 * d$x1 - d$x2))
-  fit <- bartisan(y ~ x1 + x2, data = d, family = binomial(),
-                  control = quick_control())
-  expect_setequal(unique(as.vector(rstantools::posterior_predict(fit))), c(0, 1))
 })
 
 test_that("an accelerated failure time replicate is an event time", {
@@ -425,6 +444,35 @@ test_that("the Bayesian R-squared is a posterior of a ratio", {
   skip_if_not_installed("performance")
   skip_if_not_installed("rstantools")
 
+  d <- sim_x(150, 2)
+  set.seed(1333)
+  d$y <- 3 * d$x1 - 2 * d$x2 + rnorm(nrow(d), sd = 0.5)
+
+  fit <- bartisan(y ~ x1 + x2, data = d, control = quick_control())
+
+  draws <- performance::r2_posterior(fit)[["R2_Bayes"]]
+  expect_length(draws, 30L)
+  expect_true(all(draws > 0 & draws < 1))
+
+  summary_r2 <- performance::r2(fit)
+  expect_equal(unname(summary_r2[["R2_Bayes"]]), stats::median(draws),
+               tolerance = 1e-8)
+
+  # A categorical response has no mean, so there is no such ratio to report.
+  set.seed(1334)
+  d$y <- factor(findInterval(3 * d$x1 + rlogis(nrow(d)), c(0, 1)) + 1L,
+                labels = c("lo", "mid", "hi"), ordered = TRUE)
+  ordinal_fit <- bartisan(y ~ x1 + x2, data = d, family = ordinal(),
+                          control = quick_control())
+  expect_warning(out <- performance::r2_posterior(ordinal_fit), "no mean")
+  expect_null(out)
+})
+
+test_that("the Bayesian R-squared is well away from zero for a strong signal", {
+  skip_if_not_installed("performance")
+  skip_if_not_installed("rstantools")
+  skip_on_cran()
+
   d <- sim_x(200, 2)
   set.seed(1331)
   d$y <- 3 * d$x1 - 2 * d$x2 + rnorm(nrow(d), sd = 0.5)
@@ -432,24 +480,9 @@ test_that("the Bayesian R-squared is a posterior of a ratio", {
   fit <- bartisan(y ~ x1 + x2, data = d, control = quick_control(num_draws = 60L))
 
   draws <- performance::r2_posterior(fit)[["R2_Bayes"]]
-  expect_length(draws, 60L)
-  expect_true(all(draws > 0 & draws < 1))
 
   # A strong signal, so it should be well away from zero.
   expect_gt(mean(draws), 0.5)
-
-  summary_r2 <- performance::r2(fit)
-  expect_equal(unname(summary_r2[["R2_Bayes"]]), stats::median(draws),
-               tolerance = 1e-8)
-
-  # A categorical response has no mean, so there is no such ratio to report.
-  set.seed(1332)
-  d$y <- factor(findInterval(3 * d$x1 + rlogis(nrow(d)), c(0, 1)) + 1L,
-                labels = c("lo", "mid", "hi"), ordered = TRUE)
-  ordinal_fit <- bartisan(y ~ x1 + x2, data = d, family = ordinal(),
-                          control = quick_control())
-  expect_warning(out <- performance::r2_posterior(ordinal_fit), "no mean")
-  expect_null(out)
 })
 
 test_that("model_performance collects the fit statistics", {
@@ -500,11 +533,18 @@ test_that("as_draws hands the scalar parameters over with their chain structure"
   expect_equal(as.vector(draws[, 3L, "loglik"]), fit[["loglik"]][81:120])
 
   # And the summary of them has to agree with the fit's own diagnostics, which
-  # are computed from the same vectors by a different implementation.
+  # are computed from the same vectors by a different implementation of the same
+  # estimators. Exactly, not approximately: at a tolerance of 1% this hid a
+  # rank normalization that stretched the top of its scale and an effective
+  # sample size that counted its last autocorrelations twice. The equality holds
+  # for an even number of draws per chain; see `rank_normalize()` for odd ones.
   summary_draws <- posterior::summarise_draws(draws)
   own <- diagnose(fit)[["table"]]
-  expect_equal(summary_draws$rhat[summary_draws$variable == "loglik"],
-               own$rhat[own$quantity == "loglik"], tolerance = 0.01)
+  theirs <- summary_draws[summary_draws$variable == "loglik", ]
+  ours <- own[own$quantity == "loglik", ]
+  expect_equal(theirs$rhat, ours$rhat, tolerance = 1e-10)
+  expect_equal(theirs$ess_bulk, ours$ess_bulk, tolerance = 1e-10)
+  expect_equal(theirs$ess_tail, ours$ess_tail, tolerance = 1e-10)
 })
 
 test_that("pp_check runs a bayesplot check", {

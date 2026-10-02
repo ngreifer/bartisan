@@ -2,7 +2,7 @@
 # is expressible in `bartisan()` with a `vc()` term, which is what these check:
 # the wrapper's decisions, not the sampler underneath it.
 
-sim_causal <- function(n = 600, seed = 1, kind = "binary") {
+sim_causal <- function(n = 200, seed = 1, kind = "binary") {
   set.seed(seed)
   d <- data.frame(x1 = stats::rnorm(n), x2 = stats::rnorm(n))
 
@@ -18,8 +18,23 @@ sim_causal <- function(n = 600, seed = 1, kind = "binary") {
   d
 }
 
+# Small settings for the outcome model and for the propensity model fitted
+# along the way, which otherwise runs at the defaults. `...` replaces any of
+# them; `propensity_args = list()` restores the propensity model's defaults.
 bcf_args <- function(...) {
-  list(num_burn = 200, num_draws = 200, verbose = FALSE, ...)
+  args <- list(num_burn = 30L, num_draws = 30L, verbose = FALSE,
+               propensity_args = small_propensity())
+  args[names(list(...))] <- list(...)
+  args
+}
+
+small_propensity <- function(...) {
+  list(num_trees = 10L, num_burn = 30L, num_draws = 30L, verbose = FALSE, ...)
+}
+
+# The settings the estimation checks were written for.
+full_args <- function() {
+  bcf_args(num_burn = 200L, num_draws = 200L, propensity_args = list())
 }
 
 test_that("bcf sets up the model the way it says it does", {
@@ -47,7 +62,9 @@ test_that("bcf's tree counts give way to either spelling of the caller's", {
 
   trees <- function(...) {
     fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
-                               family = gaussian()), list(...)))
+                               family = gaussian(),
+                               propensity_args = small_propensity()),
+                          list(...)))
     fit[["num_trees"]]
   }
 
@@ -85,10 +102,12 @@ test_that("the propensity score reaches the control function and not the effect"
 })
 
 test_that("bcf recovers a treatment effect under confounding", {
-  d <- sim_causal(seed = 3)
+  skip_on_cran()
+
+  d <- sim_causal(n = 600, seed = 3)
 
   fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
-                             family = gaussian()), bcf_args()))
+                             family = gaussian()), full_args()))
 
   expect_gt(cor(coef(fit)[, "z"], d$tau), 0.85)
   expect_equal(mean(coef(fit)[, "z"]), mean(d$tau), tolerance = 0.25)
@@ -132,9 +151,6 @@ test_that("a continuous treatment's score is its conditional mean", {
   score <- fit[["bcf"]][["propensity"]][, ".propensity"]
   expect_equal(unname(score), unname(as.numeric(stats::fitted(model))))
 
-  # The fixture draws z as x1 plus noise, so the conditional mean follows x1.
-  expect_gt(stats::cor(score, d$x1), 0.9)
-
   # It reaches the control function and not the effect, as for a binary
   # treatment, and predict() rebuilds it for data that does not carry it.
   counts <- fit[["counts"]]
@@ -153,28 +169,40 @@ test_that("a continuous treatment's score is its conditional mean", {
                                  bcf_args())))
 })
 
+test_that("a continuous treatment's score follows what drives the treatment", {
+  skip_on_cran()
+
+  d <- sim_causal(n = 600, seed = 6, kind = "continuous")
+
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                             family = gaussian()), full_args()))
+
+  # The fixture draws z as x1 plus noise, so the conditional mean follows x1.
+  score <- fit[["bcf"]][["propensity"]][, ".propensity"]
+  expect_gt(stats::cor(score, d$x1), 0.9)
+})
+
 test_that("the propensity model's family can be named in propensity_args", {
   d <- sim_causal(seed = 6, kind = "continuous")
 
   # Named alongside a control setting, which must still reach the model: the
   # family is taken out before the rest is passed on.
   fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
-                             family = gaussian(),
-                             propensity_args = list(family = dpm(),
-                                                    num_trees = 20L)),
-                        bcf_args()))
+                             family = gaussian()),
+                        bcf_args(propensity_args =
+                                   small_propensity(family = dpm()))))
 
   model <- fit[["bcf"]][["model"]]
   expect_identical(model[["family"]][["family"]], "dpm")
-  expect_identical(model[["num_trees"]], 20L)
+  expect_identical(model[["num_trees"]], 10L)
   expect_true(".propensity" %in% attr(stats::terms(fit), "term.labels"))
 
   # And for a binary treatment, a link other than the default.
   db <- sim_causal(seed = 2)
   fb <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = db,
-                            family = gaussian(),
-                            propensity_args = list(family = binomial("probit"))),
-                       bcf_args()))
+                            family = gaussian()),
+                       bcf_args(propensity_args =
+                                  small_propensity(family = binomial("probit")))))
 
   expect_identical(fb[["bcf"]][["model"]][["family"]][["link"]], "probit")
 })
@@ -208,24 +236,13 @@ test_that("predict works on the caller's own data", {
   # is worth keeping: under `x_transform = "quantile"`, which used to be the
   # default, a predictor went through a step function, so a score that rebuilt to
   # 1e-10 could still land on the other side of a step. Measured over six seeds
-  # on this fixture, the rebuilt path reaches 1.2e-10 under the current default
-  # and .080 under `"quantile"`, against an `sd(y)` of 2.35.
+  # on a 600-observation fixture, the rebuilt path reaches 1.2e-10 under the
+  # current default and .080 under `"quantile"`, against an `sd(y)` of 2.35.
   expect_lt(max(abs(as.numeric(p) - as.numeric(fitted(fit)))), 1e-8)
 
   supplied_score <- cbind(d, fit[["bcf"]][["propensity"]])
   expect_equal(as.numeric(predict(fit, newdata = supplied_score)),
                as.numeric(fitted(fit)), tolerance = 1e-8)
-
-  # And the step-function case is still reachable, so the loose path is covered
-  # rather than merely no longer the default.
-  stepped <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
-                                 family = gaussian(),
-                                 x_transform = "quantile"),
-                            bcf_args()))
-
-  expect_lt(max(abs(as.numeric(predict(stepped, newdata = d)) -
-                      as.numeric(fitted(stepped)))),
-            0.1 * stats::sd(d$y))
 
   # And a supplied score cannot be rebuilt, so that says so rather than failing
   # on the missing column.
@@ -235,6 +252,23 @@ test_that("predict works on the caller's own data", {
                              bcf_args()))
 
   expect_error(predict(supplied, newdata = d), "cannot be rebuilt")
+})
+
+test_that("a rebuilt score stays close under a step-function transform", {
+  skip_on_cran()
+
+  d <- sim_causal(n = 600, seed = 9)
+
+  # The step-function case is still reachable, so the loose path is covered
+  # rather than merely no longer the default.
+  stepped <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                                 family = gaussian(),
+                                 x_transform = "quantile"),
+                            full_args()))
+
+  expect_lt(max(abs(as.numeric(predict(stepped, newdata = d)) -
+                      as.numeric(fitted(stepped)))),
+            0.1 * stats::sd(d$y))
 })
 
 test_that("the coefficient is the contrast on the link scale", {

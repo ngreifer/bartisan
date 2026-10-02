@@ -32,6 +32,8 @@ true_probs <- function(latent, sigma, reps = 4000L, seed = 99L) {
 }
 
 test_that("two categories are binary probit, exactly as the trace constraint says", {
+  skip_on_cran()
+
   d <- sim_x(n = 500, seed = 201)
   set.seed(1201)
   d$y <- factor(ifelse(stats::rbinom(nrow(d), 1L,
@@ -70,6 +72,8 @@ test_that("two categories are binary probit, exactly as the trace constraint say
 })
 
 test_that("the fit recovers the latent means and the category probabilities", {
+  skip_on_cran()
+
   d <- sim_x(n = 800, seed = 203)
   latent <- cbind(1.5 * sin(pi * d$x1), 1.4 * d$x2 - 0.7)
   sigma <- matrix(c(1, 0.5, 0.5, 1), 2L)
@@ -96,6 +100,8 @@ test_that("the fit recovers the latent means and the category probabilities", {
 })
 
 test_that("the latent covariance respects the trace constraint and finds the correlation", {
+  skip_on_cran()
+
   d <- sim_x(n = 900, seed = 205)
   latent <- cbind(1.5 * sin(pi * d$x1), 1.4 * d$x2 - 0.7)
 
@@ -138,6 +144,8 @@ test_that("the latent covariance respects the trace constraint and finds the cor
 })
 
 test_that("the reported likelihood is the simulated multinomial probit one", {
+  skip_on_cran()
+
   d <- sim_x(n = 300, seed = 209)
   latent <- cbind(1.2 * d$x1, -1.1 * d$x2 + 0.4)
   d$y <- sim_mnp(latent, matrix(c(1, 0.3, 0.3, 1), 2L), seed = 1209)
@@ -167,6 +175,65 @@ test_that("the reported likelihood is the simulated multinomial probit one", {
   expect_lt(max(abs(colMeans(density) - colMeans(by_hand))), 0.05)
 
   # And it works on new data, which needs the outcome.
+  held <- d[1:20, ]
+  expect_length(stats::predict(fit, newdata = held, type = "density"), 20L)
+  expect_error(stats::predict(fit, newdata = held[, c("x1", "x2", "x3")],
+                              type = "density"),
+               "must contain the outcome")
+})
+
+test_that("two categories under probit leave no covariance to report", {
+  d <- sim_x(n = 100, seed = 201)
+  set.seed(1201)
+  d$y <- factor(ifelse(stats::rbinom(nrow(d), 1L, stats::pnorm(d$x1 - d$x2)) == 1L,
+                       "yes", "no"),
+                levels = c("no", "yes"))
+
+  probit <- bartisan(y ~ ., d, family = multinomial("probit"),
+                     control = quick_control())
+
+  # With one latent variable the trace constraint pins its variance at one.
+  expect_null(probit[["aux"]])
+  expect_identical(probit[["num_forest"]], 1L)
+})
+
+test_that("a probit fit has a forest per contrast and a covariance held to its trace", {
+  d <- sim_x(n = 100, seed = 203)
+  latent <- cbind(1.5 * sin(pi * d$x1), 1.4 * d$x2 - 0.7)
+  d$y <- sim_mnp(latent, matrix(c(1, 0.5, 0.5, 1), 2L), seed = 1203)
+
+  fit <- bartisan(y ~ ., d, family = multinomial("probit", reference = "ref"),
+                  control = quick_control())
+
+  # One forest per non-reference category, named for the contrast it carries.
+  expect_identical(fit[["num_forest"]], 2L)
+  expect_identical(names(fit[["eta"]]), c("a-ref", "b-ref"))
+
+  probs <- stats::predict(fit, type = "prob")
+  expect_identical(colnames(probs), c("ref", "a", "b"))
+  expect_equal(rowSums(probs), rep.int(1, nrow(d)))
+  expect_predictor_invariant(fit, d)
+
+  covariance <- fit[["aux"]]
+  expect_identical(colnames(covariance), c("sigma11", "sigma21", "sigma22"))
+
+  # trace(Sigma) = C at every draw, which is the identification.
+  expect_equal(covariance[, "sigma11"] + covariance[, "sigma22"],
+               rep.int(2, nrow(covariance)))
+  expect_true(all(covariance[, "sigma11"] > 0))
+  expect_true(all(covariance[, "sigma22"] > 0))
+
+  # A covariance matrix, so the implied correlation is inside the unit ball.
+  correlation <- covariance[, "sigma21"] /
+    sqrt(covariance[, "sigma11"] * covariance[, "sigma22"])
+  expect_true(all(abs(correlation) < 1))
+
+  # The reported likelihood is a log probability, not the augmented Gaussian the
+  # sampler works with, so every term is negative.
+  expect_true(all(fit[["loglik"]] < 0))
+  expect_true(all(is.finite(fit[["loglik"]])))
+
+  # And the density works on new data, which needs the outcome.
   held <- d[1:20, ]
   expect_length(stats::predict(fit, newdata = held, type = "density"), 20L)
   expect_error(stats::predict(fit, newdata = held[, c("x1", "x2", "x3")],
@@ -213,18 +280,17 @@ test_that("the probit target is quadratic, and its derivatives are the analytic 
 test_that("the categorical prediction types and the interop methods all work", {
   skip_if_not_installed("rstantools")
 
-  d <- sim_x(n = 300, seed = 213)
+  d <- sim_x(n = 100, seed = 213)
   latent <- cbind(1.2 * d$x1, -1.1 * d$x2 + 0.4)
   d$y <- factor(c("1", "2", "4")[
     as.integer(sim_mnp(latent, matrix(c(1, 0.3, 0.3, 1), 2L), seed = 1213))],
     levels = c("1", "2", "4"))
 
   fit <- bartisan(y ~ ., d, family = multinomial("probit"),
-                  control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_draws = 200L))
+                  control = quick_control())
 
   expect_s3_class(stats::predict(fit, type = "class"), "factor")
-  expect_identical(dim(stats::predict(fit, type = "response")), c(300L, 3L))
+  expect_identical(dim(stats::predict(fit, type = "response")), c(100L, 3L))
 
   # The labels are numbers, so the mean of the response is available.
   means <- stats::predict(fit, type = "mean")
@@ -233,11 +299,11 @@ test_that("the categorical prediction types and the interop methods all work", {
   # A replicate is a category index, and every category is reachable.
   replicates <- rstantools::posterior_predict(fit)
   expect_true(all(replicates %in% 1:3))
-  expect_identical(dim(replicates), c(200L, 300L))
+  expect_identical(dim(replicates), c(30L, 100L))
 
   expect_s3_class(stats::simulate(fit, nsim = 2L)$sim_1, "factor")
   expect_error(stats::residuals(fit), "no mean")
-  expect_identical(dim(rstantools::log_lik(fit)), c(200L, 300L))
+  expect_identical(dim(rstantools::log_lik(fit)), c(30L, 100L))
 })
 
 test_that("a covariance is not something augment can be asked for", {
@@ -250,12 +316,11 @@ test_that("a covariance is not something augment can be asked for", {
   d$y <- sim_mnp(latent, diag(2), seed = 1215)
 
   # And turning augmentation off changes nothing for it.
-  chain <- quick_control(num_trees = 20L, num_burn = 200L, num_draws = 200L)
   set.seed(6)
-  on <- bartisan(y ~ ., d, family = multinomial("probit"), control = chain)
+  on <- bartisan(y ~ ., d, family = multinomial("probit"),
+                 control = quick_control())
   set.seed(6)
   off <- bartisan(y ~ ., d, family = multinomial("probit"),
-                  control = quick_control(num_trees = 20L, num_burn = 200L,
-                                          num_draws = 200L, augment = FALSE))
+                  control = quick_control(augment = FALSE))
   expect_equal(on[["eta"]], off[["eta"]])
 })

@@ -81,6 +81,30 @@ test_that("a categorical family stacks rows and draws the same way", {
 test_that("the estimands run, and their intervals come from the posterior", {
   skip_if_no_me()
 
+  set.seed(98)
+  n <- 120
+  d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n),
+                  z = factor(sample(c("a", "b"), n, TRUE)))
+  d$y <- 2 * d$x1 - d$x2 + (d$z == "b") + stats::rnorm(n, sd = 0.5)
+
+  fit <- bartisan(y ~ x1 + x2 + z, d, control = quick_control())
+
+  p <- marginaleffects::avg_predictions(fit)
+  expect_identical(nrow(p), 1L)
+  expect_true(p$conf.low < p$estimate && p$estimate < p$conf.high)
+
+  cmp <- marginaleffects::avg_comparisons(fit, variables = "z")
+  expect_identical(nrow(cmp), 1L)
+
+  # A grouped prediction splits by the factor.
+  by_z <- marginaleffects::avg_predictions(fit, by = "z")
+  expect_identical(nrow(by_z), 2L)
+})
+
+test_that("a factor contrast and a grouped prediction follow the truth", {
+  skip_if_no_me()
+  skip_on_cran()
+
   set.seed(94)
   n <- 300
   d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n),
@@ -90,20 +114,14 @@ test_that("the estimands run, and their intervals come from the posterior", {
   fit <- bartisan(y ~ x1 + x2 + z, d, num_trees = 20L, num_burn = 200L,
                   num_draws = 200L)
 
-  p <- marginaleffects::avg_predictions(fit)
-  expect_identical(nrow(p), 1L)
-  expect_true(p$conf.low < p$estimate && p$estimate < p$conf.high)
-
   cmp <- marginaleffects::avg_comparisons(fit, variables = "z")
-  expect_identical(nrow(cmp), 1L)
   # The factor contrast is a whole unit in truth, and shrinkage pulls it in, so
   # this checks the sign and the order of magnitude rather than the value.
   expect_gt(cmp$estimate, 0.3)
   expect_lt(cmp$estimate, 1.5)
 
-  # A grouped prediction splits by the factor and orders as the factor does.
+  # And the grouped prediction orders as the factor does.
   by_z <- marginaleffects::avg_predictions(fit, by = "z")
-  expect_identical(nrow(by_z), 2L)
   expect_lt(by_z$estimate[1L], by_z$estimate[2L])
 })
 
@@ -187,27 +205,23 @@ test_that("slopes are stable under a linear predictor transform and not under th
 test_that("the ordinal mean and standardized latent scales are reachable", {
   skip_if_no_me()
 
-  d <- sim_x(n = 150, seed = 101)
-  set.seed(1101)
+  d <- sim_x(n = 100, seed = 102)
+  set.seed(1102)
   latent <- 2 * d$x1 - d$x2 + stats::rlogis(nrow(d))
   d$y <- factor(findInterval(latent, c(-0.5, 0.8, 1.6)) + 1L,
                 labels = c("1", "2", "3", "4"), ordered = TRUE)
 
-  # Big enough to find x1: a contrast that is exactly zero because no tree ever
-  # split on the predictor would pass the sign checks below without testing
-  # anything.
   fit <- bartisan(y ~ x1 + x2, d, family = ordinal(),
-                  control = quick_control(num_trees = 20L, num_burn = 100L,
-                                          num_draws = 100L))
+                  control = quick_control())
 
   # Both are one number per observation, so they come back ungrouped and with
   # the same draws predict() would give.
   for (type in c("mean", "stdlv")) {
     out <- marginaleffects::get_predict(fit, type = type)
-    expect_identical(nrow(out), 150L)
+    expect_identical(nrow(out), 100L)
     expect_identical(unique(out$group), "main_marginaleffect")
     expect_equal(out$estimate, stats::predict(fit, type = type))
-    expect_identical(dim(attr(out, "posterior_draws")), c(150L, 100L))
+    expect_identical(dim(attr(out, "posterior_draws")), c(100L, 30L))
   }
 
   # And they work through the estimands, which is the point of being reachable.
@@ -221,6 +235,26 @@ test_that("the ordinal mean and standardized latent scales are reachable", {
 
   comparison <- marginaleffects::avg_comparisons(fit, type = "mean")
   expect_identical(nrow(comparison), 2L)
+})
+
+test_that("contrasts on the ordinal mean and standardized latent scales have the right sign", {
+  skip_if_no_me()
+  skip_on_cran()
+
+  d <- sim_x(n = 150, seed = 101)
+  set.seed(1101)
+  latent <- 2 * d$x1 - d$x2 + stats::rlogis(nrow(d))
+  d$y <- factor(findInterval(latent, c(-0.5, 0.8, 1.6)) + 1L,
+                labels = c("1", "2", "3", "4"), ordered = TRUE)
+
+  # Big enough to find x1: a contrast that is exactly zero because no tree ever
+  # split on the predictor would pass the sign checks below without testing
+  # anything.
+  fit <- bartisan(y ~ x1 + x2, d, family = ordinal(),
+                  control = quick_control(num_trees = 20L, num_burn = 100L,
+                                          num_draws = 100L))
+
+  comparison <- marginaleffects::avg_comparisons(fit, type = "mean")
   expect_gt(comparison$estimate[comparison$term == "x1"], 0)
 
   # The standardized latent variable is a monotone transform of the predictor,
@@ -233,6 +267,23 @@ test_that("the ordinal mean and standardized latent scales are reachable", {
 test_that("a binomial fit reaches the standardized latent scale too", {
   skip_if_no_me()
 
+  d <- sim_x(n = 100, seed = 106)
+  set.seed(1106)
+  d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(2 * d$x1 - d$x2))
+
+  fit <- bartisan(y ~ x1 + x2, d, control = quick_control(),
+                  family = stats::binomial())
+
+  out <- marginaleffects::get_predict(fit, type = "stdlv")
+  expect_identical(nrow(out), 100L)
+  expect_equal(out$estimate, stats::predict(fit, type = "stdlv"))
+  expect_identical(dim(attr(out, "posterior_draws")), c(100L, 30L))
+})
+
+test_that("a binomial contrast on the standardized latent scale is same-signed and no larger", {
+  skip_if_no_me()
+  skip_on_cran()
+
   d <- sim_x(n = 150, seed = 105)
   set.seed(1105)
   d$y <- stats::rbinom(nrow(d), 1L, stats::plogis(2 * d$x1 - d$x2))
@@ -241,11 +292,6 @@ test_that("a binomial fit reaches the standardized latent scale too", {
                   control = quick_control(num_trees = 20L, num_burn = 100L,
                                           num_draws = 100L),
                  family = stats::binomial())
-
-  out <- marginaleffects::get_predict(fit, type = "stdlv")
-  expect_identical(nrow(out), 150L)
-  expect_equal(out$estimate, stats::predict(fit, type = "stdlv"))
-  expect_identical(dim(attr(out, "posterior_draws")), c(150L, 100L))
 
   # A contrast on the standardized scale is the contrast on the predictor divided
   # by the latent standard deviation, which for a logit link is at least
