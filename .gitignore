@@ -176,6 +176,7 @@ _dev/did/*
 !_dev/precompute-which.R
 !_dev/test-timing.R
 !_dev/test-seeds.R
+!_dev/bandwidth-predictor.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R
