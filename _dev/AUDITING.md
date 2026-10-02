@@ -307,8 +307,24 @@ every response after it, so a cross-arm comparison wants a seed per response;
 and a row that moves alike in every structure between two runs is a data
 question before it is a gate question.
 
-Not covered: the recovery matrix's weights and offset arms, which the identity
-matrix has and the recovery matrix does not.
+**Reseeded, with the offset and weights arms** (2026-10-01, pueue tasks 241
+and 242, 161 cells per gate). With every response seeded on its own the two
+gates fit identical data, and they agree within 0.1 in every cell but the
+weights column, the ordinal rows included; the gap averages -0.01. The offset
+arm, given the true group effects, reads as the random-intercept arm does in
+every row, effect and level alike, which is what it should. The weights column
+differed between gates in seven cells by 0.1 to 0.5, and `_dev/weights-check.R`
+asked which gate was right, using the package's claim that frequency weights
+and row replication are one fit. Both are: for `ordbeta()` and `ph()` weighted
+and replicated agree within 0.02 under either gate, and for the two augmented
+binomial families they agree under soft rules to 0.03 and under hard rules to
+within chain-to-chain variation, the gap across four seeds running -0.25 to
++0.18 with no consistent sign against posterior sds of 0.1 to 0.17. So weights
+enter every family tested as documented, and the column read what poorly mixed
+chains read: the hard-rule augmented binomial fits carry a between-seed spread
+of about one posterior sd on the effect at 300 + 500 draws, which is a mixing
+observation and the one thing this arm turned up. The old generator's results
+are kept as `_dev/recovery-matrix-20261001-hard.rds` and `-smoothstep.rds`.
 
 ### 4. The decorator audit, which is mechanical
 
@@ -383,9 +399,31 @@ Poisson, the same design: chi-square 6.0 on 9 df (p = 0.74), 43% of ranks in
 the middle half, mean rank 48.8, coverage 0.955 (SE 0.015). The 43% is two
 standard errors under 50 on 200 replicates and reads as a posterior a shade
 narrow if it reads as anything, with coverage at nominal saying it does not;
-a longer run would settle it and nothing here depends on it. All three arms are
-calibrated, so the Laplace leaf sampler, the latent-variable augmentation and
-the exponential-form target each draw from the posterior they define. The sub-nominal coverage measured on the benches is therefore
+a longer run settled it: at 600 replicates (pueue task 243) the share is 47%,
+the mean rank 48.5, the chi-square 13.0 on 9 df (p = 0.16) and the coverage
+0.950 (SE 0.009). All three arms are calibrated under hard rules, so the
+Laplace leaf sampler, the latent-variable augmentation and the exponential-form
+target each draw from the posterior they define.
+
+**Under soft rules** the same three arms at 200 replicates each (tasks 244 to
+246) read a shade narrow, Poisson most: middle-half shares 44%, 48% and 38%
+for logit, probit and Poisson, coverages 0.925, 0.939 and 0.910, mean ranks
+48 to 50, so no bias. A lean shared by three targets points at the one piece
+the soft arms add, the per-tree bandwidth, and the script's replication of its
+prior was checked against the engine: an exponential with mean `bandwidth`
+drawn per tree, and the smoothstep half-width is the engine's constant. The
+Poisson and logit arms were rerun at 600 replicates (tasks 247 and 248). Logit
+is uniform: chi-square 1.2 on 9 df (p = 0.999), 48% in the middle half, mean
+rank 50.5, coverage 0.935 (SE 0.010). Poisson is not: chi-square 28.4
+(p = 0.001), with 90 of 600 ranks in the top bin against 60 expected and the
+rest near flat, 46% in the middle half, mean rank 52.0, coverage 0.930. The
+truth sits above almost every draw more often than it should, so the soft-rule
+Poisson posterior for the contrast between the two extreme observations is
+biased low at the edge, where the hard-rule Poisson arm at 600 is uniform and
+the soft-rule logit arm with the same replicated tree and bandwidth prior is
+uniform too. That isolates it to the Poisson target under soft rules, the one
+of the three that goes through the Laplace leaf proposal rather than a
+conjugate or augmented draw. **Open**; the first item on the list below. The sub-nominal coverage measured on the benches is therefore
 the prior doing its job against a truth it does not favor, not a sampler that is
 wrong, which is the difference between a credible interval and a confidence
 interval.
@@ -409,6 +447,22 @@ should agree within Monte Carlo error. The benchmarking in `_dev/` already runs
 these side by side for *speed*, which is most of the work; comparing the answers
 costs almost nothing more.
 
+**Done 2026-10-01**, `_dev/differential-dbarts.R`, against `dbarts` 0.9-34: the
+Friedman function, n = 500 fit and 500 held out, 200 trees, k = 2, base 0.95,
+power 2, hard rules with cutpoints on the raw scale, 500 + 1000 draws, the
+posterior of E[y | x] at the held-out points from each. Gaussian: correlation
+of the posterior means 0.997, RMSE of their difference 0.43 of a posterior sd,
+ratio of mean posterior sds 0.87, RMSE against the truth 0.684 against
+`dbarts`' 0.691, 95% coverage 0.978 against 0.984, residual sd 0.879 against
+0.880. Probit: correlation 0.999, difference 0.12 of a posterior sd, sd ratio
+0.97, RMSE 0.106 against 0.107, coverage 0.968 against 0.978. All inside the
+bands written before the run (above 0.98, below 0.5, within 0.75 to 1.33). The
+one number off parity is the Gaussian sd ratio, bartisan's intervals 13%
+narrower at the same residual sd and the same error; bartisan draws the leaf
+scale by default where `dbarts` fixes it, which is the first place to look if
+that ever needs explaining. The script is in `_dev/` rather than the suite
+because `dbarts` is not a declared dependency.
+
 ### 8. The one that actually worked: a plausibility check on real data
 
 A domain expert fitted a model to real data and knew the answer was wrong. That
@@ -416,6 +470,13 @@ is not a technique that scales, but it is not nothing either, and it can be
 partly captured: the estimate from `vignette("causal")` on `rhc` has a published
 literature around it, and pinning it to a plausible range in a test turns one
 person's judgment into something that runs every time.
+
+**Done 2026-10-01**, as "the rhc effect lands where the study put it" in
+`test-estimate-effect.R`: the vignette's model at 50 trees, hard rules and
+200 + 400 draws, with the ATE on `death` required to sit in [0.01, 0.15] and
+the posterior probability of a positive effect above 0.9. Connors et al.
+(1996) supplies the direction; the band is around the vignette's own figure of
+about six percentage points with an interval from about 1.6 to 11.
 
 ## What is now in place
 
@@ -435,22 +496,27 @@ person's judgment into something that runs every time.
 
 ## What to do next, in order
 
-Everything on the list of 2026-10-01 is done: the matrix in both of its forms
-and both gates, the documented invariants, the range checks, SBC for three
-families, and the hook counters. What is left is smaller and none of it stands
-between the package and a submission.
+The list of 2026-10-01 is done through both of its rounds. What is left came
+out of the last round and is specific.
 
-1. Seed each response of `_dev/recovery-matrix.R` separately, so that editing
-   one response's generator stops moving the data of every response after it;
-   then the hard and soft arms are comparable row for row, which on 2026-10-01
-   they were only for the rows drawn before `ordbeta`.
-2. Weights and offset arms for the recovery matrix, which the identity matrix
-   has and the recovery matrix does not.
-3. Differential testing against another implementation (§ 7). `dbarts` fits
-   Gaussian and probit BART; where the models agree the posteriors should
-   agree within Monte Carlo error, and the speed benches already run them side
-   by side.
-4. The plausibility pin of § 8: the `rhc` estimate in `vignette("causal")`
-   against its literature, as a test.
-5. A longer Poisson SBC run, to settle the 43% middle-half share, and the SBC
-   arms under soft rules, which `_dev/sbc.R` takes as an argument.
+1. **The soft-rule Poisson posterior reads biased low at the edge in SBC**
+   (§ 6): 90 of 600 ranks in the top bin, coverage 0.930, where hard-rule
+   Poisson and soft-rule logit are uniform. Discriminators, cheapest first:
+   the same arm with the bandwidth fixed in both the generator and the fit,
+   which removes the bandwidth move; a soft-rule `Gamma()` or `negbin()` arm,
+   which shares the Laplace leaf proposal; and 300 + 3000 draws, which tells
+   mixing from a wrong target. The leaf proposal's Fisher-scoring tolerance
+   and the soft-rule information (`sum w_i^2 info_i`) are where to read if it
+   is the target.
+2. **Mixing of the hard-rule augmented binomial fits** (§ 3): a between-seed
+   spread of about one posterior sd on a treatment effect at 300 + 500 draws,
+   where the soft-rule chains agree to 0.03. Measure the effect's ESS under
+   each gate; if the hard-rule ESS is the small one, say so in
+   `vignette("diagnostics")`, since hard rules are what the speed benches
+   recommend.
+3. `zi_negbin()` under `vc()`: the dip of about 0.1 recorded above is weak
+   identification between the count and zero processes and shrinks with n. A
+   generator whose zero process depends on `z` would say whether the
+   coefficient forest on the zero predictor is where the shortfall goes.
+4. Differential testing against `stochtree` as well as `dbarts`, for a second
+   independent oracle on the Gaussian and probit models.

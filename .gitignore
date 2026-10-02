@@ -152,6 +152,8 @@ _dev/did/*
 !_dev/recovery-replicates.R
 !_dev/recovery-followup.R
 !_dev/ordinal-soft-check.R
+!_dev/differential-dbarts.R
+!_dev/weights-check.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R

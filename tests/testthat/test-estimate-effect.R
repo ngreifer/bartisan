@@ -701,3 +701,30 @@ test_that("`marginal = FALSE` leaves the marginal effect out of the plot", {
 
   expect_error(plot(eff, marginal = "no"), "marginal")
 })
+
+test_that("the rhc effect lands where the study put it", {
+  skip_on_cran()
+
+  # `_dev/AUDITING.md` sec. 8: the bug that review and tests missed was found
+  # by someone fitting a model to real data and knowing the answer was wrong.
+  # The `rhc` estimate in `vignette("causal")` has a literature around it.
+  # Connors et al. (1996) found catheterization associated with higher
+  # mortality, and the vignette's model puts the added probability of death at
+  # about six percentage points, with an interval from about 1.6 to 11. One
+  # person's judgment that the number is plausible, as a test: the direction
+  # the study reported and a band around the vignette's figure, at the
+  # vignette's model and reduced settings.
+  set.seed(1996)
+  fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+                    hema + pafi + paco2 + crea + surv2m + card,
+                  data = rhc, family = binomial(),
+                  control = bartisan_control(num_trees = 50L, num_burn = 200L,
+                                             num_draws = 400L, gate = "hard",
+                                             verbose = FALSE))
+  ate <- estimate_effect(fit, treat = "rhc")
+  draws <- attr(ate, "draws")[[1L]]
+
+  expect_gt(ate$estimate[1L], 0.01)
+  expect_lt(ate$estimate[1L], 0.15)
+  expect_gt(mean(draws > 0), 0.9)
+})
