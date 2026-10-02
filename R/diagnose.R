@@ -79,6 +79,9 @@
 #' parameters of the family, and the scale of each random-effect term), plus two
 #' rows for the additive predictor and two for each set of group intercepts: one
 #' summarizing the worst 5% of observations or levels, and one for their average.
+#' A fit with soft decision rules gets the same pair for the gate bandwidth,
+#' summarized over trees rather than over observations, since one bandwidth is
+#' drawn per tree.
 #'
 #' Both are reported because they routinely disagree, and which one binds depends
 #' on what is being reported. A forest settles the level of the fitted function
@@ -124,6 +127,19 @@
 #' is separated rather than suppressed, because it does bind on anything computed
 #' from the split counts themselves, which is [variable_importance()] and
 #' `vignette("importance")`.
+#'
+#' The gate bandwidth is graded apart for the same reason and is worth reading
+#' for a different one. A tree's rules can be made wider or narrower while the
+#' function the tree encodes stays where it was, so the bandwidth is no more
+#' pinned down by the fit than the number of splitting rules is; but it can be
+#' the slowest quantity in the model, and far slower than anything the fit
+#' reports. Under a Poisson likelihood a tree's bandwidth carries a median of 68
+#' effective draws per 1000 against a binomial's 190, and the worst tree in a
+#' fit 9 against 114. Note that this is a property of the family and not of the
+#' data, so it is worth looking at on any `poisson()`, `negbin()` or other count
+#' fit left at the default soft rules. Setting `update_bandwidth = FALSE` in
+#' [bartisan_control()] removes the draw entirely at the cost of fixing the
+#' amount of smoothing, and raising `num_draws` is the alternative.
 #'
 #' The grading rests on how the model is parameterized and not on that row being
 #' the worst one, which it usually is not. Measured over 144 fits spanning three
@@ -600,6 +616,16 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
   parts <- list(list(draws = object[["eta"]], stem = "eta", over = "observations"),
                 list(draws = object[["ranef"]], stem = "ranef", over = "levels"))
 
+  # One bandwidth per tree, drawn only under soft rules; a hard fit stores the
+  # column and never moves it, which would read as a column that cannot be
+  # diagnosed rather than as one that is not there. The stem carries no forest
+  # name because the draws are one matrix over every tree the fit builds.
+  if (isTRUE(object[["soft"]]) && !is_null(object[["bandwidth"]])) {
+    parts <- c(parts, list(list(draws = list(object[["bandwidth"]]),
+                                stem = "bandwidth", over = "trees",
+                                unnamed = TRUE)))
+  }
+
   # Two rows per forest, an average and a worst, over however many forests each
   # part has. A part with nothing in it contributes none.
   out <- vector("list", 2L * sum(lengths(pluck(parts, "draws"))))
@@ -620,10 +646,14 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
       # observation gets which share of it is the slow part. Which of those is
       # happening decides both what to do about it and whether it matters for
       # what is being reported.
+      label <- {
+        if (isTRUE(part[["unnamed"]])) part[["stem"]]
+        else sprintf("%s.%s", part[["stem"]], names(part[["draws"]])[h])
+      }
+
       at <- at + 1L
       out[[at]] <- diagnosis_row(
-        sprintf("%s.%s (average over %s)", part[["stem"]],
-                names(part[["draws"]])[h], part[["over"]]),
+        sprintf("%s (average over %s)", label, part[["over"]]),
         as_chains(zero_if_centered(rowMeans(wide), wide), chains), rhat_max)
 
       # The worst 5% boundary rather than the single worst column, because the
@@ -632,8 +662,7 @@ diagnosis_worst_rows <- function(object, chains, rhat_max, budget = NULL) {
       # R-hat is bad and a small effective sample size is.
       at <- at + 1L
       out[[at]] <- data.frame(
-        quantity = sprintf("%s.%s (worst 5%% of %s)", part[["stem"]],
-                           names(part[["draws"]])[h], part[["over"]]),
+        quantity = sprintf("%s (worst 5%% of %s)", label, part[["over"]]),
         rhat = high(per_column[1L, ]),
         rhat_late = high(per_column[2L, ]),
         ess_bulk = low(per_column[3L, ]),
@@ -721,10 +750,23 @@ FAIL_SHARE <- 0.2
 # from condemning a usable fit, and from sending a reader up an escalation ladder
 # it does not climb. The nuisance row still gets its own check and its own
 # advice; it is separated, not suppressed.
-NUISANCE_PREFIX <- "splits."
+# Two rows are graded apart, for the same reason and not for the same reader.
+# The splitting rules are the forest's own size, and the gate bandwidth is the
+# width of every rule in a tree: both are internal state that the reported
+# quantities are integrals over rather than functions of, so a fit can report a
+# settled predictor while its chains disagree about either one.
+NUISANCE_PREFIX <- c("splits.", "bandwidth ")
 
 is_nuisance <- function(quantity) {
-  startsWith(quantity, NUISANCE_PREFIX)
+  Reduce(`|`, lapply(NUISANCE_PREFIX, startsWith, x = quantity))
+}
+
+is_forest_size <- function(quantity) {
+  startsWith(quantity, "splits.")
+}
+
+is_bandwidth <- function(quantity) {
+  startsWith(quantity, "bandwidth ")
 }
 
 reported_rows <- function(table) {
@@ -871,7 +913,7 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
   # points at warmup rather than at the number of draws and a reader will not
   # think to look for it -- and because it is the internal state the checks above
   # deliberately leave out, so this is the only place it is reported.
-  forest <- table[is_nuisance(table[["quantity"]]), , drop = FALSE]
+  forest <- table[is_forest_size(table[["quantity"]]), , drop = FALSE]
 
   if (nrow(forest) > 0L && any(is.finite(forest[["rhat"]]))) {
     at <- which.max(forest[["rhat"]])
@@ -884,6 +926,29 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
     else {
       rows <- add(rows, "forest size", "ok",
                   "The chains agree about the size of the forest")
+    }
+  }
+
+  # The gate bandwidth, which exists only under soft rules and is graded with
+  # the forest's size rather than with the reported quantities: a tree's rules
+  # can be wider or narrower and leave the function they encode where it was.
+  # It is reported because it is drawn and because it can be the slowest thing
+  # in the fit: on a soft-rule Poisson a tree's bandwidth carries a median of
+  # 68 effective draws of 1000 where a binomial's carries 190.
+  band <- table[is_bandwidth(table[["quantity"]]), , drop = FALSE]
+
+  if (nrow(band) > 0L && any(is.finite(band[["rhat"]]))) {
+    at <- which.max(band[["rhat"]])
+
+    if (isTRUE(band[["rhat_bad"]][at] > 0) ||
+        isTRUE(band[["rhat"]][at] > rhat_max)) {
+      rows <- add(rows, "gate bandwidth", "warn",
+                  sprintf("The chains disagree about how wide the decision rules are (R-hat %.2f)",
+                          band[["rhat"]][at]))
+    }
+    else {
+      rows <- add(rows, "gate bandwidth", "ok",
+                  "The chains agree about how wide the decision rules are")
     }
   }
 
