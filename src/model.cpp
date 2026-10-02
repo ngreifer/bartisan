@@ -1187,6 +1187,58 @@ arma::cube bartisan_mnp_probs(const List& eta_draws, const arma::mat& sigma,
   return out;
 }
 
+//' The likelihood difference the bandwidth move uses, against two evaluations
+//'
+//' `Family::loglik_delta()` returns the change in the log likelihood when one
+//' additive predictor's row is replaced, in a single chunked pass, because the
+//' bandwidth move needs the difference and not the two values. Two separate
+//' calls to `total_loglik()` give the same number the obvious way. The eta-free
+//' terms and the normalizing constants are common to both predictors and cancel
+//' from the difference, so the two routes agree exactly or one of them is
+//' wrong. Exported for `test-invariants.R`; nothing in the package calls this.
+//'
+//' @param y,weights the response and the prior weights.
+//' @param eta an `H` by `N` matrix of additive predictors, as the engine holds
+//'   them.
+//' @param new_h `N` values to put in row `component`.
+//' @param family_name,link,family_opts,aux the family, as elsewhere.
+//' @param component which row of `eta` is replaced, zero-based.
+//' @returns A list with `delta`, the one-pass difference, and `two_pass`, the
+//'   difference of two full evaluations.
+//' @noRd
+// [[Rcpp::export(.bartisan_loglik_delta)]]
+List bartisan_loglik_delta(const arma::vec& y, const arma::vec& weights,
+                           const arma::mat& eta, const arma::vec& new_h,
+                           std::string family_name, std::string link,
+                           List family_opts, const arma::vec& aux,
+                           int component) {
+
+  std::unique_ptr<Family> family(make_family(family_name, link, y, weights,
+                                             family_opts));
+
+  if (static_cast<int>(eta.n_rows) != family->H ||
+      static_cast<int>(eta.n_cols) != static_cast<int>(y.n_elem)) {
+    stop("`eta` must be %d by %d.", family->H, static_cast<int>(y.n_elem));
+  }
+
+  if (new_h.n_elem != eta.n_cols) {
+    stop("`new_h` must have one value per observation.");
+  }
+
+  if (aux.n_elem > 0) {
+    family->set_aux(aux);
+  }
+
+  double delta = family->loglik_delta(eta, component, new_h.memptr());
+
+  arma::mat moved = eta;
+  moved.row(component) = new_h.t();
+
+  double two_pass = family->total_loglik(moved) - family->total_loglik(eta);
+
+  return List::create(_["delta"] = delta, _["two_pass"] = two_pass);
+}
+
 //' Score and information of a family, analytic or by differences
 //'
 //' Exists so that the test suite can check each family's analytic derivatives

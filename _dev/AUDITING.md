@@ -521,24 +521,35 @@ about six percentage points with an interval from about 1.6 to 11.
 
 ## What to do next, in order
 
-1. **Confirm the soft-rule Poisson SBC deviation is chain length** (§ 6): 600
-   replicates at 4000 draws instead of 1000. The mean-rank and top-bin
-   contrasts shrinking toward zero with coverage at nominal makes it a
-   limitation to document; persistence at the same magnitude makes
-   `update_bandwidth()`'s acceptance ratio or its likelihood difference the
-   thing to re-derive.
-2. **`diagnose()` does not report the gate bandwidth**, which is a drawn
-   parameter like any other and mixes worse than the rest of a soft-rule
-   Poisson fit: 68 effective draws of 1000 for a typical tree and 9 for the
-   worst. It belongs in the table, graded apart like `splits.*` since it is
-   per tree.
-3. **The zero-inflated families carry 6 to 14 effective draws of 500 for a
-   treatment contrast**, whatever the structure, and the zero part's
-   coefficient forest under `vc()` reports -0.69 where the truth is 0 at
-   n = 1000 (`_dev/zi-vc-shortfall.R`, 2026-10-01). `vignette("families")`
-   recommends these families on their accuracy and says nothing about how many
-   draws their estimands need. Measure the effective sample size against
-   `num_draws` for `zi_poisson()` and `zi_negbin()`, then say so there.
+1. **The soft-rule Poisson SBC deviation is not chain length, and five of six
+   candidates are now excluded** (§ 6). Quadrupling the draws left the
+   dispersion effect size unchanged at 0.09 and coverage at 0.937; the
+   bandwidth move's likelihood term agrees with two full evaluations to 1e-8;
+   the compiled Poisson family and a hand-written one realize the same
+   posterior. What is left is the Laplace approximation to the leaf and
+   tree targets, which is the method rather than a defect. The test that
+   would settle it: record each SBC replicate's generated and fitted
+   bandwidth and correlate it with the rank. A rank excess concentrated in
+   the widest gates makes it a documented limit of the approximation in a
+   corner of the prior; no relation leaves the bandwidth move's predictor
+   reconstruction as the last unexamined piece. The `TASKS.md` entries of
+   2026-10-01 and 2026-10-02 have the working.
+2. ~~`diagnose()` does not report the gate bandwidth.~~ Done 2026-10-02,
+   `dfa1867`, and the measurement behind it says the row earns its place more
+   than expected: over 24 fits across four families and three sample sizes
+   under soft rules, the bandwidth's worst-5%-of-trees row carried the fit's
+   worst R-hat in **17**, the log likelihood in 7, and the predictor's rows
+   and the splitting rules in none. At n = 8000 it reaches R-hat 1.38 to 1.52
+   on 8 to 18 effective draws while the predictor averaged over observations
+   sits at 1865 to 4021, which is what justifies grading it apart.
+3. ~~How many draws a zero-inflated estimand needs.~~ Measured 2026-10-02
+   (`_dev/zi-draws.R`): the effective sample size of a treatment contrast
+   rises in proportion to the draws, 120 to 145 per thousand for
+   `zi_poisson()` and 30 to 54 for `zi_negbin()`, so about 3300 and 13000
+   draws respectively buy 400 effective ones, against a default of 800. The
+   gate barely matters and the effect sits at 0.68 to 0.75 against a truth of
+   0.8 at every length, so that attenuation is the prior. What is owed is the
+   sentence in `vignette("families")`.
 4. A weights arm of the recovery matrix that fixes the leaf scale, so that it
    measures weights rather than the separation pathology the binary-response
    cells currently measure.

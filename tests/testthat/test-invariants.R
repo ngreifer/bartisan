@@ -861,3 +861,66 @@ test_that("sparsity = FALSE is the uniform split_prior", {
   expect_equal(off[["counts"]], uniform[["counts"]], tolerance = 1e-10)
   expect_equal(off[["loglik"]], uniform[["loglik"]], tolerance = 1e-10)
 })
+
+test_that("the one-pass likelihood difference equals two evaluations", {
+  skip_on_cran()
+
+  # The gate bandwidth move decides on `Family::loglik_delta()`, which returns
+  # the change in the log likelihood when one additive predictor's row is
+  # replaced, in a single chunked pass, rather than evaluating the whole
+  # likelihood twice for two numbers that are then subtracted. The eta-free
+  # terms and the normalizing constants are the same for both predictors and
+  # cancel from the difference, so the two routes agree to rounding or the move
+  # is accepting and rejecting on the wrong number. Checked here because the
+  # soft-rule Poisson arm of `_dev/sbc.R` deviates from uniform ranks in a way
+  # that holding every tree's bandwidth fixed removes, and this is the one
+  # quantity that move computes that nothing else in the package does.
+  set.seed(31)
+  n <- 240L
+
+  cases <- list(
+    list(family = "gaussian", link = "identity",
+         y = stats::rnorm(n), opts = list(sigma_hat = 1), aux = 1),
+    list(family = "binomial", link = "logit",
+         y = stats::rbinom(n, 1L, 0.5), opts = list(), aux = numeric(0)),
+    list(family = "poisson", link = "log",
+         y = stats::rpois(n, 2), opts = list(), aux = numeric(0)),
+    list(family = "negbin", link = "log", y = stats::rpois(n, 2),
+         opts = list(theta = 2, theta_prior_shape = 0.01,
+                     theta_prior_rate = 0.01, update_theta = TRUE), aux = 2),
+    list(family = "Gamma", link = "log", y = stats::rgamma(n, 2, 1),
+         opts = list(shape = 2, shape_prior_shape = 0.01,
+                     shape_prior_rate = 0.01, update_shape = TRUE), aux = 2)
+  )
+
+  # Three shapes of replacement. A bandwidth move changes every observation's
+  # predictor by a little, which is the third; the first two are the degenerate
+  # and the large cases, where a chunked pass that mishandled its last partial
+  # chunk or its sign would show.
+  base <- seq(-1.5, 1.5, length.out = n)
+
+  for (case in cases) {
+    eta <- matrix(base, nrow = 1L)
+    aux <- as.numeric(case$aux)
+
+    replacements <- list(
+      unchanged = base,
+      shifted = base + 0.4,
+      perturbed = base + 0.15 * sin(seq_len(n))
+    )
+
+    for (nm in names(replacements)) {
+      got <- .bartisan_loglik_delta(case$y, rep(1, n), eta,
+                                    replacements[[nm]], case$family,
+                                    case$link, case$opts, aux, 0L)
+
+      label <- paste(case$family, nm)
+      expect_equal(got[["delta"]], got[["two_pass"]], tolerance = 1e-8,
+                   label = label)
+
+      if (identical(nm, "unchanged")) {
+        expect_equal(got[["delta"]], 0, tolerance = 1e-10, label = label)
+      }
+    }
+  }
+})

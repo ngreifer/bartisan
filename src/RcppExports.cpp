@@ -105,6 +105,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// bartisan_loglik_delta
+List bartisan_loglik_delta(const arma::vec& y, const arma::vec& weights, const arma::mat& eta, const arma::vec& new_h, std::string family_name, std::string link, List family_opts, const arma::vec& aux, int component);
+RcppExport SEXP _bartisan_bartisan_loglik_delta(SEXP ySEXP, SEXP weightsSEXP, SEXP etaSEXP, SEXP new_hSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP auxSEXP, SEXP componentSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type new_h(new_hSEXP);
+    Rcpp::traits::input_parameter< std::string >::type family_name(family_nameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type link(linkSEXP);
+    Rcpp::traits::input_parameter< List >::type family_opts(family_optsSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type aux(auxSEXP);
+    Rcpp::traits::input_parameter< int >::type component(componentSEXP);
+    rcpp_result_gen = Rcpp::wrap(bartisan_loglik_delta(y, weights, eta, new_h, family_name, link, family_opts, aux, component));
+    return rcpp_result_gen;
+END_RCPP
+}
 // bartisan_derivs
 List bartisan_derivs(const arma::vec& y, const arma::vec& weights, const List& eta_draws, std::string family_name, std::string link, List family_opts, const arma::mat& aux, int component, bool by_difference, bool blocked);
 RcppExport SEXP _bartisan_bartisan_derivs(SEXP ySEXP, SEXP weightsSEXP, SEXP eta_drawsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP auxSEXP, SEXP componentSEXP, SEXP by_differenceSEXP, SEXP blockedSEXP) {
@@ -182,6 +201,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bartisan_bartisan_predict", (DL_FUNC) &_bartisan_bartisan_predict, 12},
     {"_bartisan_bartisan_logdens", (DL_FUNC) &_bartisan_bartisan_logdens, 7},
     {"_bartisan_bartisan_mnp_probs", (DL_FUNC) &_bartisan_bartisan_mnp_probs, 3},
+    {"_bartisan_bartisan_loglik_delta", (DL_FUNC) &_bartisan_bartisan_loglik_delta, 9},
     {"_bartisan_bartisan_derivs", (DL_FUNC) &_bartisan_bartisan_derivs, 10},
     {"_bartisan_bartisan_rpg", (DL_FUNC) &_bartisan_bartisan_rpg, 3},
     {"_bartisan_bartisan_rtruncnorm", (DL_FUNC) &_bartisan_bartisan_rtruncnorm, 3},

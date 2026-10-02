@@ -192,6 +192,41 @@ The third item on the audit record's list. In `_dev/recovery-matrix.R` the `zi_n
 
 What this leaves for the record: `vignette("families")` recommends the zero-inflated families on their accuracy, and nothing anywhere says their estimands need far more draws than the default. The measurement to make before saying how many is the effective sample size against `num_draws` for this family, which nothing here has.
 
+## The gate bandwidth is the worst-mixing quantity in a soft-rule fit (2026-10-02)
+
+The second item on the audit record's list, measured in `_dev/bandwidth-rows.R`: four families on the Friedman function under soft rules, n of 500, 2000 and 8000, two replicates, 50 trees, four chains of 200 + 1000, with split R-hat and bulk effective sample size folded into chains the way `diagnose()` folds them.
+
+| family | n | bandwidth ESS, average and worst 5% | bandwidth worst R-hat | eta ESS, average and worst 5% | eta worst R-hat |
+|---|---|---|---|---|---|
+| binomial | 500 | 635, 366 | 1.02 | 2724, 120 | 1.04 |
+| binomial | 2000 | 248, 52 | 1.07 | 2081, 44 | 1.07 |
+| binomial | 8000 | 56, 18 | 1.20 | 1865, 24 | 1.14 |
+| gaussian | 500 | 179, 45 | 1.12 | 3693, 28 | 1.10 |
+| gaussian | 2000 | 67, 16 | 1.25 | 3873, 23 | 1.12 |
+| gaussian | 8000 | 18, 9 | 1.52 | 4021, 16 | 1.18 |
+| negbin | 8000 | 18, 8 | 1.49 | 206, 13 | 1.24 |
+| poisson | 8000 | 29, 11 | 1.38 | 2156, 20 | 1.15 |
+
+**The bandwidth's worst-5% row carried the fit's worst R-hat in 17 of 24 fits**, the log likelihood in the other 7, and the predictor's two rows and the splitting rules in none. At n = 8000 the worst tree's bandwidth reaches R-hat 1.38 to 1.52 on 8 to 18 effective draws while the predictor averaged over observations sits at 1865 to 4021. That is a wider gap than the 93-fold one the record already carries between the predictor's average and its worst 5%, and it was invisible, because `diagnose()` reported every other drawn parameter and not this one.
+
+**It degrades steeply with the sample size**, which is the shape Tan et al. (2026) predict for the tree structure and which the record measured for the functional at log-log slopes near -0.4. Here it is steeper: the bandwidth's worst-tree effective sample size falls by a factor of 5 to 20 from n = 500 to n = 8000 in every family.
+
+**Grading it apart is right, and now it rests on evidence rather than on the analogy.** The reason given for the splitting rules is that a sum of trees represents one function through many partitions, so their count is not pinned down the way a fitted value is. The same holds here and the measurement shows it: in the fits where a tree's bandwidth has 9 effective draws, the predictor averaged over observations has 4021, so the chains disagree about how wide the rules are and agree about the function those rules encode. A wider gate with different leaf values is the same fit. Were the row graded with the reported quantities, every large soft-rule fit would be condemned by a quantity whose convergence does not bind on anything it reports.
+
+The row and its own check line are in `R/diagnose.R` as of `dfa1867`, with the pair summarized over trees rather than over observations and omitted entirely for a hard fit, which stores the column and never moves it.
+
+## The bandwidth move's likelihood term is correct, and so is the compiled Poisson family (2026-10-02)
+
+Two checks of the soft-rule Poisson SBC deviation, both asked for and both negative, which narrows it without closing it.
+
+**The one-pass likelihood difference is right.** The bandwidth move accepts and rejects on `Family::loglik_delta()`, which returns the change in the log likelihood from replacing one predictor's row in a single chunked pass rather than evaluating the likelihood twice. Nothing else in the package computes it, so nothing else would have caught an error in it. `.bartisan_loglik_delta()`, a test-only entry point added to `src/model.cpp`, returns that number beside the difference of two full `total_loglik()` calls; the eta-free terms and the normalizing constants are common to both predictors and cancel, so the two agree exactly or the move decides on the wrong number. They agree to 1e-8 for `gaussian()`, `binomial()`, `poisson()`, `negbin()` and `Gamma()`, across an unchanged row, a shifted one and one perturbed observation by observation as a bandwidth change perturbs it, and the unchanged row returns exactly zero. The test is in `test-invariants.R`.
+
+**The compiled Poisson family is not the cause either.** `poisson()` and `custom_family(function(y, eta) dpois(y, exp(eta[, 1]), log = TRUE))` specify one density, so they define one posterior, and the paths differ in the blocked density, in the derivatives (analytic against the base class's central differences) and in the declared target form. On four data sets from the SBC generator at 4000 draws (`_dev/poisson-paths.R`), custom minus compiled: the contrast's posterior mean -0.021 with a spread of 0.061 over the four, against a Monte Carlo error of 0.010 to 0.030 for one fit's mean; its posterior standard deviation +0.002 on values of 0.19 to 0.57; the bandwidth's posterior mean +0.002 and standard deviation +0.003 on 0.10. The standard deviation is the column that matters, since the deviation is a posterior that is too narrow, and it differs by one percent. The hand-written family's reported log likelihood sits about 0.9 lower in all four pairs, on values of -192 to -1051, which is 0.002 per observation and most likely its numerically differenced derivatives giving slightly poorer proposals.
+
+**What is left.** Not the family's own code, not the likelihood difference, not the prior replication, not mixing, and not the chain length. What both paths share is the Laplace approximation to the leaf and tree-structure targets, which is the method rather than the implementation: Linero (2025) is a Laplace-approximation reversible-jump sampler and the approximation is exact only where the target is quadratic. That fits four of the five arms immediately. A Poisson leaf conditional is linear minus an exponential and so is skewed, where a logit's is close to Gaussian, which is why the soft-rule logit arm is uniform. The hard-rule Poisson arm takes the exponential-form shortcut, which locates the mode exactly on a three-number target instead of by Fisher scoring on the data. The augmented probit arm is exactly quadratic and uniform.
+
+The fifth arm is the one to test next. Holding the bandwidth fixed removes the deviation, and the reading that would explain it is that a bandwidth drawn from an exponential with mean 0.1 sometimes lands far above it, giving a gate so smooth that every observation sits in every leaf with a weight near one half, which is where the soft-rule information `sum w_i^2 info_i` is smallest and the Laplace fit poorest. A fixed bandwidth never visits that corner. The measurement is cheap and the SBC script does not record what it would need: correlate each replicate's rank with the bandwidth its generating forest drew, and with the bandwidth its fit settled on. A rank excess concentrated in the replicates with the widest gates confirms it and makes the whole finding a documented limit of the approximation in a corner of the prior; no relation leaves the bandwidth move's predictor reconstruction, `accumulate()` and the support snapshot, as the last unexamined piece.
+
 ## The soft-rule Poisson SBC deviation is the bandwidth move (2026-10-01)
 
 The first item on the audit record's list: the soft-rule Poisson arm of `_dev/sbc.R` failed SBC at 600 replicates, chi-square 28.4 on 9 df (p = 0.001), where hard-rule Poisson and soft-rule logit passed. Four candidates were put up and three were falsified; the fourth is the per-tree bandwidth move.

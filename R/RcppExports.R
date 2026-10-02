@@ -113,6 +113,29 @@
     .Call(`_bartisan_bartisan_mnp_probs`, eta_draws, sigma, replicates)
 }
 
+#' The likelihood difference the bandwidth move uses, against two evaluations
+#'
+#' `Family::loglik_delta()` returns the change in the log likelihood when one
+#' additive predictor's row is replaced, in a single chunked pass, because the
+#' bandwidth move needs the difference and not the two values. Two separate
+#' calls to `total_loglik()` give the same number the obvious way. The eta-free
+#' terms and the normalizing constants are common to both predictors and cancel
+#' from the difference, so the two routes agree exactly or one of them is
+#' wrong. Exported for `test-invariants.R`; nothing in the package calls this.
+#'
+#' @param y,weights the response and the prior weights.
+#' @param eta an `H` by `N` matrix of additive predictors, as the engine holds
+#'   them.
+#' @param new_h `N` values to put in row `component`.
+#' @param family_name,link,family_opts,aux the family, as elsewhere.
+#' @param component which row of `eta` is replaced, zero-based.
+#' @returns A list with `delta`, the one-pass difference, and `two_pass`, the
+#'   difference of two full evaluations.
+#' @noRd
+.bartisan_loglik_delta <- function(y, weights, eta, new_h, family_name, link, family_opts, aux, component) {
+    .Call(`_bartisan_bartisan_loglik_delta`, y, weights, eta, new_h, family_name, link, family_opts, aux, component)
+}
+
 #' Score and information of a family, analytic or by differences
 #'
 #' Exists so that the test suite can check each family's analytic derivatives
