@@ -192,6 +192,35 @@ The third item on the audit record's list. In `_dev/recovery-matrix.R` the `zi_n
 
 What this leaves for the record: `vignette("families")` recommends the zero-inflated families on their accuracy, and nothing anywhere says their estimands need far more draws than the default. The measurement to make before saying how many is the effective sample size against `num_draws` for this family, which nothing here has.
 
+## Conditioning SBC ranks on the parameter is not a test, and two things it cost (2026-10-02)
+
+The last open item on the audit record's list was to record each SBC replicate's bandwidth and correlate it with the rank, on the reading that a bandwidth drawn far above its prior mean gives a gate so smooth that the Laplace fit to a skewed Poisson target is poorest. The generating forest is a deterministic function of the replicate's seed, so `_dev/sbc.R` gained an `SBC_REPLAY_ONLY` mode that redraws every forest and records the bandwidths with no fitting at all, and the truth it records alongside them reproduced the truth each run had stored, which is the check that the replay is faithful.
+
+**The measurement came out backwards, and then turned out not to be a measurement.** Over the 600 replicates of the second seed block, in terciles of the generating forest's mean bandwidth:
+
+| tercile | mean bandwidth | mean-rank z | dispersion z | coverage |
+|---|---|---|---|---|
+| narrowest | 0.077 | +1.12 | +2.67 | 0.925 |
+| middle | 0.099 | +0.41 | +0.88 | 0.960 |
+| widest | 0.125 | +1.84 | -0.73 | 0.980 |
+
+Spearman correlation of the squared centered rank score with the mean bandwidth, -0.094 (p = 0.02). So the deviation sits in the narrowest gates and not the widest, which is the opposite of the prediction. It is also what a correct sampler produces, because the test is not valid. SBC's uniformity is marginal over the prior: the generating draw and the posterior draws are exchangeable conditional on the *data*, so conditioning the ranks on any function of the data preserves uniformity and conditioning them on a component of the *generating parameter* does not. A narrow bandwidth means a sharper truth and a larger contrast, and a large drawn parameter sits high against a posterior that shrinks toward the prior; in the one-dimensional normal case, conditioning on a large |theta| gives extreme ranks for an exactly correct posterior. The tercile table measures that and nothing about this sampler.
+
+**The valid way to ask where in the prior a deviation lives is to vary the prior**, since each value is a model of its own and so a marginal test of its own. `_dev/sbc.R` now takes `SBC_BANDWIDTH`, and runs at 0.03 and at 0.3 against the 0.1 already in hand are the replacement for the tercile analysis; their result goes here.
+
+**Two costs, both mine, both worth recording.** The patch that was supposed to add the replay mode asserted on text it had not re-read, so it aborted and wrote nothing, and the two commands that followed ran the unpatched script, which meant a full 600-replicate SBC rather than a replay. The output path then did not include the seed block, so a run under a different block wrote to the file of the default block and overwrote a finished result. It was recoverable only because every replicate seeds itself from `SEED_BASE + r`, so resuming reproduced the original data exactly rather than approximately; the file now carries the seed block and the bandwidth prior in its name whenever either is not the default. The second cost was smaller: `timeout` does not exist on macOS, so a loop wrapped in it silently did nothing and reported success.
+
+## The families vignette says how many draws a zero-inflated estimand needs (2026-10-02)
+
+The third item on the audit record's list. `_dev/zi-draws.R` measured the bulk effective sample size of a treatment contrast against the number of draws, both zero-inflated families, both gates, two seeds, n = 1000, warmup fixed at 300:
+
+| family | effective draws per 1000 | draws for 400 effective |
+|---|---|---|
+| `zi_poisson()` | 122 to 144 | about 3300 |
+| `zi_negbin()` | 27 to 54 | about 13000 |
+
+The rate is flat in the number of draws, so the effective sample size rises in proportion and the remedy is draws; the gate changes little, and the contrast sits at 0.68 to 0.75 against a truth of 0.8 at every length, so that attenuation is the prior rather than the chain. `vignette("families")` now carries a paragraph in its zero-inflation section giving the two numbers against the default of 800 draws, and saying that a plain `poisson()` or `negbin()` fit on the same data needs no such allowance, which is one more reason to let a comparison of fits decide whether the mixture earns its place.
+
 ## The gate bandwidth is the worst-mixing quantity in a soft-rule fit (2026-10-02)
 
 The second item on the audit record's list, measured in `_dev/bandwidth-rows.R`: four families on the Friedman function under soft rules, n of 500, 2000 and 8000, two replicates, 50 trees, four chains of 200 + 1000, with split R-hat and bulk effective sample size folded into chains the way `diagnose()` folds them.

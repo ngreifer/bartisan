@@ -529,11 +529,15 @@ about six percentage points with an interval from about 1.6 to 11.
    posterior. What is left is the Laplace approximation to the leaf and
    tree targets, which is the method rather than a defect. The test that
    would settle it: record each SBC replicate's generated and fitted
-   bandwidth and correlate it with the rank. A rank excess concentrated in
-   the widest gates makes it a documented limit of the approximation in a
-   corner of the prior; no relation leaves the bandwidth move's predictor
-   reconstruction as the last unexamined piece. The `TASKS.md` entries of
-   2026-10-01 and 2026-10-02 have the working.
+   bandwidth and correlate it with the rank. **That test was run on
+   2026-10-02 and is not valid**: SBC's uniformity is marginal over the
+   prior, so conditioning the ranks on a component of the generating
+   parameter breaks it for a correct sampler too, and the tercile pattern it
+   produced is that artifact rather than a property of this sampler. The
+   valid form is to vary the bandwidth prior and compare the marginal
+   deviation across runs, each being a model and so a test of its own, which
+   `SBC_BANDWIDTH` now allows. The `TASKS.md` entries of 2026-10-01 and
+   2026-10-02 have the working.
 2. ~~`diagnose()` does not report the gate bandwidth.~~ Done 2026-10-02,
    `dfa1867`, and the measurement behind it says the row earns its place more
    than expected: over 24 fits across four families and three sample sizes
@@ -548,8 +552,8 @@ about six percentage points with an interval from about 1.6 to 11.
    `zi_poisson()` and 30 to 54 for `zi_negbin()`, so about 3300 and 13000
    draws respectively buy 400 effective ones, against a default of 800. The
    gate barely matters and the effect sits at 0.68 to 0.75 against a truth of
-   0.8 at every length, so that attenuation is the prior. What is owed is the
-   sentence in `vignette("families")`.
+   0.8 at every length, so that attenuation is the prior. The sentence is in
+   `vignette("families")` as of 2026-10-02.
 4. A weights arm of the recovery matrix that fixes the leaf scale, so that it
    measures weights rather than the separation pathology the binary-response
    cells currently measure.

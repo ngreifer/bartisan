@@ -90,7 +90,13 @@ TREES <- 20L
 SIGMA_MU <- 0.35
 GAMMA <- 0.95
 BETA <- 2
-BANDWIDTH <- 0.1   # the mean of the exponential prior on a tree's bandwidth
+# The mean of the exponential prior on a tree's bandwidth. `SBC_BANDWIDTH`
+# varies it, which is the valid way to ask where in the prior a deviation
+# lives: each value is a model of its own and so a marginal test of its own,
+# where conditioning one run's ranks on the bandwidth it drew is not, since
+# SBC's uniformity is marginal over the prior and conditioning on a component
+# of the generating parameter breaks it for a correct sampler too.
+BANDWIDTH <- as.numeric(Sys.getenv("SBC_BANDWIDTH", "0.1"))
 L <- 100L      # thinned draws per fit, so a rank is one of 0..L
 
 SOFT <- !identical(GATE, "hard")
@@ -151,16 +157,26 @@ eval_tree <- function(node, u, bandwidth, w = rep.int(1, nrow(u))) {
     eval_tree(node$right, u, bandwidth, w * (1 - p))
 }
 
+# The bandwidths the last forest drew, kept so that a replicate's rank can be
+# read against how smooth its truth was. Stashing them consumes no draw.
+LAST_BW <- numeric(0)
+
 draw_forest <- function(u) {
   # One bandwidth per tree, from the exponential prior the bandwidth move uses.
-  Reduce(`+`, lapply(seq_len(TREES), function(i) {
+  bw <- numeric(TREES)
+
+  out <- Reduce(`+`, lapply(seq_len(TREES), function(i) {
     b <- {
       if (!SOFT) 0
       else if (FIX_BANDWIDTH) BANDWIDTH
       else stats::rexp(1L, rate = 1 / BANDWIDTH)
     }
+    bw[i] <<- b
     eval_tree(draw_tree(), u, b)
   }), numeric(nrow(u)))
+
+  LAST_BW <<- bw
+  out
 }
 
 # ---- the run -----------------------------------------------------------------
@@ -188,10 +204,18 @@ control <- bartisan_control(num_trees = TREES, num_burn = 400L,
 ranks <- integer(0)
 truths <- widths <- covered <- numeric(0)
 
+# The seed block is part of the path whenever it is not the default, because a
+# run under a different block is a different run: on 2026-10-02 one was
+# launched without a tag and overwrote a finished block's results, which were
+# recoverable only because every replicate seeds itself.
 OUT <- {
   base <- if (identical(FAMILY, "logit")) sprintf("_dev/sbc-%s-%d", GATE, N)
           else sprintf("_dev/sbc-%s-%s-%d", FAMILY, GATE, N)
-  sprintf("%s%s.rds", base, if (nzchar(TAG)) paste0("-", TAG) else "")
+  parts <- c(if (nzchar(TAG)) TAG,
+             if (SEED_BASE != 5000L) sprintf("seed%d", SEED_BASE),
+             if (BANDWIDTH != 0.1) sprintf("bw%s", format(BANDWIDTH)))
+  sprintf("%s%s.rds", base,
+          if (length(parts)) paste0("-", paste(parts, collapse = "-")) else "")
 }
 
 # Resume. Every replicate seeds itself from `SEED_BASE + r` before it draws
@@ -215,6 +239,29 @@ if (file.exists(OUT)) {
 }
 
 todo <- if (START_AT > reps) integer(0) else seq(START_AT, reps)
+
+# `SBC_REPLAY_ONLY` redraws each replicate's forest and records the bandwidths
+# it drew, with no fitting at all. The generating forest is a deterministic
+# function of `SEED_BASE + r`, so this recovers for a finished run what it did
+# not store, and the truth it also records is the check that the replay is
+# faithful: it has to equal the truth that run saved.
+if (nzchar(Sys.getenv("SBC_REPLAY_ONLY"))) {
+  out <- data.frame(rep = seq_len(reps), truth = NA_real_,
+                    bw_mean = NA_real_, bw_max = NA_real_)
+
+  for (r in seq_len(reps)) {
+    set.seed(SEED_BASE + r)
+    eta <- draw_forest(u)
+    out$truth[r] <- eta[A] - eta[B]
+    out$bw_mean[r] <- mean(LAST_BW)
+    out$bw_max[r] <- max(LAST_BW)
+  }
+
+  file <- sprintf("_dev/sbc-replay-%s-%s-%d-%d.rds", FAMILY, GATE, N, SEED_BASE)
+  saveRDS(list(res = out, complete = TRUE, seed_base = SEED_BASE), file)
+  cat(sprintf("replayed %d forests to %s\n", reps, file))
+  quit(save = "no")
+}
 
 pr <- prog_init(total = max(length(todo), 1L),
                 title = sprintf("SBC: %s, %s rules, n = %d%s", FAMILY, GATE, N,
