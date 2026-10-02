@@ -194,8 +194,32 @@ OUT <- {
   sprintf("%s%s.rds", base, if (nzchar(TAG)) paste0("-", TAG) else "")
 }
 
-pr <- prog_init(total = reps,
-                title = sprintf("SBC: %s, %s rules, n = %d", FAMILY, GATE, N),
+# Resume. Every replicate seeds itself from `SEED_BASE + r` before it draws
+# anything, so picking up at the next index reproduces exactly what an
+# uninterrupted run would have produced; a killed run loses at most the
+# replicate it was in. Delete the output file to start over.
+START_AT <- 1L
+
+if (file.exists(OUT)) {
+  prev <- readRDS(OUT)
+
+  if (!isTRUE(prev$complete) && isTRUE(prev$done >= 1L) &&
+      isTRUE(prev$total == reps)) {
+    ranks <- prev$res$rank
+    truths <- prev$res$truth
+    widths <- prev$res$width
+    covered <- prev$res$covered
+    START_AT <- prev$done + 1L
+    cat(sprintf("resuming at replicate %d of %d\n", START_AT, reps))
+  }
+}
+
+todo <- if (START_AT > reps) integer(0) else seq(START_AT, reps)
+
+pr <- prog_init(total = max(length(todo), 1L),
+                title = sprintf("SBC: %s, %s rules, n = %d%s", FAMILY, GATE, N,
+                                if (START_AT > 1L)
+                                  sprintf(" (resumed at %d)", START_AT) else ""),
                 unit = "replicate", kind = "simulation")
 on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
         add = TRUE)
@@ -210,7 +234,7 @@ checkpoint <- function(complete, done) {
           OUT)
 }
 
-for (r in seq_len(reps)) {
+for (r in todo) {
   set.seed(SEED_BASE + r)
   t0 <- Sys.time()
 
@@ -222,7 +246,7 @@ for (r in seq_len(reps)) {
 
   # A response with no variation carries no likelihood and the fit refuses it.
   if (length(unique(d$y)) < 2L) {
-    prog_tick(pr, i = r, ok = FALSE, label = sprintf("replicate %d", r),
+    prog_tick(pr, ok = FALSE, label = sprintf("replicate %d", r),
               msg = "response had no variation")
     next
   }
@@ -239,7 +263,7 @@ for (r in seq_len(reps)) {
   widths <- c(widths, ci[2L] - ci[1L])
   covered <- c(covered, as.numeric(ci[1L] <= truth && truth <= ci[2L]))
 
-  prog_tick(pr, i = r, label = sprintf("replicate %d", r),
+  prog_tick(pr, label = sprintf("replicate %d", r),
             secs = as.numeric(difftime(Sys.time(), t0, units = "secs")))
   checkpoint(FALSE, r)
 }

@@ -165,6 +165,8 @@ _dev/did/*
 !_dev/weights-runaway.R
 !_dev/zi-vc-shortfall.R
 !_dev/bandwidth-mixing.R
+!_dev/bandwidth-rows.R
+!_dev/zi-draws.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R
