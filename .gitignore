@@ -41,11 +41,13 @@ figure/
 #   benches, `justfile`);
 # - every script behind a number the package ships or its code cites, and the
 #   ones `CLAUDE.md` names as the pattern for a simulation script;
-# - parked work, which is `_dev/did/` and the Gibbs-prior patch.
+# - parked work, which is `_dev/did/`, the Gibbs-prior patch, and the survival
+#   vignette as it stood before its 2026-10-02 rewrite.
 #
-# Results (`.rds`) are not tracked. The one exception that matters,
-# `vignettes/survival-results.rds`, lives outside `_dev/` and ships; the
-# survival outputs it is built from stay on disk. Scripts removed in the cleanup
+# Results (`.rds`) are not tracked. The one exception is
+# `_dev/survival-results.rds`, which that archived vignette reads and which is
+# kept beside it so that it still knits; the survival outputs it is built from
+# stay on disk. Scripts removed in the cleanup
 # are in the history before it. `_dev/Reproduce/` is Linero's JASA replication
 # package -- seven third-party GPL-2 packages -- kept as a reference and not
 # ours to redistribute, so it is never tracked.
@@ -148,6 +150,7 @@ _dev/did/*
 !_dev/dpm-level-shift.R
 !_dev/dpm-lalonde-level.R
 !_dev/dpm-diagnose-rows.R
+!_dev/ph-level-shift.R
 !_dev/recovery-matrix.R
 !_dev/recovery-replicates.R
 !_dev/recovery-followup.R
@@ -176,3 +179,5 @@ _dev/did/*
 !_dev/gibbs-prior-smoke.R
 !_dev/gibbs-recall.R
 !_dev/gibbs-prior.patch
+!_dev/survival-old.Rmd
+!_dev/survival-results.rds

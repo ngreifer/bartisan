@@ -106,6 +106,18 @@ the slowest row in such a fit, and the most pessimistic one, since it carries
 the level on its own where every quantity computed from the draws mixes the
 level with faster-moving ones.
 
+A \code{\link[=ph]{ph()}} fit is recorded the same way, for the same reason. Multiplying every
+baseline hazard by a constant and subtracting its log from the additive
+predictor leaves the likelihood unchanged, so each draw is recorded with the
+predictor centered over the fitted sample and the hazards scaled to match.
+The average row is again reported as \code{NA}, and the level of the fitted
+function is in the \code{aux.lambda} rows, which are the hazards of a unit whose
+predictor sits at that average. Recorded in the sampler's own chart, the
+hazards and the level would drift together and read as badly mixed while the
+survival probabilities computed from them mixed well. A fit with
+\code{update_lambda = FALSE} holds the baseline fixed, which leaves nothing to
+trade off, so its draws are recorded as they were sampled.
+
 \code{rhat} is split-R-hat, so drift inside a chain counts as disagreement rather
 than hiding inside a chain mean. \code{rhat_late} is that same statistic on the
 second half of the retained draws alone, which separates the two reasons

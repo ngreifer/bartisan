@@ -167,11 +167,20 @@ it:
 avg_comparisons(fit, variables = "trt", type = "survival", times = 1)
 }\if{html}{\out{</div>}}
 
-One time per call. \pkg{marginaleffects} checks the dots against a whitelist
-of its own, hardcoded per model class, so it warns that it does not recognize
-\code{times} while passing it through, as the warning says. There is no
-hook for registering an argument with it, so the warning is expected and the
-result is correct.
+Several times can be given in one call, in which case each becomes its own
+group in the output, labeled by the time as text, so \code{as.numeric()} on the
+\code{group} column recovers the times for drawing a curve. \pkg{marginaleffects}
+checks the dots against a whitelist of its own, hardcoded per model class, so
+it warns that it does not recognize \code{times} while passing it through, as the
+warning says. There is no hook for registering an argument with it, so the
+warning is expected and the result is correct.
+
+Setting \code{type = "link"} contrasts the additive predictor instead. For \code{\link[=ph]{ph()}}
+the contrast at each unit is the log hazard ratio at that unit's covariates,
+and for the accelerated failure time families it is the log time ratio, so
+\code{avg_comparisons()} averages conditional ratios over the units; the average
+of conditional log hazard ratios is not the marginal one, since a hazard
+ratio is noncollapsible.
 }
 
 \subsection{Prediction Types}{

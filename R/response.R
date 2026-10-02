@@ -502,7 +502,8 @@ prepare_response <- function(family, y, weights, offset, x, n) {
                                                        probs[-c(1L, num_bins + 1L)]))))
 
            # The predictor is a log hazard ratio, identified only against the baseline,
-           # so it starts at zero and the baseline carries the level.
+           # so it starts at zero and the level is left to drift between the two;
+           # each draw is recorded centered, by `PHFamily::report_shift()`.
            out$eta_scale <- 1
            hazard <- sum(a$event) / max(sum(a$time), .Machine$double.eps)
            out$opts <- list(event = a$event,

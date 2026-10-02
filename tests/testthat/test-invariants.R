@@ -700,14 +700,15 @@ test_that("every family keeps its chart and its density under every structural w
 test_that("a family with a reporting chart keeps it under every structural wrapper", {
   skip_on_cran()
 
-  # Three families record their draws in a chart other than the sampler's:
-  # `ordinal()` centers the predictor over the fitted sample, and `dpm()` and
-  # `dpm_aft()` put the mixture at mean zero so that the predictor is the
-  # conditional mean. The level of the recorded predictor is then an identified
-  # quantity and moves little; in the sampler's own chart it is the coordinate
-  # the likelihood does not pin, and it follows `center`, the raw mixture mean,
-  # at a correlation near minus one with the spread of `center` itself. That
-  # is what a `bcf()` fit reported before the wrapper forwarded the shift.
+  # Four families record their draws in a chart other than the sampler's:
+  # `ordinal()` and `ph()` center the predictor over the fitted sample, and
+  # `dpm()` and `dpm_aft()` put the mixture at mean zero so that the predictor
+  # is the conditional mean. The level of the recorded predictor is then an
+  # identified quantity and moves little; in the sampler's own chart it is the
+  # coordinate the likelihood does not pin, and it follows `center`, the raw
+  # mixture mean, at a correlation near minus one with the spread of `center`
+  # itself. That is what a `bcf()` fit reported before the wrapper forwarded
+  # the shift.
   d <- sim_matrix(n = 500L, seed = 37L)
   chains <- 2L
   draws <- 200L
@@ -720,7 +721,8 @@ test_that("a family with a reporting chart keeps it under every structural wrapp
     list(name = "ordinal probit", family = ordinal("probit"),
          response = "yord"),
     list(name = "dpm", family = dpm(), response = "ydpm"),
-    list(name = "dpm_aft", family = dpm_aft(), response = "cbind(t_dpma, e_dpma)")
+    list(name = "dpm_aft", family = dpm_aft(), response = "cbind(t_dpma, e_dpma)"),
+    list(name = "ph", family = ph(), response = "cbind(t_ph, e_ph)")
   )
 
   for (case in chart_cases) {
@@ -735,7 +737,7 @@ test_that("a family with a reporting chart keeps it under every structural wrapp
       eta <- stats::predict(fit, type = "link", draws = TRUE)
       level <- rowMeans(eta)
 
-      if (startsWith(case$name, "ordinal")) {
+      if (startsWith(case$name, "ordinal") || identical(case$name, "ph")) {
         expect_lt(max(abs(level)), 1e-8, label = paste(label, "centered"))
       }
       else {

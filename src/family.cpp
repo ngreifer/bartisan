@@ -2152,10 +2152,13 @@ struct LoglogisticAFTAugmentedFamily final
 // gamma conditional, which is what makes it as cheap as it is flexible.
 //
 // The level of the predictor and the level of the baseline are identified only
-// jointly, so the convention here is that the baseline carries it: the predictor
-// starts at zero and is reported as a log hazard ratio against the fitted
-// baseline. Basak, Linero, Maringe and Rubio (2024) is the reference for this
-// construction, in the relative-survival setting.
+// jointly. The predictor starts at zero and the sampler leaves the level to
+// drift between the two; each draw is recorded in the chart where the predictor
+// has mean zero over the fitted sample (see `report_shift()` below), so the
+// recorded predictor is a log hazard ratio against a unit at that average and
+// the recorded baseline is that unit's hazard. Basak, Linero, Maringe and Rubio
+// (2024) is the reference for this construction, in the relative-survival
+// setting.
 // ---------------------------------------------------------------------------
 
 struct PHFamily final : Concrete<PHFamily> {
@@ -2324,6 +2327,40 @@ struct PHFamily final : Concrete<PHFamily> {
     arma::vec out(num_bins + 1);
     out.head(num_bins) = lambda;
     out(num_bins) = rate;
+    return out;
+  }
+
+  // Multiplying every bin hazard by e^c and subtracting c from the predictor
+  // leaves every hazard, and so the likelihood, where it was, and the sampler
+  // has no reason to keep that level in one place. Recorded in its own chart,
+  // the hazards and the predictor's level drift together along the one
+  // direction the data do not constrain, and `diagnose()` grades that drift:
+  // on the default fit to `rhc` every hazard and the predictor's average read
+  // R-hat 1.6 on 3 effective draws, where the identified log(lambda_b) +
+  // mean(eta) had 500 to 790 (`_dev/ph-level-shift.R`). So each draw is
+  // recorded where the predictor has mean zero over the fitted sample, as an
+  // ordinal fit's is.
+  //
+  // With the baseline held fixed there is nothing for the level to trade off
+  // against, the sampler's chart is already identified, and a baseline the
+  // caller fixed should be recorded as the value it was fixed at.
+  arma::vec report_shift(const arma::mat& eta) const override {
+    if (!update_lambda) {
+      return arma::zeros<arma::vec>(1);
+    }
+
+    return arma::vec{arma::mean(eta.row(0))};
+  }
+
+  // The hazards move up by the factor the predictor moved down by, and the rate
+  // of their gamma prior moves the other way, since a gamma variate scaled by
+  // e^c has its rate divided by e^c.
+  arma::vec aux_values_shifted(const arma::vec& shift) const override {
+    arma::vec out = aux_values();
+    double scale = std::exp(shift(0));
+
+    out.head(num_bins) *= scale;
+    out(num_bins) /= scale;
     return out;
   }
 

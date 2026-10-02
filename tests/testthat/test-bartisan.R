@@ -388,7 +388,7 @@ test_that("a survival response is read as an accelerated failure time model", {
 
   # `dpm_aft()` rather than one of the parametric accelerated failure time
   # families: it was the most accurate of the six over the truths compared in
-  # `vignette("survival")` and is cheaper to fit than most of them.
+  # `_dev/survival-sim.R` and is cheaper to fit than most of them.
   expect_message(
     fit <- bartisan(survival::Surv(time, event) ~ x1 + x2, d,
                     control = quick_control()),

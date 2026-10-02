@@ -551,7 +551,7 @@ It is also the estimand we usually want. The question is rarely about the predic
 
 We recommend `dpm_aft()` as the default when we have no view about the shape of anything; measured against five alternatives over six data-generating truths, it was best or tied-best on three and never worse than third, and it came within .004 of the correctly specified family on the two truths where one existed. Use `lognormal_aft()` or `loglogistic_aft()` when the fit has to be quick, `weibull_aft()` when a hazard-ratio reading is wanted from a parametric fit, and `ph()` when the shape of the baseline hazard is the point. If the covariate effect may move with time, so that survival curves cross, none of the five is right and the discrete-time route is.
 
-The trade-offs behind these choices are measured in `vignette("survival", package = "bartisan")`, which covers what each estimand is, which hazard shapes each family can and cannot represent, how they behave under censoring and under misspecification, the discrete-time route for non-proportional hazards, and one trap in comparing their log scores.
+`vignette("survival", package = "bartisan")` covers these families in more depth: how to choose among them and check a fit against the observed survival, what each one's predictor means, how to report survival probabilities, median survival times, and contrasts of either, and the discrete-time route for effects that change over time.
 
 ## Other Links and Custom Likelihoods
 

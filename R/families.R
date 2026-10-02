@@ -52,9 +52,9 @@
 #'   baseline hazard has, with the edges at evenly spaced quantiles of the
 #'   observed times. Must be 2 or greater. Default is `NULL` to use about the
 #'   cube root of the sample size, which is the order the Freedman-Diaconis rule
-#'   gives for a histogram. This should not need to be set: the estimates are
-#'   flat in it over a sixty-fold range, and it is here for checking that rather
-#'   than for tuning. See Details.
+#'   gives for a histogram. This should not need to be set: in simulations the
+#'   estimates were essentially unchanged from 4 bins to 100, and it is here for
+#'   checking that rather than for tuning. See Details.
 #' @param lambda_shape `numeric`; for `ph()`, the shape of the gamma prior on
 #'   each bin's baseline hazard, which must be positive. Its rate is drawn.
 #'   Default is 1.
@@ -275,8 +275,7 @@
 #' family pinning its error's location differently: the median of \eqn{T} for
 #' `loglogistic_aft()` and `lognormal_aft()`, the geometric mean for `dpm_aft()`,
 #' and the Weibull scale for `weibull_aft()`. Contrasts are unaffected by any of
-#' that; `vignette("survival")` tabulates the levels and measures the difference
-#' between them.
+#' that; `vignette("survival")` tabulates the levels.
 #'
 #' `weibull_aft()` is also the one family whose predictor carries a log *hazard*
 #' ratio, of \eqn{-\Delta\eta/\sigma}, alongside its log time ratio. That is a
@@ -292,8 +291,12 @@
 #' the cube root of the sample size. The bin hazards are drawn from their exact
 #' gamma conditionals and reported as `lambda1`, `lambda2`, ... in `fit$aux`,
 #' together with the rate of their own prior. The predictor and the baseline are
-#' identified only jointly, so the baseline carries the level and the predictor
-#' is reported centered on it.
+#' identified only jointly, so each draw is reported with the predictor centered
+#' over the fitted sample and the hazards scaled to match: a single value of the
+#' predictor is a log hazard ratio against a unit whose predictor sits at that
+#' average, and `lambda1`, `lambda2`, ... are that unit's hazards. Setting
+#' `update_lambda = FALSE` holds the baseline fixed, in which case the draws are
+#' reported uncentered and the hazards at the values they were fixed at.
 #'
 #' Cox's *partial* likelihood cannot be used here: it couples
 #' observations through risk sets and so does not decompose into a sum over the
@@ -304,7 +307,8 @@
 #' The `num_bins` argument should be left at its default. The estimates are insensitive to it,
 #' and what it does change is the effective number of parameters, which grows
 #' with the bin count and so matters for [`loo()`][bartisan-interop] and `waic()`.
-#' `vignette("survival")` sweeps it.
+#' In the simulations `vignette("survival")` summarizes, the fitted survival
+#' curves were essentially unchanged from 4 bins to 100.
 #'
 #' The three differ in cost, though not enough to decide a model on.
 #' `lognormal_aft()` and `loglogistic_aft()` impute each censored failure time
@@ -326,8 +330,8 @@
 #' Reach for it when the shape of the error is in doubt and there is no reason to
 #' assert one. It gains substantially where a fixed-error family would have been
 #' wrong and costs next to nothing where one would have been right, which is the
-#' property `dpm()` has against `gaussian()`; `vignette("survival")` measures
-#' both cases.
+#' property `dpm()` has against `gaussian()`; `vignette("survival")` summarizes
+#' the simulations behind that.
 #'
 #' `gaussian_ls()` regresses the mean and the log standard deviation of a
 #' normal response on separate forests, so the variance is an unrestricted

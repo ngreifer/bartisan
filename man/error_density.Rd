@@ -40,8 +40,8 @@ and \code{upper}, giving the posterior mean density and a pointwise interval.
 \code{plot()} on the result draws the posterior mean density with that interval
 as a ribbon and returns a \pkg{ggplot2} object, so it can be added to in the
 usual way. The values are the thing to reach for when the density is to be
-drawn against something else, as \code{vignette("survival")} draws it against the
-normal a \code{lognormal_aft()} fit would have assumed.
+drawn against something else, such as the normal a \code{lognormal_aft()} fit
+would have assumed.
 }
 \description{
 Estimates the density of the errors of a \code{\link[=dpm]{dpm()}} or \code{\link[=dpm_aft]{dpm_aft()}} fit, as the

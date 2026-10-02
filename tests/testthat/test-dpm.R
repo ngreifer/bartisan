@@ -259,7 +259,7 @@ test_that("the error density carries a class and a plot method", {
   expect_s3_class(out, "data.frame")
 
   # The class is on top of a data frame and changes nothing about using it as
-  # one, which is what `vignette("survival")` does with the values.
+  # one, which is what drawing it against another density needs.
   expect_identical(names(out), c("at", "mean", "lower", "upper"))
   expect_identical(nrow(out), 21L)
   expect_true(is.data.frame(out))

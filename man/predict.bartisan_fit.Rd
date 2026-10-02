@@ -33,7 +33,12 @@ else is an error. See section \emph{Missing Predictor Values} in the Details of
 \code{"stdlv"}, \code{"density"}, and \code{"survival"}.
 \describe{
 \item{\code{"link"}}{the additive predictor, one column per predictor for
-families that have more than one.}
+families that have more than one. For the accelerated failure time
+families it is on the scale of log time, so a difference between two
+units is a log time ratio. For \code{\link[=ph]{ph()}} it is reported centered over the
+fitted sample, so a single value is a log hazard ratio against a unit
+whose predictor sits at that average and a difference between two units
+is the log hazard ratio between them.}
 \item{\code{"response"}}{the mean of the response; the median survival time for
 every survival family, \code{\link[=ph]{ph()}} included; and, for a response with
 categories, the category probabilities, there being no single mean to

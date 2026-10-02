@@ -1,10 +1,12 @@
 # Turns the raw simulation output into the compact object the survival vignette
-# reads, so that the vignette builds without refitting anything.
+# read before its 2026-10-02 rewrite, so that it built without refitting
+# anything. That vignette is archived as `_dev/survival-old.Rmd`; the current one
+# states the conclusions in prose and reads nothing.
 #
 #   Rscript _dev/survival-sim.R      # ~40 min
 #   Rscript _dev/survival-bins.R     # ~5 min
 #   Rscript _dev/survival-timing.R   # ~2 min, wants a quiet machine
-#   Rscript _dev/survival-results.R  # writes vignettes/survival-results.rds
+#   Rscript _dev/survival-results.R  # writes _dev/survival-results.rds
 
 sim <- readRDS("_dev/survival-sim.rds")
 bins <- readRDS("_dev/survival-bins.rds")
@@ -74,8 +76,8 @@ meta <- list(n_train = 700L, n_test = 700L, num_trees = 50L, num_draws = 500L,
 
 saveRDS(list(meta = meta, agg = agg, curves = sim$curves, dens = sim$dens,
              sweep_agg = sweep_agg, timing = timing, bins = bins_tab),
-        "vignettes/survival-results.rds")
+        "_dev/survival-results.rds")
 
-cat("wrote vignettes/survival-results.rds\n")
+cat("wrote _dev/survival-results.rds\n")
 print(agg[, c("truth", "family", "s_rmse", "rank", "logscore")], digits = 3)
 print(bins_tab)

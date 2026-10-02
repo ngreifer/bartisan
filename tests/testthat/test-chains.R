@@ -411,6 +411,54 @@ test_that("an ordinal fit reports no average for its centered predictor", {
   expect_identical(nrow(checks[checks$check == "where it is", ]), 0L)
 })
 
+test_that("a ph() fit reports no average for its centered predictor", {
+  skip_on_cran()
+
+  d <- sim_x(n = 200, seed = 43)
+  set.seed(1043)
+  event_time <- stats::rexp(nrow(d), exp(1.5 * (d$x1 - 0.5)))
+  cens <- stats::rexp(nrow(d), 0.3)
+  d$time <- pmin(event_time, cens)
+  d$status <- as.numeric(event_time <= cens)
+
+  # The baseline hazards and the level of the predictor are identified only
+  # jointly, so every draw is recorded with the predictor centered over the
+  # fitted sample and the hazards scaled to match; see ?bartisan-families.
+  fit <- bartisan(cbind(time, status) ~ x1 + x2 + x3, d, family = ph(),
+                  gate = "hard", chains = 2L, control = quick_control())
+
+  expect_true(all(abs(rowMeans(fit[["eta"]][[1L]])) < 1e-8))
+  expect_predictor_invariant(fit, d)
+
+  # The density of the recorded draws reproduces the log likelihood the sampler
+  # recorded in its own chart only if the hazards moved with the predictor.
+  dens <- stats::predict(fit, type = "density", draws = TRUE, log = TRUE)
+  expect_equal(rowSums(dens), fit[["loglik"]], tolerance = 1e-8)
+
+  table <- diagnose(fit)[["table"]]
+  avg <- table[table$quantity == "eta.eta (average over observations)", ]
+
+  expect_identical(nrow(avg), 1L)
+  expect_true(is.na(avg$rhat))
+  expect_true(is.na(avg$ess_bulk))
+
+  # The level is carried by the hazards, which are diagnosed rather than pinned.
+  hazards <- table[startsWith(table$quantity, "aux.lambda"), ]
+  expect_gt(nrow(hazards), 2L)
+  expect_true(all(is.finite(hazards$rhat)))
+
+  # A baseline held fixed leaves nothing to trade off, so its draws are recorded
+  # as they were sampled: the hazards at the values they were fixed at, and the
+  # level on the predictor.
+  held <- bartisan(cbind(time, status) ~ x1 + x2 + x3, d,
+                   family = ph(update_lambda = FALSE), gate = "hard",
+                   control = quick_control())
+  lambda <- held[["aux"]][, grep("^lambda[0-9]+$", colnames(held[["aux"]]))]
+
+  expect_identical(nrow(unique(lambda)), 1L)
+  expect_gt(stats::sd(rowMeans(held[["eta"]][[1L]])), 0)
+})
+
 test_that("the autocovariance matches the acf it replaced", {
   # `ess_from_split()` used to call `stats::acf()` once per chain. The FFT route
   # is the same estimator -- biased, demeaned, every lag -- and this is what says

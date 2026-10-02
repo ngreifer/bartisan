@@ -18,7 +18,12 @@
 #'   `"stdlv"`, `"density"`, and `"survival"`.
 #'   \describe{
 #'     \item{`"link"`}{the additive predictor, one column per predictor for
-#'       families that have more than one.}
+#'       families that have more than one. For the accelerated failure time
+#'       families it is on the scale of log time, so a difference between two
+#'       units is a log time ratio. For [ph()] it is reported centered over the
+#'       fitted sample, so a single value is a log hazard ratio against a unit
+#'       whose predictor sits at that average and a difference between two units
+#'       is the log hazard ratio between them.}
 #'     \item{`"response"`}{the mean of the response; the median survival time for
 #'       every survival family, [ph()] included; and, for a response with
 #'       categories, the category probabilities, there being no single mean to
@@ -1363,8 +1368,8 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' `plot()` on the result draws the posterior mean density with that interval
 #' as a ribbon and returns a \pkg{ggplot2} object, so it can be added to in the
 #' usual way. The values are the thing to reach for when the density is to be
-#' drawn against something else, as `vignette("survival")` draws it against the
-#' normal a `lognormal_aft()` fit would have assumed.
+#' drawn against something else, such as the normal a `lognormal_aft()` fit
+#' would have assumed.
 #'
 #' @seealso
 #' [dpm()] and [dpm_aft()] for the families with an estimated error
