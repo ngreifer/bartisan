@@ -82,6 +82,9 @@ One row per scalar the sampler draws (the log likelihood, the nuisance
 parameters of the family, and the scale of each random-effect term), plus two
 rows for the additive predictor and two for each set of group intercepts: one
 summarizing the worst 5\% of observations or levels, and one for their average.
+A fit with soft decision rules gets the same pair for the gate bandwidth,
+summarized over trees rather than over observations, since one bandwidth is
+drawn per tree.
 
 Both are reported because they routinely disagree, and which one binds depends
 on what is being reported. A forest settles the level of the fitted function
@@ -127,6 +130,19 @@ quantities, and the splitting rules get a check and a remedy of their own. It
 is separated rather than suppressed, because it does bind on anything computed
 from the split counts themselves, which is \code{\link[=variable_importance]{variable_importance()}} and
 \code{vignette("importance")}.
+
+The gate bandwidth is graded apart for the same reason and is worth reading
+for a different one. A tree's rules can be made wider or narrower while the
+function the tree encodes stays where it was, so the bandwidth is no more
+pinned down by the fit than the number of splitting rules is; but it can be
+the slowest quantity in the model, and far slower than anything the fit
+reports. Under a Poisson likelihood a tree's bandwidth carries a median of 68
+effective draws per 1000 against a binomial's 190, and the worst tree in a
+fit 9 against 114. Note that this is a property of the family and not of the
+data, so it is worth looking at on any \code{poisson()}, \code{negbin()} or other count
+fit left at the default soft rules. Setting \code{update_bandwidth = FALSE} in
+\code{\link[=bartisan_control]{bartisan_control()}} removes the draw entirely at the cost of fixing the
+amount of smoothing, and raising \code{num_draws} is the alternative.
 
 The grading rests on how the model is parameterized and not on that row being
 the worst one, which it usually is not. Measured over 144 fits spanning three
