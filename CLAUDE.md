@@ -115,10 +115,12 @@ be told apart by installing rather than by inspection.
   the release assessment.
 - `src/Makevars` sets `CXX_STD = CXX17`. The code needs it, and without
   it a `-O0` build fails to link where `-O2` silently succeeds.
-- The simulations behind
+- The simulations behind the conclusions
   [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-  are reproducible from `_dev/survival-sim.R`, `-bins.R`, `-timing.R`
-  and `-results.R`. The vignette reads their saved output so it builds
-  without refitting.
+  states are reproducible from `_dev/survival-sim.R`, `-bins.R`,
+  `-timing.R` and `-results.R`. The vignette states them in prose and
+  reads nothing; the version from before its 2026-10-02 rewrite, which
+  plotted them, is archived as `_dev/survival-old.Rmd` beside the
+  `_dev/survival-results.rds` it reads.
 - Timing claims want a quiet machine. `_dev/survival-timing.R` exists
   because timings taken during other work are not comparable.

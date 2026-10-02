@@ -185,8 +185,8 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.401     0.8
-#> 2       hard     1.169     0.2
+#> 1 smoothstep     0.401     1.0
+#> 2       hard     1.169     0.3
 ```
 
 The true function has a standard deviation of about 4.9, so both are
@@ -509,12 +509,16 @@ diagnose(fit_chains)$table
 #> 3                          splits.eta 2.14     2.408     5.21     23.3  0.00434
 #> 4 eta.eta (average over observations) 1.00     0.997  1184.07   1121.3  0.98672
 #> 5  eta.eta (worst 5% of observations) 1.61     1.708     6.70     19.9  0.00558
+#> 6      bandwidth (average over trees) 1.23     1.309    12.77     38.9  0.01064
+#> 7       bandwidth (worst 5% of trees) 2.02     2.659     5.44     12.7  0.00453
 #>   rhat_bad late_bad
 #> 1        1        1
 #> 2        1        1
 #> 3        1        1
 #> 4        0        0
 #> 5        1        1
+#> 6        1        1
+#> 7        1        1
 ```
 
 This table is read selectively. `aux.sigma` and `loglik` are close to 1,

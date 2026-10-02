@@ -67,9 +67,7 @@ density and a pointwise interval.
 draws the posterior mean density with that interval as a ribbon and
 returns a ggplot2 object, so it can be added to in the usual way. The
 values are the thing to reach for when the density is to be drawn
-against something else, as
-[`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-draws it against the normal a
+against something else, such as the normal a
 [`lognormal_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
 fit would have assumed.
 

@@ -115,7 +115,7 @@
 <code>_dev/</code> is development scratch and is gitignored apart from an allowlist in <code>.gitignore</code>, whose comment gives the rule: the records, the tools, every script behind a number the package ships or its code cites, and parked work. A new script that a shipped number comes to rest on joins the allowlist; one whose question is settled and recorded in <code>TASKS.md</code> does not need to stay. <code>TASKS.md</code> is the running record of what was tried, measured and rejected; <code>SHIP.md</code> is the release assessment.</li>
 <li>
 <code>src/Makevars</code> sets <code>CXX_STD = CXX17</code>. The code needs it, and without it a <code>-O0</code> build fails to link where <code>-O2</code> silently succeeds.</li>
-<li>The simulations behind <code><a href="articles/survival.html">vignette("survival")</a></code> are reproducible from <code>_dev/survival-sim.R</code>, <code>-bins.R</code>, <code>-timing.R</code> and <code>-results.R</code>. The vignette reads their saved output so it builds without refitting.</li>
+<li>The simulations behind the conclusions <code><a href="articles/survival.html">vignette("survival")</a></code> states are reproducible from <code>_dev/survival-sim.R</code>, <code>-bins.R</code>, <code>-timing.R</code> and <code>-results.R</code>. The vignette states them in prose and reads nothing; the version from before its 2026-10-02 rewrite, which plotted them, is archived as <code>_dev/survival-old.Rmd</code> beside the <code>_dev/survival-results.rds</code> it reads.</li>
 <li>Timing claims want a quiet machine. <code>_dev/survival-timing.R</code> exists because timings taken during other work are not comparable.</li>
 </ul></div>
 </div>

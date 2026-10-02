@@ -163,7 +163,10 @@ the rules.</p></dd>
 <dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
 <dd><p>optional; prior weights, one per observation. For a binomial
 response given as proportions, these are the numbers of trials, as in
-<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>.</p></dd>
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>. Note that a weight above one on a binary response repeats that
+observation's outcome at its own covariate values, which separates the
+response there and can leave the leaf scale unidentified; see
+<code>update_sigma_mu</code> in <code><a href="bartisan_control.html">bartisan_control()</a></code>.</p></dd>
 
 
 <dt id="arg-offset">offset<a class="anchor" aria-label="anchor" href="#arg-offset"></a></dt>

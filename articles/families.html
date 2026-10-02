@@ -95,7 +95,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-10-01</h4>
+            <h4 data-toc-skip class="date">2026-10-02</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/families.Rmd" class="external-link"><code>vignettes/families.Rmd</code></a></small>
       <div class="d-none name"><code>families.Rmd</code></div>
@@ -1001,6 +1001,20 @@ extra parameters. With a flexible mean, a feature of the
 conditional model. Reach for zero inflation when the zero mechanism is a
 process worth modeling in its own right, and let a comparison of fits,
 not a histogram, settle whether it is there.</p>
+<p>One cost of the mixture is worth planning for before the fit rather
+than discovering after it. A zero-inflated family carries two additive
+predictors that the data have to tell apart, and a quantity built from
+them mixes slowly as a result. Measured on a treatment contrast at
+<code>n = 1000</code>, the effective sample size rises in proportion to
+the number of draws, at about 130 effective draws per thousand for
+<code><a href="../reference/bartisan-families.html">zi_poisson()</a></code> and about 40 per thousand for
+<code><a href="../reference/bartisan-families.html">zi_negbin()</a></code>, with the gate making little difference. So
+reaching 400 effective draws, which is where <code><a href="../reference/diagnose.html">diagnose()</a></code>
+stops complaining, takes something like 3000 draws for the first and
+13000 for the second, against the default of 800. A plain
+<code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code> or <code><a href="../reference/bartisan-families.html">negbin()</a></code> fit on the same data
+needs no such allowance, which is one more reason to let a comparison of
+fits decide whether the mixture is earning its place.</p>
 </div>
 <div class="section level3">
 <h3 id="overdispersion-in-the-count-component">Overdispersion in the Count Component<a class="anchor" aria-label="anchor" href="#overdispersion-in-the-count-component"></a>
@@ -1458,12 +1472,11 @@ reading is wanted from a parametric fit, and <code><a href="../reference/bartisa
 shape of the baseline hazard is the point. If the covariate effect may
 move with time, so that survival curves cross, none of the five is right
 and the discrete-time route is.</p>
-<p>The trade-offs behind these choices are measured in
-<code><a href="../articles/survival.html">vignette("survival", package = "bartisan")</a></code>, which covers
-what each estimand is, which hazard shapes each family can and cannot
-represent, how they behave under censoring and under misspecification,
-the discrete-time route for non-proportional hazards, and one trap in
-comparing their log scores.</p>
+<p><code><a href="../articles/survival.html">vignette("survival", package = "bartisan")</a></code> covers these
+families in more depth: how to choose among them and check a fit against
+the observed survival, what each one’s predictor means, how to report
+survival probabilities, median survival times, and contrasts of either,
+and the discrete-time route for effects that change over time.</p>
 </div>
 <div class="section level2">
 <h2 id="other-links-and-custom-likelihoods">Other Links and Custom Likelihoods<a class="anchor" aria-label="anchor" href="#other-links-and-custom-likelihoods"></a>

@@ -675,6 +675,26 @@ about the conditional model. Reach for zero inflation when the zero
 mechanism is a process worth modeling in its own right, and let a
 comparison of fits, not a histogram, settle whether it is there.
 
+One cost of the mixture is worth planning for before the fit rather than
+discovering after it. A zero-inflated family carries two additive
+predictors that the data have to tell apart, and a quantity built from
+them mixes slowly as a result. Measured on a treatment contrast at
+`n = 1000`, the effective sample size rises in proportion to the number
+of draws, at about 130 effective draws per thousand for
+[`zi_poisson()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+and about 40 per thousand for
+[`zi_negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+with the gate making little difference. So reaching 400 effective draws,
+which is where
+[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
+stops complaining, takes something like 3000 draws for the first and
+13000 for the second, against the default of 800. A plain
+[`poisson()`](https://rdrr.io/r/stats/family.html) or
+[`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+fit on the same data needs no such allowance, which is one more reason
+to let a comparison of fits decide whether the mixture is earning its
+place.
+
 ### Overdispersion in the Count Component
 
 The next question is whether the count component is overdispersed once
@@ -1161,12 +1181,12 @@ when the shape of the baseline hazard is the point. If the covariate
 effect may move with time, so that survival curves cross, none of the
 five is right and the discrete-time route is.
 
-The trade-offs behind these choices are measured in
-[`vignette("survival", package = "bartisan")`](https://ngreifer.github.io/bartisan/articles/survival.md),
-which covers what each estimand is, which hazard shapes each family can
-and cannot represent, how they behave under censoring and under
-misspecification, the discrete-time route for non-proportional hazards,
-and one trap in comparing their log scores.
+[`vignette("survival", package = "bartisan")`](https://ngreifer.github.io/bartisan/articles/survival.md)
+covers these families in more depth: how to choose among them and check
+a fit against the observed survival, what each one’s predictor means,
+how to report survival probabilities, median survival times, and
+contrasts of either, and the discrete-time route for effects that change
+over time.
 
 ## Other Links and Custom Likelihoods
 

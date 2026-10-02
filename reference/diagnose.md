@@ -109,7 +109,9 @@ One row per scalar the sampler draws (the log likelihood, the nuisance
 parameters of the family, and the scale of each random-effect term),
 plus two rows for the additive predictor and two for each set of group
 intercepts: one summarizing the worst 5% of observations or levels, and
-one for their average.
+one for their average. A fit with soft decision rules gets the same pair
+for the gate bandwidth, summarized over trees rather than over
+observations, since one bandwidth is drawn per tree.
 
 Both are reported because they routinely disagree, and which one binds
 depends on what is being reported. A forest settles the level of the
@@ -135,6 +137,20 @@ in the lowest categories. It is usually the slowest row in such a fit,
 and the most pessimistic one, since it carries the level on its own
 where every quantity computed from the draws mixes the level with
 faster-moving ones.
+
+A
+[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+fit is recorded the same way, for the same reason. Multiplying every
+baseline hazard by a constant and subtracting its log from the additive
+predictor leaves the likelihood unchanged, so each draw is recorded with
+the predictor centered over the fitted sample and the hazards scaled to
+match. The average row is again reported as `NA`, and the level of the
+fitted function is in the `aux.lambda` rows, which are the hazards of a
+unit whose predictor sits at that average. Recorded in the sampler's own
+chart, the hazards and the level would drift together and read as badly
+mixed while the survival probabilities computed from them mixed well. A
+fit with `update_lambda = FALSE` holds the baseline fixed, which leaves
+nothing to trade off, so its draws are recorded as they were sampled.
 
 `rhat` is split-R-hat, so drift inside a chain counts as disagreement
 rather than hiding inside a chain mean. `rhat_late` is that same
@@ -163,6 +179,23 @@ the split counts themselves, which is
 [`variable_importance()`](https://ngreifer.github.io/bartisan/reference/variable_importance.md)
 and
 [`vignette("importance")`](https://ngreifer.github.io/bartisan/articles/importance.md).
+
+The gate bandwidth is graded apart for the same reason and is worth
+reading for a different one. A tree's rules can be made wider or
+narrower while the function the tree encodes stays where it was, so the
+bandwidth is no more pinned down by the fit than the number of splitting
+rules is; but it can be the slowest quantity in the model, and far
+slower than anything the fit reports. Under a Poisson likelihood a
+tree's bandwidth carries a median of 68 effective draws per 1000 against
+a binomial's 190, and the worst tree in a fit 9 against 114. Note that
+this is a property of the family and not of the data, so it is worth
+looking at on any [`poisson()`](https://rdrr.io/r/stats/family.html),
+[`negbin()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+or other count fit left at the default soft rules. Setting
+`update_bandwidth = FALSE` in
+[`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
+removes the draw entirely at the cost of fixing the amount of smoothing,
+and raising `num_draws` is the alternative.
 
 The grading rests on how the model is parameterized and not on that row
 being the worst one, which it usually is not. Measured over 144 fits
@@ -263,6 +296,8 @@ diagnose(fit)
 #>                           splits.eta 1.212     1.423        7        7
 #>  eta.eta (average over observations) 1.000     0.990       88      100
 #>   eta.eta (worst 5% of observations) 1.608     1.723        4       15
+#>       bandwidth (average over trees) 1.047     1.325       22       32
+#>        bandwidth (worst 5% of trees) 1.643     2.045        4       11
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
@@ -272,10 +307,9 @@ diagnose(fit)
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.21)
+#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.64)
 #> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400
 #> ✖ Tail ESS is 15 for eta.eta (worst 5% of observations), below 400
-#> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 88 effective draws)
 #> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
 #>   carries 3.8 effective draws per hundred kept
 #> 
@@ -303,13 +337,6 @@ diagnose(fit)
 #>   it when split counts are themselves what gets reported --
 #>   `variable_importance()` and `vignette("importance")` -- and not when fitted
 #>   values, predictions or effects are.
-#> • Note that the chains disagree about the fitted values of individual
-#>   observations and not about their average, which is the usual shape of this in
-#>   a forest. What that means for an estimand cannot be read off this table
-#>   either way, since an estimand is a contrast and a contrast can mix badly
-#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
-#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
-#>   draws to `posterior::summarise_draws()` for anything else.
 
 # A stricter effective sample size, which an interval
 # endpoint needs and a posterior mean does not
@@ -321,6 +348,8 @@ diagnose(fit, ess_min = 1000)
 #>                           splits.eta 1.212     1.423        7        7
 #>  eta.eta (average over observations) 1.000     0.990       88      100
 #>   eta.eta (worst 5% of observations) 1.608     1.723        4       15
+#>       bandwidth (average over trees) 1.047     1.325       22       32
+#>        bandwidth (worst 5% of trees) 1.643     2.045        4       11
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
@@ -330,10 +359,9 @@ diagnose(fit, ess_min = 1000)
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.21)
+#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.64)
 #> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000
 #> ✖ Tail ESS is 15 for eta.eta (worst 5% of observations), below 1000
-#> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 88 effective draws)
 #> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
 #>   carries 3.8 effective draws per hundred kept
 #> 
@@ -361,11 +389,4 @@ diagnose(fit, ess_min = 1000)
 #>   it when split counts are themselves what gets reported --
 #>   `variable_importance()` and `vignette("importance")` -- and not when fitted
 #>   values, predictions or effects are.
-#> • Note that the chains disagree about the fitted values of individual
-#>   observations and not about their average, which is the usual shape of this in
-#>   a forest. What that means for an estimand cannot be read off this table
-#>   either way, since an estimand is a contrast and a contrast can mix badly
-#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
-#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
-#>   draws to `posterior::summarise_draws()` for anything else.
 ```

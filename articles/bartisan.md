@@ -202,6 +202,8 @@ diagnose(fit)
 #>                           splits.eta 1.073     1.152       23      134
 #>  eta.eta (average over observations) 1.000     1.003      437      723
 #>   eta.eta (worst 5% of observations) 1.038     1.069       76      197
+#>       bandwidth (average over trees) 1.022     1.037      172      299
+#>        bandwidth (worst 5% of trees) 1.064     1.111       50       58
 #> 
 #> ✖ Only one chain, so R-hat can only compare it with itself; set `chains = 4`
 #> ✖ R-hat is above 1.01 for loglik
@@ -211,10 +213,9 @@ diagnose(fit)
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.07)
+#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.06)
 #> ✖ Bulk ESS is 76 for eta.eta (worst 5% of observations), below 400
 #> ✖ Tail ESS is 187 for loglik, below 400
-#> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 437 effective draws)
 #> 
 #> What to do
 #> 
@@ -243,13 +244,6 @@ diagnose(fit)
 #>   it when split counts are themselves what gets reported --
 #>   `variable_importance()` and `vignette("importance")` -- and not when fitted
 #>   values, predictions or effects are.
-#> • Note that the chains disagree about the fitted values of individual
-#>   observations and not about their average, which is the usual shape of this in
-#>   a forest. What that means for an estimand cannot be read off this table
-#>   either way, since an estimand is a contrast and a contrast can mix badly
-#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
-#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
-#>   draws to `posterior::summarise_draws()` for anything else.
 ```
 
 Because the fit has one chain, the first line of the report says to

@@ -122,7 +122,12 @@ else is an error. See section <em>Missing Predictor Values</em> in the Details o
 <code>"link"</code>, <code>"response"</code> (the default), <code>"prob"</code>, <code>"class"</code>, <code>"mean"</code>,
 <code>"stdlv"</code>, <code>"density"</code>, and <code>"survival"</code>.</p><dl><dt><code>"link"</code></dt>
 <dd><p>the additive predictor, one column per predictor for
-families that have more than one.</p></dd>
+families that have more than one. For the accelerated failure time
+families it is on the scale of log time, so a difference between two
+units is a log time ratio. For <code><a href="bartisan-families.html">ph()</a></code> it is reported centered over the
+fitted sample, so a single value is a log hazard ratio against a unit
+whose predictor sits at that average and a difference between two units
+is the log hazard ratio between them.</p></dd>
 
 <dt><code>"response"</code></dt>
 <dd><p>the mean of the response; the median survival time for

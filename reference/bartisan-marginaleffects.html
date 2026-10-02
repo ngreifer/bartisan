@@ -262,11 +262,19 @@ horizon rather than in the predictor. <code>type = "survival"</code> with <code>
 it:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="co"># The difference in one-year survival between treated and untreated</span></span>
 <span><span class="fu">avg_comparisons</span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"trt"</span>, type <span class="op">=</span> <span class="st">"survival"</span>, times <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre><p></p></div>
-<p>One time per call. <span class="pkg">marginaleffects</span> checks the dots against a whitelist
-of its own, hardcoded per model class, so it warns that it does not recognize
-<code>times</code> while passing it through, as the warning says. There is no
-hook for registering an argument with it, so the warning is expected and the
-result is correct.</p>
+<p>Several times can be given in one call, in which case each becomes its own
+group in the output, labeled by the time as text, so <code><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric()</a></code> on the
+<code>group</code> column recovers the times for drawing a curve. <span class="pkg">marginaleffects</span>
+checks the dots against a whitelist of its own, hardcoded per model class, so
+it warns that it does not recognize <code>times</code> while passing it through, as the
+warning says. There is no hook for registering an argument with it, so the
+warning is expected and the result is correct.</p>
+<p>Setting <code>type = "link"</code> contrasts the additive predictor instead. For <code><a href="bartisan-families.html">ph()</a></code>
+the contrast at each unit is the log hazard ratio at that unit's covariates,
+and for the accelerated failure time families it is the log time ratio, so
+<code>avg_comparisons()</code> averages conditional ratios over the units; the average
+of conditional log hazard ratios is not the marginal one, since a hazard
+ratio is noncollapsible.</p>
 </div>
 
 <div class="section">

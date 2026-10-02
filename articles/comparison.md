@@ -48,6 +48,25 @@ before we trust any of these comparisons.
 
 ## Leave-One-Out Cross-Validation (`loo()`)
 
+Leave-one-out cross-validation scores a model by how well it predicts
+each observation from a fit that did not see it: the model is fit to
+every observation but one, the log predictive density of the held-out
+outcome is recorded, and the sum over observations, the expected log
+pointwise predictive density (ELPD), measures how well the model
+predicts new data. Done literally, that takes one refit per observation.
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) approximates it
+from the single fit we already have by Pareto-smoothed importance
+sampling ([Vehtari et al. 2017](#ref-vehtari2017)). Leaving out
+observation \\i\\ changes the posterior only through that observation’s
+likelihood, so reweighting each posterior draw by the inverse of its
+likelihood for \\y_i\\ turns draws from the full posterior into
+approximate draws from the posterior without \\i\\. Pareto smoothing
+stabilizes the largest of those weights, and the Pareto \\k\\ diagnostic
+below reports how heavy their tail is. All
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) needs is the log
+likelihood of every observation at every draw, which is why it takes
+seconds rather than a refit per observation.
+
 ``` r
 
 loo(full)
@@ -66,22 +85,21 @@ loo(full)
 #> See help('pareto-k-diagnostic') for details.
 ```
 
-`elpd_loo` estimates the log predictive density on data the model has
-not seen, with higher values being better. It is computed by importance
-sampling from the fitted posterior rather than by refitting, which is
-why it is fast ([Vehtari et al. 2017](#ref-vehtari2017)). `looic` is the
-same measure multiplied by -2 to be on the deviance scale.
+`elpd_loo` reports the leave-one-out ELPD, with higher values being
+better. `looic` is the same measure multiplied by -2 to be on the
+deviance scale.
 
 `p_loo` is the effective number of parameters, a little over 35 here;
 for a forest with hundreds of leaves across its trees, that number is
 small; the prior shrinks most of them toward zero. It can be a useful
 measure of how much of the data the model is actually using.
 
-The Pareto \\k\\ diagnostics are worth checking: leave-one-out by
-importance sampling is trustworthy only when the importance weights are
-well behaved, and a \\k\\ above the threshold *loo* prints with them,
-which is at most .7 and a little lower for a fit with this many draws,
-says that for that observation they are not. Here they are all good.
+The Pareto \\k\\ diagnostics are worth checking: the leave-one-out
+approximation by importance sampling is trustworthy only when the
+importance weights are well behaved, and a \\k\\ above the threshold
+*loo* prints with them, which is at most .7 and a little lower for a fit
+with this many draws, says that for that observation they are not. Here
+they are all good.
 
 ### Failures of the Approximation
 
@@ -89,7 +107,7 @@ When high Pareto \\k\\ values are observed, the posterior importance
 sampling approximation to leave-one-out cross-validation can be
 inaccurate. An alternative is to use k-fold cross-validation, which
 avoids this approximation but requires refitting the model several
-times, which can be computationally expensive.K-fold cross-validation
+times, which can be computationally expensive. K-fold cross-validation
 involves splitting the sample into \\K\\ parts, fitting the model \\K\\
 times (leaving out one fold each time), and using that fold to compute
 the log likelihood contribution of each unit. This can be done using
@@ -100,7 +118,7 @@ the log likelihood contribution of each unit. This can be done using
 set.seed(2026)
 
 # K = 5 here; more is better but slower
-folds <- loo::kfold_split_random(K = 5, N = nrow(rhc))
+folds <- kfold_split_random(K = 5, N = nrow(rhc))
 
 # Refit the models K times
 kfold_full <- kfold(full, folds = folds)
@@ -120,8 +138,10 @@ produces results that can be interpreted like those from
 [`loo()`](https://mc-stan.org/loo/reference/loo.html), but without
 relying on the importance sampling approximation. When the outcome is
 rare enough that a random split could leave a fold with no events in it,
-[`loo::kfold_split_stratified()`](https://mc-stan.org/loo/reference/kfold-helpers.html)
-can be used to assign the folds instead.
+[`kfold_split_stratified()`](https://mc-stan.org/loo/reference/kfold-helpers.html)
+can be used instead of
+[`kfold_split_random()`](https://mc-stan.org/loo/reference/kfold-helpers.html)
+to assign the folds instead.
 
 ## Comparing Two Models (`loo_compare()`)
 
@@ -129,7 +149,7 @@ We can compare the fit of two models by supplying their
 [`loo()`](https://mc-stan.org/loo/reference/loo.html) or
 [`kfold()`](https://mc-stan.org/loo/reference/kfold-generic.html) output
 to
-[`loo::loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html).
+[`loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html).
 Below, we fit a model that only includes demographic variables as
 predictors to compare to our full model.
 
@@ -139,7 +159,7 @@ set.seed(2026)
 demographics <- bartisan(death ~ rhc + age + sex + race + edu,
                          data = rhc, family = binomial())
 
-loo_compare(list(full = loo(full),
+loo_compare(list(full         = loo(full),
                  demographics = loo(demographics)))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
@@ -178,7 +198,7 @@ to compare the models.
 
 kfold_demographics <- kfold(demographics, folds = folds)
 
-loo_compare(list(full = kfold_full,
+loo_compare(list(full         = kfold_full,
                  demographics = kfold_demographics))
 #>         model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>          full       0.0     0.0      NA                    
@@ -206,7 +226,7 @@ model to our original logistic BART model.
 set.seed(2026)
 probit <- bartisan(model, data = rhc, family = binomial("probit"))
 
-loo_compare(list(logit = loo(full),
+loo_compare(list(logit  = loo(full),
                  probit = loo(probit)))
 #>   model elpd_diff se_diff p_worse       diag_diff diag_elpd
 #>   logit       0.0     0.0      NA                          
@@ -265,7 +285,7 @@ loo(logistic)
 
 ``` r
 
-loo_compare(list(bart = loo(full),
+loo_compare(list(bart     = loo(full),
                  logistic = loo(logistic)))
 #>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
 #>  logistic       0.0     0.0      NA                          
@@ -379,8 +399,8 @@ aft <- bartisan(surv_model, data = rhc, family = lognormal_aft())
 set.seed(2026)
 prop_haz <- bartisan(surv_model, data = rhc, family = ph())
 
-loo_compare(list(aft = loo(aft, scale = "time"),
-                 ph = loo(prop_haz, scale = "time")))
+loo_compare(list(aft = loo(aft,      scale = "time"),
+                 ph  = loo(prop_haz, scale = "time")))
 #>  model elpd_diff se_diff p_worse diag_diff       diag_elpd
 #>     ph       0.0     0.0      NA           1 k_psis > 0.66
 #>    aft     -90.0    15.4    1.00

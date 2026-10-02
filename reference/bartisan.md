@@ -98,7 +98,11 @@ bartisan(
 
   optional; prior weights, one per observation. For a binomial response
   given as proportions, these are the numbers of trials, as in
-  [`glm()`](https://rdrr.io/r/stats/glm.html).
+  [`glm()`](https://rdrr.io/r/stats/glm.html). Note that a weight above
+  one on a binary response repeats that observation's outcome at its own
+  covariate values, which separates the response there and can leave the
+  leaf scale unidentified; see `update_sigma_mu` in
+  [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md).
 
 - offset:
 

@@ -52,7 +52,14 @@ predict(
   `"link"`
 
   :   the additive predictor, one column per predictor for families that
-      have more than one.
+      have more than one. For the accelerated failure time families it
+      is on the scale of log time, so a difference between two units is
+      a log time ratio. For
+      [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+      it is reported centered over the fitted sample, so a single value
+      is a log hazard ratio against a unit whose predictor sits at that
+      average and a difference between two units is the log hazard ratio
+      between them.
 
   `"response"`
 

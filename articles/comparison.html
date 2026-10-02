@@ -95,7 +95,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-10-01</h4>
+            <h4 data-toc-skip class="date">2026-10-02</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/comparison.Rmd" class="external-link"><code>vignettes/comparison.Rmd</code></a></small>
       <div class="d-none name"><code>comparison.Rmd</code></div>
@@ -153,6 +153,22 @@ comparisons.</p>
 <div class="section level2">
 <h2 id="leave-one-out-cross-validation-loo">Leave-One-Out Cross-Validation (<code>loo()</code>)<a class="anchor" aria-label="anchor" href="#leave-one-out-cross-validation-loo"></a>
 </h2>
+<p>Leave-one-out cross-validation scores a model by how well it predicts
+each observation from a fit that did not see it: the model is fit to
+every observation but one, the log predictive density of the held-out
+outcome is recorded, and the sum over observations, the expected log
+pointwise predictive density (ELPD), measures how well the model
+predicts new data. Done literally, that takes one refit per observation.
+<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> approximates it from the single fit we already have
+by Pareto-smoothed importance sampling <span class="citation">(<a href="#ref-vehtari2017">Vehtari et al. 2017</a>)</span>. Leaving out
+observation <span class="math inline">\(i\)</span> changes the posterior
+only through that observation’s likelihood, so reweighting each
+posterior draw by the inverse of its likelihood for <span class="math inline">\(y_i\)</span> turns draws from the full posterior
+into approximate draws from the posterior without <span class="math inline">\(i\)</span>. Pareto smoothing stabilizes the
+largest of those weights, and the Pareto <span class="math inline">\(k\)</span> diagnostic below reports how heavy
+their tail is. All <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> needs is the log likelihood of
+every observation at every draw, which is why it takes seconds rather
+than a refit per observation.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -168,23 +184,21 @@ comparisons.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.66).</span></span>
 <span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
-<p><code>elpd_loo</code> estimates the log predictive density on data
-the model has not seen, with higher values being better. It is computed
-by importance sampling from the fitted posterior rather than by
-refitting, which is why it is fast <span class="citation">(<a href="#ref-vehtari2017">Vehtari et al. 2017</a>)</span>.
-<code>looic</code> is the same measure multiplied by -2 to be on the
-deviance scale.</p>
+<p><code>elpd_loo</code> reports the leave-one-out ELPD, with higher
+values being better. <code>looic</code> is the same measure multiplied
+by -2 to be on the deviance scale.</p>
 <p><code>p_loo</code> is the effective number of parameters, a little
 over 35 here; for a forest with hundreds of leaves across its trees,
 that number is small; the prior shrinks most of them toward zero. It can
 be a useful measure of how much of the data the model is actually
 using.</p>
 <p>The Pareto <span class="math inline">\(k\)</span> diagnostics are
-worth checking: leave-one-out by importance sampling is trustworthy only
-when the importance weights are well behaved, and a <span class="math inline">\(k\)</span> above the threshold <em>loo</em> prints
-with them, which is at most .7 and a little lower for a fit with this
-many draws, says that for that observation they are not. Here they are
-all good.</p>
+worth checking: the leave-one-out approximation by importance sampling
+is trustworthy only when the importance weights are well behaved, and a
+<span class="math inline">\(k\)</span> above the threshold <em>loo</em>
+prints with them, which is at most .7 and a little lower for a fit with
+this many draws, says that for that observation they are not. Here they
+are all good.</p>
 <div class="section level3">
 <h3 id="failures-of-the-approximation">Failures of the Approximation<a class="anchor" aria-label="anchor" href="#failures-of-the-approximation"></a>
 </h3>
@@ -193,7 +207,7 @@ observed, the posterior importance sampling approximation to
 leave-one-out cross-validation can be inaccurate. An alternative is to
 use k-fold cross-validation, which avoids this approximation but
 requires refitting the model several times, which can be computationally
-expensive.K-fold cross-validation involves splitting the sample into
+expensive. K-fold cross-validation involves splitting the sample into
 <span class="math inline">\(K\)</span> parts, fitting the model <span class="math inline">\(K\)</span> times (leaving out one fold each time),
 and using that fold to compute the log likelihood contribution of each
 unit. This can be done using <code><a href="https://mc-stan.org/loo/reference/kfold-generic.html" class="external-link">loo::kfold()</a></code>:</p>
@@ -201,7 +215,7 @@ unit. This can be done using <code><a href="https://mc-stan.org/loo/reference/kf
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># K = 5 here; more is better but slower</span></span>
-<span><span class="va">folds</span> <span class="op">&lt;-</span> <span class="fu">loo</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">kfold_split_random</a></span><span class="op">(</span>K <span class="op">=</span> <span class="fl">5</span>, N <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">folds</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">kfold_split_random</a></span><span class="op">(</span>K <span class="op">=</span> <span class="fl">5</span>, N <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">rhc</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Refit the models K times</span></span>
 <span><span class="va">kfold_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/kfold-generic.html" class="external-link">kfold</a></span><span class="op">(</span><span class="va">full</span>, folds <span class="op">=</span> <span class="va">folds</span><span class="op">)</span></span>
@@ -218,8 +232,8 @@ unit. This can be done using <code><a href="https://mc-stan.org/loo/reference/kf
 those from <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code>, but without relying on the importance
 sampling approximation. When the outcome is rare enough that a random
 split could leave a fold with no events in it,
-<code><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">loo::kfold_split_stratified()</a></code> can be used to assign the
-folds instead.</p>
+<code><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">kfold_split_stratified()</a></code> can be used instead of
+<code><a href="https://mc-stan.org/loo/reference/kfold-helpers.html" class="external-link">kfold_split_random()</a></code> to assign the folds instead.</p>
 </div>
 </div>
 <div class="section level2">
@@ -227,15 +241,14 @@ folds instead.</p>
 </h2>
 <p>We can compare the fit of two models by supplying their
 <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> or <code><a href="https://mc-stan.org/loo/reference/kfold-generic.html" class="external-link">kfold()</a></code> output to
-<code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo::loo_compare()</a></code>. Below, we fit a model that only
-includes demographic variables as predictors to compare to our full
-model.</p>
+<code><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare()</a></code>. Below, we fit a model that only includes
+demographic variables as predictors to compare to our full model.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">rhc</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">edu</span>,</span>
 <span>                         data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>,</span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full         <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>,</span>
 <span>                 demographics <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">demographics</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
@@ -268,7 +281,7 @@ models.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">kfold_demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/kfold-generic.html" class="external-link">kfold</a></span><span class="op">(</span><span class="va">demographics</span>, folds <span class="op">=</span> <span class="va">folds</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full <span class="op">=</span> <span class="va">kfold_full</span>,</span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>full         <span class="op">=</span> <span class="va">kfold_full</span>,</span>
 <span>                 demographics <span class="op">=</span> <span class="va">kfold_demographics</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;         model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;          full       0.0     0.0      NA                    </span></span>
@@ -294,7 +307,7 @@ BART model to our original logistic BART model.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">probit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="st">"probit"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>logit <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>,</span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>logit  <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>,</span>
 <span>                 probit <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">probit</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;   logit       0.0     0.0      NA                          </span></span>
@@ -343,7 +356,7 @@ scale. Fitting the regression in a Bayesian framework arranges that:
 <span><span class="co">#&gt; All Pareto k estimates are good (k &lt; 0.7).</span></span>
 <span><span class="co">#&gt; See help('pareto-k-diagnostic') for details.</span></span></code></pre></div>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>bart <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>,</span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>bart     <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">full</span><span class="op">)</span>,</span>
 <span>                 logistic <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">logistic</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     model elpd_diff se_diff p_worse       diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;  logistic       0.0     0.0      NA                          </span></span>
@@ -450,8 +463,8 @@ model for the survival outcome in <code>rhc</code>:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">prop_haz</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">surv_model</span>, data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">ph</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span>,</span>
-<span>                 ph <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://mc-stan.org/loo/reference/loo_compare.html" class="external-link">loo_compare</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aft <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">aft</span>,      scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span>,</span>
+<span>                 ph  <span class="op">=</span> <span class="fu"><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo</a></span><span class="op">(</span><span class="va">prop_haz</span>, scale <span class="op">=</span> <span class="st">"time"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  model elpd_diff se_diff p_worse diag_diff       diag_elpd</span></span>
 <span><span class="co">#&gt;     ph       0.0     0.0      NA           1 k_psis &gt; 0.66</span></span>
 <span><span class="co">#&gt;    aft     -90.0    15.4    1.00</span></span></code></pre></div>

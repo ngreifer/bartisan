@@ -217,9 +217,9 @@ are <code>NULL</code> to use a tenth of the sample size, and .5.</p></dd>
 baseline hazard has, with the edges at evenly spaced quantiles of the
 observed times. Must be 2 or greater. Default is <code>NULL</code> to use about the
 cube root of the sample size, which is the order the Freedman-Diaconis rule
-gives for a histogram. This should not need to be set: the estimates are
-flat in it over a sixty-fold range, and it is here for checking that rather
-than for tuning. See Details.</p></dd>
+gives for a histogram. This should not need to be set: in simulations the
+estimates were essentially unchanged from 4 bins to 100, and it is here for
+checking that rather than for tuning. See Details.</p></dd>
 
 
 <dt id="arg-lambda-shape">lambda_shape<a class="anchor" aria-label="anchor" href="#arg-lambda-shape"></a></dt>
@@ -418,8 +418,7 @@ shape the error has. The families differ in what \(e^{\eta}\) is on its own, eac
 family pinning its error's location differently: the median of \(T\) for
 <code>loglogistic_aft()</code> and <code>lognormal_aft()</code>, the geometric mean for <code>dpm_aft()</code>,
 and the Weibull scale for <code>weibull_aft()</code>. Contrasts are unaffected by any of
-that; <code><a href="../articles/survival.html">vignette("survival")</a></code> tabulates the levels and measures the difference
-between them.</p>
+that; <code><a href="../articles/survival.html">vignette("survival")</a></code> tabulates the levels.</p>
 <p><code>weibull_aft()</code> is also the one family whose predictor carries a log <em>hazard</em>
 ratio, of \(-\Delta\eta/\sigma\), alongside its log time ratio. That is a
 property of the smallest extreme value error rather than of the structural part it shares with
@@ -433,8 +432,12 @@ edges at evenly spaced quantiles of the observed times; the default is about
 the cube root of the sample size. The bin hazards are drawn from their exact
 gamma conditionals and reported as <code>lambda1</code>, <code>lambda2</code>, ... in <code>fit$aux</code>,
 together with the rate of their own prior. The predictor and the baseline are
-identified only jointly, so the baseline carries the level and the predictor
-is reported centered on it.</p>
+identified only jointly, so each draw is reported with the predictor centered
+over the fitted sample and the hazards scaled to match: a single value of the
+predictor is a log hazard ratio against a unit whose predictor sits at that
+average, and <code>lambda1</code>, <code>lambda2</code>, ... are that unit's hazards. Setting
+<code>update_lambda = FALSE</code> holds the baseline fixed, in which case the draws are
+reported uncentered and the hazards at the values they were fixed at.</p>
 <p>Cox's <em>partial</em> likelihood cannot be used here: it couples
 observations through risk sets and so does not decompose into a sum over the
 observations reaching a leaf. The full likelihood of the piecewise-exponential
@@ -443,7 +446,8 @@ shrink, which is how <code>ph()</code> reaches proportional hazards without it.<
 <p>The <code>num_bins</code> argument should be left at its default. The estimates are insensitive to it,
 and what it does change is the effective number of parameters, which grows
 with the bin count and so matters for <code><a href="bartisan-interop.html">loo()</a></code> and <code>waic()</code>.
-<code><a href="../articles/survival.html">vignette("survival")</a></code> sweeps it.</p>
+In the simulations <code><a href="../articles/survival.html">vignette("survival")</a></code> summarizes, the fitted survival
+curves were essentially unchanged from 4 bins to 100.</p>
 <p>The three differ in cost, though not enough to decide a model on.
 <code>lognormal_aft()</code> and <code>loglogistic_aft()</code> impute each censored failure time
 above its censoring time, which makes their targets quadratic and is worth a
@@ -462,8 +466,8 @@ reason <code>dpm()</code> refuses them.</p>
 <p>Reach for it when the shape of the error is in doubt and there is no reason to
 assert one. It gains substantially where a fixed-error family would have been
 wrong and costs next to nothing where one would have been right, which is the
-property <code>dpm()</code> has against <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>; <code><a href="../articles/survival.html">vignette("survival")</a></code> measures
-both cases.</p>
+property <code>dpm()</code> has against <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">gaussian()</a></code>; <code><a href="../articles/survival.html">vignette("survival")</a></code> summarizes
+the simulations behind that.</p>
 <p><code>gaussian_ls()</code> regresses the mean and the log standard deviation of a
 normal response on separate forests, so the variance is an unrestricted
 function of the predictors.</p>
@@ -620,7 +624,7 @@ estimates; <code><a href="../articles/families.html">vignette("families", packag
 <span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50 kept after 50 warmup</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Posterior means: lambda1 = 0.0133, lambda2 = 0.0197, lambda3 = 0.0133, lambda4 = 0.00902, lambda5 = 0.00377, lambda6 = 0.00169, lambda7 = 0.00128, lambda8 = 0.000808, lambda9 = 0.00179, lambda10 = 0.00283, lambda11 = 0.00215, lambda12 = 0.00236, lambda_rate = 186</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Posterior means: lambda1 = 0.0137, lambda2 = 0.0203, lambda3 = 0.0137, lambda4 = 0.00927, lambda5 = 0.00388, lambda6 = 0.00174, lambda7 = 0.00132, lambda8 = 0.000832, lambda9 = 0.00185, lambda10 = 0.00291, lambda11 = 0.00221, lambda12 = 0.00244, lambda_rate = 180</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># An unordered response, with one forest per category</span></span></span>
 <span class="r-in"><span><span class="co"># and a prior that is symmetric in them</span></span></span>

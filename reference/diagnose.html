@@ -178,7 +178,10 @@ through <a href="https://CRAN.R-project.org/package=progressr" class="external-l
 <p>One row per scalar the sampler draws (the log likelihood, the nuisance
 parameters of the family, and the scale of each random-effect term), plus two
 rows for the additive predictor and two for each set of group intercepts: one
-summarizing the worst 5% of observations or levels, and one for their average.</p>
+summarizing the worst 5% of observations or levels, and one for their average.
+A fit with soft decision rules gets the same pair for the gate bandwidth,
+summarized over trees rather than over observations, since one bandwidth is
+drawn per tree.</p>
 <p>Both are reported because they routinely disagree, and which one binds depends
 on what is being reported. A forest settles the level of the fitted function
 within a sweep or two and takes much longer to settle which observation gets
@@ -197,6 +200,17 @@ matters, as it is for a probability in the lowest categories. It is usually
 the slowest row in such a fit, and the most pessimistic one, since it carries
 the level on its own where every quantity computed from the draws mixes the
 level with faster-moving ones.</p>
+<p>A <code><a href="bartisan-families.html">ph()</a></code> fit is recorded the same way, for the same reason. Multiplying every
+baseline hazard by a constant and subtracting its log from the additive
+predictor leaves the likelihood unchanged, so each draw is recorded with the
+predictor centered over the fitted sample and the hazards scaled to match.
+The average row is again reported as <code>NA</code>, and the level of the fitted
+function is in the <code>aux.lambda</code> rows, which are the hazards of a unit whose
+predictor sits at that average. Recorded in the sampler's own chart, the
+hazards and the level would drift together and read as badly mixed while the
+survival probabilities computed from them mixed well. A fit with
+<code>update_lambda = FALSE</code> holds the baseline fixed, which leaves nothing to
+trade off, so its draws are recorded as they were sampled.</p>
 <p><code>rhat</code> is split-R-hat, so drift inside a chain counts as disagreement rather
 than hiding inside a chain mean. <code>rhat_late</code> is that same statistic on the
 second half of the retained draws alone, which separates the two reasons
@@ -220,6 +234,18 @@ quantities, and the splitting rules get a check and a remedy of their own. It
 is separated rather than suppressed, because it does bind on anything computed
 from the split counts themselves, which is <code><a href="variable_importance.html">variable_importance()</a></code> and
 <code><a href="../articles/importance.html">vignette("importance")</a></code>.</p>
+<p>The gate bandwidth is graded apart for the same reason and is worth reading
+for a different one. A tree's rules can be made wider or narrower while the
+function the tree encodes stays where it was, so the bandwidth is no more
+pinned down by the fit than the number of splitting rules is; but it can be
+the slowest quantity in the model, and far slower than anything the fit
+reports. Under a Poisson likelihood a tree's bandwidth carries a median of 68
+effective draws per 1000 against a binomial's 190, and the worst tree in a
+fit 9 against 114. Note that this is a property of the family and not of the
+data, so it is worth looking at on any <code><a href="https://rdrr.io/r/stats/family.html" class="external-link">poisson()</a></code>, <code><a href="bartisan-families.html">negbin()</a></code> or other count
+fit left at the default soft rules. Setting <code>update_bandwidth = FALSE</code> in
+<code><a href="bartisan_control.html">bartisan_control()</a></code> removes the draw entirely at the cost of fixing the
+amount of smoothing, and raising <code>num_draws</code> is the alternative.</p>
 <p>The grading rests on how the model is parameterized and not on that row being
 the worst one, which it usually is not. Measured over 144 fits spanning three
 families, hard and soft rules and sample sizes from 500 to 8000, the splitting
@@ -312,6 +338,8 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.212     1.423        7        7</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.000     0.990       88      100</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.608     1.723        4       15</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       bandwidth (average over trees) 1.047     1.325       22       32</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        bandwidth (worst 5% of trees) 1.643     2.045        4       11</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
@@ -321,10 +349,9 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   1.21)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how wide the decision rules are (R-hat 1.64)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 15 for eta.eta (worst 5% of observations), below 400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 88 effective draws)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   carries 3.8 effective draws per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -352,13 +379,6 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   it when split counts are themselves what gets reported --</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   `variable_importance()` and `vignette("importance")` -- and not when fitted</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   values, predictions or effects are.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   observations and not about their average, which is the usual shape of this in</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   a forest. What that means for an estimand cannot be read off this table</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   either way, since an estimand is a contrast and a contrast can mix badly</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   where the function it contrasts mixes well. Compute it: `diagnose()` takes</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   draws to `posterior::summarise_draws()` for anything else.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># A stricter effective sample size, which an interval</span></span></span>
 <span class="r-in"><span><span class="co"># endpoint needs and a posterior mean does not</span></span></span>
@@ -370,6 +390,8 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                           splits.eta 1.212     1.423        7        7</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  eta.eta (average over observations) 1.000     0.990       88      100</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   eta.eta (worst 5% of observations) 1.608     1.723        4       15</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       bandwidth (average over trees) 1.047     1.325       22       32</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        bandwidth (worst 5% of trees) 1.643     2.045        4       11</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> 2 chains, 100 draws kept in total</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span>
@@ -379,10 +401,9 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   draws alone as well</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   1.21)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> The chains disagree about how wide the decision rules are (R-hat 1.64)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Tail ESS is 15 for eta.eta (worst 5% of observations), below 1000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The chains disagree about individual observations and agree about their</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   average (R-hat 1.00, 88 effective draws)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   carries 3.8 effective draws per hundred kept</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -410,13 +431,6 @@ including posterior predictive checks</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   it when split counts are themselves what gets reported --</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   `variable_importance()` and `vignette("importance")` -- and not when fitted</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   values, predictions or effects are.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Note that the chains disagree about the fitted values of individual</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   observations and not about their average, which is the usual shape of this in</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   a forest. What that means for an estimand cannot be read off this table</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   either way, since an estimand is a contrast and a contrast can mix badly</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   where the function it contrasts mixes well. Compute it: `diagnose()` takes</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   draws to `posterior::summarise_draws()` for anything else.</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

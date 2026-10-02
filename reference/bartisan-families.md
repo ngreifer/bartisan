@@ -141,9 +141,9 @@ tweedie(link = "log", power = 1.5, phi = NULL)
   has, with the edges at evenly spaced quantiles of the observed times.
   Must be 2 or greater. Default is `NULL` to use about the cube root of
   the sample size, which is the order the Freedman-Diaconis rule gives
-  for a histogram. This should not need to be set: the estimates are
-  flat in it over a sixty-fold range, and it is here for checking that
-  rather than for tuning. See Details.
+  for a histogram. This should not need to be set: in simulations the
+  estimates were essentially unchanged from 4 bins to 100, and it is
+  here for checking that rather than for tuning. See Details.
 
 - lambda_shape:
 
@@ -409,7 +409,7 @@ own, each family pinning its error's location differently: the median of
 for `dpm_aft()`, and the Weibull scale for `weibull_aft()`. Contrasts
 are unaffected by any of that;
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-tabulates the levels and measures the difference between them.
+tabulates the levels.
 
 `weibull_aft()` is also the one family whose predictor carries a log
 *hazard* ratio, of \\-\Delta\eta/\sigma\\, alongside its log time ratio.
@@ -427,8 +427,13 @@ edges at evenly spaced quantiles of the observed times; the default is
 about the cube root of the sample size. The bin hazards are drawn from
 their exact gamma conditionals and reported as `lambda1`, `lambda2`, ...
 in `fit$aux`, together with the rate of their own prior. The predictor
-and the baseline are identified only jointly, so the baseline carries
-the level and the predictor is reported centered on it.
+and the baseline are identified only jointly, so each draw is reported
+with the predictor centered over the fitted sample and the hazards
+scaled to match: a single value of the predictor is a log hazard ratio
+against a unit whose predictor sits at that average, and `lambda1`,
+`lambda2`, ... are that unit's hazards. Setting `update_lambda = FALSE`
+holds the baseline fixed, in which case the draws are reported
+uncentered and the hazards at the values they were fixed at.
 
 Cox's *partial* likelihood cannot be used here: it couples observations
 through risk sets and so does not decompose into a sum over the
@@ -441,9 +446,10 @@ The `num_bins` argument should be left at its default. The estimates are
 insensitive to it, and what it does change is the effective number of
 parameters, which grows with the bin count and so matters for
 [`loo()`](https://ngreifer.github.io/bartisan/reference/bartisan-interop.md)
-and `waic()`.
+and `waic()`. In the simulations
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-sweeps it.
+summarizes, the fitted survival curves were essentially unchanged from 4
+bins to 100.
 
 The three differ in cost, though not enough to decide a model on.
 `lognormal_aft()` and `loglogistic_aft()` impute each censored failure
@@ -470,7 +476,7 @@ would have been wrong and costs next to nothing where one would have
 been right, which is the property `dpm()` has against
 [`gaussian()`](https://rdrr.io/r/stats/family.html);
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-measures both cases.
+summarizes the simulations behind that.
 
 `gaussian_ls()` regresses the mean and the log standard deviation of a
 normal response on separate forests, so the variance is an unrestricted
@@ -663,7 +669,7 @@ bartisan(surv_model, data = rhc, family = ph(),
 #> Structure: 1 forest of 10 trees, soft decision rules
 #> Draws: 50 kept after 50 warmup
 #> 
-#> Posterior means: lambda1 = 0.0133, lambda2 = 0.0197, lambda3 = 0.0133, lambda4 = 0.00902, lambda5 = 0.00377, lambda6 = 0.00169, lambda7 = 0.00128, lambda8 = 0.000808, lambda9 = 0.00179, lambda10 = 0.00283, lambda11 = 0.00215, lambda12 = 0.00236, lambda_rate = 186
+#> Posterior means: lambda1 = 0.0137, lambda2 = 0.0203, lambda3 = 0.0137, lambda4 = 0.00927, lambda5 = 0.00388, lambda6 = 0.00174, lambda7 = 0.00132, lambda8 = 0.000832, lambda9 = 0.00185, lambda10 = 0.00291, lambda11 = 0.00221, lambda12 = 0.00244, lambda_rate = 180
 
 # An unordered response, with one forest per category
 # and a prior that is symmetric in them

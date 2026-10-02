@@ -60,6 +60,8 @@ diagnose(fit)
 #>                           splits.eta 1.03      1.05      322      549
 #>  eta.eta (average over observations) 1.00      1.01     1577     2695
 #>   eta.eta (worst 5% of observations) 1.02      1.03      287      802
+#>       bandwidth (average over trees) 1.01      1.01      646     1291
+#>        bandwidth (worst 5% of trees) 1.02      1.05      259      345
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
@@ -69,10 +71,11 @@ diagnose(fit)
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.03)
+#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.02)
 #> ✖ Bulk ESS is 120 for loglik, below 400
 #> ✔ Tail ESS is at least 737 for every reported quantity, above 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 1577 effective draws)
+#>   average (R-hat 1.01, 646 effective draws)
 #> ℹ Per-draw efficiency is lowest for loglik, which carries 3.8 effective draws
 #>   per hundred kept
 #> 
@@ -246,12 +249,16 @@ diagnose(too_short)$table
 #> 3                          splits.eta 1.63      1.69     7.47     29.5   0.0373
 #> 4 eta.eta (average over observations) 1.00      1.05   235.38    240.6   1.1769
 #> 5  eta.eta (worst 5% of observations) 1.93      2.08     6.28     15.8   0.0314
+#> 6      bandwidth (average over trees) 1.15      1.48    18.79    108.4   0.0940
+#> 7       bandwidth (worst 5% of trees) 3.16      3.72     5.21     10.1   0.0260
 #>   rhat_bad late_bad
 #> 1        1        1
 #> 2        1        1
 #> 3        1        1
 #> 4        0        1
 #> 5        1        1
+#> 6        1        1
+#> 7        1        1
 ```
 
 Almost everything is bad. Every `rhat` but the average over observations
@@ -274,12 +281,16 @@ diagnose(long_enough)$table
 #> 3                          splits.eta 1.10      1.17     31.3    188.4  0.00978
 #> 4 eta.eta (average over observations) 1.00      1.00   3355.6   3015.1  1.04861
 #> 5  eta.eta (worst 5% of observations) 1.17      1.22     16.3     69.4  0.00508
+#> 6      bandwidth (average over trees) 1.07      1.17     76.8    236.9  0.02399
+#> 7       bandwidth (worst 5% of trees) 1.34      1.45     11.1     30.2  0.00346
 #>   rhat_bad late_bad
 #> 1    1.000    1.000
 #> 2    1.000    0.000
 #> 3    1.000    1.000
 #> 4    0.000    0.000
 #> 5    0.993    0.995
+#> 6    1.000    1.000
+#> 7    1.000    1.000
 ```
 
 Everything has improved by a large factor, and the residual standard
@@ -360,7 +371,7 @@ as_draws(fit, eta = 1) |>
   mcmc_trace(pars = c("loglik", "eta[1]"))
 ```
 
-![](diagnostics_files/figure-html/trace-1.png)
+![](figures/diagnostics-trace-1.png)
 
 What we want to see is four chains overlapping, wandering around the
 same level, with no drift and no long excursions. Setting `eta = 1`
@@ -426,26 +437,30 @@ Now compare what the fit’s own table says about the same sampler:
 ``` r
 
 diagnose(bcf_fit)$table
-#>                                      quantity rhat rhat_late ess_bulk ess_tail
-#> 1                                      loglik 1.06      1.06     51.2    360.7
-#> 2                                 aux.b.rhc.0 1.07      1.31     48.0     82.5
-#> 3                                 aux.b.rhc.1 1.14      1.31     21.3     73.0
-#> 4                          splits.(Intercept) 1.03      1.02    222.8    537.7
-#> 5                                  splits.rhc 1.01      1.01    315.2    655.8
-#> 6 eta.(Intercept) (average over observations) 1.23      1.61     12.8     31.5
-#> 7  eta.(Intercept) (worst 5% of observations) 1.16      1.41     17.9     36.3
-#> 8         eta.rhc (average over observations) 1.20      1.40     14.0     40.0
-#> 9          eta.rhc (worst 5% of observations) 1.20      1.37     15.2     29.9
-#>   ess_frac rhat_bad late_bad
-#> 1  0.01599    1.000        1
-#> 2  0.01500    1.000        1
-#> 3  0.00666    1.000        1
-#> 4  0.06964    1.000        1
-#> 5  0.09851    0.000        1
-#> 6  0.00399    1.000        1
-#> 7  0.00560    0.997        1
-#> 8  0.00438    1.000        1
-#> 9  0.00475    1.000        1
+#>                                       quantity rhat rhat_late ess_bulk ess_tail
+#> 1                                       loglik 1.06      1.06     51.2    360.7
+#> 2                                  aux.b.rhc.0 1.07      1.31     48.0     82.5
+#> 3                                  aux.b.rhc.1 1.14      1.31     21.3     73.0
+#> 4                           splits.(Intercept) 1.03      1.02    222.8    537.7
+#> 5                                   splits.rhc 1.01      1.01    315.2    655.8
+#> 6  eta.(Intercept) (average over observations) 1.23      1.61     12.8     31.5
+#> 7   eta.(Intercept) (worst 5% of observations) 1.16      1.41     17.9     36.3
+#> 8          eta.rhc (average over observations) 1.20      1.40     14.0     40.0
+#> 9           eta.rhc (worst 5% of observations) 1.20      1.37     15.2     29.9
+#> 10              bandwidth (average over trees) 1.01      1.01    656.7   1161.7
+#> 11               bandwidth (worst 5% of trees) 1.02      1.04    274.6    312.9
+#>    ess_frac rhat_bad late_bad
+#> 1   0.01599    1.000    1.000
+#> 2   0.01500    1.000    1.000
+#> 3   0.00666    1.000    1.000
+#> 4   0.06964    1.000    1.000
+#> 5   0.09851    0.000    1.000
+#> 6   0.00399    1.000    1.000
+#> 7   0.00560    0.997    1.000
+#> 8   0.00438    1.000    1.000
+#> 9   0.00475    1.000    1.000
+#> 10  0.20522    0.000    0.000
+#> 11  0.08582    0.307    0.747
 ```
 
 The two forests are far worse than the estimand. Their R-hats run from
@@ -564,6 +579,8 @@ diagnose(short)
 #>                           splits.eta 1.00      1.02      348      444
 #>  eta.eta (average over observations) 1.00      1.00     1809     2614
 #>   eta.eta (worst 5% of observations) 1.02      1.03      344      676
+#>       bandwidth (average over trees) 1.01      1.01      482     1126
+#>        bandwidth (worst 5% of trees) 1.02      1.03      338      349
 #> 
 #> ✔ 4 chains, 3200 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
@@ -572,10 +589,11 @@ diagnose(short)
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✔ The chains agree about the size of the forest
+#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.02)
 #> ✖ Bulk ESS is 84 for loglik, below 400
 #> ✖ Tail ESS is 277 for loglik, below 400
 #> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.00, 1809 effective draws)
+#>   average (R-hat 1.01, 482 effective draws)
 #> ℹ Per-draw efficiency is lowest for loglik, which carries 2.6 effective draws
 #>   per hundred kept
 #> 
@@ -625,21 +643,24 @@ diagnose(longer)
 #> Convergence and mixing
 #> 
 #>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.02      1.02      380      700
-#>                           splits.eta 1.00      1.00     2697     5834
-#>  eta.eta (average over observations) 1.00      1.00    15112    23036
-#>   eta.eta (worst 5% of observations) 1.00      1.01     1699     2893
+#>                               loglik 1.02      1.03      207      977
+#>                           splits.eta 1.00      1.00     2710     5914
+#>  eta.eta (average over observations) 1.00      1.00    17037    23991
+#>   eta.eta (worst 5% of observations) 1.01      1.01     1761     3630
+#>       bandwidth (average over trees) 1.00      1.00     5218    10097
+#>        bandwidth (worst 5% of trees) 1.00      1.00     3973     4697
 #> 
 #> ✔ 4 chains, 32000 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 380 effective draws, where 4 chains average 1.011
+#> ✖ That R-hat rests on only 207 effective draws, where 4 chains average 1.019
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✔ The chains agree about the size of the forest
-#> ✖ Bulk ESS is 380 for loglik, below 400
-#> ✔ Tail ESS is at least 700 for every reported quantity, above 400
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 1.2 effective draws
+#> ✔ The chains agree about how wide the decision rules are
+#> ✖ Bulk ESS is 207 for loglik, below 400
+#> ✔ Tail ESS is at least 977 for every reported quantity, above 400
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.6 effective draws
 #>   per hundred kept
 #> 
 #> What to do
@@ -821,7 +842,7 @@ and compares their distribution to the observed one.
 pp_check(fit)
 ```
 
-![](diagnostics_files/figure-html/ppc-1.png)
+![](figures/diagnostics-ppc-1.png)
 
 For a continuous outcome this is the workhorse check, and we look for
 systematic differences: replicates that are too narrow, that miss a
@@ -859,7 +880,7 @@ and
 pp_check(fit, type = "stat", stat = "sd")
 ```
 
-![](diagnostics_files/figure-html/ppcstat-1.png)
+![](figures/diagnostics-ppcstat-1.png)
 
 **Calibration of the whole predictive distribution** is checked by
 setting `type = "loo_pit_ecdf"`. Each observation is transformed through
@@ -873,7 +894,7 @@ wrong even where the mean is right, which the default check cannot see.
 pp_check(fit, type = "loo_pit_ecdf")
 ```
 
-![](diagnostics_files/figure-html/ppcloo-1.png)
+![](figures/diagnostics-ppcloo-1.png)
 
 **The location of a residual**, rather than its size, is shown by
 setting `type = "error_scatter_avg_vs_x"`: the average residual against
@@ -901,7 +922,7 @@ probabilities mean what they say: among the patients the model gave a
 pp_check(fit, type = "loo_calibration")
 ```
 
-![](diagnostics_files/figure-html/calibration-1.png)
+![](figures/diagnostics-calibration-1.png)
 
 A line on the diagonal means the probabilities are calibrated, and this
 one sits close to it across the whole range. The dots along the bottom
