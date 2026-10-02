@@ -75,6 +75,13 @@ DRAWS <- as.integer(Sys.getenv("SBC_DRAWS", "1000"))
 # separates a chain that starts the retained draws in the wrong place from one
 # whose draws are merely autocorrelated.
 WARMUP <- as.integer(Sys.getenv("SBC_WARMUP", "400"))
+# `SBC_OFFSET` adds a known constant to the generating predictor and supplies
+# the same constant to the fit, which leaves the model unchanged and raises the
+# level of the response. For a Poisson it is how far the log density is pushed
+# toward a quadratic: at a mean near one it is sharply skewed and at a mean of
+# fifty it is nearly normal, so the Laplace approximation the tree moves accept
+# on gets better as this grows.
+OFFSET <- as.numeric(Sys.getenv("SBC_OFFSET", "0"))
 FIX_BANDWIDTH <- nzchar(Sys.getenv("SBC_FIX_BANDWIDTH"))
 TAG <- Sys.getenv("SBC_TAG", "")
 
@@ -101,7 +108,11 @@ BETA <- 2
 # SBC's uniformity is marginal over the prior and conditioning on a component
 # of the generating parameter breaks it for a correct sampler too.
 BANDWIDTH <- as.numeric(Sys.getenv("SBC_BANDWIDTH", "0.1"))
-L <- 100L      # thinned draws per fit, so a rank is one of 0..L
+# Thinned draws per fit, so a rank is one of 0..L. SBC wants the posterior
+# draws independent of one another: a chain thinned by less than its own
+# autocorrelation time gives a U-shaped histogram whatever the sampler does,
+# so `SBC_L` exists to thin harder than the default 10-fold.
+L <- as.integer(Sys.getenv("SBC_L", "100"))
 
 SOFT <- !identical(GATE, "hard")
 HALF_WIDTH <- 4.055935661788187   # smoothstep, from `node.h`
@@ -218,7 +229,9 @@ OUT <- {
   parts <- c(if (nzchar(TAG)) TAG,
              if (SEED_BASE != 5000L) sprintf("seed%d", SEED_BASE),
              if (BANDWIDTH != 0.1) sprintf("bw%s", format(BANDWIDTH)),
-             if (WARMUP != 400L) sprintf("warm%d", WARMUP))
+             if (WARMUP != 400L) sprintf("warm%d", WARMUP),
+             if (OFFSET != 0) sprintf("off%s", format(OFFSET)),
+             if (L != 100L) sprintf("L%d", L))
   sprintf("%s%s.rds", base,
           if (length(parts)) paste0("-", paste(parts, collapse = "-")) else "")
 }
@@ -294,7 +307,7 @@ for (r in todo) {
   truth <- eta[A] - eta[B]
 
   d <- d0
-  d$y <- draw_response(eta)
+  d$y <- draw_response(eta + OFFSET)
 
   # A response with no variation carries no likelihood and the fit refuses it.
   if (length(unique(d$y)) < 2L) {
@@ -303,7 +316,8 @@ for (r in todo) {
     next
   }
 
-  fit <- bartisan(y ~ ., data = d, family = family, control = control)
+  fit <- bartisan(y ~ ., data = d, family = family, control = control,
+                  offset = if (OFFSET != 0) rep(OFFSET, N))
 
   e <- fit[["eta"]][[1L]]
   contrast <- e[, A] - e[, B]

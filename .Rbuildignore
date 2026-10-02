@@ -25,3 +25,4 @@
 ^\.progress-runs$
 ^\.run-.*\.sh$
 ^justfile$
+^vignettes/.*\.Rmd\.orig$

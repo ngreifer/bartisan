@@ -91,7 +91,7 @@ each other, which is the sort of thing to check rather than read.
 
 - [ ] `vignette("bartisan")` does not cover the bounded gates or either ordinal augmentation; `vignette("families")` covers the augmentations but not the gates. The first runs on a reduced chain (20 trees, 300 draws, n = 400) and builds in about 85 seconds.
 
-- [ ] **Vignette build time is over CRAN's budget.** 9.2 minutes for all eleven on 2026-09-24 (`_dev/vignette-timing.R`), after `bartisan`, `causal` and `importance` moved from four chains to one (238, 139 and 22 seconds down to 56, 39 and 9). `diagnostics` (140) and `comparison` (128) are the two to deal with. The choices, and the numbers, are in `_dev/SHIP.md`'s 2026-09-24 section, and every chunk's time is in `_dev/vignette-chunk-times.md`.
+- [x] **Vignette build time is over CRAN's budget.** (Done 2026-10-02: the six heavy vignettes are precomputed from `.Rmd.orig` sources by `_dev/precompute-vignettes.R`, each verified byte-identical to its live render, and `R CMD build` of all eleven plus the engine now takes 47 seconds; see the log entry of that date.) 9.2 minutes for all eleven on 2026-09-24 (`_dev/vignette-timing.R`), after `bartisan`, `causal` and `importance` moved from four chains to one (238, 139 and 22 seconds down to 56, 39 and 9). `diagnostics` (140) and `comparison` (128) are the two to deal with. The choices, and the numbers, are in `_dev/SHIP.md`'s 2026-09-24 section, and every chunk's time is in `_dev/vignette-chunk-times.md`.
 
 - [x] **Settle the engine's license with Linero.** (Done 2026-09-28: `DESCRIPTION` now says `GPL-2`.) The engine is adapted from `FlexBart`, the package in the Linero (2025) reproduction materials, whose `DESCRIPTION` says `License: GPL 2.0` with no LICENSE file. If that means version 2 only, `GPL (>= 2)` is not available to a derivative. Either he confirms "or later" or the package becomes `GPL-2`.
 
@@ -191,6 +191,33 @@ The third item on the audit record's list. In `_dev/recovery-matrix.R` the `zi_n
 **And the zero part's coefficient forest is barely identified at n = 1000.** With a zero process that does not depend on the treatment, so that the truth is zero, `vc()` reports a zero-predictor effect of -0.690 with a between-seed spread of 0.459 on 2 effective draws. At n = 4000 it is -0.197 on 5. The count side's own recovery is unaffected, which is what falsifies the absorption story, but a user reading the zero part of a `vc()` fit on a zero-inflated family at this sample size would be reading noise. The original hypothesis was right about that forest being unidentified and wrong about where its error goes.
 
 What this leaves for the record: `vignette("families")` recommends the zero-inflated families on their accuracy, and nothing anywhere says their estimands need far more draws than the default. The measurement to make before saying how many is the effective sample size against `num_draws` for this family, which nothing here has.
+
+## The heavy vignettes are precomputed, and verified to be what a reader would have seen (2026-10-02)
+
+Vignette build time was the one release blocker that was a decision rather than paperwork: 7.5 minutes for the eleven on a quiet machine, before tests, examples and compilation, against the ten CRAN budgets for a whole check on one platform. Six vignettes held nearly all of it: diagnostics, effects, comparison, varying, bartisan and causal.
+
+**The mechanism.** Each of the six is now written as `vignettes/<name>.Rmd.orig`, the live source, and `_dev/precompute-vignettes.R` turns it into the shipped `vignettes/<name>.Rmd`. The script runs `rmarkdown::render()` on the source exactly as a live build would, with the output format the vignette's own YAML names, and stops before pandoc; what that returns is the knitted intermediate of a live build, in which every chunk has become a fenced block of its code followed by a fenced block of its real output, and every figure a reference to a PNG. That intermediate, with its figures moved into the tracked `vignettes/figures/` and prefixed by the vignette's name, is the shipped file. It evaluates nothing, so building it is pandoc's work alone. The `.Rmd.orig` files are in `.Rbuildignore` and do not ship.
+
+**Storing the fitted objects instead was not available.** A four-chain `rhc` fit serializes to 42 megabytes, and 37 under xz, against the five a whole package may occupy.
+
+**It is verified, not assumed, that a reader sees the same page.** The first version called `knitr::knit()` directly, and a diff of its rendered page against a live render of the same source found every figure wrapped in a `<div class="figure">` with a visible caption, "plot of chunk <label>", that the live page does not have: plain knitr captions a figure with its chunk label, where rmarkdown's hooks do not. Rendering through `rmarkdown::render()` and shipping its own intermediate removed that, and the causal vignette's precomputed page then came out **byte-identical** to its live render, all 1089 lines and all three embedded images. That check is now part of the script rather than something done once: a live page is pandoc applied to the intermediate the script already holds, so comparing it against a render of the shipped file costs two pandoc runs and no refitting, and the script stops with an error when the two differ. All six pass it:
+
+| vignette | precompute seconds | shipped render |
+|---|---|---|
+| bartisan | 118 | matches the live render |
+| causal | 107 | matches the live render |
+| comparison | 142 | matches the live render |
+| diagnostics | 230 | matches the live render |
+| effects | 109 | matches the live render |
+| varying | 112 | matches the live render |
+
+Three smaller things the check also had to get right. Knitting evaluates the inline code in the YAML, which froze each precomputed vignette's date to the day it was built and would have made it look older than a live one, so the script puts the `date:` line back as it was written. Each vignette knits in a fresh environment, so one cannot pass by seeing another's objects. And a vignette's stale figures are removed before its new ones are written, so a deleted chunk does not leave an orphaned PNG behind.
+
+**The result in the real build.** `R CMD build` of the whole package, compiling the engine and building all eleven vignettes, took **47 seconds**. The tarball is 3.1 MB, ships the sixteen figures (0.7 MB) and none of the `.Rmd.orig` sources, and contains all eleven built vignettes. The five left live (families, survival, importance, implementation, faq) take about 35 seconds together and are still checked by CRAN the ordinary way.
+
+**Regenerating them.** `just precompute` in `_dev/justfile`, or `just precompute diagnostics effects` for a subset, installs the package and runs the script. `.github/workflows/precompute-vignettes.yaml` does the same on GitHub on a push that touches a `.Rmd.orig`, the script, `R/` or `src/`, and on request from the Actions tab with an optional list of vignettes, and commits back whatever it regenerates. A push made with the workflow's own token starts no further run, so that commit cannot loop.
+
+**One thing to watch once it has run on GitHub.** Output is deterministic across separate R sessions here, image bytes included, which is what the byte-identical check shows. Across machines it may not be: font rendering, the graphics device and BLAS can differ in the last bit between this Mac and GitHub's macOS runner. If they do, the workflow will commit regenerated vignettes on every push even when nothing changed, and a local precompute will disagree with CI's. Readers are protected either way, because the live-render check compares two pages produced on the same machine, so the cost would only be commit churn. The committed files should be treated as CI's, with local runs as previews; whether the bytes actually differ is the first thing to read from the workflow's first run.
 
 ## Conditioning SBC ranks on the parameter is not a test, and two things it cost (2026-10-02)
 

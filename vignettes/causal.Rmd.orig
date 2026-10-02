@@ -13,7 +13,20 @@ bibliography: references.bib
 link-citations: true
 ---
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.0, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4, marginaleffects_safe = FALSE)
 
+has_me <- rlang::is_installed("marginaleffects")
+has_cobalt <- rlang::is_installed("cobalt")
+run <- TRUE
+
+if (interactive() && rlang::is_installed("progressr")) {
+  progressr::handlers(global = TRUE)
+}
+```
 
 ## Introduction
 
@@ -25,8 +38,7 @@ In addition to its use here, BART can be used with instrumental variables analys
 
 The example we use here is a dataset used to answer whether right heart catheterization helps or harms critically ill patients [@connors1996].
 
-
-``` r
+```{r libs, eval = run}
 library(bartisan)
 
 data(rhc)
@@ -34,49 +46,28 @@ data(rhc)
 set.seed(2026)
 ```
 
-
+```{r libs2, eval = run, include = FALSE}
+if (has_cobalt) library(cobalt)
+if (has_me) library(marginaleffects)
+library(ggplot2)
+```
 
 ## Confounding
 
 Catheterization was not randomized. Doctors chose it, and they chose it more often for patients who were already doing badly. Those patients were also more likely to die. We can use `cobalt::bal.tab()` to see how the patients differ between groups:
 
-
-``` r
+```{r baltab, eval = run && has_cobalt}
 bal.tab(rhc ~ age + sex + race + edu + aps + meanbp + resp +
           hema + pafi + paco2 + crea + surv2m + card,
         data = rhc, stats = c("m", "ovl"), disp = "m")
-#> Balance Measures
-#>               Type  M.0.Un  M.1.Un Diff.Un OVL.Un
-#> age        Contin.  61.816  60.756  -0.065  0.101
-#> sex_male    Binary   0.524   0.591   0.067  0.067
-#> race_white  Binary   0.793   0.768  -0.024  0.024
-#> race_black  Binary   0.157   0.168   0.011  0.011
-#> race_other  Binary   0.050   0.064   0.013  0.013
-#> edu        Contin.  11.568  11.767   0.061  0.048
-#> aps        Contin.  51.369  62.099   0.530  0.223
-#> meanbp     Contin.  85.302  66.871  -0.505  0.231
-#> resp       Contin.  28.841  27.465  -0.097  0.055
-#> hema       Contin.  32.545  30.237  -0.290  0.159
-#> pafi       Contin. 238.232 182.995  -0.504  0.208
-#> paco2      Contin.  40.045  36.871  -0.262  0.096
-#> crea       Contin.   1.905   2.506   0.292  0.179
-#> surv2m     Contin.   0.604   0.559  -0.229  0.105
-#> card_yes    Binary   0.299   0.405   0.106  0.106
-#> 
-#> Sample sizes
-#>     Control Treated
-#> All     935     565
 ```
 
 The `M.0.Un` column indicates the mean for each variable in the control group and the `M.1.Un` column indicates the mean for each variable in the treated group. `Diff.Un` and `OVL.Un` are measures of the distributional difference between the groups for each covariate; values far from 0 indicate imbalance due to differential selection into treatment. In particular, we can see that patients with higher values of `aps` and `crea` and lower values of `meanbp`, `hema`, `pafi`, `paco2`, and `surv2m` are overrepresented among treated units.
 
 Given that sicker patients are both more likely to die and more likely to receive RHC, it would not be unexpected to see that patients who receive RHC are more likely to die, and we do see that:
 
-
-``` r
+```{r naive, eval = run}
 with(rhc, tapply(death, rhc, mean))
-#>      0      1 
-#> 0.6193 0.7115
 ```
 
 However, that doesn't mean RHC causes death; to disentangle the effects of RHC from the confounding effects of patients' characteristics, we need to adjust for these characteristics.
@@ -99,8 +90,7 @@ The first is the one that usually fails and the one to be explicit about. State 
 
 Positivity fails when some combination of covariates makes the treatment nearly certain. To look for that, model the treatment and inspect the fitted probabilities in both groups. BART is a good choice for this model too, for the same reason it is a good choice for the outcome: the functional form is not known.
 
-
-``` r
+```{r psfit, eval = run}
 ps_fit <- bartisan(
   rhc ~ age + sex + race + edu + aps + meanbp + resp + hema + pafi +
     paco2 + crea + surv2m + card,
@@ -112,12 +102,9 @@ prop_score <- fitted(ps_fit)
 
 We can use `cobalt::bal.plot()` to examine the overlap of the propensity score distribution between the groups:
 
-
-``` r
+```{r balplot, eval = run && has_cobalt}
 bal.plot(rhc ~ prop_score, data = rhc, type = "hist", mirror = TRUE)
 ```
-
-<img src="figures/causal-balplot-1.png" alt="" style="display: block; margin: auto;" />
 
 What matters for positivity is that the two groups overlap over most of their range, and they do. Distributions pushed against zero and one with little overlap indicate a failure of positivity, and the honest response then is to restrict the analysis to the region of overlap rather than let the model extrapolate into a part of the covariate space where one treatment was never observed.
 
@@ -144,8 +131,7 @@ It differs from the sample average treatment effect and the population average t
 
 We can fit the outcome model as a binary BART regression of the outcome on the treatment and covariates, as in @hill2011, with the propensity score estimated above added as one more covariate:
 
-
-``` r
+```{r po, eval = run}
 rhc$prop_score <- prop_score
 
 fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
@@ -163,31 +149,13 @@ The fits in this vignette use the default single chain for brevity. Normally, we
 
 The quantities underlying the effect estimate are the two average potential outcomes: the proportion who would die if every patient were catheterized, and the proportion who would die if none were. `estimate_effect()` computes them on the way to the effect and prints them beneath it. On a fit from `bartisan()`, the treatment has to be named, since nothing in the formula marks one predictor as the treatment:
 
-
-``` r
+```{r ate, eval = run}
 ate <- estimate_effect(fit, treat = "rhc")
 
 ate
-#> Average treatment effect (difference)
-#> 
-#> Treatment: `rhc`
-#> Averaged over 1500 units
-#> 
-#>     contrast estimate  lower upper    n
-#>  Y[1] - Y[0]    0.063 0.0145 0.113 1500
-#> 
-#> Average potential outcomes
-#> 
-#>  quantity estimate lower upper
-#>      Y[0]    0.631 0.600 0.659
-#>      Y[1]    0.694 0.655 0.730
-#> 
-#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
-#>   credible interval.
-#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```
 
-Under the assumptions above this is the average treatment effect: catheterization raises the probability of death by about 6 percentage points, with an interval running from roughly 1.4 to 11.3.
+Under the assumptions above this is the average treatment effect: catheterization raises the probability of death by about `r if (run) round(100 * abs(ate$estimate[1])) else "6"` percentage points, with an interval running from roughly `r if (run) round(100 * ate$lower[1], 1) else "1.6"` to `r if (run) round(100 * ate$upper[1], 1) else "11"`.
 
 The two rows below the contrast are the estimates of $E[Y(0)]$ and $E[Y(1)]$, each averaged over the observed covariate distribution. Reporting both is often more informative than reporting their difference alone, because a difference of a few percentage points means something different against a baseline of 63% than it would against 5%. Setting `potential_outcomes = FALSE` in the `print()` call drops them where the difference is all that is wanted.
 
@@ -199,45 +167,18 @@ That order makes a ratio here the marginal ratio rather than the average of the 
 
 The scale matters, and it is the reason the default is `type = "response"`. On that scale, the average of the unit-level differences *is* the marginal effect. A contrast read off the link scale is not: on a logistic fit, the average of the conditional log odds ratios is not the marginal log odds ratio, and the two can differ by a good deal. The `comparison` argument asks for the contrast rather than the scale, so a risk ratio or an odds ratio is available without leaving the response scale:
 
-
-``` r
+```{r ate_or, eval = run}
 estimate_effect(fit, treat = "rhc", comparison = "lnor")
-#> Average treatment effect (log odds ratio)
-#> 
-#> Treatment: `rhc`
-#> Averaged over 1500 units
-#> 
-#>                contrast estimate  lower upper    n
-#>  log(O(Y[1]) / O(Y[0]))    0.284 0.0633 0.513 1500
-#> 
-#> Average potential outcomes
-#> 
-#>  quantity estimate lower upper
-#>      Y[0]    0.631 0.600 0.659
-#>      Y[1]    0.694 0.655 0.730
-#> 
-#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
-#>   credible interval.
-#> ℹ Y[a] is the average response with `rhc` set to "a", and O(y) is the odds
-#>   `y/(1-y)`.
 ```
 
 ### The Same Answer Through *marginaleffects*
 
 A fit also works with *marginaleffects*, and for the average effect the two routes compute the same thing from the same draws. The one thing to set is the posterior summary: *marginaleffects* reports the median by default and `estimate_effect()` reports the mean, so an unadjusted comparison shows a difference that is not there.
 
-
-``` r
+```{r me_equiv, eval = run && has_me}
 options(marginaleffects_posterior_center = mean)
 
 avg_comparisons(fit, variables = "rhc")
-#> 
-#>  Estimate  2.5 % 97.5 %
-#>     0.063 0.0145  0.113
-#> 
-#> Term: rhc
-#> Type: response
-#> Comparison: 1 - 0
 ```
 
 The point estimate and the interval match `estimate_effect()` above to machine precision. Which to reach for is a question of what else is wanted: `estimate_effect()` covers the estimands a treatment question asks for and needs no extra package, while *marginaleffects* covers a much wider class of quantities. `vignette("effects")` is about the second.
@@ -250,32 +191,13 @@ Traditional BART shrinks the fitted function toward a constant; that shrinkage a
 
 One specifies the control function in the model formula and identifies the treatment in the `treat` argument. `bcf()` then fits a varying coefficient BART model, the BCF. By default, `bcf()` estimates a propensity score using a logistic BART model and includes that as a covariate in the control function, as recommended by @hahn2020 and for the reason given above for the plain BART model.
 
-
-``` r
+```{r bcffit, eval = run}
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp + hema +
                  pafi + paco2 + crea + surv2m + card,
                treat = ~ rhc, data = rhc,
                family = binomial())
 
 fit_bcf
-#> Generalized BART
-#> 
-#> Call:
-#> bcf(formula = death ~ age + sex + race + edu + aps + meanbp + 
-#>     resp + hema + pafi + paco2 + crea + surv2m + card, treat = ~rhc, 
-#>     data = rhc, family = binomial())
-#> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 2 forests of 50 and 25 trees, soft decision rules
-#> Draws: 800 kept after 200 warmup
-#> 
-#> Posterior means: b.rhc.0 = -0.13, b.rhc.1 = -0.209
-#> 
-#> Treatment: "rhc"
-#> Effect moderators: "age", "sex", "race", "edu", "aps", "meanbp", "resp", "hema", "pafi", "paco2", "crea", "surv2m", and "card"
-#> ℹ `estimate_effect()` reports the treatment effect, with the average potential
-#>   outcomes beside it; `plot()` draws the conditional ones.
 ```
 
 Using `bcf()` rather than writing the varying coefficient BART model by hand sets four settings to improve effect estimation:
@@ -289,26 +211,8 @@ The splitting prior stays at its default of off for both forests. Because the tr
 
 Because the treatment is named in the call, `estimate_effect()` needs nothing else:
 
-
-``` r
+```{r bcfeff, eval = run}
 estimate_effect(fit_bcf)
-#> Average treatment effect (difference)
-#> 
-#> Treatment: `rhc`
-#> Averaged over 1500 units
-#> 
-#>     contrast estimate   lower upper    n
-#>  Y[1] - Y[0]   0.0563 0.00241 0.108 1500
-#> 
-#> Average potential outcomes
-#> 
-#>  quantity estimate lower upper
-#>      Y[0]    0.633 0.605 0.662
-#>      Y[1]    0.689 0.650 0.728
-#> 
-#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
-#>   credible interval.
-#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```
 
 The two potential outcomes are printed beneath the contrast, since a difference of a few percentage points means one thing against a baseline of 63% and another against 5%; setting `potential_outcomes = FALSE` in `print()` suppresses them. The contrast's label names the quantity rather than leaving it to the heading, which matters once a ratio is asked for: `Y[1] - Y[0]` is a difference of average responses where `log(O(Y[1]) / O(Y[0]))` is a log odds ratio, and the note beneath the table says what `Y[a]` is, adding what `O(y)` is once an odds ratio is asked for.
@@ -319,23 +223,17 @@ The output of `summary()` on a `bcf()` fit is the same summary of the forests it
 
 The effect forest gives one coefficient per patient, and `estimate_effect()` turns those coefficients into the conditional effect at each patient's covariates with `estimand = "CATE"`, reported on the response scale rather than on the forest's own link scale. A conditional effect is the average effect among patients who share those covariates, not the individual effect for that patient, which depends on how the patient's two potential outcomes are associated and which the data cannot identify [@liBayesianCausalInference2023]. Here we ask for them as odds ratios, which for a conditional effect is a conditional odds ratio:
 
-
-``` r
+```{r bcfcate, eval = run}
 cate <- estimate_effect(fit_bcf, estimand = "CATE", comparison = "or")
 
 quantile(cate$estimate, probs = c(0, .25, .5, .75, 1))
-#>    0%   25%   50%   75%  100% 
-#> 1.141 1.324 1.420 1.523 1.839
 ```
 
 `plot()` draws the conditional effects, as differences unless the `comparison` argument says otherwise: patients ordered by their estimate, with a credible interval each, and the marginal effect as a single interval past the right edge in its own color. Setting `marginal = FALSE` leaves it out.
 
-
-``` r
+```{r bcfplot, eval = run, fig.height = 3.4}
 plot(fit_bcf)
 ```
-
-<img src="figures/causal-bcfplot-1.png" alt="" style="display: block; margin: auto;" />
 
 `plot()` on the fit is the conditional effects on the response scale; passing a `<bartisan_effect>` object to `plot()` draws whatever that object holds, so `plot(estimate_effect(fit_bcf, by = ~ sex))` is a subgroup forest plot instead.
 
@@ -346,21 +244,17 @@ The catheterization question is about a whole population, so the ATE is the esti
 
 `lalonde`, from *cobalt*, is the standard example: a job training program, with earnings in 1978 as the outcome.
 
-
-``` r
+```{r lalonde, eval = run && has_cobalt}
 data("lalonde", package = "cobalt")
 
 with(lalonde, tapply(re78, treat, mean))
-#>    0    1 
-#> 6984 6349
 ```
 
 Participants earned less than non-participants. Taken at face value, the program looks harmful, but that doesn't mean it actually is: participants were selected for being out of work, so they would have earned less anyway. This is confounding in the opposite direction to the catheterization example, and it is why the raw comparison is worth showing before the adjusted one.
 
 Below, we fit the BCF model, this time setting `family = tweedie()`, which is useful for continuous outcomes with a point mass at 0, as we have here. See `vignette("families")` for other families that could be used here.
 
-
-``` r
+```{r lalondefit, eval = run && has_cobalt}
 fit_earn_bcf <- bcf(
   re78 ~ age + educ + race + married + nodegree + re74 + re75,
   treat = ~ treat,
@@ -368,23 +262,6 @@ fit_earn_bcf <- bcf(
 )
 
 estimate_effect(fit_earn_bcf, estimand = "ATT")
-#> Average treatment effect on the treated (difference)
-#> 
-#> Treatment: `treat`
-#> Averaged over the 185 units in group "1"
-#> 
-#>     contrast estimate lower upper   n
-#>  Y[1] - Y[0]     1120  -363  2540 185
-#> 
-#> Average potential outcomes
-#> 
-#>  quantity estimate lower upper
-#>      Y[0]     5230  4240  6330
-#>      Y[1]     6350  5410  7410
-#> 
-#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
-#>   credible interval.
-#> ℹ Y[a] is the average response with `treat` set to "a".
 ```
 
 Setting `estimand = "ATT"` averages over the treated rather than over everyone.^[The `focal` argument is not needed because a 0/1 treatment settles which level is the treated one. When the treatment has more than two levels, `focal` is required and naming it is the whole of the choice, since `"ATT"` and `"ATC"` then mean the same thing: the effect among the units in the level named. When it has two levels whose labels say nothing about which is which, the level order is assumed and a message says so, which `focal` silences.] 
@@ -393,28 +270,22 @@ The potential outcomes earn their place here: a difference of about a thousand d
 
 Because the link is the identity, the ATT is exactly the average of the conditional effects among the treated, which is worth checking once to see that the two agree:
 
-
-``` r
+```{r lalondecate, eval = run && has_cobalt}
 att <- estimate_effect(fit_earn_bcf, estimand = "ATT")
 
 cate_att <- estimate_effect(fit_earn_bcf, estimand = "CATE",
                             newdata = subset(lalonde, treat == 1))
 
 c(ATT = att$estimate, mean_CATE = mean(cate_att$estimate))
-#>       ATT mean_CATE 
-#>      1125      1125
 ```
 
 And the conditional effects, drawn:
 
-
-``` r
+```{r lalondeplot, eval = run && has_cobalt, fig.height = 3.4}
 plot(cate_att)
 ```
 
-<img src="figures/causal-lalondeplot-1.png" alt="" style="display: block; margin: auto;" />
-
-Most of the conditional effects are positive, as the ATT is, and none of their 185 intervals exclude zero. That is the usual picture: the effect at one unit's covariates is estimated from far less information than an average over all of them, so its interval is much wider.
+Most of the conditional effects are positive, as the ATT is, and `r if (run) {k <- sum(cate_att$lower > 0 | cate_att$upper < 0); if (k == 0) "none" else paste("only", k)} else "none"` of their 185 intervals exclude zero. That is the usual picture: the effect at one unit's covariates is estimated from far less information than an average over all of them, so its interval is much wider.
 
 ## Interpreting the Credible Interval
 

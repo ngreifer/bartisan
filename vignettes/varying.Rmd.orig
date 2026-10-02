@@ -20,7 +20,16 @@ pre code {word-wrap: normal; white-space: pre;}
 </style>
 ```
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4)
 
+has_loo <- rlang::is_installed("loo")
+has_nlme <- rlang::is_installed("nlme")
+run <- TRUE
+```
 
 ## Introduction
 
@@ -32,8 +41,7 @@ In this guide we will write the model down and say what each of its parts is, th
 
 Throughout we use the `rhc` dataset (see `vignette("bartisan")` or `help("rhc", package = "bartisan")`), predicting `death` from the covariates and from `rhc`, whether the patient received right heart catheterization. The fits use the default single chain; `vignette("diagnostics")` covers checking convergence, which we skip here for brevity.
 
-
-``` r
+```{r libs, eval = run}
 library(bartisan)
 
 data("rhc")
@@ -53,8 +61,7 @@ All of the forests are fitted at once. That gives the coefficient a prior of its
 
 `vc()` is a marker written inside the formula. It is never evaluated as a function (calling it directly is an error) but is read out of the formula by `bartisan()`, which builds the forests it asks for.
 
-
-``` r
+```{r vc, eval = run}
 set.seed(2026)
 
 fit_vc <- bartisan(death ~ age + sex + race + edu + aps +
@@ -64,17 +71,6 @@ fit_vc <- bartisan(death ~ age + sex + race + edu + aps +
                    data = rhc, family = binomial())
 
 fit_vc
-#> Generalized BART
-#> 
-#> Call:
-#> bartisan(formula = death ~ age + sex + race + edu + aps + meanbp + 
-#>     resp + hema + pafi + paco2 + crea + surv2m + card + vc(rhc), 
-#>     data = rhc, family = binomial())
-#> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 2 forests of 50 trees, soft decision rules
-#> Draws: 800 kept after 200 warmup
 ```
 
 The print shows two forests where a fit without `vc()` would show one. These forests are the control function, named `(Intercept)`, and the coefficient, named for its covariate. Both are fitted with the same number of trees here, which is the default and is taken up below.
@@ -83,43 +79,8 @@ A predictor that has been given a coefficient should be kept out of the control 
 
 We can examine the structure of the forest for the `rhc` coefficient using `variable_importance()`, which gives a table for each forest in the model:
 
-
-``` r
+```{r}
 variable_importance(fit_vc)
-#> Variable importance
-#> 
-#>    predictor variable prop_used prop_splits splits
-#>  (Intercept)   surv2m     1.000       0.117    8.9
-#>  (Intercept)      age     1.000       0.097    7.4
-#>  (Intercept)    paco2     1.000       0.084    6.4
-#>          rhc      aps     1.000       0.082    6.2
-#>  (Intercept)     pafi     1.000       0.081    6.1
-#>          rhc     race     1.000       0.079    6.0
-#>          rhc   meanbp     1.000       0.079    6.0
-#>          rhc     resp     1.000       0.078    5.9
-#>          rhc     card     1.000       0.077    5.8
-#>  (Intercept)     race     1.000       0.067    5.1
-#>          rhc     hema     0.999       0.083    6.3
-#>  (Intercept)      aps     0.999       0.082    6.3
-#>          rhc   surv2m     0.999       0.075    5.7
-#>  (Intercept)      edu     0.999       0.073    5.6
-#>  (Intercept)     card     0.999       0.069    5.2
-#>          rhc      age     0.998       0.077    5.9
-#>  (Intercept)     hema     0.998       0.071    5.4
-#>  (Intercept)   meanbp     0.998       0.071    5.4
-#>  (Intercept)      sex     0.998       0.064    4.9
-#>          rhc     pafi     0.996       0.076    5.7
-#>          rhc      sex     0.996       0.074    5.6
-#>          rhc    paco2     0.996       0.073    5.5
-#>          rhc      edu     0.995       0.075    5.7
-#>          rhc     crea     0.995       0.073    5.5
-#>  (Intercept)     crea     0.989       0.065    4.9
-#>  (Intercept)     resp     0.984       0.060    4.5
-#> 
-#> ℹ Fitted with `sparsity = FALSE` (the default), so every predictor keeps a
-#>   share of the rules and prop_used is near 1 throughout. Refit with `sparsity =
-#>   TRUE` to read it as a selection rule.
-#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 Under the default splitting prior every predictor is used in nearly every draw of both forests, so the `prop_used` column says little here and the `splits` column carries the ranking: `surv2m` and `age` take the most rules in the control function (`(Intercept)`) forest, and `hema` in the varying coefficient (`rhc`) forest.
@@ -128,8 +89,7 @@ Under the default splitting prior every predictor is used in nearly every draw o
 
 By default, a coefficient is allowed to vary with every predictor in the model except the covariate itself. Supplying an argument to `modifiers`, the second argument to `vc()` taking a one-sided formula, allows one to control which predictors enter the coefficient forest.
 
-
-``` r
+```{r vcmod, eval = run}
 set.seed(2026)
 
 fit_aps <- bartisan(death ~ age + sex + race + edu + aps +
@@ -143,49 +103,13 @@ Now the effect of catheterization may differ by severity of illness (`aps`), `ag
 
 Calling `variable_importance()` on `fit_aps`, we can see that the only variables used in the varying coefficient forest are indeed `aps` and `age`, as requested:
 
-
-``` r
+```{r}
 variable_importance(fit_aps)
-#> Variable importance
-#> 
-#>    predictor variable prop_used prop_splits splits
-#>          rhc      aps     1.000       0.500   37.7
-#>          rhc      age     1.000       0.500   37.6
-#>  (Intercept)   surv2m     1.000       0.122    9.2
-#>  (Intercept)      age     1.000       0.096    7.2
-#>  (Intercept)    paco2     1.000       0.081    6.1
-#>  (Intercept)      aps     0.999       0.082    6.2
-#>  (Intercept)     hema     0.999       0.073    5.5
-#>  (Intercept)      edu     0.999       0.069    5.2
-#>  (Intercept)     pafi     0.998       0.074    5.6
-#>  (Intercept)   meanbp     0.996       0.073    5.5
-#>  (Intercept)     crea     0.996       0.070    5.3
-#>  (Intercept)      sex     0.996       0.065    4.9
-#>  (Intercept)     card     0.994       0.066    5.0
-#>  (Intercept)     resp     0.993       0.064    4.8
-#>  (Intercept)     race     0.990       0.064    4.8
-#>          rhc      sex     0.000       0.000    0.0
-#>          rhc     race     0.000       0.000    0.0
-#>          rhc      edu     0.000       0.000    0.0
-#>          rhc   meanbp     0.000       0.000    0.0
-#>          rhc     resp     0.000       0.000    0.0
-#>          rhc     hema     0.000       0.000    0.0
-#>          rhc     pafi     0.000       0.000    0.0
-#>          rhc    paco2     0.000       0.000    0.0
-#>          rhc     crea     0.000       0.000    0.0
-#>          rhc   surv2m     0.000       0.000    0.0
-#>          rhc     card     0.000       0.000    0.0
-#> 
-#> ℹ Fitted with `sparsity = FALSE` (the default), so every predictor keeps a
-#>   share of the rules and prop_used is near 1 throughout. Refit with `sparsity =
-#>   TRUE` to read it as a selection rule.
-#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 When the modified variable is continuous, `modifiers` decides whether the effect is linear in the covariate. As written, the model is $z\, f_1(Z)$, which for a binary $z$ is no assumption at all, there being only two values, and for a continuous one says the effect is conditionally linear. That is a real restriction, and a numeric covariate is allowed to modify its own coefficient to remove it:
 
-
-``` r
+```{r vcself, eval = FALSE}
 # The effect of `aps` may itself change across `aps`, so the dose response is
 # a curve rather than a line through the origin
 bartisan(death ~ age + sex + vc(aps, ~ . + aps),
@@ -208,8 +132,7 @@ Naming no modifier at all leaves the coefficient's forest nothing to split on. E
 
 Comparing the constant coefficient against the varying one is a question neither variable importance nor a dropped predictor answers: not whether `rhc` matters, but whether what it does depends on anything else. `loo_compare()` from *loo* answers it; `vignette("comparison")` covers what it is doing.
 
-
-``` r
+```{r vcconstant, eval = run && has_loo}
 set.seed(2026)
 
 constant <- bartisan(death ~ age + sex + race + edu + aps +
@@ -219,29 +142,14 @@ constant <- bartisan(death ~ age + sex + race + edu + aps +
                      data = rhc, family = binomial())
 
 constant
-#> Generalized BART
-#> 
-#> Call:
-#> bartisan(formula = death ~ age + sex + race + edu + aps + meanbp + 
-#>     resp + hema + pafi + paco2 + crea + surv2m + card + vc(rhc, 
-#>     ~1), data = rhc, family = binomial())
-#> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 2 forests of 50 trees, soft decision rules
-#> Draws: 800 kept after 200 warmup
 
 library(loo)
 loo_compare(list(constant = loo(constant), varying = loo(fit_vc)))
-#>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>  constant       0.0     0.0      NA                          
-#>   varying      -0.5     1.0    0.68 |elpd_diff| < 4
 ```
 
 The constant coefficient is not beaten, so there is no evidence here that the effect of catheterization on the log odds of death varies with the other covariates. That buys an interpretation the varying fit cannot offer, because one number describes the whole sample:
 
-
-``` r
+```{r vccoef, eval = run && has_loo}
 b <- coef(constant, draws = TRUE)[["rhc"]][, 1]
 
 c(log_OR = mean(b),
@@ -249,8 +157,6 @@ c(log_OR = mean(b),
   lower = quantile(exp(b), .025, names = FALSE),
   upper = quantile(exp(b), .975, names = FALSE)) |>
   round(3)
-#> log_OR     OR  lower  upper 
-#>  0.338  1.402  1.059  1.799
 ```
 
 An odds ratio of about 1.4, conditional on the predictors in the forest. A constant conditional odds ratio is a much more clinically meaningful effect summary than a marginal effect measure because it describes the estimated effect for each patient profile as determined by the included covariates, as opposed to an average effect across a whole population. This is the same interpretation a coefficient in a logistic regression would have, but fit with BART, we can be reasonably confident that any nonlinearities and interactions among covariates are adjusted for, whereas a logistic regression must impose the model structure a researcher believes to be there.
@@ -263,30 +169,17 @@ It is important to remember that the coefficient is drawn under the leaf prior o
 
 `coef()` returns the varying coefficients and nothing else. The control function is a prediction rather than a coefficient, and `predict()` reports it.
 
-
-``` r
+```{r coef, eval = run}
 head(coef(fit_vc))
-#>         rhc
-#> [1,] 0.3886
-#> [2,] 0.1962
-#> [3,] 0.2041
-#> [4,] 0.2841
-#> [5,] 0.2481
-#> [6,] 0.2463
 ```
 
-`coef()` returns one row per observation and one column per coefficient, since a coefficient allowed to vary has a value for each observation: for the first patient, or more precisely for a patient with the first patient's covariate profile, the log odds of death move by 0.389 under catheterization. The values are on the link scale, so for a binary outcome they are differences in log odds rather than in probability. Supplying `newdata` evaluates the coefficients at other covariate profiles, and setting `draws = TRUE` returns every posterior draw rather than the mean, as a list with one draws-by-observations matrix per coefficient, which an interval on any one patient's coefficient needs.
+`coef()` returns one row per observation and one column per coefficient, since a coefficient allowed to vary has a value for each observation: for the first patient, or more precisely for a patient with the first patient's covariate profile, the log odds of death move by `r round(coef(fit_vc)[1, "rhc"], 3)` under catheterization. The values are on the link scale, so for a binary outcome they are differences in log odds rather than in probability. Supplying `newdata` evaluates the coefficients at other covariate profiles, and setting `draws = TRUE` returns every posterior draw rather than the mean, as a list with one draws-by-observations matrix per coefficient, which an interval on any one patient's coefficient needs.
 
-
-``` r
+```{r coefdraws, eval = run}
 draws <- coef(fit_vc, draws = TRUE)[["rhc"]]
 
 # A 95% interval on the coefficient for the first three patients
 t(apply(draws[, 1:3], 2L, quantile, c(.025, .975)))
-#>           2.5%  97.5%
-#> [1,] -0.002961 0.9387
-#> [2,] -0.240273 0.6338
-#> [3,] -0.214174 0.6488
 ```
 
 `summary()` on the fit reports the forests as it does for any fit, and `prior_summary()` writes out the prior each one was drawn under, including the leaf scale of the coefficient forest, which is where the regularization that separates the effect from the surface lives.
@@ -295,14 +188,11 @@ t(apply(draws[, 1:3], 2L, quantile, c(.025, .975)))
 
 A coefficient on the link scale is one step from an effect on the response scale, and `estimate_effect()` makes it easier to report meaningful contrasts. With `treat` naming the covariate, it predicts outcomes under each of the predictor's values and contrasts them. Setting `estimand = "CATE"` returns one effect per unit, here on the risk difference scale, and `plot()` on that draws them ordered by their estimate with the marginal effect as a separate interval past the right edge.
 
-
-``` r
+```{r cate, eval = run, fig.height = 3.4}
 cate <- estimate_effect(fit_vc, treat = "rhc", estimand = "CATE")
 
 plot(cate)
 ```
-
-<img src="figures/varying-cate-1.png" alt="" style="display: block; margin: auto;" />
 
 The marginal effect, effects by subgroup, or the effect as a ratio are all the same call with different arguments. For example, setting `comparison = "or"` displays the effects on the conditional odds ratio scale. `?estimate_effect` documents these arguments, and `vignette("causal")` is where the assumptions live that turn any of them into a causal effect.
 
@@ -310,8 +200,7 @@ The marginal effect, effects by subgroup, or the effect as a ratio are all the s
 
 Every forest has its own prior, and every setting in `bartisan_control()` that could mean something different for one forest than for another may be given once, to apply to all, or once per forest. Given per forest, the values are either positional in the order the forests are listed in the fit's print, or keyed by the forest names. Both of these ask for fifty trees in the control function and twenty-five in the coefficient:
 
-
-``` r
+```{r trees, eval = FALSE}
 bartisan(death ~ age + sex + race + edu + aps +
            meanbp + resp + hema + pafi +
            paco2 + crea + surv2m + card +
@@ -336,8 +225,7 @@ The `sparsity` argument is the other setting that reads differently on a coeffic
 
 `gaussian_ls()`, `zi_poisson()` and the other families with more than one additive predictor fit one control function per parameter, and each parameter's formula carries its own `vc()` terms. The forests are then two-dimensional, a control function and its coefficients for each parameter, and are named accordingly:
 
-
-``` r
+```{r vcmulti, eval = FALSE}
 # Forests: mean, mean:z, log_sd
 bartisan(list(mean = y ~ x1 + x2 + vc(z),
               log_sd = ~ x1 + x2),
@@ -358,8 +246,7 @@ So the same covariate may have a coefficient on more than one parameter. `z` shi
 
 Those names are also how the per-forest settings are keyed, and every forest can be set at once. With four forests, a control function and a coefficient for each parameter, `num_trees` takes four values, either positionally in the order the forests are listed in the fit's print or by name:
 
-
-``` r
+```{r vcmultitrees, eval = FALSE}
 # The mean's control function and coefficient, then the log standard
 # deviation's, in the order the print lists them
 bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian_ls(),
@@ -377,8 +264,7 @@ A forest a named vector leaves out keeps the argument's own default rather than 
 
 The Bayesian causal forest of @hahn2020 is a varying coefficient model with one binary covariate, the treatment, and a handful of choices made for the causal problem. `bcf()` implements this model with these modifications to support treatment effect estimation. Given a formula for the covariates and the treatment named in `treat`, it writes a `bartisan()` call that could have been written directly:
 
-
-``` r
+```{r bcf, eval = run}
 set.seed(2026)
 
 fit_bcf <- bcf(death ~ age + sex + race + edu + aps +
@@ -387,24 +273,6 @@ fit_bcf <- bcf(death ~ age + sex + race + edu + aps +
                treat = ~ rhc, data = rhc, family = binomial())
 
 fit_bcf
-#> Generalized BART
-#> 
-#> Call:
-#> bcf(formula = death ~ age + sex + race + edu + aps + meanbp + 
-#>     resp + hema + pafi + paco2 + crea + surv2m + card, treat = ~rhc, 
-#>     data = rhc, family = binomial())
-#> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 2 forests of 50 and 25 trees, soft decision rules
-#> Draws: 800 kept after 200 warmup
-#> 
-#> Posterior means: b.rhc.0 = -0.0312, b.rhc.1 = 0.0635
-#> 
-#> Treatment: "rhc"
-#> Effect moderators: "age", "sex", "race", "edu", "aps", "meanbp", "resp", "hema", "pafi", "paco2", "crea", "surv2m", and "card"
-#> ℹ `estimate_effect()` reports the treatment effect, with the average potential
-#>   outcomes beside it; `plot()` draws the conditional ones.
 ```
 
 `bcf()` makes the following modifications to a standard `bartisan()` call:
@@ -420,8 +288,7 @@ The `moderators` argument is `vc()`'s `modifiers` under the name the causal lite
 
 Written out by hand, and leaving aside that the propensity score would have to be fitted and added to the data first, the model is
 
-
-``` r
+```{r bcfhand, eval = FALSE}
 bartisan(death ~ age + sex + race + edu + aps +
            meanbp + resp + hema + pafi +
            paco2 + crea + surv2m + card + .propensity +
@@ -431,12 +298,9 @@ bartisan(death ~ age + sex + race + edu + aps +
 
 and every method that works on a `bartisan()` fit works on a `bcf()` fit unchanged, since the second is the first with the treatment recorded. What the record adds is that `estimate_effect()` needs no `treat`, `print()` names the treatment and its moderators, and `plot()` on the fit is `plot(estimate_effect(fit, estimand = "CATE"))`:
 
-
-``` r
+```{r bcfplot, eval = run, fig.height = 3.4}
 plot(fit_bcf)
 ```
-
-<img src="figures/varying-bcfplot-1.png" alt="" style="display: block; margin: auto;" />
 
 The reasons to write the model by hand rather than through `bcf()` are the ones this guide is about: a coefficient on something other than a treatment, more than one of them, a continuous covariate whose effect should not be linear in it, or a family with several additive predictors. `vignette("causal")` covers what has to be true of the design for any of these effects to be read causally, which no model supplies.
 
@@ -446,8 +310,7 @@ A `(1 | group)` term in the formula adds an intercept per level of `group`, draw
 
 The `rhc` data has no grouping structure, so we simulate one: forty groups of about fifteen observations each, a nonlinear effect of one covariate, and a group effect with a standard deviation of one half.
 
-
-``` r
+```{r resim, eval = run}
 set.seed(2026)
 
 n_groups <- 40L
@@ -459,40 +322,21 @@ d$y <- sin(2 * pi * d$x) + u[d$g] + rnorm(600L, 0, 0.5)
 fit_re <- bartisan(y ~ x + (1 | g), data = d)
 
 fit_re
-#> Generalized BART
-#> 
-#> Call:
-#> bartisan(formula = y ~ x + (1 | g), data = d)
-#> 
-#> Family: "dpm" with the "identity" link
-#> Observations: 600
-#> Structure: 1 forest of 50 trees, soft decision rules
-#> Draws: 800 kept after 200 warmup
-#> Random intercepts: g (40 levels)
-#> 
-#> Posterior means: alpha = 3.37, clusters = 15.7, center = -0.0182, error_sd = 0.521
 ```
 
 The intercepts are in `fit_re$ranef` and the standard deviation they were drawn under in `fit_re$tau`, one matrix of draws per additive predictor with a column per grouping factor, and `summary()` reports that scale beside the leaf scale. `ranef()` is the generic from *nlme*, which *lme4* re-exports, so either qualification reaches the method; setting `draws = TRUE` gives the draws, which an interval on a group needs.
 
-
-``` r
+```{r ranef, eval = run && has_nlme}
 # How much of the variation is between groups: the posterior of the group scale
 quantile(fit_re$tau[[1L]][, "g"], c(.025, .5, .975))
-#>   2.5%    50%  97.5% 
-#> 0.4220 0.5221 0.6656
 
 # The intercepts, as posterior means, against the values they were drawn from
 re <- nlme::ranef(fit_re)$g
 cor(re[, "(Intercept)"], u)
-#> [1] 0.9613
 
 # With intervals, for the first four groups
 apply(nlme::ranef(fit_re, draws = TRUE)$g[["(Intercept)"]][, 1:4], 2L,
       quantile, c(.025, .975))
-#>            1       2       3       4
-#> 2.5%  0.3092 0.09548 -0.5970 -0.7757
-#> 97.5% 0.8688 0.72409  0.0372 -0.2062
 ```
 
 A posterior mean is the wrong summary for a level with few observations, which is the case a group intercept exists for, and a level whose interval covers zero is one the data had little to say about. The intercepts are shrunk toward zero by their prior and are deviations from the additive predictor, so they come out approximately centered without being constrained to sum to zero exactly; nothing is lost by that, since the level of the fitted function is the additive predictor's.

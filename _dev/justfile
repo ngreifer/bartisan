@@ -24,6 +24,13 @@ mixing:
 results:
     cd {{root}} && Rscript _dev/shared-topology-results.R
 
+# Rebuild the shipped vignettes from their `.Rmd.orig` sources. Name one or
+# more to do a subset, as in `just precompute diagnostics effects`. Install
+# first, since the vignettes load the package by name.
+precompute *names:
+    cd {{root}} && R CMD INSTALL --no-docs --no-multiarch . > /dev/null
+    cd {{root}} && Rscript _dev/precompute-vignettes.R {{names}}
+
 # Reinstall and run the whole test suite, ticking once per test file.
 test:
     cd {{root}} && R CMD INSTALL --no-docs --no-multiarch . > /dev/null

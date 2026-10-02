@@ -168,6 +168,8 @@ _dev/did/*
 !_dev/bandwidth-rows.R
 !_dev/zi-draws.R
 !_dev/poisson-paths.R
+!_dev/bandwidth-step-floor.R
+!_dev/precompute-vignettes.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R

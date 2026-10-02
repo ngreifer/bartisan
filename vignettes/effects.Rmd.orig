@@ -20,7 +20,15 @@ pre code {word-wrap: normal; white-space: pre;}
 </style>
 ```
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4, marginaleffects_safe = FALSE)
 
+has_me <- rlang::is_installed("marginaleffects")
+run <- has_me
+```
 
 ## Introduction
 
@@ -36,8 +44,7 @@ In this guide, we will start from the three kinds of question the package answer
 
 Below, we load in the `rhc` dataset (see `vignette("bartisan")` or `help("rhc", package = "bartisan")` for details) and fit a BART logistic regression model predicting `death` from the available predictors. (Normally we would use multiple chains, perform diagnostics on mixing, and possibly modify the fitting parameters; we skip those here for brevity.)
 
-
-``` r
+```{r libs, eval = run}
 library(bartisan)
 library(marginaleffects)
 
@@ -51,17 +58,6 @@ fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
                 data = rhc, family = binomial())
 
 fit
-#> Generalized BART
-#> 
-#> Call:
-#> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + 
-#>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, 
-#>     data = rhc, family = binomial())
-#> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 1 forest of 50 trees, soft decision rules
-#> Draws: 800 kept after 200 warmup
 ```
 
 ## Predictions, Comparisons, and Slopes
@@ -78,23 +74,15 @@ A **slope** is the derivative of the prediction with respect to a numeric variab
 
 `avg_comparisons()` with no `variables` argument gives every predictor at once, which for this model is a long table. A few at a time is easier to read, and often only a few effects are of primary interest anyway [@keeleCausalInterpretationEstimated2020]:
 
-
-``` r
+```{r avgcomp, eval = run}
 comp <- avg_comparisons(fit, variables = c("rhc", "age", "card"))
 
 comp
-#> 
-#>  Term Contrast Estimate    2.5 %  97.5 %
-#>  age  +1        0.00313  0.00153 0.00467
-#>  card yes - no  0.04177 -0.00868 0.08973
-#>  rhc  1 - 0     0.06080  0.01182 0.11118
-#> 
-#> Type: response
 ```
 
 This reads as a coefficient table. Each estimate is an average difference in predicted probability, holding everything else at each patient's own values: for a factor, between the levels named in the `Contrast` column, and for a numeric predictor, for an increase of one unit. `rhc` is coded `0` and `1`, so its one-unit contrast is the treatment effect.
 
-The comparison for `age`, for example, means that increasing all units' age by 1, keeping all other predictors at their observed values, would yield an increase in the overall probability of death of 0.313 percentage points (a very small effect on this scale), with a 95% credible interval excluding 0. This isn't a causal estimate; it's just what the model predicts would happen.
+The comparison for `age`, for example, means that increasing all units' age by 1, keeping all other predictors at their observed values, would yield an increase in the overall probability of death of `r round(100*comp$estimate[1], 3)` percentage points (a very small effect on this scale), with a 95% credible interval excluding 0. This isn't a causal estimate; it's just what the model predicts would happen.
 
 ### The Splitting Prior and a Contrast (`sparsity`)
 
@@ -108,16 +96,8 @@ If we are reporting a contrast, we recommend keeping the default. When there are
 
 One unit is the default step size for a contrast but is often the wrong scale. One point of an illness score is a small change; ten points is a difference someone would notice. For example, the variable `aps` ranges from 4 to 147 in the sample, so we might request a comparison corresponding to increasing its value by 10.
 
-
-``` r
+```{r step, eval = run}
 avg_comparisons(fit, variables = list(aps = 10))
-#> 
-#>  Estimate   2.5 % 97.5 %
-#>     0.016 0.00171 0.0309
-#> 
-#> Term: aps
-#> Type: response
-#> Comparison: +10
 ```
 
 A numeric effect should always be reported together with the step it was computed at. Unlike a linear model, the answer here is not ten times the one-unit effect because the relationship is not assumed to be a straight line. We'll see below other ways to characterize the relationship graphically.
@@ -126,58 +106,29 @@ A numeric effect should always be reported together with the step it was compute
 
 Supplying `by` to `avg_comparisons()` and other functions in *marginaleffects* splits the average by a grouping variable.
 
-
-``` r
+```{r bycard, eval = run}
 avg_comparisons(fit, variables = "rhc", by = "card")
-#> 
-#>  card Estimate  2.5 % 97.5 %
-#>   no    0.0627 0.0115  0.116
-#>   yes   0.0570 0.0037  0.110
-#> 
-#> Term: rhc
-#> Type: response
-#> Comparison: 1 - 0
 ```
 
 The two subgroup estimates are close, and both intervals exclude zero by a small margin. A common mistake is to stop here and conclude that the effect differs between groups; that comparison is not a test. The question is whether the two effects differ from each other, which needs the difference of the two (i.e., a difference of differences) with an interval of its own. This can be requested by specifying `hypothesis = ~pairwise`.
 
-
-``` r
+```{r hypo, eval = run}
 avg_comparisons(fit, variables = "rhc", by = "card",
                 hypothesis = ~pairwise)
-#> 
-#>    Hypothesis Estimate   2.5 % 97.5 %
-#>  (yes) - (no) -0.00569 -0.0611 0.0248
-#> 
-#> Type: response
 ```
 
 The difference is small with an interval covering zero, so there is no evidence here that the effect of catheterization varies by cardiovascular disease status. This is how to test an interaction in a model that never had an interaction term to test, and the interval on that difference is the only thing that separates a real interaction from two subgroup estimates that merely look different.
 
 `avg_predictions()` does the same thing for predictions rather than differences, which is useful for describing groups:
 
-
-``` r
+```{r bypred, eval = run}
 avg_predictions(fit, by = "card")
-#> 
-#>  card Estimate 2.5 % 97.5 %
-#>   no     0.630 0.604  0.661
-#>   yes    0.698 0.660  0.733
-#> 
-#> Type: response
 ```
 
 These correspond to the fitted predictions among those in each cardiovascular disease status group. That answers a different question from whether the model predicts that changing units' disease status changes the probability of death, which corresponds to running the following:
 
-
-``` r
+```{r}
 avg_predictions(fit, variables = "card")
-#> 
-#>  card Estimate 2.5 % 97.5 %
-#>   no     0.640 0.613  0.670
-#>   yes    0.681 0.639  0.719
-#> 
-#> Type: response
 ```
 
 In the latter, `avg_predictions()` computes predictions for all units, first setting `card` to `"no"` and then to `"yes"`.
@@ -186,44 +137,15 @@ In the latter, `avg_predictions()` computes predictions for all units, first set
 
 Averages can hide the shape of the relationship between a predictor and the outcome. To see the fitted function we plot predictions against one predictor while the others are averaged over. `partial_dependence()` does this: it sets the predictor to each value of a grid in turn, predicts for every unit, and averages within each posterior draw, so the interval that comes back is on the average prediction rather than on any one patient's. `partial_dependence(fit, ~ x)` builds the grid, and `plot()` draws it.
 
-
-``` r
+```{r pdp, eval = run, fig.height = 3.0}
 library(ggplot2)
 
 pd <- partial_dependence(fit, ~aps)
 
 pd
-#> Partial dependence
-#> 
-#> Predictor: "aps"
-#> Averaged over 1500 units, on the
-#>            "response" scale
-#> 
-#>     aps estimate lower upper
-#>    4.00    0.592 0.491 0.657
-#>    9.72    0.593 0.495 0.657
-#>   15.44    0.593 0.499 0.657
-#>   21.16    0.597 0.513 0.656
-#>   26.88    0.606 0.543 0.658
-#>   --- 16 rows omitted ---
-#>  124.12    0.724 0.651 0.811
-#>  129.84    0.724 0.651 0.811
-#>  135.56    0.724 0.651 0.811
-#>  141.28    0.724 0.651 0.812
-#>  147.00    0.724 0.651 0.812
-#> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
-#> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
-#>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of
-#>   them.
 
 plot(pd) +
   labs(x = "APACHE III score on day 1", y = "Fitted probability of death")
-```
-
-<img src="figures/effects-pdp-1.png" alt="" style="display: block; margin: auto;" />
-
-``` r
 
 # Same thing:
 ## plot(fit, ~aps)
@@ -235,41 +157,15 @@ The band is a credible interval and is wide at the top, where few patients were 
 
 Naming a second predictor shows how the shape differs across groups.
 
-
-``` r
+```{r pdp2, eval = run, fig.height = 3.0}
 pd2 <- partial_dependence(fit, ~ aps + rhc)
 
 pd2
-#> Partial dependence
-#> 
-#> Predictors: "aps" and "rhc"
-#> Averaged over 1500 units, on the
-#>            "response" scale
-#> 
-#>     aps rhc estimate lower upper
-#>    4.00   0    0.568 0.460 0.638
-#>    9.72   0    0.568 0.462 0.637
-#>   15.44   0    0.569 0.472 0.637
-#>   21.16   0    0.573 0.493 0.637
-#>   26.88   0    0.581 0.518 0.640
-#>     --- 42 rows omitted ---
-#>  124.12   1    0.758 0.680 0.840
-#>  129.84   1    0.758 0.680 0.840
-#>  135.56   1    0.759 0.680 0.841
-#>  141.28   1    0.759 0.680 0.841
-#>  147.00   1    0.759 0.680 0.841
-#> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
-#> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
-#>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of
-#>   them.
 
 plot(pd2) +
   labs(x = "APACHE III score on day 1", y = "Fitted probability of death",
        color = "Catheterized", fill = "Catheterized")
 ```
-
-<img src="figures/effects-pdp2-1.png" alt="" style="display: block; margin: auto;" />
 
 The two curves run close together; if they diverged, that would be a moderation worth reporting, and the difference of differences above is how to put a number on it.
 
@@ -277,78 +173,41 @@ The two curves run close together; if they diverged, that would be a moderation 
 
 A second predictor with a few values gives one curve for each of them, as happened above. With a continuous predictor, it is held at three values near its quartiles and a message reports them.
 
-
-``` r
+```{r pdp3, eval = run, message = TRUE, fig.height = 3.0}
 plot(fit, ~ meanbp + aps) +
   labs(x = "Mean arterial blood pressure", y = "Fitted probability of death",
        color = "APACHE III", fill = "APACHE III")
-#> ℹ Grouping by `aps` at 41, 54, and 68, three of its values near its quartiles.
-#> ℹ Set `values` to choose them yourself.
 ```
-
-<img src="figures/effects-pdp3-1.png" alt="" style="display: block; margin: auto;" />
 
 The `values` argument chooses others, and an entry of it may be a function of the predictor rather than the values themselves. Setting `values = list(z = unique)` asks for every value a predictor takes, which usually suits a numeric predictor with four or five of them; the illness score has 114, so here we write the summary we want instead.
 
-
-``` r
+```{r pdp4, eval = run, fig.height = 3.0}
 plot(fit, ~ meanbp + aps,
      values = list(aps = function(x) quantile(x, c(.05, .5, .95)))) +
   labs(x = "Mean arterial blood pressure", y = "Fitted probability of death",
        color = "APACHE III", fill = "APACHE III")
 ```
 
-<img src="figures/effects-pdp4-1.png" alt="" style="display: block; margin: auto;" />
-
 ### The Same Curve Through *marginaleffects*
 
 `marginaleffects::avg_predictions()` produces the same estimates as `partial_dependence()`. It has additional options that may be helpful, but otherwise the syntax is similar.
 
-
-``` r
+```{r pdp5, eval = run}
 at <- quantile(rhc$aps, c(.1, .5, .9))
 
 # Uses posterior mean
 partial_dependence(fit, ~ aps, values = list(aps = at))
-#> Partial dependence
-#> 
-#> Predictor: "aps"
-#> Averaged over 1500 units, on the
-#>            "response" scale
-#> 
-#>   aps estimate lower upper
-#>  29.9    0.610 0.552 0.657
-#>  54.0    0.656 0.623 0.695
-#>  83.0    0.703 0.649 0.765
-#> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
 
 # Uses posterior median by default
 avg_predictions(fit, variables = list(aps = at))
-#> 
-#>   aps Estimate 2.5 % 97.5 %
-#>  29.9    0.610 0.552  0.657
-#>  54.0    0.656 0.623  0.695
-#>  83.0    0.703 0.649  0.765
-#> 
-#> Type: response
 ```
 
 The two summarize one posterior two ways. `partial_dependence()` reports its mean and `avg_predictions()` its median, which is the whole of the difference between the estimates; the intervals are quantiles of the same draws and agree to the digit.
 
 What *marginaleffects* adds is control over what the other predictors do. `partial_dependence()` always averages them over the sample, while `predictions()` and `plot_predictions()` in *marginaleffects* allows one to hold them fixed instead, and prints the profile it chose beside the estimates:
 
-
-``` r
+```{r pdp6, eval = run}
 plot_predictions(fit, condition = list(aps = at), draw = FALSE)
-#>   rowid estimate conf.low conf.high  df   age card  crea   edu  hema meanbp
-#> 1     1   0.6286   0.4969    0.7594 Inf 61.42   no 2.132 11.64 31.68     78
-#> 2     2   0.6795   0.5604    0.7867 Inf 61.42   no 2.132 11.64 31.68     78
-#> 3     3   0.7328   0.6018    0.8416 Inf 61.42   no 2.132 11.64 31.68     78
-#>   paco2  pafi  race resp rhc  sex surv2m  aps
-#> 1 38.85 217.4 white   28   0 male  0.587 29.9
-#> 2 38.85 217.4 white   28   0 male  0.587 54.0
-#> 3 38.85 217.4 white   28   0 male  0.587 83.0
 ```
 
 Those columns are why the numbers move: each row is a prediction for one synthetic patient who is average or modal in every other respect, where the curve above is an average over the patients in the data. The average should be reported for a population, and the profile for a described kind of patient. `plot_predictions()` also takes an arbitrary grid and will draw slopes and comparisons across a condition, which is where to go when the question outgrows a partial dependence plot.
