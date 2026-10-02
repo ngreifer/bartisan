@@ -170,6 +170,7 @@ _dev/did/*
 !_dev/poisson-paths.R
 !_dev/bandwidth-step-floor.R
 !_dev/precompute-vignettes.R
+!_dev/precompute-which.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R

@@ -13,7 +13,16 @@ bibliography: references.bib
 link-citations: true
 ---
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4, marginaleffects_safe = FALSE)
 
+has_me <- rlang::is_installed("marginaleffects")
+has_loo <- rlang::is_installed("loo")
+has_bp <- rlang::is_installed("bayesplot")
+```
 
 ## Introduction
 
@@ -38,8 +47,7 @@ and the data.
 
 Most sections point to a vignette that covers the same ground in more depth.
 
-
-``` r
+```{r libs}
 library(bartisan)
 ```
 
@@ -47,8 +55,7 @@ library(bartisan)
 
 Using parallelization can speed up fitting `bartisan()` models with multiple chains. Parallelization is controlled through the [*future*](https://CRAN.R-project.org/package=future) package. To request multi-session evaluation, one can simply call the following:
 
-
-``` r
+```{r, eval = FALSE}
 future::plan("multisession")
 ```
 
@@ -56,15 +63,13 @@ The [*future.apply*](https://CRAN.R-project.org/package=future.apply) package mu
 
 Some operations in *bartisan* can be take some time, and one can request a progress bar using the [*progressr*](https://CRAN.R-project.org/package=progressr) package. One can request progress bars globally for all functions that produce them using the following:
 
-
-``` r
+```{r, eval = FALSE}
 progressr::handlers(global = TRUE)
 ```
 
 To request a progress bar for a single call, wrap the function evaluation in `progressr::with_progress()`, e.g.,
 
-
-``` r
+```{r, eval = FALSE}
 progressr::with_progress(
   bartisan(y ~ ., data = d)
 )
@@ -77,28 +82,10 @@ each received right heart catheterization, a monitoring procedure, within a day
 of arriving in intensive care [@connors1996]. The question the study asked is
 whether the procedure helps or harms.
 
-
-``` r
+```{r data}
 data(rhc)
 
 str(rhc)
-#> 'data.frame':	1500 obs. of  16 variables:
-#>  $ rhc   : int  0 0 0 0 0 1 0 0 0 1 ...
-#>  $ death : int  1 0 0 1 0 0 1 1 0 1 ...
-#>  $ days  : int  37 235 189 13 202 203 663 15 239 22 ...
-#>  $ age   : num  75.3 55 34.4 42.2 41.4 ...
-#>  $ sex   : Factor w/ 2 levels "female","male": 1 2 2 1 2 2 2 2 2 2 ...
-#>  $ race  : Factor w/ 3 levels "white","black",..: 1 1 1 1 2 1 1 1 1 1 ...
-#>  $ edu   : num  9 14 15 16 11 ...
-#>  $ aps   : int  48 29 21 55 60 68 26 89 59 105 ...
-#>  $ meanbp: num  55 67 66 77 53 47 63 44 50 33 ...
-#>  $ resp  : num  26 10 30 40 12 40 22 0 33 44 ...
-#>  $ hema  : num  26.3 29 23.8 53 31 ...
-#>  $ pafi  : num  157 149 202 171 390 ...
-#>  $ paco2 : num  30 45 37 25 31 28 40 39 36 31 ...
-#>  $ crea  : num  1.7 1 0.5 1.9 15 ...
-#>  $ surv2m: num  0.441 0.339 0.846 0.672 0.777 ...
-#>  $ card  : Factor w/ 2 levels "no","yes": 1 1 1 1 1 1 2 2 1 1 ...
 ```
 
 The outcome comes in two forms. `death` is whether the patient died during
@@ -116,8 +103,7 @@ catheterization.
 
 To fit the model, we simply call `bartisan::bartisan()` with the same model formula one would use for `glm()` or any other standard model-fitting function, additionally supplying the dataset to `data` and the response family to `family`. Because BART involves random processes, we must also set a seed using `set.seed()` to ensure reproducibility (though not the `kind` does not matter).
 
-
-``` r
+```{r fit}
 set.seed(2026)
 
 fit <- bartisan(
@@ -127,17 +113,6 @@ fit <- bartisan(
 )
 
 fit
-#> Generalized BART
-#> 
-#> Call:
-#> bartisan(formula = death ~ rhc + age + sex + race + edu + aps + 
-#>     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, 
-#>     data = rhc, family = binomial())
-#> 
-#> Family: "binomial" with the "logit" link
-#> Observations: 1500
-#> Structure: 1 forest of 50 trees, soft decision rules
-#> Draws: 800 kept after 200 warmup
 ```
 
 Setting `family = binomial()` says the outcome is binary, exactly
@@ -171,58 +146,8 @@ In a Bayesian analysis, one must first determine whether the sampler converged b
 statistics, applies the conventional thresholds, and says what to change about
 whichever of them fall short.
 
-
-``` r
+```{r diagnose}
 diagnose(fit)
-#> Convergence and mixing
-#> 
-#>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.039     1.049       94      187
-#>                           splits.eta 1.073     1.152       23      134
-#>  eta.eta (average over observations) 1.000     1.003      437      723
-#>   eta.eta (worst 5% of observations) 1.038     1.069       76      197
-#>       bandwidth (average over trees) 1.022     1.037      172      299
-#>        bandwidth (worst 5% of trees) 1.064     1.111       50       58
-#> 
-#> ✖ Only one chain, so R-hat can only compare it with itself; set `chains = 4`
-#> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 94 effective draws, where a single chain averages
-#>   1.011 even when its two halves agree
-#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
-#>   draws alone as well
-#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
-#>   1.07)
-#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.06)
-#> ✖ Bulk ESS is 76 for eta.eta (worst 5% of observations), below 400
-#> ✖ Tail ESS is 187 for loglik, below 400
-#> 
-#> What to do
-#> 
-#> • Refit with `chains = 4`. R-hat compares chains against each other, and one
-#>   chain can only be compared with itself, so nothing below is reliable until
-#>   there are several. With future installed the chains run in parallel.
-#> • Raise `num_draws`, which was 800. R-hat is above the threshold for a quantity
-#>   that carries too few effective draws for the threshold to mean anything: with
-#>   this many chains it would sit about where it does even if the chains agreed
-#>   exactly, as the check above reports. A larger effective sample size makes it
-#>   readable, and that grows with the total number of draws; using fewer chains
-#>   lowers the bar as well, since R-hat's null rises with the number of chains
-#>   being compared.
-#> • If that does not settle it, reduce `num_trees`, which was 50. A smaller
-#>   forest has fewer ways to represent the same fit, so the sampler has less room
-#>   to move between them.
-#> • Then check the family. A likelihood that fits the data badly can give a
-#>   posterior with no single place to be; `bayesplot::pp_check()` is the
-#>   diagnostic.
-#> • The forest's own size is a different kind of failure from the others and does
-#>   not take the same advice. A sum of trees represents one function through many
-#>   different partitions, so two chains can agree about every fitted value while
-#>   disagreeing about how many rules they used to get there, and the quantities a
-#>   fit reports are integrals over that structure. Raising `num_draws` moves this
-#>   row slowly and may not clear the threshold at any affordable length. Act on
-#>   it when split counts are themselves what gets reported --
-#>   `variable_importance()` and `vignette("importance")` -- and not when fitted
-#>   values, predictions or effects are.
 ```
 
 Because the fit has one chain, the first line of the report says to refit with
@@ -247,34 +172,8 @@ not be read as if it did. An effect is a contrast, and a contrast can mix badly
 where the function it is a contrast of mixes well. `diagnose()` takes the
 estimand itself when there is one to take:
 
-
-``` r
+```{r diagnose_effect}
 diagnose(estimate_effect(fit, treat = "rhc"))
-#> Convergence and mixing
-#> 
-#>     quantity  rhat rhat_late ess_bulk ess_tail
-#>  Y[1] - Y[0] 1.008     0.998      499      393
-#>         Y[0] 1.002     1.002      502      736
-#>         Y[1] 1.008     1.007      575      615
-#> 
-#> ✖ Only one chain, so R-hat can only compare it with itself; set `chains = 4`
-#> ✔ R-hat is below 1.01 for every reported quantity
-#> ✔ Warmup was long enough, since R-hat is already fine
-#> ✔ Bulk ESS is at least 499 for every reported quantity, above 400
-#> ✖ Tail ESS is 393 for Y[1] - Y[0], below 400
-#> 
-#> What to do
-#> 
-#> • Refit with `chains = 4`. R-hat compares chains against each other, and one
-#>   chain can only be compared with itself, so nothing below is reliable until
-#>   there are several. With future installed the chains run in parallel.
-#> • Raise `num_draws`, which was 800. The chains agree and are stationary, so
-#>   they simply have not run long enough. Do not reach for `num_thin`: thinning
-#>   discards draws already paid for and lowers the effective sample size per unit
-#>   of time.
-#> • The tail is the binding constraint, so a posterior mean is already fine and
-#>   an interval endpoint is not. Raise `num_draws`, which was 800 if intervals
-#>   are what gets reported.
 ```
 
 The contrast's tail effective sample size falls short where the average fitted
@@ -296,12 +195,9 @@ The question worth asking of a binary outcome is whether the predicted
 probabilities mean what they say: among the patients the model gave a 30% chance
 of dying, did about 30% die? A calibration plot answers it.
 
-
-``` r
+```{r ppcheck, eval = has_bp && has_loo, fig.height = 3.0}
 bayesplot::pp_check(fit, type = "loo_calibration")
 ```
-
-<img src="figures/bartisan-ppcheck-1.png" alt="" style="display: block; margin: auto;" />
 
 The line should follow the diagonal, and here it does across the whole range.
 Each patient is judged against a probability estimated without them, so this is
@@ -317,31 +213,8 @@ and what else to check.
 
 A `bartisan()` fit produces no model coefficients; to see which covariates played the biggest role in the fit, we can use `variable_importance()` on its output. This produces statistics about the use of each predictor in the trees.
 
-
-``` r
+```{r varimp}
 variable_importance(fit)
-#> Variable importance
-#> 
-#>  variable prop_used prop_splits splits
-#>    surv2m     1.000       0.116    8.5
-#>       age     1.000       0.089    6.5
-#>     paco2     1.000       0.073    5.4
-#>       rhc     1.000       0.070    5.1
-#>      pafi     1.000       0.069    5.1
-#>       aps     0.999       0.082    6.1
-#>       edu     0.998       0.062    4.6
-#>      hema     0.996       0.065    4.8
-#>      card     0.996       0.060    4.4
-#>      resp     0.990       0.064    4.7
-#>       sex     0.988       0.068    5.0
-#>    meanbp     0.988       0.063    4.7
-#>      race     0.986       0.059    4.4
-#>      crea     0.980       0.060    4.5
-#> 
-#> ℹ Fitted with `sparsity = FALSE` (the default), so every predictor keeps a
-#>   share of the rules and prop_used is near 1 throughout. Refit with `sparsity =
-#>   TRUE` to read it as a selection rule.
-#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 `splits` is the average number of splitting rules the forest spends on each
@@ -379,28 +252,8 @@ regression slopes. For each predictor in turn it changes that predictor, leaves
 the others as they are, predicts every patient twice, and averages the
 difference over the sample.
 
-
-``` r
+```{r comparisons, eval = has_me}
 marginaleffects::avg_comparisons(fit)
-#> 
-#>    Term      Contrast  Estimate     2.5 %    97.5 %
-#>  age    +1             0.003094  1.53e-03  0.004670
-#>  aps    +1             0.001602  1.82e-04  0.003181
-#>  card   yes - no       0.041645 -8.68e-03  0.089733
-#>  crea   +1             0.005024 -1.80e-02  0.034841
-#>  edu    +1            -0.006093 -1.84e-02  0.002854
-#>  hema   +1            -0.000788 -3.99e-03  0.002115
-#>  meanbp +1             0.000620 -4.11e-04  0.001858
-#>  paco2  +1             0.003676  8.53e-04  0.006552
-#>  pafi   +1             0.000256  5.17e-05  0.000528
-#>  race   black - white  0.006047 -5.00e-02  0.059730
-#>  race   other - white  0.024162 -5.21e-02  0.105626
-#>  resp   +1             0.000480 -1.39e-03  0.002773
-#>  rhc    1 - 0          0.059675  1.18e-02  0.111183
-#>  sex    male - female  0.018854 -2.81e-02  0.059946
-#>  surv2m +1            -0.177557 -2.60e-01 -0.114545
-#> 
-#> Type: response
 ```
 
 `Contrast` says what change was made.^[By default *marginaleffects* reports the
@@ -423,16 +276,8 @@ observed range, and the model holds its prediction flat past the edge of that
 range rather than continuing any trend. Asking instead for a change the data
 contains gives a larger answer:
 
-
-``` r
+```{r comparisons_iqr, eval = has_me}
 marginaleffects::avg_comparisons(fit, variables = list(surv2m = "iqr"))
-#> 
-#>  Estimate  2.5 % 97.5 %
-#>    -0.282 -0.355 -0.207
-#> 
-#> Term: surv2m
-#> Type: response
-#> Comparison: Q3 - Q1
 ```
 
 Moving a patient from the first quartile of the prognostic score to the third
@@ -447,14 +292,11 @@ depends on which change is asked about. Plotting the fit against one
 predictor shows the whole curve, averaging over the other predictors at each
 value.
 
-
-``` r
+```{r pdp, fig.height = 3.0}
 plot(fit, ~ surv2m) +
   ggplot2::labs(x = "Estimated probability of surviving two months",
                 y = "Fitted probability of death")
 ```
-
-<img src="figures/bartisan-pdp-1.png" alt="" style="display: block; margin: auto;" />
 
 The fitted probability of death falls from about .85 to just under .5 as the
 prognostic score rises, and the fall is not a straight line, which is why the
@@ -478,28 +320,10 @@ causal analysis: it takes the treatment as an argument rather than as one
 predictor among many, it names the estimand being averaged, and it reports the
 two potential outcomes the contrast is a difference of.
 
-
-``` r
+```{r effects}
 eff <- estimate_effect(fit, treat = "rhc")
 
 eff
-#> Average treatment effect (difference)
-#> 
-#> Treatment: `rhc`
-#> Averaged over 1500 units
-#> 
-#>     contrast estimate  lower upper    n
-#>  Y[1] - Y[0]   0.0608 0.0118 0.111 1500
-#> 
-#> Average potential outcomes
-#> 
-#>  quantity estimate lower upper
-#>      Y[0]    0.631 0.602 0.661
-#>      Y[1]    0.692 0.656 0.733
-#> 
-#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
-#>   credible interval.
-#> ℹ Y[a] is the average response with `rhc` set to "a".
 ```
 
 Catheterization is associated with an increase of about six percentage points
@@ -529,26 +353,18 @@ any of this can be read as an effect of the procedure.
 
 `predict()` returns the posterior mean prediction.
 
-
-``` r
+```{r pred}
 new_patient <- rhc[1, ]
 new_patient$rhc <- 1
 
 predict(fit, newdata = new_patient)
-#> [1] 0.8366
 ```
 
 For a prediction with an interval, use `marginaleffects::predictions()`, which
 reports the posterior median rather than the mean `predict()` reports:
 
-
-``` r
+```{r predint, eval = has_me}
 marginaleffects::predictions(fit, newdata = new_patient)
-#> 
-#>  Estimate 2.5 % 97.5 %
-#>     0.841 0.732  0.911
-#> 
-#> Type: response
 ```
 
 This describes the probability that a patient with these characteristics dies. It
@@ -561,24 +377,10 @@ probability of .7 is entirely compatible with survival.
 Approximate leave-one-out cross-validation estimates how well a model predicts
 data it has not seen.
 
-
-``` r
+```{r loo, eval = has_loo}
 library(loo)
 
 loo(fit)
-#> 
-#> Computed from 800 by 1500 log-likelihood matrix.
-#> 
-#>          Estimate   SE
-#> elpd_loo   -847.6 17.3
-#> p_loo        35.7  1.0
-#> looic      1695.2 34.6
-#> ------
-#> MCSE of elpd_loo is 0.5.
-#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.5]).
-#> 
-#> All Pareto k estimates are good (k < 0.66).
-#> See help('pareto-k-diagnostic') for details.
 ```
 
 `elpd_loo` is the estimated log predictive density on held-out data, where higher
@@ -591,17 +393,13 @@ about how sick the patient was on arrival, the seven physiological measurements
 and the prognostic score among them, earns its keep over the demographics
 alone:
 
-
-``` r
+```{r loocompare, eval = has_loo}
 set.seed(2026)
 demographics <- bartisan(death ~ rhc + age + sex + race + edu, data = rhc,
                          family = binomial())
 
 loo_compare(list(full = loo(fit),
                  demographics = loo(demographics)))
-#>         model elpd_diff se_diff p_worse diag_diff diag_elpd
-#>          full       0.0     0.0      NA                    
-#>  demographics     -67.9    11.2    1.00
 ```
 
 The full model predicts better by around six times the standard error of the

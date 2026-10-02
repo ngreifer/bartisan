@@ -1,12 +1,18 @@
 # Render the heavy vignettes once, here, so that CRAN does not render them.
 #
 # The problem. The eleven vignettes take about 7.5 minutes to build on a quiet
-# machine, and six of them hold nearly all of it: diagnostics 217 seconds,
-# effects 102, comparison 102, varying 77, bartisan 63 and causal 61, against
-# 35 for the other five together (`_dev/vignette-chunk-times.md`). With
-# compilation, tests and examples on top, a check is well past the ten minutes
-# CRAN budgets for one platform, and the fits are what costs the time rather
-# than anything a reader would want shortened.
+# machine (2026-09-29, `_dev/vignette-timing.R`), and three of them hold most
+# of it: diagnostics 128 seconds, effects 80 and comparison 72, against about
+# 185 for the other eight together. With compilation, tests and examples on
+# top, a check is well past the ten minutes CRAN budgets for one platform, and
+# the fits are what costs the time rather than anything a reader would want
+# shortened.
+#
+# Only those three are precomputed. A precomputed vignette is checked here,
+# when it is regenerated, rather than by CRAN on every submission, so the
+# convention covers only the vignettes that need it. Bartisan, varying and
+# causal were precomputed at first and are live again, at 46 to 53 seconds
+# each; `_dev/precompute-which.R` measured where the line falls.
 #
 # The shape of the fix. A vignette that must be cheap is written as
 # `<name>.Rmd.orig`, the live source, and this script knits it to
@@ -29,9 +35,10 @@
 # ordinary way, and the precomputed ones are checked here, by this script, on
 # whatever schedule it is run. `_dev/justfile` has a recipe and
 # `.github/workflows/precompute-vignettes.yaml` runs it on a push that touches
-# a `.orig` file and on request. Nothing stops a `.Rmd` from drifting from its
-# `.orig` in between, so the workflow fails if re-knitting changes a file that
-# the push did not update.
+# a `.orig` file, this script or the package code, and on request, and commits
+# whatever it regenerates. Between runs nothing stops a `.Rmd` from drifting
+# from its `.orig`, which is why the workflow runs on changes to the code the
+# vignettes call and not only on changes to the vignettes.
 #
 # Run with: Rscript _dev/precompute-vignettes.R [name ...]
 #   with no arguments, every `vignettes/*.Rmd.orig`.

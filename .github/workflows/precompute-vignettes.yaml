@@ -1,9 +1,12 @@
-# The heavy vignettes are rendered here rather than on CRAN. `vignettes/*.Rmd`
-# is generated from `vignettes/*.Rmd.orig` by `_dev/precompute-vignettes.R`,
+# The heavy vignettes are rendered here rather than on CRAN. Each one's
+# `vignettes/<name>.Rmd` is generated from `vignettes/<name>.Rmd.orig` by
+# `_dev/precompute-vignettes.R`,
 # which runs every chunk once and writes the code, its output and its figures
 # into the shipped file, so that building the package evaluates none of it.
 # The two can only agree if one is generated from the other, so this workflow
-# regenerates them and fails when the result differs from what was pushed.
+# regenerates them and commits the result when it differs from what was
+# pushed. Only the heaviest vignettes are written this way; the rest are
+# ordinary `.Rmd` files that CRAN renders.
 #
 # It runs on a push that touches a source vignette, the script, or the package
 # code the vignettes run, and on request from the Actions tab, where a subset
