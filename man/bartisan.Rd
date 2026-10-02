@@ -68,7 +68,10 @@ the rules.}
 
 \item{weights}{optional; prior weights, one per observation. For a binomial
 response given as proportions, these are the numbers of trials, as in
-\code{glm()}.}
+\code{glm()}. Note that a weight above one on a binary response repeats that
+observation's outcome at its own covariate values, which separates the
+response there and can leave the leaf scale unidentified; see
+\code{update_sigma_mu} in \code{\link[=bartisan_control]{bartisan_control()}}.}
 
 \item{offset}{optional; a known component of the additive predictor, on the
 link scale. One value per observation, or a matrix with one column per

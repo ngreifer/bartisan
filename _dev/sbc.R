@@ -62,6 +62,18 @@ N <- if (length(args) > 1L) as.integer(args[2L]) else 400L
 GATE <- if (length(args) > 2L) args[3L] else "hard"
 FAMILY <- if (length(args) > 3L) args[4L] else "logit"
 
+# `SBC_SEED_BASE` shifts the replicate seeds, for an independent replication of
+# a run that has already been read; the default block is 5000. `SBC_FIX_BANDWIDTH`
+# holds every tree's bandwidth at `BANDWIDTH` in the generator and switches
+# `update_bandwidth` off in the fit, which removes the one piece of machinery
+# that exists only under soft rules. `SBC_TAG` names the output file.
+SEED_BASE <- as.integer(Sys.getenv("SBC_SEED_BASE", "5000"))
+# `SBC_DRAWS` lengthens the chain without changing anything else, which tells a
+# nuisance dimension that is merely under-explored from a target that is wrong.
+DRAWS <- as.integer(Sys.getenv("SBC_DRAWS", "1000"))
+FIX_BANDWIDTH <- nzchar(Sys.getenv("SBC_FIX_BANDWIDTH"))
+TAG <- Sys.getenv("SBC_TAG", "")
+
 family <- switch(FAMILY,
                  logit = stats::binomial(),
                  probit = stats::binomial("probit"),
@@ -142,7 +154,11 @@ eval_tree <- function(node, u, bandwidth, w = rep.int(1, nrow(u))) {
 draw_forest <- function(u) {
   # One bandwidth per tree, from the exponential prior the bandwidth move uses.
   Reduce(`+`, lapply(seq_len(TREES), function(i) {
-    b <- if (SOFT) stats::rexp(1L, rate = 1 / BANDWIDTH) else 0
+    b <- {
+      if (!SOFT) 0
+      else if (FIX_BANDWIDTH) BANDWIDTH
+      else stats::rexp(1L, rate = 1 / BANDWIDTH)
+    }
     eval_tree(draw_tree(), u, b)
   }), numeric(nrow(u)))
 }
@@ -162,18 +178,20 @@ A <- which.min(u[, 1L])
 B <- which.max(u[, 1L])
 
 control <- bartisan_control(num_trees = TREES, num_burn = 400L,
-                            num_draws = 1000L, chains = 1L, gate = GATE,
+                            num_draws = DRAWS, chains = 1L, gate = GATE,
                             sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
                             sparsity = FALSE, x_transform = "range",
                             bandwidth = BANDWIDTH,
+                            update_bandwidth = !FIX_BANDWIDTH,
                             augment = identical(FAMILY, "probit"))
 
 ranks <- integer(0)
 truths <- widths <- covered <- numeric(0)
 
 OUT <- {
-  if (identical(FAMILY, "logit")) sprintf("_dev/sbc-%s-%d.rds", GATE, N)
-  else sprintf("_dev/sbc-%s-%s-%d.rds", FAMILY, GATE, N)
+  base <- if (identical(FAMILY, "logit")) sprintf("_dev/sbc-%s-%d", GATE, N)
+          else sprintf("_dev/sbc-%s-%s-%d", FAMILY, GATE, N)
+  sprintf("%s%s.rds", base, if (nzchar(TAG)) paste0("-", TAG) else "")
 }
 
 pr <- prog_init(total = reps,
@@ -193,7 +211,7 @@ checkpoint <- function(complete, done) {
 }
 
 for (r in seq_len(reps)) {
-  set.seed(5000L + r)
+  set.seed(SEED_BASE + r)
   t0 <- Sys.time()
 
   eta <- draw_forest(u)

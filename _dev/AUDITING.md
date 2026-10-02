@@ -415,15 +415,18 @@ drawn per tree, and the smoothstep half-width is the engine's constant. The
 Poisson and logit arms were rerun at 600 replicates (tasks 247 and 248). Logit
 is uniform: chi-square 1.2 on 9 df (p = 0.999), 48% in the middle half, mean
 rank 50.5, coverage 0.935 (SE 0.010). Poisson is not: chi-square 28.4
-(p = 0.001), with 90 of 600 ranks in the top bin against 60 expected and the
-rest near flat, 46% in the middle half, mean rank 52.0, coverage 0.930. The
-truth sits above almost every draw more often than it should, so the soft-rule
-Poisson posterior for the contrast between the two extreme observations is
-biased low at the edge, where the hard-rule Poisson arm at 600 is uniform and
-the soft-rule logit arm with the same replicated tree and bandwidth prior is
-uniform too. That isolates it to the Poisson target under soft rules, the one
-of the three that goes through the Laplace leaf proposal rather than a
-conjugate or augmented draw. **Open**; the first item on the list below. The sub-nominal coverage measured on the benches is therefore
+(p = 0.001). Chased on the same day and traced to the per-tree bandwidth move.
+Pooled over that block and an independent one of 600 more, the deviation is
+chi-square 29.3 (p = 0.0006), the top rank bin 4.3 standard errors high, the
+mean rank 2.5 and the dispersion 3.1, coverage 0.942 (SE 0.007); holding every
+tree's bandwidth fixed removes all of it, the soft-rule logit arm with the
+bandwidth drawn shows nothing, and the hard-rule Poisson arm has no bandwidth
+and shows nothing. The move's acceptance ratio reads correctly, and the
+bandwidth's bulk effective sample size is 68 of 1000 draws under a Poisson
+likelihood against 190 under a logit, worst tree 9 against 114, at the same
+acceptance rate, so the likeliest reading is a correct move that is slow and a
+nuisance dimension SBC is sensitive to. The `TASKS.md` entry of that date has
+the working. The sub-nominal coverage measured on the benches is therefore
 the prior doing its job against a truth it does not favor, not a sampler that is
 wrong, which is the difference between a credible interval and a confidence
 interval.
@@ -463,6 +466,28 @@ scale by default where `dbarts` fixes it, which is the first place to look if
 that ever needs explaining. The script is in `_dev/` rather than the suite
 because `dbarts` is not a declared dependency.
 
+**A second oracle, 2026-10-01**, `_dev/differential-stochtree.R`, against
+*stochtree* 0.4.5 on the same design, with `num_gfr = 0` so that it runs its
+plain MCMC rather than the grow-from-root warm start this package has no
+counterpart for. Gaussian: correlation of the posterior means 0.998, their
+difference 0.40 of a posterior standard deviation, standard deviation ratio
+1.04, error against the truth 0.684 against 0.628, coverage 0.978 against
+0.986, residual standard deviation 0.879 against 0.928. Probit: correlation
+0.999, difference 0.11, ratio 1.05, error 0.114 against 0.112, coverage 0.964
+against 0.956. So two independent implementations agree with this package on
+the models all three fit, and the one number that was off parity against
+*dbarts*, a Gaussian standard deviation ratio of 0.87, is 1.04 here.
+
+One trap worth recording, because the first run of this script read as a
+disagreement and was not one. *stochtree* still accepts
+`probit_outcome_model = TRUE` and warns that it is deprecated; through it the
+fitted latent predictor spans -0.62 to 1.80 on this design against -4.43 to
+5.81 through the current `outcome_model` argument, which turns into an error
+against the truth of 0.297 against 0.112 and a coverage of 0.154. A
+differential test is only an oracle if the other package is driven the way its
+documentation says to drive it, and a deprecation warning is the first thing to
+read when the oracle disagrees.
+
 ### 8. The one that actually worked: a plausibility check on real data
 
 A domain expert fitted a model to real data and knew the answer was wrong. That
@@ -496,27 +521,27 @@ about six percentage points with an interval from about 1.6 to 11.
 
 ## What to do next, in order
 
-The list of 2026-10-01 is done through both of its rounds. What is left came
-out of the last round and is specific.
-
-1. **The soft-rule Poisson posterior reads biased low at the edge in SBC**
-   (§ 6): 90 of 600 ranks in the top bin, coverage 0.930, where hard-rule
-   Poisson and soft-rule logit are uniform. Discriminators, cheapest first:
-   the same arm with the bandwidth fixed in both the generator and the fit,
-   which removes the bandwidth move; a soft-rule `Gamma()` or `negbin()` arm,
-   which shares the Laplace leaf proposal; and 300 + 3000 draws, which tells
-   mixing from a wrong target. The leaf proposal's Fisher-scoring tolerance
-   and the soft-rule information (`sum w_i^2 info_i`) are where to read if it
-   is the target.
-2. **Mixing of the hard-rule augmented binomial fits** (§ 3): a between-seed
-   spread of about one posterior sd on a treatment effect at 300 + 500 draws,
-   where the soft-rule chains agree to 0.03. Measure the effect's ESS under
-   each gate; if the hard-rule ESS is the small one, say so in
-   `vignette("diagnostics")`, since hard rules are what the speed benches
-   recommend.
-3. `zi_negbin()` under `vc()`: the dip of about 0.1 recorded above is weak
-   identification between the count and zero processes and shrinks with n. A
-   generator whose zero process depends on `z` would say whether the
-   coefficient forest on the zero predictor is where the shortfall goes.
-4. Differential testing against `stochtree` as well as `dbarts`, for a second
-   independent oracle on the Gaussian and probit models.
+1. **Confirm the soft-rule Poisson SBC deviation is chain length** (§ 6): 600
+   replicates at 4000 draws instead of 1000. The mean-rank and top-bin
+   contrasts shrinking toward zero with coverage at nominal makes it a
+   limitation to document; persistence at the same magnitude makes
+   `update_bandwidth()`'s acceptance ratio or its likelihood difference the
+   thing to re-derive.
+2. **`diagnose()` does not report the gate bandwidth**, which is a drawn
+   parameter like any other and mixes worse than the rest of a soft-rule
+   Poisson fit: 68 effective draws of 1000 for a typical tree and 9 for the
+   worst. It belongs in the table, graded apart like `splits.*` since it is
+   per tree.
+3. **The zero-inflated families carry 6 to 14 effective draws of 500 for a
+   treatment contrast**, whatever the structure, and the zero part's
+   coefficient forest under `vc()` reports -0.69 where the truth is 0 at
+   n = 1000 (`_dev/zi-vc-shortfall.R`, 2026-10-01). `vignette("families")`
+   recommends these families on their accuracy and says nothing about how many
+   draws their estimands need. Measure the effective sample size against
+   `num_draws` for `zi_poisson()` and `zi_negbin()`, then say so there.
+4. A weights arm of the recovery matrix that fixes the leaf scale, so that it
+   measures weights rather than the separation pathology the binary-response
+   cells currently measure.
+5. The soft-rule arms of `_dev/sbc.R` at a second sample size, since
+   everything here is at n = 400 and the bandwidth's mixing is what n is
+   expected to bite on.

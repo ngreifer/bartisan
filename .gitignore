@@ -154,6 +154,17 @@ _dev/did/*
 !_dev/ordinal-soft-check.R
 !_dev/differential-dbarts.R
 !_dev/weights-check.R
+!_dev/differential-stochtree.R
+!_dev/sbc-mixing.R
+!_dev/sbc-prior-check.R
+!_dev/augmented-mixing.R
+!_dev/contrast-mixing.R
+!_dev/contrast-mixing-cause.R
+!_dev/weights-mixing.R
+!_dev/weights-warmup.R
+!_dev/weights-runaway.R
+!_dev/zi-vc-shortfall.R
+!_dev/bandwidth-mixing.R
 
 # Parked
 !_dev/gibbs-prior-smoke.R

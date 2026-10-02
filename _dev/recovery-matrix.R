@@ -171,6 +171,16 @@ cases <- list(
 # random-intercept arm estimates; "weights" fits with frequency weights of 1 to
 # 3 on a response that does not depend on them, so the effect is unchanged and
 # the posterior narrower.
+#
+# The weights arm does not measure weights for the binary-response families.
+# A weight above one on a binary response repeats that observation's outcome at
+# its own covariate values, which separates the response there, and the leaf
+# scale runs away chasing it: the binomial logit cell read 1.53 under hard
+# rules against 1.06 everywhere else in its row, on 3 effective draws, and
+# fixing the scale returns it to 0.77 on 497. `_dev/weights-runaway.R` has the
+# measurement and the `TASKS.md` entry of 2026-10-01 the rest. Read those cells
+# as the leaf scale, not as weights, or rerun that arm with
+# `update_sigma_mu = FALSE`.
 structures <- c("plain", "vc", "drawn", "ranef", "vc + ranef", "offset", "weights")
 
 if (SMOKE) {
