@@ -177,6 +177,8 @@ _dev/did/*
 !_dev/test-timing.R
 !_dev/test-seeds.R
 !_dev/bandwidth-predictor.R
+!_dev/sbc-stan.R
+!_dev/sbc-stan.stan
 
 # Parked
 !_dev/gibbs-prior-smoke.R
