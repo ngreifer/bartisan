@@ -371,7 +371,7 @@ as_draws(fit, eta = 1) |>
   mcmc_trace(pars = c("loglik", "eta[1]"))
 ```
 
-![](figures/diagnostics-trace-1.png)
+![](results/diagnostics/trace-1.png)
 
 What we want to see is four chains overlapping, wandering around the
 same level, with no drift and no long excursions. Setting `eta = 1`
@@ -643,24 +643,24 @@ diagnose(longer)
 #> Convergence and mixing
 #> 
 #>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.02      1.03      208      977
-#>                           splits.eta 1.00      1.00     2710     5914
-#>  eta.eta (average over observations) 1.00      1.00    17037    23899
-#>   eta.eta (worst 5% of observations) 1.01      1.01     1759     3630
-#>       bandwidth (average over trees) 1.00      1.00     5219    10097
-#>        bandwidth (worst 5% of trees) 1.00      1.00     3972     4697
+#>                               loglik 1.02      1.02      380      700
+#>                           splits.eta 1.00      1.00     2697     5834
+#>  eta.eta (average over observations) 1.00      1.00    15109    23036
+#>   eta.eta (worst 5% of observations) 1.00      1.01     1700     2892
+#>       bandwidth (average over trees) 1.00      1.00     5272     9992
+#>        bandwidth (worst 5% of trees) 1.00      1.00     3871     4647
 #> 
 #> ✔ 4 chains, 32000 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 208 effective draws, where 4 chains average 1.019
+#> ✖ That R-hat rests on only 380 effective draws, where 4 chains average 1.011
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✔ The chains agree about the size of the forest
 #> ✔ The chains agree about how wide the decision rules are
-#> ✖ Bulk ESS is 208 for loglik, below 400
-#> ✔ Tail ESS is at least 977 for every reported quantity, above 400
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.6 effective draws
+#> ✖ Bulk ESS is 380 for loglik, below 400
+#> ✔ Tail ESS is at least 700 for every reported quantity, above 400
+#> ℹ Per-draw efficiency is lowest for loglik, which carries 1.2 effective draws
 #>   per hundred kept
 #> 
 #> What to do
@@ -842,7 +842,7 @@ and compares their distribution to the observed one.
 pp_check(fit)
 ```
 
-![](figures/diagnostics-ppc-1.png)
+![](results/diagnostics/ppc-1.png)
 
 For a continuous outcome this is the workhorse check, and we look for
 systematic differences: replicates that are too narrow, that miss a
@@ -880,7 +880,7 @@ and
 pp_check(fit, type = "stat", stat = "sd")
 ```
 
-![](figures/diagnostics-ppcstat-1.png)
+![](results/diagnostics/ppcstat-1.png)
 
 **Calibration of the whole predictive distribution** is checked by
 setting `type = "loo_pit_ecdf"`. Each observation is transformed through
@@ -894,7 +894,7 @@ wrong even where the mean is right, which the default check cannot see.
 pp_check(fit, type = "loo_pit_ecdf")
 ```
 
-![](figures/diagnostics-ppcloo-1.png)
+![](results/diagnostics/ppcloo-1.png)
 
 **The location of a residual**, rather than its size, is shown by
 setting `type = "error_scatter_avg_vs_x"`: the average residual against
@@ -922,7 +922,7 @@ probabilities mean what they say: among the patients the model gave a
 pp_check(fit, type = "loo_calibration")
 ```
 
-![](figures/diagnostics-calibration-1.png)
+![](results/diagnostics/calibration-1.png)
 
 A line on the diagonal means the probabilities are calibrated, and this
 one sits close to it across the whole range. The dots along the bottom

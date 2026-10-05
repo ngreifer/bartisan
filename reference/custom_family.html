@@ -252,21 +252,22 @@ better answer; <code><a href="bartisan.html">bartisan()</a></code> for fitting a
 <span class="r-in"><span>  <span class="op">}</span>,</span></span>
 <span class="r-in"><span>  start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">y</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="va">pois</span>,</span></span>
-<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">20</span>, num_burn <span class="op">=</span> <span class="fl">100</span>,</span></span>
-<span class="r-in"><span>                num_draws <span class="op">=</span> <span class="fl">100</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>,</span></span>
+<span class="r-in"><span>                data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="va">pois</span>,</span></span>
+<span class="r-in"><span>                num_trees <span class="op">=</span> <span class="fl">10</span>, num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">fit</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Generalized BART</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = y ~ x1 + x2, data = d, family = pois, num_trees = 20, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     num_burn = 100, num_draws = 100, verbose = FALSE)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> bartisan(formula = y ~ x1 + x2, data = d, family = pois, num_trees = 10, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     num_burn = 50, num_draws = 50)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"custom"</span> (supplied from R)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Observations: 300</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 20 trees, soft decision rules</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 100 kept after 100 warmup</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 1 forest of 10 trees, soft decision rules</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50 kept after 50 warmup</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># A beta-binomial, which no built-in family covers:</span></span></span>
 <span class="r-in"><span><span class="co"># counts out of a known number of trials, overdispersed</span></span></span>
@@ -289,13 +290,12 @@ better answer; <code><a href="bartisan.html">bartisan()</a></code> for fitting a
 <span class="r-in"><span>  name <span class="op">=</span> <span class="st">"beta-binomial"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">fit_bb</span> <span class="op">&lt;-</span> <span class="fu"><a href="bartisan.html">bartisan</a></span><span class="op">(</span><span class="va">hits</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">d</span>,</span></span>
-<span class="r-in"><span>                   family <span class="op">=</span> <span class="va">bb</span>, num_trees <span class="op">=</span> <span class="fl">20</span>,</span></span>
-<span class="r-in"><span>                   num_burn <span class="op">=</span> <span class="fl">100</span>, num_draws <span class="op">=</span> <span class="fl">100</span>,</span></span>
-<span class="r-in"><span>                   verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>                   family <span class="op">=</span> <span class="va">bb</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                   num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The drawn precision, on the scale it was written on.</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">fit_bb</span><span class="op">$</span><span class="va">aux</span><span class="op">[</span>, <span class="st">"log_phi"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5.649369</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 6.47182</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

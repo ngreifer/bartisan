@@ -195,21 +195,22 @@ pois <- custom_family(
   },
   start = log(mean(d$y)))
 
-fit <- bartisan(y ~ x1 + x2, data = d, family = pois,
-                num_trees = 20, num_burn = 100,
-                num_draws = 100, verbose = FALSE)
+fit <- bartisan(y ~ x1 + x2,
+                data = d, family = pois,
+                num_trees = 10, num_burn = 50,
+                num_draws = 50)
 
 fit
 #> Generalized BART
 #> 
 #> Call:
-#> bartisan(formula = y ~ x1 + x2, data = d, family = pois, num_trees = 20, 
-#>     num_burn = 100, num_draws = 100, verbose = FALSE)
+#> bartisan(formula = y ~ x1 + x2, data = d, family = pois, num_trees = 10, 
+#>     num_burn = 50, num_draws = 50)
 #> 
 #> Family: "custom" (supplied from R)
 #> Observations: 300
-#> Structure: 1 forest of 20 trees, soft decision rules
-#> Draws: 100 kept after 100 warmup
+#> Structure: 1 forest of 10 trees, soft decision rules
+#> Draws: 50 kept after 50 warmup
 
 # A beta-binomial, which no built-in family covers:
 # counts out of a known number of trials, overdispersed
@@ -232,11 +233,10 @@ bb <- custom_family(
   name = "beta-binomial")
 
 fit_bb <- bartisan(hits ~ x1 + x2, data = d,
-                   family = bb, num_trees = 20,
-                   num_burn = 100, num_draws = 100,
-                   verbose = FALSE)
+                   family = bb, num_trees = 10,
+                   num_burn = 50, num_draws = 50)
 
 # The drawn precision, on the scale it was written on.
 exp(mean(fit_bb$aux[, "log_phi"]))
-#> [1] 5.649369
+#> [1] 6.47182
 ```

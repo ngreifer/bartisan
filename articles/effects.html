@@ -171,14 +171,14 @@ skip those here for brevity.)</p>
 <span>                data <span class="op">=</span> <span class="va">rhc</span>, family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/family.html" class="external-link">binomial</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">fit</span></span>
-<span><span class="co">#&gt; Generalized BART</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Generalized BART</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Call:</span></span>
 <span><span class="co">#&gt; bartisan(formula = death ~ rhc + age + sex + race + edu + aps + </span></span>
 <span><span class="co">#&gt;     meanbp + resp + hema + pafi + paco2 + crea + surv2m + card, </span></span>
 <span><span class="co">#&gt;     data = rhc, family = binomial())</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Family: "binomial" with the "logit" link</span></span>
+<span><span class="co">#&gt; Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span></span>
 <span><span class="co">#&gt; Observations: 1500</span></span>
 <span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 800 kept after 200 warmup</span></span></code></pre></div>
@@ -368,11 +368,11 @@ average prediction rather than on any one patient’s.
 <span><span class="va">pd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span><span class="va">aps</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">pd</span></span>
-<span><span class="co">#&gt; Partial dependence</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor: "aps"</span></span>
+<span><span class="co">#&gt; Predictor: <span style="color: #0000BB;">"aps"</span></span></span>
 <span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
-<span><span class="co">#&gt;            "response" scale</span></span>
+<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     aps estimate lower upper</span></span>
 <span><span class="co">#&gt;    4.00    0.592 0.491 0.657</span></span>
@@ -380,21 +380,21 @@ average prediction rather than on any one patient’s.
 <span><span class="co">#&gt;   15.44    0.593 0.499 0.657</span></span>
 <span><span class="co">#&gt;   21.16    0.597 0.513 0.656</span></span>
 <span><span class="co">#&gt;   26.88    0.606 0.543 0.658</span></span>
-<span><span class="co">#&gt;   --- 16 rows omitted ---</span></span>
+<span><span class="co">#&gt; <span style="font-style: italic;">  --- 16 rows omitted ---</span></span></span>
 <span><span class="co">#&gt;  124.12    0.724 0.651 0.811</span></span>
 <span><span class="co">#&gt;  129.84    0.724 0.651 0.811</span></span>
 <span><span class="co">#&gt;  135.56    0.724 0.651 0.811</span></span>
 <span><span class="co">#&gt;  141.28    0.724 0.651 0.812</span></span>
 <span><span class="co">#&gt;  147.00    0.724 0.651 0.812</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ℹ lower and upper bound the 95% credible interval on the average prediction.</span></span>
-<span><span class="co">#&gt; ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
 <span><span class="co">#&gt;   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span></span>
 <span><span class="co">#&gt;   them.</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pd</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="figures/effects-pdp-1.png" alt="" style="display: block; margin: auto;"></p>
+<p><img src="results/effects/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># Same thing:</span></span>
@@ -415,11 +415,11 @@ groups.</p>
 <code class="sourceCode R"><span><span class="va">pd2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">aps</span> <span class="op">+</span> <span class="va">rhc</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">pd2</span></span>
-<span><span class="co">#&gt; Partial dependence</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictors: "aps" and "rhc"</span></span>
+<span><span class="co">#&gt; Predictors: <span style="color: #0000BB;">"aps"</span> and <span style="color: #0000BB;">"rhc"</span></span></span>
 <span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
-<span><span class="co">#&gt;            "response" scale</span></span>
+<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     aps rhc estimate lower upper</span></span>
 <span><span class="co">#&gt;    4.00   0    0.568 0.460 0.638</span></span>
@@ -427,22 +427,22 @@ groups.</p>
 <span><span class="co">#&gt;   15.44   0    0.569 0.472 0.637</span></span>
 <span><span class="co">#&gt;   21.16   0    0.573 0.493 0.637</span></span>
 <span><span class="co">#&gt;   26.88   0    0.581 0.518 0.640</span></span>
-<span><span class="co">#&gt;     --- 42 rows omitted ---</span></span>
+<span><span class="co">#&gt; <span style="font-style: italic;">    --- 42 rows omitted ---</span></span></span>
 <span><span class="co">#&gt;  124.12   1    0.758 0.680 0.840</span></span>
 <span><span class="co">#&gt;  129.84   1    0.758 0.680 0.840</span></span>
 <span><span class="co">#&gt;  135.56   1    0.759 0.680 0.841</span></span>
 <span><span class="co">#&gt;  141.28   1    0.759 0.680 0.841</span></span>
 <span><span class="co">#&gt;  147.00   1    0.759 0.680 0.841</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ℹ lower and upper bound the 95% credible interval on the average prediction.</span></span>
-<span><span class="co">#&gt; ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
 <span><span class="co">#&gt;   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span></span>
 <span><span class="co">#&gt;   them.</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pd2</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
 <span>       color <span class="op">=</span> <span class="st">"Catheterized"</span>, fill <span class="op">=</span> <span class="st">"Catheterized"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="figures/effects-pdp2-1.png" alt="" style="display: block; margin: auto;"></p>
+<p><img src="results/effects/pdp2-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The two curves run close together; if they diverged, that would be a
 moderation worth reporting, and the difference of differences above is
 how to put a number on it.</p>
@@ -456,9 +456,9 @@ three values near its quartiles and a message reports them.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Mean arterial blood pressure"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
 <span>       color <span class="op">=</span> <span class="st">"APACHE III"</span>, fill <span class="op">=</span> <span class="st">"APACHE III"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; ℹ Grouping by `aps` at 41, 54, and 68, three of its values near its quartiles.</span></span>
-<span><span class="co">#&gt; ℹ Set `values` to choose them yourself.</span></span></code></pre></div>
-<p><img src="figures/effects-pdp3-1.png" alt="" style="display: block; margin: auto;"></p>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Grouping by `aps` at <span style="color: #0000BB;">41</span>, <span style="color: #0000BB;">54</span>, and <span style="color: #0000BB;">68</span>, three of its values near its quartiles.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Set `values` to choose them yourself.</span></span></code></pre></div>
+<p><img src="results/effects/pdp3-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The <code>values</code> argument chooses others, and an entry of it
 may be a function of the predictor rather than the values themselves.
 Setting <code>values = list(z = unique)</code> asks for every value a
@@ -470,7 +470,7 @@ want instead.</p>
 <span>     values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">x</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.05</span>, <span class="fl">.5</span>, <span class="fl">.95</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Mean arterial blood pressure"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
 <span>       color <span class="op">=</span> <span class="st">"APACHE III"</span>, fill <span class="op">=</span> <span class="st">"APACHE III"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="figures/effects-pdp4-1.png" alt="" style="display: block; margin: auto;"></p>
+<p><img src="results/effects/pdp4-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level3">
 <h3 id="the-same-curve-through-marginaleffects">The Same Curve Through <em>marginaleffects</em><a class="anchor" aria-label="anchor" href="#the-same-curve-through-marginaleffects"></a>
@@ -483,18 +483,18 @@ options that may be helpful, but otherwise the syntax is similar.</p>
 <span></span>
 <span><span class="co"># Uses posterior mean</span></span>
 <span><span class="fu"><a href="../reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">aps</span>, values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Partial dependence</span></span>
+<span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Predictor: "aps"</span></span>
+<span><span class="co">#&gt; Predictor: <span style="color: #0000BB;">"aps"</span></span></span>
 <span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
-<span><span class="co">#&gt;            "response" scale</span></span>
+<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   aps estimate lower upper</span></span>
 <span><span class="co">#&gt;  29.9    0.610 0.552 0.657</span></span>
 <span><span class="co">#&gt;  54.0    0.656 0.623 0.695</span></span>
 <span><span class="co">#&gt;  83.0    0.703 0.649 0.765</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ℹ lower and upper bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
 <span></span>
 <span><span class="co"># Uses posterior median by default</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span><span class="op">)</span></span>

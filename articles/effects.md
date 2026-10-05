@@ -332,7 +332,7 @@ plot(pd) +
   labs(x = "APACHE III score on day 1", y = "Fitted probability of death")
 ```
 
-![](figures/effects-pdp-1.png)
+![](results/effects/pdp-1.png)
 
 ``` r
 
@@ -390,7 +390,7 @@ plot(pd2) +
        color = "Catheterized", fill = "Catheterized")
 ```
 
-![](figures/effects-pdp2-1.png)
+![](results/effects/pdp2-1.png)
 
 The two curves run close together; if they diverged, that would be a
 moderation worth reporting, and the difference of differences above is
@@ -411,7 +411,7 @@ plot(fit, ~ meanbp + aps) +
 #> ℹ Set `values` to choose them yourself.
 ```
 
-![](figures/effects-pdp3-1.png)
+![](results/effects/pdp3-1.png)
 
 The `values` argument chooses others, and an entry of it may be a
 function of the predictor rather than the values themselves. Setting
@@ -427,7 +427,7 @@ plot(fit, ~ meanbp + aps,
        color = "APACHE III", fill = "APACHE III")
 ```
 
-![](figures/effects-pdp4-1.png)
+![](results/effects/pdp4-1.png)
 
 ### The Same Curve Through *marginaleffects*
 
