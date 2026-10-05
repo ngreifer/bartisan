@@ -992,7 +992,9 @@ response_scale <- function(object, eta, aux, draws, iterations = NULL) {
                 },
                 e)
 
-  if (draws) {
+  # A family with categories has already averaged over draws, to observations
+  # by categories, and averaging again would collapse the observations.
+  if (draws || family %in% c("ordinal", "mnp", "multinomial")) {
     return(out)
   }
 

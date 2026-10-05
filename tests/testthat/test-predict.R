@@ -132,8 +132,8 @@ test_that("prob and class are refused for families without categories", {
 
   fit <- bartisan(y ~ ., data = d, control = quick_control())
 
-  expect_error(predict(fit, type = "prob"), "available only for")
-  expect_error(predict(fit, type = "class"), "available only for")
+  expect_error(predict(fit, type = "prob"), "`type` should be one of")
+  expect_error(predict(fit, type = "class"), "`type` should be one of")
 })
 
 test_that("survival predictions are on the time scale and positive", {
@@ -227,13 +227,13 @@ test_that("`type = \"survival\"` refuses what it cannot answer", {
   d$bin <- stats::rbinom(nrow(d), 1L, 0.4)
   other <- bartisan(bin ~ x1 + x2, d, family = binomial(), control = ctrl)
   expect_error(predict(other, type = "survival", times = 1),
-               "only for the survival families")
+               "`type` should be one of")
 
   # The hazard takes the same horizons and refuses the same things.
   expect_error(predict(fit, type = "hazard"), "times")
   expect_error(predict(fit, type = "hazard", times = -1), "strictly positive")
   expect_error(predict(other, type = "hazard", times = 1),
-               "only for the survival families")
+               "`type` should be one of")
 
   # And `times` is meaningless for any other type, which is worth saying.
   expect_warning(predict(fit, type = "link", times = 1), "is ignored")

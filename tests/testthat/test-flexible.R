@@ -297,7 +297,7 @@ test_that("custom_family fits, predicts and validates its arguments", {
   # There is no mean to report for a density the package cannot interpret, so
   # the response scale is the predictor itself.
   expect_equal(predict(fit, type = "response"), predict(fit, type = "link"))
-  expect_error(predict(fit, type = "prob"), "available only for")
+  expect_error(predict(fit, type = "prob"), "`type` should be one of")
 
   expect_error(custom_family("not a function"), "must be a function")
   expect_error(custom_family(function(y, eta) y, num_predictors = 0))

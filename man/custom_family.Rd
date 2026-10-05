@@ -154,9 +154,10 @@ pois <- custom_family(
   },
   start = log(mean(d$y)))
 
-fit <- bartisan(y ~ x1 + x2, data = d, family = pois,
-                num_trees = 20, num_burn = 100,
-                num_draws = 100, verbose = FALSE)
+fit <- bartisan(y ~ x1 + x2,
+                data = d, family = pois,
+                num_trees = 10, num_burn = 50,
+                num_draws = 50)
 
 fit
 
@@ -181,9 +182,8 @@ bb <- custom_family(
   name = "beta-binomial")
 
 fit_bb <- bartisan(hits ~ x1 + x2, data = d,
-                   family = bb, num_trees = 20,
-                   num_burn = 100, num_draws = 100,
-                   verbose = FALSE)
+                   family = bb, num_trees = 10,
+                   num_burn = 50, num_draws = 50)
 
 # The drawn precision, on the scale it was written on.
 exp(mean(fit_bb$aux[, "log_phi"]))

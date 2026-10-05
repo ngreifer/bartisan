@@ -159,12 +159,12 @@ test_that("the standardized latent variable is refused where there is no latent"
   d$y <- stats::rnorm(nrow(d))
 
   gauss <- bartisan(y ~ ., d, control = quick_control())
-  expect_error(stats::predict(gauss, type = "stdlv"), "threshold crossing")
+  expect_error(stats::predict(gauss, type = "stdlv"), "`type` should be one of")
 
   d$ym <- factor(sample(c("a", "b", "c"), nrow(d), TRUE))
   multi <- bartisan(ym ~ x1 + x2, d, family = multinomial(),
                     control = quick_control())
-  expect_error(stats::predict(multi, type = "stdlv"), "threshold crossing")
+  expect_error(stats::predict(multi, type = "stdlv"), "`type` should be one of")
 
   # A binomial fit has a latent variable, but only under a link that names its
   # distribution -- a Cauchy error has no variance to divide by.
@@ -174,7 +174,7 @@ test_that("the standardized latent variable is refused where there is no latent"
   expect_error(stats::predict(cauchit, type = "stdlv"), "known latent")
 
   # And "mean" is refused for a family with no categories at all.
-  expect_error(stats::predict(gauss, type = "mean"), "available only")
+  expect_error(stats::predict(gauss, type = "mean"), "`type` should be one of")
 })
 
 test_that("a binomial fit has a standardized latent variable too", {
