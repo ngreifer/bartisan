@@ -806,14 +806,45 @@ setColnames <- function(object, nm) {
   object
 }
 
-post_summary <- function(x, level = 0.95) {
-  probs <- c((1 - level) / 2, 1 - (1 - level) / 2)
+# The shortest interval holding `level` of the draws. Reported rather than the
+# equal-tailed one only on request, since the two differ only for a skewed
+# posterior and the equal-tailed one is what a quantile of the draws gives.
+hpd_interval <- function(x, level) {
+  x <- sort(x[is.finite(x)])
+  n <- length(x)
+
+  if (n == 0L) {
+    return(c(lower = NA_real_, upper = NA_real_))
+  }
+
+  k <- max(1L, floor(level * n))
+
+  if (k >= n) {
+    return(c(lower = x[1L], upper = x[n]))
+  }
+
+  starts <- seq_len(n - k)
+  width <- x[starts + k] - x[starts]
+  i <- which.min(width)
+
+  c(lower = x[i],
+    upper = x[i + k])
+}
+
+eti_interval <- function(x, level) {
+  probs <- c((1 - level) / 2, 1 + (level - 1) / 2)
+
   q <- stats::quantile(x, probs = probs, names = FALSE, na.rm = TRUE)
 
+  c(lower = q[1L], upper = q[2L])
+}
+
+post_summary <- function(x, level = 0.95, interval = "eti") {
   c(mean = mean(x, na.rm = TRUE),
     sd = stats::sd(x, na.rm = TRUE),
-    lower = q[1L],
-    upper = q[2L])
+    switch(interval,
+           eti = eti_interval(x, level),
+           hpd_interval(x, level)))
 }
 
 # Check if future and future.apply are installed and more than one

@@ -22,6 +22,10 @@
 #'   does not name is held at three of its values near its quartiles, and a
 #'   message reports which.
 #' @param level `numeric`; the level of the credible interval. Default is `.95`.
+#' @param interval `string`; `"eti"` (the default) for an equal-tailed interval
+#'   from the quantiles of the draws, or `"hpdi"` for the highest posterior
+#'   density interval, which is the shortest interval containing `level` of the
+#'   posterior mass.
 #' @param type `string`; the prediction scale, passed to
 #'   [predict.bartisan_fit()]. Default is `"response"`.
 #' @param x a `<bartisan_partial>` object; the output of a call to
@@ -45,8 +49,8 @@
 #' @details
 #' At each grid value every unit is assigned that value, the prediction is taken
 #' for all of them, and the average over units is taken *within each posterior
-#' draw*. The interval is then a quantile of those averages, so it is an interval
-#' on the average prediction and not on any one unit's.
+#' draw*. The interval is then computed from those averages, so it is an
+#' interval on the average prediction and not on any one unit's.
 #'
 #' The second predictor groups the curves rather than adding an axis, which is
 #' readable for a factor and for a numeric predictor with a few values, and not
@@ -108,8 +112,8 @@
 #'
 #' @export
 partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
-                               values = NULL, level = 0.95, type = "response",
-                               ...) {
+                               values = NULL, level = 0.95, interval = "eti",
+                               type = "response", ...) {
 
   arg::arg_is(object, "bartisan_fit")
   arg::arg_whole_number(grid)
@@ -138,6 +142,9 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
     arg::err("{.arg variables} names {length(missing)} column{?s} the data does
               not have: {.val {missing}}")
   }
+
+  interval <- tolower(interval)
+  interval <- arg::match_arg(interval, c("eti", "hpdi"))
 
   # A numeric second predictor is the grouping, and `grid` of them is a plot
   # nobody can read, so it is summarized unless the caller said otherwise. The
@@ -190,9 +197,11 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
     }
 
     # Averaged within each draw, so the interval is on the average prediction.
-    s <- post_summary(rowMeans(draws), level = level)
+    s <- post_summary(rowMeans(draws), level = level,
+                      interval = interval)
 
-    data.frame(estimate = s[["mean"]], lower = s[["lower"]],
+    data.frame(estimate = s[["mean"]],
+               lower = s[["lower"]],
                upper = s[["upper"]])
   }
 
@@ -224,6 +233,7 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
   attr(out, "variables") <- vars
   attr(out, "level") <- level
   attr(out, "type") <- type
+  attr(out, "interval") <- interval
   attr(out, "n_units") <- nrow(newdata)
   class(out) <- c("bartisan_partial", "data.frame")
 
@@ -359,12 +369,13 @@ print.bartisan_partial <- function(x, digits = 3L, n_print = 10L, ...) {
   arg::arg_gte(n_print, 1)
 
   vars <- attr(x, "variables")
+  interval <- attr(x, "interval")
+  level <- attr(x, "level")
 
   cli_cat("{.underline Partial dependence}")
   cli::cat_line()
   cli_cat("{cli::qty(length(vars))}Predictor{?s}: {.val {vars}}")
-  cli_cat("Averaged over {attr(x, 'n_units')} unit{?s}, on the
-           {.val {attr(x, 'type')}} scale")
+  cli_cat("Averaged over {attr(x, 'n_units')} unit{?s}, on the {.val {attr(x, 'type')}} scale")
   cli::cat_line()
 
   d <- as.data.frame(x) |>
@@ -414,9 +425,13 @@ print.bartisan_partial <- function(x, digits = 3L, n_print = 10L, ...) {
 
   cli::cat_line()
 
-  notes <- c(i = "{.field lower} and {.field upper} bound the
-                  {100 * attr(x, 'level')}% credible interval on the
-                  average prediction.")
+  band <- switch(interval,
+                 hpdi = "highest posterior density interval",
+                 "equal-tailed credible interval")
+
+  notes <- c(i = "{.field estimate} is the posterior mean;
+                  {.field lower} and {.field upper} bound the
+                  {100 * level}% {band}.")
 
   if (truncated) {
     notes <- c(notes,

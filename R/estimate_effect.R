@@ -199,7 +199,8 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
                                c("difference", "ratio", "lnratio", "or",
                                  "lnor"))
 
-  interval <- arg::match_arg(tolower(interval), c("eti", "hpdi"))
+  interval <- tolower(interval)
+  interval <- arg::match_arg(interval, c("eti", "hpdi"))
 
   treat <- effect_treatment(object, treat)
   newdata <- effect_newdata(object, newdata, treat)
@@ -670,40 +671,11 @@ apply_comparison <- function(hi, lo, comparison) {
          lnor = log((hi / (1 - hi)) / (lo / (1 - lo))))
 }
 
-# The shortest interval holding `level` of the draws. Reported rather than the
-# equal-tailed one only on request, since the two differ only for a skewed
-# posterior and the equal-tailed one is what a quantile of the draws gives.
-hpd_interval <- function(x, level) {
-  x <- sort(x[is.finite(x)])
-  n <- length(x)
+effect_summary <- function(draws, level, interval = "eti") {
 
-  if (n == 0L) {
-    return(c(lower = NA_real_, upper = NA_real_))
-  }
-
-  k <- max(1L, floor(level * n))
-
-  if (k >= n) {
-    return(c(lower = x[1L], upper = x[n]))
-  }
-
-  starts <- seq_len(n - k)
-  width <- x[starts + k] - x[starts]
-  i <- which.min(width)
-
-  c(lower = x[i], upper = x[i + k])
-}
-
-effect_summary <- function(draws, level, interval) {
-
-  if (identical(interval, "hpdi")) {
-    bounds <- hpd_interval(draws, level)
-  }
-  else {
-    probs <- c((1 - level) / 2, 1 + (level - 1) / 2)
-    q <- stats::quantile(draws, probs = probs, names = FALSE, na.rm = TRUE)
-    bounds <- c(lower = q[1L], upper = q[2L])
-  }
+  bounds <- switch(interval,
+                   eti = eti_interval(draws, level),
+                   hpd_interval(draws, level))
 
   c(estimate = mean(draws, na.rm = TRUE),
     lower = bounds[["lower"]],

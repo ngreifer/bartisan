@@ -26,26 +26,19 @@ has_bp <- rlang::is_installed("bayesplot")
 
 ## Introduction
 
-*bartisan* fits Bayesian additive regression trees (BART) using the same
-interface as `glm()`. We supply a formula, a data frame, and a family, and the
-model estimates the relationship between the predictors and the outcome without
-anything being said about what shape that relationship takes. Nonlinearity and
-interactions are found rather than specified.
+*bartisan* fits Bayesian additive regression trees (BART) using a similar interface to that of `glm()`. One supplies a formula, a data frame, and a response family, and the model estimates the relationship between the predictors and the outcome without
+requiring manual specification of nonlinearities and interactions. Unlike most other machine learning models, BART yields a posterior that can be used for valid Bayesian inference of any prediction or function thereof from the model.
 
-In this guide we will work through a complete analysis. First we'll fit a model
-and check both that the sampler converged and that the fit describes the data.
-Next we'll see which predictors the forest uses, read the effects off it, and
-predict for new observations. Finally we'll compare two models and set out what
-the fit does not do. The guide assumes a reader comfortable with regression and
+In this guide, we will work through a complete analysis at surface level. Other vignettes provide more detail on each step. First, we'll fit a model and check both that the sampler converged and that the fit describes the data.
+Next, we'll see which predictors the forest uses, read the effects off it, and
+predict for new observations. Finally, we'll compare two models and note some limitations of the model. The guide assumes a reader comfortable with regression but
 assumes nothing about machine learning or Bayesian methods.
 
-The main thing to take from it is that the defaults are meant to be used. The
+The main thing to take from this guide is that the default settings are meant to be used (in general). The
 priors, the number of trees, and the sampler settings are chosen to work across a
 wide range of problems, and tuning them is rarely where the gains are. Almost
 everything below is a single function call with no arguments beyond the formula
 and the data.
-
-Most sections point to a vignette that covers the same ground in more depth.
 
 ```{r libs}
 library(bartisan)
@@ -53,7 +46,7 @@ library(bartisan)
 
 ### Parallelization and Progress Bars
 
-Using parallelization can speed up fitting `bartisan()` models with multiple chains. Parallelization is controlled through the [*future*](https://CRAN.R-project.org/package=future) package. To request multi-session evaluation, one can simply call the following:
+Before we fit any models, it's useful to know that using parallelization can speed up fitting `bartisan()` models with multiple chains (i.e., distinct runs of the same model). Parallelization is controlled through the [*future*](https://CRAN.R-project.org/package=future) package. To request multi-session evaluation, one can simply call the following:
 
 ```{r, eval = FALSE}
 future::plan("multisession")
@@ -77,7 +70,7 @@ progressr::with_progress(
 
 ## The Data
 
-`rhc` records a random 1500 of the 5735 patients in the SUPPORT study and whether
+We'll use the `rhc` dataset that comes with *bartisan* to demonstrate its functionality. `rhc` includes a random sample of 1500 of the 5735 patients in the SUPPORT study and whether
 each received right heart catheterization, a monitoring procedure, within a day
 of arriving in intensive care [@connors1996]. The question the study asked is
 whether the procedure helps or harms.
@@ -98,10 +91,9 @@ disease was among the diagnoses, and `surv2m`, the study's own estimate of the
 patient's chance of surviving two months. All were recorded before
 catheterization.
 
-
 ## Fitting the Model
 
-To fit the model, we simply call `bartisan::bartisan()` with the same model formula one would use for `glm()` or any other standard model-fitting function, additionally supplying the dataset to `data` and the response family to `family`. Because BART involves random processes, we must also set a seed using `set.seed()` to ensure reproducibility (though not the `kind` does not matter).
+To fit the model, we simply call `bartisan::bartisan()` with the same model formula one would use for `glm()` or any other standard model-fitting function, additionally supplying the dataset to `data` and the response family to `family`. Because BART involves random processes, we must also set a seed using `set.seed()` to ensure reproducibility (though note the `kind` does not matter, even with parallelization).
 
 ```{r fit}
 set.seed(2026)
@@ -120,25 +112,32 @@ as in `glm()`. The family may be omitted, in which case it is read off the
 outcome and reported; naming it is clearer and silences the message.
 
 The fit uses the default single chain, which is enough for the estimates and
-keeps this guide brief. In a real analysis we would run several chains, and
-possibly change the number of burn-in and retained draws, before reading any
+keeps this guide brief. In a real analysis, we would run several chains (e.g., by setting `chains = 4`) and
+possibly change the number of burn-in and retained draws before reading any
 results; `vignette("diagnostics")` explains how to set these fit controls and
 how to check that they were enough.
 
 Choosing a family is the one modeling decision that usually matters more than any
 sampler setting. `vignette("families")` covers the choice, and
-`vignette("survival")` covers censored outcomes such as this one's `days`.
+`vignette("survival")` covers censored outcomes such as the `days` variable in `rhc`.
 
 The other decision worth knowing about is the shape of the decision rules. By
-default a rule is soft, so an observation near a split contributes to both sides
+default, a rule is soft, so an observation near a split contributes to both sides
 of it and the fitted function comes out smooth rather than piecewise constant;
-the `gate` argument of `bartisan_control()` switches to the hard rules of standard BART,
-which fit faster but less accurately. `vignette("implementation")` has the
-comparison.
+the `gate` argument of `bartisan_control()` can be used to switch to the hard rules of standard BART,
+which fit faster but less accurately.
+
+Calling `summary()` on the output gives a summary of the convergence and variable importance:
+
+```{r}
+summary(fit)
+```
+
+This output is not as meaningful as the full checks, which we describe below.
 
 ## Checking the Model
 
-In a Bayesian analysis, one must first determine whether the sampler converged before moving forward with a model's results. Separately, one should assess whether the model is a good fit to the data.
+In a Bayesian analysis, one must first determine whether the sampler converged before moving forward with interpreting a model's results. Separately, one should assess whether the model is a good fit to the data. These steps go together because a poorly fitting model will often take longer to converge.
 
 ### Convergence
 
@@ -160,17 +159,16 @@ ended too early from chains that have each settled somewhere different. `ess_bul
 many independent draws the correlated ones are worth, in the middle of the
 distribution and in the tails.
 
-Read the rows that correspond to the quantities being reported. `eta.eta` is the
+One should read the rows that correspond to the quantities being reported. `eta.eta` is the
 fitted function and appears twice, once averaged over the observations and once
-over the worst 5% of them; the second governs a prediction for one
+over the worst 5% of them; the second describes a prediction for one
 observation. Forests mix slowly on their fitted values, so a figure above 1.01 on
 the worst-5% row is ordinary rather than alarming; `vignette("diagnostics")`
 explains what to do about it and when to worry.
 
-No row here governs an effect, though, and the average row in particular should
+No row here describes an effect, though, and the average row in particular should
 not be read as if it did. An effect is a contrast, and a contrast can mix badly
-where the function it is a contrast of mixes well. `diagnose()` takes the
-estimand itself when there is one to take:
+where the function it is a contrast of mixes well. `estimate_effect()` produces estimates of the effect of a categorical variable (described more below), and `diagnose()` can be applied to its output if the effect is of interest.
 
 ```{r diagnose_effect}
 diagnose(estimate_effect(fit, treat = "rhc"))
@@ -179,34 +177,21 @@ diagnose(estimate_effect(fit, treat = "rhc"))
 The contrast's tail effective sample size falls short where the average fitted
 value's in the table above did not, which the fit's own table could not have
 shown, since the other predictors keep the fitted function moving even where the
-contrast mixes slowly.
-With the sparsity prior turned on (`sparsity = TRUE`), there is a further way
-this can happen: `rhc` gets no rule in some draws, which puts the contrast at
-exactly zero and can hold it there for a long run. `diagnose()` notes that atom
-when it finds one, and it is one reason the prior is off by default;
-`?bartisan_control` covers when to turn it on.
-
-The table is in `diagnose(fit)$table` when the numbers are wanted rather than
+contrast mixes slowly. The table is in `diagnose(.)$table` when the values are wanted rather than
 the report.
 
 ### Fit
 
-The question worth asking of a binary outcome is whether the predicted
+The question of whether the model fits the data well can be investigated using a posterior predictive check, such as those implemented in `bayesplot::pp_check()`, which is compatible with the output of `bartisan()`. The default `pp_check()` compares the distribution of simulated outcomes with the
+observed distribution. This check only makes sense with continuous outcomes; with binary outcomes, the question worth asking is whether the predicted
 probabilities mean what they say: among the patients the model gave a 30% chance
-of dying, did about 30% die? A calibration plot answers it.
+of dying, did about 30% die? A calibration plot, such as that produced by `bayesplot::pp_check(., type = "loo_calibration")`, answers it.
 
 ```{r ppcheck, eval = has_bp && has_loo, fig.height = 3.0}
 bayesplot::pp_check(fit, type = "loo_calibration")
 ```
 
-The line should follow the diagonal, and here it does across the whole range.
-Each patient is judged against a probability estimated without them, so this is
-not the optimistic in-sample reading.
-
-The default `pp_check()` compares the distribution of simulated outcomes with the
-observed distribution, which is the check to reach for when the outcome is
-continuous; with two values to get right it finds nothing here.
-`vignette("diagnostics")` covers what a departure from the diagonal looks like
+The line should follow the diagonal, and here it does across the whole range. `vignette("diagnostics")` covers what a departure from the diagonal looks like
 and what else to check.
 
 ## Variable Importance
@@ -239,8 +224,8 @@ to tell whether a difference in this table means anything.
 
 ## Interpreting the Fit
 
-A forest has no table of coefficients to read, so a fit is interpreted by
-putting questions to it: what happens to the prediction when a predictor is
+Because a BART model has no table of coefficients to read, a fit is interpreted by
+asking questions of it: what happens to the prediction when a predictor is
 changed, and what shape does the prediction trace as that predictor varies.
 The functions below answer versions of that question, and they differ in what
 they average over rather than in what they are asking.
@@ -248,7 +233,7 @@ they average over rather than in what they are asking.
 ### A Table of Average Comparisons
 
 `marginaleffects::avg_comparisons()` is the closest thing to a table of
-regression slopes. For each predictor in turn it changes that predictor, leaves
+regression slopes. For each predictor in turn, it changes that predictor, leaves
 the others as they are, predicts every patient twice, and averages the
 difference over the sample.
 
@@ -261,7 +246,7 @@ posterior median as the point estimate, whereas `predict()` and
 `estimate_effect()` report the posterior mean, so the same quantity can differ
 slightly between them. Setting `options(marginaleffects_posterior_center = mean)`
 before the call switches it to the mean; we do this in `vignette("causal")`.]
-For a categorical predictor it is a difference between two levels, and for a
+For a categorical predictor, it is a difference between two levels, and for a
 numeric one it is an increase of one unit, which is a default rather than
 anything the data suggested. The comparisons are on the probability scale, so
 `rhc` reads as an increase of about six percentage points in the probability of
@@ -270,11 +255,11 @@ logistic regression would report each of these as one slope on the log-odds
 scale; these are averages over the sample of a quantity the model allows to
 differ from patient to patient.
 
-The one-unit default deserves a second look whenever a predictor does not span a
+The one-unit default should be reconsidered whenever a predictor does not span a
 unit. `surv2m` is a probability, so an increase of one is wider than its whole
 observed range, and the model holds its prediction flat past the edge of that
 range rather than continuing any trend. Asking instead for a change the data
-contains gives a larger answer:
+contains gives a more useful answer:
 
 ```{r comparisons_iqr, eval = has_me}
 marginaleffects::avg_comparisons(fit, variables = list(surv2m = "iqr"))
@@ -290,10 +275,15 @@ One number for a predictor hides the shape of the relationship behind it, and
 the two `surv2m` contrasts show it happening when the shape matters: the answer
 depends on which change is asked about. Plotting the fit against one
 predictor shows the whole curve, averaging over the other predictors at each
-value.
+value. This can be done using `partial_dependence()` and plotting its output:
 
 ```{r pdp, fig.height = 3.0}
-plot(fit, ~ surv2m) +
+
+pd <- partial_dependence(fit, ~ surv2m)
+
+pd
+
+plot(pd) +
   ggplot2::labs(x = "Estimated probability of surviving two months",
                 y = "Fitted probability of death")
 ```
@@ -304,7 +294,7 @@ two contrasts above disagree about its size. A logistic regression reports one
 slope on the log-odds scale for the whole range. Nothing had to be specified to
 find the shape.
 
-The band is a credible interval on the *average* prediction at each value, not
+The band is a credible interval on the average prediction at each value, not
 on any one patient's, and it widens at the top where few patients were that
 healthy. `partial_dependence()` returns the same numbers without drawing them,
 and `marginaleffects::plot_predictions()` is the one to reach for when the grid

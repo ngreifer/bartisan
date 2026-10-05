@@ -14,6 +14,7 @@ partial_dependence(
   grid = 26L,
   values = NULL,
   level = 0.95,
+  interval = "eti",
   type = "response",
   ...
 )
@@ -49,6 +50,11 @@ message reports which.}
 
 \item{level}{\code{numeric}; the level of the credible interval. Default is \code{.95}.}
 
+\item{interval}{\code{string}; \code{"eti"} (the default) for an equal-tailed interval
+from the quantiles of the draws, or \code{"hpdi"} for the highest posterior
+density interval, which is the shortest interval containing \code{level} of the
+posterior mass.}
+
 \item{type}{\code{string}; the prediction scale, passed to
 \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. Default is \code{"response"}.}
 
@@ -82,8 +88,8 @@ predictors, so that what is left is how the prediction moves with them.
 \details{
 At each grid value every unit is assigned that value, the prediction is taken
 for all of them, and the average over units is taken \emph{within each posterior
-draw}. The interval is then a quantile of those averages, so it is an interval
-on the average prediction and not on any one unit's.
+draw}. The interval is then computed from those averages, so it is an
+interval on the average prediction and not on any one unit's.
 
 The second predictor groups the curves rather than adding an axis, which is
 readable for a factor and for a numeric predictor with a few values, and not

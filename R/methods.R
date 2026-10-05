@@ -302,8 +302,7 @@ print.summary.bartisan_fit <- function(x, digits = 3, ...) {
       keep <- c(seq_len(shown %/% 2L),
                 seq(nrow(x[["aux"]]) - shown %/% 2L + 1L, nrow(x[["aux"]])))
       print(round(x[["aux"]][keep, , drop = FALSE], digits))
-      cli_cat("{.emph {nrow(x[['aux']]) - length(keep)} more, omitted;
-               all of them are in {.code fit$aux}.}")
+      cli_cat("{.emph {nrow(x[['aux']]) - length(keep)} more, omitted; all of them are in {.code fit$aux}.}")
     }
     else {
       print(round(x[["aux"]], digits))
