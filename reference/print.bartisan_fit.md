@@ -123,7 +123,7 @@ fit
 summary(fit)
 #> Convergence and mixing
 #> 
-#> Log likelihood: R-hat 1.055, bulk ESS 39, tail ESS 81, over 2 chains
+#> Log likelihood: R-hat 1.058, bulk ESS 38, tail ESS 81, over 2 chains
 #> 
 #> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
 #>   diagnostics.
@@ -168,7 +168,7 @@ summary(fit2, level = .8)
 #> 
 #> Convergence and mixing
 #> 
-#> Log likelihood: R-hat 1.43, bulk ESS 5, tail ESS 13, over 1 chain
+#> Log likelihood: R-hat 1.427, bulk ESS 6, tail ESS 14, over 1 chain
 #> 
 #> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
 #>   diagnostics.

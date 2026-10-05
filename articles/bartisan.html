@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bartisan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-10-02</h4>
+            <h4 data-toc-skip class="date">2026-10-05</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/bartisan.Rmd" class="external-link"><code>vignettes/bartisan.Rmd</code></a></small>
       <div class="d-none name"><code>bartisan.Rmd</code></div>
@@ -264,23 +264,23 @@ about whichever of them fall short.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity  rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.039     1.049       94      187</span></span>
+<span><span class="co">#&gt;                               loglik 1.039     1.049       95      187</span></span>
 <span><span class="co">#&gt;                           splits.eta 1.073     1.152       23      134</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.000     1.003      437      723</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.038     1.069       76      197</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.000     1.003      435      723</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.038     1.069       77      197</span></span>
 <span><span class="co">#&gt;       bandwidth (average over trees) 1.022     1.037      172      299</span></span>
-<span><span class="co">#&gt;        bandwidth (worst 5% of trees) 1.064     1.111       50       58</span></span>
+<span><span class="co">#&gt;        bandwidth (worst 5% of trees) 1.064     1.111       50       59</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Only one chain, so R-hat can only compare it with itself; set `chains = 4`</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 94 effective draws, where a single chain averages</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> That R-hat rests on only 95 effective draws, where a single chain averages</span></span>
 <span><span class="co">#&gt;   1.011 even when its two halves agree</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> The chains disagree about how many splitting rules the forest has (R-hat</span></span>
 <span><span class="co">#&gt;   1.07)</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> The chains disagree about how wide the decision rules are (R-hat 1.06)</span></span>
-<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 76 for eta.eta (worst 5% of observations), below 400</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Bulk ESS is 77 for eta.eta (worst 5% of observations), below 400</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 187 for loglik, below 400</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>
@@ -338,14 +338,14 @@ one to take:</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Convergence and mixing</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     quantity  rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  Y[1] - Y[0] 1.008     0.998      499      393</span></span>
-<span><span class="co">#&gt;         Y[0] 1.002     1.002      502      736</span></span>
-<span><span class="co">#&gt;         Y[1] 1.008     1.007      575      615</span></span>
+<span><span class="co">#&gt;  Y[1] - Y[0] 1.008     0.998      492      393</span></span>
+<span><span class="co">#&gt;         Y[0] 1.002     1.002      496      736</span></span>
+<span><span class="co">#&gt;         Y[1] 1.007     1.007      564      615</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Only one chain, so R-hat can only compare it with itself; set `chains = 4`</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> R-hat is below 1.01 for every reported quantity</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Warmup was long enough, since R-hat is already fine</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 499 for every reported quantity, above 400</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Bulk ESS is at least 492 for every reported quantity, above 400</span></span>
 <span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Tail ESS is 393 for Y[1] - Y[0], below 400</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">What to do</span></span></span>

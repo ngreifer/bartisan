@@ -15,13 +15,12 @@ Source:
 [`DESCRIPTION`](https://github.com/ngreifer/bartisan/blob/main/DESCRIPTION)
 
 Greifer N (2026). *bartisan: Generalized Bayesian Additive Regression
-Trees*. R package version 0.0.0.9000,
-<https://github.com/ngreifer/bartisan>.
+Trees*. R package version 0.1.0, <https://github.com/ngreifer/bartisan>.
 
     @Manual{,
       title = {bartisan: Generalized Bayesian Additive Regression Trees},
       author = {Noah Greifer},
       year = {2026},
-      note = {R package version 0.0.0.9000},
+      note = {R package version 0.1.0},
       url = {https://github.com/ngreifer/bartisan},
     }

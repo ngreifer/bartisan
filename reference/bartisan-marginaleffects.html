@@ -21,7 +21,7 @@ the fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">bartisan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -148,13 +148,14 @@ fit for this purpose.</p></dd>
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
 <dd><p>string; the scale to work on. Allowable options include
-<code>"response"</code> (the default), <code>"link"</code>, <code>"prob"</code>, <code>"mean"</code>, <code>"stdlv"</code>, and
-<code>"survival"</code>. <code>"response"</code> is the fitted mean, <code>"link"</code> the additive
-predictor, <code>"prob"</code> the per-category probabilities of a categorical family,
-<code>"mean"</code> the mean of a categorical response with its labels read as
-numbers, <code>"stdlv"</code> the standardized latent variable of an ordinal fit, and
-<code>"survival"</code> the survival function at the times given in <code>times</code>; all but
-the first two are described under <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>. An <code><a href="bartisan-families.html">ordinal()</a></code>
+<code>"response"</code> (the default), <code>"link"</code>, <code>"prob"</code>, <code>"mean"</code>, <code>"stdlv"</code>,
+<code>"survival"</code>, and <code>"hazard"</code>. <code>"response"</code> is the fitted mean, <code>"link"</code> the
+additive predictor, <code>"prob"</code> the per-category probabilities of a
+categorical family, <code>"mean"</code> the mean of a categorical response with its
+labels read as numbers, <code>"stdlv"</code> the standardized latent variable of an
+ordinal fit, and <code>"survival"</code> and <code>"hazard"</code> the survival function and the
+hazard at the times given in <code>times</code>; all but the first two are described
+under <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>. An <code><a href="bartisan-families.html">ordinal()</a></code>
 or <code><a href="bartisan-families.html">multinomial()</a></code> response has no single mean, so <code>"response"</code> gives
 <code>"prob"</code> for those families, while a binomial fit reports the probability
 of its second level, as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> does, and <code>"prob"</code> asks for
@@ -269,6 +270,13 @@ checks the dots against a whitelist of its own, hardcoded per model class, so
 it warns that it does not recognize <code>times</code> while passing it through, as the
 warning says. There is no hook for registering an argument with it, so the
 warning is expected and the result is correct.</p>
+<p>Setting <code>type = "hazard"</code> with the same <code>times</code> contrasts the hazard at those
+times instead, so <code>avg_comparisons()</code> averages each unit's hazard difference
+at a horizon, and <code>comparison = "ratio"</code> gives the ratio of the averaged
+hazards. Note that an average of hazards is not the hazard of the average
+survival curve: that one weights each unit by its probability of having
+survived to the time, and it comes from <code>type = "survival"</code> rather than from
+here.</p>
 <p>Setting <code>type = "link"</code> contrasts the additive predictor instead. For <code><a href="bartisan-families.html">ph()</a></code>
 the contrast at each unit is the log hazard ratio at that unit's covariates,
 and for the accelerated failure time families it is the log time ratio, so

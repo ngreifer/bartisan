@@ -314,7 +314,7 @@ fit_sub <- bartisan(list(mean   = het ~ x1 + x2,
 summary(fit_sub)
 #> Convergence and mixing
 #> 
-#> Log likelihood: R-hat 0.998, bulk ESS 113, tail ESS 108, over 1 chain
+#> Log likelihood: R-hat 0.999, bulk ESS 111, tail ESS 105, over 1 chain
 #> 
 #> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
 #>   diagnostics.
@@ -1161,7 +1161,10 @@ predict(fit_ph, type = "survival", times = c(1, 2, 5)) |>
 It is also the estimand we usually want. The question is rarely about
 the predictor but about survival at a horizon (e.g., the difference in
 one-year survival between two groups), and that is a contrast of
-`type = "survival"` at one time.
+`type = "survival"` at one time. Setting `type = "hazard"` with the same
+`times` gives the hazard instead, the rate at which the event occurs at
+each time among those who have survived to it, for every family in the
+table.
 
 We recommend
 [`dpm_aft()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)

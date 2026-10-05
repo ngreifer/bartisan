@@ -292,26 +292,26 @@ diagnose(fit)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.055     1.131       39       81
-#>                           splits.eta 1.212     1.423        7        7
-#>  eta.eta (average over observations) 1.000     0.990       88      100
-#>   eta.eta (worst 5% of observations) 1.608     1.723        4       15
-#>       bandwidth (average over trees) 1.047     1.325       22       32
-#>        bandwidth (worst 5% of trees) 1.643     2.045        4       11
+#>                               loglik 1.058     1.129       38       81
+#>                           splits.eta 1.212     1.428        8        7
+#>  eta.eta (average over observations) 1.001     0.992       87      100
+#>   eta.eta (worst 5% of observations) 1.628     1.760        4       17
+#>       bandwidth (average over trees) 1.051     1.334       21       32
+#>        bandwidth (worst 5% of trees) 1.665     2.114        4       11
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 39 effective draws, where 2 chains average 1.051
+#> ✖ That R-hat rests on only 38 effective draws, where 2 chains average 1.053
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.21)
-#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.64)
+#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.66)
 #> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 400
-#> ✖ Tail ESS is 15 for eta.eta (worst 5% of observations), below 400
+#> ✖ Tail ESS is 17 for eta.eta (worst 5% of observations), below 400
 #> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
-#>   carries 3.8 effective draws per hundred kept
+#>   carries 4.1 effective draws per hundred kept
 #> 
 #> What to do
 #> 
@@ -344,26 +344,26 @@ diagnose(fit, ess_min = 1000)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.055     1.131       39       81
-#>                           splits.eta 1.212     1.423        7        7
-#>  eta.eta (average over observations) 1.000     0.990       88      100
-#>   eta.eta (worst 5% of observations) 1.608     1.723        4       15
-#>       bandwidth (average over trees) 1.047     1.325       22       32
-#>        bandwidth (worst 5% of trees) 1.643     2.045        4       11
+#>                               loglik 1.058     1.129       38       81
+#>                           splits.eta 1.212     1.428        8        7
+#>  eta.eta (average over observations) 1.001     0.992       87      100
+#>   eta.eta (worst 5% of observations) 1.628     1.760        4       17
+#>       bandwidth (average over trees) 1.051     1.334       21       32
+#>        bandwidth (worst 5% of trees) 1.665     2.114        4       11
 #> 
 #> ✔ 2 chains, 100 draws kept in total
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 39 effective draws, where 2 chains average 1.051
+#> ✖ That R-hat rests on only 38 effective draws, where 2 chains average 1.053
 #>   even when they agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.21)
-#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.64)
+#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.66)
 #> ✖ Bulk ESS is 4 for eta.eta (worst 5% of observations), below 1000
-#> ✖ Tail ESS is 15 for eta.eta (worst 5% of observations), below 1000
+#> ✖ Tail ESS is 17 for eta.eta (worst 5% of observations), below 1000
 #> ℹ Per-draw efficiency is lowest for eta.eta (worst 5% of observations), which
-#>   carries 3.8 effective draws per hundred kept
+#>   carries 4.1 effective draws per hundred kept
 #> 
 #> What to do
 #> 

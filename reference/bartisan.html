@@ -25,7 +25,7 @@ counterpart for documented at bartisan-families."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">bartisan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -112,33 +112,10 @@ counterpart for documented at <code><a href="bartisan-families.html">bartisan-fa
 
 
 <dl><dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
-<dd><p>a model formula. The right-hand side lists candidate
-predictors; the model finds interactions and nonlinearity on its own, so
-<code>y ~ x1 + x2 + x3</code> is usually the right specification. Survival families take a
+<dd><p>a model formula (or a list thereof for families with multiple additive predictors). Survival families take a
 <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code>
  object on the left. A <code>(1 | group)</code> term adds a
-group-level random intercept, in the notation of <span class="pkg">lme4</span>; see Details.</p>
-<p>For a family with more than one additive predictor this may be a <em>list</em> of
-formulas, one per forest, to give each one its own predictors. The first is
-the model for the main parameter and carries the response; the rest need no
-response, and follow the order in <code><a href="bartisan-families.html">bartisan-families</a></code>, under "Several
-additive predictors", which also gives the name of each forest so the list
-can be named instead of ordered:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="op">~</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, log_sd <span class="op">=</span> <span class="op">~</span> <span class="va">x2</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
-<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
-<p>One formula applies to every forest, which is the ordinary case. A predictor
-left out of one forest's formula is still in the data and is never split on
-by that forest.</p>
-<p>A formula naming no predictor at all makes that parameter a constant.
-<code>~ 1</code> leaves its forest nothing to split on, so every tree in it is a stump
-and the forest is a single drawn scalar rather than a function of the
-predictors.</p>
-<p><code><a href="vc.html">vc()</a></code> terms are read out of each formula in turn, so a parameter has the
-varying coefficients its own formula asks for and no others, which makes the
-forests two-dimensional (one axis the parameter, the other the coefficient).
-<code><a href="vc.html">vc()</a></code> documents how they are then named and keyed.</p></dd>
+group-level random intercept, in the notation of <span class="pkg">lme4</span>; see Details.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
@@ -248,13 +225,35 @@ settings given in <code>...</code> merged in.</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
 
 <div class="section">
+<h3 id="the-model-formula">The Model Formula<a class="anchor" aria-label="anchor" href="#the-model-formula"></a></h3>
+
+
+<p>The right-hand side of <code>formula</code> lists candidate predictors; the model finds interactions and nonlinearity on its own, so <code>y ~ x1 + x2 + x3</code> is usually the right specification. For a family with more than one additive predictor this may be a list of
+formulas, one per forest, to give each one its own predictors. The first is
+the model for the main parameter and carries the response; the rest need no
+response, and follow the order in <code><a href="bartisan-families.html">bartisan-families</a></code>, under "Several
+additive predictors", which also gives the name of each forest so the list
+can be named instead of ordered:</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>,</span>
+<span>                <span class="op">~</span> <span class="va">x2</span> <span class="op">+</span> <span class="va">x3</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
+<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/bartisan.html">bartisan</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean   <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>,</span>
+<span>              log_sd <span class="op">=</span>   <span class="op">~</span> <span class="va">x2</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span>
+<span>         family <span class="op">=</span> <span class="fu"><a href="../reference/bartisan-families.html">gaussian_ls</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<p>When a single formula is given, it applies to every forest, which is the ordinary case.</p>
+<p>A formula naming no predictor at all makes that parameter a constant. <code>~ 1</code> leaves its forest nothing to split on, so every tree in it is a stump and the forest is a single drawn scalar rather than a function of the predictors.</p>
+<p><code><a href="vc.html">vc()</a></code> terms for varying coefficient models are read out of each formula in turn, so a parameter has the
+varying coefficients its own formula asks for and no others, which makes the
+forests two-dimensional (one axis the parameter, the other the coefficient).
+<code><a href="vc.html">vc()</a></code> documents how they are then named and keyed.</p>
+</div>
+
+<div class="section">
 <h3 id="the-sampler">The Sampler<a class="anchor" aria-label="anchor" href="#the-sampler"></a></h3>
 
 
-<p>Standard BART relies on the leaf parameters being integrable in closed form,
-which restricts it to a Gaussian response, or to models that can be reduced to
-one by data augmentation. Linero's (2025) algorithm removes that restriction. At each
-candidate move it builds a Gaussian approximation to the conditional posterior
+<p>At each candidate move it builds a Gaussian approximation to the conditional posterior
 of the affected leaf parameters, by Fisher scoring, and uses that
 approximation as the proposal in a reversible-jump Metropolis step. The
 approximation only has to be good enough to be accepted often; the stationary
@@ -315,7 +314,7 @@ one matrix per additive predictor. A family with several predictors gets a
 separate set for each (i.e., a zero-inflated count model has a group effect on
 the count part and another on the inflation part), and they are independent of
 one another.</p>
-<p>Only random <em>intercepts</em> are supported, and a random slope is refused rather
+<p>Only random intercepts are supported; a random slope is refused rather
 than ignored. The reason is that a random intercept is a scalar entering the
 predictor with weight one for the observations in its level, exactly as a
 leaf is once its gate is removed, so the sampler's leaf machinery handles it
@@ -346,12 +345,6 @@ offsets each separately: a category-specific exposure for <code><a href="bartisa
 say, or an offset on the count part of <code><a href="bartisan-families.html">zi_poisson()</a></code> and not on its
 zero-inflation part. <code>?bartisan-families</code> lists each family's forests in
 order, which is the column order. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> takes the same two forms.</p>
-<p>A vector is worth thinking about before reaching for under <code><a href="bartisan-families.html">multinomial()</a></code>,
-because the default symmetric coding gives every category a forest and a
-shift common to all of them cancels out of the softmax. A vector offset
-there leaves the fitted probabilities unchanged; with <code>reference</code> set it
-does not cancel, and moves every non-reference category against the
-reference one. A per-category offset is expressed as a matrix either way.</p>
 <p>An offset is not a function of the predictors, so it cannot be rebuilt for
 rows the fit has not seen: a model fitted with one requires <code>offset</code> at
 <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> time.</p>
@@ -371,19 +364,19 @@ equal probability:</p><ul><li><p><code>x &lt; c</code>, or missing, goes left;</
 </ul><p>This is missingness incorporated in attributes, and the third rule
 lets the model split on missingness itself, so a variable whose absence
 carries the signal is usable even where its observed values say nothing.</p>
-<p>This has consequences worth being clear about. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing
+<p><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> accepts missing
 values in a column that had them at fitting time, those being the columns
 whose rules carry an answer. And what the model estimates is the mean of the
 response given the predictors and the pattern of missingness, which is the
 quantity prediction calls for; where the estimand is a regression or causal
-effect defined on complete data, multiple imputation is the right tool.</p>
+effect defined on complete data, multiple imputation may be a better tool.</p>
 </div>
 
 <div class="section">
 <h3 id="preprocessing">Preprocessing<a class="anchor" aria-label="anchor" href="#preprocessing"></a></h3>
 
 
-<p>Predictors are mapped to the unit interval, because the cutpoint prior is
+<p>Predictors are mapped to the unit interval because the cutpoint prior is
 uniform on a node's live range and the soft-rule bandwidth is measured on the
 predictor scale. Factors share a
 single weight in the sparsity prior, so that a factor is selected or not as a

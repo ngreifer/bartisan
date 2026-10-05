@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bartisan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-10-02</h4>
+            <h4 data-toc-skip class="date">2026-10-05</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/effects.Rmd" class="external-link"><code>vignettes/effects.Rmd</code></a></small>
       <div class="d-none name"><code>effects.Rmd</code></div>
@@ -212,9 +212,9 @@ are of primary interest anyway <span class="citation">(<a href="#ref-keeleCausal
 <span><span class="va">comp</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Term Contrast Estimate    2.5 %  97.5 %</span></span>
-<span><span class="co">#&gt;  age  +1        0.00313  0.00153 0.00467</span></span>
-<span><span class="co">#&gt;  card yes - no  0.04177 -0.00868 0.08973</span></span>
-<span><span class="co">#&gt;  rhc  1 - 0     0.06080  0.01182 0.11118</span></span>
+<span><span class="co">#&gt;  age  +1        0.00309  0.00153 0.00467</span></span>
+<span><span class="co">#&gt;  card yes - no  0.04164 -0.00868 0.08973</span></span>
+<span><span class="co">#&gt;  rhc  1 - 0     0.05968  0.01182 0.11118</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>This reads as a coefficient table. Each estimate is an average
@@ -226,7 +226,7 @@ increase of one unit. <code>rhc</code> is coded <code>0</code> and
 <p>The comparison for <code>age</code>, for example, means that
 increasing all units’ age by 1, keeping all other predictors at their
 observed values, would yield an increase in the overall probability of
-death of 0.313 percentage points (a very small effect on this scale),
+death of 0.309 percentage points (a very small effect on this scale),
 with a 95% credible interval excluding 0. This isn’t a causal estimate;
 it’s just what the model predicts would happen.</p>
 <div class="section level3">
@@ -274,7 +274,7 @@ a comparison corresponding to increasing its value by 10.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;     0.016 0.00171 0.0309</span></span>
+<span><span class="co">#&gt;    0.0157 0.00171 0.0309</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: aps</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
@@ -296,8 +296,8 @@ variable.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/comparisons.html" class="external-link">avg_comparisons</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"rhc"</span>, by <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate  2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no    0.0627 0.0115  0.116</span></span>
-<span><span class="co">#&gt;   yes   0.0570 0.0037  0.110</span></span>
+<span><span class="co">#&gt;   no    0.0616 0.0115  0.116</span></span>
+<span><span class="co">#&gt;   yes   0.0558 0.0037  0.110</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Term: rhc</span></span>
 <span><span class="co">#&gt; Type: response</span></span>
@@ -314,7 +314,7 @@ interval of its own. This can be requested by specifying
 <span>                hypothesis <span class="op">=</span> <span class="op">~</span><span class="va">pairwise</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;    Hypothesis Estimate   2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  (yes) - (no) -0.00569 -0.0611 0.0248</span></span>
+<span><span class="co">#&gt;  (yes) - (no) -0.00259 -0.0611 0.0248</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>The difference is small with an interval covering zero, so there is
@@ -330,7 +330,7 @@ rather than differences, which is useful for describing groups:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
 <span><span class="co">#&gt;   no     0.630 0.604  0.661</span></span>
-<span><span class="co">#&gt;   yes    0.698 0.660  0.733</span></span>
+<span><span class="co">#&gt;   yes    0.699 0.660  0.733</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>These correspond to the fitted predictions among those in each
@@ -342,8 +342,8 @@ following:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="st">"card"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  card Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;   no     0.640 0.613  0.670</span></span>
-<span><span class="co">#&gt;   yes    0.681 0.639  0.719</span></span>
+<span><span class="co">#&gt;   no     0.639 0.613  0.670</span></span>
+<span><span class="co">#&gt;   yes    0.682 0.639  0.719</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>In the latter, <code><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions()</a></code> computes predictions
@@ -500,9 +500,9 @@ options that may be helpful, but otherwise the syntax is similar.</p>
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   aps Estimate 2.5 % 97.5 %</span></span>
-<span><span class="co">#&gt;  29.9    0.610 0.552  0.657</span></span>
+<span><span class="co">#&gt;  29.9    0.611 0.552  0.657</span></span>
 <span><span class="co">#&gt;  54.0    0.656 0.623  0.695</span></span>
-<span><span class="co">#&gt;  83.0    0.703 0.649  0.765</span></span>
+<span><span class="co">#&gt;  83.0    0.701 0.649  0.765</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Type: response</span></span></code></pre></div>
 <p>The two summarize one posterior two ways.
@@ -519,9 +519,9 @@ estimates:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html" class="external-link">plot_predictions</a></span><span class="op">(</span><span class="va">fit</span>, condition <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span>, draw <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   rowid estimate conf.low conf.high  df   age card  crea   edu  hema meanbp</span></span>
-<span><span class="co">#&gt; 1     1   0.6286   0.4969    0.7594 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
-<span><span class="co">#&gt; 2     2   0.6795   0.5604    0.7867 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
-<span><span class="co">#&gt; 3     3   0.7328   0.6018    0.8416 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 1     1   0.6299   0.4969    0.7594 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 2     2   0.6817   0.5604    0.7867 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
+<span><span class="co">#&gt; 3     3   0.7386   0.6018    0.8416 Inf 61.42   no 2.132 11.64 31.68     78</span></span>
 <span><span class="co">#&gt;   paco2  pafi  race resp rhc  sex surv2m  aps</span></span>
 <span><span class="co">#&gt; 1 38.85 217.4 white   28   0 male  0.587 29.9</span></span>
 <span><span class="co">#&gt; 2 38.85 217.4 white   28   0 male  0.587 54.0</span></span>

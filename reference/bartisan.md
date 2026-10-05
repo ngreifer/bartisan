@@ -32,43 +32,11 @@ bartisan(
 
 - formula:
 
-  a model formula. The right-hand side lists candidate predictors; the
-  model finds interactions and nonlinearity on its own, so
-  `y ~ x1 + x2 + x3` is usually the right specification. Survival
-  families take a
+  a model formula (or a list thereof for families with multiple additive
+  predictors). Survival families take a
   [`survival::Surv()`](https://rdrr.io/pkg/survival/man/Surv.html)
   object on the left. A `(1 | group)` term adds a group-level random
   intercept, in the notation of lme4; see Details.
-
-  For a family with more than one additive predictor this may be a
-  *list* of formulas, one per forest, to give each one its own
-  predictors. The first is the model for the main parameter and carries
-  the response; the rest need no response, and follow the order in
-  [`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-  under "Several additive predictors", which also gives the name of each
-  forest so the list can be named instead of ordered:
-
-      bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d,
-               family = gaussian_ls())
-      bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
-               family = gaussian_ls())
-
-  One formula applies to every forest, which is the ordinary case. A
-  predictor left out of one forest's formula is still in the data and is
-  never split on by that forest.
-
-  A formula naming no predictor at all makes that parameter a constant.
-  `~ 1` leaves its forest nothing to split on, so every tree in it is a
-  stump and the forest is a single drawn scalar rather than a function
-  of the predictors.
-
-  [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) terms
-  are read out of each formula in turn, so a parameter has the varying
-  coefficients its own formula asks for and no others, which makes the
-  forests two-dimensional (one axis the parameter, the other the
-  coefficient).
-  [`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md)
-  documents how they are then named and keyed.
 
 - data:
 
@@ -197,17 +165,51 @@ others.
 
 ## Details
 
+### The Model Formula
+
+The right-hand side of `formula` lists candidate predictors; the model
+finds interactions and nonlinearity on its own, so `y ~ x1 + x2 + x3` is
+usually the right specification. For a family with more than one
+additive predictor this may be a list of formulas, one per forest, to
+give each one its own predictors. The first is the model for the main
+parameter and carries the response; the rest need no response, and
+follow the order in
+[`bartisan-families`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
+under "Several additive predictors", which also gives the name of each
+forest so the list can be named instead of ordered:
+
+    bartisan(list(y ~ x1 + x2,
+                    ~ x2 + x3), data = d,
+             family = gaussian_ls())
+
+    bartisan(list(mean   = y ~ x1 + x2,
+                  log_sd =   ~ x2), data = d,
+             family = gaussian_ls())
+
+When a single formula is given, it applies to every forest, which is the
+ordinary case.
+
+A formula naming no predictor at all makes that parameter a constant.
+`~ 1` leaves its forest nothing to split on, so every tree in it is a
+stump and the forest is a single drawn scalar rather than a function of
+the predictors.
+
+[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) terms for
+varying coefficient models are read out of each formula in turn, so a
+parameter has the varying coefficients its own formula asks for and no
+others, which makes the forests two-dimensional (one axis the parameter,
+the other the coefficient).
+[`vc()`](https://ngreifer.github.io/bartisan/reference/vc.md) documents
+how they are then named and keyed.
+
 ### The Sampler
 
-Standard BART relies on the leaf parameters being integrable in closed
-form, which restricts it to a Gaussian response, or to models that can
-be reduced to one by data augmentation. Linero's (2025) algorithm
-removes that restriction. At each candidate move it builds a Gaussian
-approximation to the conditional posterior of the affected leaf
-parameters, by Fisher scoring, and uses that approximation as the
-proposal in a reversible-jump Metropolis step. The approximation only
-has to be good enough to be accepted often; the stationary distribution
-is the exact posterior either way.
+At each candidate move it builds a Gaussian approximation to the
+conditional posterior of the affected leaf parameters, by Fisher
+scoring, and uses that approximation as the proposal in a
+reversible-jump Metropolis step. The approximation only has to be good
+enough to be accepted often; the stationary distribution is the exact
+posterior either way.
 
 What a new family therefore has to supply is only the log density of one
 observation and its first two derivatives with respect to the additive
@@ -286,14 +288,14 @@ predictors gets a separate set for each (i.e., a zero-inflated count
 model has a group effect on the count part and another on the inflation
 part), and they are independent of one another.
 
-Only random *intercepts* are supported, and a random slope is refused
-rather than ignored. The reason is that a random intercept is a scalar
-entering the predictor with weight one for the observations in its
-level, exactly as a leaf is once its gate is removed, so the sampler's
-leaf machinery handles it exactly; a slope is a different shape of
-parameter. A variable whose effect varies by group belongs in the fixed
-part of the formula, where a tree can split on the group and on the
-variable together and get an interaction of any shape.
+Only random intercepts are supported; a random slope is refused rather
+than ignored. The reason is that a random intercept is a scalar entering
+the predictor with weight one for the observations in its level, exactly
+as a leaf is once its gate is removed, so the sampler's leaf machinery
+handles it exactly; a slope is a different shape of parameter. A
+variable whose effect varies by group belongs in the fixed part of the
+formula, where a tree can split on the group and on the variable
+together and get an interaction of any shape.
 
 A grouping factor can also go in the fixed part, where a tree splits on
 it like anything else, and with few large groups that is the better
@@ -323,15 +325,6 @@ family's forests in order, which is the column order.
 [`predict()`](https://rdrr.io/r/stats/predict.html) takes the same two
 forms.
 
-A vector is worth thinking about before reaching for under
-[`multinomial()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md),
-because the default symmetric coding gives every category a forest and a
-shift common to all of them cancels out of the softmax. A vector offset
-there leaves the fitted probabilities unchanged; with `reference` set it
-does not cancel, and moves every non-reference category against the
-reference one. A per-category offset is expressed as a matrix either
-way.
-
 An offset is not a function of the predictors, so it cannot be rebuilt
 for rows the fit has not seen: a model fitted with one requires `offset`
 at [`predict()`](https://rdrr.io/r/stats/predict.html) time.
@@ -354,28 +347,27 @@ This is missingness incorporated in attributes, and the third rule lets
 the model split on missingness itself, so a variable whose absence
 carries the signal is usable even where its observed values say nothing.
 
-This has consequences worth being clear about.
 [`predict()`](https://rdrr.io/r/stats/predict.html) accepts missing
 values in a column that had them at fitting time, those being the
 columns whose rules carry an answer. And what the model estimates is the
 mean of the response given the predictors and the pattern of
 missingness, which is the quantity prediction calls for; where the
 estimand is a regression or causal effect defined on complete data,
-multiple imputation is the right tool.
+multiple imputation may be a better tool.
 
 ### Preprocessing
 
-Predictors are mapped to the unit interval, because the cutpoint prior
-is uniform on a node's live range and the soft-rule bandwidth is
-measured on the predictor scale. Factors share a single weight in the
-sparsity prior, so that a factor is selected or not as a whole rather
-than one level at a time. The additive predictor starts from an
-intercept-only fit, so the leaf prior describes departures from that fit
-rather than the absolute level of the response. That starting value is
-the exact null-model estimate for most families; for the accelerated
-failure time families, where censoring makes the sample mean of the log
-times biased, and for the zero-inflated and ordered beta families, it is
-a moment approximation, which the sampler then moves away from.
+Predictors are mapped to the unit interval because the cutpoint prior is
+uniform on a node's live range and the soft-rule bandwidth is measured
+on the predictor scale. Factors share a single weight in the sparsity
+prior, so that a factor is selected or not as a whole rather than one
+level at a time. The additive predictor starts from an intercept-only
+fit, so the leaf prior describes departures from that fit rather than
+the absolute level of the response. That starting value is the exact
+null-model estimate for most families; for the accelerated failure time
+families, where censoring makes the sample mean of the log times biased,
+and for the zero-inflated and ordered beta families, it is a moment
+approximation, which the sampler then moves away from.
 
 ### Drawing From the Prior (`prior_only`)
 

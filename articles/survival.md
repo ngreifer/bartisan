@@ -10,7 +10,8 @@ with five families. They differ in which part of the model the forest
 describes and which part is given a parametric form, and so in what the
 forest’s output means, but each of them yields the quantities a survival
 analysis usually reports: the probability of surviving past a given
-time, the median survival time, and contrasts of either between groups.
+time, the median survival time, the hazard, and contrasts of these
+between groups.
 
 In this guide, we will analyze the survival of critically ill patients
 in the `rhc` data. First we’ll describe the five families and fit one of
@@ -18,8 +19,8 @@ them. Next we’ll cover how to choose among them, by checking each fit
 against the observed survival and by comparing their predictive
 performance. Finally we’ll cover how to read a fit, from what its
 predictor means to the survival probabilities, median survival times,
-and treatment contrasts that are usually the quantities to report, and
-close with a few less common needs.
+hazards, and treatment contrasts that are usually the quantities to
+report, and close with a few less common needs.
 
 ``` r
 
@@ -466,6 +467,44 @@ than a year, which 29% of patients have, rests on the 163 patients still
 under observation at a year and on the model’s extrapolation beyond
 them, so for those patients a survival probability at a horizon within
 the follow-up is the more reliable summary.
+
+### Hazards (`type = "hazard"`)
+
+[`predict()`](https://rdrr.io/r/stats/predict.html) with
+`type = "hazard"` returns each patient’s hazard at the times in `times`:
+the rate at which death occurs at that time among patients like them who
+have survived to it, here per day. Below, we request it a week, a month,
+and six months after admission:
+
+``` r
+
+haz <- predict(fit_ph, type = "hazard", times = c(7, 30, 180))
+
+head(haz)
+#>             7       30       180
+#> [1,] 0.029552 0.005632 0.0019445
+#> [2,] 0.029389 0.005615 0.0019416
+#> [3,] 0.007086 0.001350 0.0004670
+#> [4,] 0.013262 0.002528 0.0008742
+#> [5,] 0.011281 0.002149 0.0007436
+#> [6,] 0.012757 0.002435 0.0008430
+```
+
+The first patient’s hazard of death is about .03 per day a week after
+admission and .0019 per day at six months, about 15 times lower, which
+is the steep early mortality visible in the Kaplan-Meier estimate. Under
+[`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
+every patient’s hazard has the same shape over time, scaled by their
+relative hazard, and that shape is constant within each bin of the
+baseline, so as a function of time it is a step function that changes at
+the bin edges. The cumulative hazard is \\-\log S(t \mid x)\\ and so
+comes from `type = "survival"`.
+
+Hazards can be averaged and contrasted at a horizon with
+*marginaleffects* in the same way as the survival probabilities below.
+Note that an average of the patients’ hazards is not the hazard of the
+average survival curve, which weights each patient by their probability
+of having survived to that time.
 
 ### Averages and Contrasts
 

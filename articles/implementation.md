@@ -185,8 +185,8 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.401     1.0
-#> 2       hard     1.169     0.3
+#> 1 smoothstep     0.401     0.8
+#> 2       hard     1.169     0.2
 ```
 
 The true function has a standard deviation of about 4.9, so both are
@@ -504,13 +504,13 @@ fit_chains <- bartisan(y ~ . - eta, data = train, family = gaussian(),
 
 diagnose(fit_chains)$table
 #>                              quantity rhat rhat_late ess_bulk ess_tail ess_frac
-#> 1                              loglik 1.71     1.965     6.46     19.3  0.00539
-#> 2                           aux.sigma 1.12     1.158    23.71    444.8  0.01976
-#> 3                          splits.eta 2.14     2.408     5.21     23.3  0.00434
-#> 4 eta.eta (average over observations) 1.00     0.997  1184.07   1121.3  0.98672
-#> 5  eta.eta (worst 5% of observations) 1.61     1.708     6.70     19.9  0.00558
-#> 6      bandwidth (average over trees) 1.23     1.309    12.77     38.9  0.01064
-#> 7       bandwidth (worst 5% of trees) 2.02     2.659     5.44     12.7  0.00453
+#> 1                              loglik 1.71     1.974     6.54     19.7  0.00545
+#> 2                           aux.sigma 1.12     1.158    24.11    459.6  0.02009
+#> 3                          splits.eta 2.15     2.420     5.27     23.7  0.00439
+#> 4 eta.eta (average over observations) 1.00     0.997  1183.17   1090.8  0.98598
+#> 5  eta.eta (worst 5% of observations) 1.62     1.714     6.78     20.3  0.00565
+#> 6      bandwidth (average over trees) 1.23     1.310    12.90     39.7  0.01075
+#> 7       bandwidth (worst 5% of trees) 2.03     2.666     5.50     12.9  0.00458
 #>   rhat_bad late_bad
 #> 1        1        1
 #> 2        1        1

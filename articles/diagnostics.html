@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bartisan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-10-02</h4>
+            <h4 data-toc-skip class="date">2026-10-05</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/diagnostics.Rmd" class="external-link"><code>vignettes/diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>diagnostics.Rmd</code></div>
@@ -159,26 +159,26 @@ it needs no other package.</p>
 <span><span class="co">#&gt; Convergence and mixing</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.04      1.04      120      737</span></span>
+<span><span class="co">#&gt;                               loglik 1.04      1.04      121      737</span></span>
 <span><span class="co">#&gt;                           splits.eta 1.03      1.05      322      549</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.01     1577     2695</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.02      1.03      287      802</span></span>
-<span><span class="co">#&gt;       bandwidth (average over trees) 1.01      1.01      646     1291</span></span>
-<span><span class="co">#&gt;        bandwidth (worst 5% of trees) 1.02      1.05      259      345</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.01     1579     2695</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.02      1.03      288      802</span></span>
+<span><span class="co">#&gt;       bandwidth (average over trees) 1.01      1.01      645     1291</span></span>
+<span><span class="co">#&gt;        bandwidth (worst 5% of trees) 1.02      1.05      258      345</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ✔ 4 chains, 3200 draws kept in total</span></span>
 <span><span class="co">#&gt; ✖ R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; ✖ That R-hat rests on only 120 effective draws, where 4 chains average 1.033</span></span>
+<span><span class="co">#&gt; ✖ That R-hat rests on only 121 effective draws, where 4 chains average 1.033</span></span>
 <span><span class="co">#&gt;   even when they agree</span></span>
 <span><span class="co">#&gt; ℹ A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
 <span><span class="co">#&gt; ✖ The chains disagree about how many splitting rules the forest has (R-hat</span></span>
 <span><span class="co">#&gt;   1.03)</span></span>
 <span><span class="co">#&gt; ✖ The chains disagree about how wide the decision rules are (R-hat 1.02)</span></span>
-<span><span class="co">#&gt; ✖ Bulk ESS is 120 for loglik, below 400</span></span>
+<span><span class="co">#&gt; ✖ Bulk ESS is 121 for loglik, below 400</span></span>
 <span><span class="co">#&gt; ✔ Tail ESS is at least 737 for every reported quantity, above 400</span></span>
 <span><span class="co">#&gt; ℹ The chains disagree about individual observations and agree about their</span></span>
-<span><span class="co">#&gt;   average (R-hat 1.01, 646 effective draws)</span></span>
+<span><span class="co">#&gt;   average (R-hat 1.01, 645 effective draws)</span></span>
 <span><span class="co">#&gt; ℹ Per-draw efficiency is lowest for loglik, which carries 3.8 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -339,13 +339,13 @@ function, first with a chain far too short and then at the defaults.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">too_short</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
-<span><span class="co">#&gt; 1                              loglik 3.00      3.18     5.13     13.0   0.0257</span></span>
-<span><span class="co">#&gt; 2                           aux.sigma 2.52      2.23     5.41     22.0   0.0270</span></span>
-<span><span class="co">#&gt; 3                          splits.eta 1.63      1.69     7.47     29.5   0.0373</span></span>
-<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.05   235.38    240.6   1.1769</span></span>
-<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.93      2.08     6.28     15.8   0.0314</span></span>
-<span><span class="co">#&gt; 6      bandwidth (average over trees) 1.15      1.48    18.79    108.4   0.0940</span></span>
-<span><span class="co">#&gt; 7       bandwidth (worst 5% of trees) 3.16      3.72     5.21     10.1   0.0260</span></span>
+<span><span class="co">#&gt; 1                              loglik 3.11      3.32     5.59     14.4   0.0279</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 2.56      2.30     5.92     25.4   0.0296</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 1.64      1.72     8.12     32.2   0.0406</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.04   223.53    236.8   1.1177</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.96      2.11     6.83     17.4   0.0342</span></span>
+<span><span class="co">#&gt; 6      bandwidth (average over trees) 1.15      1.48    19.84    108.4   0.0992</span></span>
+<span><span class="co">#&gt; 7       bandwidth (worst 5% of trees) 3.19      3.79     5.69     11.4   0.0284</span></span>
 <span><span class="co">#&gt;   rhat_bad late_bad</span></span>
 <span><span class="co">#&gt; 1        1        1</span></span>
 <span><span class="co">#&gt; 2        1        1</span></span>
@@ -368,13 +368,13 @@ be used.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">long_enough</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
-<span><span class="co">#&gt; 1                              loglik 1.08      1.05     45.2    160.7  0.01413</span></span>
-<span><span class="co">#&gt; 2                           aux.sigma 1.02      1.01    318.9   1324.8  0.09966</span></span>
-<span><span class="co">#&gt; 3                          splits.eta 1.10      1.17     31.3    188.4  0.00978</span></span>
-<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.00   3355.6   3015.1  1.04861</span></span>
-<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.17      1.22     16.3     69.4  0.00508</span></span>
-<span><span class="co">#&gt; 6      bandwidth (average over trees) 1.07      1.17     76.8    236.9  0.02399</span></span>
-<span><span class="co">#&gt; 7       bandwidth (worst 5% of trees) 1.34      1.45     11.1     30.2  0.00346</span></span>
+<span><span class="co">#&gt; 1                              loglik 1.08      1.05     45.6    160.7  0.01424</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 1.02      1.01    319.3   1324.8  0.09977</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 1.10      1.17     31.5    188.4  0.00983</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00      1.00   3357.2   3015.1  1.04912</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.17      1.22     16.3     70.0  0.00511</span></span>
+<span><span class="co">#&gt; 6      bandwidth (average over trees) 1.07      1.17     76.7    236.9  0.02398</span></span>
+<span><span class="co">#&gt; 7       bandwidth (worst 5% of trees) 1.34      1.45     11.1     30.4  0.00348</span></span>
 <span><span class="co">#&gt;   rhat_bad late_bad</span></span>
 <span><span class="co">#&gt; 1    1.000    1.000</span></span>
 <span><span class="co">#&gt; 2    1.000    0.000</span></span>
@@ -480,7 +480,7 @@ causal forest model to estimate the ATE:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     quantity rhat rhat_late ess_bulk ess_tail</span></span>
 <span><span class="co">#&gt;  Y[1] - Y[0] 1.01      1.01      410     1041</span></span>
-<span><span class="co">#&gt;         Y[0] 1.00      1.00      755     1677</span></span>
+<span><span class="co">#&gt;         Y[0] 1.00      1.00      754     1661</span></span>
 <span><span class="co">#&gt;         Y[1] 1.00      1.02      367      976</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ✔ 4 chains, 3200 draws kept in total</span></span>
@@ -505,29 +505,29 @@ three rows are worth reading rather than the contrast alone.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">bcf_fit</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                                       quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt; 1                                       loglik 1.06      1.06     51.2    360.7</span></span>
+<span><span class="co">#&gt; 1                                       loglik 1.06      1.06     51.6    360.7</span></span>
 <span><span class="co">#&gt; 2                                  aux.b.rhc.0 1.07      1.31     48.0     82.5</span></span>
-<span><span class="co">#&gt; 3                                  aux.b.rhc.1 1.14      1.31     21.3     73.0</span></span>
-<span><span class="co">#&gt; 4                           splits.(Intercept) 1.03      1.02    222.8    537.7</span></span>
-<span><span class="co">#&gt; 5                                   splits.rhc 1.01      1.01    315.2    655.8</span></span>
-<span><span class="co">#&gt; 6  eta.(Intercept) (average over observations) 1.23      1.61     12.8     31.5</span></span>
-<span><span class="co">#&gt; 7   eta.(Intercept) (worst 5% of observations) 1.16      1.41     17.9     36.3</span></span>
-<span><span class="co">#&gt; 8          eta.rhc (average over observations) 1.20      1.40     14.0     40.0</span></span>
-<span><span class="co">#&gt; 9           eta.rhc (worst 5% of observations) 1.20      1.37     15.2     29.9</span></span>
+<span><span class="co">#&gt; 3                                  aux.b.rhc.1 1.14      1.31     21.4     73.6</span></span>
+<span><span class="co">#&gt; 4                           splits.(Intercept) 1.03      1.02    223.0    537.7</span></span>
+<span><span class="co">#&gt; 5                                   splits.rhc 1.01      1.01    315.4    655.8</span></span>
+<span><span class="co">#&gt; 6  eta.(Intercept) (average over observations) 1.23      1.61     12.8     31.8</span></span>
+<span><span class="co">#&gt; 7   eta.(Intercept) (worst 5% of observations) 1.16      1.41     18.0     36.6</span></span>
+<span><span class="co">#&gt; 8          eta.rhc (average over observations) 1.20      1.40     14.1     40.3</span></span>
+<span><span class="co">#&gt; 9           eta.rhc (worst 5% of observations) 1.20      1.37     15.3     30.1</span></span>
 <span><span class="co">#&gt; 10              bandwidth (average over trees) 1.01      1.01    656.7   1161.7</span></span>
-<span><span class="co">#&gt; 11               bandwidth (worst 5% of trees) 1.02      1.04    274.6    312.9</span></span>
+<span><span class="co">#&gt; 11               bandwidth (worst 5% of trees) 1.02      1.04    274.3    312.9</span></span>
 <span><span class="co">#&gt;    ess_frac rhat_bad late_bad</span></span>
-<span><span class="co">#&gt; 1   0.01599    1.000    1.000</span></span>
-<span><span class="co">#&gt; 2   0.01500    1.000    1.000</span></span>
-<span><span class="co">#&gt; 3   0.00666    1.000    1.000</span></span>
-<span><span class="co">#&gt; 4   0.06964    1.000    1.000</span></span>
-<span><span class="co">#&gt; 5   0.09851    0.000    1.000</span></span>
-<span><span class="co">#&gt; 6   0.00399    1.000    1.000</span></span>
-<span><span class="co">#&gt; 7   0.00560    0.997    1.000</span></span>
-<span><span class="co">#&gt; 8   0.00438    1.000    1.000</span></span>
-<span><span class="co">#&gt; 9   0.00475    1.000    1.000</span></span>
-<span><span class="co">#&gt; 10  0.20522    0.000    0.000</span></span>
-<span><span class="co">#&gt; 11  0.08582    0.307    0.747</span></span></code></pre></div>
+<span><span class="co">#&gt; 1   0.01611    1.000    1.000</span></span>
+<span><span class="co">#&gt; 2   0.01499    1.000    1.000</span></span>
+<span><span class="co">#&gt; 3   0.00669    1.000    1.000</span></span>
+<span><span class="co">#&gt; 4   0.06969    1.000    1.000</span></span>
+<span><span class="co">#&gt; 5   0.09857    0.000    1.000</span></span>
+<span><span class="co">#&gt; 6   0.00401    1.000    1.000</span></span>
+<span><span class="co">#&gt; 7   0.00563    0.997    1.000</span></span>
+<span><span class="co">#&gt; 8   0.00440    1.000    1.000</span></span>
+<span><span class="co">#&gt; 9   0.00477    1.000    1.000</span></span>
+<span><span class="co">#&gt; 10  0.20521    0.000    0.000</span></span>
+<span><span class="co">#&gt; 11  0.08573    0.307    0.747</span></span></code></pre></div>
 <p>The two forests are far worse than the estimand. Their R-hats run
 from 1.2 to 1.6 with effective sample sizes in the tens, where the
 effect clears 400. That is not a contradiction: a varying coefficient
@@ -627,25 +627,25 @@ and every prior setting are identical between the two, and only
 <span><span class="co">#&gt; Convergence and mixing</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.04      1.11       84      277</span></span>
-<span><span class="co">#&gt;                           splits.eta 1.00      1.02      348      444</span></span>
+<span><span class="co">#&gt;                               loglik 1.04      1.11       85      277</span></span>
+<span><span class="co">#&gt;                           splits.eta 1.00      1.02      349      444</span></span>
 <span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00     1809     2614</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.02      1.03      344      676</span></span>
-<span><span class="co">#&gt;       bandwidth (average over trees) 1.01      1.01      482     1126</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.02      1.03      343      676</span></span>
+<span><span class="co">#&gt;       bandwidth (average over trees) 1.01      1.01      481     1126</span></span>
 <span><span class="co">#&gt;        bandwidth (worst 5% of trees) 1.02      1.03      338      349</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ✔ 4 chains, 3200 draws kept in total</span></span>
 <span><span class="co">#&gt; ✖ R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; ✖ That R-hat rests on only 84 effective draws, where 4 chains average 1.047</span></span>
+<span><span class="co">#&gt; ✖ That R-hat rests on only 85 effective draws, where 4 chains average 1.047</span></span>
 <span><span class="co">#&gt;   even when they agree</span></span>
 <span><span class="co">#&gt; ℹ A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
 <span><span class="co">#&gt; ✔ The chains agree about the size of the forest</span></span>
 <span><span class="co">#&gt; ✖ The chains disagree about how wide the decision rules are (R-hat 1.02)</span></span>
-<span><span class="co">#&gt; ✖ Bulk ESS is 84 for loglik, below 400</span></span>
+<span><span class="co">#&gt; ✖ Bulk ESS is 85 for loglik, below 400</span></span>
 <span><span class="co">#&gt; ✖ Tail ESS is 277 for loglik, below 400</span></span>
 <span><span class="co">#&gt; ℹ The chains disagree about individual observations and agree about their</span></span>
-<span><span class="co">#&gt;   average (R-hat 1.01, 482 effective draws)</span></span>
+<span><span class="co">#&gt;   average (R-hat 1.01, 481 effective draws)</span></span>
 <span><span class="co">#&gt; ℹ Per-draw efficiency is lowest for loglik, which carries 2.6 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -691,22 +691,22 @@ supplied:</p>
 <span><span class="co">#&gt; Convergence and mixing</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;                             quantity rhat rhat_late ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;                               loglik 1.02      1.03      207      977</span></span>
+<span><span class="co">#&gt;                               loglik 1.02      1.03      208      977</span></span>
 <span><span class="co">#&gt;                           splits.eta 1.00      1.00     2710     5914</span></span>
-<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    17037    23991</span></span>
-<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01     1761     3630</span></span>
-<span><span class="co">#&gt;       bandwidth (average over trees) 1.00      1.00     5218    10097</span></span>
-<span><span class="co">#&gt;        bandwidth (worst 5% of trees) 1.00      1.00     3973     4697</span></span>
+<span><span class="co">#&gt;  eta.eta (average over observations) 1.00      1.00    17037    23899</span></span>
+<span><span class="co">#&gt;   eta.eta (worst 5% of observations) 1.01      1.01     1759     3630</span></span>
+<span><span class="co">#&gt;       bandwidth (average over trees) 1.00      1.00     5219    10097</span></span>
+<span><span class="co">#&gt;        bandwidth (worst 5% of trees) 1.00      1.00     3972     4697</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ✔ 4 chains, 32000 draws kept in total</span></span>
 <span><span class="co">#&gt; ✖ R-hat is above 1.01 for loglik</span></span>
-<span><span class="co">#&gt; ✖ That R-hat rests on only 207 effective draws, where 4 chains average 1.019</span></span>
+<span><span class="co">#&gt; ✖ That R-hat rests on only 208 effective draws, where 4 chains average 1.019</span></span>
 <span><span class="co">#&gt;   even when they agree</span></span>
 <span><span class="co">#&gt; ℹ A longer warmup is not the fix: R-hat stays high on the second half of the</span></span>
 <span><span class="co">#&gt;   draws alone as well</span></span>
 <span><span class="co">#&gt; ✔ The chains agree about the size of the forest</span></span>
 <span><span class="co">#&gt; ✔ The chains agree about how wide the decision rules are</span></span>
-<span><span class="co">#&gt; ✖ Bulk ESS is 207 for loglik, below 400</span></span>
+<span><span class="co">#&gt; ✖ Bulk ESS is 208 for loglik, below 400</span></span>
 <span><span class="co">#&gt; ✔ Tail ESS is at least 977 for every reported quantity, above 400</span></span>
 <span><span class="co">#&gt; ℹ Per-draw efficiency is lowest for loglik, which carries 0.6 effective draws</span></span>
 <span><span class="co">#&gt;   per hundred kept</span></span>
@@ -729,7 +729,7 @@ supplied:</p>
 <p>Most of it is cleared. The split-count row and both <code>eta</code>
 rows are well past the thresholds, and every tail effective sample size
 is above 900. What is left sits on the log likelihood alone: its bulk
-effective sample size rose from 84 to 207 rather than tenfold, and its
+effective sample size rose from 85 to 208 rather than tenfold, and its
 R-hat of 1.02 is again the kind the check calls unreadable, since four
 chains average 1.019 at that count even when they agree. The log
 likelihood is usually the slowest-mixing row in a forest, because it

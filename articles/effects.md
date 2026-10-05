@@ -120,9 +120,9 @@ comp <- avg_comparisons(fit, variables = c("rhc", "age", "card"))
 comp
 #> 
 #>  Term Contrast Estimate    2.5 %  97.5 %
-#>  age  +1        0.00313  0.00153 0.00467
-#>  card yes - no  0.04177 -0.00868 0.08973
-#>  rhc  1 - 0     0.06080  0.01182 0.11118
+#>  age  +1        0.00309  0.00153 0.00467
+#>  card yes - no  0.04164 -0.00868 0.08973
+#>  rhc  1 - 0     0.05968  0.01182 0.11118
 #> 
 #> Type: response
 ```
@@ -136,7 +136,7 @@ treatment effect.
 
 The comparison for `age`, for example, means that increasing all units’
 age by 1, keeping all other predictors at their observed values, would
-yield an increase in the overall probability of death of 0.313
+yield an increase in the overall probability of death of 0.309
 percentage points (a very small effect on this scale), with a 95%
 credible interval excluding 0. This isn’t a causal estimate; it’s just
 what the model predicts would happen.
@@ -189,7 +189,7 @@ corresponding to increasing its value by 10.
 avg_comparisons(fit, variables = list(aps = 10))
 #> 
 #>  Estimate   2.5 % 97.5 %
-#>     0.016 0.00171 0.0309
+#>    0.0157 0.00171 0.0309
 #> 
 #> Term: aps
 #> Type: response
@@ -214,8 +214,8 @@ grouping variable.
 avg_comparisons(fit, variables = "rhc", by = "card")
 #> 
 #>  card Estimate  2.5 % 97.5 %
-#>   no    0.0627 0.0115  0.116
-#>   yes   0.0570 0.0037  0.110
+#>   no    0.0616 0.0115  0.116
+#>   yes   0.0558 0.0037  0.110
 #> 
 #> Term: rhc
 #> Type: response
@@ -236,7 +236,7 @@ avg_comparisons(fit, variables = "rhc", by = "card",
                 hypothesis = ~pairwise)
 #> 
 #>    Hypothesis Estimate   2.5 % 97.5 %
-#>  (yes) - (no) -0.00569 -0.0611 0.0248
+#>  (yes) - (no) -0.00259 -0.0611 0.0248
 #> 
 #> Type: response
 ```
@@ -258,7 +258,7 @@ avg_predictions(fit, by = "card")
 #> 
 #>  card Estimate 2.5 % 97.5 %
 #>   no     0.630 0.604  0.661
-#>   yes    0.698 0.660  0.733
+#>   yes    0.699 0.660  0.733
 #> 
 #> Type: response
 ```
@@ -274,8 +274,8 @@ following:
 avg_predictions(fit, variables = "card")
 #> 
 #>  card Estimate 2.5 % 97.5 %
-#>   no     0.640 0.613  0.670
-#>   yes    0.681 0.639  0.719
+#>   no     0.639 0.613  0.670
+#>   yes    0.682 0.639  0.719
 #> 
 #> Type: response
 ```
@@ -460,9 +460,9 @@ partial_dependence(fit, ~ aps, values = list(aps = at))
 avg_predictions(fit, variables = list(aps = at))
 #> 
 #>   aps Estimate 2.5 % 97.5 %
-#>  29.9    0.610 0.552  0.657
+#>  29.9    0.611 0.552  0.657
 #>  54.0    0.656 0.623  0.695
-#>  83.0    0.703 0.649  0.765
+#>  83.0    0.701 0.649  0.765
 #> 
 #> Type: response
 ```
@@ -488,9 +488,9 @@ the profile it chose beside the estimates:
 
 plot_predictions(fit, condition = list(aps = at), draw = FALSE)
 #>   rowid estimate conf.low conf.high  df   age card  crea   edu  hema meanbp
-#> 1     1   0.6286   0.4969    0.7594 Inf 61.42   no 2.132 11.64 31.68     78
-#> 2     2   0.6795   0.5604    0.7867 Inf 61.42   no 2.132 11.64 31.68     78
-#> 3     3   0.7328   0.6018    0.8416 Inf 61.42   no 2.132 11.64 31.68     78
+#> 1     1   0.6299   0.4969    0.7594 Inf 61.42   no 2.132 11.64 31.68     78
+#> 2     2   0.6817   0.5604    0.7867 Inf 61.42   no 2.132 11.64 31.68     78
+#> 3     3   0.7386   0.6018    0.8416 Inf 61.42   no 2.132 11.64 31.68     78
 #>   paco2  pafi  race resp rhc  sex surv2m  aps
 #> 1 38.85 217.4 white   28   0 male  0.587 29.9
 #> 2 38.85 217.4 white   28   0 male  0.587 54.0

@@ -72,13 +72,14 @@ get_data(x, ...)
 - type:
 
   string; the scale to work on. Allowable options include `"response"`
-  (the default), `"link"`, `"prob"`, `"mean"`, `"stdlv"`, and
-  `"survival"`. `"response"` is the fitted mean, `"link"` the additive
+  (the default), `"link"`, `"prob"`, `"mean"`, `"stdlv"`, `"survival"`,
+  and `"hazard"`. `"response"` is the fitted mean, `"link"` the additive
   predictor, `"prob"` the per-category probabilities of a categorical
   family, `"mean"` the mean of a categorical response with its labels
   read as numbers, `"stdlv"` the standardized latent variable of an
-  ordinal fit, and `"survival"` the survival function at the times given
-  in `times`; all but the first two are described under
+  ordinal fit, and `"survival"` and `"hazard"` the survival function and
+  the hazard at the times given in `times`; all but the first two are
+  described under
   [`predict.bartisan_fit()`](https://ngreifer.github.io/bartisan/reference/predict.bartisan_fit.md).
   An
   [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -204,6 +205,14 @@ the dots against a whitelist of its own, hardcoded per model class, so
 it warns that it does not recognize `times` while passing it through, as
 the warning says. There is no hook for registering an argument with it,
 so the warning is expected and the result is correct.
+
+Setting `type = "hazard"` with the same `times` contrasts the hazard at
+those times instead, so `avg_comparisons()` averages each unit's hazard
+difference at a horizon, and `comparison = "ratio"` gives the ratio of
+the averaged hazards. Note that an average of hazards is not the hazard
+of the average survival curve: that one weights each unit by its
+probability of having survived to the time, and it comes from
+`type = "survival"` rather than from here.
 
 Setting `type = "link"` contrasts the additive predictor instead. For
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)

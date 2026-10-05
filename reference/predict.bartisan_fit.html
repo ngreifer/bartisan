@@ -19,7 +19,7 @@ as the draws themselves."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">bartisan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -120,7 +120,7 @@ else is an error. See section <em>Missing Predictor Values</em> in the Details o
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
 <dd><p>string; the scale of the prediction. Allowable options include
 <code>"link"</code>, <code>"response"</code> (the default), <code>"prob"</code>, <code>"class"</code>, <code>"mean"</code>,
-<code>"stdlv"</code>, <code>"density"</code>, and <code>"survival"</code>.</p><dl><dt><code>"link"</code></dt>
+<code>"stdlv"</code>, <code>"density"</code>, <code>"survival"</code>, and <code>"hazard"</code>.</p><dl><dt><code>"link"</code></dt>
 <dd><p>the additive predictor, one column per predictor for
 families that have more than one. For the accelerated failure time
 families it is on the scale of log time, so a difference between two
@@ -170,6 +170,13 @@ given in <code>times</code>, for the accelerated failure time families and <code
 Returns one column per time, or a draws by rows by times array when
 <code>draws = TRUE</code>. This makes the usual survival estimand reachable
 through <span class="pkg">marginaleffects</span>; see <code><a href="bartisan-marginaleffects.html">bartisan-marginaleffects</a></code>.</p></dd>
+
+<dt><code>"hazard"</code></dt>
+<dd><p>the hazard \(h(t \mid x) = f(t \mid x) / S(t \mid
+    x)\) at the times given in <code>times</code>, the rate at which the event occurs
+at \(t\) among those who have survived to it, for the same families
+and in the same shape as <code>"survival"</code>. The cumulative hazard is
+\(-\log S(t \mid x)\) and so comes from <code>"survival"</code>.</p></dd>
 
 
 </dl></dd>
@@ -221,10 +228,11 @@ density rather than the average log density.</p></dd>
 
 
 <dt id="arg-times">times<a class="anchor" aria-label="anchor" href="#arg-times"></a></dt>
-<dd><p><code>numeric</code>; for <code>type = "survival"</code>, the times at which to report
-the survival function, which must be finite and strictly positive. It has no
-default, because the horizon is a choice rather than a property of the fit.
-Ignored with a warning for every other <code>type</code>.</p></dd>
+<dd><p><code>numeric</code>; for <code>type = "survival"</code> and <code>type = "hazard"</code>, the
+times at which to report the survival function or the hazard, which must be
+finite and strictly positive. It has no default, because the horizon is a
+choice rather than a property of the fit. Ignored with a warning for every
+other <code>type</code>.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -239,8 +247,8 @@ the family has a single additive predictor; a matrix of observations by
 additive predictors for <code>"link"</code> and <code>"stdlv"</code> when it has more than one; a
 matrix of observations by categories for <code>"prob"</code>, and for <code>"response"</code> with
 an ordinal or multinomial family; a matrix of observations by times for
-<code>"survival"</code>; and a factor for <code>"class"</code>, ordered when the family is
-<code><a href="bartisan-families.html">ordinal()</a></code>.</p>
+<code>"survival"</code> and <code>"hazard"</code>; and a factor for <code>"class"</code>, ordered when the
+family is <code><a href="bartisan-families.html">ordinal()</a></code>.</p>
 <p>With <code>draws = TRUE</code> each of these gains a leading dimension indexing the
 posterior draws, so that a vector becomes a matrix of draws by observations
 and a matrix becomes an array of draws by observations by categories or by
@@ -266,7 +274,7 @@ much more accurate than any single row of <code>draws = TRUE</code>.</p>
 </div>
 
 <div class="section">
-<h3 id="setting-type-stdlv-">Setting <code>type = "stdlv"</code><a class="anchor" aria-label="anchor" href="#setting-type-stdlv-"></a></h3>
+<h3 id="type-stdlv-"><code>type = "stdlv"</code><a class="anchor" aria-label="anchor" href="#type-stdlv-"></a></h3>
 
 
 <p>This reports <code>(eta - E[e]) / sd(y*)</code> for the latent <code>y* = eta + e</code>, following
@@ -289,7 +297,7 @@ that choice.</p>
 </div>
 
 <div class="section">
-<h3 id="setting-type-density-">Setting <code>type = "density"</code><a class="anchor" aria-label="anchor" href="#setting-type-density-"></a></h3>
+<h3 id="type-density-"><code>type = "density"</code><a class="anchor" aria-label="anchor" href="#type-density-"></a></h3>
 
 
 <p>The measure differs across the survival families: the accelerated failure time

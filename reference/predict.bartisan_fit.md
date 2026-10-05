@@ -47,7 +47,7 @@ predict(
 
   string; the scale of the prediction. Allowable options include
   `"link"`, `"response"` (the default), `"prob"`, `"class"`, `"mean"`,
-  `"stdlv"`, `"density"`, and `"survival"`.
+  `"stdlv"`, `"density"`, `"survival"`, and `"hazard"`.
 
   `"link"`
 
@@ -112,6 +112,14 @@ predict(
       reachable through marginaleffects; see
       [`bartisan-marginaleffects`](https://ngreifer.github.io/bartisan/reference/bartisan-marginaleffects.md).
 
+  `"hazard"`
+
+  :   the hazard \\h(t \mid x) = f(t \mid x) / S(t \mid x)\\ at the
+      times given in `times`, the rate at which the event occurs at
+      \\t\\ among those who have survived to it, for the same families
+      and in the same shape as `"survival"`. The cumulative hazard is
+      \\-\log S(t \mid x)\\ and so comes from `"survival"`.
+
 - draws:
 
   `logical`; whether to return every posterior draw rather than the
@@ -160,10 +168,11 @@ predict(
 
 - times:
 
-  `numeric`; for `type = "survival"`, the times at which to report the
-  survival function, which must be finite and strictly positive. It has
-  no default, because the horizon is a choice rather than a property of
-  the fit. Ignored with a warning for every other `type`.
+  `numeric`; for `type = "survival"` and `type = "hazard"`, the times at
+  which to report the survival function or the hazard, which must be
+  finite and strictly positive. It has no default, because the horizon
+  is a choice rather than a property of the fit. Ignored with a warning
+  for every other `type`.
 
 - ...:
 
@@ -177,8 +186,8 @@ when the family has a single additive predictor; a matrix of
 observations by additive predictors for `"link"` and `"stdlv"` when it
 has more than one; a matrix of observations by categories for `"prob"`,
 and for `"response"` with an ordinal or multinomial family; a matrix of
-observations by times for `"survival"`; and a factor for `"class"`,
-ordered when the family is
+observations by times for `"survival"` and `"hazard"`; and a factor for
+`"class"`, ordered when the family is
 [`ordinal()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md).
 
 With `draws = TRUE` each of these gains a leading dimension indexing the
@@ -203,7 +212,7 @@ differ by Monte Carlo error; that error is per posterior draw and
 averages down over them, which makes `draws = FALSE` much more accurate
 than any single row of `draws = TRUE`.
 
-### Setting `type = "stdlv"`
+### `type = "stdlv"`
 
 This reports `(eta - E[e]) / sd(y*)` for the latent `y* = eta + e`,
 following
@@ -226,7 +235,7 @@ used is the same the cutpoints use: a predictor centered over the fitted
 sample. Differences on this scale, which a standardized quantity exists
 to support, are unaffected by that choice.
 
-### Setting `type = "density"`
+### `type = "density"`
 
 The measure differs across the survival families: the accelerated
 failure time families,

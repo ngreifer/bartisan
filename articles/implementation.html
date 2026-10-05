@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bartisan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-10-02</h4>
+            <h4 data-toc-skip class="date">2026-10-05</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/implementation.Rmd" class="external-link"><code>vignettes/implementation.Rmd</code></a></small>
       <div class="d-none name"><code>implementation.Rmd</code></div>
@@ -272,8 +272,8 @@ usually worth it:</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu">timed</span><span class="op">(</span><span class="st">"smoothstep"</span><span class="op">)</span>, <span class="fu">timed</span><span class="op">(</span><span class="st">"hard"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        rules test_rmse seconds</span></span>
-<span><span class="co">#&gt; 1 smoothstep     0.401     1.0</span></span>
-<span><span class="co">#&gt; 2       hard     1.169     0.3</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 smoothstep     0.401     0.8</span></span>
+<span><span class="co">#&gt; 2       hard     1.169     0.2</span></span></code></pre></div>
 <p>The true function has a standard deviation of about 4.9, so both are
 fitting real structure and the soft fit is the more accurate.</p>
 </div>
@@ -611,13 +611,13 @@ sampling does, so they run when they are asked for.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/diagnose.html">diagnose</a></span><span class="op">(</span><span class="va">fit_chains</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;                              quantity rhat rhat_late ess_bulk ess_tail ess_frac</span></span>
-<span><span class="co">#&gt; 1                              loglik 1.71     1.965     6.46     19.3  0.00539</span></span>
-<span><span class="co">#&gt; 2                           aux.sigma 1.12     1.158    23.71    444.8  0.01976</span></span>
-<span><span class="co">#&gt; 3                          splits.eta 2.14     2.408     5.21     23.3  0.00434</span></span>
-<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00     0.997  1184.07   1121.3  0.98672</span></span>
-<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.61     1.708     6.70     19.9  0.00558</span></span>
-<span><span class="co">#&gt; 6      bandwidth (average over trees) 1.23     1.309    12.77     38.9  0.01064</span></span>
-<span><span class="co">#&gt; 7       bandwidth (worst 5% of trees) 2.02     2.659     5.44     12.7  0.00453</span></span>
+<span><span class="co">#&gt; 1                              loglik 1.71     1.974     6.54     19.7  0.00545</span></span>
+<span><span class="co">#&gt; 2                           aux.sigma 1.12     1.158    24.11    459.6  0.02009</span></span>
+<span><span class="co">#&gt; 3                          splits.eta 2.15     2.420     5.27     23.7  0.00439</span></span>
+<span><span class="co">#&gt; 4 eta.eta (average over observations) 1.00     0.997  1183.17   1090.8  0.98598</span></span>
+<span><span class="co">#&gt; 5  eta.eta (worst 5% of observations) 1.62     1.714     6.78     20.3  0.00565</span></span>
+<span><span class="co">#&gt; 6      bandwidth (average over trees) 1.23     1.310    12.90     39.7  0.01075</span></span>
+<span><span class="co">#&gt; 7       bandwidth (worst 5% of trees) 2.03     2.666     5.50     12.9  0.00458</span></span>
 <span><span class="co">#&gt;   rhat_bad late_bad</span></span>
 <span><span class="co">#&gt; 1        1        1</span></span>
 <span><span class="co">#&gt; 2        1        1</span></span>

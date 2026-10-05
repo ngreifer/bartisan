@@ -198,23 +198,23 @@ diagnose(fit)
 #> Convergence and mixing
 #> 
 #>                             quantity  rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.039     1.049       94      187
+#>                               loglik 1.039     1.049       95      187
 #>                           splits.eta 1.073     1.152       23      134
-#>  eta.eta (average over observations) 1.000     1.003      437      723
-#>   eta.eta (worst 5% of observations) 1.038     1.069       76      197
+#>  eta.eta (average over observations) 1.000     1.003      435      723
+#>   eta.eta (worst 5% of observations) 1.038     1.069       77      197
 #>       bandwidth (average over trees) 1.022     1.037      172      299
-#>        bandwidth (worst 5% of trees) 1.064     1.111       50       58
+#>        bandwidth (worst 5% of trees) 1.064     1.111       50       59
 #> 
 #> ✖ Only one chain, so R-hat can only compare it with itself; set `chains = 4`
 #> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 94 effective draws, where a single chain averages
+#> ✖ That R-hat rests on only 95 effective draws, where a single chain averages
 #>   1.011 even when its two halves agree
 #> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
 #>   draws alone as well
 #> ✖ The chains disagree about how many splitting rules the forest has (R-hat
 #>   1.07)
 #> ✖ The chains disagree about how wide the decision rules are (R-hat 1.06)
-#> ✖ Bulk ESS is 76 for eta.eta (worst 5% of observations), below 400
+#> ✖ Bulk ESS is 77 for eta.eta (worst 5% of observations), below 400
 #> ✖ Tail ESS is 187 for loglik, below 400
 #> 
 #> What to do
@@ -279,14 +279,14 @@ diagnose(estimate_effect(fit, treat = "rhc"))
 #> Convergence and mixing
 #> 
 #>     quantity  rhat rhat_late ess_bulk ess_tail
-#>  Y[1] - Y[0] 1.008     0.998      499      393
-#>         Y[0] 1.002     1.002      502      736
-#>         Y[1] 1.008     1.007      575      615
+#>  Y[1] - Y[0] 1.008     0.998      492      393
+#>         Y[0] 1.002     1.002      496      736
+#>         Y[1] 1.007     1.007      564      615
 #> 
 #> ✖ Only one chain, so R-hat can only compare it with itself; set `chains = 4`
 #> ✔ R-hat is below 1.01 for every reported quantity
 #> ✔ Warmup was long enough, since R-hat is already fine
-#> ✔ Bulk ESS is at least 499 for every reported quantity, above 400
+#> ✔ Bulk ESS is at least 492 for every reported quantity, above 400
 #> ✖ Tail ESS is 393 for Y[1] - Y[0], below 400
 #> 
 #> What to do
