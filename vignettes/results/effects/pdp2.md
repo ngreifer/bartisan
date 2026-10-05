@@ -6,8 +6,7 @@ pd2
 #> Partial dependence
 #> 
 #> Predictors: "aps" and "rhc"
-#> Averaged over 1500 units, on the
-#>            "response" scale
+#> Averaged over 1500 units, on the "response" scale
 #> 
 #>     aps rhc estimate lower upper
 #>    4.00   0    0.568 0.460 0.638
@@ -22,7 +21,8 @@ pd2
 #>  141.28   1    0.759 0.680 0.841
 #>  147.00   1    0.759 0.680 0.841
 #> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
 #> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
 #>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of
 #>   them.
