@@ -15,6 +15,13 @@
 set -e
 
 pkg=$(cd "$(dirname "$0")/.." && pwd)
+
+# Replay the vignettes' saved results strictly, so that a chunk edited since
+# its results were saved fails the check here rather than warning on CRAN. A
+# run that sets NOT_CRAN=true or BARTISAN_VIGNETTES itself keeps its choice.
+if [ -z "${BARTISAN_VIGNETTES:-}" ] && [ "${NOT_CRAN:-}" != "true" ]; then
+  export BARTISAN_VIGNETTES=replay
+fi
 scratch=${GENBART_CHECK_DIR:-${TMPDIR:-/tmp}/bartisan-check}
 
 mkdir -p "$scratch"

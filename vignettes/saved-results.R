@@ -7,7 +7,7 @@
 #   run     The code runs as usual. The chunk's finished markdown -- the echoed
 #           code, the printed output and the links to its figures -- is written
 #           to `results/<vignette>/<label>.md`, its figures are copied beside it,
-#           and a hash of the chunk's code is recorded.
+#           and the chunk's header and code are recorded.
 #   replay  The code is not run. The saved markdown takes the chunk's place, so
 #           the page is the one the run produced, figures included.
 #
@@ -20,8 +20,12 @@
 # copy. To refresh the saved results, render in place: `_dev/refresh-vignettes.R`
 # does, and checks that a replay reproduces the run's page byte for byte.
 #
-# Replaying a chunk whose code has changed since its results were saved is an
-# error rather than a silent mismatch between the code shown and its output.
+# Replaying a chunk whose header or code has changed since its results were
+# saved is an error when `BARTISAN_VIGNETTES` is set to "replay", as
+# `_dev/check.sh` sets it, so that a local check catches results that were not
+# refreshed. Where the mode is only implied, as on CRAN, it is a warning and the
+# saved output is still used: a false alarm there would fail the build, which
+# costs more than a stale chunk would.
 #
 # Inline code that needs a fitted object is wrapped in `saved_value("key",
 # expr)`: a run evaluates `expr` and stores the value under `key`, and a replay
@@ -32,18 +36,19 @@ local({
   dir <- file.path("results", name)
   index_file <- file.path(dir, "saved.rds")
 
+  mode <- Sys.getenv("BARTISAN_VIGNETTES")
   run <- {
-    mode <- Sys.getenv("BARTISAN_VIGNETTES")
     if (nzchar(mode)) identical(mode, "run")
     else identical(tolower(Sys.getenv("NOT_CRAN")), "true")
   }
+  strict <- identical(mode, "replay")
 
-  # The chunks' code hashes and the inline values. A run starts from nothing, so
-  # that whatever a chunk no longer produces is not carried over.
+  # Each chunk's header and code, and the inline values. A run starts from
+  # nothing, so that whatever a chunk no longer produces is not carried over.
   state <- new.env()
   state$saved <- {
     if (!run && file.exists(index_file)) readRDS(index_file)
-    else list(chunks = character(), values = list())
+    else list(chunks = list(), values = list())
   }
   state$written <- character()
 
@@ -57,12 +62,25 @@ local({
 
   # The chunk header as written and the code, so that a change to either one
   # invalidates the saved output. The header is known only once the chunk's own
-  # hooks run, not yet when the option hooks do, so both modes hash it there.
-  chunk_hash <- function(code, options) {
-    f <- tempfile()
-    on.exit(unlink(f))
-    writeLines(c(options$params.src, code), f, useBytes = TRUE)
-    unname(tools::md5sum(f))
+  # hooks run, not yet when the option hooks do, so both modes read it there.
+  #
+  # Compared as text, in UTF-8 and without line endings or trailing space, and
+  # never through a file: an MD5 of the lines as `writeLines()` wrote them was
+  # different on Windows, where a file written in text mode ends its lines in
+  # "\r\n", so every chunk saved here read as changed there.
+  chunk_source <- function(code, options) {
+    x <- enc2utf8(c(options$params.src, code))
+    Encoding(x) <- "UTF-8"
+    x <- sub("[[:space:]]+$", "", x)
+    x[nzchar(x)]
+  }
+
+  first_difference <- function(saved, now) {
+    n <- max(length(saved), length(now))
+    i <- which(vapply(seq_len(n), function(k) {
+      !identical(saved[k], now[k])
+    }, logical(1L)))[1L]
+    sprintf("line %d, saved \"%s\", now \"%s\"", i, saved[i], now[i])
   }
 
   save_index <- function() {
@@ -108,7 +126,7 @@ local({
 
     label <- options$label
 
-    if (is.na(state$saved$chunks[label])) {
+    if (is.null(state$saved$chunks[[label]])) {
       stop(sprintf("No saved output for chunk '%s' of vignette '%s'. Render it with BARTISAN_VIGNETTES=run.",
                    label, name), call. = FALSE)
     }
@@ -129,10 +147,10 @@ local({
     options
   })
 
-  # In a run, every chunk with the option set is recorded with its hash and an
-  # empty snippet, which the chunk hook overwrites when there is output; it is
-  # called after this. In a replay, the saved output is refused before it is
-  # printed if the chunk is no longer the one that made it.
+  # In a run, every chunk with the option set is recorded with its source and
+  # an empty snippet, which the chunk hook overwrites when there is output; it
+  # is called after this. In a replay, a chunk that is no longer the one that
+  # made its saved output is reported before that output is printed.
   knitr::knit_hooks$set(saved = function(before, options, envir) {
     if (!isTRUE(options$saved)) {
       return(NULL)
@@ -144,14 +162,21 @@ local({
       file <- file.path(dir, paste0(label, ".md"))
       file.create(file)
       state$written <- c(state$written, basename(file))
-      state$saved$chunks[label] <- chunk_hash(options$code, options)
+      state$saved$chunks[[label]] <- chunk_source(options$code, options)
       save_index()
     }
-    else if (!run && before &&
-             !identical(unname(state$saved$chunks[label]),
-                        chunk_hash(options$saved_code, options))) {
-      stop(sprintf("The saved output for chunk '%s' of vignette '%s' was made from different code. Render it with BARTISAN_VIGNETTES=run.",
-                   label, name), call. = FALSE)
+    else if (!run && before) {
+      saved <- state$saved$chunks[[label]]
+      now <- chunk_source(options$saved_code, options)
+
+      if (!identical(saved, now)) {
+        msg <- sprintf("The saved output for chunk '%s' of vignette '%s' was made from different code (%s). Render it with BARTISAN_VIGNETTES=run.",
+                       label, name, first_difference(saved, now))
+        if (strict) {
+          stop(msg, call. = FALSE)
+        }
+        warning(msg, call. = FALSE)
+      }
     }
 
     NULL

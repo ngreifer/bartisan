@@ -333,6 +333,14 @@ Three smaller things the check also had to get right. Knitting evaluates the inl
 
 The line at about a minute falls between comparison (63 to 72 seconds) and varying (47 to 53), the widest gap below diagnostics and effects in the quiet runs. Diagnostics, effects and comparison stay precomputed. Bartisan, varying and causal are plain `.Rmd` again, restored by `git mv` from their `.Rmd.orig` sources, which were byte-identical to the files committed before the precompute, and their seven figures are gone from `vignettes/figures/`. All three rendered cleanly live in the timing run. Eight vignettes are now live, about 185 seconds together on a quiet machine; the three precomputed would add about 280 if they were live. Comparison is the closest case, and moving it back is the same two commands.
 
+## The saved-results staleness check failed on Windows (2026-10-05)
+
+win-builder (R-devel, Windows) refused every replayed chunk as "made from different code". The check compared an MD5 of each chunk's header and code, taken by writing them to a temporary file with `writeLines()`, and on Windows a file written in text mode ends its lines in "\r\n" where macOS writes "\n", so no chunk saved here could match there. It was bound to fail on the first Windows check, and the toy tests, all on macOS, could not see it.
+
+Fixed in `vignettes/saved-results.R` by comparing the text instead: `saved.rds` keeps each chunk's header and code, in UTF-8 with trailing whitespace and blank lines dropped, and nothing in the comparison goes through a file. A mismatch now names the first line that differs. It is an error only when `BARTISAN_VIGNETTES=replay` is set explicitly, which `_dev/check.sh` now does unless told otherwise, and a warning where the mode is only implied, as on CRAN, where a false alarm would fail the build and a stale chunk would only show old output.
+
+Checked on macOS: run and replay pages still identical on the toy vignette and on all three real ones (`just vignettes`, which also rewrote the three `saved.rds` files in the new form); the toy and the three real vignettes converted to Windows line endings replay strictly without complaint; an edited chunk errors in strict mode with the line named, and in the default mode warns and shows exactly the saved run's page. What these cannot show is Windows itself, which the next win-builder run will.
+
 ## The heavy vignettes keep saved results instead of precomputed sources (2026-10-05)
 
 The `.Rmd.orig` arrangement of 2026-10-02 is gone, at the maintainer's request: each vignette is one `.Rmd` again, and the three heavy ones (diagnostics, effects, comparison) keep a folder of saved results, `vignettes/results/<name>/`. `vignettes/saved-results.R`, sourced from each one's setup chunk, does the work through knitr hooks, chunk by chunk, with the chunk option `saved = TRUE` set for everything after setup:
