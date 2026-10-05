@@ -172,7 +172,7 @@ _dev/did/*
 !_dev/zi-draws.R
 !_dev/poisson-paths.R
 !_dev/bandwidth-step-floor.R
-!_dev/precompute-vignettes.R
+!_dev/refresh-vignettes.R
 !_dev/precompute-which.R
 !_dev/test-timing.R
 !_dev/test-seeds.R

@@ -20,7 +20,23 @@ pre code {word-wrap: normal; white-space: pre;}
 </style>
 ```
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.2, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 4)
 
+has_loo <- rlang::is_installed("loo")
+has_rstanarm <- rlang::is_installed("rstanarm")
+has_surv <- rlang::is_installed("survival")
+
+run <- has_loo
+
+# The fits below take minutes, so their output is saved when the code runs and
+# replayed where it does not, as on CRAN; see saved-results.R.
+source("saved-results.R", local = knitr::knit_global())
+knitr::opts_chunk$set(saved = TRUE)
+```
 
 ## Introduction
 
@@ -34,8 +50,7 @@ With `glm()`, we choose which terms enter, whether to add a squared term, and wh
 
 In this guide we will compare those choices using leave-one-out cross-validation. First we'll fit a model to the `rhc` data and read its `loo()` output, including the diagnostics that say when the approximation cannot be trusted, and the two forms of cross-validation to fall back on when it cannot. Next we'll compare two sets of variables and then two links, cover the families whose log densities are on different scales and what to do when comparing them, and compare a logistic BART model to a Bayesian logistic regression. Finally we'll cover how to tune a setting and how to select variables.
 
-
-``` r
+```{r libs, eval = run}
 library(bartisan)
 library(loo)
 
@@ -55,22 +70,8 @@ The fits here use the default single chain for brevity; leave-one-out needs draw
 
 Leave-one-out cross-validation scores a model by how well it predicts each observation from a fit that did not see it: the model is fit to every observation but one, the log predictive density of the held-out outcome is recorded, and the sum over observations, the expected log pointwise predictive density (ELPD), measures how well the model predicts new data. Done literally, that takes one refit per observation. `loo()` approximates it from the single fit we already have by Pareto-smoothed importance sampling [@vehtari2017]. Leaving out observation $i$ changes the posterior only through that observation's likelihood, so reweighting each posterior draw by the inverse of its likelihood for $y_i$ turns draws from the full posterior into approximate draws from the posterior without $i$. Pareto smoothing stabilizes the largest of those weights, and the Pareto $k$ diagnostic below reports how heavy their tail is. All `loo()` needs is the log likelihood of every observation at every draw, which is why it takes seconds rather than a refit per observation.
 
-
-``` r
+```{r loo, eval = run}
 loo(full)
-#> 
-#> Computed from 800 by 1500 log-likelihood matrix.
-#> 
-#>          Estimate   SE
-#> elpd_loo   -847.6 17.3
-#> p_loo        35.7  1.0
-#> looic      1695.2 34.6
-#> ------
-#> MCSE of elpd_loo is 0.5.
-#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.0, 0.5]).
-#> 
-#> All Pareto k estimates are good (k < 0.66).
-#> See help('pareto-k-diagnostic') for details.
 ```
 
 `elpd_loo` reports the leave-one-out ELPD, with higher values being better. `looic` is the same measure multiplied by -2 to be on the deviance scale.
@@ -83,8 +84,7 @@ The Pareto $k$ diagnostics are worth checking: the leave-one-out approximation b
 
 When high Pareto $k$ values are observed, the posterior importance sampling approximation to leave-one-out cross-validation can be inaccurate. An alternative is to use k-fold cross-validation, which avoids this approximation but requires refitting the model several times, which can be computationally expensive. K-fold cross-validation involves splitting the sample into $K$ parts, fitting the model $K$ times (leaving out one fold each time), and using that fold to compute the log likelihood contribution of each unit. This can be done using `loo::kfold()`:
 
-
-``` r
+```{r kfold, eval = run}
 set.seed(2026)
 
 # K = 5 here; more is better but slower
@@ -94,13 +94,6 @@ folds <- kfold_split_random(K = 5, N = nrow(rhc))
 kfold_full <- kfold(full, folds = folds)
 
 kfold_full
-#> 
-#> Based on 5-fold cross-validation.
-#> 
-#>            Estimate   SE
-#> elpd_kfold   -843.5 17.0
-#> p_kfold        31.5  2.0
-#> kfoldic      1686.9 33.9
 ```
 
 `kfold()` produces results that can be interpreted like those from `loo()`, but without relying on the importance sampling approximation. When the outcome is rare enough that a random split could leave a fold with no events in it, `kfold_split_stratified()` can be used instead of `kfold_split_random()` to assign the folds instead.
@@ -109,17 +102,13 @@ kfold_full
 
 We can compare the fit of two models by supplying their `loo()` or `kfold()` output to `loo_compare()`. Below, we fit a model that only includes demographic variables as predictors to compare to our full model.
 
-
-``` r
+```{r compare, eval = run}
 set.seed(2026)
 demographics <- bartisan(death ~ rhc + age + sex + race + edu,
                          data = rhc, family = binomial())
 
 loo_compare(list(full         = loo(full),
                  demographics = loo(demographics)))
-#>         model elpd_diff se_diff p_worse diag_diff diag_elpd
-#>          full       0.0     0.0      NA                    
-#>  demographics     -67.9    11.2    1.00
 ```
 
 The full model predicts better by around six times the standard error of the difference. The standard error is the important half: a difference of many standard errors is clear, and a difference smaller than its own standard error is not evidence of anything.
@@ -128,15 +117,11 @@ The full model predicts better by around six times the standard error of the dif
 
 When using k-fold cross-validation for model comparison instead of the importance sampling approximation, it's important that the same folds are used across fits so that each model is scored on the same split, which makes them comparable. We can then supply the `kfold()` output to `loo_compare()` to compare the models.
 
-
-``` r
+```{r kfoldcompare, eval = run}
 kfold_demographics <- kfold(demographics, folds = folds)
 
 loo_compare(list(full         = kfold_full,
                  demographics = kfold_demographics))
-#>         model elpd_diff se_diff p_worse diag_diff diag_elpd
-#>          full       0.0     0.0      NA                    
-#>  demographics     -72.3    10.9    1.00
 ```
 
 Here, we find the same reading as before, consistent with the Pareto $k$ diagnostics's indication that the approximation is valid. 
@@ -147,16 +132,12 @@ This is the right way to ask whether a set of variables earns its place, and it 
 
 Another model choice is the likelihood. For a binary outcome, the family is settled, and what remains is the link (i.e., the function that maps the forest's output onto a probability). Below we compare a probit BART model to our original logistic BART model.
 
-
-``` r
+```{r links, eval = run}
 set.seed(2026)
 probit <- bartisan(model, data = rhc, family = binomial("probit"))
 
 loo_compare(list(logit  = loo(full),
                  probit = loo(probit)))
-#>   model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>   logit       0.0     0.0      NA                          
-#>  probit      -0.2     1.0    0.60 |elpd_diff| < 4
 ```
 
 The two are within a point of each other, and the differences are smaller than their standard errors, which *loo* flags directly. The reading is that the link does not matter here.
@@ -169,35 +150,17 @@ Often it is a good idea to compare a flexible model to a more easily interpretab
 
 The comparison has to be like for like, which means both models have to produce a pointwise log density of the same outcome on the same scale. Fitting the regression in a Bayesian framework arranges that: *rstanarm* fits it with `stan_glm()` and gives it a `loo()` method, and the resulting object goes into `loo_compare()` beside ours.
 
-
-``` r
+```{r stanglm, eval = run && has_rstanarm}
 # Fit a Bayesian logistic GLM
 logistic <- rstanarm::stan_glm(model, data = rhc, family = binomial(),
                                chains = 4, refresh = 0, seed = 2026)
 
 loo(logistic)
-#> 
-#> Computed from 4000 by 1500 log-likelihood matrix.
-#> 
-#>          Estimate   SE
-#> elpd_loo   -844.9 18.4
-#> p_loo        16.6  0.6
-#> looic      1689.7 36.8
-#> ------
-#> MCSE of elpd_loo is 0.1.
-#> MCSE and ESS estimates assume independent draws (r_eff=1).
-#> 
-#> All Pareto k estimates are good (k < 0.7).
-#> See help('pareto-k-diagnostic') for details.
 ```
 
-
-``` r
+```{r stancompare, eval = run && has_rstanarm}
 loo_compare(list(bart     = loo(full),
                  logistic = loo(logistic)))
-#>     model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>  logistic       0.0     0.0      NA                          
-#>      bart      -2.8     5.0    0.71 |elpd_diff| < 4
 ```
 
 The forest is behind by roughly half a standard error of the difference, which is to say the two predict this outcome equally well[^1]. Nothing was lost by fitting the forest and nothing was gained, and the honest report of that is the one above: the flexible model was tried and did not find anything the linear one missed.
@@ -208,8 +171,7 @@ The forest is behind by roughly half a standard error of the difference, which i
 
 The number of trees, `k`, and the gate should not be chosen by cross-validation as a matter of routine. The priors are chosen so that the defaults work across a wide range of problems, and tuning them typically produces small gains together with an optimistically biased estimate of performance when the same data chose the setting. When there is a reason to tune, the shape of it is a grid fixed in advance. Leave-one-out or K-fold cross-validation can be used to compare the fits:
 
-
-``` r
+```{r tunegrid, eval = run}
 trees <- c(20, 50, 200)
 
 tuned <- lapply(trees, function(n) {
@@ -222,10 +184,6 @@ names(tuned) <- paste0("trees_", trees)
 
 # LOOCV
 loo_compare(lapply(tuned, loo))
-#>      model elpd_diff se_diff p_worse       diag_diff diag_elpd
-#>  trees_200       0.0     0.0      NA                          
-#>   trees_50       0.0     1.2    0.51 |elpd_diff| < 4          
-#>   trees_20      -2.2     2.0    0.87 |elpd_diff| < 4
 
 # K-fold CV
 # loo_compare(lapply(tuned, kfold, folds = folds))
@@ -245,8 +203,7 @@ In this case, nothing separates them: the differences are a couple of points at 
 
 The accelerated failure time families (`weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()`, and `dpm_aft()`) model the log of the survival time, and `ph()` models the time itself. When a comparison includes both kinds, `scale = "time"` should be supplied to every call to `loo()`, which puts each model on the scale of the time. A fit already on that scale is returned unchanged, so the same argument can be given to every model in the comparison. Below, we compare a log-normal accelerated failure time model with a proportional hazards model for the survival outcome in `rhc`:
 
-
-``` r
+```{r survfits, eval = run && has_surv}
 library(survival)
 
 surv_model <- Surv(days, death) ~ age + sex + race + edu +
@@ -260,9 +217,6 @@ prop_haz <- bartisan(surv_model, data = rhc, family = ph())
 
 loo_compare(list(aft = loo(aft,      scale = "time"),
                  ph  = loo(prop_haz, scale = "time")))
-#>  model elpd_diff se_diff p_worse diag_diff       diag_elpd
-#>     ph       0.0     0.0      NA           1 k_psis > 0.66
-#>    aft     -90.0    15.4    1.00
 ```
 
 The proportional hazards model predicts these survival times better, by about 90 points with a standard error of 15. The flag in the last column says that one of the pointwise estimates for `ph()` is unreliable (see the section on failures of the approximation above); however, with a difference of nearly six standard errors, it does not change the reading.

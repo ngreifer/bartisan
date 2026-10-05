@@ -20,7 +20,24 @@ pre code {word-wrap: normal; white-space: pre;}
 </style>
 ```
 
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.0, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 3)
 
+has_post <- rlang::is_installed("posterior")
+has_me <- rlang::is_installed("marginaleffects")
+has_bp <- rlang::is_installed("bayesplot")
+has_loo <- rlang::is_installed("loo") && rlang::is_installed("rstantools")
+has_rst <- rlang::is_installed("rstantools")
+run <- TRUE
+
+# The fits below take minutes, so their output is saved when the code runs and
+# replayed where it does not, as on CRAN; see saved-results.R.
+source("saved-results.R", local = knitr::knit_global())
+knitr::opts_chunk$set(saved = TRUE)
+```
 
 ## Introduction
 
@@ -42,8 +59,7 @@ the binary case in which those checks are weak, residuals, and a Bayesian $R^2$.
 A short checklist at the end collects what we recommend running before reporting
 anything from a fit.
 
-
-``` r
+```{r libs, eval = run}
 library(bartisan)
 
 # For parallelization; optional
@@ -68,66 +84,8 @@ fit <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
 says which of them fall short, and says what to do about each. Everything it
 reports comes from the stored draws, so it needs no other package.
 
-
-``` r
+```{r diagnose, eval = run}
 diagnose(fit)
-#> Convergence and mixing
-#> 
-#>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.04      1.04      121      737
-#>                           splits.eta 1.03      1.05      322      549
-#>  eta.eta (average over observations) 1.00      1.01     1579     2695
-#>   eta.eta (worst 5% of observations) 1.02      1.03      288      802
-#>       bandwidth (average over trees) 1.01      1.01      645     1291
-#>        bandwidth (worst 5% of trees) 1.02      1.05      258      345
-#> 
-#> ✔ 4 chains, 3200 draws kept in total
-#> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 121 effective draws, where 4 chains average 1.033
-#>   even when they agree
-#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
-#>   draws alone as well
-#> ✖ The chains disagree about how many splitting rules the forest has (R-hat
-#>   1.03)
-#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.02)
-#> ✖ Bulk ESS is 121 for loglik, below 400
-#> ✔ Tail ESS is at least 737 for every reported quantity, above 400
-#> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.01, 645 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 3.8 effective draws
-#>   per hundred kept
-#> 
-#> What to do
-#> 
-#> • Raise `num_draws`, which was 800. R-hat is above the threshold for a quantity
-#>   that carries too few effective draws for the threshold to mean anything: with
-#>   this many chains it would sit about where it does even if the chains agreed
-#>   exactly, as the check above reports. A larger effective sample size makes it
-#>   readable, and that grows with the total number of draws; using fewer chains
-#>   lowers the bar as well, since R-hat's null rises with the number of chains
-#>   being compared.
-#> • If that does not settle it, reduce `num_trees`, which was 50. A smaller
-#>   forest has fewer ways to represent the same fit, so the sampler has less room
-#>   to move between them.
-#> • Then check the family. A likelihood that fits the data badly can give a
-#>   posterior with no single place to be; `bayesplot::pp_check()` is the
-#>   diagnostic.
-#> • The forest's own size is a different kind of failure from the others and does
-#>   not take the same advice. A sum of trees represents one function through many
-#>   different partitions, so two chains can agree about every fitted value while
-#>   disagreeing about how many rules they used to get there, and the quantities a
-#>   fit reports are integrals over that structure. Raising `num_draws` moves this
-#>   row slowly and may not clear the threshold at any affordable length. Act on
-#>   it when split counts are themselves what gets reported --
-#>   `variable_importance()` and `vignette("importance")` -- and not when fitted
-#>   values, predictions or effects are.
-#> • Note that the chains disagree about the fitted values of individual
-#>   observations and not about their average, which is the usual shape of this in
-#>   a forest. What that means for an estimand cannot be read off this table
-#>   either way, since an estimand is a contrast and a contrast can mix badly
-#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
-#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
-#>   draws to `posterior::summarise_draws()` for anything else.
 ```
 
 The rest of this section explains what it reports and why, which is worth
@@ -232,8 +190,7 @@ not a question the `eta` rows can answer; `splits.*` is the row that asks it.
 On harder problems this shows up clearly. Below we fit the Friedman function,
 first with a chain far too short and then at the defaults.
 
-
-``` r
+```{r friedmanbad}
 set.seed(3)
 fr <- as.data.frame(matrix(runif(400 * 10), 400, 10))
 names(fr) <- paste0("x", 1:10)
@@ -245,22 +202,6 @@ too_short <- bartisan(y ~ ., fr, family = gaussian(), chains = 4,
                                                  num_draws = 50))
 
 diagnose(too_short)$table
-#>                              quantity rhat rhat_late ess_bulk ess_tail ess_frac
-#> 1                              loglik 3.11      3.32     5.59     14.4   0.0279
-#> 2                           aux.sigma 2.56      2.30     5.92     25.4   0.0296
-#> 3                          splits.eta 1.64      1.72     8.12     32.2   0.0406
-#> 4 eta.eta (average over observations) 1.00      1.04   223.53    236.8   1.1177
-#> 5  eta.eta (worst 5% of observations) 1.96      2.11     6.83     17.4   0.0342
-#> 6      bandwidth (average over trees) 1.15      1.48    19.84    108.4   0.0992
-#> 7       bandwidth (worst 5% of trees) 3.19      3.79     5.69     11.4   0.0284
-#>   rhat_bad late_bad
-#> 1        1        1
-#> 2        1        1
-#> 3        1        1
-#> 4        0        1
-#> 5        1        1
-#> 6        1        1
-#> 7        1        1
 ```
 
 Almost everything is bad. Every `rhat` but the average over observations is
@@ -273,27 +214,10 @@ early draws does not fix it, so this is not a warmup that ended too soon but
 chains that have each settled somewhere different. Nothing from this fit should
 be used.
 
-
-``` r
+```{r friedmangood}
 long_enough <- bartisan(y ~ ., fr, family = gaussian(), chains = 4)
 
 diagnose(long_enough)$table
-#>                              quantity rhat rhat_late ess_bulk ess_tail ess_frac
-#> 1                              loglik 1.08      1.05     45.6    160.7  0.01424
-#> 2                           aux.sigma 1.02      1.01    319.3   1324.8  0.09977
-#> 3                          splits.eta 1.10      1.17     31.5    188.4  0.00983
-#> 4 eta.eta (average over observations) 1.00      1.00   3357.2   3015.1  1.04912
-#> 5  eta.eta (worst 5% of observations) 1.17      1.22     16.3     70.0  0.00511
-#> 6      bandwidth (average over trees) 1.07      1.17     76.7    236.9  0.02398
-#> 7       bandwidth (worst 5% of trees) 1.34      1.45     11.1     30.4  0.00348
-#>   rhat_bad late_bad
-#> 1    1.000    1.000
-#> 2    1.000    0.000
-#> 3    1.000    1.000
-#> 4    0.000    0.000
-#> 5    0.993    0.995
-#> 6    1.000    1.000
-#> 7    1.000    1.000
 ```
 
 Everything has improved by a large factor, and the residual standard deviation
@@ -305,8 +229,7 @@ longer, and adding draws does not reliably remove it.
 When the `eta` row is elevated, the distribution behind it is more informative
 than the maximum:
 
-
-``` r
+```{r perobs, eval = run && has_post}
 per_observation_rhat <- function(fit) {
   draws <- fit$eta$eta
   per <- nrow(draws) / fit$chains
@@ -317,8 +240,6 @@ per_observation_rhat <- function(fit) {
 }
 
 round(quantile(per_observation_rhat(fit), c(0.5, 0.9, 0.99, 1)), 3)
-#>  50%  90%  99% 100% 
-#> 1.01 1.02 1.03 1.04
 ```
 
 The median is a little above 1 and so is most of the distribution, so the
@@ -339,39 +260,19 @@ answer is more draws or a simpler model.
 `as_draws()` hands the fit to *posterior* and *bayesplot*. It carries the
 scalar parameters and a representative set of `eta` columns.
 
-
-``` r
+```{r summarise, eval = run && has_post}
 library(posterior)
 
 as_draws(fit) |>
   summarise_draws()
-#> # A tibble: 12 × 10
-#>    variable         mean   median     sd    mad       q5      q95  rhat ess_bulk
-#>    <chr>           <dbl>    <dbl>  <dbl>  <dbl>    <dbl>    <dbl> <dbl>    <dbl>
-#>  1 loglik       -8.28e+2 -8.28e+2 5.94   6.06   -8.38e+2 -818.     1.04    121. 
-#>  2 sigma_mu.eta  2.49e-1  2.49e-1 0.0396 0.0414  1.87e-1    0.315  1.15     18.7
-#>  3 eta[119]     -1.65e+0 -1.65e+0 0.398  0.402  -2.30e+0   -0.998  1.02    307. 
-#>  4 eta[441]     -4.21e-1 -4.18e-1 0.343  0.335  -9.79e-1    0.144  1.02    497. 
-#>  5 eta[459]     -1.04e-2 -1.50e-2 0.333  0.335  -5.48e-1    0.536  1.00    735. 
-#>  6 eta[180]      2.97e-1  3.00e-1 0.391  0.388  -3.59e-1    0.926  1.01    270. 
-#>  7 eta[70]       5.97e-1  5.95e-1 0.371  0.368   2.35e-3    1.21   1.01    710. 
-#>  8 eta[639]      9.05e-1  9.08e-1 0.365  0.358   3.13e-1    1.50   1.01    492. 
-#>  9 eta[1063]     1.29e+0  1.28e+0 0.355  0.348   7.23e-1    1.87   1.01    515. 
-#> 10 eta[197]      1.66e+0  1.65e+0 0.352  0.345   1.09e+0    2.26   1.01    647. 
-#> 11 eta[760]      2.03e+0  2.02e+0 0.516  0.518   1.20e+0    2.89   1.00    645. 
-#> 12 eta[1135]     3.36e+0  3.33e+0 0.482  0.481   2.63e+0    4.19   1.03    220. 
-#> # ℹ 1 more variable: ess_tail <dbl>
 ```
 
-
-``` r
+```{r trace, eval = run && has_bp, fig.height = 2.6}
 library(bayesplot)
 
 as_draws(fit, eta = 1) |>
   mcmc_trace(pars = c("loglik", "eta[1]"))
 ```
-
-<img src="figures/diagnostics-trace-1.png" alt="" style="display: block; margin: auto;" />
 
 What we want to see is four chains overlapping, wandering around the same level,
 with no drift and no long excursions. Setting `eta = 1` selects the first
@@ -387,8 +288,7 @@ of mixes well, and nothing in the table above will say so.
 
 When estimating a treatment effect, the quantity of interest is produced by `estimate_effect()`, the output of which is accepted by `diagnose()` directly. Below we fit a Bayesian causal forest model to estimate the ATE:
 
-
-``` r
+```{r diagnose_effect, eval = run}
 bcf_fit <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp +
                  hema + pafi + paco2 + crea + surv2m + card,
                treat = ~rhc, data = rhc,
@@ -396,25 +296,6 @@ bcf_fit <- bcf(death ~ age + sex + race + edu + aps + meanbp + resp +
 
 estimate_effect(bcf_fit, estimand = "ATE") |>
   diagnose()
-#> Convergence and mixing
-#> 
-#>     quantity rhat rhat_late ess_bulk ess_tail
-#>  Y[1] - Y[0] 1.01      1.01      410     1041
-#>         Y[0] 1.00      1.00      754     1661
-#>         Y[1] 1.00      1.02      367      976
-#> 
-#> ✔ 4 chains, 3200 draws kept in total
-#> ✔ R-hat is below 1.01 for every reported quantity
-#> ✔ Warmup was long enough, since R-hat is already fine
-#> ✖ Bulk ESS is 367 for Y[1], below 400
-#> ✔ Tail ESS is at least 976 for every reported quantity, above 400
-#> 
-#> What to do
-#> 
-#> • Raise `num_draws`, which was 800. The chains agree and are stationary, so
-#>   they simply have not run long enough. Do not reach for `num_thin`: thinning
-#>   discards draws already paid for and lowers the effective sample size per unit
-#>   of time.
 ```
 
 The output has a row for the contrast and one for each of the two average
@@ -426,33 +307,8 @@ contrast alone.
 
 Now compare what the fit's own table says about the same sampler:
 
-
-``` r
+```{r diagnose_bcf_fit, eval = run}
 diagnose(bcf_fit)$table
-#>                                       quantity rhat rhat_late ess_bulk ess_tail
-#> 1                                       loglik 1.06      1.06     51.6    360.7
-#> 2                                  aux.b.rhc.0 1.07      1.31     48.0     82.5
-#> 3                                  aux.b.rhc.1 1.14      1.31     21.4     73.6
-#> 4                           splits.(Intercept) 1.03      1.02    223.0    537.7
-#> 5                                   splits.rhc 1.01      1.01    315.4    655.8
-#> 6  eta.(Intercept) (average over observations) 1.23      1.61     12.8     31.8
-#> 7   eta.(Intercept) (worst 5% of observations) 1.16      1.41     18.0     36.6
-#> 8          eta.rhc (average over observations) 1.20      1.40     14.1     40.3
-#> 9           eta.rhc (worst 5% of observations) 1.20      1.37     15.3     30.1
-#> 10              bandwidth (average over trees) 1.01      1.01    656.7   1161.7
-#> 11               bandwidth (worst 5% of trees) 1.02      1.04    274.3    312.9
-#>    ess_frac rhat_bad late_bad
-#> 1   0.01611    1.000    1.000
-#> 2   0.01499    1.000    1.000
-#> 3   0.00669    1.000    1.000
-#> 4   0.06969    1.000    1.000
-#> 5   0.09857    0.000    1.000
-#> 6   0.00401    1.000    1.000
-#> 7   0.00563    0.997    1.000
-#> 8   0.00440    1.000    1.000
-#> 9   0.00477    1.000    1.000
-#> 10  0.20521    0.000    0.000
-#> 11  0.08573    0.307    0.747
 ```
 
 The two forests are far worse than the estimand. Their R-hats run from 1.2 to
@@ -482,8 +338,7 @@ folding it into an iterations-by-chains matrix recovers the structure R-hat
 needs. Below, the quantity is an average comparison computed by
 *marginaleffects*, whose draws come out of `posterior_draws()`:
 
-
-``` r
+```{r me_draws, eval = run && has_me && has_post}
 library(marginaleffects)
 
 drawn <- avg_comparisons(fit, variables = "rhc") |>
@@ -498,10 +353,6 @@ folded <- array(drawn$draw, dim = c(per_chain, chains, 1L),
 folded |>
   as_draws_array() |>
   summarise_draws("mean", "rhat", "ess_bulk", "ess_tail")
-#> # A tibble: 1 × 5
-#>   variable   mean  rhat ess_bulk ess_tail
-#>   <chr>     <dbl> <dbl>    <dbl>    <dbl>
-#> 1 ATE      0.0621  1.00    1872.    2645.
 ```
 
 The same statistics `diagnose()` reports, computed by a different route on a
@@ -543,61 +394,13 @@ seeing how far it goes on its own. Below, a fit that fails and then the same
 model run longer; the formula, the family, the tree count and every prior setting
 are identical between the two, and only `num_burn` and `num_draws` move.
 
-
-``` r
+```{r mixmodel, eval = run}
 model <- death ~ rhc + age + aps + meanbp + surv2m
 
 set.seed(2026)
 short <- bartisan(model, data = rhc, family = binomial(), chains = 4)
 
 diagnose(short)
-#> Convergence and mixing
-#> 
-#>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.04      1.11       85      277
-#>                           splits.eta 1.00      1.02      349      444
-#>  eta.eta (average over observations) 1.00      1.00     1809     2614
-#>   eta.eta (worst 5% of observations) 1.02      1.03      343      676
-#>       bandwidth (average over trees) 1.01      1.01      481     1126
-#>        bandwidth (worst 5% of trees) 1.02      1.03      338      349
-#> 
-#> ✔ 4 chains, 3200 draws kept in total
-#> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 85 effective draws, where 4 chains average 1.047
-#>   even when they agree
-#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
-#>   draws alone as well
-#> ✔ The chains agree about the size of the forest
-#> ✖ The chains disagree about how wide the decision rules are (R-hat 1.02)
-#> ✖ Bulk ESS is 85 for loglik, below 400
-#> ✖ Tail ESS is 277 for loglik, below 400
-#> ℹ The chains disagree about individual observations and agree about their
-#>   average (R-hat 1.01, 481 effective draws)
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 2.6 effective draws
-#>   per hundred kept
-#> 
-#> What to do
-#> 
-#> • Raise `num_draws`, which was 800. R-hat is above the threshold for a quantity
-#>   that carries too few effective draws for the threshold to mean anything: with
-#>   this many chains it would sit about where it does even if the chains agreed
-#>   exactly, as the check above reports. A larger effective sample size makes it
-#>   readable, and that grows with the total number of draws; using fewer chains
-#>   lowers the bar as well, since R-hat's null rises with the number of chains
-#>   being compared.
-#> • If that does not settle it, reduce `num_trees`, which was 50. A smaller
-#>   forest has fewer ways to represent the same fit, so the sampler has less room
-#>   to move between them.
-#> • Then check the family. A likelihood that fits the data badly can give a
-#>   posterior with no single place to be; `bayesplot::pp_check()` is the
-#>   diagnostic.
-#> • Note that the chains disagree about the fitted values of individual
-#>   observations and not about their average, which is the usual shape of this in
-#>   a forest. What that means for an estimand cannot be read off this table
-#>   either way, since an estimand is a contrast and a contrast can mix badly
-#>   where the function it contrasts mixes well. Compute it: `diagnose()` takes
-#>   the output of `estimate_effect()`, and `posterior::as_draws()` hands the
-#>   draws to `posterior::summarise_draws()` for anything else.
 ```
 
 Several things are flagged. `rhat` is above the threshold, and the check under it
@@ -610,50 +413,11 @@ model.
 
 So we run it longer, increasing the burn-in to 2000 and the number of draws per chain to 8000. Nothing else changes, so we can call `update()` on the previous model with our new arguments supplied:
 
-
-``` r
+```{r mixfixed, eval = run}
 set.seed(2026)
 longer <- update(short, num_burn = 2000, num_draws = 8000)
 
 diagnose(longer)
-#> Convergence and mixing
-#> 
-#>                             quantity rhat rhat_late ess_bulk ess_tail
-#>                               loglik 1.02      1.03      208      977
-#>                           splits.eta 1.00      1.00     2710     5914
-#>  eta.eta (average over observations) 1.00      1.00    17037    23899
-#>   eta.eta (worst 5% of observations) 1.01      1.01     1759     3630
-#>       bandwidth (average over trees) 1.00      1.00     5219    10097
-#>        bandwidth (worst 5% of trees) 1.00      1.00     3972     4697
-#> 
-#> ✔ 4 chains, 32000 draws kept in total
-#> ✖ R-hat is above 1.01 for loglik
-#> ✖ That R-hat rests on only 208 effective draws, where 4 chains average 1.019
-#>   even when they agree
-#> ℹ A longer warmup is not the fix: R-hat stays high on the second half of the
-#>   draws alone as well
-#> ✔ The chains agree about the size of the forest
-#> ✔ The chains agree about how wide the decision rules are
-#> ✖ Bulk ESS is 208 for loglik, below 400
-#> ✔ Tail ESS is at least 977 for every reported quantity, above 400
-#> ℹ Per-draw efficiency is lowest for loglik, which carries 0.6 effective draws
-#>   per hundred kept
-#> 
-#> What to do
-#> 
-#> • Raise `num_draws`, which was 8000. R-hat is above the threshold for a
-#>   quantity that carries too few effective draws for the threshold to mean
-#>   anything: with this many chains it would sit about where it does even if the
-#>   chains agreed exactly, as the check above reports. A larger effective sample
-#>   size makes it readable, and that grows with the total number of draws; using
-#>   fewer chains lowers the bar as well, since R-hat's null rises with the number
-#>   of chains being compared.
-#> • If that does not settle it, reduce `num_trees`, which was 50. A smaller
-#>   forest has fewer ways to represent the same fit, so the sampler has less room
-#>   to move between them.
-#> • Then check the family. A likelihood that fits the data badly can give a
-#>   posterior with no single place to be; `bayesplot::pp_check()` is the
-#>   diagnostic.
 ```
 
 Most of it is cleared. The split-count row and both `eta` rows are well past
@@ -699,36 +463,8 @@ Everything else in this section compares the model to the data it was fitted to.
 Some checks are worth running before any of that information has been spent, and
 the first is simply to read the prior back.
 
-
-``` r
+```{r priorsummary, eval = run && has_rst}
 rstantools::prior_summary(fit)
-#> Priors
-#> 
-#> Trees
-#> • 50 trees per additive predictor, summed. A node at depth d branches with
-#>   probability 0.95 * (1 + d)^-2, so the root splits with probability 0.95 and a
-#>   node at depth 3 with 0.059.
-#> 
-#> Leaves
-#> • Each leaf value is Normal(0, 0.212^2), that scale being 3 * s / (2 *
-#>   sqrt(50)) with s the response's scale on the link scale. The scale is itself
-#>   given a half-Cauchy prior centred there and is estimated.
-#> 
-#> Splitting variables
-#> • Each of the 14 predictors is equally likely to be split on, and that is not
-#>   drawn (`sparsity = FALSE`).
-#> 
-#> Decision rules
-#> • Soft, with "smoothstep" gates. Each tree's bandwidth is drawn from an
-#>   exponential with mean 0.1, on predictors mapped to [0, 1], and is estimated.
-#> 
-#> Family: binomial, logit link
-#> • No parameters of its own beyond the additive predictors above.
-#> 
-#> ℹ The leaf scale, and any number above read off the response, are calibrated
-#>   rather than fitted; that is how a BART prior is specified.
-#> ℹ `prior_only = TRUE` in `bartisan()` draws from all of this, so that what it
-#>   implies can be read on the outcome's own scale.
 ```
 
 This is the prior the engine was given rather than the one we wrote, and the two
@@ -751,8 +487,7 @@ Setting `prior_only = TRUE` fits the same model to no data. Every observation is
 weight of zero, and since the weight multiplies that observation's contribution
 to the likelihood, the likelihood goes flat and the sampler draws from the prior.
 
-
-``` r
+```{r prioronly, eval = run}
 set.seed(2026)
 
 prior <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
@@ -765,17 +500,12 @@ that reads a fit reads this one. The question to put to it is whether the risks
 the prior considers plausible are ones a critically ill patient could actually
 have.
 
-
-``` r
+```{r priorquant, eval = run}
 p <- c(.01, .1, .5, .9, .99)
 
 quantile(predict(prior, type = "response", draws = TRUE), p)
-#>      1%     10%     50%     90%     99% 
-#> 0.00534 0.20691 0.65381 0.93274 0.99801
 
 quantile(predict(fit, type = "response", draws = TRUE), p)
-#>    1%   10%   50%   90%   99% 
-#> 0.183 0.365 0.679 0.895 0.952
 ```
 
 The prior runs from about .01 to about .99, as we would want of a prior on a
@@ -800,12 +530,9 @@ likelihood goes flat; `?bartisan` has the details.
 A posterior predictive check simulates outcomes from the fitted model and
 compares their distribution to the observed one.
 
-
-``` r
+```{r ppc, eval = run && has_bp, fig.height = 3.0}
 pp_check(fit)
 ```
-
-<img src="figures/diagnostics-ppc-1.png" alt="" style="display: block; margin: auto;" />
 
 For a continuous outcome this is the workhorse check, and we look for systematic
 differences: replicates that are too narrow, that miss a second mode, or
@@ -831,12 +558,9 @@ quantile, or the share of zeros can each be asked about on its own. The share of
 zeros finds an unmodeled point mass, the case for which
 `vignette("families")` recommends `zi_poisson()` and `tweedie()`.
 
-
-``` r
+```{r ppcstat, eval = run && has_bp, fig.height = 2.6}
 pp_check(fit, type = "stat", stat = "sd")
 ```
-
-<img src="figures/diagnostics-ppcstat-1.png" alt="" style="display: block; margin: auto;" />
 
 **Calibration of the whole predictive distribution** is checked by setting
 `type = "loo_pit_ecdf"`. Each observation is transformed through its own
@@ -845,12 +569,9 @@ is calibrated, and the plot compares the result with one. A curve that leaves
 the band says the predictive spread is wrong even where the mean is right, which
 the default check cannot see.
 
-
-``` r
+```{r ppcloo, eval = run && has_bp && has_loo, fig.height = 2.8}
 pp_check(fit, type = "loo_pit_ecdf")
 ```
-
-<img src="figures/diagnostics-ppcloo-1.png" alt="" style="display: block; margin: auto;" />
 
 **The location of a residual**, rather than its size, is shown by setting
 `type = "error_scatter_avg_vs_x"`: the average residual against a
@@ -871,12 +592,9 @@ The useful question for a binary outcome is whether the predicted probabilities
 mean what they say: among the patients the model gave a 30% chance of dying, did
 about 30% die?
 
-
-``` r
+```{r calibration, eval = run && has_bp && has_loo, fig.height = 3.4}
 pp_check(fit, type = "loo_calibration")
 ```
-
-<img src="figures/diagnostics-calibration-1.png" alt="" style="display: block; margin: auto;" />
 
 A line on the diagonal means the probabilities are calibrated, and this one sits
 close to it across the whole range. The dots along the bottom show where the
@@ -910,12 +628,8 @@ be used instead.
 
 ### The Bayesian R-Squared (`r2()`)
 
-
-``` r
+```{r r2, eval = run && rlang::is_installed("performance")}
 performance::r2(fit)
-#> # Bayesian R2 with Compatibility Interval
-#> 
-#>   Conditional R2: 0.176 (95% CI [0.144, 0.207])
 ```
 
 This is the Bayesian $R^2$ of @gelman2019, computed from the posterior rather
