@@ -88,6 +88,7 @@ predictors, so that what is left is how the prediction moves with them.
 <span>  grid <span class="op">=</span> <span class="fl">26L</span>,</span>
 <span>  values <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  level <span class="op">=</span> <span class="fl">0.95</span>,</span>
+<span>  interval <span class="op">=</span> <span class="st">"eti"</span>,</span>
 <span>  type <span class="op">=</span> <span class="st">"response"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
@@ -142,6 +143,13 @@ message reports which.</p></dd>
 <dd><p><code>numeric</code>; the level of the credible interval. Default is <code>.95</code>.</p></dd>
 
 
+<dt id="arg-interval">interval<a class="anchor" aria-label="anchor" href="#arg-interval"></a></dt>
+<dd><p><code>string</code>; <code>"eti"</code> (the default) for an equal-tailed interval
+from the quantiles of the draws, or <code>"hpdi"</code> for the highest posterior
+density interval, which is the shortest interval containing <code>level</code> of the
+posterior mass.</p></dd>
+
+
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
 <dd><p><code>string</code>; the prediction scale, passed to
 <code><a href="predict.bartisan_fit.html">predict.bartisan_fit()</a></code>. Default is <code>"response"</code>.</p></dd>
@@ -184,8 +192,8 @@ returns a <span class="pkg">ggplot2</span> object.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>At each grid value every unit is assigned that value, the prediction is taken
 for all of them, and the average over units is taken <em>within each posterior
-draw</em>. The interval is then a quantile of those averages, so it is an interval
-on the average prediction and not on any one unit's.</p>
+draw</em>. The interval is then computed from those averages, so it is an
+interval on the average prediction and not on any one unit's.</p>
 <p>The second predictor groups the curves rather than adding an axis, which is
 readable for a factor and for a numeric predictor with a few values, and not
 for a continuous one: <code>grid</code> values of it would give <code>grid</code> curves, each with
@@ -233,8 +241,7 @@ control over the grid</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Partial dependence</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Predictor: <span style="color: #0000BB;">"meanbp"</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over 1500 units, on the</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>            <span style="color: #0000BB;">"response"</span> scale</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over 1500 units, on the <span style="color: #0000BB;">"response"</span> scale</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  meanbp estimate lower upper</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    0.00    0.657 0.615 0.709</span>
@@ -249,7 +256,8 @@ control over the grid</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  213.12    0.636 0.542 0.688</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  222.00    0.636 0.542 0.688</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   them.</span>

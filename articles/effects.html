@@ -371,8 +371,7 @@ average prediction rather than on any one patient’s.
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor: <span style="color: #0000BB;">"aps"</span></span></span>
-<span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
-<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
+<span><span class="co">#&gt; Averaged over 1500 units, on the <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     aps estimate lower upper</span></span>
 <span><span class="co">#&gt;    4.00    0.592 0.491 0.657</span></span>
@@ -387,7 +386,8 @@ average prediction rather than on any one patient’s.
 <span><span class="co">#&gt;  141.28    0.724 0.651 0.812</span></span>
 <span><span class="co">#&gt;  147.00    0.724 0.651 0.812</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
+<span><span class="co">#&gt;   credible interval.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
 <span><span class="co">#&gt;   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span></span>
 <span><span class="co">#&gt;   them.</span></span>
@@ -418,8 +418,7 @@ groups.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictors: <span style="color: #0000BB;">"aps"</span> and <span style="color: #0000BB;">"rhc"</span></span></span>
-<span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
-<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
+<span><span class="co">#&gt; Averaged over 1500 units, on the <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;     aps rhc estimate lower upper</span></span>
 <span><span class="co">#&gt;    4.00   0    0.568 0.460 0.638</span></span>
@@ -434,7 +433,8 @@ groups.</p>
 <span><span class="co">#&gt;  141.28   1    0.759 0.680 0.841</span></span>
 <span><span class="co">#&gt;  147.00   1    0.759 0.680 0.841</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
+<span><span class="co">#&gt;   credible interval.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many</span></span>
 <span><span class="co">#&gt;   rows are shown, half from each end; `print(., n_print = Inf)` shows all of</span></span>
 <span><span class="co">#&gt;   them.</span></span>
@@ -486,15 +486,15 @@ options that may be helpful, but otherwise the syntax is similar.</p>
 <span><span class="co">#&gt; <span style="text-decoration: underline;">Partial dependence</span></span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Predictor: <span style="color: #0000BB;">"aps"</span></span></span>
-<span><span class="co">#&gt; Averaged over 1500 units, on the</span></span>
-<span><span class="co">#&gt;            <span style="color: #0000BB;">"response"</span> scale</span></span>
+<span><span class="co">#&gt; Averaged over 1500 units, on the <span style="color: #0000BB;">"response"</span> scale</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   aps estimate lower upper</span></span>
 <span><span class="co">#&gt;  29.9    0.610 0.552 0.657</span></span>
 <span><span class="co">#&gt;  54.0    0.656 0.623 0.695</span></span>
 <span><span class="co">#&gt;  83.0    0.703 0.649 0.765</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% credible interval on the average prediction.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span></span>
+<span><span class="co">#&gt;   credible interval.</span></span>
 <span></span>
 <span><span class="co"># Uses posterior median by default</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/predictions.html" class="external-link">avg_predictions</a></span><span class="op">(</span><span class="va">fit</span>, variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="va">at</span><span class="op">)</span><span class="op">)</span></span>

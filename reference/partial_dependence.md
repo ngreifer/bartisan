@@ -15,6 +15,7 @@ partial_dependence(
   grid = 26L,
   values = NULL,
   level = 0.95,
+  interval = "eti",
   type = "response",
   ...
 )
@@ -68,6 +69,13 @@ plot(x, y, ...)
 
   `numeric`; the level of the credible interval. Default is `.95`.
 
+- interval:
+
+  `string`; `"eti"` (the default) for an equal-tailed interval from the
+  quantiles of the draws, or `"hpdi"` for the highest posterior density
+  interval, which is the shortest interval containing `level` of the
+  posterior mass.
+
 - type:
 
   `string`; the prediction scale, passed to
@@ -116,7 +124,7 @@ ggplot2 object.
 
 At each grid value every unit is assigned that value, the prediction is
 taken for all of them, and the average over units is taken *within each
-posterior draw*. The interval is then a quantile of those averages, so
+posterior draw*. The interval is then computed from those averages, so
 it is an interval on the average prediction and not on any one unit's.
 
 The second predictor groups the curves rather than adding an axis, which
@@ -171,8 +179,7 @@ pd
 #> Partial dependence
 #> 
 #> Predictor: "meanbp"
-#> Averaged over 1500 units, on the
-#>            "response" scale
+#> Averaged over 1500 units, on the "response" scale
 #> 
 #>  meanbp estimate lower upper
 #>    0.00    0.657 0.615 0.709
@@ -187,7 +194,8 @@ pd
 #>  213.12    0.636 0.542 0.688
 #>  222.00    0.636 0.542 0.688
 #> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
 #> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
 #>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of
 #>   them.

@@ -307,8 +307,7 @@ pd
 #> Partial dependence
 #> 
 #> Predictor: "aps"
-#> Averaged over 1500 units, on the
-#>            "response" scale
+#> Averaged over 1500 units, on the "response" scale
 #> 
 #>     aps estimate lower upper
 #>    4.00    0.592 0.491 0.657
@@ -323,7 +322,8 @@ pd
 #>  141.28    0.724 0.651 0.812
 #>  147.00    0.724 0.651 0.812
 #> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
 #> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
 #>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of
 #>   them.
@@ -364,8 +364,7 @@ pd2
 #> Partial dependence
 #> 
 #> Predictors: "aps" and "rhc"
-#> Averaged over 1500 units, on the
-#>            "response" scale
+#> Averaged over 1500 units, on the "response" scale
 #> 
 #>     aps rhc estimate lower upper
 #>    4.00   0    0.568 0.460 0.638
@@ -380,7 +379,8 @@ pd2
 #>  141.28   1    0.759 0.680 0.841
 #>  147.00   1    0.759 0.680 0.841
 #> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
 #> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
 #>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of
 #>   them.
@@ -446,15 +446,15 @@ partial_dependence(fit, ~ aps, values = list(aps = at))
 #> Partial dependence
 #> 
 #> Predictor: "aps"
-#> Averaged over 1500 units, on the
-#>            "response" scale
+#> Averaged over 1500 units, on the "response" scale
 #> 
 #>   aps estimate lower upper
 #>  29.9    0.610 0.552 0.657
 #>  54.0    0.656 0.623 0.695
 #>  83.0    0.703 0.649 0.765
 #> 
-#> ℹ lower and upper bound the 95% credible interval on the average prediction.
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
 
 # Uses posterior median by default
 avg_predictions(fit, variables = list(aps = at))

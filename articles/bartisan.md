@@ -2,29 +2,30 @@
 
 ## Introduction
 
-*bartisan* fits Bayesian additive regression trees (BART) using the same
-interface as [`glm()`](https://rdrr.io/r/stats/glm.html). We supply a
-formula, a data frame, and a family, and the model estimates the
-relationship between the predictors and the outcome without anything
-being said about what shape that relationship takes. Nonlinearity and
-interactions are found rather than specified.
+*bartisan* fits Bayesian additive regression trees (BART) using a
+similar interface to that of
+[`glm()`](https://rdrr.io/r/stats/glm.html). One supplies a formula, a
+data frame, and a response family, and the model estimates the
+relationship between the predictors and the outcome without requiring
+manual specification of nonlinearities and interactions. Unlike most
+other machine learning models, BART yields a posterior that can be used
+for valid Bayesian inference of any prediction or function thereof from
+the model.
 
-In this guide we will work through a complete analysis. First we’ll fit
-a model and check both that the sampler converged and that the fit
-describes the data. Next we’ll see which predictors the forest uses,
-read the effects off it, and predict for new observations. Finally we’ll
-compare two models and set out what the fit does not do. The guide
-assumes a reader comfortable with regression and assumes nothing about
-machine learning or Bayesian methods.
+In this guide, we will work through a complete analysis at surface
+level. Other vignettes provide more detail on each step. First, we’ll
+fit a model and check both that the sampler converged and that the fit
+describes the data. Next, we’ll see which predictors the forest uses,
+read the effects off it, and predict for new observations. Finally,
+we’ll compare two models and note some limitations of the model. The
+guide assumes a reader comfortable with regression but assumes nothing
+about machine learning or Bayesian methods.
 
-The main thing to take from it is that the defaults are meant to be
-used. The priors, the number of trees, and the sampler settings are
-chosen to work across a wide range of problems, and tuning them is
-rarely where the gains are. Almost everything below is a single function
-call with no arguments beyond the formula and the data.
-
-Most sections point to a vignette that covers the same ground in more
-depth.
+The main thing to take from this guide is that the default settings are
+meant to be used (in general). The priors, the number of trees, and the
+sampler settings are chosen to work across a wide range of problems, and
+tuning them is rarely where the gains are. Almost everything below is a
+single function call with no arguments beyond the formula and the data.
 
 ``` r
 
@@ -33,9 +34,11 @@ library(bartisan)
 
 ### Parallelization and Progress Bars
 
-Using parallelization can speed up fitting
+Before we fit any models, it’s useful to know that using parallelization
+can speed up fitting
 [`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md)
-models with multiple chains. Parallelization is controlled through the
+models with multiple chains (i.e., distinct runs of the same model).
+Parallelization is controlled through the
 [*future*](https://CRAN.R-project.org/package=future) package. To
 request multi-session evaluation, one can simply call the following:
 
@@ -72,11 +75,12 @@ progressr::with_progress(
 
 ## The Data
 
-`rhc` records a random 1500 of the 5735 patients in the SUPPORT study
-and whether each received right heart catheterization, a monitoring
-procedure, within a day of arriving in intensive care ([Connors et al.
-1996](#ref-connors1996)). The question the study asked is whether the
-procedure helps or harms.
+We’ll use the `rhc` dataset that comes with *bartisan* to demonstrate
+its functionality. `rhc` includes a random sample of 1500 of the 5735
+patients in the SUPPORT study and whether each received right heart
+catheterization, a monitoring procedure, within a day of arriving in
+intensive care ([Connors et al. 1996](#ref-connors1996)). The question
+the study asked is whether the procedure helps or harms.
 
 ``` r
 
@@ -124,7 +128,8 @@ model-fitting function, additionally supplying the dataset to `data` and
 the response family to `family`. Because BART involves random processes,
 we must also set a seed using
 [`set.seed()`](https://rdrr.io/r/base/Random.html) to ensure
-reproducibility (though not the `kind` does not matter).
+reproducibility (though note the `kind` does not matter, even with
+parallelization).
 
 ``` r
 
@@ -156,9 +161,9 @@ in which case it is read off the outcome and reported; naming it is
 clearer and silences the message.
 
 The fit uses the default single chain, which is enough for the estimates
-and keeps this guide brief. In a real analysis we would run several
-chains, and possibly change the number of burn-in and retained draws,
-before reading any results;
+and keeps this guide brief. In a real analysis, we would run several
+chains (e.g., by setting `chains = 4`) and possibly change the number of
+burn-in and retained draws before reading any results;
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 explains how to set these fit controls and how to check that they were
 enough.
@@ -168,23 +173,62 @@ than any sampler setting.
 [`vignette("families")`](https://ngreifer.github.io/bartisan/articles/families.md)
 covers the choice, and
 [`vignette("survival")`](https://ngreifer.github.io/bartisan/articles/survival.md)
-covers censored outcomes such as this one’s `days`.
+covers censored outcomes such as the `days` variable in `rhc`.
 
 The other decision worth knowing about is the shape of the decision
-rules. By default a rule is soft, so an observation near a split
+rules. By default, a rule is soft, so an observation near a split
 contributes to both sides of it and the fitted function comes out smooth
 rather than piecewise constant; the `gate` argument of
 [`bartisan_control()`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-switches to the hard rules of standard BART, which fit faster but less
-accurately.
-[`vignette("implementation")`](https://ngreifer.github.io/bartisan/articles/implementation.md)
-has the comparison.
+can be used to switch to the hard rules of standard BART, which fit
+faster but less accurately.
+
+Calling [`summary()`](https://rdrr.io/r/base/summary.html) on the output
+gives a summary of the convergence and variable importance:
+
+``` r
+
+summary(fit)
+#> Convergence and mixing
+#> 
+#> Log likelihood: R-hat 1.039, bulk ESS 95, tail ESS 187, over 1 chain
+#> 
+#> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
+#>   diagnostics.
+#> 
+#> Variable importance
+#> 
+#> Predictors ranked by use; 5 of 14 shown.
+#>  variable prop_used prop_splits splits
+#>    surv2m         1       0.116    8.5
+#>       age         1       0.089    6.5
+#>     paco2         1       0.073    5.4
+#>       rhc         1       0.070    5.1
+#>      pafi         1       0.069    5.1
+#> 
+#> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
+#>   variable importance.
+#> 
+#> Further tools
+#> 
+#> ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or
+#>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k
+#>   values above 0.7.
+#> ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()
+#>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the
+#>   predictions on a predictor.
+```
+
+This output is not as meaningful as the full checks, which we describe
+below.
 
 ## Checking the Model
 
 In a Bayesian analysis, one must first determine whether the sampler
-converged before moving forward with a model’s results. Separately, one
-should assess whether the model is a good fit to the data.
+converged before moving forward with interpreting a model’s results.
+Separately, one should assess whether the model is a good fit to the
+data. These steps go together because a poorly fitting model will often
+take longer to converge.
 
 ### Convergence
 
@@ -258,20 +302,24 @@ chains that have each settled somewhere different. `ess_bulk` and
 draws the correlated ones are worth, in the middle of the distribution
 and in the tails.
 
-Read the rows that correspond to the quantities being reported.
-`eta.eta` is the fitted function and appears twice, once averaged over
-the observations and once over the worst 5% of them; the second governs
-a prediction for one observation. Forests mix slowly on their fitted
-values, so a figure above 1.01 on the worst-5% row is ordinary rather
-than alarming;
+One should read the rows that correspond to the quantities being
+reported. `eta.eta` is the fitted function and appears twice, once
+averaged over the observations and once over the worst 5% of them; the
+second describes a prediction for one observation. Forests mix slowly on
+their fitted values, so a figure above 1.01 on the worst-5% row is
+ordinary rather than alarming;
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 explains what to do about it and when to worry.
 
-No row here governs an effect, though, and the average row in particular
-should not be read as if it did. An effect is a contrast, and a contrast
-can mix badly where the function it is a contrast of mixes well.
+No row here describes an effect, though, and the average row in
+particular should not be read as if it did. An effect is a contrast, and
+a contrast can mix badly where the function it is a contrast of mixes
+well.
+[`estimate_effect()`](https://ngreifer.github.io/bartisan/reference/estimate_effect.md)
+produces estimates of the effect of a categorical variable (described
+more below), and
 [`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-takes the estimand itself when there is one to take:
+can be applied to its output if the effect is of interest.
 
 ``` r
 
@@ -306,24 +354,23 @@ diagnose(estimate_effect(fit, treat = "rhc"))
 The contrast’s tail effective sample size falls short where the average
 fitted value’s in the table above did not, which the fit’s own table
 could not have shown, since the other predictors keep the fitted
-function moving even where the contrast mixes slowly. With the sparsity
-prior turned on (`sparsity = TRUE`), there is a further way this can
-happen: `rhc` gets no rule in some draws, which puts the contrast at
-exactly zero and can hold it there for a long run.
-[`diagnose()`](https://ngreifer.github.io/bartisan/reference/diagnose.md)
-notes that atom when it finds one, and it is one reason the prior is off
-by default;
-[`?bartisan_control`](https://ngreifer.github.io/bartisan/reference/bartisan_control.md)
-covers when to turn it on.
-
-The table is in `diagnose(fit)$table` when the numbers are wanted rather
-than the report.
+function moving even where the contrast mixes slowly. The table is in
+`diagnose(.)$table` when the values are wanted rather than the report.
 
 ### Fit
 
-The question worth asking of a binary outcome is whether the predicted
-probabilities mean what they say: among the patients the model gave a
-30% chance of dying, did about 30% die? A calibration plot answers it.
+The question of whether the model fits the data well can be investigated
+using a posterior predictive check, such as those implemented in
+[`bayesplot::pp_check()`](https://mc-stan.org/bayesplot/reference/pp_check.html),
+which is compatible with the output of
+[`bartisan()`](https://ngreifer.github.io/bartisan/reference/bartisan.md).
+The default `pp_check()` compares the distribution of simulated outcomes
+with the observed distribution. This check only makes sense with
+continuous outcomes; with binary outcomes, the question worth asking is
+whether the predicted probabilities mean what they say: among the
+patients the model gave a 30% chance of dying, did about 30% die? A
+calibration plot, such as that produced by
+`bayesplot::pp_check(., type = "loo_calibration")`, answers it.
 
 ``` r
 
@@ -333,13 +380,7 @@ bayesplot::pp_check(fit, type = "loo_calibration")
 ![](bartisan_files/figure-html/ppcheck-1.png)
 
 The line should follow the diagonal, and here it does across the whole
-range. Each patient is judged against a probability estimated without
-them, so this is not the optimistic in-sample reading.
-
-The default `pp_check()` compares the distribution of simulated outcomes
-with the observed distribution, which is the check to reach for when the
-outcome is continuous; with two values to get right it finds nothing
-here.
+range.
 [`vignette("diagnostics")`](https://ngreifer.github.io/bartisan/articles/diagnostics.md)
 covers what a departure from the diagonal looks like and what else to
 check.
@@ -406,18 +447,18 @@ a difference in this table means anything.
 
 ## Interpreting the Fit
 
-A forest has no table of coefficients to read, so a fit is interpreted
-by putting questions to it: what happens to the prediction when a
-predictor is changed, and what shape does the prediction trace as that
-predictor varies. The functions below answer versions of that question,
-and they differ in what they average over rather than in what they are
-asking.
+Because a BART model has no table of coefficients to read, a fit is
+interpreted by asking questions of it: what happens to the prediction
+when a predictor is changed, and what shape does the prediction trace as
+that predictor varies. The functions below answer versions of that
+question, and they differ in what they average over rather than in what
+they are asking.
 
 ### A Table of Average Comparisons
 
 [`marginaleffects::avg_comparisons()`](https://rdrr.io/pkg/marginaleffects/man/comparisons.html)
 is the closest thing to a table of regression slopes. For each predictor
-in turn it changes that predictor, leaves the others as they are,
+in turn, it changes that predictor, leaves the others as they are,
 predicts every patient twice, and averages the difference over the
 sample.
 
@@ -445,8 +486,8 @@ marginaleffects::avg_comparisons(fit)
 #> Type: response
 ```
 
-`Contrast` says what change was made.[^1] For a categorical predictor it
-is a difference between two levels, and for a numeric one it is an
+`Contrast` says what change was made.[^1] For a categorical predictor,
+it is a difference between two levels, and for a numeric one it is an
 increase of one unit, which is a default rather than anything the data
 suggested. The comparisons are on the probability scale, so `rhc` reads
 as an increase of about six percentage points in the probability of
@@ -455,11 +496,12 @@ regression would report each of these as one slope on the log-odds
 scale; these are averages over the sample of a quantity the model allows
 to differ from patient to patient.
 
-The one-unit default deserves a second look whenever a predictor does
+The one-unit default should be reconsidered whenever a predictor does
 not span a unit. `surv2m` is a probability, so an increase of one is
 wider than its whole observed range, and the model holds its prediction
 flat past the edge of that range rather than continuing any trend.
-Asking instead for a change the data contains gives a larger answer:
+Asking instead for a change the data contains gives a more useful
+answer:
 
 ``` r
 
@@ -483,11 +525,41 @@ One number for a predictor hides the shape of the relationship behind
 it, and the two `surv2m` contrasts show it happening when the shape
 matters: the answer depends on which change is asked about. Plotting the
 fit against one predictor shows the whole curve, averaging over the
-other predictors at each value.
+other predictors at each value. This can be done using
+[`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
+and plotting its output:
 
 ``` r
 
-plot(fit, ~ surv2m) +
+
+pd <- partial_dependence(fit, ~ surv2m)
+
+pd
+#> Partial dependence
+#> 
+#> Predictor: "surv2m"
+#> Averaged over 1500 units, on the "response" scale
+#> 
+#>  surv2m estimate lower upper
+#>  0.0000    0.859 0.806 0.907
+#>  0.0376    0.858 0.805 0.905
+#>  0.0752    0.858 0.805 0.904
+#>  0.1128    0.857 0.806 0.903
+#>  0.1504    0.856 0.807 0.903
+#>   --- 16 rows omitted ---
+#>  0.7896    0.495 0.434 0.554
+#>  0.8272    0.483 0.419 0.548
+#>  0.8648    0.477 0.404 0.547
+#>  0.9024    0.475 0.395 0.546
+#>  0.9400    0.474 0.393 0.546
+#> 
+#> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
+#>   credible interval.
+#> ℹ `n_print` in `print()` (`?bartisan::print.bartisan_partial()`) sets how many
+#>   rows are shown, half from each end; `print(., n_print = Inf)` shows all of
+#>   them.
+
+plot(pd) +
   ggplot2::labs(x = "Estimated probability of surviving two months",
                 y = "Fitted probability of death")
 ```
@@ -500,9 +572,9 @@ is why the two contrasts above disagree about its size. A logistic
 regression reports one slope on the log-odds scale for the whole range.
 Nothing had to be specified to find the shape.
 
-The band is a credible interval on the *average* prediction at each
-value, not on any one patient’s, and it widens at the top where few
-patients were that healthy.
+The band is a credible interval on the average prediction at each value,
+not on any one patient’s, and it widens at the top where few patients
+were that healthy.
 [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
 returns the same numbers without drawing them, and
 [`marginaleffects::plot_predictions()`](https://rdrr.io/pkg/marginaleffects/man/plot_predictions.html)
