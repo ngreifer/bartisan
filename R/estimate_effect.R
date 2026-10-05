@@ -192,14 +192,12 @@ estimate_effect <- function(object, treat = NULL, estimand = "ATE",
   arg::arg_number(level)
   arg::arg_between(level, c(0, 1), inclusive = FALSE)
 
-  estimand <- arg::match_arg(toupper(estimand),
-                             c("ATE", "ATT", "ATC", "CATE"))
+  estimand <- arg::match_arg(estimand, c("ATE", "ATT", "ATC", "CATE"))
 
   comparison <- arg::match_arg(comparison,
                                c("difference", "ratio", "lnratio", "or",
                                  "lnor"))
 
-  interval <- tolower(interval)
   interval <- arg::match_arg(interval, c("eti", "hpdi"))
 
   treat <- effect_treatment(object, treat)

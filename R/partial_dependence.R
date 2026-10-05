@@ -143,7 +143,6 @@ partial_dependence <- function(object, variables, newdata = NULL, grid = 26L,
               not have: {.val {missing}}")
   }
 
-  interval <- tolower(interval)
   interval <- arg::match_arg(interval, c("eti", "hpdi"))
 
   # A numeric second predictor is the grouping, and `grid` of them is a plot
