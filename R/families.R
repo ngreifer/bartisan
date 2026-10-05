@@ -1061,16 +1061,14 @@ warn_restricted_link <- function(custom_link, native, link) {
     else isTRUE(all(is.finite(mu) & mu > 0 & mu < 1))
   }
 
-  if (inside) {
-    return(invisible())
-  }
-
-  arg::msg(c(i = "The {.val {link}} link's inverse does not cover the whole
+  if (!inside) {
+    arg::msg(c(i = "The {.val {link}} link's inverse does not cover the whole
                   additive predictor, so some proposals will have a non-finite
                   density and be rejected.",
-             i = "The fit is valid but slower and less accurate; a link whose
+               i = "The fit is valid but slower and less accurate; a link whose
                   inverse is defined on the whole line, such as
                   {.val {native}}, avoids it."))
+  }
 
   invisible()
 }

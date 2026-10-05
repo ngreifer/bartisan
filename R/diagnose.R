@@ -882,12 +882,9 @@ diagnosis_checks <- function(table, chains, draws, rhat_max, ess_min) {
 
   if (unreadable) {
     # One chain is split into halves, so it is the halves that agree.
-    null_who <- if (chains == 1L) {
-      "a single chain averages %.3f even when its two halves agree"
-    }
-    else {
-      sprintf("%d chains average %%.3f even when they agree", chains)
-    }
+    null_who <- ngettext(chains,
+                         "a single chain averages %.3f even when its two halves agree",
+                         sprintf("%d chains average %%.3f even when they agree", chains))
 
     rows <- add(rows, "rhat readable", "warn",
                 sprintf(paste("That R-hat rests on only %.0f effective draws, where",

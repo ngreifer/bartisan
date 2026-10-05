@@ -9,39 +9,9 @@
 #' a formula, a data frame, and a family, with the families that `glm()` has no
 #' counterpart for documented at [`bartisan-families`].
 #'
-#' @param formula a model formula. The right-hand side lists candidate
-#'   predictors; the model finds interactions and nonlinearity on its own, so
-#'   `y ~ x1 + x2 + x3` is usually the right specification. Survival families take a
+#' @param formula a model formula (or a list thereof for families with multiple additive predictors). Survival families take a
 #'   \pkgfun{survival}{Surv} object on the left. A `(1 | group)` term adds a
 #'   group-level random intercept, in the notation of \pkg{lme4}; see Details.
-#'
-#'   For a family with more than one additive predictor this may be a *list* of
-#'   formulas, one per forest, to give each one its own predictors. The first is
-#'   the model for the main parameter and carries the response; the rest need no
-#'   response, and follow the order in [`bartisan-families`], under "Several
-#'   additive predictors", which also gives the name of each forest so the list
-#'   can be named instead of ordered:
-#'
-#'   ```r
-#'   bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d,
-#'            family = gaussian_ls())
-#'   bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
-#'            family = gaussian_ls())
-#'   ```
-#'
-#'   One formula applies to every forest, which is the ordinary case. A predictor
-#'   left out of one forest's formula is still in the data and is never split on
-#'   by that forest.
-#'
-#'   A formula naming no predictor at all makes that parameter a constant.
-#'   `~ 1` leaves its forest nothing to split on, so every tree in it is a stump
-#'   and the forest is a single drawn scalar rather than a function of the
-#'   predictors.
-#'
-#'   [vc()] terms are read out of each formula in turn, so a parameter has the
-#'   varying coefficients its own formula asks for and no others, which makes the
-#'   forests two-dimensional (one axis the parameter, the other the coefficient).
-#'   [vc()] documents how they are then named and keyed.
 #' @param data a data frame containing the variables named in `formula`.
 #' @param family the response distribution, given as a [`stats::family`] object,
 #'   as one of the families in [`bartisan-families`], or as the name of either. A
@@ -85,12 +55,38 @@
 #'   rather than being silently ignored.
 #'
 #' @details
+#'
+#' ## The Model Formula
+#'
+#' The right-hand side of `formula` lists candidate predictors; the model finds interactions and nonlinearity on its own, so `y ~ x1 + x2 + x3` is usually the right specification. For a family with more than one additive predictor this may be a list of
+#'   formulas, one per forest, to give each one its own predictors. The first is
+#'   the model for the main parameter and carries the response; the rest need no
+#'   response, and follow the order in [`bartisan-families`], under "Several
+#'   additive predictors", which also gives the name of each forest so the list
+#'   can be named instead of ordered:
+#'
+#'   ```r
+#'   bartisan(list(y ~ x1 + x2,
+#'                   ~ x2 + x3), data = d,
+#'            family = gaussian_ls())
+#'
+#'   bartisan(list(mean   = y ~ x1 + x2,
+#'                 log_sd =   ~ x2), data = d,
+#'            family = gaussian_ls())
+#'   ```
+#'
+#' When a single formula is given, it applies to every forest, which is the ordinary case.
+#'
+#' A formula naming no predictor at all makes that parameter a constant. `~ 1` leaves its forest nothing to split on, so every tree in it is a stump and the forest is a single drawn scalar rather than a function of the predictors.
+#'
+#' [vc()] terms for varying coefficient models are read out of each formula in turn, so a parameter has the
+#' varying coefficients its own formula asks for and no others, which makes the
+#' forests two-dimensional (one axis the parameter, the other the coefficient).
+#' [vc()] documents how they are then named and keyed.
+#'
 #' ## The Sampler
 #'
-#' Standard BART relies on the leaf parameters being integrable in closed form,
-#' which restricts it to a Gaussian response, or to models that can be reduced to
-#' one by data augmentation. Linero's (2025) algorithm removes that restriction. At each
-#' candidate move it builds a Gaussian approximation to the conditional posterior
+#' At each candidate move it builds a Gaussian approximation to the conditional posterior
 #' of the affected leaf parameters, by Fisher scoring, and uses that
 #' approximation as the proposal in a reversible-jump Metropolis step. The
 #' approximation only has to be good enough to be accepted often; the stationary
@@ -160,7 +156,7 @@
 #' the count part and another on the inflation part), and they are independent of
 #' one another.
 #'
-#' Only random *intercepts* are supported, and a random slope is refused rather
+#' Only random intercepts are supported; a random slope is refused rather
 #' than ignored. The reason is that a random intercept is a scalar entering the
 #' predictor with weight one for the observations in its level, exactly as a
 #' leaf is once its gate is removed, so the sampler's leaf machinery handles it
@@ -192,13 +188,6 @@
 #' zero-inflation part. `?bartisan-families` lists each family's forests in
 #' order, which is the column order. `predict()` takes the same two forms.
 #'
-#' A vector is worth thinking about before reaching for under [multinomial()],
-#' because the default symmetric coding gives every category a forest and a
-#' shift common to all of them cancels out of the softmax. A vector offset
-#' there leaves the fitted probabilities unchanged; with `reference` set it
-#' does not cancel, and moves every non-reference category against the
-#' reference one. A per-category offset is expressed as a matrix either way.
-#'
 #' An offset is not a function of the predictors, so it cannot be rebuilt for
 #' rows the fit has not seen: a model fitted with one requires `offset` at
 #' `predict()` time.
@@ -219,16 +208,16 @@
 #' lets the model split on missingness itself, so a variable whose absence
 #' carries the signal is usable even where its observed values say nothing.
 #'
-#' This has consequences worth being clear about. `predict()` accepts missing
+#' `predict()` accepts missing
 #' values in a column that had them at fitting time, those being the columns
 #' whose rules carry an answer. And what the model estimates is the mean of the
 #' response given the predictors and the pattern of missingness, which is the
 #' quantity prediction calls for; where the estimand is a regression or causal
-#' effect defined on complete data, multiple imputation is the right tool.
+#' effect defined on complete data, multiple imputation may be a better tool.
 #'
 #' ## Preprocessing
 #'
-#' Predictors are mapped to the unit interval, because the cutpoint prior is
+#' Predictors are mapped to the unit interval because the cutpoint prior is
 #' uniform on a node's live range and the soft-rule bandwidth is measured on the
 #' predictor scale. Factors share a
 #' single weight in the sparsity prior, so that a factor is selected or not as a
@@ -753,8 +742,12 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # promises this does not do. A scalar still spreads to every forest, and a
   # positional vector is still taken in order; only the partly-named case moved.
   for (nm in names(PER_FOREST_DEFAULTS)) {
-    engine_control[[nm]] <- per_forest_vector(
-      control[[nm]], labels, nm, PER_FOREST_DEFAULTS[[nm]], joint)
+    engine_control[[nm]] <- per_forest_vector(control[[nm]],
+                                              labels,
+                                              nm,
+                                              PER_FOREST_DEFAULTS[[nm]],
+                                              joint)
+
     engine_control[[nm]] <- rep(engine_control[[nm]],
                                 length.out = response[["n_forest"]])
   }
@@ -772,19 +765,18 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # case reads the same as before; a vector, or one keyed by the forest names,
   # lets a forest that needs less capacity be given less, which is most of what
   # makes `gaussian_ls()` affordable.
-  engine_control[["num_trees"]] <- resolve_num_trees(
-    per_forest_vector(control[["num_trees"]], labels, "num_trees", 50L, joint),
-    response[["n_forest"]], response[["n_aux"]])
+  engine_control[["num_trees"]] <- per_forest_vector(control[["num_trees"]], labels, "num_trees", 50L, joint) |>
+    resolve_num_trees(response[["n_forest"]], response[["n_aux"]])
 
   # The leaf scale divides by the square root of that forest's *own* tree count,
   # so a forest with fewer trees gets a proportionally larger prior per leaf and
   # the prior on the sum is unchanged. `k` is the usual way to say it and is
   # per-forest for the same reason `sigma_mu` is.
-  k <- rep(per_forest_vector(control[["k"]], labels, "k", 2, joint),
-           length.out = response[["n_forest"]])
+  k <- per_forest_vector(control[["k"]], labels, "k", 2, joint) |>
+    rep(length.out = response[["n_forest"]])
 
-  engine_control[["sigma_mu"]] <-
-    per_forest_vector(control[["sigma_mu"]], labels, "sigma_mu", NULL, joint) %or%
+  engine_control[["sigma_mu"]] <- per_forest_vector(control[["sigma_mu"]], labels, "sigma_mu",
+                                                    NULL, joint) %or%
     (3 * response[["eta_scale"]] / (k * sqrt(engine_control[["num_trees"]])))
 
   if (length(engine_control[["sigma_mu"]]) != response[["n_forest"]]) {
@@ -808,13 +800,13 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   # curvature in one place (`src/family.h`), so zeroing it flattens the
   # likelihood exactly: every tree move is then accepted on the prior alone and
   # every leaf is drawn from its prior. The sampler is not otherwise touched.
-  engine_weights <- if (prior_only) {
+  if (prior_only) {
     prior_only_check(response[["family"]])
 
-    rep.int(0, length(response[["weights"]]))
+    engine_weights <- rep.int(0, length(response[["weights"]]))
   }
   else {
-    response[["weights"]]
+    engine_weights <- response[["weights"]]
   }
 
   engine <- function(ignored) {
@@ -1111,18 +1103,16 @@ prior_record <- function(engine_control, control, k, eta_scale, split,
 }
 
 prior_only_check <- function(family) {
-  if (!family %in% names(PRIOR_ONLY_REFUSED)) {
-    return(invisible(TRUE))
-  }
-
-  arg::err(c("{.code prior_only = TRUE} is not available for
+  if (family %in% names(PRIOR_ONLY_REFUSED)) {
+    arg::err(c("{.code prior_only = TRUE} is not available for
               {.code {family}()}, because {PRIOR_ONLY_REFUSED[[family]]}.",
-             i = "The cutpoints would walk out to the bound and the replicates
+               i = "The cutpoints would walk out to the bound and the replicates
                   would pile at one end of the scale, with nothing in them to
                   say so.",
-             i = "Every other family supports it. For an ordered outcome with a
+               i = "Every other family supports it. For an ordered outcome with a
                   modest number of categories, {.fn multinomial} is the nearest
                   thing that does."))
+  }
 }
 
 # One L'Ecuyer stream per chain, advanced from the current seed, which is what
@@ -1556,13 +1546,12 @@ warn_runaway_scale <- function(object, target) {
   at <- which(ratio > 5)
 
   if (!is_null(at)) {
-    arg::wrn(c(
-      "The leaf scale settled {round(max(ratio[at]))} times above its prior
-     median, which usually means the response is close to separable by the
-     predictors.",
-      i = "The additive predictor is then only weakly identified; fix the scale
-         with {.code update_sigma_mu = FALSE} in {.fn bartisan_control} if the
-         draws look unstable."))
+    arg::wrn(c("The leaf scale settled {round(max(ratio[at]))} times above its prior
+                median, which usually means the response is close to separable by the
+                predictors.",
+               i = "The additive predictor is then only weakly identified; fix the scale
+                    with {.code update_sigma_mu = FALSE} in {.fn bartisan_control} if the
+                    draws look unstable."))
   }
 }
 
@@ -1590,10 +1579,12 @@ forest_labels <- function(family, opts, levels, n_report, vc = NULL) {
     base <- forest_labels(family, opts, levels, n_report - slopes)
     drop <- length(base) == 1L && identical(base, "eta")
 
-    return(unlist(lapply(seq_along(base), function(h) {
+    out <- unlist(lapply(seq_along(base), function(h) {
       keep <- which(pluck(vc[["specs"]], "param", integer(1L)) == h)
       vc_forest_labels(base[h], vc[["specs"]][keep], vc[["parts"]][keep], drop)
-    }), use.names = FALSE))
+    }), use.names = FALSE)
+
+    return(out)
   }
 
   if (identical(family, "multinomial")) {
@@ -1694,12 +1685,13 @@ build_design <- function(mt, mf) {
   assign <- attr(x, "assign")
 
   keep <- assign != 0L
-  x <- x[, keep, drop = FALSE]
-  assign <- assign[keep]
 
-  if (ncol(x) == 0L) {
+  if (!any(keep)) {
     arg::err("the model has no predictor columns")
   }
+
+  x <- x[, keep, drop = FALSE]
+  assign <- assign[keep]
 
   # Columns that never vary cannot support a split. A column that is constant
   # where it is observed still varies in whether it is observed at all, which is

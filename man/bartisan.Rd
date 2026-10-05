@@ -18,38 +18,9 @@ bartisan(
 )
 }
 \arguments{
-\item{formula}{a model formula. The right-hand side lists candidate
-predictors; the model finds interactions and nonlinearity on its own, so
-\code{y ~ x1 + x2 + x3} is usually the right specification. Survival families take a
+\item{formula}{a model formula (or a list thereof for families with multiple additive predictors). Survival families take a
 \pkgfun{survival}{Surv} object on the left. A \code{(1 | group)} term adds a
-group-level random intercept, in the notation of \pkg{lme4}; see Details.
-
-For a family with more than one additive predictor this may be a \emph{list} of
-formulas, one per forest, to give each one its own predictors. The first is
-the model for the main parameter and carries the response; the rest need no
-response, and follow the order in \code{\link{bartisan-families}}, under "Several
-additive predictors", which also gives the name of each forest so the list
-can be named instead of ordered:
-
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2, ~ x2 + x3), data = d,
-         family = gaussian_ls())
-bartisan(list(mean = y ~ x1 + x2, log_sd = ~ x2), data = d,
-         family = gaussian_ls())
-}\if{html}{\out{</div>}}
-
-One formula applies to every forest, which is the ordinary case. A predictor
-left out of one forest's formula is still in the data and is never split on
-by that forest.
-
-A formula naming no predictor at all makes that parameter a constant.
-\code{~ 1} leaves its forest nothing to split on, so every tree in it is a stump
-and the forest is a single drawn scalar rather than a function of the
-predictors.
-
-\code{\link[=vc]{vc()}} terms are read out of each formula in turn, so a parameter has the
-varying coefficients its own formula asks for and no others, which makes the
-forests two-dimensional (one axis the parameter, the other the coefficient).
-\code{\link[=vc]{vc()}} documents how they are then named and keyed.}
+group-level random intercept, in the notation of \pkg{lme4}; see Details.}
 
 \item{data}{a data frame containing the variables named in \code{formula}.}
 
@@ -130,12 +101,37 @@ a formula, a data frame, and a family, with the families that \code{glm()} has n
 counterpart for documented at \code{\link{bartisan-families}}.
 }
 \details{
+\subsection{The Model Formula}{
+
+The right-hand side of \code{formula} lists candidate predictors; the model finds interactions and nonlinearity on its own, so \code{y ~ x1 + x2 + x3} is usually the right specification. For a family with more than one additive predictor this may be a list of
+formulas, one per forest, to give each one its own predictors. The first is
+the model for the main parameter and carries the response; the rest need no
+response, and follow the order in \code{\link{bartisan-families}}, under "Several
+additive predictors", which also gives the name of each forest so the list
+can be named instead of ordered:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{bartisan(list(y ~ x1 + x2,
+                ~ x2 + x3), data = d,
+         family = gaussian_ls())
+
+bartisan(list(mean   = y ~ x1 + x2,
+              log_sd =   ~ x2), data = d,
+         family = gaussian_ls())
+}\if{html}{\out{</div>}}
+
+When a single formula is given, it applies to every forest, which is the ordinary case.
+
+A formula naming no predictor at all makes that parameter a constant. \code{~ 1} leaves its forest nothing to split on, so every tree in it is a stump and the forest is a single drawn scalar rather than a function of the predictors.
+
+\code{\link[=vc]{vc()}} terms for varying coefficient models are read out of each formula in turn, so a parameter has the
+varying coefficients its own formula asks for and no others, which makes the
+forests two-dimensional (one axis the parameter, the other the coefficient).
+\code{\link[=vc]{vc()}} documents how they are then named and keyed.
+}
+
 \subsection{The Sampler}{
 
-Standard BART relies on the leaf parameters being integrable in closed form,
-which restricts it to a Gaussian response, or to models that can be reduced to
-one by data augmentation. Linero's (2025) algorithm removes that restriction. At each
-candidate move it builds a Gaussian approximation to the conditional posterior
+At each candidate move it builds a Gaussian approximation to the conditional posterior
 of the affected leaf parameters, by Fisher scoring, and uses that
 approximation as the proposal in a reversible-jump Metropolis step. The
 approximation only has to be good enough to be accepted often; the stationary
@@ -207,7 +203,7 @@ separate set for each (i.e., a zero-inflated count model has a group effect on
 the count part and another on the inflation part), and they are independent of
 one another.
 
-Only random \emph{intercepts} are supported, and a random slope is refused rather
+Only random intercepts are supported; a random slope is refused rather
 than ignored. The reason is that a random intercept is a scalar entering the
 predictor with weight one for the observations in its level, exactly as a
 leaf is once its gate is removed, so the sampler's leaf machinery handles it
@@ -240,13 +236,6 @@ say, or an offset on the count part of \code{\link[=zi_poisson]{zi_poisson()}} a
 zero-inflation part. \code{?bartisan-families} lists each family's forests in
 order, which is the column order. \code{predict()} takes the same two forms.
 
-A vector is worth thinking about before reaching for under \code{\link[=multinomial]{multinomial()}},
-because the default symmetric coding gives every category a forest and a
-shift common to all of them cancels out of the softmax. A vector offset
-there leaves the fitted probabilities unchanged; with \code{reference} set it
-does not cancel, and moves every non-reference category against the
-reference one. A per-category offset is expressed as a matrix either way.
-
 An offset is not a function of the predictors, so it cannot be rebuilt for
 rows the fit has not seen: a model fitted with one requires \code{offset} at
 \code{predict()} time.
@@ -269,17 +258,17 @@ This is missingness incorporated in attributes, and the third rule
 lets the model split on missingness itself, so a variable whose absence
 carries the signal is usable even where its observed values say nothing.
 
-This has consequences worth being clear about. \code{predict()} accepts missing
+\code{predict()} accepts missing
 values in a column that had them at fitting time, those being the columns
 whose rules carry an answer. And what the model estimates is the mean of the
 response given the predictors and the pattern of missingness, which is the
 quantity prediction calls for; where the estimand is a regression or causal
-effect defined on complete data, multiple imputation is the right tool.
+effect defined on complete data, multiple imputation may be a better tool.
 }
 
 \subsection{Preprocessing}{
 
-Predictors are mapped to the unit interval, because the cutpoint prior is
+Predictors are mapped to the unit interval because the cutpoint prior is
 uniform on a node's live range and the soft-rule bandwidth is measured on the
 predictor scale. Factors share a
 single weight in the sparsity prior, so that a factor is selected or not as a

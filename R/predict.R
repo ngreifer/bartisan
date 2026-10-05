@@ -1234,30 +1234,25 @@ conditional_density <- function(object, newdata, eta, aux, weights, draws, log,
 # observation's density NaN -- a fraction of a percent of draws routinely
 # accounts for a third of the returned values.
 warn_undefined_density <- function(out, object) {
-  bad <- is.na(out)
+  if (anyNA(out)) {
+    bad <- is.na(out)
+    n_draws <- sum(bad)
+    n_obs <- sum(colSums(bad) > 0)
+    total_obs <- ncol(out)
+    link <- object[["family"]][["link"]]
 
-  if (!any(bad)) {
-    return(invisible(NULL))
-  }
-
-  n_draws <- sum(bad)
-  n_obs <- sum(colSums(bad) > 0)
-  total_obs <- ncol(out)
-  link <- object[["family"]][["link"]]
-
-  arg::wrn(c("The conditional density is undefined for {n_draws} of
+    arg::wrn(c("The conditional density is undefined for {n_draws} of
               {length(bad)} draw-by-observation values, which makes {n_obs} of
               {total_obs} returned {cli::qty(total_obs)}value{?s} {.val {NaN}}.",
-             i = "The {.val {link}} link's inverse does not cover the whole
+               i = "The {.val {link}} link's inverse does not cover the whole
                   additive predictor, so at these predictors some draws imply a
                   parameter outside the family's support. Draws are averaged
                   before the log is taken, so one undefined draw is enough to
                   make an observation {.val {NaN}}.",
-             i = "A link whose inverse is defined on the whole line, such as
+               i = "A link whose inverse is defined on the whole line, such as
                   {.val log}, avoids this. {.code type = \"link\"} and
                   {.code draws = TRUE} show which predictors are responsible."))
-
-  invisible(NULL)
+  }
 }
 
 # The simulated probability of each observation's own category. Simulation error

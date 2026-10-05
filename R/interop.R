@@ -1031,8 +1031,10 @@ print.bartisan_prior_summary <- function(x, digits = 3L, ...) {
   if (!is_null(x[["random"]])) {
     random <- x[["random"]]
 
-    tau_drawn <- if (random[["estimated"]]) "it is drawn"
-    else "it is held at that prior's median"
+    tau_drawn <- {
+      if (random[["estimated"]]) "it is drawn"
+      else "it is held at that prior's median"
+    }
 
     cli::cat_line()
     cli_cat("{.underline Group intercepts}")
@@ -1389,13 +1391,13 @@ kfold_object <- function(elpd, lpd, folds, K, draws, fits = NULL) {
 # it reaches `loo()` on its own and the refusal would otherwise surface from a
 # call that never mentioned it.
 prior_only_refuse <- function(object, what) {
-  if (!isTRUE(object[["prior_only"]])) {
-    return(invisible(TRUE))
+  if (isTRUE(object[["prior_only"]])) {
+    arg::err(c("{.fn {what}} scores a fit against the data, and this fit was made
+                with {.code prior_only = TRUE}, so it was never shown any.",
+               i = "Refit without {.arg prior_only} to score it."))
   }
 
-  arg::err(c("{.fn {what}} scores a fit against the data, and this fit was made
-              with {.code prior_only = TRUE}, so it was never shown any.",
-             i = "Refit without {.arg prior_only} to score it."))
+  invisible(TRUE)
 }
 
 # The survival families do not all write their likelihood with respect to the
