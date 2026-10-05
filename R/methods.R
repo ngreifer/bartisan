@@ -472,7 +472,7 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
                 coefficient vector.",
                i = "Use {.fn variable_importance} for which predictors the
                   forest uses, or
-                  {.code marginaleffects::avg_comparisons()} for how much one
+                  {.fn marginaleffects::avg_comparisons} for how much one
                   moves the outcome."))
   }
 
@@ -485,8 +485,7 @@ coef.bartisan_fit <- function(object, newdata = NULL, draws = FALSE, ...) {
   eta <- {
     if (is_null(newdata)) object[["eta"]]
     else predict_eta(object, newdata, offset = NULL,
-                     iterations = resolve_iterations(NULL,
-                                                     nrow(object[["sigma_mu"]])))
+                     iterations = resolve_iterations(NULL, nrow(object[["sigma_mu"]])))
   }
 
   # The control functions are dropped: one is a prediction, not a coefficient.

@@ -15,7 +15,7 @@
 #'   [bartisan()].
 #' @param type string; the scale of the prediction. Allowable options include
 #'   `"link"`, `"response"` (the default), `"prob"`, `"class"`, `"mean"`,
-#'   `"stdlv"`, `"density"`, and `"survival"`.
+#'   `"stdlv"`, `"density"`, `"survival"`, and `"hazard"`.
 #'   \describe{
 #'     \item{`"link"`}{the additive predictor, one column per predictor for
 #'       families that have more than one. For the accelerated failure time
@@ -52,6 +52,11 @@
 #'       Returns one column per time, or a draws by rows by times array when
 #'       `draws = TRUE`. This makes the usual survival estimand reachable
 #'       through \pkg{marginaleffects}; see [`bartisan-marginaleffects`].}
+#'     \item{`"hazard"`}{the hazard \eqn{h(t \mid x) = f(t \mid x) / S(t \mid
+#'       x)} at the times given in `times`, the rate at which the event occurs
+#'       at \eqn{t} among those who have survived to it, for the same families
+#'       and in the same shape as `"survival"`. The cumulative hazard is
+#'       \eqn{-\log S(t \mid x)} and so comes from `"survival"`.}
 #'   }
 #' @param draws `logical`; whether to return every posterior draw rather than
 #'   the posterior mean. Default is `FALSE` to return the mean. If `TRUE`, the
@@ -80,10 +85,11 @@
 #'   a log score. Note that with `draws = FALSE` the density is averaged over the
 #'   draws before the log is taken, so the result is the pointwise predictive
 #'   density rather than the average log density.
-#' @param times `numeric`; for `type = "survival"`, the times at which to report
-#'   the survival function, which must be finite and strictly positive. It has no
-#'   default, because the horizon is a choice rather than a property of the fit.
-#'   Ignored with a warning for every other `type`.
+#' @param times `numeric`; for `type = "survival"` and `type = "hazard"`, the
+#'   times at which to report the survival function or the hazard, which must be
+#'   finite and strictly positive. It has no default, because the horizon is a
+#'   choice rather than a property of the fit. Ignored with a warning for every
+#'   other `type`.
 #' @param ... ignored; present for compatibility with the generic.
 #'
 #' @returns
@@ -93,8 +99,8 @@
 #' additive predictors for `"link"` and `"stdlv"` when it has more than one; a
 #' matrix of observations by categories for `"prob"`, and for `"response"` with
 #' an ordinal or multinomial family; a matrix of observations by times for
-#' `"survival"`; and a factor for `"class"`, ordered when the family is
-#' `ordinal()`.
+#' `"survival"` and `"hazard"`; and a factor for `"class"`, ordered when the
+#' family is `ordinal()`.
 #'
 #' With `draws = TRUE` each of these gains a leading dimension indexing the
 #' posterior draws, so that a vector becomes a matrix of draws by observations
@@ -115,7 +121,7 @@
 #' is per posterior draw and averages down over them, which makes `draws = FALSE`
 #' much more accurate than any single row of `draws = TRUE`.
 #'
-#' ## Setting `type = "stdlv"`
+#' ## `type = "stdlv"`
 #'
 #' This reports `(eta - E[e]) / sd(y*)` for the latent `y* = eta + e`, following
 #' \pkgfun{WeightIt}{predict.ordinal_weightit}, and makes an ordinal or
@@ -136,7 +142,7 @@
 #' this scale, which a standardized quantity exists to support, are unaffected by
 #' that choice.
 #'
-#' ## Setting `type = "density"`
+#' ## `type = "density"`
 #'
 #' The measure differs across the survival families: the accelerated failure time
 #' families, `dpm_aft()` included, report the density of \eqn{\log T}, where
@@ -193,24 +199,27 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
                                  weights = NULL, values = NULL, log = FALSE,
                                  times = NULL, ...) {
 
-  type <- arg::match_arg(type, c("link", "response", "prob", "class",
-                                 "mean", "stdlv", "density", "survival"))
-  arg::arg_flag(draws)
-  arg::arg_flag(log)
-
   family <- object[["family"]][["family"]]
   categorical <- family %in% c("binomial", "ordinal", "multinomial", "mnp")
   survival <- family %in% c("aft", "ph", "dpm_aft")
 
-  if (identical(type, "survival")) {
-    if (!survival) {
-      arg::err("{.code type = \"survival\"} is available only for the survival
-                families, {.fn {survival_families}}")
-    }
+  arg::arg_flag(draws)
+  arg::arg_flag(log)
 
+  type <- arg::match_arg(type, c("link",
+                                 "response",
+                                 "prob"[categorical],
+                                 "class"[categorical],
+                                 "mean"[categorical],
+                                 "stdlv"[family %in% c("ordinal", "binomial")],
+                                 "density",
+                                 "survival"[survival],
+                                 "hazard"[survival]))
+
+  if (type %in% c("survival", "hazard")) {
     if (is_null(times)) {
-      arg::err(c("{.arg times} says at which times to report survival, and has
-                  no default because the horizon is a choice rather than a
+      arg::err(c("{.arg times} says at which times to report the {type}, and
+                  has no default because the horizon is a choice rather than a
                   property of the fit.",
                  i = "For example, {.code times = c(1, 5)}."))
     }
@@ -222,18 +231,7 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
     }
   }
   else if (!is_null(times)) {
-    arg::wrn("{.arg times} is ignored unless {.code type = \"survival\"}")
-  }
-
-  if (type %in% c("prob", "class", "mean") && !categorical) {
-    arg::err("{.code type = \"{type}\"} is available only for the
-              {.val binomial}, {.val ordinal} and {.val multinomial} families")
-  }
-
-  if (identical(type, "stdlv") && !family %in% c("ordinal", "binomial")) {
-    arg::err("{.code type = \"stdlv\"} is available only for the
-              {.val ordinal} and {.val binomial} families, whose response is a
-              threshold crossing of a latent variable")
+    arg::wrn("{.arg times} is ignored unless {.arg type} is {.or {.val {c('survival', 'hazard')}}}")
   }
 
   if (!identical(type, "mean") && !is_null(values)) {
@@ -273,7 +271,7 @@ eta_to_type <- function(object, parts, type, draws, newdata = NULL,
       return(shape_link(eta, draws, object))
     }
 
-    return(response_scale(object, eta, aux, draws))
+    return(response_scale(object, eta, aux, draws, parts[["iterations"]]))
   }
 
   if (identical(type, "density")) {
@@ -282,7 +280,12 @@ eta_to_type <- function(object, parts, type, draws, newdata = NULL,
   }
 
   if (identical(type, "survival")) {
-    return(survival_scale(object, eta, aux, times, draws))
+    return(survival_scale(object, eta, aux, times, draws,
+                          parts[["iterations"]]))
+  }
+
+  if (identical(type, "hazard")) {
+    return(hazard_scale(object, eta, aux, times, draws, parts[["iterations"]]))
   }
 
   probs <- category_probs(object, eta, aux)
@@ -347,15 +350,15 @@ standardized_latent <- function(object, eta) {
 # `y* = eta - e`. The variance is the same either way; the mean flips.
 latent_error <- function(family, link) {
   # digamma(1) is -gamma, the mean of the smallest extreme value distribution.
-  extreme_value_mean <- {
-    if (identical(family, "binomial")) -digamma(1)
-    else digamma(1)
+  extreme_value_mean_adj <- {
+    if (identical(family, "binomial")) -1
+    else 1
   }
 
   switch(link,
          probit = c(0, 1),
          logit = c(0, pi^2 / 3),
-         cloglog = c(extreme_value_mean, pi^2 / 6),
+         cloglog = c(extreme_value_mean_adj * digamma(1), pi^2 / 6),
          arg::err("{.code type = \"stdlv\"} needs a link with a known latent
                    distribution, which {.val {link}} is not"))
 }
@@ -411,12 +414,10 @@ predict_parts <- function(object, newdata = NULL, offset = NULL,
   iterations <- resolve_iterations(iterations, num_draws)
 
   eta <- {
-    if (is_null(newdata)) {
+    if (is_null(newdata))
       lapply(object[["eta"]], function(m) m[iterations, , drop = FALSE])
-    }
-    else {
+    else
       predict_eta(object, newdata, offset, iterations)
-    }
   }
 
   # A varying-coefficient model's forests are a control function and a set of
@@ -586,10 +587,18 @@ vc_combine <- function(object, eta, newdata, iterations = NULL) {
 
   for (h in seq_along(param)) {
     j <- column[h]
-    term <- if (j == 0L) eta[[h]] else columns[[j]] * eta[[h]]
+
+    term <- {
+      if (j == 0L) eta[[h]]
+      else columns[[j]] * eta[[h]]
+    }
+
     p <- param[h]
 
-    out[[p]] <- if (is_null(out[[p]])) term else out[[p]] + term
+    out[[p]] <- {
+      if (is_null(out[[p]])) term
+      else out[[p]] + term
+    }
   }
 
   out
@@ -725,10 +734,16 @@ shape_link <- function(eta, draws, object) {
 # analysis is usually asked. The curve is what answers them, and computing it
 # from the draws by hand means depending on how the baseline is stored, which is
 # the package's business rather than the caller's.
-survival_scale <- function(object, eta, aux, times, draws) {
+#
+# `iterations` says which stored draw each row of `eta` came from. A `dpm_aft()`
+# fit's mixture is stored per draw and looked up by that index, so a row number
+# is not enough once a caller has asked for a subset of the draws: rows 1 and 2
+# of `iterations = c(5, 10)` belong with the fifth and tenth mixtures.
+survival_scale <- function(object, eta, aux, times, draws, iterations = NULL) {
   family <- object[["family"]][["family"]]
   link <- object[["family"]][["link"]]
   e <- eta[[1L]]
+  iterations <- iterations %or% seq_len(nrow(e))
 
   labels <- format(times, trim = TRUE)
   out <- array(NA_real_, c(nrow(e), ncol(e), length(times)),
@@ -740,7 +755,8 @@ survival_scale <- function(object, eta, aux, times, draws) {
     # is already the conditional mean of log T.
     for (k in seq_along(times)) {
       for (s in seq_len(nrow(e))) {
-        out[s, , k] <- dpm_survival(object, s, log(times[k]) - e[s, ])
+        out[s, , k] <- dpm_survival(object, iterations[s],
+                                    log(times[k]) - e[s, ])
       }
     }
   }
@@ -781,12 +797,83 @@ survival_scale <- function(object, eta, aux, times, draws) {
   averaged
 }
 
-# The mean of the response, except for the survival families, where the median
-# survival time is the interpretable summary and depends on the scale parameter.
-response_scale <- function(object, eta, aux, draws) {
+# The hazard at named times, h(t | x) = f(t | x) / S(t | x): the rate at which
+# the event occurs at `t` among the units that have survived to it, on the scale
+# of the time itself for every family. It shares `survival_scale()`'s shape and
+# its reading of `iterations`, and for the same reason: an estimand at a horizon
+# is computed draw by draw and averaged afterward, so `draws = FALSE` returns
+# the posterior mean of the hazard rather than the hazard of the posterior mean
+# survival curve.
+hazard_scale <- function(object, eta, aux, times, draws, iterations = NULL) {
   family <- object[["family"]][["family"]]
   link <- object[["family"]][["link"]]
   e <- eta[[1L]]
+  iterations <- iterations %or% seq_len(nrow(e))
+
+  labels <- format(times, trim = TRUE)
+  out <- array(NA_real_, c(nrow(e), ncol(e), length(times)),
+               dimnames = list(NULL, NULL, labels))
+
+  if (identical(family, "dpm_aft")) {
+    # log T = eta + W, so the density of T at t is the mixture's density at the
+    # standardized log time divided by t, and its survival is the mixture's.
+    for (k in seq_along(times)) {
+      for (s in seq_len(nrow(e))) {
+        at <- log(times[k]) - e[s, ]
+        out[s, , k] <- dpm_predictive(object, iterations[s], at) /
+          (times[k] * dpm_survival(object, iterations[s], at))
+      }
+    }
+  }
+  else if (identical(family, "aft")) {
+    # With z the standardized log time, h(t) = f(z) / (sigma t S(z)) for the
+    # error's density f and survival S. Each error's ratio is written in the
+    # form that stays finite far into the upper tail, where both f and S
+    # underflow: the smallest extreme value gives e^z, the logistic gives its
+    # own distribution function, and the normal is taken on the log scale.
+    sigma <- aux[, "sigma"]
+
+    for (k in seq_along(times)) {
+      z <- (log(times[k]) - e) / sigma
+      ratio <- switch(link,
+                      weibull = exp(z),
+                      loglogistic = stats::plogis(z),
+                      lognormal = exp(stats::dnorm(z, log = TRUE) -
+                                        stats::pnorm(z, lower.tail = FALSE,
+                                                     log.p = TRUE)))
+      out[, , k] <- ratio / (sigma * times[k])
+    }
+  }
+  else {
+    # The baseline is constant within each bin, so the hazard at t is the
+    # hazard of the bin t falls in, scaled by the unit's relative hazard. A time
+    # on an edge belongs to the bin that starts there, which makes the hazard
+    # right-continuous, as a piecewise-constant hazard conventionally is.
+    edges <- object[["family_opts"]][["edges"]]
+    lambda <- aux[, grep("^lambda[0-9]+$", colnames(aux)), drop = FALSE]
+
+    for (k in seq_along(times)) {
+      out[, , k] <- lambda[, findInterval(times[k], edges)] * exp(e)
+    }
+  }
+
+  if (draws) {
+    return(out)
+  }
+
+  averaged <- apply(out, c(2L, 3L), mean)
+  dimnames(averaged) <- list(NULL, labels)
+  averaged
+}
+
+# The mean of the response, except for the survival families, where the median
+# survival time is the interpretable summary and depends on the scale parameter.
+# `iterations` is as for `survival_scale()`.
+response_scale <- function(object, eta, aux, draws, iterations = NULL) {
+  family <- object[["family"]][["family"]]
+  link <- object[["family"]][["link"]]
+  e <- eta[[1L]]
+  iterations <- iterations %or% seq_len(nrow(e))
 
   # A link the engine does not carry natively is composed onto the engine's own
   # scale when fitting, so the predictor here is on the caller's scale and the
@@ -848,12 +935,12 @@ response_scale <- function(object, eta, aux, draws) {
                   median_error <- vapply(seq_len(nrow(e)), function(s) {
                     lo <- -30
                     hi <- 30
-                    comp <- mixture_at(object, s)
+                    comp <- mixture_at(object, iterations[s])
 
                     for (step in seq_len(60L)) {
                       mid <- (lo + hi) / 2
 
-                      if (dpm_survival(object, s, mid, comp) > 0.5) {
+                      if (dpm_survival(object, iterations[s], mid, comp) > 0.5) {
                         lo <- mid
                       }
                       else {
@@ -895,12 +982,13 @@ response_scale <- function(object, eta, aux, draws) {
                   probs <- category_probs(object, eta, aux)
 
                   if (draws) {
-                    return(probs)
+                    probs
                   }
-
-                  out <- apply(probs, c(2L, 3L), mean)
-                  dimnames(out) <- list(NULL, dimnames(probs)[[3L]])
-                  return(out)
+                  else {
+                    out <- apply(probs, c(2L, 3L), mean)
+                    dimnames(out) <- list(NULL, dimnames(probs)[[3L]])
+                    out
+                  }
                 },
                 e)
 
@@ -1036,7 +1124,6 @@ category_probs <- function(object, eta, aux) {
 fitted_from_eta <- function(object, eta, average = TRUE) {
   family <- object[["family"]][["family"]]
 
-
   if (family %in% c("ordinal", "multinomial", "mnp")) {
     probs <- category_probs(object, eta, object[["aux"]])
     out <- apply(probs, c(2L, 3L), mean)
@@ -1072,13 +1159,12 @@ conditional_density <- function(object, newdata, eta, aux, weights, draws, log,
   }
 
   parts <- {
-    if (is_null(newdata)) {
-      list(y = object[["y"]], weights = weights %or% object[["prior_weights"]],
+    if (is_null(newdata))
+      list(y = object[["y"]],
+           weights = weights %or% object[["prior_weights"]],
            opts = object[["family_opts"]])
-    }
-    else {
+    else
       density_response(object, newdata, weights)
-    }
   }
 
   num_draws <- nrow(eta[[1L]])
@@ -1310,13 +1396,11 @@ dpm_density <- function(object, newdata, eta, iterations, draws, log) {
 # observation with a failure it did not have.
 dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
   surv <- {
-    if (is_null(newdata)) {
+    if (is_null(newdata))
       list(log_time = object[["y"]],
            event = object[["family_opts"]][["event"]])
-    }
-    else {
+    else
       prepare_surv(density_response_vector(object, newdata), nrow(newdata))
-    }
   }
 
   predictor <- eta[[1L]]
@@ -1417,12 +1501,11 @@ error_density <- function(object, at = NULL, level = 0.95,
 
   iterations <- resolve_iterations(iterations, nrow(object[["aux"]]))
 
+  arg::when_not_null(at, arg::arg_numeric)
+
   if (is_null(at)) {
     reach <- 4 * mean(object[["aux"]][iterations, "error_sd"])
     at <- seq(-reach, reach, length.out = 201L)
-  }
-  else {
-    arg::arg_numeric(at)
   }
 
   # `matrix()` rather than the shape vapply() returns, so that a single grid
@@ -1476,11 +1559,10 @@ density_response_vector <- function(object, newdata) {
               {.val {absent}}")
   }
 
-  mf <- stats::model.frame(object[["terms"]], with_bcf_score(object, newdata),
-                           na.action = stats::na.pass,
-                           xlev = object[["xlevels"]])
-
-  stats::model.response(mf, "any")
+  stats::model.frame(object[["terms"]], with_bcf_score(object, newdata),
+                     na.action = stats::na.pass,
+                     xlev = object[["xlevels"]]) |>
+    stats::model.response("any")
 }
 
 # `newdata` with a `bcf()` fit's propensity score added when it lacks one, as
@@ -1531,45 +1613,34 @@ density_response <- function(object, newdata, weights) {
     arg::err("{.arg weights} must have one value per row of {.arg newdata}")
   }
 
-  y_out <- switch(family,
-                  gaussian = ,
-                  gaussian_ls = check_numeric_response(y, family),
-                  Gamma = ,
-                  tweedie = ,
-                  Gamma_ls = check_numeric_response(y, family),
-                  poisson = ,
-                  negbin = ,
-                  zip = ,
-                  zinb = check_count_response(y, family),
-                  beta = ,
-                  ordbeta = check_numeric_response(y, family),
-                  binomial = {
-                    b <- prepare_binomial_levels(y, w, levels)
-                    w <- b[["weights"]]
-                    b[["y"]]
-                  },
-                  ordinal = ,
-                  multinomial = match_levels(y, levels),
-                  aft = {
-                    a <- prepare_surv(y, n)
-                    # The event indicator is part of the outcome, so it comes from the new
-                    # data rather than from the stored options.
-                    opts[["event"]] <- a[["event"]]
-                    a[["log_time"]]
-                  },
-                  dpm_aft = {
-                    a <- prepare_surv(y, n)
-                    opts[["event"]] <- a[["event"]]
-                    a[["log_time"]]
-                  },
-                  ph = {
-                    a <- prepare_surv(y, n)
-                    opts[["event"]] <- a[["event"]]
-                    # The bin edges are structure fitted to the training times, so
-                    # they stay as they were; only the times and events are new.
-                    a[["time"]]
-                  },
-                  check_numeric_response(y, family))
+  if (family %in% c("poisson", "negbin", "zip", "zinb")) {
+    y_out <- check_count_response(y, family)
+  }
+  else if (family == "binomial") {
+    b <- prepare_binomial_levels(y, w, levels)
+    w <- b[["weights"]]
+    y_out <- b[["y"]]
+  }
+  else if (family %in% c("multinomial", "ordinal")) {
+    y_out <- match_levels(y, levels)
+  }
+  else if (family %in% c("aft", "dpm_aft")) {
+    a <- prepare_surv(y, n)
+    # The event indicator is part of the outcome, so it comes from the new
+    # data rather than from the stored options.
+    opts[["event"]] <- a[["event"]]
+    y_out <- a[["log_time"]]
+  }
+  else if (family == "ph") {
+    a <- prepare_surv(y, n)
+    opts[["event"]] <- a[["event"]]
+    # The bin edges are structure fitted to the training times, so
+    # they stay as they were; only the times and events are new.
+    y_out <- a[["time"]]
+  }
+  else {
+    y_out <- check_numeric_response(y, family)
+  }
 
   list(y = y_out, weights = w, opts = opts)
 }

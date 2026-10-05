@@ -229,6 +229,83 @@ test_that("`type = \"survival\"` refuses what it cannot answer", {
   expect_error(predict(other, type = "survival", times = 1),
                "only for the survival families")
 
+  # The hazard takes the same horizons and refuses the same things.
+  expect_error(predict(fit, type = "hazard"), "times")
+  expect_error(predict(fit, type = "hazard", times = -1), "strictly positive")
+  expect_error(predict(other, type = "hazard", times = 1),
+               "only for the survival families")
+
   # And `times` is meaningless for any other type, which is worth saying.
   expect_warning(predict(fit, type = "link", times = 1), "is ignored")
+})
+
+test_that("`type = \"hazard\"` is the derivative of -log S for every survival family", {
+  # An identity between two predictions from the same draws, so it holds at any
+  # seed and on the smallest fit: h(t) = -d log S(t) / dt. The difference is
+  # taken at the middle of a bin for `ph()`, whose hazard jumps at every edge,
+  # and anywhere for the others, whose hazards are smooth.
+  d <- sim_x(n = 120, seed = 93)
+  set.seed(193)
+  d$time <- stats::rexp(nrow(d), exp(d$x1 - 0.5))
+  d$event <- stats::rbinom(nrow(d), 1L, 0.8)
+
+  families <- list(ph(), weibull_aft(), loglogistic_aft(), lognormal_aft(),
+                   dpm_aft())
+
+  for (family in families) {
+    fit <- bartisan(cbind(time, event) ~ x1 + x2, d, family = family,
+                    control = quick_control())
+    label <- paste(family[["family"]], family[["link"]])
+
+    times <- {
+      if (identical(family[["family"]], "ph"))
+        utils::head(fit[["family_opts"]][["edges"]][-1L], 3L) -
+          diff(utils::head(fit[["family_opts"]][["edges"]], 4L)) / 2
+      else c(0.4, 1.1, 2.5)
+    }
+
+    hazard <- predict(fit, type = "hazard", times = times, draws = TRUE)
+    step <- 1e-5
+    upper <- predict(fit, type = "survival", times = times + step, draws = TRUE)
+    lower <- predict(fit, type = "survival", times = times - step, draws = TRUE)
+    slope <- -(log(upper) - log(lower)) / (2 * step)
+
+    expect_identical(dim(hazard), c(30L, nrow(d), length(times)), label = label)
+    expect_true(all(hazard > 0), label = label)
+    expect_equal(hazard, slope, tolerance = 1e-6, ignore_attr = TRUE,
+                 label = label)
+
+    # The matrix form is the posterior mean of the draws, as for the survival
+    # curve.
+    expect_equal(predict(fit, type = "hazard", times = times),
+                 apply(hazard, c(2L, 3L), mean), ignore_attr = TRUE,
+                 label = label)
+  }
+})
+
+test_that("a subset of the draws predicts what those draws predict in full", {
+  # A `dpm_aft()` fit stores its mixture per draw, and its survival curve,
+  # hazard and median survival time read the mixture by the stored draw's
+  # index. They read it by row number at one point, which paired the requested
+  # draws' predictors with the first draws' mixtures.
+  d <- sim_x(n = 120, seed = 94)
+  set.seed(194)
+  d$time <- stats::rexp(nrow(d), exp(d$x1 - 0.5))
+  d$event <- stats::rbinom(nrow(d), 1L, 0.8)
+
+  fit <- bartisan(cbind(time, event) ~ x1 + x2, d, family = dpm_aft(),
+                  control = quick_control())
+  picked <- c(4L, 17L, 29L)
+
+  for (type in c("survival", "hazard")) {
+    whole <- predict(fit, type = type, times = c(0.5, 2), draws = TRUE)
+    part <- predict(fit, type = type, times = c(0.5, 2), draws = TRUE,
+                    iterations = picked)
+    expect_equal(part, whole[picked, , , drop = FALSE], label = type)
+  }
+
+  whole <- predict(fit, type = "response", draws = TRUE)
+  expect_equal(predict(fit, type = "response", draws = TRUE,
+                       iterations = picked),
+               whole[picked, , drop = FALSE])
 })

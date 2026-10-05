@@ -547,7 +547,7 @@ predict(fit_ph, type = "survival", times = c(1, 2, 5)) |>
   head(3)
 ```
 
-It is also the estimand we usually want. The question is rarely about the predictor but about survival at a horizon (e.g., the difference in one-year survival between two groups), and that is a contrast of `type = "survival"` at one time.
+It is also the estimand we usually want. The question is rarely about the predictor but about survival at a horizon (e.g., the difference in one-year survival between two groups), and that is a contrast of `type = "survival"` at one time. Setting `type = "hazard"` with the same `times` gives the hazard instead, the rate at which the event occurs at each time among those who have survived to it, for every family in the table.
 
 We recommend `dpm_aft()` as the default when we have no view about the shape of anything; measured against five alternatives over six data-generating truths, it was best or tied-best on three and never worse than third, and it came within .004 of the correctly specified family on the two truths where one existed. Use `lognormal_aft()` or `loglogistic_aft()` when the fit has to be quick, `weibull_aft()` when a hazard-ratio reading is wanted from a parametric fit, and `ph()` when the shape of the baseline hazard is the point. If the covariate effect may move with time, so that survival curves cross, none of the five is right and the discrete-time route is.
 

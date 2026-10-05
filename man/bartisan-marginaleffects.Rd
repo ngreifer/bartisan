@@ -54,13 +54,14 @@ is \code{NULL} to use the data the model was fitted to, which is retained in the
 fit for this purpose.}
 
 \item{type}{string; the scale to work on. Allowable options include
-\code{"response"} (the default), \code{"link"}, \code{"prob"}, \code{"mean"}, \code{"stdlv"}, and
-\code{"survival"}. \code{"response"} is the fitted mean, \code{"link"} the additive
-predictor, \code{"prob"} the per-category probabilities of a categorical family,
-\code{"mean"} the mean of a categorical response with its labels read as
-numbers, \code{"stdlv"} the standardized latent variable of an ordinal fit, and
-\code{"survival"} the survival function at the times given in \code{times}; all but
-the first two are described under \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. An \code{ordinal()}
+\code{"response"} (the default), \code{"link"}, \code{"prob"}, \code{"mean"}, \code{"stdlv"},
+\code{"survival"}, and \code{"hazard"}. \code{"response"} is the fitted mean, \code{"link"} the
+additive predictor, \code{"prob"} the per-category probabilities of a
+categorical family, \code{"mean"} the mean of a categorical response with its
+labels read as numbers, \code{"stdlv"} the standardized latent variable of an
+ordinal fit, and \code{"survival"} and \code{"hazard"} the survival function and the
+hazard at the times given in \code{times}; all but the first two are described
+under \code{\link[=predict.bartisan_fit]{predict.bartisan_fit()}}. An \code{ordinal()}
 or \code{multinomial()} response has no single mean, so \code{"response"} gives
 \code{"prob"} for those families, while a binomial fit reports the probability
 of its second level, as \code{\link[stats:glm]{stats::glm()}} does, and \code{"prob"} asks for
@@ -174,6 +175,14 @@ checks the dots against a whitelist of its own, hardcoded per model class, so
 it warns that it does not recognize \code{times} while passing it through, as the
 warning says. There is no hook for registering an argument with it, so the
 warning is expected and the result is correct.
+
+Setting \code{type = "hazard"} with the same \code{times} contrasts the hazard at those
+times instead, so \code{avg_comparisons()} averages each unit's hazard difference
+at a horizon, and \code{comparison = "ratio"} gives the ratio of the averaged
+hazards. Note that an average of hazards is not the hazard of the average
+survival curve: that one weights each unit by its probability of having
+survived to the time, and it comes from \code{type = "survival"} rather than from
+here.
 
 Setting \code{type = "link"} contrasts the additive predictor instead. For \code{\link[=ph]{ph()}}
 the contrast at each unit is the log hazard ratio at that unit's covariates,

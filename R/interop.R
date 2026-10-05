@@ -434,7 +434,7 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
     return(out)
   }
 
-  mu <- response_scale(object, eta, aux, draws = TRUE)
+  mu <- response_scale(object, eta, aux, draws = TRUE, iterations = iterations)
 
   switch(family,
          gaussian = square(stats::rnorm(cells, mu, spread("sigma"))),

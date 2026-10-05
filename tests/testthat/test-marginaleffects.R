@@ -340,6 +340,32 @@ test_that("values reaches predict, and the type vocabulary is checked", {
                "must be")
 })
 
+test_that("the hazard reaches the estimand functions at each time", {
+  skip_if_no_me()
+
+  # An identity between the estimand and the draws it is computed from, so it
+  # holds at any seed: the average prediction at a horizon is the posterior
+  # median, marginaleffects' default summary, of the per-draw average hazard.
+  d <- sim_x(n = 120, seed = 104)
+  set.seed(1104)
+  d$time <- stats::rexp(nrow(d), exp(d$x1 - 0.5))
+  d$event <- stats::rbinom(nrow(d), 1L, 0.8)
+
+  fit <- bartisan(cbind(time, event) ~ x1 + x2, d, family = ph(),
+                  control = quick_control())
+
+  one <- suppressWarnings(
+    marginaleffects::avg_predictions(fit, type = "hazard", times = 0.7))
+  drawn <- stats::predict(fit, type = "hazard", times = 0.7, draws = TRUE)
+  expect_equal(one$estimate, stats::median(rowMeans(drawn[, , 1L])),
+               tolerance = 1e-8)
+
+  # Several times give one group each, labeled by the time.
+  several <- suppressWarnings(
+    marginaleffects::avg_predictions(fit, type = "hazard", times = c(0.7, 2)))
+  expect_setequal(as.numeric(several$group), c(0.7, 2))
+})
+
 test_that("the estimand functions work for a survival response", {
   skip_on_cran()
   skip_if_not_installed("marginaleffects")

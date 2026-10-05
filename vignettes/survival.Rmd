@@ -37,9 +37,9 @@ if (!rlang::is_installed(c("survival", "marginaleffects", "loo"))) {
 
 ## Introduction
 
-A survival outcome is the time until an event, such as death, relapse, or the failure of a machine part, observed for some units and right-censored for the rest, whose event had not happened by the time they were last seen. *bartisan* fits BART models to survival outcomes with five families. They differ in which part of the model the forest describes and which part is given a parametric form, and so in what the forest's output means, but each of them yields the quantities a survival analysis usually reports: the probability of surviving past a given time, the median survival time, and contrasts of either between groups.
+A survival outcome is the time until an event, such as death, relapse, or the failure of a machine part, observed for some units and right-censored for the rest, whose event had not happened by the time they were last seen. *bartisan* fits BART models to survival outcomes with five families. They differ in which part of the model the forest describes and which part is given a parametric form, and so in what the forest's output means, but each of them yields the quantities a survival analysis usually reports: the probability of surviving past a given time, the median survival time, the hazard, and contrasts of these between groups.
 
-In this guide, we will analyze the survival of critically ill patients in the `rhc` data. First we'll describe the five families and fit one of them. Next we'll cover how to choose among them, by checking each fit against the observed survival and by comparing their predictive performance. Finally we'll cover how to read a fit, from what its predictor means to the survival probabilities, median survival times, and treatment contrasts that are usually the quantities to report, and close with a few less common needs.
+In this guide, we will analyze the survival of critically ill patients in the `rhc` data. First we'll describe the five families and fit one of them. Next we'll cover how to choose among them, by checking each fit against the observed survival and by comparing their predictive performance. Finally we'll cover how to read a fit, from what its predictor means to the survival probabilities, median survival times, hazards, and treatment contrasts that are usually the quantities to report, and close with a few less common needs.
 
 ```{r libs}
 library(bartisan)
@@ -218,6 +218,20 @@ summary(med)
 ```
 
 The predicted medians run from about `r round(min(med))` days for the patients with the worst prognosis to about `r round(max(med))` for those with the best. A median longer than a year, which `r round(100 * mean(med > 365))`% of patients have, rests on the `r summary(km, times = 365)$n.risk` patients still under observation at a year and on the model's extrapolation beyond them, so for those patients a survival probability at a horizon within the follow-up is the more reliable summary.
+
+### Hazards (`type = "hazard"`)
+
+`predict()` with `type = "hazard"` returns each patient's hazard at the times in `times`: the rate at which death occurs at that time among patients like them who have survived to it, here per day. Below, we request it a week, a month, and six months after admission:
+
+```{r hazard}
+haz <- predict(fit_ph, type = "hazard", times = c(7, 30, 180))
+
+head(haz)
+```
+
+The first patient's hazard of death is about `r sub("^0", "", signif(haz[1, 1], 2))` per day a week after admission and `r sub("^0", "", signif(haz[1, 3], 2))` per day at six months, about `r round(haz[1, 1] / haz[1, 3])` times lower, which is the steep early mortality visible in the Kaplan-Meier estimate. Under `ph()` every patient's hazard has the same shape over time, scaled by their relative hazard, and that shape is constant within each bin of the baseline, so as a function of time it is a step function that changes at the bin edges. The cumulative hazard is $-\log S(t \mid x)$ and so comes from `type = "survival"`.
+
+Hazards can be averaged and contrasted at a horizon with *marginaleffects* in the same way as the survival probabilities below. Note that an average of the patients' hazards is not the hazard of the average survival curve, which weights each patient by their probability of having survived to that time.
 
 ### Averages and Contrasts
 

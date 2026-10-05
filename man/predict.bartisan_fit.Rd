@@ -30,7 +30,7 @@ else is an error. See section \emph{Missing Predictor Values} in the Details of
 
 \item{type}{string; the scale of the prediction. Allowable options include
 \code{"link"}, \code{"response"} (the default), \code{"prob"}, \code{"class"}, \code{"mean"},
-\code{"stdlv"}, \code{"density"}, and \code{"survival"}.
+\code{"stdlv"}, \code{"density"}, \code{"survival"}, and \code{"hazard"}.
 \describe{
 \item{\code{"link"}}{the additive predictor, one column per predictor for
 families that have more than one. For the accelerated failure time
@@ -67,6 +67,11 @@ given in \code{times}, for the accelerated failure time families and \code{\link
 Returns one column per time, or a draws by rows by times array when
 \code{draws = TRUE}. This makes the usual survival estimand reachable
 through \pkg{marginaleffects}; see \code{\link{bartisan-marginaleffects}}.}
+\item{\code{"hazard"}}{the hazard \eqn{h(t \mid x) = f(t \mid x) / S(t \mid
+    x)} at the times given in \code{times}, the rate at which the event occurs
+at \eqn{t} among those who have survived to it, for the same families
+and in the same shape as \code{"survival"}. The cumulative hazard is
+\eqn{-\log S(t \mid x)} and so comes from \code{"survival"}.}
 }}
 
 \item{draws}{\code{logical}; whether to return every posterior draw rather than
@@ -102,10 +107,11 @@ a log score. Note that with \code{draws = FALSE} the density is averaged over th
 draws before the log is taken, so the result is the pointwise predictive
 density rather than the average log density.}
 
-\item{times}{\code{numeric}; for \code{type = "survival"}, the times at which to report
-the survival function, which must be finite and strictly positive. It has no
-default, because the horizon is a choice rather than a property of the fit.
-Ignored with a warning for every other \code{type}.}
+\item{times}{\code{numeric}; for \code{type = "survival"} and \code{type = "hazard"}, the
+times at which to report the survival function or the hazard, which must be
+finite and strictly positive. It has no default, because the horizon is a
+choice rather than a property of the fit. Ignored with a warning for every
+other \code{type}.}
 
 \item{...}{ignored; present for compatibility with the generic.}
 }
@@ -116,8 +122,8 @@ the family has a single additive predictor; a matrix of observations by
 additive predictors for \code{"link"} and \code{"stdlv"} when it has more than one; a
 matrix of observations by categories for \code{"prob"}, and for \code{"response"} with
 an ordinal or multinomial family; a matrix of observations by times for
-\code{"survival"}; and a factor for \code{"class"}, ordered when the family is
-\code{ordinal()}.
+\code{"survival"} and \code{"hazard"}; and a factor for \code{"class"}, ordered when the
+family is \code{ordinal()}.
 
 With \code{draws = TRUE} each of these gains a leading dimension indexing the
 posterior draws, so that a vector becomes a matrix of draws by observations
@@ -145,7 +151,7 @@ is per posterior draw and averages down over them, which makes \code{draws = FAL
 much more accurate than any single row of \code{draws = TRUE}.
 }
 
-\subsection{Setting \code{type = "stdlv"}}{
+\subsection{\code{type = "stdlv"}}{
 
 This reports \verb{(eta - E[e]) / sd(y*)} for the latent \verb{y* = eta + e}, following
 \pkgfun{WeightIt}{predict.ordinal_weightit}, and makes an ordinal or
@@ -167,7 +173,7 @@ this scale, which a standardized quantity exists to support, are unaffected by
 that choice.
 }
 
-\subsection{Setting \code{type = "density"}}{
+\subsection{\code{type = "density"}}{
 
 The measure differs across the survival families: the accelerated failure time
 families, \code{dpm_aft()} included, report the density of \eqn{\log T}, where
