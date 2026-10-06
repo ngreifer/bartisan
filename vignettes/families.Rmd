@@ -187,7 +187,7 @@ fit_sub <- bartisan(list(mean   = het ~ x1 + x2,
                     num_trees = c(mean = 10, log_sd = 5),
                     sparsity = c(mean = TRUE, log_sd = FALSE))
 
-summary(fit_sub)
+variable_importance(fit_sub)
 ```
 
 Separate proportions are not always desirable. With `sparsity = TRUE`, each forest draws its own splitting proportions, so each has to work out on its own which predictors matter, and one component is often far better placed to answer that than the other: the mean of a location-scale model usually carries much more signal about the relevant predictors than the spread does. Setting `share_sparsity = TRUE` pools the splitting counts of the forests behind one Dirichlet draw, so a predictor that earns its rules in one forest keeps its weight in the others. The forests stay separate in every other respect, with their own trees, cut points and leaf scales.
