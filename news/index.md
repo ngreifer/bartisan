@@ -1,5 +1,5 @@
 # Changelog
 
-## bartisan (development version)
+## *bartisan* 0.1.0
 
-- Initial CRAN submission.
+- First version!

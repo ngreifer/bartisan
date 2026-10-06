@@ -66,6 +66,7 @@
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="articles/faq.html">FAQ</a></li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -104,17 +105,20 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p><em>bartisan</em> is not yet on CRAN. You can install the development version from <a href="https://github.com/ngreifer/bartisan" class="external-link">GitHub</a> with:</p>
+<p>You can install the current stable version of <em>bartisan</em> from CRAN with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"bartisan"</span><span class="op">)</span></span></code></pre></div>
+<p>You can install the development version of <em>bartisan</em> from <a href="https://github.com/ngreifer/bartisan" class="external-link">GitHub</a> with:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"ngreifer/bartisan"</span><span class="op">)</span></span></code></pre></div>
-<p>Installation compiles C++, so it needs a C++17 toolchain.</p>
+<p>Installing from source, which the development version always requires, compiles C++ and so needs a C++17 toolchain.</p>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
-<p><code>rhc</code> holds 1500 critically ill patients from the SUPPORT study, recording whether each was given right heart catheterization on admission to intensive care, whether they died during follow-up, and thirteen covariates measured beforehand (<a href="#ref-connors1996">Connors et al. 1996</a>). Fitting a model to it takes one call, and the family is the one <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> would be given:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<p>The <code>rhc</code> dataset in <em>bartisan</em> holds 1500 critically ill patients from the SUPPORT study, recording whether each was given right heart catheterization on admission to intensive care, whether they died during follow-up, and thirteen covariates measured beforehand (<a href="#ref-connors1996">Connors et al. 1996</a>). Fitting a model to it takes one call, and the family is the one <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> would be given:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ngreifer/bartisan" class="external-link">bartisan</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span>
@@ -136,7 +140,7 @@
 <span><span class="co">#&gt; Structure: 1 forest of 50 trees, soft decision rules</span></span>
 <span><span class="co">#&gt; Draws: 800 kept after 200 warmup</span></span></code></pre></div>
 <p>Calling <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> on the fit gives a quick check of convergence and the predictors used most often to split the trees, and points to the functions that examine each of these in full:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Convergence and mixing</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -166,15 +170,15 @@
 <span><span class="co">#&gt; ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()</span></span>
 <span><span class="co">#&gt;   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the</span></span>
 <span><span class="co">#&gt;   predictions on a predictor.</span></span></code></pre></div>
-<p>Nothing had to be said about which predictors matter, which are curved, or which interact. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> after <code><a href="reference/partial_dependence.html">partial_dependence()</a></code> shows what the model made of one of them, here the study’s own estimate of each patient’s chance of surviving two months:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<p>Nothing had to be specified about which predictors matter, which are curved, or which interact. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> after <code><a href="reference/partial_dependence.html">partial_dependence()</a></code> shows what the model made of one of them, here the study’s own estimate of each patient’s chance of surviving two months:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/partial_dependence.html">partial_dependence</a></span><span class="op">(</span><span class="va">fit</span>, <span class="op">~</span> <span class="va">surv2m</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Estimated probability of surviving two months"</span>,</span>
 <span>                y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="reference/figures/README-pdp-1.png" alt="Fitted probability of death against the study's two-month survival estimate. The curve sits flat near .87 up to about .3, falls steeply from there to about .75, and flattens again near .47, inside a credible band that widens at both ends." width="90%" style="display: block; margin: auto;"></p>
 <p>A forest has no coefficients, so an effect is a contrast between what the model predicts under one value of a predictor and under another, averaged over the sample. Every posterior draw goes through that contrast, so what comes back is a credible interval rather than a standard error:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Average treatment effect (difference)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -194,7 +198,7 @@
 <span><span class="co">#&gt;   credible interval.</span></span>
 <span><span class="co">#&gt; ℹ Y[a] is the average response with `rhc` set to "a".</span></span></code></pre></div>
 <p>To examine effect heterogeneity, one can generate a plot of conditional effect estimates for all units:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit</span>, treat <span class="op">=</span> <span class="st">"rhc"</span>, estimand <span class="op">=</span> <span class="st">"CATE"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><img src="reference/figures/README-unnamed-chunk-3-1.png" alt="" width="90%" style="display: block; margin: auto;"></p>

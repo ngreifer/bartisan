@@ -39,8 +39,15 @@ parallel processing and progress bars.
 
 ## Installation
 
-*bartisan* is not yet on CRAN. You can install the development version
-from [GitHub](https://github.com/ngreifer/bartisan) with:
+You can install the current stable version of *bartisan* from CRAN with:
+
+``` r
+
+install.packages("bartisan")
+```
+
+You can install the development version of *bartisan* from
+[GitHub](https://github.com/ngreifer/bartisan) with:
 
 ``` r
 
@@ -48,14 +55,15 @@ from [GitHub](https://github.com/ngreifer/bartisan) with:
 pak::pak("ngreifer/bartisan")
 ```
 
-Installation compiles C++, so it needs a C++17 toolchain.
+Installing from source, which the development version always requires,
+compiles C++ and so needs a C++17 toolchain.
 
 ## Example
 
-`rhc` holds 1500 critically ill patients from the SUPPORT study,
-recording whether each was given right heart catheterization on
-admission to intensive care, whether they died during follow-up, and
-thirteen covariates measured beforehand ([Connors et al.
+The `rhc` dataset in *bartisan* holds 1500 critically ill patients from
+the SUPPORT study, recording whether each was given right heart
+catheterization on admission to intensive care, whether they died during
+follow-up, and thirteen covariates measured beforehand ([Connors et al.
 1996](#ref-connors1996)). Fitting a model to it takes one call, and the
 family is the one [`glm()`](https://rdrr.io/r/stats/glm.html) would be
 given:
@@ -122,8 +130,8 @@ summary(fit)
 #>   predictions on a predictor.
 ```
 
-Nothing had to be said about which predictors matter, which are curved,
-or which interact.
+Nothing had to be specified about which predictors matter, which are
+curved, or which interact.
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) after
 [`partial_dependence()`](https://ngreifer.github.io/bartisan/reference/partial_dependence.md)
 shows what the model made of one of them, here the study’s own estimate

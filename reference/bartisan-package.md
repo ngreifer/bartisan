@@ -11,7 +11,7 @@ non-negative response with a point mass at zero, accelerated failure
 time and proportional hazards models for right-censored survival data,
 location-scale regression, and a Dirichlet process mixture for the error
 distribution. Decision rules may be hard, as in standard BART, or soft,
-as in the SoftBart model of Linero and Yang (2018)
+as in the 'SoftBart' model of Linero and Yang (2018)
 [doi:10.1111/rssb.12293](https://doi.org/10.1111/rssb.12293) , which
 yields smoother fits. The interface follows that of glm(), so that a
 model is specified with a formula, a data frame, and a family.

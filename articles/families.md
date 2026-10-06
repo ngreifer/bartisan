@@ -311,32 +311,19 @@ fit_sub <- bartisan(list(mean   = het ~ x1 + x2,
                     num_trees = c(mean = 10, log_sd = 5),
                     sparsity = c(mean = TRUE, log_sd = FALSE))
 
-summary(fit_sub)
-#> Convergence and mixing
-#> 
-#> Log likelihood: R-hat 0.999, bulk ESS 111, tail ESS 105, over 1 chain
-#> 
-#> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
-#>   diagnostics.
-#> 
+variable_importance(fit_sub)
 #> Variable importance
 #> 
-#> Predictors in the "mean" forest ranked by use; 2 of 2 shown.
-#>  variable prop_used prop_splits splits
-#>        x1     1.000       0.997   15.1
-#>        x2     0.053       0.003    0.1
+#>  predictor variable prop_used prop_splits splits
+#>       mean       x1     1.000       0.997   15.1
+#>     log_sd       x2     1.000       1.000    7.2
+#>       mean       x2     0.053       0.003    0.1
+#>     log_sd       x1     0.000       0.000    0.0
 #> 
-#> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
-#>   variable importance.
-#> 
-#> Further tools
-#> 
-#> ℹ Use loo() (`?bartisan::loo.bartisan_fit`) to compare this fit with others, or
-#>   kfold() (`?bartisan::kfold.bartisan_fit`) if `loo()` reports many Pareto k
-#>   values above 0.7.
-#> ℹ Use partial_dependence() (`?bartisan::partial_dependence`) and plot()
-#>   (`?bartisan::plot.bartisan_fit`) to view the partial dependence of the
-#>   predictions on a predictor.
+#> ℹ Fitted with `sparsity = FALSE` (the default), so every predictor keeps a
+#>   share of the rules and prop_used is near 1 throughout. Refit with `sparsity =
+#>   TRUE` to read it as a selection rule.
+#> ℹ splits_lower and splits_upper hold the 95% interval, not shown above.
 ```
 
 Separate proportions are not always desirable. With `sparsity = TRUE`,
