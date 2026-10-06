@@ -40,16 +40,18 @@ is read off the response and a message reports the choice; see Details for
 the rules.}
 
 \item{moderators}{a one-sided formula naming the covariates the treatment
-effect may vary with. Default is \code{NULL} to let the effect vary with every
-covariate.}
+effect may vary with, in which \code{.} stands for the covariates in \code{formula},
+so that \code{~ . - x} lets it vary with every covariate but \code{x}. Default is
+\code{NULL} to let the effect vary with every covariate.}
 
 \item{propensity}{what to do about the propensity score, given as
 either a logical value, a numeric vector or matrix, or a one-sided formula.
 Default is \code{TRUE} to fit a model for it and add the fitted values to the
 control function. \code{FALSE} fits nothing, a numeric vector or matrix is used
 as given, and a one-sided formula fits it with the predictors that formula
-names. For a continuous treatment the fitted values are the treatment's
-conditional mean given the covariates; see Details.}
+names, in which \code{.} stands for the covariates in \code{formula} rather than for
+every column of \code{data}. For a continuous treatment the fitted values are
+the treatment's conditional mean given the covariates; see Details.}
 
 \item{propensity_args}{a list of arguments for the propensity model:
 \code{\link[=bartisan_control]{bartisan_control()}} settings, and \code{family} to replace the family chosen

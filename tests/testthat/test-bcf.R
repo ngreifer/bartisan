@@ -221,6 +221,36 @@ test_that("a one-sided formula chooses the propensity model's covariates", {
   expect_true(".propensity" %in% attr(stats::terms(fit), "term.labels"))
 })
 
+# Expanded against `data`, as `terms()` expands it, `.` took in every column:
+# the propensity model was fit on the outcome, and the moderators named the
+# outcome, the treatment and the score, so that the fit stopped with an error.
+test_that("`.` in the propensity and moderator formulas is the outcome's covariates", {
+  d <- sim_causal(seed = 6)
+  # A column the outcome model leaves out, which `.` must leave out too.
+  d$w <- stats::rnorm(nrow(d))
+
+  moderated_by <- function(fit) {
+    attr(stats::terms(fit[["vc"]][["specs"]][["z"]][["modifiers"]]), "term.labels")
+  }
+
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                             family = gaussian(), propensity = ~ .,
+                             moderators = ~ .),
+                        bcf_args()))
+
+  expect_identical(colnames(fit[["bcf"]][["model"]][["counts"]][[1L]]),
+                   c("x1", "x2"))
+  expect_identical(moderated_by(fit), c("x1", "x2"))
+
+  # And it combines with other terms as it does in `update()`.
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                             family = gaussian(), propensity = FALSE,
+                             moderators = ~ . - x2 + w),
+                        bcf_args()))
+
+  expect_identical(moderated_by(fit), c("x1", "w"))
+})
+
 test_that("moderators restrict what the effect may vary with", {
   d <- sim_causal(seed = 7)
 

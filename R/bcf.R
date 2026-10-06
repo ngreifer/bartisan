@@ -16,15 +16,17 @@
 #'   treatment may be binary, categorical, or continuous, and which it is decides
 #'   what the propensity score is and how it is modeled; see Details.
 #' @param moderators a one-sided formula naming the covariates the treatment
-#'   effect may vary with. Default is `NULL` to let the effect vary with every
-#'   covariate.
+#'   effect may vary with, in which `.` stands for the covariates in `formula`,
+#'   so that `~ . - x` lets it vary with every covariate but `x`. Default is
+#'   `NULL` to let the effect vary with every covariate.
 #' @param propensity what to do about the propensity score, given as
 #'   either a logical value, a numeric vector or matrix, or a one-sided formula.
 #'   Default is `TRUE` to fit a model for it and add the fitted values to the
 #'   control function. `FALSE` fits nothing, a numeric vector or matrix is used
 #'   as given, and a one-sided formula fits it with the predictors that formula
-#'   names. For a continuous treatment the fitted values are the treatment's
-#'   conditional mean given the covariates; see Details.
+#'   names, in which `.` stands for the covariates in `formula` rather than for
+#'   every column of `data`. For a continuous treatment the fitted values are
+#'   the treatment's conditional mean given the covariates; see Details.
 #' @param propensity_args a list of arguments for the propensity model:
 #'   [bartisan_control()] settings, and `family` to replace the family chosen
 #'   from the treatment's type (see Details). Default is `list()` to leave every
@@ -265,7 +267,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
     if (is_null(moderators))
       setdiff(covariates, colnames(score))
     else
-      attr(stats::terms(moderators, data = data), "term.labels")
+      covariate_terms(moderators, setdiff(covariates, colnames(score)))
   }
 
   # A binary treatment gets its coding drawn rather than fixed, which is what
@@ -440,6 +442,20 @@ bcf_newdata_score <- function(object, newdata) {
     setColnames(wanted)
 }
 
+# The terms of a one-sided formula naming covariates, with `.` standing for
+# `dot`, the covariates of the outcome model, as it does in a formula that
+# updates another. Expanded against `data` instead, as `terms()` would expand it,
+# `.` is every column, the outcome and the treatment among them, and for the
+# moderators the propensity score too: `propensity = ~ .` regressed the
+# treatment on the outcome.
+covariate_terms <- function(f, dot) {
+  if ("." %in% all.vars(f)) {
+    f <- stats::update(stats::reformulate(dot), f)
+  }
+
+  attr(stats::terms(f), "term.labels")
+}
+
 # The propensity score, or nothing. The model follows the treatment's type,
 # because what the score *is* follows the treatment's type.
 bcf_propensity <- function(propensity, name, covariates, data, args) {
@@ -472,7 +488,7 @@ bcf_propensity <- function(propensity, name, covariates, data, args) {
 
   terms <- {
     if (rlang::is_formula(propensity))
-      attr(stats::terms(propensity, data = data), "term.labels")
+      covariate_terms(propensity, covariates)
     else
       covariates
   }
