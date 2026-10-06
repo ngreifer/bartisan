@@ -185,8 +185,8 @@ timed <- function(gate) {
 
 rbind(timed("smoothstep"), timed("hard"))
 #>        rules test_rmse seconds
-#> 1 smoothstep     0.401     0.7
-#> 2       hard     1.169     0.2
+#> 1 smoothstep     0.401     1.0
+#> 2       hard     1.169     0.3
 ```
 
 The true function has a standard deviation of about 4.9, so both are
