@@ -63,8 +63,9 @@ bcf(
 - moderators:
 
   a one-sided formula naming the covariates the treatment effect may
-  vary with. Default is `NULL` to let the effect vary with every
-  covariate.
+  vary with, in which `.` stands for the covariates in `formula`, so
+  that `~ . - x` lets it vary with every covariate but `x`. Default is
+  `NULL` to let the effect vary with every covariate.
 
 - propensity:
 
@@ -73,8 +74,10 @@ bcf(
   `TRUE` to fit a model for it and add the fitted values to the control
   function. `FALSE` fits nothing, a numeric vector or matrix is used as
   given, and a one-sided formula fits it with the predictors that
-  formula names. For a continuous treatment the fitted values are the
-  treatment's conditional mean given the covariates; see Details.
+  formula names, in which `.` stands for the covariates in `formula`
+  rather than for every column of `data`. For a continuous treatment the
+  fitted values are the treatment's conditional mean given the
+  covariates; see Details.
 
 - propensity_args:
 

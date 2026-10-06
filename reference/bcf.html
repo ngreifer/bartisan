@@ -140,8 +140,9 @@ the rules.</p></dd>
 
 <dt id="arg-moderators">moderators<a class="anchor" aria-label="anchor" href="#arg-moderators"></a></dt>
 <dd><p>a one-sided formula naming the covariates the treatment
-effect may vary with. Default is <code>NULL</code> to let the effect vary with every
-covariate.</p></dd>
+effect may vary with, in which <code>.</code> stands for the covariates in <code>formula</code>,
+so that <code>~ . - x</code> lets it vary with every covariate but <code>x</code>. Default is
+<code>NULL</code> to let the effect vary with every covariate.</p></dd>
 
 
 <dt id="arg-propensity">propensity<a class="anchor" aria-label="anchor" href="#arg-propensity"></a></dt>
@@ -150,8 +151,9 @@ either a logical value, a numeric vector or matrix, or a one-sided formula.
 Default is <code>TRUE</code> to fit a model for it and add the fitted values to the
 control function. <code>FALSE</code> fits nothing, a numeric vector or matrix is used
 as given, and a one-sided formula fits it with the predictors that formula
-names. For a continuous treatment the fitted values are the treatment's
-conditional mean given the covariates; see Details.</p></dd>
+names, in which <code>.</code> stands for the covariates in <code>formula</code> rather than for
+every column of <code>data</code>. For a continuous treatment the fitted values are
+the treatment's conditional mean given the covariates; see Details.</p></dd>
 
 
 <dt id="arg-propensity-args">propensity_args<a class="anchor" aria-label="anchor" href="#arg-propensity-args"></a></dt>
