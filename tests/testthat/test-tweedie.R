@@ -151,6 +151,23 @@ test_that("the power is fixed by default and drawn when asked for", {
   expect_error(tweedie(link = "identity"), "log")
 })
 
+# A drawn power changes the series that normalizes the density, so the density
+# at each draw has to be evaluated under that draw's power. The observations' log
+# densities then add up, draw by draw, to the log likelihood the sampler recorded.
+test_that("the density at each draw uses that draw's power", {
+  d <- sim_x(n = 80L, seed = 61L)
+  set.seed(611)
+  d$y <- ifelse(stats::runif(nrow(d)) < 0.3, 0, stats::rgamma(nrow(d), 2))
+
+  fit <- bartisan(y ~ ., d, family = tweedie(power = NULL),
+                  control = quick_control())
+
+  expect_gt(length(unique(fit[["aux"]][, "power"])), 1L)
+  expect_equal(rowSums(stats::predict(fit, type = "density", log = TRUE,
+                                      draws = TRUE)),
+               fit[["loglik"]])
+})
+
 test_that("naming the distribution any of three ways fits the same model", {
   # An ordinary `family` object carries none of our settings, so an empty option
   # list has to read as "take the defaults" rather than as "draw everything".

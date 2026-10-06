@@ -48,14 +48,37 @@ test_that("the zero-inflated mean sits below the count mean", {
   expect_true(all(predict(fit, type = "response") < exp(link[, "count"]) + 1e-8))
 })
 
+# A dispersion given a value is held there in every draw. The negative binomial
+# is rewritten as a Poisson mixture by default, so it is also fitted directly,
+# which is the path that has its own early exit.
 test_that("a fixed dispersion is held fixed", {
+  skip_if_not_installed("patrick")
+
   d <- sim_x(seed = 52)
   d$y <- stats::rnbinom(nrow(d), mu = exp(1 + d$x1), size = 2)
+  d$claims <- ifelse(d$y == 0, 0, stats::rgamma(nrow(d), shape = d$y))
 
-  fit <- bartisan(y ~ ., data = d, family = zi_negbin(theta = 2.5),
-                  control = quick_control())
+  patrick::with_parameters_test_that(
+    "family:",
+    {
+      fit <- bartisan(stats::reformulate(c("x1", "x2", "x3"), response),
+                      data = d, family = family,
+                      control = quick_control(augment = augment))
 
-  expect_true(all(fit[["aux"]][, "theta"] == 2.5))
+      for (nm in names(fixed)) {
+        expect_true(all(fit[["aux"]][, nm] == fixed[[nm]]), label = nm)
+      }
+    },
+    patrick::cases(
+      zi_negbin = list(family = zi_negbin(theta = 2.5), response = "y",
+                       augment = TRUE, fixed = c(theta = 2.5)),
+      `negbin, direct` = list(family = negbin(theta = 2.5), response = "y",
+                              augment = FALSE, fixed = c(theta = 2.5)),
+      tweedie = list(family = tweedie(power = 1.5, phi = 2),
+                     response = "claims", augment = TRUE,
+                     fixed = c(phi = 2, power = 1.5))
+    )
+  )
 })
 
 test_that("ordered beta fits a response with mass at both endpoints", {
@@ -79,6 +102,12 @@ test_that("ordered beta fits a response with mass at both endpoints", {
   expect_true(all(fit[["aux"]][, "cut1"] < fit[["aux"]][, "cut2"]))
   expect_true(all(fit[["aux"]][, "phi"] > 0))
   expect_predictor_invariant(fit, d)
+
+  # A `cut_alpha` other than one adds the induced-Dirichlet prior's power term
+  # to the cutpoint update, and the order still holds.
+  powered <- bartisan(y ~ ., data = d, family = ordbeta(cut_alpha = 2),
+                      control = quick_control())
+  expect_true(all(powered[["aux"]][, "cut1"] < powered[["aux"]][, "cut2"]))
 
   # The fitted mean respects the bounds of the response.
   fitted <- predict(fit, type = "response")

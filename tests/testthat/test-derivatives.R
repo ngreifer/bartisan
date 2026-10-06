@@ -176,3 +176,29 @@ test_that("multi-predictor families are correct in each component", {
            update_theta = TRUE), matrix(2, 1L, 1L), component = component)
   }
 })
+
+# Where a stable form would lose its precision, the families hand over: the
+# ordinal family to a difference of its log density once a category's
+# probability underflows, and the ordered beta to the exact digamma combinations
+# beyond the reach of its table, which ends at a predictor of 8.
+test_that("the scores stay right where the stable forms hand over", {
+  # Under the cloglog link the top category's probability is exp(-exp(c - eta)),
+  # zero in double precision by eta = -9 though its log is finite, and the score
+  # there is exp(c - eta).
+  eta <- matrix(c(-9, -10), nrow = 1L)
+  opts <- list(num_cat = 4L, cuts = c(0, 1, 2.5), update_cuts = TRUE)
+  aux <- matrix(c(0, 1, 2.5), 1L, 3L)
+
+  expect_score_matches_difference("ordinal", "cloglog", c(3, 3), list(eta),
+                                  opts, aux)
+  expect_equal(as.vector(derivs("ordinal", "cloglog", c(3, 3), list(eta), opts,
+                                aux)[["d1"]]),
+               exp(2.5 - as.vector(eta)), tolerance = 1e-6)
+
+  expect_score_matches_difference(
+    "ordbeta", "logit", rep(c(0.3, 0.7), 2L),
+    list(matrix(c(-12, -9, 9, 12), nrow = 1L)),
+    list(cut1 = -1.5, cut2 = 1.5, phi = 8, phi_prior_shape = 0.01,
+         phi_prior_rate = 0.01, update_phi = TRUE),
+    matrix(c(-1.5, 1.5, 8), 1L, 3L), tolerance = 2e-5)
+})

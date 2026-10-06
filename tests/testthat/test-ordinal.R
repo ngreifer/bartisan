@@ -135,6 +135,27 @@ test_that("two categories keep the chart that matches binary regression", {
   # so it stays pinned and the predictor is not centered.
   expect_true(all(fit[["aux"]][, "cut1"] == 0))
   expect_predictor_invariant(fit, d)
+
+  # And pinned on the direct path as well, which has its own way out of the
+  # cutpoint update.
+  direct <- bartisan(y ~ ., d, family = ordinal(),
+                     control = quick_control(gate = "hard", augment = FALSE))
+  expect_true(all(direct[["aux"]][, "cut1"] == 0))
+})
+
+# A `cut_alpha` other than one adds the induced-Dirichlet prior's power term to
+# the update of the cutpoints through the latent variables, and the cutpoints
+# stay ordered in every draw.
+test_that("a cutpoint prior keeps the augmented cutpoints in order", {
+  d <- sim_x(n = 150, seed = 16)
+  set.seed(1016)
+  d$y <- cut(d$x1 - d$x2 + stats::rlogis(nrow(d)), c(-Inf, -0.5, 0.5, Inf),
+             labels = c("a", "b", "c"), ordered_result = TRUE)
+
+  fit <- bartisan(y ~ ., d, family = ordinal(cut_alpha = 2),
+                  control = quick_control())
+
+  expect_true(all(fit[["aux"]][, "cut1"] < fit[["aux"]][, "cut2"]))
 })
 
 test_that("the chart is a change of chart: fitted probabilities are untouched", {

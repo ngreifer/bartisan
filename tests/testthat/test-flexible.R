@@ -113,6 +113,24 @@ test_that("a link with no derivative falls back on differences", {
   }
 })
 
+# A link supplied from R is the caller's code, so what it returns is checked
+# before the engine reads past the end of it.
+test_that("a link supplied from R that returns the wrong thing is reported", {
+  set.seed(34)
+  n <- 20
+  y <- stats::rbinom(n, 1, 0.4)
+  eta <- matrix(stats::rnorm(n), nrow = 1L)
+
+  logdens_with <- function(link) {
+    .bartisan_logdens(y, rep(1, n), list(eta), "binomial", "logit",
+                      list(link_theta = link), matrix(0, 1L, 0L))
+  }
+
+  expect_error(logdens_with(function(eta) 0), "returned 1 values")
+  expect_error(logdens_with(function(eta) rep("a", length(eta))),
+               "must return a numeric vector")
+})
+
 test_that("stats family objects carry an uncompiled link through a fit", {
   d <- sim_x(n = 100, seed = 34)
   truth <- 2 * d$x1 - 1
@@ -216,6 +234,17 @@ test_that("supplied derivatives are used and must be the right shape", {
 
   expect_equal(exact[["d1"]], differenced[["d1"]], tolerance = 1e-6)
   expect_equal(exact[["info"]], differenced[["info"]], tolerance = 1e-4)
+
+  # The same for supplied derivatives that return the wrong number of values.
+  expect_error(
+    .bartisan_derivs(
+      y, rep(1, n), list(eta), "custom", "identity",
+      list(num_predictors = 1L, logdens = logdens, name = "p",
+           derivatives = function(y, eta, h) {
+             list(score = (y - exp(eta[, h]))[-1L], info = exp(eta[, h]))
+           }),
+      matrix(0, 2L, 0L), 0L, FALSE, TRUE),
+    "one score and one information value per observation")
 
   # A function that returns the wrong number of values is a mistake worth a
   # message rather than a read past the end of a vector.

@@ -1146,3 +1146,20 @@ test_that("a covariate named as a modifier reaches the coefficient without the f
   expect_false(cross[["masks"]]["z", 2L])   # not its own forest
   expect_true(cross[["masks"]]["z", 3L])    # the one that asked
 })
+
+# With two varying coefficients, one whose coding is drawn and one whose coding
+# is fixed, the coding update passes over the fixed one, and only the drawn one
+# reports codings.
+test_that("a drawn coding and a fixed one can share a model", {
+  d <- sim_x(n = 100L, p = 2L, seed = 701L)
+  set.seed(7011)
+  d$z <- stats::rbinom(nrow(d), 1L, 0.5)
+  d$g <- factor(sample(c("p", "q", "r"), nrow(d), replace = TRUE))
+  d$y <- d$x1 + d$z + stats::rnorm(nrow(d))
+
+  fit <- bartisan(y ~ x1 + vc(z, ~ x1, center = "estimate") + vc(g, ~ x1), d,
+                  family = stats::gaussian(), control = quick_control())
+
+  expect_identical(grep("^b[.]", colnames(fit[["aux"]]), value = TRUE),
+                   c("b.z.0", "b.z.1"))
+})

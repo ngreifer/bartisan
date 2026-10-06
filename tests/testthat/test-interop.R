@@ -386,6 +386,20 @@ test_that("log_lik is the pointwise log density", {
   # weighted sum over observations.
   expect_equal(rowSums(rstantools::log_lik(fit)), fit[["loglik"]],
                tolerance = 1e-6)
+  # A proportion of several trials takes the general branch of the binomial
+  # density, which a binary response never reaches, and under the cloglog link
+  # that branch is an expression of its own. It is the binomial density, the
+  # coefficient included.
+  d$trials <- 4
+  d$share <- stats::rbinom(nrow(d), 4L, 0.4) / 4
+  cloglog <- bartisan(share ~ x1 + x2, data = d, family = binomial("cloglog"),
+                      weights = trials, control = quick_control())
+
+  eta <- cloglog[["eta"]][[1L]]
+  successes <- matrix(4 * d$share, nrow(eta), ncol(eta), byrow = TRUE)
+  expect_equal(rstantools::log_lik(cloglog),
+               stats::dbinom(successes, 4L, 1 - exp(-exp(eta)), log = TRUE),
+               ignore_attr = TRUE)
 })
 
 test_that("simulate follows the stats contract", {
