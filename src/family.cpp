@@ -1508,9 +1508,11 @@ struct OrdinalFamily final : Concrete<OrdinalFamily> {
   // Density and its derivative for the chosen link, at z = cut - eta.
   void link_dens(double z, double* f, double* fp) const {
     if (link == ORD_LOGIT) {
-      double p = expit(z);
-      *f = p * (1.0 - p);
-      *fp = *f * (1.0 - 2.0 * p);
+      // Far into a tail expit(z) rounds to one and p * (1 - p) to zero, while
+      // the probability the score divides this by is still representable, so
+      // neither is formed by that subtraction: 1 - 2 expit(z) is -tanh(z / 2).
+      *f = logistic_density(z);
+      *fp = -*f * std::tanh(0.5 * z);
     }
     else if (link == ORD_PROBIT) {
       *f = R::dnorm4(z, 0.0, 1.0, 0);
@@ -2736,6 +2738,26 @@ struct ZeroInflatedFamily final : Concrete<ZeroInflatedFamily> {
 // nothing to identify them.
 // ---------------------------------------------------------------------------
 
+// The two shapes of a beta density with mean expit(e) and precision phi, each
+// taken from its own side of the logistic. Formed as phi minus the other, the
+// second was exactly zero once expit(e) rounded to one, near |e| = 37, and the
+// density came out -Inf there although it is finite.
+inline void beta_shapes(double e, double phi, double* a, double* b) {
+  *a = phi * expit(e);
+  *b = phi * expit(-e);
+}
+
+// lgamma of the shape phi * expit(x). Below 1e-10 a shape has
+// lgamma(s) = -log(s) - 0.5772 s + O(s^2), so it is taken as -log(s), formed in
+// the logs, which keeps it finite after the shape itself underflows once |x|
+// passes about 745.
+inline double lgamma_shape(double s, double phi, double x) {
+  if (s > 1e-10) {
+    return R::lgammafn(s);
+  }
+  return -(std::log(phi) + log_expit(x));
+}
+
 struct BetaFamily final : Concrete<BetaFamily> {
   double phi;
   double prior_shape;
@@ -2792,9 +2814,9 @@ struct BetaFamily final : Concrete<BetaFamily> {
 
   // Exact, for the grid itself and for predictors beyond it.
   void psi_exact(double e, double* dpsi, double* tpsi) const {
-    double mu = expit(e);
-    double a = mu * phi;
-    double b = phi - a;
+    double a;
+    double b;
+    beta_shapes(e, phi, &a, &b);
     *dpsi = R::digamma(a) - R::digamma(b);
     *tpsi = R::trigamma(a) + R::trigamma(b);
   }
@@ -2838,30 +2860,26 @@ struct BetaFamily final : Concrete<BetaFamily> {
   }
 
   double logdens_unit(int i, const double* eta) const override {
-    double mu = expit(eta[0]);
-    double a = mu * phi;
-    double b = phi - a;
+    double e = eta[0];
+    double a;
+    double b;
+    beta_shapes(e, phi, &a, &b);
 
-    if (!(a > 0.0) || !(b > 0.0)) {
-      return R_NegInf;
-    }
-
-    return a * log_y(i) + b * log1m_y(i) - R::lgammafn(a) - R::lgammafn(b);
+    return a * log_y(i) + b * log1m_y(i) - lgamma_shape(a, phi, e) -
+      lgamma_shape(b, phi, -e);
   }
 
   // Complete log density, for the precision update, which varies phi and so
   // cannot use the cached eta-free part.
   static double loglik_one(double y_i, double eta, double phi_) {
-    double mu = expit(eta);
-    double a = mu * phi_;
-    double b = phi_ - a;
+    double a;
+    double b;
+    beta_shapes(eta, phi_, &a, &b);
 
-    if (!(a > 0.0) || !(b > 0.0)) {
-      return R_NegInf;
-    }
-
+    // lbeta(a, b), with the two shapes summing to phi.
     return (a - 1.0) * std::log(y_i) + (b - 1.0) * std::log1p(-y_i) -
-      Rf_lbeta(a, b);
+      lgamma_shape(a, phi_, eta) - lgamma_shape(b, phi_, -eta) +
+      R::lgammafn(phi_);
   }
 
   // The two digamma contributions from log Beta(a, b) keep only their
@@ -2872,8 +2890,16 @@ struct BetaFamily final : Concrete<BetaFamily> {
   void score_info_unit(int i, const double* eta, int h, double* d1,
                        double* d2) const override {
     double e = eta[0];
-    double mu = expit(e);
-    double slope = phi * mu * (1.0 - mu);
+    double slope = phi * logistic_density(e);
+
+    // Past |e| = 745 the slope underflows while a shape's digamma does not, and
+    // their product is a zero times an infinity; the log density is still
+    // finite there, so it is differenced instead.
+    if (!(slope > 0.0)) {
+      score_info_numeric(i, eta, h, d1, d2);
+      return;
+    }
+
     double dpsi;
     double tpsi;
     psi_lookup(e, &dpsi, &tpsi);
@@ -2920,14 +2946,11 @@ struct BetaFamily final : Concrete<BetaFamily> {
       double lg_p = R::lgammafn(p);
       double out = prior_shape * log_phi - prior_rate * p;
       for (int i = 0; i < N; i++) {
-        double mu = expit(e(i));
-        double a = mu * p;
-        double b = p - a;
-        if (!(a > 0.0) || !(b > 0.0)) {
-          return R_NegInf;
-        }
+        double a;
+        double b;
+        beta_shapes(e(i), p, &a, &b);
         out += w(i) * ((a - 1.0) * log_y(i) + (b - 1.0) * log1m_y(i) + lg_p -
-                       R::lgammafn(a) - R::lgammafn(b));
+                       lgamma_shape(a, p, e(i)) - lgamma_shape(b, p, -e(i)));
       }
       return out;
     }, 0.5, -10.0, 15.0));
@@ -3016,9 +3039,9 @@ struct OrdBetaFamily final : Concrete<OrdBetaFamily> {
   }
 
   void psi_exact(double e, double* dpsi, double* tpsi) const {
-    double mu = expit(e);
-    double a = mu * phi;
-    double b = phi - a;
+    double a;
+    double b;
+    beta_shapes(e, phi, &a, &b);
     *dpsi = R::digamma(a) - R::digamma(b);
     *tpsi = R::trigamma(a) + R::trigamma(b);
   }
@@ -3074,16 +3097,12 @@ struct OrdBetaFamily final : Concrete<OrdBetaFamily> {
       return log_expit(e - cut2);
     }
 
-    double mu = expit(e);
-    double a = mu * phi;
-    double b = phi - a;
-
-    if (!(a > 0.0) || !(b > 0.0)) {
-      return R_NegInf;
-    }
+    double a;
+    double b;
+    beta_shapes(e, phi, &a, &b);
 
     return log_diff_logistic(e - cut2, e - cut1) + a * log_y(i) +
-      b * log1m_y(i) - R::lgammafn(a) - R::lgammafn(b);
+      b * log1m_y(i) - lgamma_shape(a, phi, e) - lgamma_shape(b, phi, -e);
   }
 
   // Complete log density, used by the nuisance-parameter updates, which vary
@@ -3098,16 +3117,13 @@ struct OrdBetaFamily final : Concrete<OrdBetaFamily> {
     }
     // Probability of the continuous middle, times the beta density on it.
     double log_middle = log_diff_logistic(eta - c2, eta - c1);
-    double mu = expit(eta);
-    double a = mu * phi_;
-    double b = phi_ - a;
-
-    if (!(a > 0.0) || !(b > 0.0)) {
-      return R_NegInf;
-    }
+    double a;
+    double b;
+    beta_shapes(eta, phi_, &a, &b);
 
     double log_beta = (a - 1.0) * std::log(y_i) +
-      (b - 1.0) * std::log1p(-y_i) - Rf_lbeta(a, b);
+      (b - 1.0) * std::log1p(-y_i) - lgamma_shape(a, phi_, eta) -
+      lgamma_shape(b, phi_, -eta) + R::lgammafn(phi_);
     return log_middle + log_beta;
   }
 
@@ -3124,30 +3140,31 @@ struct OrdBetaFamily final : Concrete<OrdBetaFamily> {
     double y_i = y(i);
 
     if (y_i <= 0.0) {
-      double a = expit(e - cut1);
-      *d1 = -a;
-      *d2 = a * (1.0 - a);
+      *d1 = -expit(e - cut1);
+      *d2 = logistic_density(e - cut1);
       return;
     }
 
     if (y_i >= 1.0) {
-      double b = expit(e - cut2);
-      *d1 = 1.0 - b;
-      *d2 = b * (1.0 - b);
+      *d1 = expit(cut2 - e);
+      *d2 = logistic_density(e - cut2);
       return;
     }
 
+    // Far into a tail both expits round to one, so their difference and each
+    // p * (1 - p) are zero while the quantities they stand for are not. The
+    // interval comes from its log and the densities from their own form.
     double upper = expit(e - cut1);
     double lower = expit(e - cut2);
-    double span = upper - lower;
+    double span = std::exp(log_diff_logistic(e - cut2, e - cut1));
 
     if (!(span > 1e-300) || !std::isfinite(span)) {
       score_info_numeric(i, eta, h, d1, d2);
       return;
     }
 
-    double f_up = upper * (1.0 - upper);
-    double f_lo = lower * (1.0 - lower);
+    double f_up = logistic_density(e - cut1);
+    double f_lo = logistic_density(e - cut2);
     double diff = f_up - f_lo;
 
     double d1_span = diff / span;
@@ -3155,8 +3172,7 @@ struct OrdBetaFamily final : Concrete<OrdBetaFamily> {
                        f_up * (1.0 - 2.0 * upper)) * span + diff * diff) /
       (span * span);
 
-    double mu = expit(e);
-    double slope = phi * mu * (1.0 - mu);
+    double slope = phi * logistic_density(e);
     double dpsi;
     double tpsi;
     psi_lookup(e, &dpsi, &tpsi);
@@ -3245,14 +3261,11 @@ struct OrdBetaFamily final : Concrete<OrdBetaFamily> {
         if (!(y_i > 0.0 && y_i < 1.0)) {
           continue;
         }
-        double mu = expit(e(i));
-        double a = mu * p;
-        double b = p - a;
-        if (!(a > 0.0) || !(b > 0.0)) {
-          return R_NegInf;
-        }
+        double a;
+        double b;
+        beta_shapes(e(i), p, &a, &b);
         out += w(i) * ((a - 1.0) * log_y(i) + (b - 1.0) * log1m_y(i) + lg_p -
-                       R::lgammafn(a) - R::lgammafn(b));
+                       lgamma_shape(a, p, e(i)) - lgamma_shape(b, p, -e(i)));
       }
       return out;
     };

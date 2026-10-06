@@ -85,6 +85,15 @@ inline double log1m_expit(double x) {
   return log_expit(-x);
 }
 
+// The logistic density, expit(x) * expit(-x). Written as p * (1 - p) it is
+// exactly zero once expit(x) rounds to one, near |x| = 37, where a score still
+// divides it by a probability of the same size that is not zero.
+inline double logistic_density(double x) {
+  double e = std::exp(-std::fabs(x));
+  double d = 1.0 + e;
+  return e / (d * d);
+}
+
 inline double log_sum_exp(double a, double b) {
   if (a == R_NegInf) {
     return b;

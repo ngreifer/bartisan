@@ -131,6 +131,33 @@ test_that("a link supplied from R that returns the wrong thing is reported", {
                "must return a numeric vector")
 })
 
+# The same mistake in a link object handed to a family is caught before the fit.
+# The sampler calls the link one value at a time, where a function returning a
+# single number whatever it is given looks right, so such a link once ran a whole
+# fit and then failed in `colMeans()` on the fitted values.
+test_that("a link built by the caller is checked before it is used", {
+  d <- sim_x(n = 40L, p = 1L, seed = 35L)
+  d$y <- stats::rbinom(nrow(d), 1L, 0.4)
+
+  link_with <- function(linkinv) {
+    structure(list(linkfun = stats::qlogis, linkinv = linkinv,
+                   mu.eta = stats::dlogis, valideta = function(eta) TRUE,
+                   name = "mine"),
+              class = "link-glm")
+  }
+
+  fit_with <- function(linkinv) {
+    bartisan(y ~ x1, d, family = stats::binomial(link = link_with(linkinv)),
+             control = quick_control(num_burn = 5L, num_draws = 5L))
+  }
+
+  expect_error(fit_with(function(eta) stats::plogis(eta)[1L]),
+               "returned 1 of type")
+  expect_error(fit_with(function(eta) as.character(stats::plogis(eta))),
+               "of type <character>")
+  expect_s3_class(suppressMessages(fit_with(stats::plogis)), "bartisan_fit")
+})
+
 test_that("stats family objects carry an uncompiled link through a fit", {
   d <- sim_x(n = 100, seed = 34)
   truth <- 2 * d$x1 - 1

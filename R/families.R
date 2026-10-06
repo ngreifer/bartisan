@@ -1097,6 +1097,24 @@ link_functions <- function(family, link) {
     out[["mu.eta"]] <- NULL
   }
 
+  # These are the caller's functions, and the sampler calls them one predictor
+  # value at a time, where a function that returns a single number whatever it
+  # is given looks right. Such a function ran a whole fit and then failed in
+  # `colMeans()` on the fitted values, so what they return is checked here,
+  # where the mistake can be named.
+  probe <- seq(-6, 6, length.out = 121L)
+
+  for (nm in intersect(c("linkinv", "mu.eta"), names(out))) {
+    value <- suppressWarnings(out[[nm]](probe))
+
+    if (!is.numeric(value) || length(value) != length(probe)) {
+      arg::err(c("The {.code {nm}} function of the {.val {link}} link must return
+                  a number for each value of the additive predictor it is given.",
+                 i = "Given {length(probe)} values, it returned {length(value)}
+                      of type {.cls {typeof(value)}}."))
+    }
+  }
+
   out
 }
 

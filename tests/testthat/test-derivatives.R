@@ -202,3 +202,60 @@ test_that("the scores stay right where the stable forms hand over", {
          phi_prior_rate = 0.01, update_phi = TRUE),
     matrix(c(-1.5, 1.5, 8), 1L, 3L), tolerance = 2e-5)
 })
+
+# Past a predictor of about 37, expit() rounds to one, and three things built on
+# it went with it: the logistic density in the ordinal score was p * (1 - p) and
+# came out zero, so the score of the top category at -40 read 0 where it is 1;
+# and both beta families formed their second shape as phi minus the first, which
+# was zero there, so the log density was -Inf where it is finite and the score
+# was NaN. Each is checked against something computed independently in R.
+test_that("the logistic and beta families stay right far into the tails", {
+  # The ordinal logit scores of the extreme categories have closed forms:
+  # expit(c - eta) for the top one and -expit(eta - c) for the bottom one.
+  cuts <- c(0, 1, 2.5)
+  eta <- matrix(c(-40, -100, 40, 100), nrow = 1L)
+  y <- c(3, 3, 0, 0)
+  got <- derivs("ordinal", "logit", y, list(eta),
+                list(num_cat = 4L, cuts = cuts, update_cuts = TRUE),
+                matrix(cuts, 1L, 3L))
+  expect_equal(as.vector(got[["d1"]]),
+               c(stats::plogis(2.5 - eta[1:2]), -stats::plogis(eta[3:4] - 0)),
+               tolerance = 1e-10)
+
+  # The beta log density is R's, and finite; the score matches its difference.
+  phi <- 8
+  beta_eta <- matrix(c(-100, -40, 40, 100), nrow = 1L)
+  beta_y <- c(0.3, 0.7, 0.3, 0.7)
+  beta_opts <- list(phi = phi, phi_prior_shape = 0.01, phi_prior_rate = 0.01,
+                    update_phi = TRUE)
+  dens <- .bartisan_logdens(beta_y, rep(1, 4L), list(beta_eta), "beta",
+                            "logit", beta_opts, matrix(phi, 1L, 1L))
+
+  expect_true(all(is.finite(dens)))
+  expect_equal(as.vector(dens),
+               stats::dbeta(beta_y, phi * stats::plogis(beta_eta),
+                            phi * stats::plogis(-beta_eta), log = TRUE),
+               tolerance = 1e-10)
+  expect_score_matches_difference("beta", "logit", beta_y, list(beta_eta),
+                                  beta_opts, matrix(phi, 1L, 1L))
+
+  # The ordered beta's interior density is the middle interval's probability
+  # times the beta density. The interval is taken on whichever side keeps it a
+  # difference of two small numbers rather than of two near one.
+  ord_opts <- list(cut1 = -1.5, cut2 = 1.5, phi = phi, phi_prior_shape = 0.01,
+                   phi_prior_rate = 0.01, update_phi = TRUE)
+  ord_aux <- matrix(c(-1.5, 1.5, phi), 1L, 3L)
+  dens <- .bartisan_logdens(beta_y, rep(1, 4L), list(beta_eta), "ordbeta",
+                            "logit", ord_opts, ord_aux)
+  e <- as.vector(beta_eta)
+  span <- ifelse(e > 0, stats::plogis(1.5 - e) - stats::plogis(-1.5 - e),
+                 stats::plogis(e + 1.5) - stats::plogis(e - 1.5))
+
+  expect_true(all(is.finite(dens)))
+  expect_equal(as.vector(dens),
+               log(span) + stats::dbeta(beta_y, phi * stats::plogis(e),
+                                        phi * stats::plogis(-e), log = TRUE),
+               tolerance = 1e-10)
+  expect_score_matches_difference("ordbeta", "logit", beta_y, list(beta_eta),
+                                  ord_opts, ord_aux)
+})
