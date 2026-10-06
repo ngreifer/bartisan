@@ -249,8 +249,8 @@ test_that("a binomial fit keeps its invariants under every structural wrapper", 
 # removed.
 #
 # `serialize()` on a function also serializes its `srcref`, and a `srcref`
-# carries the entire text of the file the function was defined in. An installed
-# package has none, so the raw size is the retained data; but
+# carries the entire text of the file the function was defined in. A package
+# installed the usual way has none, so the raw size is the retained data; but
 # `pkgload::load_all()` keeps them, which is what `devtools::test()` and
 # `testthat::test_local()` use, and there the text of `R/utils.R` adds 286 KB to
 # every closure defined in it. The two thresholds below are tight enough that
@@ -259,8 +259,23 @@ test_that("a binomial fit keeps its invariants under every structural wrapper", 
 # leaves the environment chain, which is the thing at issue: a closure holding a
 # 20,000-element vector still measures 320 KB through this, and one holding an
 # unforced promise to the frame containing it still measures 160 KB.
+#
+# `removeSource()` reaches only the function it is given, and a reference can sit
+# further in: a progress stepper holds the reporter it calls, and the reporter
+# has a `srcref` of its own. Under `devtools::test_coverage()` that reference
+# carried the whole package, 853 KB. An installed package keeps its source lines
+# as a lazy-load promise, which serializes small until something reads it, and
+# covr's tracer reads it. So every source file reached through the environment
+# chain is written as a placeholder instead. `serialize()` calls `refhook` on
+# each environment it is about to write and writes the string it returns in the
+# environment's place, so nothing is modified, and an environment that is not a
+# source file is written in full.
 closure_bytes <- function(f) {
-  length(serialize(utils::removeSource(f), NULL))
+  placeholder <- function(env) {
+    if (inherits(env, "srcfile")) "srcfile" else NULL
+  }
+
+  length(serialize(utils::removeSource(f), NULL, refhook = placeholder))
 }
 
 # A closure is sent to every worker, and a closure carries the frame it was
