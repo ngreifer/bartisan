@@ -207,6 +207,20 @@ test_that("the propensity model's family can be named in propensity_args", {
   expect_identical(fb[["bcf"]][["model"]][["family"]][["link"]], "probit")
 })
 
+test_that("a one-sided formula chooses the propensity model's covariates", {
+  d <- sim_causal(seed = 6)
+
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                             family = gaussian(), propensity = ~ x1),
+                        bcf_args()))
+
+  # The treatment is regressed on the covariates the formula names rather than
+  # on the outcome model's, and the score still reaches the control function.
+  model <- fit[["bcf"]][["model"]]
+  expect_identical(colnames(model[["counts"]][[1L]]), "x1")
+  expect_true(".propensity" %in% attr(stats::terms(fit), "term.labels"))
+})
+
 test_that("moderators restrict what the effect may vary with", {
   d <- sim_causal(seed = 7)
 
@@ -297,6 +311,17 @@ test_that("bcf validates its treatment argument", {
                "at least one covariate")
 })
 
+test_that("bcf validates a supplied propensity score", {
+  d <- sim_causal(seed = 8)
+
+  expect_error(bcf(y ~ x1 + x2, treat = ~ z, data = d,
+                   propensity = stats::runif(nrow(d) - 1L)),
+               "one row per observation")
+  expect_error(bcf(y ~ x1 + x2, treat = ~ z, data = d,
+                   propensity = matrix(0.5, nrow(d) + 1L, 1L)),
+               "one row per observation")
+})
+
 # `bcf()` chooses a drawn coding for its treatment-effect forest, and the engine
 # refuses one for a family whose leaf target is not quadratic. The refusal is
 # expected and handled -- the fixed coding is used instead -- but it is raised
@@ -338,4 +363,39 @@ test_that("a refused drawn coding does not leak the retry's noise", {
   expect_warning(bcf(form, treat = ~ z, data = d, family = dpm(),
                      chains = 4L, control = ctrl),
                  "missing response")
+})
+
+# The fallback itself, on one chain and a small fit so that it runs on CRAN. The
+# test above checks what the caller sees and passes whichever coding was used,
+# so it cannot say whether the refusal happened; the coding the fit records can.
+test_that("a family that refuses the drawn coding is fit with the fixed one", {
+  d <- sim_causal(seed = 9)
+  d$count <- stats::rpois(nrow(d), exp(0.3 * d$x1 + 0.4 * d$z))
+
+  # A Poisson leaf target is not quadratic, so the drawn coding is refused.
+  fit <- do.call(bcf, c(list(count ~ x1 + x2, treat = ~ z, data = d,
+                             family = poisson(), propensity = FALSE),
+                        bcf_args()))
+
+  expect_s3_class(fit, "bcf_fit")
+  expect_identical(fit[["vc"]][["specs"]][["z"]][["center"]], "auto")
+
+  # A Gaussian one is, so the same treatment keeps the drawn coding there,
+  # which is what makes the check above say something.
+  fit <- do.call(bcf, c(list(y ~ x1 + x2, treat = ~ z, data = d,
+                             family = gaussian(), propensity = FALSE),
+                        bcf_args()))
+
+  expect_identical(fit[["vc"]][["specs"]][["z"]][["center"]], "estimate")
+})
+
+# Only the refusal is handled. Any other error from the trial has to reach the
+# caller as it was raised; caught and dropped instead, it would leave no fit
+# behind, and `bcf()` would go on to return a list with no model in it.
+test_that("an error from the trial fit other than the refusal reaches the caller", {
+  d <- sim_causal(seed = 9)
+
+  expect_error(bcf(y ~ x1 + x2, treat = ~ z, data = d, family = binomial(),
+                   propensity = FALSE),
+               "must lie between 0 and 1")
 })
