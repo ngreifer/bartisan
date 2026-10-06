@@ -223,3 +223,124 @@ test_that("the plot method draws the table, and a subset of it", {
   expect_identical(nrow(plot(subset(imp, prop_used > 0))$data),
                    nrow(subset(imp, prop_used > 0)))
 })
+
+# The parts of a fit that `print()` and `summary()` describe only when the model
+# has them: a random part, forests of different sizes, and a scale for each
+# grouping factor in each additive predictor.
+test_that("print() and summary() report the group intercepts and their scales", {
+  d <- sim_x(n = 100L, p = 2L, seed = 778L)
+  d$g <- factor(rep(letters[1:4], length.out = nrow(d)))
+  set.seed(7781)
+  d$y <- d$x1 + stats::rnorm(nrow(d))
+
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
+
+  fit <- bartisan(y ~ x1 + x2 + (1 | g), d, family = stats::gaussian(),
+                  control = ctrl)
+
+  expect_match(printed_text(fit), "Random intercepts: g (4 levels)",
+               fixed = TRUE)
+
+  # One row per grouping factor, summarizing the draws of its scale.
+  scales <- summary(fit)[["tau"]]
+  expect_identical(rownames(scales), "g")
+  expect_equal(unname(scales[, "mean"]), mean(fit[["tau"]][[1L]][, "g"]))
+  expect_match(printed_text(summary(fit)), "Random-effect scales",
+               fixed = TRUE)
+
+  # With two additive predictors each has its own scale, and the rows say which
+  # predictor they belong to.
+  ls_fit <- bartisan(y ~ x1 + x2 + (1 | g), d, family = gaussian_ls(),
+                     control = quick_control(num_trees = c(mean = 5L, log_sd = 3L),
+                                             num_burn = 10L, num_draws = 10L))
+
+  expect_identical(rownames(summary(ls_fit)[["tau"]]),
+                   c("g [mean]", "g [log_sd]"))
+  expect_match(printed_text(ls_fit), "2 forests of 5 and 3 trees", fixed = TRUE)
+})
+
+test_that("the family line names the family the caller asked for", {
+  d <- sim_x(n = 90L, p = 2L, seed = 779L)
+  set.seed(7791)
+  d$b <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1))
+  d$m <- factor(sample(c("a", "b", "c"), nrow(d), replace = TRUE))
+  d$y <- stats::rnorm(nrow(d))
+
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
+
+  # A link the engine does not carry is applied on the R side, and says so.
+  cauchit <- bartisan(b ~ x1 + x2, d, family = stats::binomial("cauchit"),
+                      control = ctrl)
+  expect_match(printed_text(cauchit),
+               'Family: "binomial" with the "cauchit" link (supplied from R)',
+               fixed = TRUE)
+
+  # The engine's "mnp" is the multinomial probit the caller wrote.
+  mnp <- bartisan(m ~ x1 + x2, d, family = multinomial("probit"),
+                  control = ctrl)
+  expect_match(printed_text(mnp),
+               'Family: "multinomial" with the "probit" link', fixed = TRUE)
+
+  # A custom family reports the name it was given rather than "custom", which
+  # with the identity link would say nothing.
+  normal <- custom_family(
+    function(y, eta, ...) stats::dnorm(y, eta[, 1L], 1, log = TRUE),
+    num_predictors = 1L, name = "unit normal")
+  custom <- bartisan(y ~ x1 + x2, d, family = normal, control = ctrl)
+  expect_match(printed_text(custom), 'Family: "unit normal" (supplied from R)',
+               fixed = TRUE)
+})
+
+# `summary()` leaves out a section it has nothing for rather than failing on it,
+# so the rest of the summary still prints.
+test_that("a summary prints around what the fit does not have", {
+  d <- sim_x(n = 60L, p = 2L, seed = 780L)
+  set.seed(7801)
+  d$y <- d$x1 + stats::rnorm(nrow(d))
+
+  fit <- bartisan(y ~ x1 + x2, d, family = stats::gaussian(),
+                  control = quick_control(num_burn = 10L, num_draws = 10L))
+
+  no_loglik <- fit
+  no_loglik[["loglik"]][] <- NA_real_
+  s <- summary(no_loglik)
+
+  expect_null(s[["convergence"]])
+  expect_no_match(printed_text(s), "Log likelihood: R-hat", fixed = TRUE)
+  expect_match(printed_text(s), "Convergence and mixing", fixed = TRUE)
+
+  no_counts <- fit
+  no_counts[["counts"]] <- NULL
+  s <- summary(no_counts)
+
+  expect_null(s[["importance"]])
+  expect_match(printed_text(s), "Convergence and mixing", fixed = TRUE)
+})
+
+# A proportional hazards baseline has one rate per time bin, which is too many
+# rows to read, so the summary prints the first and last six.
+test_that("a long block of nuisance parameters is shown by its ends", {
+  d <- sim_x(n = 80L, p = 2L, seed = 781L)
+  set.seed(7811)
+  d$time <- stats::rexp(nrow(d), exp(-d$x1))
+  d$status <- stats::rbinom(nrow(d), 1L, 0.8)
+
+  fit <- bartisan(cbind(time, status) ~ x1 + x2, d, family = ph(num_bins = 12L),
+                  control = quick_control(num_burn = 10L, num_draws = 10L))
+
+  aux <- summary(fit)[["aux"]]
+  shown <- printed_text(summary(fit))
+  hidden <- rownames(aux)[-c(1:6, nrow(aux) - 5:0)]
+
+  expect_gt(nrow(aux), 12L)
+  expect_match(shown, sprintf("%d more, omitted", length(hidden)), fixed = TRUE)
+
+  for (nm in rownames(aux)) {
+    if (nm %in% hidden) {
+      expect_no_match(shown, nm, fixed = TRUE)
+    }
+    else {
+      expect_match(shown, nm, fixed = TRUE)
+    }
+  }
+})

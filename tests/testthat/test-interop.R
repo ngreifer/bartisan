@@ -160,6 +160,77 @@ test_that("the zero-inflated and ordered beta samplers hit their point masses", 
   expect_true(all(drawn >= 0 & drawn <= 1))
 })
 
+# The families the tests above leave out, checked the same way: replicates drawn
+# at one posterior draw against the distribution the log density gives at that
+# draw. A count is compared value by value on a grid that holds essentially all
+# its mass, and a continuous response by the largest gap between the empirical
+# distribution function of the replicates and the integrated density. Over five
+# seeds the largest gap was 0.021, with 4000 replicates.
+test_that("each family's replicate draws follow its log density", {
+  skip_if_not_installed("rstantools")
+  skip_on_cran()
+  skip_if_not_installed("patrick")
+
+  patrick::with_parameters_test_that(
+    "family:",
+    {
+      d <- sim_x(200, 2, seed = seed)
+      d$y <- draw(2 * d$x1 - d$x2)
+
+      fit <- bartisan(y ~ x1 + x2, data = d, family = family,
+                      control = quick_control())
+
+      probability <- density_at_one_draw(fit, d[1L, ], "y", grid)
+      set.seed(seed + 1L)
+      drawn <- replicates_at_one_draw(fit, d[1L, ])
+
+      if (discrete) {
+        expect_equal(sum(probability), 1, tolerance = 1e-6)
+        empirical <- vapply(grid, function(g) mean(drawn == g), numeric(1L))
+        expect_lt(max(abs(empirical - probability)), 0.03)
+      }
+      else {
+        cdf <- c(0, cumsum(diff(grid) * (probability[-1L] +
+                                           probability[-length(grid)]) / 2))
+        expect_equal(max(cdf), 1, tolerance = 0.01)
+        expect_lt(max(abs(stats::ecdf(drawn)(grid) - cdf)), 0.035)
+      }
+    },
+    patrick::cases(
+      Beta = list(
+        family = Beta(), seed = 1281L, discrete = FALSE,
+        draw = function(s) {
+          mu <- stats::plogis(s)
+          stats::rbeta(length(s), 20 * mu, 20 * (1 - mu))
+        },
+        grid = seq(0, 1, length.out = 4001L)[-c(1L, 4001L)]),
+      negbin = list(
+        family = negbin(), seed = 1282L, discrete = TRUE,
+        draw = function(s) stats::rnbinom(length(s), size = 3, mu = exp(0.5 + s)),
+        grid = 0:150),
+      zi_negbin = list(
+        family = zi_negbin(), seed = 1283L, discrete = TRUE,
+        draw = function(s) {
+          ifelse(stats::runif(length(s)) < 0.3, 0,
+                 stats::rnbinom(length(s), size = 3, mu = exp(0.7 + s)))
+        },
+        grid = 0:150),
+      Gamma = list(
+        family = stats::Gamma("log"), seed = 1284L, discrete = FALSE,
+        draw = function(s) stats::rgamma(length(s), shape = 3, rate = 3 / exp(s)),
+        grid = seq(0, 60, length.out = 6001L)[-1L]),
+      Gamma_ls = list(
+        family = Gamma_ls(), seed = 1285L, discrete = FALSE,
+        draw = function(s) stats::rgamma(length(s), shape = 3, rate = 3 / exp(s)),
+        grid = seq(0, 60, length.out = 6001L)[-1L]),
+      gaussian_ls = list(
+        family = gaussian_ls(), seed = 1286L, discrete = FALSE,
+        draw = function(s) stats::rnorm(length(s), s, exp(-0.5 + 0.5 * s)),
+        grid = seq(-15, 15, length.out = 6001L))
+    )
+  )
+})
+
 test_that("a binomial replicate is a fraction of the trials", {
   skip_if_not_installed("rstantools")
 
@@ -179,6 +250,11 @@ test_that("a binomial replicate is a fraction of the trials", {
   set.seed(1235)
   drawn <- replicates_at_one_draw(fit, d[1L, ], weights = 6)
   expect_true(all(drawn %in% ((0:6) / 6)))
+
+  # A fraction of a trial cannot be drawn.
+  expect_error(rstantools::posterior_predict(fit, newdata = d[1L, ],
+                                             weights = 2.5),
+               "whole numbers of trials")
 
   # Binary data are the same statement with one trial, so they come back as
   # zeros and ones rather than as counts.
@@ -230,6 +306,10 @@ test_that("an accelerated failure time replicate is an event time", {
     set.seed(1242)
     drawn <- replicates_at_one_draw(fit, d[1L, ])
     expect_true(all(drawn > 0))
+
+    # The residual is on the log time scale the model is linear on.
+    expect_equal(stats::residuals(fit),
+                 log(d$time) - colMeans(fit[["eta"]][[1L]]))
 
     # The density is on the log time scale, so the comparison is too.
     grid <- seq(-4, 8, length.out = 1201L)
@@ -329,6 +409,16 @@ test_that("simulate follows the stats contract", {
   again <- stats::simulate(fit, nsim = 3L, seed = 42L)
   expect_equal(out, again, ignore_attr = TRUE)
   expect_identical(.Random.seed, before)
+
+  # With no stream at all yet, one is started so that there is one to restore,
+  # and the seed still decides the draws.
+  saved <- .Random.seed
+  on.exit(assign(".Random.seed", saved, envir = globalenv()), add = TRUE)
+  rm(".Random.seed", envir = globalenv())
+
+  fresh <- stats::simulate(fit, nsim = 3L, seed = 42L)
+  expect_equal(fresh, out, ignore_attr = TRUE)
+  expect_true(exists(".Random.seed", envir = globalenv(), inherits = FALSE))
 })
 
 test_that("simulate returns a factor when the response was one", {
@@ -408,6 +498,16 @@ test_that("a family with no mean and no sampler says so", {
   # The log density is the one thing a custom family does supply, so the
   # pointwise likelihood still works and so does everything built on it.
   expect_identical(dim(rstantools::log_lik(custom_fit)), c(30L, 120L))
+
+  # A proportional hazards fit has a survival curve and no sampler for event
+  # times.
+  d$time <- stats::rexp(nrow(d), exp(-d$x1))
+  d$status <- stats::rbinom(nrow(d), 1L, 0.8)
+  ph_fit <- bartisan(cbind(time, status) ~ x1 + x2, data = d, family = ph(),
+                     control = quick_control())
+
+  expect_error(rstantools::posterior_predict(ph_fit),
+               "no posterior predictive sampler")
 })
 
 test_that("loo and waic run on the pointwise likelihood", {
@@ -509,6 +609,22 @@ test_that("model_performance collects the fit statistics", {
   expect_named(subset, c("R2", "RMSE"))
 })
 
+test_that("model_performance leaves out the residual metrics a response has none for", {
+  skip_if_not_installed("performance")
+  skip_if_not_installed("loo")
+
+  d <- sim_x(80, 2, seed = 1342L)
+  d$y <- factor(sample(1:3, nrow(d), replace = TRUE), ordered = TRUE)
+
+  fit <- bartisan(y ~ x1 + x2, data = d, family = ordinal(),
+                  control = quick_control(num_burn = 10L, num_draws = 10L))
+
+  # Categories have no mean, so no residual, and neither metric built on one.
+  out <- suppressWarnings(performance::model_performance(fit))
+  expect_true(all(c("ELPD", "WAIC") %in% names(out)))
+  expect_false(any(c("RMSE", "Sigma") %in% names(out)))
+})
+
 test_that("as_draws hands the scalar parameters over with their chain structure", {
   skip_if_not_installed("posterior")
 
@@ -561,6 +677,52 @@ test_that("pp_check runs a bayesplot check", {
   expect_s3_class(bayesplot::pp_check(fit, ndraws = 5L), "ggplot")
   expect_s3_class(bayesplot::pp_check(fit, "hist", ndraws = 3L), "ggplot")
   expect_error(bayesplot::pp_check(fit, "not_a_check"), "not a")
+})
+
+# A replicate is compared with the response on the scale it is drawn on: event
+# times rather than the log times an accelerated failure time model stores, and
+# category codes from one rather than the zero-based ones the sampler indexes.
+test_that("pp_check compares replicates with the response on their own scale", {
+  skip_if_not_installed("bayesplot")
+  skip_if_not_installed("survival")
+
+  d <- sim_x(n = 80L, p = 2L, seed = 1362L)
+  d$time <- stats::rexp(nrow(d), exp(-d$x1))
+  d$status <- stats::rbinom(nrow(d), 1L, 0.7)
+  d$grade <- factor(sample(1:3, nrow(d), replace = TRUE), ordered = TRUE)
+
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
+
+  aft <- bartisan(survival::Surv(time, status) ~ x1 + x2, data = d,
+                  family = weibull_aft(), control = ctrl)
+
+  expect_equal(observed_response(aft), d$time)
+
+  # Censored times make any comparison of event times worth a warning.
+  expect_warning(dens <- bayesplot::pp_check(aft, ndraws = 3L), "censored")
+  expect_s3_class(dens, "ggplot")
+
+  # The Kaplan-Meier check takes its events from the survival object. Drawing it
+  # needs *ggfortify*, which *bayesplot* suggests rather than imports.
+  expect_identical(survival_status(aft), as.numeric(d$status))
+
+  if (rlang::is_installed("ggfortify")) {
+    km <- suppressWarnings(bayesplot::pp_check(aft, "km_overlay", ndraws = 3L))
+    expect_s3_class(km, "ggplot")
+  }
+
+  # A response given as a matrix carries no event indicator to take.
+  matrix_fit <- bartisan(cbind(time, status) ~ x1 + x2, data = d,
+                         family = weibull_aft(), control = ctrl)
+  expect_error(suppressWarnings(bayesplot::pp_check(matrix_fit, "km_overlay")),
+               "status_y")
+
+  ordered_fit <- bartisan(grade ~ x1 + x2, data = d, family = ordinal(),
+                          control = ctrl)
+
+  expect_identical(observed_response(ordered_fit), as.integer(d$grade))
+  expect_s3_class(bayesplot::pp_check(ordered_fit, "bars", ndraws = 3L),
+                  "ggplot")
 })
 
 test_that("the easystats packages read the fit through the accessors", {
@@ -621,6 +783,30 @@ test_that("as_draws() carries the additive predictor, which is what mixing is ab
   expect_equal(as.vector(drawn[, , "eta[3]"]), unname(fit$eta$eta[, 3]),
                ignore_attr = TRUE)
   expect_true("eta[3]" %in% posterior::summarise_draws(drawn)$variable)
+})
+
+test_that("as_draws() names the predictor for each forest and keeps a small fit whole", {
+  skip_if_not_installed("posterior")
+
+  d <- sim_x(n = 40L, p = 2L, seed = 782L)
+  d$y <- stats::rnorm(nrow(d), d$x1)
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
+
+  eta_names <- function(fit) {
+    grep("^eta", posterior::variables(posterior::as_draws(fit)), value = TRUE)
+  }
+
+  # Ten or fewer observations are all taken, in order, rather than a spread.
+  small <- bartisan(y ~ x1, d[1:8, ], family = stats::gaussian(),
+                    control = ctrl)
+  expect_identical(eta_names(small), sprintf("eta[%d]", 1:8))
+
+  # With two predictors, each column says which one it belongs to.
+  two <- bartisan(y ~ x1, d, family = gaussian_ls(), control = ctrl)
+  names_two <- eta_names(two)
+  expect_true(all(grepl("^eta[.](mean|log_sd)\\[[0-9]+\\]$", names_two)))
+  expect_true(any(startsWith(names_two, "eta.mean[")))
+  expect_true(any(startsWith(names_two, "eta.log_sd[")))
 })
 
 # The `ppc_loo_*` checks reweight the replicates towards the leave-one-out
@@ -990,4 +1176,162 @@ test_that("kfold() carries prior weights into the refits and the scores", {
   expect_lt(held_out, 0)
   expect_gt(held_out, 4 * in_sample)
   expect_lt(held_out, in_sample / 4)
+})
+
+# `kfold()` rebuilds each refit from the fit's call and the data that call names,
+# so the checks here are about finding them: recorded or not, given as a list,
+# changed since, or missing, and with a subset that would otherwise be applied
+# twice. Every comparison is between two cross-validations on the same folds and
+# the same seed, which is exact whatever the seed.
+test_that("kfold() refits from the data and the call the fit was made from", {
+  skip_if_not_installed("loo")
+
+  d <- sim_x(n = 60L, p = 2L, seed = 105L)
+  d$y <- stats::rnorm(nrow(d), d$x1)
+
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
+  folds <- rep(1:2, length.out = nrow(d))
+
+  fit <- bartisan(y ~ x1 + x2, data = d, family = stats::gaussian(),
+                  control = ctrl)
+
+  expect_error(loo::kfold(fit, folds = replace(folds, 1L, 0L)), "from 1 up")
+  expect_error(loo::kfold(fit, folds = replace(folds, 1L, NA)), "from 1 up")
+
+  elpd <- function(x) {
+    set.seed(1L)
+    loo::kfold(x, folds = folds)[["pointwise"]][, "elpd_kfold"]
+  }
+
+  kept <- elpd(fit)
+
+  # A fit that recorded no argument values, as one made before they were kept,
+  # is refit from its call evaluated where its formula was written.
+  bare <- fit
+  bare[["call_values"]] <- NULL
+  expect_identical(elpd(bare), kept)
+
+  # Data given as a list is the data frame it describes.
+  listed <- bartisan(y ~ x1 + x2, data = as.list(d), family = stats::gaussian(),
+                     control = ctrl)
+  expect_identical(elpd(listed), kept)
+
+  # Data that has lost rows since the fit cannot be refit as it was made.
+  changed <- local({
+    fit <- bartisan(y ~ x1 + x2, data = d, family = stats::gaussian(),
+                    control = ctrl)
+    d <- d[-(1:5), ]
+    fit
+  })
+  expect_error(loo::kfold(changed, folds = folds), "rows are gone")
+
+  # And a fit whose call names no data has nothing to take folds from.
+  loose <- local({
+    y <- d$y
+    x1 <- d$x1
+    x2 <- d$x2
+    bartisan(y ~ x1 + x2, family = stats::gaussian(), control = ctrl)
+  })
+  expect_error(loo::kfold(loose, folds = folds), "names no")
+
+  # A subset given as a vector the length of the full data would be applied a
+  # second time to training data that no longer has that many rows. The rows are
+  # chosen by name instead, so each one is scored once and fit once.
+  keep <- d$x1 > 0.3
+  subsetted <- bartisan(y ~ x1 + x2, data = d, subset = keep,
+                        family = stats::gaussian(), control = ctrl)
+  kf <- loo::kfold(subsetted, K = 2L, save_fits = TRUE)
+
+  expect_identical(nrow(kf[["pointwise"]]), sum(keep))
+  expect_equal(sum(vapply(kf[["fits"]], stats::nobs, numeric(1L))), sum(keep))
+})
+
+# The offset is taken from the model frame rather than re-evaluated, so it has to
+# be given to each refit and to each score. Here it is passed as an argument.
+test_that("kfold() carries an offset into the refits and the scores", {
+  skip_if_not_installed("loo")
+
+  d <- sim_x(n = 60L, p = 2L, seed = 106L)
+  d$exposure <- stats::runif(nrow(d), 1, 50)
+  d$y <- stats::rpois(nrow(d), d$exposure * exp(d$x1 - 2))
+  folds <- rep(1:2, length.out = nrow(d))
+
+  fit <- bartisan(y ~ x1 + x2, data = d, family = stats::poisson(),
+                  offset = log(exposure),
+                  control = quick_control(num_burn = 10L, num_draws = 10L))
+
+  kf <- loo::kfold(fit, folds = folds, save_fits = TRUE)
+
+  # The first refit is trained on the second fold and scores the first.
+  held <- folds == 1L
+  refit <- kf[["fits"]][[1L]]
+
+  expect_equal(stats::model.offset(refit[["model"]]),
+               log(d$exposure)[!held], ignore_attr = TRUE)
+  expect_equal(kf[["pointwise"]][held, "elpd_kfold"],
+               stats::predict(refit, newdata = d[held, ], type = "density",
+                              log = TRUE, offset = log(d$exposure)[held]),
+               ignore_attr = TRUE)
+})
+
+test_that("kfold(scale=) moves the held-out and in-sample scores together", {
+  skip_if_not_installed("loo")
+  skip_if_not_installed("survival")
+
+  d <- sim_x(n = 60L, p = 2L, seed = 107L)
+  d$time <- stats::rexp(nrow(d), exp(-d$x1))
+  d$status <- stats::rbinom(nrow(d), 1L, 0.7)
+  folds <- rep(1:2, length.out = nrow(d))
+
+  fit <- bartisan(survival::Surv(time, status) ~ x1 + x2, data = d,
+                  family = weibull_aft(),
+                  control = quick_control(num_burn = 10L, num_draws = 10L))
+
+  set.seed(1L)
+  log_time <- loo::kfold(fit, folds = folds)[["pointwise"]]
+  set.seed(1L)
+  on_time <- loo::kfold(fit, folds = folds, scale = "time")[["pointwise"]]
+
+  # The Jacobian of the change of measure, on events only, as for `loo()`.
+  expect_equal(on_time[, "elpd_kfold"],
+               log_time[, "elpd_kfold"] - d$status * log(d$time))
+
+  # Both sides move by it, so the gap between them does not.
+  expect_equal(on_time[, "p_kfold"], log_time[, "p_kfold"])
+})
+
+# The folds go to workers when a plan has any, with the streams drawn before the
+# branch, so the scores do not depend on whether a plan was set.
+test_that("kfold() scores the same folds in parallel as in sequence", {
+  skip_on_cran()
+  skip_if_not_installed("loo")
+  skip_if_not_installed("future")
+  skip_if_not_installed("future.apply")
+
+  old <- future::plan(future::sequential)
+  on.exit(future::plan(old), add = TRUE)
+
+  d <- sim_x(n = 60L, p = 2L, seed = 108L)
+  d$y <- stats::rnorm(nrow(d), d$x1)
+  folds <- rep(1:2, length.out = nrow(d))
+
+  fit <- bartisan(y ~ x1 + x2, data = d, family = stats::gaussian(),
+                  control = quick_control(num_burn = 10L, num_draws = 10L))
+
+  set.seed(1L)
+  one <- loo::kfold(fit, folds = folds)
+
+  # A machine that reports one core warns about the load two workers put on it,
+  # which says nothing about the code under test.
+  started <- tryCatch({
+    suppressWarnings(future::plan(future::multisession, workers = 2L))
+    isTRUE(future::nbrOfWorkers() >= 2L)
+  }, error = function(e) FALSE)
+
+  skip_if_not(started, "no second worker available")
+
+  set.seed(1L)
+  many <- loo::kfold(fit, folds = folds)
+
+  expect_equal(many[["pointwise"]], one[["pointwise"]])
 })

@@ -814,10 +814,12 @@ family_prior <- function(object) {
     }
 
     # The proportional hazards baseline is one rate per time bin under the same
-    # prior, which is worth saying since the others are single numbers.
+    # prior, which is worth saying since the others are single numbers. Each
+    # edge opens a bin, the last one running on to infinity, so there are as
+    # many bins as edges.
     each <- {
       if (stem == "lambda" && !is_null(opts[["edges"]]))
-        sprintf(", one for each of %s time bins", length(opts[["edges"]]) - 1L)
+        sprintf(", one for each of %s time bins", length(opts[["edges"]]))
       else ""
     }
 

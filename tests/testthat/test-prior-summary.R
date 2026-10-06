@@ -210,3 +210,143 @@ test_that("a prior-only fit says so, since its draws are what this describes", {
   expect_match(paste(capture.output(print(ps)), collapse = " "),
                "itself a draw from the prior", fixed = TRUE)
 })
+
+test_that("a fit with no record of its prior says so", {
+  skip_if_no_rstantools()
+
+  fit <- bartisan(y ~ x1 + x2, sim_prior(seed = 9L), family = stats::gaussian(),
+                  control = quick_control(num_burn = 10L, num_draws = 10L))
+  fit[["prior"]] <- NULL
+
+  expect_error(rstantools::prior_summary(fit), "kept no record")
+})
+
+# Settings that differ between forests are the case the table exists for, and the
+# prose then names the column rather than repeating a number that is not shared.
+test_that("forests given different settings are tabled and named in the prose", {
+  skip_if_no_rstantools()
+
+  d <- sim_prior(seed = 10L)
+  fit <- bartisan(y ~ x1 + x2, d, family = gaussian_ls(),
+                  control = quick_control(num_trees = c(mean = 5L, log_sd = 3L),
+                                          gamma = c(log_sd = 0.5),
+                                          update_sigma_mu = c(mean = TRUE,
+                                                              log_sd = FALSE),
+                                          update_bandwidth = FALSE,
+                                          num_burn = 10L, num_draws = 10L))
+
+  text <- printed_plain(rstantools::prior_summary(fit))
+
+  # The table holds the columns that vary and only those.
+  expect_match(text, "forest num_trees gamma leaf_scale", fixed = TRUE)
+  expect_no_match(text, "forest num_trees gamma leaf_scale k", fixed = TRUE)
+
+  # Two branching probabilities have no single root probability to illustrate.
+  expect_match(text, "branches with probability gamma * (1 + d)^-2.",
+               fixed = TRUE)
+  expect_no_match(text, "the root splits with probability", fixed = TRUE)
+
+  # A flag drawn for some forests and not others names the ones it was drawn
+  # for, and one drawn for none says so.
+  expect_match(text, "estimated for mean and held fixed for the rest",
+               fixed = TRUE)
+  expect_match(text, "and is held fixed.", fixed = TRUE)
+
+  # A location-scale family has no parameters beyond its two predictors.
+  expect_match(text, "No parameters of its own", fixed = TRUE)
+})
+
+test_that("the sparsity prior says which of its parts are drawn", {
+  skip_if_no_rstantools()
+
+  d <- sim_prior(seed = 11L)
+
+  splitting <- function(family = stats::gaussian(), ...) {
+    fit <- bartisan(y ~ x1 + x2, d, family = family,
+                    control = quick_control(sparsity = TRUE, num_burn = 10L,
+                                            num_draws = 10L, ...))
+    printed_plain(rstantools::prior_summary(fit))
+  }
+
+  drawn <- splitting()
+  expect_match(drawn, "is Dirichlet(", fixed = TRUE)
+  expect_match(drawn, "Both are estimated.", fixed = TRUE)
+  expect_no_match(drawn, "share one set", fixed = TRUE)
+
+  expect_match(splitting(update_alpha = FALSE),
+               "The shares are estimated and the concentration is held fixed.",
+               fixed = TRUE)
+  expect_match(splitting(update_s = FALSE, update_alpha = FALSE),
+               "Both are held fixed.", fixed = TRUE)
+
+  # Forests that share one set of shares are told so.
+  expect_match(splitting(gaussian_ls(), share_sparsity = TRUE),
+               "The forests share one set of shares", fixed = TRUE)
+})
+
+# The parameters that are not named by the gamma-prior convention, which the
+# report spells out family by family.
+test_that("the families with parameters of their own report each of them", {
+  skip_if_no_rstantools()
+
+  d <- sim_prior(seed = 12L)
+  d$time <- stats::rexp(nrow(d), exp(-d$x1))
+  d$status <- stats::rbinom(nrow(d), 1L, 0.8)
+  d$claims <- ifelse(stats::runif(nrow(d)) < 0.3, 0, stats::rgamma(nrow(d), 2))
+  d$m <- factor(sample(c("a", "b", "c"), nrow(d), replace = TRUE))
+
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
+
+  parameters <- function(formula, family) {
+    fit <- bartisan(formula, d, family = family, control = ctrl)
+    out <- rstantools::prior_summary(fit)[["family"]][["parameters"]]
+    stats::setNames(out[["prior"]], out[["parameter"]])
+  }
+
+  # The baseline hazard is one rate per bin under one prior. The count is the
+  # number of rates the fit has; it once said one fewer, taking the edges as
+  # the bounds of closed bins when the last bin runs on to infinity.
+  hazard_fit <- bartisan(cbind(time, status) ~ x1, d, family = ph(num_bins = 4L),
+                         control = ctrl)
+  bins <- sum(grepl("^lambda[0-9]+$", colnames(hazard_fit[["aux"]])))
+  hazard <- rstantools::prior_summary(hazard_fit)[["family"]][["parameters"]]
+
+  expect_match(hazard[["prior"]][hazard[["parameter"]] == "lambda"],
+               sprintf("one for each of %d time bins", bins), fixed = TRUE)
+
+  # The mixture's base measure and its concentration, drawn or held.
+  mixture <- parameters(y ~ x1, dpm())
+  expect_true(all(c("atom variance", "atom mean", "concentration") %in%
+                    names(mixture)))
+  expect_match(mixture[["concentration"]], "tapered over a grid", fixed = TRUE)
+  expect_match(parameters(y ~ x1, dpm(alpha = 1))[["concentration"]],
+               "fixed at 1", fixed = TRUE)
+
+  # The Tweedie power, held at its default or drawn when it is left out.
+  expect_identical(parameters(claims ~ x1, tweedie())[["power"]],
+                   "fixed at 1.5")
+  expect_identical(parameters(claims ~ x1, tweedie(power = NULL))[["power"]],
+                   "Uniform(1, 2)")
+
+  # The multinomial probit's error covariance.
+  expect_match(parameters(m ~ x1, multinomial("probit"))[["covariance"]],
+               "InverseWishart(", fixed = TRUE)
+})
+
+test_that("group intercepts held at their prior scale are reported as held", {
+  skip_if_no_rstantools()
+
+  d <- sim_prior(seed = 13L)
+  d$g <- factor(rep(letters[1:4], length.out = nrow(d)))
+
+  group_block <- function(update_tau) {
+    fit <- bartisan(y ~ x1 + (1 | g), d, family = stats::gaussian(),
+                    control = quick_control(update_tau = update_tau,
+                                            num_burn = 10L, num_draws = 10L))
+    printed_plain(rstantools::prior_summary(fit))
+  }
+
+  expect_match(group_block(TRUE), "it is drawn.", fixed = TRUE)
+  expect_match(group_block(FALSE), "it is held at that prior's median.",
+               fixed = TRUE)
+})

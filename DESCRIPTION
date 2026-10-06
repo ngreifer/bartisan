@@ -53,6 +53,7 @@ Suggests:
     marginaleffects,
     nlme,
     lme4,
+    patrick (>= 0.3.0),
     performance,
     posterior,
     progressr,
