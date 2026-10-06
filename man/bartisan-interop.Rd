@@ -253,8 +253,9 @@ loo_compare(list(full = kfold(fit, folds = folds),
 
 The refits run under a \code{future} plan when one is set, and one \code{set.seed()}
 reproduces them either way. Each is refitted from the original call, so the
-\code{data} argument has to still name the data the fit was made from. Prior weights
-and an offset are carried into both the refits and the held-out scores.
+\code{data} argument has to still name the data the fit was made from. Prior
+weights, an offset, and a propensity score supplied to \code{\link[=bcf]{bcf()}} are carried into
+both the refits and the held-out scores.
 \code{p_kfold} is the gap between what the model predicts for an observation it was
 fitted to and what it predicts for the same one held out, which is the price of
 having used it. \code{vignette("comparison")} reads an example.

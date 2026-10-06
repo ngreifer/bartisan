@@ -806,6 +806,13 @@ setColnames <- function(object, nm) {
   object
 }
 
+# Rows of a matrix or data frame, or elements of a vector, as `collapse::ss()`
+# takes them: one subset for an object whose shape depends on how it was given,
+# as an offset is one column per additive predictor or a single vector.
+ss <- function(x, i) {
+  if (length(dim(x)) == 2L) x[i, , drop = FALSE] else x[i]
+}
+
 # The shortest interval holding `level` of the draws. Reported rather than the
 # equal-tailed one only on request, since the two differ only for a skewed
 # posterior and the equal-tailed one is what a quantile of the draws gives.

@@ -160,8 +160,9 @@
 #'
 #' The refits run under a `future` plan when one is set, and one `set.seed()`
 #' reproduces them either way. Each is refitted from the original call, so the
-#' `data` argument has to still name the data the fit was made from. Prior weights
-#' and an offset are carried into both the refits and the held-out scores.
+#' `data` argument has to still name the data the fit was made from. Prior
+#' weights, an offset, and a propensity score supplied to [bcf()] are carried into
+#' both the refits and the held-out scores.
 #' `p_kfold` is the gap between what the model predicts for an observation it was
 #' fitted to and what it predicts for the same one held out, which is the price of
 #' having used it. `vignette("comparison")` reads an example.
@@ -1152,7 +1153,26 @@ kfold.bartisan_fit <- function(x, K = 10, folds = NULL, scale = NULL,
   # are given, so a weighted fit scored without them is wrong rather than an
   # error.
   weights <- stats::model.weights(x[["model"]])
+
+  # Only the offset given as an argument goes to the refits. An `offset()` term
+  # stays in the formula they are refit from and is re-evaluated on the
+  # training rows like any other variable there, so passing the whole offset
+  # counted that part twice. The scores take the whole of it, because
+  # `predict()` takes all of the offset for new rows from its argument. A matrix
+  # offset, one column per additive predictor, is taken by rows; see `ss()`.
+  supplied <- x[["model"]][["(offset)"]]
   offset <- stats::model.offset(x[["model"]])
+
+  # A propensity score given to `bcf()` as numbers has a row for each row of the
+  # data, and the call keeps all of it. Each refit is given the training rows of
+  # it, and the held-out rows carry theirs into the score under the names the
+  # fit reads it from, since a score that was supplied rather than fitted cannot
+  # be rebuilt for new rows.
+  given_score <- bcf_supplied_score(x)
+
+  score_rows <- function(r) {
+    ss(given_score, match(r, rownames(data)))
+  }
 
   one_fold <- function(k) {
     train <- rows[folds != k]
@@ -1165,16 +1185,26 @@ kfold.bartisan_fit <- function(x, K = 10, folds = NULL, scale = NULL,
       call[["weights"]] <- weights[folds != k]
     }
 
-    if (!is_null(offset)) {
-      call[["offset"]] <- offset[folds != k]
+    if (!is_null(supplied)) {
+      call[["offset"]] <- ss(supplied, folds != k)
+    }
+
+    if (!is_null(given_score)) {
+      call[["propensity"]] <- score_rows(train)
     }
 
     fit <- eval(call)
 
-    score <- stats::predict(fit, newdata = data[held, , drop = FALSE],
+    newdata <- data[held, , drop = FALSE]
+
+    if (!is_null(given_score)) {
+      newdata <- cbind(newdata, score_rows(held))
+    }
+
+    score <- stats::predict(fit, newdata = newdata,
                             type = "density", log = TRUE,
                             weights = weights[folds == k],
-                            offset = offset[folds == k])
+                            offset = ss(offset, folds == k))
 
     list(score = score, fit = if (save_fits) fit)
   }

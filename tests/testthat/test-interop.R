@@ -1146,6 +1146,55 @@ test_that("kfold() and held-out densities work on a bcf() fit", {
   expect_identical(kf[["fits"]][[1L]][["num_trees"]], c(4L, 3L))
 })
 
+# A score given to `bcf()` as numbers has a row for each row of the data. Each
+# refit has to be given the training rows of it, and the held-out rows have to
+# be scored with theirs, since a score that was supplied rather than fitted
+# cannot be rebuilt for new rows. The refits were given all of it, and stopped.
+test_that("kfold() takes a supplied propensity score fold by fold", {
+  skip_if_not_installed("loo")
+  skip_if_not_installed("patrick")
+
+  d <- sim_x(n = 60L, p = 2L, seed = 109L)
+  d$z <- stats::rbinom(nrow(d), 1L, stats::plogis(d$x1))
+  d$g <- factor(rep(c("a", "b", "c"), length.out = nrow(d)))
+  d$y <- stats::rnorm(nrow(d), d$x1 + d$z)
+
+  folds <- rep(1:2, length.out = nrow(d))
+  held <- folds == 1L
+
+  # One probability per level, each varying, since a constant column is dropped.
+  level_scores <- exp(cbind(a = d$x1, b = d$x2, c = 0))
+  level_scores <- level_scores / rowSums(level_scores)
+
+  patrick::with_parameters_test_that(
+    "score given as",
+    {
+      fit <- bcf(y ~ x1 + x2, treat = treat, data = d,
+                 family = stats::gaussian(), propensity = score,
+                 num_trees = 4L, num_burn = 10L, num_draws = 10L,
+                 verbose = FALSE)
+
+      kf <- loo::kfold(fit, folds = folds, save_fits = TRUE)
+      expect_false(anyNA(kf[["pointwise"]]))
+
+      # The first refit is trained on the second fold and scores the first.
+      refit <- kf[["fits"]][[1L]]
+      expect_equal(refit[["bcf"]][["propensity"]], ss(as.matrix(score), !held),
+                   ignore_attr = TRUE)
+
+      scored <- cbind(d[held, ], ss(fit[["bcf"]][["propensity"]], held))
+      expect_equal(kf[["pointwise"]][held, "elpd_kfold"],
+                   stats::predict(refit, newdata = scored, type = "density",
+                                  log = TRUE),
+                   ignore_attr = TRUE)
+    },
+    patrick::cases(
+      vector = list(treat = ~ z, score = stats::plogis(d$x1)),
+      matrix = list(treat = ~ g, score = level_scores)
+    )
+  )
+})
+
 # `predict(type = "density")` falls back to the fit's own prior weights when it
 # is given none, so a weighted fit scored on held-out rows without them came
 # back wrong rather than erroring. The refits and the scores both have to carry
@@ -1247,31 +1296,68 @@ test_that("kfold() refits from the data and the call the fit was made from", {
 })
 
 # The offset is taken from the model frame rather than re-evaluated, so it has to
-# be given to each refit and to each score. Here it is passed as an argument.
-test_that("kfold() carries an offset into the refits and the scores", {
+# reach each refit and each score, and once. Written in the formula it is already
+# in the formula each refit is made from, and passing the whole of it as well
+# counted that part twice; given as a matrix, one column per additive predictor,
+# it has to be taken by rows.
+test_that("kfold() carries an offset into the refits and the scores once", {
   skip_if_not_installed("loo")
+  skip_if_not_installed("patrick")
 
   d <- sim_x(n = 60L, p = 2L, seed = 106L)
   d$exposure <- stats::runif(nrow(d), 1, 50)
-  d$y <- stats::rpois(nrow(d), d$exposure * exp(d$x1 - 2))
+  d$scale <- stats::runif(nrow(d), 0.5, 2)
+  d$y <- stats::rpois(nrow(d), d$exposure * d$scale * exp(d$x1 - 2))
+  d$zeros <- ifelse(stats::runif(nrow(d)) < 0.3, 0, d$y)
+
+  ctrl <- quick_control(num_burn = 10L, num_draws = 10L)
   folds <- rep(1:2, length.out = nrow(d))
-
-  fit <- bartisan(y ~ x1 + x2, data = d, family = stats::poisson(),
-                  offset = log(exposure),
-                  control = quick_control(num_burn = 10L, num_draws = 10L))
-
-  kf <- loo::kfold(fit, folds = folds, save_fits = TRUE)
-
-  # The first refit is trained on the second fold and scores the first.
   held <- folds == 1L
-  refit <- kf[["fits"]][[1L]]
+  total <- log(d$exposure) + log(d$scale)
 
-  expect_equal(stats::model.offset(refit[["model"]]),
-               log(d$exposure)[!held], ignore_attr = TRUE)
-  expect_equal(kf[["pointwise"]][held, "elpd_kfold"],
-               stats::predict(refit, newdata = d[held, ], type = "density",
-                              log = TRUE, offset = log(d$exposure)[held]),
-               ignore_attr = TRUE)
+  rows_of <- function(v, i) {
+    if (is.matrix(v)) v[i, , drop = FALSE] else v[i]
+  }
+
+  patrick::with_parameters_test_that(
+    "offset written as",
+    {
+      fit <- eval(model)
+      kf <- loo::kfold(fit, folds = folds, save_fits = TRUE)
+
+      # The first refit is trained on the second fold and scores the first.
+      refit <- kf[["fits"]][[1L]]
+
+      expect_equal(stats::model.offset(refit[["model"]]),
+                   rows_of(expected, !held), ignore_attr = TRUE)
+      expect_equal(kf[["pointwise"]][held, "elpd_kfold"],
+                   stats::predict(refit, newdata = d[held, ], type = "density",
+                                  log = TRUE, offset = rows_of(expected, held)),
+                   ignore_attr = TRUE)
+    },
+    patrick::cases(
+      argument = list(
+        model = quote(bartisan(y ~ x1 + x2, data = d, family = stats::poisson(),
+                               offset = log(exposure) + log(scale),
+                               control = ctrl)),
+        expected = total),
+      formula = list(
+        model = quote(bartisan(y ~ x1 + x2 + offset(log(exposure) + log(scale)),
+                               data = d, family = stats::poisson(),
+                               control = ctrl)),
+        expected = total),
+      `formula and argument` = list(
+        model = quote(bartisan(y ~ x1 + x2 + offset(log(exposure)), data = d,
+                               family = stats::poisson(), offset = log(scale),
+                               control = ctrl)),
+        expected = total),
+      matrix = list(
+        model = quote(bartisan(zeros ~ x1 + x2, data = d, family = zi_poisson(),
+                               offset = cbind(log(exposure) + log(scale), 0),
+                               control = ctrl)),
+        expected = cbind(total, 0))
+    )
+  )
 })
 
 test_that("kfold(scale=) moves the held-out and in-sample scores together", {

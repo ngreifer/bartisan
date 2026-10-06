@@ -456,6 +456,19 @@ covariate_terms <- function(f, dot) {
   attr(stats::terms(f), "term.labels")
 }
 
+# The propensity score a fit was given as numbers, one row per row of its data,
+# or `NULL` for a fit that fitted its score or used none.
+bcf_supplied_score <- function(object) {
+  spec <- object[["bcf"]]
+
+  if (is_null(spec) || is_null(spec[["propensity"]]) ||
+      !is_null(spec[["model"]])) {
+    return(NULL)
+  }
+
+  spec[["propensity"]]
+}
+
 # The propensity score, or nothing. The model follows the treatment's type,
 # because what the score *is* follows the treatment's type.
 bcf_propensity <- function(propensity, name, covariates, data, args) {
