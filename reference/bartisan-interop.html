@@ -381,8 +381,9 @@ from the first to the second:</p>
 <span>                 small <span class="op">=</span> <span class="fu">kfold</span><span class="op">(</span><span class="va">other</span>, folds <span class="op">=</span> <span class="va">folds</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>The refits run under a <code>future</code> plan when one is set, and one <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code>
 reproduces them either way. Each is refitted from the original call, so the
-<code>data</code> argument has to still name the data the fit was made from. Prior weights
-and an offset are carried into both the refits and the held-out scores.
+<code>data</code> argument has to still name the data the fit was made from. Prior
+weights, an offset, and a propensity score supplied to <code><a href="bcf.html">bcf()</a></code> are carried into
+both the refits and the held-out scores.
 <code>p_kfold</code> is the gap between what the model predicts for an observation it was
 fitted to and what it predicts for the same one held out, which is the price of
 having used it. <code><a href="../articles/comparison.html">vignette("comparison")</a></code> reads an example.</p>

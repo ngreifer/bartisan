@@ -329,11 +329,13 @@ by passing the folds from the first to the second:
 The refits run under a `future` plan when one is set, and one
 [`set.seed()`](https://rdrr.io/r/base/Random.html) reproduces them
 either way. Each is refitted from the original call, so the `data`
-argument has to still name the data the fit was made from. Prior weights
-and an offset are carried into both the refits and the held-out scores.
-`p_kfold` is the gap between what the model predicts for an observation
-it was fitted to and what it predicts for the same one held out, which
-is the price of having used it.
+argument has to still name the data the fit was made from. Prior
+weights, an offset, and a propensity score supplied to
+[`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) are
+carried into both the refits and the held-out scores. `p_kfold` is the
+gap between what the model predicts for an observation it was fitted to
+and what it predicts for the same one held out, which is the price of
+having used it.
 [`vignette("comparison")`](https://ngreifer.github.io/bartisan/articles/comparison.md)
 reads an example.
 
