@@ -210,7 +210,7 @@ than an extrapolated one.
 }
 }
 \examples{
-\dontshow{if (rlang::is_installed("marginaleffects")) withAutoprint(\{ # examplesIf}
+\dontshow{if (rlang::is_installed(c("marginaleffects", "collapse"))) withAutoprint(\{ # examplesIf}
 data("rhc")
 set.seed(123)
 

@@ -30,7 +30,7 @@ options(digits = 4)
 ggplot2::theme_set(ggplot2::theme_bw())
 
 # Every chunk below needs all three, so the vignette stops here without them
-if (!rlang::is_installed(c("survival", "marginaleffects", "loo"))) {
+if (!rlang::is_installed(c("survival", "marginaleffects", "collapse", "loo"))) {
   knitr::knit_exit()
 }
 ```

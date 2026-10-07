@@ -168,7 +168,7 @@
 #' computed on; [bartisan_control()] for `sparsity` and `x_transform`;
 #' [`bartisan-interop`] for the methods that let other packages assess the fit
 #'
-#' @examplesIf rlang::is_installed("marginaleffects")
+#' @examplesIf rlang::is_installed(c("marginaleffects", "collapse"))
 #' data("rhc")
 #' set.seed(123)
 #'

@@ -296,6 +296,7 @@ test_that("a varying coefficient is fitted and recovers its function", {
 
 test_that("the estimand path and the coefficient path agree", {
   skip_if_not_installed("marginaleffects")
+  skip_if_not_installed("collapse")
 
   d <- sim_effect(n = 150, seed = 4)
   fit <- bartisan(y ~ x1 + x2 + vc(z), data = d, family = gaussian(),

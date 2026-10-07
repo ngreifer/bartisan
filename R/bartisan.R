@@ -321,7 +321,7 @@
 #' # The forest has no coefficients, so an effect is a
 #' # contrast of predictions, here of catheterization on
 #' # the probability of death
-#' if (rlang::is_installed("marginaleffects")) {
+#' if (rlang::is_installed(c("marginaleffects", "collapse"))) {
 #'   marginaleffects::avg_comparisons(fit, variables = "rhc")
 #' }
 #'

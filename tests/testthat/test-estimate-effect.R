@@ -94,6 +94,7 @@ test_that("a marginal odds ratio is not the average conditional odds ratio", {
 
 test_that("the estimands agree with marginaleffects", {
   skip_if_not_installed("marginaleffects")
+  skip_if_not_installed("collapse")
   skip_on_cran()
 
   d <- sim_effect(seed = 4L, binary = TRUE)
@@ -124,6 +125,7 @@ test_that("the estimands agree with marginaleffects", {
 
 test_that("the potential outcomes are reported for the units averaged over", {
   skip_if_not_installed("marginaleffects")
+  skip_if_not_installed("collapse")
 
   d <- sim_effect(seed = 5L, binary = TRUE)
   fit <- fit_effect(d, binary = TRUE)

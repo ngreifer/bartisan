@@ -19,7 +19,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
                       message = FALSE, warning = FALSE)
 options(digits = 4, marginaleffects_safe = FALSE)
 
-has_me <- rlang::is_installed("marginaleffects")
+# marginaleffects summarizes posterior draws with collapse, so both are needed.
+has_me <- rlang::is_installed(c("marginaleffects", "collapse"))
 has_cobalt <- rlang::is_installed("cobalt")
 run <- TRUE
 

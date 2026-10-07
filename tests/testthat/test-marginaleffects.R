@@ -4,8 +4,11 @@
 # stacked in the wrong order for a categorical family, the numbers come out
 # plausible and wrong.
 
+# marginaleffects summarizes posterior draws with collapse, which is only
+# suggested by it, so a test needs both.
 skip_if_no_me <- function() {
   testthat::skip_if_not_installed("marginaleffects")
+  testthat::skip_if_not_installed("collapse")
 }
 
 test_that("the base generics report what insight will ask them for", {
@@ -369,6 +372,7 @@ test_that("the hazard reaches the estimand functions at each time", {
 test_that("the estimand functions work for a survival response", {
   skip_on_cran()
   skip_if_not_installed("marginaleffects")
+  skip_if_not_installed("collapse")
 
   # A survival response is a two-column matrix, which a model frame keeps as a
   # single matrix column. marginaleffects converts what it is handed to a
@@ -436,6 +440,7 @@ test_that("the estimand functions work for a survival response", {
 
 test_that("predictions() on newdata returns one row per row of newdata", {
   skip_if_not_installed("marginaleffects")
+  skip_if_not_installed("collapse")
 
   # marginaleffects prepends rows of its own, marked `rowid = -1`, and drops them
   # again by that marker. Regenerating the column in get_predict() destroyed the
