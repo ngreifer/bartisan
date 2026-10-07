@@ -342,6 +342,12 @@ make_group_probs <- function(assign, term_labels) {
   probs
 }
 
+# The parts of the compressed-column matrix `make_group_probs()` returns, which
+# the engine assembles itself; see `sparse_from_parts()` in `src/utils.cpp`.
+csc_parts <- function(m) {
+  list(i = m@i, p = m@p, x = m@x, Dim = m@Dim)
+}
+
 # The caller's relative weights, spread over every predictor group and
 # normalized to a probability vector. Unnamed groups take a weight of 1, so
 # `c(x1 = 3, x3 = 0.5)` on three predictors gives 3/4.5, 1/4.5 and 0.5/4.5.

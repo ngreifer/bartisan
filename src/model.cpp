@@ -143,7 +143,8 @@ List wrap_matrices(const std::vector<T>& x) {
 //' @param weights `numeric`; the prior weights.
 //' @param offset an `H` by `N` matrix of fixed contributions to the additive
 //'   predictors.
-//' @param group_probs a sparse matrix whose columns are predictor groups.
+//' @param group_probs_parts a sparse matrix whose columns are predictor groups,
+//'   as the parts of a `dgCMatrix`; see `sparse_from_parts()`.
 //' @param family_name,link,family_opts the family specification.
 //' @param control a list of sampler and prior settings.
 //' @returns A list of posterior draws and the encoded forests.
@@ -152,12 +153,13 @@ List wrap_matrices(const std::vector<T>& x) {
 List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
                  const arma::vec& y,
                  const arma::vec& weights, const arma::mat& offset,
-                 const arma::sp_mat& group_probs, std::string family_name,
+                 const List& group_probs_parts, std::string family_name,
                  std::string link, List family_opts, List control,
                  List random_spec, const arma::imat& codes,
                  const arma::ivec& cat_col, const arma::ivec& n_levels,
                  const arma::mat& vc_basis) {
 
+  const arma::sp_mat group_probs = sparse_from_parts(group_probs_parts);
   int n = static_cast<int>(X.n_rows);
 
   if (has_na.n_elem != X.n_cols) {

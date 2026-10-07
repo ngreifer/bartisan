@@ -16,13 +16,14 @@
 #' @param weights `numeric`; the prior weights.
 #' @param offset an `H` by `N` matrix of fixed contributions to the additive
 #'   predictors.
-#' @param group_probs a sparse matrix whose columns are predictor groups.
+#' @param group_probs_parts a sparse matrix whose columns are predictor groups,
+#'   as the parts of a `dgCMatrix`; see `sparse_from_parts()`.
 #' @param family_name,link,family_opts the family specification.
 #' @param control a list of sampler and prior settings.
 #' @returns A list of posterior draws and the encoded forests.
 #' @noRd
-.bartisan_fit <- function(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis) {
-    .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis)
+.bartisan_fit <- function(X, has_na, y, weights, offset, group_probs_parts, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis) {
+    .Call(`_bartisan_bartisan_fit`, X, has_na, y, weights, offset, group_probs_parts, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis)
 }
 
 #' Which stored trees split on a given set of predictor columns

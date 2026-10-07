@@ -112,6 +112,7 @@ double log_sum_exp(const arma::vec& x);
 int sample_class(const arma::vec& probs);
 int sample_class(int n);
 int sample_class_col(const arma::sp_mat& probs, int col);
+arma::sp_mat sparse_from_parts(const Rcpp::List& parts);
 
 // log of a Gamma(shape, 1) draw, computed directly for small shapes where the
 // gamma draw itself underflows to zero. Method of Liu, Martin and Syring.

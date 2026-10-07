@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // bartisan_fit
-List bartisan_fit(const arma::mat& X, const arma::uvec& has_na, const arma::vec& y, const arma::vec& weights, const arma::mat& offset, const arma::sp_mat& group_probs, std::string family_name, std::string link, List family_opts, List control, List random_spec, const arma::imat& codes, const arma::ivec& cat_col, const arma::ivec& n_levels, const arma::mat& vc_basis);
-RcppExport SEXP _bartisan_bartisan_fit(SEXP XSEXP, SEXP has_naSEXP, SEXP ySEXP, SEXP weightsSEXP, SEXP offsetSEXP, SEXP group_probsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP controlSEXP, SEXP random_specSEXP, SEXP codesSEXP, SEXP cat_colSEXP, SEXP n_levelsSEXP, SEXP vc_basisSEXP) {
+List bartisan_fit(const arma::mat& X, const arma::uvec& has_na, const arma::vec& y, const arma::vec& weights, const arma::mat& offset, const List& group_probs_parts, std::string family_name, std::string link, List family_opts, List control, List random_spec, const arma::imat& codes, const arma::ivec& cat_col, const arma::ivec& n_levels, const arma::mat& vc_basis);
+RcppExport SEXP _bartisan_bartisan_fit(SEXP XSEXP, SEXP has_naSEXP, SEXP ySEXP, SEXP weightsSEXP, SEXP offsetSEXP, SEXP group_probs_partsSEXP, SEXP family_nameSEXP, SEXP linkSEXP, SEXP family_optsSEXP, SEXP controlSEXP, SEXP random_specSEXP, SEXP codesSEXP, SEXP cat_colSEXP, SEXP n_levelsSEXP, SEXP vc_basisSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,7 +22,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type y(ySEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type offset(offsetSEXP);
-    Rcpp::traits::input_parameter< const arma::sp_mat& >::type group_probs(group_probsSEXP);
+    Rcpp::traits::input_parameter< const List& >::type group_probs_parts(group_probs_partsSEXP);
     Rcpp::traits::input_parameter< std::string >::type family_name(family_nameSEXP);
     Rcpp::traits::input_parameter< std::string >::type link(linkSEXP);
     Rcpp::traits::input_parameter< List >::type family_opts(family_optsSEXP);
@@ -32,7 +32,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::ivec& >::type cat_col(cat_colSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type n_levels(n_levelsSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type vc_basis(vc_basisSEXP);
-    rcpp_result_gen = Rcpp::wrap(bartisan_fit(X, has_na, y, weights, offset, group_probs, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis));
+    rcpp_result_gen = Rcpp::wrap(bartisan_fit(X, has_na, y, weights, offset, group_probs_parts, family_name, link, family_opts, control, random_spec, codes, cat_col, n_levels, vc_basis));
     return rcpp_result_gen;
 END_RCPP
 }

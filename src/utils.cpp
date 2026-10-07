@@ -44,6 +44,23 @@ int sample_class_col(const arma::sp_mat& probs, int col) {
   return last;
 }
 
+// A sparse matrix from the parts of a `dgCMatrix`: the 0-based row indices `i`,
+// the column pointers `p`, the values `x` and the dimensions `Dim`. Taken as
+// parts rather than as a sparse matrix, because RcppArmadillo's importer builds
+// one from (row, column) locations and sorts them with std::stable_sort, which
+// libstdc++ 12 writes with std::get_temporary_buffer. clang 22 reports that as
+// deprecated, so the importer alone was a compiler warning, and a WARNING in
+// R CMD check. Armadillo's compressed-column constructor takes the parts as they
+// are, already in order.
+arma::sp_mat sparse_from_parts(const Rcpp::List& parts) {
+  arma::uvec rows = Rcpp::as<arma::uvec>(parts["i"]);
+  arma::uvec cols = Rcpp::as<arma::uvec>(parts["p"]);
+  arma::vec values = Rcpp::as<arma::vec>(parts["x"]);
+  Rcpp::IntegerVector dim = parts["Dim"];
+
+  return arma::sp_mat(rows, cols, values, dim[0], dim[1]);
+}
+
 double rlgam(double shape) {
   if (shape >= 0.1) {
     return std::log(Rf_rgamma(shape, 1.0));
