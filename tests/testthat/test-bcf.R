@@ -28,10 +28,6 @@ bcf_args <- function(...) {
   args
 }
 
-small_propensity <- function(...) {
-  list(num_trees = 10L, num_burn = 30L, num_draws = 30L, verbose = FALSE, ...)
-}
-
 # The settings the estimation checks were written for.
 full_args <- function() {
   bcf_args(num_burn = 200L, num_draws = 200L, propensity_args = list())

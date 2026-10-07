@@ -324,7 +324,8 @@ test_that("a bcf propensity score is treated as moving with the grid", {
 
   fit <- suppressMessages(suppressWarnings(
     bcf(y ~ x1 + x2 + x3, treat = ~ z, data = d, family = stats::gaussian(),
-        num_trees = 10L, num_burn = 30L, num_draws = 40L, verbose = FALSE)))
+        num_trees = 10L, num_burn = 30L, num_draws = 40L, verbose = FALSE,
+        propensity_args = small_propensity())))
 
   # The score is a function of the covariates and is rebuilt from the data at
   # every grid point, so trees splitting on it cannot go in the fixed base. It

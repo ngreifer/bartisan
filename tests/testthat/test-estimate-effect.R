@@ -35,7 +35,8 @@ fit_effect <- function(d, binary = FALSE) {
     bcf(y ~ x1 + x2 + g, treat = ~ z, data = d,
         family = if (binary) stats::binomial() else stats::gaussian(),
         control = quick_control(num_trees = 10L, num_burn = 50L,
-                                num_draws = 100L))))
+                                num_draws = 100L),
+        propensity_args = small_propensity())))
 }
 
 test_that("the estimands differ only in which units they average over", {
@@ -425,7 +426,8 @@ test_that("a guessed treated level is announced", {
     bcf(y ~ x1 + x2 + g, treat = ~ z, data = d,
         family = stats::gaussian(),
         control = quick_control(num_trees = 10L, num_burn = 50L,
-                                num_draws = 100L))))
+                                num_draws = 100L),
+        propensity_args = small_propensity())))
 
   expect_message(estimate_effect(fit, estimand = "ATT"),
                  "is the treated level")
@@ -579,7 +581,8 @@ test_that("a newdata holding one arm is still a contrast", {
     bcf(y ~ x1 + x2 + g, treat = ~ zf, data = d,
         family = stats::gaussian(),
         control = quick_control(num_trees = 10L, num_burn = 50L,
-                                num_draws = 100L))))
+                                num_draws = 100L),
+        propensity_args = small_propensity())))
 
   one_arm <- estimate_effect(ff, estimand = "CATE",
                              newdata = subset(d, zf == "trt"))

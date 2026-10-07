@@ -29,6 +29,12 @@ options(digits = 4)
 has_loo <- rlang::is_installed("loo")
 has_nlme <- rlang::is_installed("nlme")
 run <- TRUE
+
+# The fits below are too slow to run on CRAN's machines, so their output is
+# saved when the code runs and replayed where it does not, as on CRAN; see
+# saved-results.R.
+source("saved-results.R", local = knitr::knit_global())
+knitr::opts_chunk$set(saved = TRUE)
 ```
 
 ## Introduction
@@ -173,7 +179,7 @@ It is important to remember that the coefficient is drawn under the leaf prior o
 head(coef(fit_vc))
 ```
 
-`coef()` returns one row per observation and one column per coefficient, since a coefficient allowed to vary has a value for each observation: for the first patient, or more precisely for a patient with the first patient's covariate profile, the log odds of death move by `r round(coef(fit_vc)[1, "rhc"], 3)` under catheterization. The values are on the link scale, so for a binary outcome they are differences in log odds rather than in probability. Supplying `newdata` evaluates the coefficients at other covariate profiles, and setting `draws = TRUE` returns every posterior draw rather than the mean, as a list with one draws-by-observations matrix per coefficient, which an interval on any one patient's coefficient needs.
+`coef()` returns one row per observation and one column per coefficient, since a coefficient allowed to vary has a value for each observation: for the first patient, or more precisely for a patient with the first patient's covariate profile, the log odds of death move by `r saved_value("vc_first_rhc", round(coef(fit_vc)[1, "rhc"], 3))` under catheterization. The values are on the link scale, so for a binary outcome they are differences in log odds rather than in probability. Supplying `newdata` evaluates the coefficients at other covariate profiles, and setting `draws = TRUE` returns every posterior draw rather than the mean, as a list with one draws-by-observations matrix per coefficient, which an interval on any one patient's coefficient needs.
 
 ```{r coefdraws, eval = run}
 draws <- coef(fit_vc, draws = TRUE)[["rhc"]]

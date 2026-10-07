@@ -33,6 +33,12 @@ ggplot2::theme_set(ggplot2::theme_bw())
 if (!rlang::is_installed(c("survival", "marginaleffects", "collapse", "loo"))) {
   knitr::knit_exit()
 }
+
+# The fits below are too slow to run on CRAN's machines, so their output is
+# saved when the code runs and replayed where it does not, as on CRAN; see
+# saved-results.R.
+source("saved-results.R", local = knitr::knit_global())
+knitr::opts_chunk$set(saved = TRUE)
 ```
 
 ## Introduction
@@ -48,7 +54,7 @@ library(survival)
 data("rhc")
 ```
 
-The `rhc` data come from the SUPPORT study of right heart catheterization in critically ill patients [@connors1996]; see `help("rhc", package = "bartisan")` for details. The variable `days` is the number of days from admission to death, or to last contact for a patient who did not die, and `death` records which of the two it is. About a third of the patients (`r round(100 * mean(rhc$death == 0))`%) are censored, and most of them were last contacted about `r round(median(rhc$days[rhc$death == 0]), -1)` days after admission, so the data carry much more information about survival in the first six months than after. The Kaplan-Meier estimate gives the observed survival at a few times:
+The `rhc` data come from the SUPPORT study of right heart catheterization in critically ill patients [@connors1996]; see `help("rhc", package = "bartisan")` for details. The variable `days` is the number of days from admission to death, or to last contact for a patient who did not die, and `death` records which of the two it is. About a third of the patients (`r saved_value("pct_censored", round(100 * mean(rhc$death == 0)))`%) are censored, and most of them were last contacted about `r saved_value("median_censored_days", round(median(rhc$days[rhc$death == 0]), -1))` days after admission, so the data carry much more information about survival in the first six months than after. The Kaplan-Meier estimate gives the observed survival at a few times:
 
 ```{r km}
 km <- survfit(Surv(days, death) ~ 1, data = rhc)
@@ -56,7 +62,7 @@ km <- survfit(Surv(days, death) ~ 1, data = rhc)
 summary(km, times = c(30, 180, 365))
 ```
 
-About two thirds of the patients survived 30 days and about half survived 180, and only `r summary(km, times = 365)$n.risk` of the `r nrow(rhc)` were still under observation a year after admission.
+About two thirds of the patients survived 30 days and about half survived 180, and only `r saved_value("at_risk_365", summary(km, times = 365)$n.risk)` of the `r saved_value("n_patients", nrow(rhc))` were still under observation a year after admission.
 
 ## The Survival Families
 
@@ -173,7 +179,7 @@ loo_fits <- loo_compare(list(dpm_aft   = loo(fit_dpm, scale = "time"),
 loo_fits
 ```
 
-`ph()` predicts best, ahead of `dpm_aft()` by `r round(-loo_fits$elpd_diff[loo_fits$model == "dpm_aft"])` points with a standard error of `r round(loo_fits$se_diff[loo_fits$model == "dpm_aft"])`, and `dpm_aft()` is in turn well ahead of `lognormal_aft()`. Any flags in the last column mark patients whose leave-one-out estimates are unreliable (see `vignette("comparison")`), and an unreliable estimate for one or two patients does not change a difference of `r round(-loo_fits$elpd_diff[loo_fits$model == "dpm_aft"] / loo_fits$se_diff[loo_fits$model == "dpm_aft"], 1)` standard errors. The two checks agree: the proportional hazards structure describes these data better than the accelerated failure time structure, even with the error distribution estimated, so we use `ph()` for the rest of this vignette.
+`ph()` predicts best, ahead of `dpm_aft()` by `r saved_value("elpd_gap", round(-loo_fits$elpd_diff[loo_fits$model == "dpm_aft"]))` points with a standard error of `r saved_value("elpd_gap_se", round(loo_fits$se_diff[loo_fits$model == "dpm_aft"]))`, and `dpm_aft()` is in turn well ahead of `lognormal_aft()`. Any flags in the last column mark patients whose leave-one-out estimates are unreliable (see `vignette("comparison")`), and an unreliable estimate for one or two patients does not change a difference of `r saved_value("elpd_gap_ratio", round(-loo_fits$elpd_diff[loo_fits$model == "dpm_aft"] / loo_fits$se_diff[loo_fits$model == "dpm_aft"], 1))` standard errors. The two checks agree: the proportional hazards structure describes these data better than the accelerated failure time structure, even with the error distribution estimated, so we use `ph()` for the rest of this vignette.
 
 ## Interpreting a Fit
 
@@ -203,7 +209,7 @@ surv_pred <- predict(fit_ph, type = "survival", times = c(30, 180))
 head(surv_pred)
 ```
 
-The first patient, for example, has a predicted `r round(100 * surv_pred[1, 1])`% chance of surviving 30 days and a `r round(100 * surv_pred[1, 2])`% chance of surviving 180 days. Setting `draws = TRUE` returns the posterior draws instead, as an array of draws by patients by times, from which a credible interval can be computed for these probabilities or for any other summary of the survival curve (e.g., the restricted mean survival time, which is the area under the curve up to a horizon).
+The first patient, for example, has a predicted `r saved_value("surv30_first", round(100 * surv_pred[1, 1]))`% chance of surviving 30 days and a `r saved_value("surv180_first", round(100 * surv_pred[1, 2]))`% chance of surviving 180 days. Setting `draws = TRUE` returns the posterior draws instead, as an array of draws by patients by times, from which a credible interval can be computed for these probabilities or for any other summary of the survival curve (e.g., the restricted mean survival time, which is the area under the curve up to a horizon).
 
 The `times` argument has no default, because the horizon is part of the question rather than a property of the fit. A horizon well inside the follow-up is the safer choice, since survival beyond the follow-up of most patients is estimated from few of them.
 
@@ -217,7 +223,7 @@ med <- predict(fit_ph, type = "response")
 summary(med)
 ```
 
-The predicted medians run from about `r round(min(med))` days for the patients with the worst prognosis to about `r round(max(med))` for those with the best. A median longer than a year, which `r round(100 * mean(med > 365))`% of patients have, rests on the `r summary(km, times = 365)$n.risk` patients still under observation at a year and on the model's extrapolation beyond them, so for those patients a survival probability at a horizon within the follow-up is the more reliable summary.
+The predicted medians run from about `r saved_value("median_min", round(min(med)))` days for the patients with the worst prognosis to about `r saved_value("median_max", round(max(med)))` for those with the best. A median longer than a year, which `r saved_value("pct_median_over_year", round(100 * mean(med > 365)))`% of patients have, rests on the `r saved_value("at_risk_365", summary(km, times = 365)$n.risk)` patients still under observation at a year and on the model's extrapolation beyond them, so for those patients a survival probability at a horizon within the follow-up is the more reliable summary.
 
 ### Hazards (`type = "hazard"`)
 
@@ -229,7 +235,7 @@ haz <- predict(fit_ph, type = "hazard", times = c(7, 30, 180))
 head(haz)
 ```
 
-The first patient's hazard of death is about `r sub("^0", "", signif(haz[1, 1], 2))` per day a week after admission and `r sub("^0", "", signif(haz[1, 3], 2))` per day at six months, about `r round(haz[1, 1] / haz[1, 3])` times lower, which is the steep early mortality visible in the Kaplan-Meier estimate. Under `ph()` every patient's hazard has the same shape over time, scaled by their relative hazard, and that shape is constant within each bin of the baseline, so as a function of time it is a step function that changes at the bin edges. The cumulative hazard is $-\log S(t \mid x)$ and so comes from `type = "survival"`.
+The first patient's hazard of death is about `r saved_value("haz_week_first", sub("^0", "", signif(haz[1, 1], 2)))` per day a week after admission and `r saved_value("haz_6mo_first", sub("^0", "", signif(haz[1, 3], 2)))` per day at six months, about `r saved_value("haz_ratio_first", round(haz[1, 1] / haz[1, 3]))` times lower, which is the steep early mortality visible in the Kaplan-Meier estimate. Under `ph()` every patient's hazard has the same shape over time, scaled by their relative hazard, and that shape is constant within each bin of the baseline, so as a function of time it is a step function that changes at the bin edges. The cumulative hazard is $-\log S(t \mid x)$ and so comes from `type = "survival"`.
 
 Hazards can be averaged and contrasted at a horizon with *marginaleffects* in the same way as the survival probabilities below. Note that an average of the patients' hazards is not the hazard of the average survival curve, which weights each patient by their probability of having survived to that time.
 
@@ -252,7 +258,7 @@ po_180 <- avg_predictions(fit_ph, variables = "rhc", type = "survival",
 po_180
 ```
 
-The model predicts that `r round(100 * po_180$estimate[po_180$rhc == 0], 1)`% of the patients would survive 180 days if none were catheterized, against `r round(100 * po_180$estimate[po_180$rhc == 1], 1)`% if all of them were. `avg_comparisons()` computes the difference between the two:
+The model predicts that `r saved_value("po180_none", round(100 * po_180$estimate[po_180$rhc == 0], 1))`% of the patients would survive 180 days if none were catheterized, against `r saved_value("po180_all", round(100 * po_180$estimate[po_180$rhc == 1], 1))`% if all of them were. `avg_comparisons()` computes the difference between the two:
 
 ```{r avgcomp}
 eff_180 <- avg_comparisons(fit_ph, variables = "rhc", type = "survival",
@@ -261,7 +267,7 @@ eff_180 <- avg_comparisons(fit_ph, variables = "rhc", type = "survival",
 eff_180
 ```
 
-Catheterizing every patient rather than none would lower the probability of surviving 180 days by `r round(-100 * eff_180$estimate, 1)` percentage points, with a 95% credible interval running from `r round(-100 * eff_180$conf.high, 1)` to `r round(-100 * eff_180$conf.low, 1)` points. Under the assumptions described in `vignette("causal")`, this is the average effect of catheterization on 180-day survival; without them, it is a description of what the model predicts.
+Catheterizing every patient rather than none would lower the probability of surviving 180 days by `r saved_value("eff180", round(-100 * eff_180$estimate, 1))` percentage points, with a 95% credible interval running from `r saved_value("eff180_from", round(-100 * eff_180$conf.high, 1))` to `r saved_value("eff180_to", round(-100 * eff_180$conf.low, 1))` points. Under the assumptions described in `vignette("causal")`, this is the average effect of catheterization on 180-day survival; without them, it is a description of what the model predicts.
 
 *marginaleffects* warns that it does not recognize the `times` argument; the warning is expected (it is suppressed in this vignette), and the argument is used. Several times can be given at once, each getting its own `group` in the output, and the other arguments of *marginaleffects* work as they do for any model (e.g., `comparison = "ratio"` for a ratio of survival probabilities, or `by` for the contrast within subgroups).
 
@@ -275,7 +281,7 @@ eff_med <- estimate_effect(fit_ph, treat = "rhc")
 eff_med
 ```
 
-Catheterization lowers the average of the patients' median survival times by about `r round(-eff_med$estimate)` days. Note that `Y[0]` and `Y[1]` are averages of the patients' own medians, not the median survival time of the sample under each treatment, which is the time at which the average survival curve falls to one half. The patients with the best prognoses have long medians that pull the average up, so the medians of the sample, which we read from the survival curves below, are much shorter.
+Catheterization lowers the average of the patients' median survival times by about `r saved_value("eff_median", round(-eff_med$estimate))` days. Note that `Y[0]` and `Y[1]` are averages of the patients' own medians, not the median survival time of the sample under each treatment, which is the time at which the average survival curve falls to one half. The patients with the best prognoses have long medians that pull the average up, so the medians of the sample, which we read from the survival curves below, are much shorter.
 
 ### Survival Curves
 
@@ -296,7 +302,7 @@ ggplot(curves_rhc, aes(x = time, y = estimate, ymin = conf.low,
        color = "rhc", fill = "rhc")
 ```
 
-The two curves separate within the first weeks after admission and stay apart for the rest of the year, and the gap between them at 180 days is the contrast estimated above. Each curve falls to one half at the median survival time of the sample under that treatment, about `r round(approx(curves_rhc$estimate[curves_rhc$rhc == 0], curves_rhc$time[curves_rhc$rhc == 0], xout = .5)$y, -1)` days without catheterization and `r round(approx(curves_rhc$estimate[curves_rhc$rhc == 1], curves_rhc$time[curves_rhc$rhc == 1], xout = .5)$y, -1)` days with it, well short of the averages of the patients' medians that `estimate_effect()` reported.
+The two curves separate within the first weeks after admission and stay apart for the rest of the year, and the gap between them at 180 days is the contrast estimated above. Each curve falls to one half at the median survival time of the sample under that treatment, about `r saved_value("median_none", round(approx(curves_rhc$estimate[curves_rhc$rhc == 0], curves_rhc$time[curves_rhc$rhc == 0], xout = .5)$y, -1))` days without catheterization and `r saved_value("median_all", round(approx(curves_rhc$estimate[curves_rhc$rhc == 1], curves_rhc$time[curves_rhc$rhc == 1], xout = .5)$y, -1))` days with it, well short of the averages of the patients' medians that `estimate_effect()` reported.
 
 ### Time Ratios and Hazard Ratios
 
@@ -309,7 +315,7 @@ hr_unit <- comparisons(fit_ph, variables = "rhc", type = "link",
 summary(hr_unit$estimate)
 ```
 
-Each value is the factor by which catheterization multiplies that patient's hazard of death, at every time, with the patient's other covariates held where they are. Their posterior means run from about `r sprintf("%.2f", min(hr_unit$estimate))` to `r sprintf("%.2f", max(hr_unit$estimate))`, and `r round(100 * mean(hr_unit$conf.low <= 1 & hr_unit$conf.high >= 1))`% of the patients' 95% credible intervals include 1, which is the usual picture: the effect at one patient's covariates is estimated from far less information than an average over all of them. Setting `type = "link"` in `avg_comparisons()` averages the log hazard ratios over the patients instead, and adding `transform = exp` reports the average as a ratio:
+Each value is the factor by which catheterization multiplies that patient's hazard of death, at every time, with the patient's other covariates held where they are. Their posterior means run from about `r saved_value("hr_unit_min", sprintf("%.2f", min(hr_unit$estimate)))` to `r saved_value("hr_unit_max", sprintf("%.2f", max(hr_unit$estimate)))`, and `r saved_value("pct_hr_unit_cover", round(100 * mean(hr_unit$conf.low <= 1 & hr_unit$conf.high >= 1)))`% of the patients' 95% credible intervals include 1, which is the usual picture: the effect at one patient's covariates is estimated from far less information than an average over all of them. Setting `type = "link"` in `avg_comparisons()` averages the log hazard ratios over the patients instead, and adding `transform = exp` reports the average as a ratio:
 
 ```{r hr}
 hr <- avg_comparisons(fit_ph, variables = "rhc", type = "link",
@@ -318,7 +324,7 @@ hr <- avg_comparisons(fit_ph, variables = "rhc", type = "link",
 hr
 ```
 
-Averaged over the patients on the log scale, catheterization multiplies a patient's hazard of death by about `r round(hr$estimate, 2)`. The same call on the `dpm_aft()` fit gives a time ratio, the factor by which catheterization multiplies a patient's survival time:
+Averaged over the patients on the log scale, catheterization multiplies a patient's hazard of death by about `r saved_value("hr_avg", round(hr$estimate, 2))`. The same call on the `dpm_aft()` fit gives a time ratio, the factor by which catheterization multiplies a patient's survival time:
 
 ```{r tr}
 tr <- avg_comparisons(fit_dpm, variables = "rhc", type = "link",
@@ -327,7 +333,7 @@ tr <- avg_comparisons(fit_dpm, variables = "rhc", type = "link",
 tr
 ```
 
-Under that model, catheterization multiplies survival times by about `r round(tr$estimate, 2)`, shortening them by about `r round(100 * (1 - tr$estimate))`%. Both are summaries of conditional contrasts, each computed at a patient's own covariate values, and neither is the ratio that would compare the two average survival curves. For a hazard ratio the two differ even when the effect is the same for every patient, because the hazard ratio is noncollapsible. A contrast of survival probabilities has neither difficulty, which is the reason we recommend it above.
+Under that model, catheterization multiplies survival times by about `r saved_value("tr_avg", round(tr$estimate, 2))`, shortening them by about `r saved_value("tr_pct", round(100 * (1 - tr$estimate)))`%. Both are summaries of conditional contrasts, each computed at a patient's own covariate values, and neither is the ratio that would compare the two average survival curves. For a hazard ratio the two differ even when the effect is the same for every patient, because the hazard ratio is noncollapsible. A contrast of survival probabilities has neither difficulty, which is the reason we recommend it above.
 
 ## Additional Topics
 

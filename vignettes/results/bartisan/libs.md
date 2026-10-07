@@ -1,0 +1,4 @@
+
+``` r
+library(bartisan)
+```

@@ -1,0 +1,4 @@
+
+``` r
+future::plan("multisession")
+```

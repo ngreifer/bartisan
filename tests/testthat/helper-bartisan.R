@@ -14,6 +14,14 @@ quick_control <- function(...) {
   do.call(bartisan_control, args)
 }
 
+# The propensity model `bcf()` fits along the way runs at `bartisan()`'s
+# defaults unless it is given settings of its own, and at those it is most of
+# the cost of a small `bcf()` fit; on CRAN's Windows machine it was most of the
+# time `test-estimate-effect.R` took.
+small_propensity <- function(...) {
+  list(num_trees = 10L, num_burn = 30L, num_draws = 30L, verbose = FALSE, ...)
+}
+
 sim_x <- function(n = 60, p = 3, seed = 1) {
   set.seed(seed)
   out <- as.data.frame(matrix(stats::runif(n * p), nrow = n))
