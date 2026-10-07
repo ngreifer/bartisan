@@ -124,7 +124,7 @@ and [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws it:
 plot(imp)
 ```
 
-![](importance_files/figure-html/viplot-1.png)
+![](results/importance/viplot-1.png)
 
 For a model wider than this one, subsetting first keeps the picture
 readable: `plot(head(imp, 10))` shows the top ten.

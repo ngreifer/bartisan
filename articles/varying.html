@@ -529,7 +529,7 @@ the marginal effect as a separate interval past the right edge.</p>
 <code class="sourceCode R"><span><span class="va">cate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_effect.html">estimate_effect</a></span><span class="op">(</span><span class="va">fit_vc</span>, treat <span class="op">=</span> <span class="st">"rhc"</span>, estimand <span class="op">=</span> <span class="st">"CATE"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">cate</span><span class="op">)</span></span></code></pre></div>
-<p><img src="varying_files/figure-html/cate-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/varying/cate-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The marginal effect, effects by subgroup, or the effect as a ratio
 are all the same call with different arguments. For example, setting
 <code>comparison = "or"</code> displays the effects on the conditional
@@ -723,7 +723,7 @@ the treatment recorded. What the record adds is that
 <code>plot(estimate_effect(fit, estimand = "CATE"))</code>:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_bcf</span><span class="op">)</span></span></code></pre></div>
-<p><img src="varying_files/figure-html/bcfplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/varying/bcfplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The reasons to write the model by hand rather than through
 <code><a href="../reference/bcf.html">bcf()</a></code> are the ones this guide is about: a coefficient on
 something other than a treatment, more than one of them, a continuous

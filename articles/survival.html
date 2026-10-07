@@ -366,7 +366,7 @@ returns the posterior of that density on a grid of values, which its
 interval:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/error_density.html">error_density</a></span><span class="op">(</span><span class="va">fit_dpm</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="survival_files/figure-html/errdens-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/survival/errdens-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The density has two well separated modes: patients with the same
 covariates tend either to die within weeks of admission or to survive
 for many months, with fewer in between. No normal distribution, which
@@ -411,7 +411,7 @@ Kaplan-Meier estimate, which is in black:</p>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/coord_cartesian.html" class="external-link">coord_cartesian</a></span><span class="op">(</span>xlim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">730</span><span class="op">)</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Days since admission"</span>, y <span class="op">=</span> <span class="st">"Survival probability"</span>,</span>
 <span>       color <span class="op">=</span> <span class="st">"Family"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="survival_files/figure-html/kmplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/survival/kmplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The <code><a href="../reference/bartisan-families.html">ph()</a></code> curve follows the Kaplan-Meier estimate closely
 over the whole two years. Both accelerated failure time fits predict too
 few deaths in the first two months and too many between about three
@@ -727,7 +727,7 @@ before plotting:</p>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Days since admission"</span>, y <span class="op">=</span> <span class="st">"Average survival probability"</span>,</span>
 <span>       color <span class="op">=</span> <span class="st">"rhc"</span>, fill <span class="op">=</span> <span class="st">"rhc"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="survival_files/figure-html/curves-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/survival/curves-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The two curves separate within the first weeks after admission and
 stay apart for the rest of the year, and the gap between them at 180
 days is the contrast estimated above. Each curve falls to one half at

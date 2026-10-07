@@ -153,7 +153,7 @@ groups:
 bal.plot(rhc ~ prop_score, data = rhc, type = "hist", mirror = TRUE)
 ```
 
-![](causal_files/figure-html/balplot-1.png)
+![](results/causal/balplot-1.png)
 
 What matters for positivity is that the two groups overlap over most of
 their range, and they do. Distributions pushed against zero and one with
@@ -561,7 +561,7 @@ right edge in its own color. Setting `marginal = FALSE` leaves it out.
 plot(fit_bcf)
 ```
 
-![](causal_files/figure-html/bcfplot-1.png)
+![](results/causal/bcfplot-1.png)
 
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) on the fit is
 the conditional effects on the response scale; passing a
@@ -668,7 +668,7 @@ And the conditional effects, drawn:
 plot(cate_att)
 ```
 
-![](causal_files/figure-html/lalondeplot-1.png)
+![](results/causal/lalondeplot-1.png)
 
 Most of the conditional effects are positive, as the ATT is, and none of
 their 185 intervals exclude zero. That is the usual picture: the effect

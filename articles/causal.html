@@ -235,7 +235,7 @@ outcome: the functional form is not known.</p>
 the propensity score distribution between the groups:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">bal.plot</span><span class="op">(</span><span class="va">rhc</span> <span class="op">~</span> <span class="va">prop_score</span>, data <span class="op">=</span> <span class="va">rhc</span>, type <span class="op">=</span> <span class="st">"hist"</span>, mirror <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p><img src="causal_files/figure-html/balplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/causal/balplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>What matters for positivity is that the two groups overlap over most
 of their range, and they do. Distributions pushed against zero and one
 with little overlap indicate a failure of positivity, and the honest
@@ -587,7 +587,7 @@ marginal effect as a single interval past the right edge in its own
 color. Setting <code>marginal = FALSE</code> leaves it out.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit_bcf</span><span class="op">)</span></span></code></pre></div>
-<p><img src="causal_files/figure-html/bcfplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/causal/bcfplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> on the fit is the conditional effects on the
 response scale; passing a <code>&lt;bartisan_effect&gt;</code> object to
 <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> draws whatever that object holds, so
@@ -680,7 +680,7 @@ to see that the two agree:</p>
 <p>And the conditional effects, drawn:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">cate_att</span><span class="op">)</span></span></code></pre></div>
-<p><img src="causal_files/figure-html/lalondeplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="results/causal/lalondeplot-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>Most of the conditional effects are positive, as the ATT is, and none
 of their 185 intervals exclude zero. That is the usual picture: the
 effect at one unit’s covariates is estimated from far less information

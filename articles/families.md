@@ -444,7 +444,7 @@ fit_dpm <- bartisan(heavy ~ x1 + x2, data = d,
 plot(error_density(fit_dpm))
 ```
 
-![](families_files/figure-html/dpmplot-1.png)
+![](results/families/dpmplot-1.png)
 
 ## Positive Continuous Responses
 
@@ -641,7 +641,7 @@ ggplot(dz, aes(count)) +
   theme_bw()
 ```
 
-![](families_files/figure-html/zerohist-1.png)
+![](results/families/zerohist-1.png)
 
 Nearly half the observations are zero, where a Poisson with the
 *marginal* mean of 1.9 would give 14%, and the variance is four and a

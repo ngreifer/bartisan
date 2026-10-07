@@ -475,7 +475,7 @@ cate <- estimate_effect(fit_vc, treat = "rhc", estimand = "CATE")
 plot(cate)
 ```
 
-![](varying_files/figure-html/cate-1.png)
+![](results/varying/cate-1.png)
 
 The marginal effect, effects by subgroup, or the effect as a ratio are
 all the same call with different arguments. For example, setting
@@ -713,7 +713,7 @@ the treatment and its moderators, and
 plot(fit_bcf)
 ```
 
-![](varying_files/figure-html/bcfplot-1.png)
+![](results/varying/bcfplot-1.png)
 
 The reasons to write the model by hand rather than through
 [`bcf()`](https://ngreifer.github.io/bartisan/reference/bcf.md) are the

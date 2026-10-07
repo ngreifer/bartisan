@@ -377,7 +377,7 @@ calibration plot, such as that produced by
 bayesplot::pp_check(fit, type = "loo_calibration")
 ```
 
-![](bartisan_files/figure-html/ppcheck-1.png)
+![](results/bartisan/ppcheck-1.png)
 
 The line should follow the diagonal, and here it does across the whole
 range.
@@ -564,7 +564,7 @@ plot(pd) +
                 y = "Fitted probability of death")
 ```
 
-![](bartisan_files/figure-html/pdp-1.png)
+![](results/bartisan/pdp-1.png)
 
 The fitted probability of death falls from about .85 to just under .5 as
 the prognostic score rises, and the fall is not a straight line, which

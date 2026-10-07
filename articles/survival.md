@@ -260,7 +260,7 @@ with a pointwise 95% credible interval:
 plot(error_density(fit_dpm))
 ```
 
-![](survival_files/figure-html/errdens-1.png)
+![](results/survival/errdens-1.png)
 
 The density has two well separated modes: patients with the same
 covariates tend either to die within weeks of admission or to survive
@@ -306,7 +306,7 @@ ggplot(curves, aes(x = time, y = surv)) +
        color = "Family")
 ```
 
-![](survival_files/figure-html/kmplot-1.png)
+![](results/survival/kmplot-1.png)
 
 The
 [`ph()`](https://ngreifer.github.io/bartisan/reference/bartisan-families.md)
@@ -652,7 +652,7 @@ ggplot(curves_rhc, aes(x = time, y = estimate, ymin = conf.low,
        color = "rhc", fill = "rhc")
 ```
 
-![](survival_files/figure-html/curves-1.png)
+![](results/survival/curves-1.png)
 
 The two curves separate within the first weeks after admission and stay
 apart for the rest of the year, and the gap between them at 180 days is
