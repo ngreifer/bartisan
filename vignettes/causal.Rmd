@@ -286,7 +286,7 @@ And the conditional effects, drawn:
 plot(cate_att)
 ```
 
-Most of the conditional effects are positive, as the ATT is, and `r if (run) {k <- sum(cate_att$lower > 0 | cate_att$upper < 0); if (k == 0) "none" else paste("only", k)} else "none"` of their 185 intervals exclude zero. That is the usual picture: the effect at one unit's covariates is estimated from far less information than an average over all of them, so its interval is much wider.
+Most of the conditional effects are positive, as the ATT is, and `r if (run && has_cobalt) {k <- sum(cate_att$lower > 0 | cate_att$upper < 0); if (k == 0) "none" else paste("only", k)} else "none"` of their 185 intervals exclude zero. That is the usual picture: the effect at one unit's covariates is estimated from far less information than an average over all of them, so its interval is much wider.
 
 ## Interpreting the Credible Interval
 
