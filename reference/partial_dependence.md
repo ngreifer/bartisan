@@ -167,6 +167,9 @@ draws the same thing with more control over the grid
 data("rhc")
 set.seed(123)
 
+# Note: we use small sampler settings that would not be
+# appropriate for analysis; this is just for the
+# examples
 fit <- bartisan(death ~ age + sex + meanbp + aps,
                 data = rhc, num_trees = 10, num_burn = 50,
                 num_draws = 50, verbose = FALSE)
@@ -207,6 +210,7 @@ plot(pd)
 plot(fit, ~ meanbp)
 
 
+# \donttest{
 # Two predictors, one of them a factor, which gives a
 # curve per level
 plot(fit, ~ meanbp + sex)
@@ -225,4 +229,5 @@ plot(fit, ~ meanbp + aps)
 three_values <- function(x) quantile(x, c(.1, .5, .9))
 plot(fit, ~ meanbp + aps, values = list(aps = three_values))
 
+# }
 ```

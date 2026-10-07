@@ -265,9 +265,15 @@ ones not offered here
 data("rhc")
 set.seed(123)
 
+# Note: we use small sampler settings that would not be
+# appropriate for analysis; this is just for the
+# examples
 fit <- bcf(death ~ age + sex + meanbp + aps,
            treat = ~ rhc, data = rhc, num_trees = 10,
            num_burn = 50, num_draws = 50,
+           propensity_args = list(num_trees = 10,
+                                  num_burn = 50,
+                                  num_draws = 50),
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
@@ -279,14 +285,14 @@ estimate_effect(fit)
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate    lower upper    n
-#>  Y[1] - Y[0]   0.0386 -0.00216 0.097 1500
+#>     contrast estimate   lower  upper    n
+#>  Y[1] - Y[0]   0.0159 -0.0126 0.0419 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.616 0.665
-#>      Y[1]    0.680 0.652 0.716
+#>      Y[0]    0.649 0.627 0.679
+#>      Y[1]    0.665 0.638 0.688
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -302,13 +308,13 @@ estimate_effect(fit, estimand = "ATT",
 #> Averaged over the 565 units in group "1"
 #> 
 #>     contrast estimate lower upper   n
-#>  Y[1] / Y[0]     1.05 0.997  1.14 565
+#>  Y[1] / Y[0]     1.03 0.979  1.08 565
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.670 0.644 0.697
-#>      Y[1]    0.706 0.685 0.740
+#>      Y[0]    0.675 0.641 0.703
+#>      Y[1]    0.694 0.667 0.719
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
@@ -329,14 +335,14 @@ estimate_effect(fit, by = ~ sex)
 #> Within levels of `sex`
 #> 
 #>     sex    contrast estimate    lower  upper   n
-#>  female Y[1] - Y[0]   0.0504 -0.00393 0.1340 676
-#>    male Y[1] - Y[0]   0.0290 -0.01010 0.0799 824
+#>  female Y[1] - Y[0]   0.0167 -0.00959 0.0411 676
+#>    male Y[1] - Y[0]   0.0152 -0.01520 0.0419 824
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.616 0.665
-#>      Y[1]    0.680 0.652 0.716
+#>      Y[0]    0.649 0.627 0.679
+#>      Y[1]    0.665 0.638 0.688
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

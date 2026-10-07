@@ -83,9 +83,15 @@ model
 data("rhc")
 set.seed(123)
 
+# Note: we use small sampler settings that would not be
+# appropriate for analysis; this is just for the
+# examples
 fit <- bcf(death ~ age + sex + meanbp + aps,
            treat = ~ rhc, data = rhc, num_trees = 10,
            num_burn = 50, num_draws = 50,
+           propensity_args = list(num_trees = 10,
+                                  num_burn = 50,
+                                  num_draws = 50),
            verbose = FALSE)
 #> ℹ Using `family = binomial()`.
 #> ℹ Set `family` explicitly to silence this message.
@@ -95,7 +101,8 @@ fit
 #> 
 #> Call:
 #> bcf(formula = death ~ age + sex + meanbp + aps, treat = ~rhc, 
-#>     data = rhc, num_trees = 10, num_burn = 50, num_draws = 50, 
+#>     data = rhc, propensity_args = list(num_trees = 10, num_burn = 50, 
+#>         num_draws = 50), num_trees = 10, num_burn = 50, num_draws = 50, 
 #>     verbose = FALSE)
 #> 
 #> Family: "binomial" with the "logit" link
@@ -103,7 +110,7 @@ fit
 #> Structure: 2 forests of 10 trees, soft decision rules
 #> Draws: 50 kept after 50 warmup
 #> 
-#> Posterior means: b.rhc.0 = 0.791, b.rhc.1 = 0.398
+#> Posterior means: b.rhc.0 = 0.597, b.rhc.1 = 0.729
 #> 
 #> Treatment: "rhc"
 #> Effect moderators: "age", "sex", "meanbp", and "aps"
@@ -118,14 +125,14 @@ estimate_effect(fit)
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate    lower upper    n
-#>  Y[1] - Y[0]   0.0386 -0.00216 0.097 1500
+#>     contrast estimate   lower  upper    n
+#>  Y[1] - Y[0]   0.0159 -0.0126 0.0419 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.642 0.616 0.665
-#>      Y[1]    0.680 0.652 0.716
+#>      Y[0]    0.649 0.627 0.679
+#>      Y[1]    0.665 0.638 0.688
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.

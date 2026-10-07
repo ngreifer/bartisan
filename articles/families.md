@@ -1282,6 +1282,21 @@ writing the transform into `logdens`, as the `exp(aux[1])` above does.
 The `aux_start` argument need only be the right order of magnitude; the
 sampler walks to the posterior from a poor start.
 
+The response reaches `logdens` as it appears in the model formula, with
+only the observations being evaluated kept, so it need not be a numeric
+vector. A factor arrives as a factor, a matrix made with
+[`cbind()`](https://rdrr.io/r/base/cbind.html) arrives with its rows
+intact, and a
+[`survival::Surv()`](https://rdrr.io/pkg/survival/man/Surv.html) object
+keeps its `time` and `status` columns. Anything the density needs that
+varies across observations, such as a number of trials or an exposure,
+has to arrive this way, since a vector captured from outside the
+function would not line up with the rows it is handed. A matrix response
+is also the way to fit a multivariate model, with one additive predictor
+per outcome and the outcomes related through the error distribution;
+[`?custom_family`](https://ngreifer.github.io/bartisan/reference/custom_family.md)
+has a bivariate normal written out.
+
 It cannot take a non-numeric response, so a factor has to be coded
 first. It also cannot report a fitted mean, since the package cannot
 know what the mean of a supplied density is, so

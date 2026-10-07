@@ -143,9 +143,15 @@ model</p></div>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"rhc"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Note: we use small sampler settings that would not be</span></span></span>
+<span class="r-in"><span><span class="co"># appropriate for analysis; this is just for the</span></span></span>
+<span class="r-in"><span><span class="co"># examples</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="bcf.html">bcf</a></span><span class="op">(</span><span class="va">death</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">meanbp</span> <span class="op">+</span> <span class="va">aps</span>,</span></span>
 <span class="r-in"><span>           treat <span class="op">=</span> <span class="op">~</span> <span class="va">rhc</span>, data <span class="op">=</span> <span class="va">rhc</span>, num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
 <span class="r-in"><span>           num_burn <span class="op">=</span> <span class="fl">50</span>, num_draws <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>           propensity_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>num_trees <span class="op">=</span> <span class="fl">10</span>,</span></span>
+<span class="r-in"><span>                                  num_burn <span class="op">=</span> <span class="fl">50</span>,</span></span>
+<span class="r-in"><span>                                  num_draws <span class="op">=</span> <span class="fl">50</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>           verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using `family = binomial()`.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Set `family` explicitly to silence this message.</span>
@@ -155,7 +161,8 @@ model</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> bcf(formula = death ~ age + sex + meanbp + aps, treat = ~rhc, </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     data = rhc, num_trees = 10, num_burn = 50, num_draws = 50, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     data = rhc, propensity_args = list(num_trees = 10, num_burn = 50, </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         num_draws = 50), num_trees = 10, num_burn = 50, num_draws = 50, </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     verbose = FALSE)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Family: <span style="color: #0000BB;">"binomial"</span> with the <span style="color: #0000BB;">"logit"</span> link</span>
@@ -163,7 +170,7 @@ model</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Structure: 2 forests of 10 trees, soft decision rules</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Draws: 50 kept after 50 warmup</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Posterior means: b.rhc.0 = 0.791, b.rhc.1 = 0.398</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Posterior means: b.rhc.0 = 0.597, b.rhc.1 = 0.729</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Treatment: <span style="color: #0000BB;">"rhc"</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Effect moderators: <span style="color: #0000BB;">"age"</span>, <span style="color: #0000BB;">"sex"</span>, <span style="color: #0000BB;">"meanbp"</span>, and <span style="color: #0000BB;">"aps"</span></span>
@@ -178,14 +185,14 @@ model</p></div>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Treatment: `rhc`</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Averaged over 1500 units</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     contrast estimate    lower upper    n</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] - Y[0]   0.0386 -0.00216 0.097 1500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     contrast estimate   lower  upper    n</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Y[1] - Y[0]   0.0159 -0.0126 0.0419 1500</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="text-decoration: underline;">Average potential outcomes</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  quantity estimate lower upper</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.642 0.616 0.665</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.680 0.652 0.716</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[0]    0.649 0.627 0.679</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      Y[1]    0.665 0.638 0.688</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> <span style="color: #00BB00;">estimate</span> is the posterior mean; <span style="color: #00BB00;">lower</span> and <span style="color: #00BB00;">upper</span> bound the 95% equal-tailed</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   credible interval.</span>
