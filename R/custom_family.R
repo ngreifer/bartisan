@@ -7,9 +7,13 @@
 #' [`bartisan-families`] cover.
 #'
 #' @param logdens the log density, given as a function of the response and the
-#'   additive predictors, `function(y, eta)`, where `y` is a numeric vector of
-#'   length `n` and `eta` an `n` by `num_predictors` matrix, returning a numeric
-#'   vector of length `n`. With nuisance parameters it takes a third argument,
+#'   additive predictors, `function(y, eta)`, where `y` holds the response of
+#'   `n` observations and `eta` is an `n` by `num_predictors` matrix of their
+#'   additive predictors, returning a numeric vector of length `n`. `y` is the
+#'   response as it appears in the model formula, with only those observations
+#'   kept: a vector or factor of length `n`, or a matrix with `n` rows, such as
+#'   one made with [cbind()] or \pkgfun{survival}{Surv}. See Details. With
+#'   nuisance parameters it must take a third argument,
 #'   `function(y, eta, aux)`, where `aux` is a numeric vector of their current
 #'   values. It is the log density of one unit of prior weight, so that
 #'   `weights` behave as they do elsewhere, and terms free of `eta` may be
@@ -22,8 +26,10 @@
 #' @param derivatives optional; a `function(y, eta, h)` returning a list with
 #'   elements `score` and `info`, the first derivative of `logdens` with respect
 #'   to the `h`th predictor and minus its second derivative, each a vector of
-#'   length `n`. Default is `NULL` to take central differences of `logdens`. It
-#'   covers the additive predictors only: a nuisance parameter is always
+#'   length `n`. With nuisance parameters it takes a fourth argument,
+#'   `function(y, eta, h, aux)`, which receives their current values as
+#'   `logdens` does. Default is `NULL` to take central differences of `logdens`.
+#'   It covers the additive predictors only: a nuisance parameter is always
 #'   differenced, which costs three calls per sweep rather than three per leaf.
 #' @param aux_names optional `character`; the names of the nuisance parameters
 #'   to draw, if any. Naming them declares them, because the names label
@@ -71,13 +77,14 @@
 #' return exactly one value per row. Supplying `derivatives` cuts three calls to
 #' one and removes the differencing error.
 #'
-#' Because it sees a subset rather than the whole sample, anything else the
-#' density needs has to be a scalar or reach it through `eta`. A
-#' per-observation vector captured from the enclosing environment will not line
-#' up with the rows it is handed, and nothing can detect that for you: the
-#' fit runs and is wrong. Where such a quantity is genuinely needed, an offset
-#' belongs in the formula and a varying trial count or exposure belongs in a
-#' family written for it.
+#' Because it sees a subset rather than the whole sample, a per-observation
+#' vector captured from the enclosing environment will not line up with the
+#' rows it is handed, and nothing can detect that for you: the fit runs and is
+#' wrong. Anything the density needs that varies across observations should
+#' instead be part of the response, which is subset along with `eta`. A varying
+#' number of trials, for example, can be supplied as a second column, as in
+#' `cbind(hits, size) ~ x`, and read inside `logdens` as `y[, 2]`. An offset
+#' belongs in the formula, as it does for the other families.
 #'
 #' ## Nuisance Parameters
 #'
@@ -101,20 +108,57 @@
 #' for a real predictor, by writing the transform into `logdens`: the `exp()`
 #' above keeps the scale positive.
 #'
+#' ## Responses Other Than a Numeric Vector
+#'
+#' The response reaches `logdens` as it appears in the model formula, so it can
+#' be a factor, a matrix with a column per outcome, or a
+#' \pkgfun{survival}{Surv} object, which keeps its `time` and `status` columns.
+#' A factor arrives with the levels it had when the model was fit, in
+#' [predict()] with `newdata` as well, so a density can read `as.integer(y)` as
+#' a category code. A matrix response makes it possible to fit a multivariate
+#' BART model, with one additive predictor per outcome and the outcomes related
+#' through the error distribution:
+#'
+#' ```r
+#' # A bivariate normal, with the two log standard deviations and the Fisher
+#' # transform of the correlation drawn as nuisance parameters.
+#' bvn <- custom_family(
+#'   logdens = function(y, eta, aux) {
+#'     s <- exp(aux[1:2])
+#'     rho <- tanh(aux[3])
+#'     z1 <- (y[, 1] - eta[, 1]) / s[1]
+#'     z2 <- (y[, 2] - eta[, 2]) / s[2]
+#'     -sum(log(s)) - log1p(-rho^2) / 2 -
+#'       (z1^2 - 2 * rho * z1 * z2 + z2^2) / (2 * (1 - rho^2))
+#'   },
+#'   num_predictors = 2, start = c(mean(d$y1), mean(d$y2)),
+#'   aux_names = c("log_sd1", "log_sd2", "atanh_rho"))
+#'
+#' fit <- bartisan(cbind(y1, y2) ~ x1 + x2, data = d, family = bvn)
+#' ```
+#'
+#' Each forest's prior is scaled for an additive predictor that varies by a
+#' few units around its `start`, so outcomes measured on a large scale are best
+#' standardized first. A row with any missing value in the response is
+#' dropped, as it is for the other families.
+#'
 #' ## Limits of a Log Density
 #'
-#' A density says how likely an observed value is, not how to draw a new one, so
+#' A density corresponds to how likely an observed value is, not how to draw a new one, so
 #' a `custom_family()` fit has no posterior predictive distribution, which
 #' [`simulate()`][bartisan-interop], [`pp_check()`][bartisan-interop] and
 #' [`r2()`][bartisan-interop] rely on. Each of them errors on such a fit
 #' rather than returning something it cannot support. [loo()][bartisan-interop]
 #' and [`waic()`][bartisan-interop] are unaffected, since both read the
-#' pointwise log likelihood the family already computes.
+#' pointwise log likelihood the family already computes. Note that terms
+#' dropped from `logdens` because they are free of `eta` are missing from that
+#' log likelihood too, so its values can be compared across fits only when the
+#' same terms are dropped from each (e.g., not against a compiled family, whose
+#' density is complete).
 #'
-#' There are smaller limits as well. The response must be numeric, so a factor
-#' has to be coded first. And since the package cannot know what the mean of the density is,
-#' `predict(type = "response")` returns the additive predictors rather than a
-#' fitted mean.
+#' There is a smaller limit as well. Since the package cannot know what the mean
+#' of the density is, `predict(type = "response")` returns the additive
+#' predictors rather than a fitted mean.
 #'
 #' @seealso
 #' [`bartisan-families`] for the compiled families, one of which is usually the
@@ -146,32 +190,38 @@
 #'
 #' fit
 #'
+#' \donttest{
 #' # A beta-binomial, which no built-in family covers:
 #' # counts out of a known number of trials, overdispersed
-#' # relative to a binomial. `phi` is drawn alongside the
-#' # trees, and `size` is a scalar, so closing over it is
-#' # safe.
-#' size <- 30
+#' # relative to a binomial. The number of trials varies,
+#' # so it is the response's second column, which reaches
+#' # `logdens` row for row with `eta`. `phi` is drawn
+#' # alongside the trees.
+#' d$size <- sample(10:40, 300, replace = TRUE)
 #' p_true <- plogis(d$x1)
-#' d$hits <- rbinom(300, size,
+#' d$hits <- rbinom(300, d$size,
 #'                  rbeta(300, p_true * 6, (1 - p_true) * 6))
 #'
 #' bb <- custom_family(
 #'   logdens = function(y, eta, aux) {
+#'     hits <- y[, 1]
+#'     size <- y[, 2]
 #'     p <- plogis(eta[, 1])
 #'     phi <- exp(aux[1])
-#'     lbeta(y + p * phi, size - y + (1 - p) * phi) -
+#'     lbeta(hits + p * phi, size - hits + (1 - p) * phi) -
 #'       lbeta(p * phi, (1 - p) * phi)
 #'   },
 #'   aux_names = "log_phi", aux_start = log(5),
 #'   name = "beta-binomial")
 #'
-#' fit_bb <- bartisan(hits ~ x1 + x2, data = d,
-#'                    family = bb, num_trees = 10,
-#'                    num_burn = 50, num_draws = 50)
+#' fit_bb <- bartisan(cbind(hits, size) ~ x1 + x2,
+#'                    data = d, family = bb,
+#'                    num_trees = 10, num_burn = 50,
+#'                    num_draws = 50)
 #'
 #' # The drawn precision, on the scale it was written on.
 #' exp(mean(fit_bb$aux[, "log_phi"]))
+#' }
 #'
 #' @export
 custom_family <- function(logdens, num_predictors = 1L, start = 0,
@@ -260,6 +310,14 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
                     {.arg aux} a numeric vector of length {num_aux}."))
   }
 
+  if (num_aux > 0L && !is_null(derivatives) &&
+      length(formals(derivatives)) < 4L) {
+    arg::err(c("{.arg derivatives} must take a fourth argument for the nuisance
+                parameters when there are any.",
+               i = "It is called as {.code derivatives(y, eta, h, aux)}, with
+                    {.arg aux} a numeric vector of length {num_aux}."))
+  }
+
   new_bartisan_family("custom", "identity", logdens = logdens,
                       num_predictors = num_predictors,
                       start = rep(start, length.out = num_predictors),
@@ -268,4 +326,37 @@ custom_family <- function(logdens, num_predictors = 1L, start = 0,
                       aux_names = aux_names,
                       aux_start = aux_start,
                       name = name)
+}
+
+# The engine holds a custom family's response as row numbers and hands those to
+# the caller's functions, which take the rows of the real response here. So the
+# response can be anything with rows -- a factor, a `cbind()` matrix, a `Surv`
+# object -- and a paired evaluation, which hands one observation over twice in
+# a block, gets its row twice.
+custom_callbacks <- function(opts, y) {
+  logdens <- opts[["logdens"]]
+  derivatives <- opts[["derivatives"]]
+
+  opts[["logdens"]] <- function(i, eta, ...) {
+    logdens(ss(y, i), eta, ...)
+  }
+
+  if (!is_null(derivatives)) {
+    opts[["derivatives"]] <- function(i, eta, h, ...) {
+      derivatives(ss(y, i), eta, h, ...)
+    }
+  }
+
+  opts
+}
+
+# The response and family options in the form the engine takes them, which is
+# the stored form for every family but a custom one.
+engine_response <- function(family, y, opts) {
+  if (!identical(family, "custom")) {
+    return(list(y = y, opts = opts))
+  }
+
+  list(y = as.numeric(seq_len(NROW(y))),
+       opts = custom_callbacks(opts, y))
 }

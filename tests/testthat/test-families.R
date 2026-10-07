@@ -97,9 +97,9 @@ test_that("a multi-column response is refused by the single-column families", {
                     class = "Surv", type = "right")
 
   # A `Surv` object is a numeric matrix, so without this check `as.numeric()`
-  # flattens it and each family fails differently and misleadingly further on:
-  # `custom` reached the engine and died on an out-of-bounds index.
-  for (name in c("custom", "gaussian", "Gamma", "beta", "tweedie")) {
+  # flattens it and each family fails differently and misleadingly further on.
+  # A custom family is not among them: its density takes the response as given.
+  for (name in c("gaussian", "Gamma", "beta", "tweedie")) {
     expect_error(check_numeric_response(surv, name), "one response value per")
     expect_error(check_numeric_response(surv, name), "survival family")
   }

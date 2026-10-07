@@ -16,9 +16,13 @@ custom_family(
 }
 \arguments{
 \item{logdens}{the log density, given as a function of the response and the
-additive predictors, \verb{function(y, eta)}, where \code{y} is a numeric vector of
-length \code{n} and \code{eta} an \code{n} by \code{num_predictors} matrix, returning a numeric
-vector of length \code{n}. With nuisance parameters it takes a third argument,
+additive predictors, \verb{function(y, eta)}, where \code{y} holds the response of
+\code{n} observations and \code{eta} is an \code{n} by \code{num_predictors} matrix of their
+additive predictors, returning a numeric vector of length \code{n}. \code{y} is the
+response as it appears in the model formula, with only those observations
+kept: a vector or factor of length \code{n}, or a matrix with \code{n} rows, such as
+one made with \code{\link[=cbind]{cbind()}} or \pkgfun{survival}{Surv}. See Details. With
+nuisance parameters it must take a third argument,
 \verb{function(y, eta, aux)}, where \code{aux} is a numeric vector of their current
 values. It is the log density of one unit of prior weight, so that
 \code{weights} behave as they do elsewhere, and terms free of \code{eta} may be
@@ -34,8 +38,10 @@ predictor. Default is 0.}
 \item{derivatives}{optional; a \verb{function(y, eta, h)} returning a list with
 elements \code{score} and \code{info}, the first derivative of \code{logdens} with respect
 to the \code{h}th predictor and minus its second derivative, each a vector of
-length \code{n}. Default is \code{NULL} to take central differences of \code{logdens}. It
-covers the additive predictors only: a nuisance parameter is always
+length \code{n}. With nuisance parameters it takes a fourth argument,
+\verb{function(y, eta, h, aux)}, which receives their current values as
+\code{logdens} does. Default is \code{NULL} to take central differences of \code{logdens}.
+It covers the additive predictors only: a nuisance parameter is always
 differenced, which costs three calls per sweep rather than three per leaf.}
 
 \item{aux_names}{optional \code{character}; the names of the nuisance parameters
@@ -91,13 +97,14 @@ rows of \code{eta}; it must not be vectorized \emph{within} an observation, and 
 return exactly one value per row. Supplying \code{derivatives} cuts three calls to
 one and removes the differencing error.
 
-Because it sees a subset rather than the whole sample, anything else the
-density needs has to be a scalar or reach it through \code{eta}. A
-per-observation vector captured from the enclosing environment will not line
-up with the rows it is handed, and nothing can detect that for you: the
-fit runs and is wrong. Where such a quantity is genuinely needed, an offset
-belongs in the formula and a varying trial count or exposure belongs in a
-family written for it.
+Because it sees a subset rather than the whole sample, a per-observation
+vector captured from the enclosing environment will not line up with the
+rows it is handed, and nothing can detect that for you: the fit runs and is
+wrong. Anything the density needs that varies across observations should
+instead be part of the response, which is subset along with \code{eta}. A varying
+number of trials, for example, can be supplied as a second column, as in
+\code{cbind(hits, size) ~ x}, and read inside \code{logdens} as \code{y[, 2]}. An offset
+belongs in the formula, as it does for the other families.
 \subsection{Nuisance Parameters}{
 
 These are drawn alongside the trees when the \code{aux_names} argument names them,
@@ -120,20 +127,57 @@ for a real predictor, by writing the transform into \code{logdens}: the \code{ex
 above keeps the scale positive.
 }
 
+\subsection{Responses Other Than a Numeric Vector}{
+
+The response reaches \code{logdens} as it appears in the model formula, so it can
+be a factor, a matrix with a column per outcome, or a
+\pkgfun{survival}{Surv} object, which keeps its \code{time} and \code{status} columns.
+A factor arrives with the levels it had when the model was fit, in
+\code{\link[=predict]{predict()}} with \code{newdata} as well, so a density can read \code{as.integer(y)} as
+a category code. A matrix response makes it possible to fit a multivariate
+BART model, with one additive predictor per outcome and the outcomes related
+through the error distribution:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# A bivariate normal, with the two log standard deviations and the Fisher
+# transform of the correlation drawn as nuisance parameters.
+bvn <- custom_family(
+  logdens = function(y, eta, aux) \{
+    s <- exp(aux[1:2])
+    rho <- tanh(aux[3])
+    z1 <- (y[, 1] - eta[, 1]) / s[1]
+    z2 <- (y[, 2] - eta[, 2]) / s[2]
+    -sum(log(s)) - log1p(-rho^2) / 2 -
+      (z1^2 - 2 * rho * z1 * z2 + z2^2) / (2 * (1 - rho^2))
+  \},
+  num_predictors = 2, start = c(mean(d$y1), mean(d$y2)),
+  aux_names = c("log_sd1", "log_sd2", "atanh_rho"))
+
+fit <- bartisan(cbind(y1, y2) ~ x1 + x2, data = d, family = bvn)
+}\if{html}{\out{</div>}}
+
+Each forest's prior is scaled for an additive predictor that varies by a
+few units around its \code{start}, so outcomes measured on a large scale are best
+standardized first. A row with any missing value in the response is
+dropped, as it is for the other families.
+}
+
 \subsection{Limits of a Log Density}{
 
-A density says how likely an observed value is, not how to draw a new one, so
+A density corresponds to how likely an observed value is, not how to draw a new one, so
 a \code{custom_family()} fit has no posterior predictive distribution, which
 \code{\link[=bartisan-interop]{simulate()}}, \code{\link[=bartisan-interop]{pp_check()}} and
 \code{\link[=bartisan-interop]{r2()}} rely on. Each of them errors on such a fit
 rather than returning something it cannot support. \link[=bartisan-interop]{loo()}
 and \code{\link[=bartisan-interop]{waic()}} are unaffected, since both read the
-pointwise log likelihood the family already computes.
+pointwise log likelihood the family already computes. Note that terms
+dropped from \code{logdens} because they are free of \code{eta} are missing from that
+log likelihood too, so its values can be compared across fits only when the
+same terms are dropped from each (e.g., not against a compiled family, whose
+density is complete).
 
-There are smaller limits as well. The response must be numeric, so a factor
-has to be coded first. And since the package cannot know what the mean of the density is,
-\code{predict(type = "response")} returns the additive predictors rather than a
-fitted mean.
+There is a smaller limit as well. Since the package cannot know what the mean
+of the density is, \code{predict(type = "response")} returns the additive
+predictors rather than a fitted mean.
 }
 }
 \examples{
@@ -161,32 +205,38 @@ fit <- bartisan(y ~ x1 + x2,
 
 fit
 
+\donttest{
 # A beta-binomial, which no built-in family covers:
 # counts out of a known number of trials, overdispersed
-# relative to a binomial. `phi` is drawn alongside the
-# trees, and `size` is a scalar, so closing over it is
-# safe.
-size <- 30
+# relative to a binomial. The number of trials varies,
+# so it is the response's second column, which reaches
+# `logdens` row for row with `eta`. `phi` is drawn
+# alongside the trees.
+d$size <- sample(10:40, 300, replace = TRUE)
 p_true <- plogis(d$x1)
-d$hits <- rbinom(300, size,
+d$hits <- rbinom(300, d$size,
                  rbeta(300, p_true * 6, (1 - p_true) * 6))
 
 bb <- custom_family(
   logdens = function(y, eta, aux) {
+    hits <- y[, 1]
+    size <- y[, 2]
     p <- plogis(eta[, 1])
     phi <- exp(aux[1])
-    lbeta(y + p * phi, size - y + (1 - p) * phi) -
+    lbeta(hits + p * phi, size - hits + (1 - p) * phi) -
       lbeta(p * phi, (1 - p) * phi)
   },
   aux_names = "log_phi", aux_start = log(5),
   name = "beta-binomial")
 
-fit_bb <- bartisan(hits ~ x1 + x2, data = d,
-                   family = bb, num_trees = 10,
-                   num_burn = 50, num_draws = 50)
+fit_bb <- bartisan(cbind(hits, size) ~ x1 + x2,
+                   data = d, family = bb,
+                   num_trees = 10, num_burn = 50,
+                   num_draws = 50)
 
 # The drawn precision, on the scale it was written on.
 exp(mean(fit_bb$aux[, "log_phi"]))
+}
 
 }
 \seealso{

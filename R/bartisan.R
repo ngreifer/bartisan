@@ -809,16 +809,19 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
     engine_weights <- response[["weights"]]
   }
 
+  engine_in <- engine_response(response[["family"]], response[["y"]],
+                               response[["opts"]])
+
   engine <- function(ignored) {
     .bartisan_fit(X = unit$x,
                   has_na = as.integer(has_na),
-                  y = response[["y"]],
+                  y = engine_in[["y"]],
                   weights = engine_weights,
                   offset = response[["offset"]],
                   group_probs_parts = csc_parts(group_probs),
                   family_name = response[["family"]],
                   link = response[["link"]],
-                  family_opts = response[["opts"]],
+                  family_opts = engine_in[["opts"]],
                   control = engine_control,
                   random_spec = random_spec(random),
                   codes = levels_info[["codes"]],

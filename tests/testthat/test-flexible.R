@@ -660,3 +660,216 @@ test_that("nuisance parameters are validated at construction", {
                             aux_names = c("a", "b"), aux_start = 1)
   expect_identical(recycled[["aux_start"]], c(1, 1))
 })
+
+test_that("a custom fit with nuisance parameters has a pointwise log likelihood", {
+  d <- sim_x(n = 80, seed = 154)
+  d$y <- stats::rnorm(80, d$x1, 0.5)
+
+  by_hand <- custom_family(
+    logdens = function(y, eta, aux) {
+      stats::dnorm(y, eta[, 1], exp(aux[1]), log = TRUE)
+    },
+    aux_names = "log_sigma", aux_start = 0, start = mean(d$y))
+
+  fit <- bartisan(y ~ ., d, family = by_hand, control = quick_control())
+
+  # Each draw's density is the caller's function at that draw's predictor and
+  # nuisance value. The engine takes a nuisance parameter as a pinned forest,
+  # and these all failed while it was handed them as a matrix of values.
+  eta <- fit[["eta"]][[1L]]
+  sigma <- exp(fit[["aux"]][, "log_sigma"])
+  want <- stats::dnorm(matrix(d$y, nrow(eta), ncol(eta), byrow = TRUE), eta,
+                       sigma, log = TRUE)
+
+  got <- predict(fit, type = "density", draws = TRUE, log = TRUE)
+  expect_equal(got, want, tolerance = 1e-10, ignore_attr = TRUE)
+
+  # New data takes the same route, with the predictor replayed from the trees.
+  got_new <- predict(fit, newdata = d[1:10, ], type = "density", draws = TRUE,
+                     log = TRUE)
+  expect_equal(got_new, want[, 1:10], tolerance = 1e-6, ignore_attr = TRUE)
+
+  skip_if_not_installed("loo")
+  expect_equal(dim(suppressWarnings(loo::loo(fit))[["pointwise"]]), c(80L, 5L))
+  expect_equal(dim(suppressWarnings(loo::waic(fit))[["pointwise"]]), c(80L, 3L))
+})
+
+test_that("a custom family's response reaches its density as given", {
+  skip_if_not_installed("patrick")
+  skip_if_not_installed("survival")
+
+  d <- sim_x(n = 80, seed = 155)
+  d$y1 <- stats::rnorm(80, d$x1)
+  d$y2 <- stats::rnorm(80, d$x2, 0.5)
+  d$g <- factor(sample(c("a", "b", "c"), 80, replace = TRUE))
+  d$time <- stats::rexp(80, exp(d$x1 - 1))
+  d$status <- stats::rbinom(80, 1, 0.8)
+
+  # Each density checks the shape it is handed on every call, so a fit that
+  # completes has shown that the shape survives the subsetting in the sampler,
+  # paired evaluations included.
+  bivariate <- function(y, eta) {
+    stopifnot(is.matrix(y), ncol(y) == 2L, nrow(y) == nrow(eta))
+    stats::dnorm(y[, 1], eta[, 1], log = TRUE) +
+      stats::dnorm(y[, 2], eta[, 2], 0.5, log = TRUE)
+  }
+
+  categorical <- function(y, eta) {
+    stopifnot(is.factor(y), identical(levels(y), c("a", "b", "c")),
+              length(y) == nrow(eta))
+    lp <- cbind(0, eta)
+    lp[cbind(seq_along(y), as.integer(y))] - log(rowSums(exp(lp)))
+  }
+
+  exponential <- function(y, eta) {
+    stopifnot(inherits(y, "Surv"), nrow(y) == nrow(eta))
+    y[, "status"] * eta[, 1] - y[, "time"] * exp(eta[, 1])
+  }
+
+  patrick::with_parameters_test_that(
+    "response:",
+    {
+      fit <- bartisan(formula, data = d,
+                      family = custom_family(logdens,
+                                             num_predictors = num_predictors),
+                      control = quick_control())
+
+      response <- stats::model.response(stats::model.frame(formula, d), "any")
+      expect_identical(fit[["y"]], response)
+
+      # The stored densities are the caller's function on the whole response,
+      # one draw at a time.
+      draw_eta <- function(s) {
+        vapply(fit[["eta"]], function(e) e[s, ], numeric(nrow(d)))
+      }
+      want <- t(vapply(seq_len(nrow(fit[["eta"]][[1L]])),
+                       function(s) logdens(response, draw_eta(s)),
+                       numeric(nrow(d))))
+
+      got <- predict(fit, type = "density", draws = TRUE, log = TRUE)
+      expect_equal(got, want, tolerance = 1e-10, ignore_attr = TRUE)
+    },
+    patrick::cases(
+      matrix = list(formula = cbind(y1, y2) ~ x1 + x2 + x3,
+                    logdens = bivariate, num_predictors = 2L),
+      factor = list(formula = g ~ x1 + x2 + x3, logdens = categorical,
+                    num_predictors = 2L),
+      Surv = list(formula = survival::Surv(time, status) ~ x1 + x2 + x3,
+                  logdens = exponential, num_predictors = 1L)
+    )
+  )
+})
+
+test_that("a factor response is read on the fit's levels in new data", {
+  d <- sim_x(n = 60, seed = 156)
+  d$g <- factor(sample(c("a", "b", "c"), 60, replace = TRUE))
+
+  categorical <- function(y, eta) {
+    lp <- cbind(0, eta)
+    lp[cbind(seq_along(y), as.integer(y))] - log(rowSums(exp(lp)))
+  }
+
+  fit <- bartisan(g ~ ., d,
+                  family = custom_family(categorical, num_predictors = 2L),
+                  control = quick_control())
+
+  # Dropping the unused level would make "b" code 1 and "c" code 2, so a
+  # density reading the codes would score each row against the wrong category.
+  new <- d[d$g != "a", ][1:5, ]
+  new$g <- droplevels(new$g)
+
+  eta <- predict(fit, newdata = new, type = "link", draws = TRUE)
+  relevelled <- factor(as.character(new$g), levels = c("a", "b", "c"))
+  want <- t(vapply(seq_len(nrow(eta[[1L]])), function(s) {
+    categorical(relevelled, cbind(eta[[1L]][s, ], eta[[2L]][s, ]))
+  }, numeric(5L)))
+
+  got <- predict(fit, newdata = new, type = "density", draws = TRUE,
+                 log = TRUE)
+  expect_equal(got, want, tolerance = 1e-10, ignore_attr = TRUE)
+
+  new$g <- factor(c("b", "d", "c", "b", "c"))
+  expect_error(predict(fit, newdata = new, type = "density"),
+               "not fit with")
+})
+
+test_that("supplied derivatives receive the nuisance values", {
+  set.seed(157)
+  n <- 30
+  y <- stats::rnorm(n, 1, 0.5)
+  ld <- function(y, eta, aux) {
+    stats::dnorm(y, eta[, 1], exp(aux[1]), log = TRUE)
+  }
+  dv <- function(y, eta, h, aux) {
+    v <- exp(2 * aux[1])
+    list(score = (y - eta[, h]) / v, info = rep(1 / v, length(y)))
+  }
+
+  eta <- list(matrix(stats::rnorm(2 * n, 1, 0.2), 2L, n),
+              rbind(rep(log(0.5), n), rep(log(2), n)))
+  aux <- matrix(c(log(0.5), log(2)), 2L, 1L)
+  opts <- list(num_predictors = 1L, num_aux = 1L, aux_names = "log_sigma",
+               logdens = ld, name = "custom")
+
+  exact <- .bartisan_derivs(y, rep(1, n), eta, "custom", "identity",
+                            c(opts, list(derivatives = dv)), aux, 0L, FALSE,
+                            TRUE)
+  differenced <- .bartisan_derivs(y, rep(1, n), eta, "custom", "identity",
+                                  c(opts, list(derivatives = NULL)), aux, 0L,
+                                  FALSE, TRUE)
+
+  # Two draws with different scales, so a score computed without the nuisance
+  # value would match at most one of them.
+  expect_equal(exact[["d1"]], differenced[["d1"]], tolerance = 1e-6)
+  expect_equal(exact[["info"]], differenced[["info"]], tolerance = 1e-4)
+
+  # And through a fit, where the nuisance value has to be passed on by the R
+  # side as well as by the engine.
+  d <- sim_x(n = 60, seed = 157)
+  d$y <- stats::rnorm(60, d$x1, 0.5)
+  fit <- bartisan(y ~ ., d,
+                  family = custom_family(ld, derivatives = dv,
+                                         aux_names = "log_sigma",
+                                         start = mean(d$y)),
+                  control = quick_control())
+  expect_true(all(is.finite(fit[["aux"]])))
+
+  expect_error(custom_family(ld, aux_names = "log_sigma",
+                             derivatives = function(y, eta, h) list()),
+               "fourth argument")
+})
+
+test_that("a bivariate normal through custom_family recovers its correlation", {
+  skip_on_cran()
+
+  set.seed(158)
+  n <- 400
+  d <- data.frame(x1 = stats::runif(n), x2 = stats::runif(n),
+                  x3 = stats::runif(n))
+  z1 <- stats::rnorm(n)
+  z2 <- 0.6 * z1 + sqrt(1 - 0.6^2) * stats::rnorm(n)
+  d$y1 <- sin(2 * pi * d$x1) + 0.5 * z1
+  d$y2 <- 2 * (d$x2 - 0.5)^2 + 0.3 * z2
+
+  bvn <- custom_family(
+    logdens = function(y, eta, aux) {
+      s <- exp(aux[1:2])
+      rho <- tanh(aux[3])
+      z1 <- (y[, 1] - eta[, 1]) / s[1]
+      z2 <- (y[, 2] - eta[, 2]) / s[2]
+      -sum(log(s)) - log1p(-rho^2) / 2 -
+        (z1^2 - 2 * rho * z1 * z2 + z2^2) / (2 * (1 - rho^2))
+    },
+    num_predictors = 2, start = c(mean(d$y1), mean(d$y2)),
+    aux_names = c("log_sd1", "log_sd2", "atanh_rho"))
+
+  fit <- bartisan(cbind(y1, y2) ~ x1 + x2 + x3, d, family = bvn,
+                  control = bartisan_control(num_trees = 20, num_burn = 300,
+                                             num_draws = 300, verbose = FALSE))
+
+  aux <- fit[["aux"]]
+  expect_equal(mean(tanh(aux[, "atanh_rho"])), 0.6, tolerance = 0.1)
+  expect_equal(mean(exp(aux[, "log_sd1"])), 0.5, tolerance = 0.15)
+  expect_equal(mean(exp(aux[, "log_sd2"])), 0.3, tolerance = 0.15)
+  expect_gt(stats::cor(colMeans(fit[["eta"]][[1L]]), sin(2 * pi * d$x1)), 0.95)
+})

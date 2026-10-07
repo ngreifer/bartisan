@@ -44,9 +44,15 @@ whether the model came from \code{\link[=bcf]{bcf()}} or from \code{\link[=barti
 data("rhc")
 set.seed(123)
 
+# Note: we use small sampler settings that would not be
+# appropriate for analysis; this is just for the
+# examples
 fit <- bcf(death ~ age + sex + meanbp + aps,
            treat = ~ rhc, data = rhc, num_trees = 10,
            num_burn = 50, num_draws = 50,
+           propensity_args = list(num_trees = 10,
+                                  num_burn = 50,
+                                  num_draws = 50),
            verbose = FALSE)
 
 fit

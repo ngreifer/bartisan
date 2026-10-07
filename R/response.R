@@ -99,7 +99,7 @@ prepare_response <- function(family, y, weights, offset, x, n) {
          # leaf prior scale is the default one for a predictor on a standardized
          # scale.
          custom = {
-           y <- check_numeric_response(y, name)
+           y <- check_custom_response(y)
            out$y <- y
            out$weights <- weights
 
@@ -685,9 +685,8 @@ check_numeric_response <- function(y, name) {
   # that reaches here takes one value per observation, so the flattening is
   # never what the caller meant, and what it does downstream depends on the
   # family rather than on the mistake: `gaussian()` reaches `weighted.mean()`
-  # with mismatched lengths, `Gamma()` and `Beta()` report the event
-  # indicators as out-of-range responses, and `custom_family()` reaches the
-  # engine and dies there on an out-of-bounds index. Refuse the shape instead.
+  # with mismatched lengths, and `Gamma()` and `Beta()` report the event
+  # indicators as out-of-range responses. Refuse the shape instead.
   if (is.matrix(y) && ncol(y) > 1L) {
     arg::err(c("The {.val {name}} family requires one response value per
                 observation, but the response has {ncol(y)} columns.",
@@ -711,6 +710,28 @@ check_numeric_response <- function(y, name) {
   }
 
   as.numeric(y)
+}
+
+# A custom family's response is handed to the caller's own function, so it is
+# taken as given rather than coerced: a factor, a matrix from `cbind()` or a
+# `Surv` object reaches `logdens()` with its rows intact, which is how a
+# multivariate response, or a quantity that varies by observation, gets there.
+# A one-column matrix is dropped to a vector, as it is for the other families.
+check_custom_response <- function(y) {
+  if (is.matrix(y) && ncol(y) == 1L && !inherits(y, "Surv")) {
+    y <- drop(y)
+  }
+
+  if (!is.atomic(y) || length(dim(y)) > 2L) {
+    arg::err("the response of a {.fn custom_family} fit must be a vector, a
+              factor or a matrix")
+  }
+
+  if (anyNA(y)) {
+    arg::err("the response contains missing values")
+  }
+
+  y
 }
 
 check_count_response <- function(y, name) {

@@ -5445,7 +5445,11 @@ struct RFamily : Family {
 
   // The response and the predictors of one block, in the shape the caller's
   // function expects: y a vector of length n, eta an n by num_predictors
-  // matrix, and the nuisance parameters as a vector of length num_aux.
+  // matrix, and the nuisance parameters as a vector of length num_aux. In a fit,
+  // y holds row numbers rather than the response, and the R side takes those
+  // rows of the response before calling the caller's function
+  // (`custom_callbacks()`), so a response that is a factor or a matrix never
+  // has to pass through here.
   //
   // The nuisance columns are constant down the block, because a pinned forest
   // has one leaf holding every observation and so shifts them all together, so
@@ -5562,9 +5566,13 @@ struct RFamily : Family {
     // parameter is always differenced, which is affordable in a way that
     // differencing a predictor is not: its forest has one leaf, so it costs
     // three calls per sweep rather than three per leaf visit, and asking a
-    // caller to hand-derive it would be a poor trade.
+    // caller to hand-derive it would be a poor trade. The derivatives with
+    // respect to a predictor usually depend on the nuisance values, though (a
+    // Gaussian score is divided by the variance), so the function is given them
+    // the way the log density is.
     if (has_derivs && h < num_predictors) {
-      Rcpp::RObject value = derivs(yv, ev, h + 1);
+      Rcpp::RObject value = num_aux > 0 ? derivs(yv, ev, h + 1, av)
+                                        : derivs(yv, ev, h + 1);
       Rcpp::List parts(value);
       arma::vec score = Rcpp::as<arma::vec>(parts["score"]);
       arma::vec info = Rcpp::as<arma::vec>(parts["info"]);

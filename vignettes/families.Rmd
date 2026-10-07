@@ -609,6 +609,8 @@ summary(fit_gauss$aux[, "sigma"])
 
 There is no prior argument and no bounds argument. A parameter with a restricted range is handled the way it would be for a real predictor, by writing the transform into `logdens`, as the `exp(aux[1])` above does. The `aux_start` argument need only be the right order of magnitude; the sampler walks to the posterior from a poor start.
 
+The response reaches `logdens` as it appears in the model formula, with only the observations being evaluated kept, so it need not be a numeric vector. A factor arrives as a factor, a matrix made with `cbind()` arrives with its rows intact, and a `survival::Surv()` object keeps its `time` and `status` columns. Anything the density needs that varies across observations, such as a number of trials or an exposure, has to arrive this way, since a vector captured from outside the function would not line up with the rows it is handed. A matrix response is also the way to fit a multivariate model, with one additive predictor per outcome and the outcomes related through the error distribution; `?custom_family` has a bivariate normal written out.
+
 It cannot take a non-numeric response, so a factor has to be coded first. It also cannot report a fitted mean, since the package cannot know what the mean of a supplied density is, so `predict(type = "response")` returns the additive predictors instead, though `type = "density"` works.
 
 Custom likelihoods are why *bartisan* is named what it is; they support *artisanal* models augmented by BART. Anywhere a linear predictor might otherwise go in a model, it can be estimated flexibly with BART instead.

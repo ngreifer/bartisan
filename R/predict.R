@@ -1189,12 +1189,29 @@ conditional_density <- function(object, newdata, eta, aux, weights, draws, log,
                              drop = FALSE]
   }
 
-  out <- .bartisan_logdens(y = parts[["y"]],
+  family <- object[["family"]][["family"]]
+
+  # A custom family's nuisance parameters are pinned forests to the engine, so
+  # they go in as additive predictors that are constant within a draw rather
+  # than as a matrix of nuisance values, which the engine would have no place
+  # for.
+  if (identical(family, "custom") && ncol(aux_matrix) > 0L) {
+    n_obs <- ncol(eta[[1L]])
+    pinned <- lapply(object[["family"]][["aux_names"]], function(nm) {
+      matrix(aux_matrix[, nm], nrow = num_draws, ncol = n_obs)
+    })
+    eta <- c(eta, pinned)
+    aux_matrix <- aux_matrix[, 0L, drop = FALSE]
+  }
+
+  engine_in <- engine_response(family, parts[["y"]], parts[["opts"]])
+
+  out <- .bartisan_logdens(y = engine_in[["y"]],
                            weights = parts[["weights"]],
                            eta_draws = eta,
-                           family_name = object[["family"]][["family"]],
+                           family_name = family,
                            link = object[["family"]][["link"]],
-                           family_opts = parts[["opts"]],
+                           family_opts = engine_in[["opts"]],
                            aux = aux_matrix)
 
   warn_undefined_density(out, object)
@@ -1634,6 +1651,25 @@ density_response <- function(object, newdata, weights) {
     # The bin edges are structure fitted to the training times, so
     # they stay as they were; only the times and events are new.
     y_out <- a[["time"]]
+  }
+  else if (family == "custom") {
+    y_out <- check_custom_response(y)
+
+    # A factor is put on the levels the fit saw, so that a density reading its
+    # codes reads them the same way in new data as in the fit, whichever levels
+    # the new data happen to contain.
+    if (is.factor(object[["y"]])) {
+      seen <- levels(object[["y"]])
+      unseen <- setdiff(unique(as.character(y_out)), seen)
+
+      if (!is_null(unseen)) {
+        arg::err("the outcome has values the model was not fit with:
+                  {.val {unseen}}")
+      }
+
+      y_out <- factor(as.character(y_out), levels = seen,
+                      ordered = is.ordered(object[["y"]]))
+    }
   }
   else {
     y_out <- check_numeric_response(y, family)

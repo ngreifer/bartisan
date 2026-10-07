@@ -180,6 +180,9 @@
 #' model <- death ~ age + sex + race + edu + aps + meanbp +
 #'   resp + hema + pafi + paco2 + crea + surv2m + card
 #'
+#' # Note: we use small sampler settings that would not be
+#' # appropriate for analysis; this is just for the
+#' # examples
 #' fit <- bcf(model, treat = ~ rhc, data = rhc,
 #'            family = binomial(), num_trees = c(10, 5),
 #'            num_burn = 50, num_draws = 50,
