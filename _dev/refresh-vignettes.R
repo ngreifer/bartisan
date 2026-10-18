@@ -1,12 +1,17 @@
 # Rerun the vignettes that keep saved results, save the results again, and check
 # that replaying them reproduces each page.
 #
-# `vignettes/saved-results.R` holds the mechanism. A vignette that sources it
-# runs its chunks and saves their output in "run" mode, and prints the saved
-# output without running anything in "replay" mode, which is what CRAN sees.
+# `vignettes/saved-results.R` holds the replay, which is what CRAN sees: a
+# vignette that sources it prints the saved output without running anything.
+# The saving is in `_dev/save-vignette-results.R`, which is not part of the
+# package, because CRAN does not allow a vignette to write into the package
+# directory. A save render here sets the option `bartisan.save_results` to a
+# function that sources it, and `saved-results.R` calls that function in place
+# of running or replaying, so the shipped file names no path outside
+# `vignettes/`.
 # `R CMD build` and `R CMD check` knit a temporary copy of the package, so the
 # saved results can only be refreshed by rendering in place, which is what this
-# does: each vignette is rendered in run mode in `vignettes/`, which rewrites
+# does: each vignette is rendered in save mode in `vignettes/`, which rewrites
 # `vignettes/results/<name>/`, and then again in replay mode, and the two pages
 # have to be the same bytes. That comparison is what makes "a reader cannot
 # tell the difference" a property of the shipped vignettes rather than a hope.
@@ -24,6 +29,7 @@ A <- path.expand("~/.claude/skills/live-progress/assets")
 if (file.exists(file.path(A, "progress.R"))) source(file.path(A, "progress.R"))
 
 vdir <- normalizePath("vignettes")
+saver <- normalizePath(file.path("_dev", "save-vignette-results.R"))
 stopifnot(dir.exists(vdir))
 
 uses_saved <- function(f) {
@@ -63,10 +69,15 @@ render <- function(src, mode) {
   out <- tempfile(fileext = ".html")
   script <- sprintf("rmarkdown::render(%s, output_file = %s, quiet = TRUE)",
                     deparse(src), deparse(out))
+  if (mode == "save") {
+    script <- sprintf("options(bartisan.save_results = function(env) sys.source(%s, envir = env)); %s",
+                      deparse(saver), script)
+  }
   t0 <- Sys.time()
   log <- suppressWarnings(
     system2(file.path(R.home("bin"), "Rscript"), c("-e", shQuote(script)),
-            env = paste0("BARTISAN_VIGNETTES=", mode), stdout = TRUE,
+            env = paste0("BARTISAN_VIGNETTES=", if (mode == "save") "run" else mode),
+            stdout = TRUE,
             stderr = TRUE))
 
   if (!is.null(attr(log, "status")) || !file.exists(out)) {
@@ -88,8 +99,8 @@ rows <- list()
 for (src in sources) {
   name <- sub("[.]Rmd$", "", basename(src))
 
-  ran <- render(src, "run")
-  if (have_progress) prog_tick(pr, label = sprintf("%s, run", name))
+  ran <- render(src, "save")
+  if (have_progress) prog_tick(pr, label = sprintf("%s, save", name))
 
   replayed <- render(src, "replay")
   if (have_progress) prog_tick(pr, label = sprintf("%s, replay", name))

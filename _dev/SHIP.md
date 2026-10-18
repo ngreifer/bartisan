@@ -10,14 +10,18 @@ reads, the surveys of what the other BART packages and *rstanarm* export, the
 plans for the vignette series, and what the first full check found) is in its
 git history before 2026-10-07, and the work behind each item is in `TASKS.md`.
 
-## Where it stands (2026-10-07)
+## Where it stands (2026-10-18)
 
-Submitted twice, and rejected twice. The first submission (`dd8f158`) drew a
-NOTE for four examples that took more than 10 seconds on Windows and Debian. The
-second (`dba4825`) was rejected because the whole check took more than 10
-minutes on Windows. Both are fixed, the second in `131ad34`. What is left before
-resubmitting is one Windows check, `devtools::check_win_devel()`, to measure
-the time there rather than project it.
+Submitted three times. The first submission (`dd8f158`) drew a NOTE for four
+examples that took more than 10 seconds on Windows and Debian. The second
+(`dba4825`) was rejected because the whole check took more than 10 minutes on
+Windows. Both are fixed, the second in `131ad34`. The third (`88fb0b3`, uploaded
+2026-10-07) passed the incoming checks and waited in the new-submissions queue
+until a human review on 2026-10-18, which asked for two changes: no quotes
+around SoftBart in `Description`, and no code in the vignettes, examples or
+tests that writes into the package directory. Both are made, the second by
+moving the vignettes' saving code out of the package (`TASKS.md`, 2026-10-18),
+and `cran-comments.md` answers the review. What is left is to resubmit.
 
 ## The check-time budget
 
@@ -58,9 +62,10 @@ What keeps it there:
 ## What the incoming check will still say
 
 One NOTE on both platforms: a new submission, and "Linero" and "Tweedie" as
-possibly misspelled words in `Description`. Both are expected. They go
-unexplained, since `cran-comments.md` is not used, by the maintainer's decision
-of 2026-10-07.
+possibly misspelled words in `Description`, now probably "SoftBart" too, since
+it lost its quotes at CRAN's request. All are expected, and `cran-comments.md`
+explains them. It was not used before the fourth submission, by the
+maintainer's decision of 2026-10-07, reversed on 2026-10-18.
 
 ## Accepted for this release
 

@@ -25,7 +25,7 @@ has_loo <- rlang::is_installed("loo")
 has_bp <- rlang::is_installed("bayesplot")
 
 # The fits below are too slow to run on CRAN's machines, so their output is
-# saved when the code runs and replayed where it does not, as on CRAN; see
+# saved ahead of time and replayed where the code is not run, as on CRAN; see
 # saved-results.R.
 source("saved-results.R", local = knitr::knit_global())
 knitr::opts_chunk$set(saved = TRUE)

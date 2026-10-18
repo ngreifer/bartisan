@@ -173,6 +173,7 @@ _dev/did/*
 !_dev/poisson-paths.R
 !_dev/bandwidth-step-floor.R
 !_dev/refresh-vignettes.R
+!_dev/save-vignette-results.R
 !_dev/precompute-which.R
 !_dev/test-timing.R
 !_dev/test-seeds.R
