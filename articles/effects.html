@@ -96,7 +96,7 @@
                         <h4 data-toc-skip class="author">Noah
 Greifer</h4>
             
-            <h4 data-toc-skip class="date">2026-10-07</h4>
+            <h4 data-toc-skip class="date">2026-10-18</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/ngreifer/bartisan/blob/main/vignettes/effects.Rmd" class="external-link"><code>vignettes/effects.Rmd</code></a></small>
       <div class="d-none name"><code>effects.Rmd</code></div>
@@ -395,7 +395,7 @@ average prediction rather than on any one patient’s.
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pd</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="results/effects/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="effects_files/figure-html/pdp-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># Same thing:</span></span>
@@ -443,7 +443,7 @@ groups.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pd2</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"APACHE III score on day 1"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
 <span>       color <span class="op">=</span> <span class="st">"Catheterized"</span>, fill <span class="op">=</span> <span class="st">"Catheterized"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="results/effects/pdp2-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="effects_files/figure-html/pdp2-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The two curves run close together; if they diverged, that would be a
 moderation worth reporting, and the difference of differences above is
 how to put a number on it.</p>
@@ -459,7 +459,7 @@ three values near its quartiles and a message reports them.</p>
 <span>       color <span class="op">=</span> <span class="st">"APACHE III"</span>, fill <span class="op">=</span> <span class="st">"APACHE III"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Grouping by `aps` at <span style="color: #0000BB;">41</span>, <span style="color: #0000BB;">54</span>, and <span style="color: #0000BB;">68</span>, three of its values near its quartiles.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Set `values` to choose them yourself.</span></span></code></pre></div>
-<p><img src="results/effects/pdp3-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="effects_files/figure-html/pdp3-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 <p>The <code>values</code> argument chooses others, and an entry of it
 may be a function of the predictor rather than the values themselves.
 Setting <code>values = list(z = unique)</code> asks for every value a
@@ -471,7 +471,7 @@ want instead.</p>
 <span>     values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>aps <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">x</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.05</span>, <span class="fl">.5</span>, <span class="fl">.95</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Mean arterial blood pressure"</span>, y <span class="op">=</span> <span class="st">"Fitted probability of death"</span>,</span>
 <span>       color <span class="op">=</span> <span class="st">"APACHE III"</span>, fill <span class="op">=</span> <span class="st">"APACHE III"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="results/effects/pdp4-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
+<p><img src="effects_files/figure-html/pdp4-1.png" class="r-plt" alt="" width="715" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level3">
 <h3 id="the-same-curve-through-marginaleffects">The Same Curve Through <em>marginaleffects</em><a class="anchor" aria-label="anchor" href="#the-same-curve-through-marginaleffects"></a>

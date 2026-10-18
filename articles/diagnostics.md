@@ -371,7 +371,7 @@ as_draws(fit, eta = 1) |>
   mcmc_trace(pars = c("loglik", "eta[1]"))
 ```
 
-![](results/diagnostics/trace-1.png)
+![](diagnostics_files/figure-html/trace-1.png)
 
 What we want to see is four chains overlapping, wandering around the
 same level, with no drift and no long excursions. Setting `eta = 1`
@@ -836,7 +836,7 @@ and compares their distribution to the observed one.
 pp_check(fit)
 ```
 
-![](results/diagnostics/ppc-1.png)
+![](diagnostics_files/figure-html/ppc-1.png)
 
 For a continuous outcome this is the workhorse check, and we look for
 systematic differences: replicates that are too narrow, that miss a
@@ -874,7 +874,7 @@ and
 pp_check(fit, type = "stat", stat = "sd")
 ```
 
-![](results/diagnostics/ppcstat-1.png)
+![](diagnostics_files/figure-html/ppcstat-1.png)
 
 **Calibration of the whole predictive distribution** is checked by
 setting `type = "loo_pit_ecdf"`. Each observation is transformed through
@@ -888,7 +888,7 @@ wrong even where the mean is right, which the default check cannot see.
 pp_check(fit, type = "loo_pit_ecdf")
 ```
 
-![](results/diagnostics/ppcloo-1.png)
+![](diagnostics_files/figure-html/ppcloo-1.png)
 
 **The location of a residual**, rather than its size, is shown by
 setting `type = "error_scatter_avg_vs_x"`: the average residual against
@@ -916,7 +916,7 @@ probabilities mean what they say: among the patients the model gave a
 pp_check(fit, type = "loo_calibration")
 ```
 
-![](results/diagnostics/calibration-1.png)
+![](diagnostics_files/figure-html/calibration-1.png)
 
 A line on the diagonal means the probabilities are calibrated, and this
 one sits close to it across the whole range. The dots along the bottom
