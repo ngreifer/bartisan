@@ -204,10 +204,19 @@
 #' draws; a low tail effective sample size with the bulk fine says the posterior
 #' mean is sound and the interval endpoints are not.
 #'
+#' Running more chains, whether to have several or to raise the total number of
+#' draws when only effective sample size is short, does not require fitting the
+#' model again: [add_chains()] runs further chains and adds their draws to the
+#' fit already made. The chains it adds are the ones a fit with more chains would
+#' have run, so the result is the fit that setting `chains` to the total would
+#' have given from the same seed. It does not help a fit failing on R-hat, which
+#' needs longer chains rather than more of them.
+#'
 #' `vignette("diagnostics")` works all of this through on a fit.
 #'
 #' @seealso
-#' [bartisan_control()] for the settings the advice names;
+#' [bartisan_control()] for the settings the advice names; [add_chains()] for
+#' adding chains to a fit;
 #' [`as_draws()`][bartisan-interop] for handing the draws to \CRANpkg{bayesplot}
 #' or \CRANpkg{posterior}; `vignette("diagnostics")` for the fuller treatment,
 #' including posterior predictive checks
@@ -1070,7 +1079,9 @@ diagnosis_advice <- function(checks, control = NULL) {
       "Refit with {.code chains = 4}. R-hat compares chains against each other, and",
       "one chain can only be compared with itself, so nothing below is",
       "reliable until there are several. With {.pkg future} installed the chains run",
-      "in parallel."))
+      "in parallel. {.fn add_chains} adds the other three to this fit without",
+      "running the first again, and gives the draws a four-chain fit from the same",
+      "seed would have."))
   }
 
   warmup <- failed("warmup")
@@ -1148,7 +1159,10 @@ diagnosis_advice <- function(checks, control = NULL) {
       "The chains agree and are stationary, so they simply",
       "have not run long enough. Do not reach for {.arg num_thin}: thinning",
       "discards draws already paid for and lowers the effective sample size",
-      "per unit of time."))
+      "per unit of time. Since effective sample size depends on the total",
+      "number of draws, more chains of the same length serve as well, and",
+      "{.fn add_chains} runs them and adds them to this fit, in parallel when",
+      "there are idle workers for them."))
   }
 
   if (failed("tail ESS") && !failed("bulk ESS")) {

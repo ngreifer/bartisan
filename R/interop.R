@@ -1251,13 +1251,13 @@ kfold.bartisan_fit <- function(x, K = 10, folds = NULL, scale = NULL,
 
 # The data the fit was made from, recovered the way `stats::update()` recovers
 # it: the call's own `data` expression, evaluated in the environment the formula
-# carries.
-kfold_data <- function(x) {
+# carries. `fun` names the function doing the refitting, for the messages.
+kfold_data <- function(x, fun = "kfold") {
   expr <- x[["call"]][["data"]]
 
   if (is_null(expr)) {
-    arg::err(c("This fit's call names no {.arg data}, so the folds have nothing
-                to be taken from.",
+    arg::err(c("This fit's call names no {.arg data}, so there is nothing for
+                {.fun {fun}} to refit to.",
                i = "Refit with {.arg data} given as a data frame."))
   }
 
@@ -1271,7 +1271,7 @@ kfold_data <- function(x) {
     error = function(e) {
       arg::err(c("The data this fit was made from, {.code {deparse1(expr)}},
                   cannot be found from where its formula was written.",
-                 i = "{.fun kfold} refits from the original call, which finds the
+                 i = "{.fun {fun}} refits from the original call, which finds the
                       data through the formula's environment.",
                  i = "Write the formula in the same place as the data, for
                       example inside the function that fits the model."))
@@ -1286,7 +1286,7 @@ kfold_data <- function(x) {
   if (!is_null(missing)) {
     arg::err(c("The data this fit was made from is not the data that name now
                 reaches: {length(missing)} of its rows are gone.",
-               i = "{.fun kfold} refits from the original call, so the data has to be
+               i = "{.fun {fun}} refits from the original call, so the data has to be
                     what it was."))
   }
 
@@ -1325,11 +1325,23 @@ kfold_folds <- function(folds, K, n) {
   folds
 }
 
-# The call a fold refits from: the original, with everything but the data
-# resolved to a value so that a worker needs nothing from the caller's
-# environment. The function in position one is resolved too, without which a
-# worker cannot find `bartisan()` at all.
+# The call a fold refits from, with progress switched off.
 kfold_call <- function(x, data) {
+  call <- refit_call(x)
+
+  # K refits would otherwise report progress K times over.
+  if (!"verbose" %in% names(call)) {
+    call[["verbose"]] <- FALSE
+  }
+
+  call
+}
+
+# The original call, with everything but the data resolved to a value so that a
+# worker needs nothing from the caller's environment. The function in position
+# one is resolved too, without which a worker cannot find `bartisan()` at all.
+# `kfold()` and `add_chains()` both refit from it, choosing the rows by name.
+refit_call <- function(x) {
   env <- environment(stats::formula(x))
   call <- x[["call"]]
   values <- x[["call_values"]] %or% list()
@@ -1346,15 +1358,10 @@ kfold_call <- function(x, data) {
     }
   }
 
-  # The rows are chosen by name below, so a `subset` would choose them twice.
+  # The caller chooses the rows by name, so a `subset` would choose them twice.
   # Assigning NULL to a name a call does not have is an error, hence the guard.
   if ("subset" %in% names(call)) {
     call[["subset"]] <- NULL
-  }
-
-  # K refits would otherwise report progress K times over.
-  if (!"verbose" %in% names(call)) {
-    call[["verbose"]] <- FALSE
   }
 
   call

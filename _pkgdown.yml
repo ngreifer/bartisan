@@ -73,13 +73,14 @@ reference:
   desc: >
     Whether the sampler explored the posterior, and whether the model describes
     the data, which are worth settling before anything above is read off a fit.
-    The second page collects the methods that *rstantools*, *loo*, *bayesplot*,
+    The second page adds chains to a fit that needs more of them. The third page collects the methods that *rstantools*, *loo*, *bayesplot*,
     *posterior* and *performance* call on a fit, along with the `stats` methods
     that report the same quantities, so posterior predictive draws,
     cross-validation, the prior the fit was given, and the fit statistics are
     all on it.
   contents:
   - diagnose
+  - add_chains
   - bartisan-interop
 
 - title: Data

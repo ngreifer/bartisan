@@ -46,8 +46,9 @@ The draws are pooled, and \code{\link[=diagnose]{diagnose()}} computes split-R-h
 request rather than the fit carrying it. With the \pkg{future.apply}
 package installed the chains run in parallel under whatever backend
 \pkgfun{future}{plan} has set. One \code{set.seed()} before the call reproduces
-the run either way, since each chain gets its own L'Ecuyer stream. See
-\code{vignette("diagnostics")}.}
+the run either way, since each chain gets its own L'Ecuyer stream. Chains
+can be added to a fit afterwards with \code{\link[=add_chains]{add_chains()}}, which gives the fit
+a larger \code{chains} would have. See \code{vignette("diagnostics")}.}
 
 \item{num_burn}{\code{numeric}; the number of warmup iterations to discard.
 Default is 200, which measurement finds ample for the samplers here. Warmup

@@ -33,6 +33,7 @@
 #' | a treatment effect with its own prior | [bcf()], `vignette("causal")` |
 #' | the ATE, ATT or the effect for each unit | [estimate_effect()] |
 #' | to check it converged and mixed | [diagnose()], then [`as_draws()`][bartisan-interop] with \pkg{bayesplot}, `vignette("diagnostics")` |
+#' | more chains for a fit already made | [add_chains()] |
 #' | to check it fits | [`pp_check()`][bartisan-interop], [`residuals()`][bartisan-interop] |
 #' | to compare two models | [`loo()`][bartisan-interop], `vignette("comparison")` |
 #' | survival data | [ph()], [dpm_aft()], `vignette("survival")` |

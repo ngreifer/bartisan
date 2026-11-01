@@ -119,7 +119,7 @@ as in `glm()`. The family may be omitted, in which case it is read off the
 outcome and reported; naming it is clearer and silences the message.
 
 The fit uses the default single chain, which is enough for the estimates and
-keeps this guide brief. In a real analysis, we would run several chains (e.g., by setting `chains = 4`) and
+keeps this guide brief. In a real analysis, we would run several chains (e.g., by setting `chains = 4`, or by adding them to this fit with `add_chains()`) and
 possibly change the number of burn-in and retained draws before reading any
 results; `vignette("diagnostics")` explains how to set these fit controls and
 how to check that they were enough.

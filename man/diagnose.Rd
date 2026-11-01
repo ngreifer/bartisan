@@ -209,6 +209,14 @@ effective sample size with R-hat fine is the benign case and wants only more
 draws; a low tail effective sample size with the bulk fine says the posterior
 mean is sound and the interval endpoints are not.
 
+Running more chains, whether to have several or to raise the total number of
+draws when only effective sample size is short, does not require fitting the
+model again: \code{\link[=add_chains]{add_chains()}} runs further chains and adds their draws to the
+fit already made. The chains it adds are the ones a fit with more chains would
+have run, so the result is the fit that setting \code{chains} to the total would
+have given from the same seed. It does not help a fit failing on R-hat, which
+needs longer chains rather than more of them.
+
 \code{vignette("diagnostics")} works all of this through on a fit.
 }
 }
@@ -236,7 +244,8 @@ diagnose(fit, ess_min = 1000)
 
 }
 \seealso{
-\code{\link[=bartisan_control]{bartisan_control()}} for the settings the advice names;
+\code{\link[=bartisan_control]{bartisan_control()}} for the settings the advice names; \code{\link[=add_chains]{add_chains()}} for
+adding chains to a fit;
 \code{\link[=bartisan-interop]{as_draws()}} for handing the draws to \CRANpkg{bayesplot}
 or \CRANpkg{posterior}; \code{vignette("diagnostics")} for the fuller treatment,
 including posterior predictive checks

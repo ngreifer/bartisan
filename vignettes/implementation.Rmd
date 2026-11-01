@@ -256,7 +256,7 @@ The fit uses the incomplete variable rather than discarding it. Note that this i
 
 ### Several Chains (`chains`)
 
-The `chains` argument runs the sampler more than once from different starting points. The default is one, which is enough for estimates. Running several makes a between-chain comparison possible, which is the only way to see whether the sampler has converged, and `diagnose()` is where that comparison is computed. It is not part of the fit: the per-observation statistics cost more than the sampling does, so they run when they are asked for.
+The `chains` argument runs the sampler more than once from different starting points. The default is one, which is enough for estimates. Running several makes a between-chain comparison possible, which is the only way to see whether the sampler has converged, and `diagnose()` is where that comparison is computed. It is not part of the fit: the per-observation statistics cost more than the sampling does, so they run when they are asked for. Each chain runs on its own L'Ecuyer stream, the streams taken in sequence from the seed, and the fit records where the sequence stopped. `add_chains()` continues it, so chains added to a fit afterward are the chains a larger `chains` would have run, and the result is identical to the fit that would have produced.
 
 ```{r chains}
 fit_chains <- bartisan(y ~ . - eta, data = train, family = gaussian(),
@@ -265,7 +265,7 @@ fit_chains <- bartisan(y ~ . - eta, data = train, family = gaussian(),
 diagnose(fit_chains)$table
 ```
 
-This table is read selectively. `aux.sigma` and `loglik` are close to 1, as they are at convergence, and they respond to longer chains in the usual way.
+This table is read selectively. `aux.sigma` and `loglik` are above the 1.01 threshold here because these chains are deliberately short, and they respond to longer chains in the usual way.
 
 The `eta` row does not, and it is worth knowing why before it causes alarm. It summarizes the worst 5% of the observations rather than the single worst, so it is a high percentile by construction, and forests mix slowly on their fitted values: two chains can visit quite different sets of trees that imply very similar predictions, which inflates a between-chain statistic without meaning that the answers disagree. Adding draws does not reliably bring it down. Values above 1.05 on this row are ordinary for a BART fit, and are characteristic of the method rather than of this implementation.
 

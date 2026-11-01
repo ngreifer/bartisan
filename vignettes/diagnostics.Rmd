@@ -112,6 +112,29 @@ chains sit at 1.010 and sixteen chains at 1.040. Adding chains raises the bar it
 has to clear. When a fit fails on `rhat`, longer chains are the fix; when it
 fails only on effective sample size, either will do.
 
+More chains, unlike longer ones, can be added to a fit that has already been made.
+`add_chains()` runs further chains of the same model and adds their draws to the
+fit, and the chains it runs are the ones a larger `chains` would have run, so the
+result is the fit we would have had by asking for them in the first place. This
+is useful when a fit made with the default single chain turns out to be worth
+diagnosing, or when it falls short only on effective sample size and there are
+idle workers to run more chains on. Below, we fit the model above again with a
+single chain from the same seed, add three chains to it, and compare the result
+with `fit`, which ran all four from the start.
+
+```{r addchains, eval = run}
+set.seed(2026)
+fit1 <- update(fit, chains = 1)
+
+fit4 <- add_chains(fit1, chains = 3)
+
+all.equal(fit4$eta, fit$eta)
+```
+
+The draws are identical, so `diagnose(fit4)` would report exactly what
+`diagnose(fit)` did above. Each added chain runs its own warmup, as each chain
+of a fit does.
+
 The table is in `diagnose(fit)$table` when it is wanted as a data frame, and the
 checks and the advice are in `$checks` and `$advice`.
 
@@ -300,11 +323,13 @@ estimate_effect(bcf_fit, estimand = "ATE") |>
 ```
 
 The output has a row for the contrast and one for each of the two average
-potential outcomes it is a contrast of. Here the contrast clears the thresholds
-and one of the averages, `Y[1]`, falls just short on bulk effective sample
-size. It does not always come out that way round: a difference can mix worse
-than either of its parts, so all three rows are worth reading rather than the
-contrast alone.
+potential outcomes it is a contrast of. Here `Y[0]` clears the thresholds, while
+the contrast and the other average, `Y[1]`, carry about 245 effective draws each.
+The contrast's R-hat of 1.02 is the kind the check calls unreadable, since four
+chains average 1.016 at that count even when they agree, so it is the effective
+sample size that needs raising. The contrast mixes about as well as the worse of
+its two parts here, but a difference can mix worse than either of them, so all
+three rows are worth reading rather than the contrast alone.
 
 Now compare what the fit's own table says about the same sampler:
 
@@ -312,8 +337,8 @@ Now compare what the fit's own table says about the same sampler:
 diagnose(bcf_fit)$table
 ```
 
-The two forests are far worse than the estimand. Their R-hats run from 1.2 to
-1.6 with effective sample sizes in the tens, where the effect clears 400. That
+The two forests are far worse than the estimand. Their R-hats run from 1.3 to
+1.4 with effective sample sizes around 10, where the effect carries about 245. That
 is not a contradiction: a varying
 coefficient model is $f_0(x) + z\,f_1(x)$, and on the treated units the two
 forests are only jointly identified, so the sampler can move level between them
@@ -372,7 +397,8 @@ gives.
 
 There are a few remedies worth trying, given here in the order in which they
 usually help. **More draws**, from increasing `num_burn` and `num_draws`, fix
-most cases. **A smaller forest** helps next, since reducing `num_trees` leaves
+most cases; when only effective sample size falls short, adding chains with
+`add_chains()` provides them without fitting the model again. **A smaller forest** helps next, since reducing `num_trees` leaves
 fewer ways to represent the same function, so the sampler mixes faster. **A
 different family** can be needed last, because a likelihood that fits the data
 badly can produce a posterior that is hard to explore, so the family is worth
@@ -411,6 +437,12 @@ out first: the chains are not demonstrably disagreeing, they have not run long
 enough for the statistic to be readable. Both effective sample sizes are short of
 400 as well. Everything here points the same way, and none of it points at the
 model.
+
+Adding chains with `add_chains()` would raise both effective sample sizes as
+well, but it would leave that R-hat as unreadable as it is now: doubling the
+chains along with the draws leaves R-hat's null where it was, because the null
+rises with the number of chains as fast as it falls with the effective sample
+size. Longer chains lower it.
 
 So we run it longer, increasing the burn-in to 2000 and the number of draws per chain to 8000. Nothing else changes, so we can call `update()` on the previous model with our new arguments supplied:
 
@@ -493,11 +525,21 @@ set.seed(2026)
 
 prior <- bartisan(death ~ rhc + age + sex + race + edu + aps + meanbp + resp +
                     hema + pafi + paco2 + crea + surv2m + card,
-                  data = rhc, family = binomial(), prior_only = TRUE)
+                  data = rhc, family = binomial(), prior_only = TRUE,
+                  chains = 4)
 ```
 
 What comes back is an ordinary fit whose draws are prior draws, so everything
-that reads a fit reads this one. The question to put to it is whether the risks
+that reads a fit reads this one.
+
+We run four chains here, and for a prior predictive check that matters more than
+it does for a posterior. With no data, nothing pins down the leaf scale
+`sigma_mu`, and its prior is wide: across these draws its middle 90% runs from
+about .04 to about 2.3. A single chain wanders over only part of that range, and
+the four chains here settled at median leaf scales from .07 to .77. One chain's
+replicates can therefore look much narrower or much wider than the prior
+actually is; at the quantiles below, the chain with the smallest leaf scale runs
+from .13 to .95 on its own, while the one with the largest is piled at 0 and 1. The question to put to it is whether the risks
 the prior considers plausible are ones a critically ill patient could actually
 have.
 
@@ -509,12 +551,16 @@ quantile(predict(prior, type = "response", draws = TRUE), p)
 quantile(predict(fit, type = "response", draws = TRUE), p)
 ```
 
-The prior runs from about .01 to about .99, as we would want of a prior on a
-probability: it rules almost nothing out and asserts almost nothing. The fitted
-model runs from about .18 to about .95 over the same quantiles, so the data have
-brought it a long way in from where it started. A prior that had come back
-concentrated near zero and one, or confined to a narrow band in the middle, would
-be worth changing before going any further.
+Pooled over the four chains, the prior runs from essentially 0 to essentially 1
+at the 1st and 99th percentiles, and from about .02 to about .995 at the 10th and
+90th, so it rules almost nothing out. It is not flat on the probability scale,
+though: about a fifth of the replicated risks are below .01 or above .99, which
+is where the larger leaf scales in its range send them. The fitted model runs
+from about .18 to about .95 over the same quantiles, so the data have brought it
+a long way in from where it started. A prior that had come back with most of
+its replicates near zero and one, or confined to a narrow band in the middle,
+would be worth changing before going any further. This one leans wide rather
+than narrow, with four-fifths of its replicates between .01 and .99.
 
 There is one thing not to read into this. The median sits close to the observed
 death rate because the additive predictor is anchored at an intercept-only fit,
@@ -644,7 +690,7 @@ Before fitting in earnest we read the prior back with `prior_summary()` and run
 the model once with `prior_only = TRUE`, checking that the replicates fall where
 the outcome can actually go, since a prior worth changing is cheapest to change
 before any of the data's information has been spent. Then, before reporting anything from a fit, we run it with
-`chains = 4` and pass it to
+`chains = 4` (or add three chains to a single-chain fit with `add_chains()`) and pass it to
 `diagnose()`, reading what that says to change: it applies the thresholds, names
 the rows that fall short, says when an R-hat rests on too few effective draws to
 be read at all, and separates a warmup that ended too early

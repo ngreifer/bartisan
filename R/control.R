@@ -11,8 +11,9 @@
 #'   request rather than the fit carrying it. With the \pkg{future.apply}
 #'   package installed the chains run in parallel under whatever backend
 #'   \pkgfun{future}{plan} has set. One `set.seed()` before the call reproduces
-#'   the run either way, since each chain gets its own L'Ecuyer stream. See
-#'   `vignette("diagnostics")`.
+#'   the run either way, since each chain gets its own L'Ecuyer stream. Chains
+#'   can be added to a fit afterwards with [add_chains()], which gives the fit
+#'   a larger `chains` would have. See `vignette("diagnostics")`.
 #' @param num_burn `numeric`; the number of warmup iterations to discard.
 #'   Default is 200, which measurement finds ample for the samplers here. Warmup
 #'   is where the trees grow into the data and the hyperparameters find their

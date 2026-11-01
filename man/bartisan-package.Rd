@@ -5,7 +5,7 @@
 \alias{bartisan-package}
 \title{bartisan: Generalized Bayesian Additive Regression Trees}
 \description{
-Fits Bayesian additive regression trees (BART) models for likelihoods outside the conditionally conjugate Gaussian case, using the Laplace-approximation reversible-jump sampler of Linero (2025) \doi{10.1080/01621459.2024.2337156}. Supported response families include Gaussian, binomial, Poisson, negative binomial, gamma, beta, ordered beta, ordinal (cumulative link), multinomial, zero-inflated counts, a Tweedie compound Poisson for a non-negative response with a point mass at zero, accelerated failure time and proportional hazards models for right-censored survival data, location-scale regression, and a Dirichlet process mixture for the error distribution. Decision rules may be hard, as in standard BART, or soft, as in the 'SoftBart' model of Linero and Yang (2018) \doi{10.1111/rssb.12293}, which yields smoother fits. The interface follows that of glm(), so that a model is specified with a formula, a data frame, and a family.
+Fits Bayesian additive regression trees (BART) models for likelihoods outside the conditionally conjugate Gaussian case, using the Laplace-approximation reversible-jump sampler of Linero (2025) \doi{10.1080/01621459.2024.2337156}. Supported response families include Gaussian, binomial, Poisson, negative binomial, gamma, beta, ordered beta, ordinal (cumulative link), multinomial, zero-inflated counts, a Tweedie compound Poisson for a non-negative response with a point mass at zero, accelerated failure time and proportional hazards models for right-censored survival data, location-scale regression, and a Dirichlet process mixture for the error distribution. Decision rules may be hard, as in standard BART, or soft, as in the SoftBart model of Linero and Yang (2018) \doi{10.1111/rssb.12293}, which yields smoother fits. The interface follows that of glm(), so that a model is specified with a formula, a data frame, and a family.
 }
 \details{
 Fits Bayesian additive regression trees (BART) the way \code{\link[stats:glm]{stats::glm()}} fits a
@@ -38,6 +38,7 @@ need. This table is the map.\tabular{ll}{
    a treatment effect with its own prior \tab \code{\link[=bcf]{bcf()}}, \code{vignette("causal")} \cr
    the ATE, ATT or the effect for each unit \tab \code{\link[=estimate_effect]{estimate_effect()}} \cr
    to check it converged and mixed \tab \code{\link[=diagnose]{diagnose()}}, then \code{\link[=bartisan-interop]{as_draws()}} with \pkg{bayesplot}, \code{vignette("diagnostics")} \cr
+   more chains for a fit already made \tab \code{\link[=add_chains]{add_chains()}} \cr
    to check it fits \tab \code{\link[=bartisan-interop]{pp_check()}}, \code{\link[=bartisan-interop]{residuals()}} \cr
    to compare two models \tab \code{\link[=bartisan-interop]{loo()}}, \code{vignette("comparison")} \cr
    survival data \tab \code{\link[=ph]{ph()}}, \code{\link[=dpm_aft]{dpm_aft()}}, \code{vignette("survival")} \cr
