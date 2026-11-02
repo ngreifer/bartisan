@@ -94,6 +94,59 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            intercept <- stats::weighted.mean(y, weights)
          },
 
+         # `dpm()` with a forest on the log of the error's scale. The mixture's
+         # baseline is calibrated to the residual scale exactly as `dpm()`'s
+         # is, so the mixture starts out carrying the whole scale and the second
+         # predictor starts at zero, a multiplier of one; its prior is then a
+         # statement about how far the spread moves with the predictors. The
+         # level of that predictor and the size of the mixture trade off, and
+         # the engine reports the fit in a chart that settles it.
+         dpm_ls = {
+           if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
+             arg::err(c("{.fn dpm_ls} does not take prior weights, because a
+                         weight would have to be a multiplicity in the
+                         Dirichlet process, which is not what a fractional
+                         weight means.",
+                        i = "{.fn gaussian_ls} takes them."))
+           }
+
+           y <- check_numeric_response(y, name)
+           out$y <- y
+           out$weights <- weights
+           out$n_forest <- 2L
+           # The log standard deviation takes `gaussian_ls()`'s tighter prior
+           # scale, for its reason.
+           out$eta_scale <- c(stats::sd(y), 0.5)
+           out$opts <- dpm_baseline(family, y, x, n)
+
+           intercept <- c(stats::weighted.mean(y, weights), 0)
+         },
+
+         # `dpm_aft()` with `dpm_ls()`'s second forest, which is NFT BART. The
+         # baseline is calibrated on the events, as `dpm_aft()`'s is, and the
+         # second predictor starts at zero, as `dpm_ls()`'s does.
+         dpm_aft_ls = {
+           if (!isTRUE(all.equal(unname(weights), rep.int(1, n)))) {
+             arg::err(c("{.fn dpm_aft_ls} does not take prior weights, because
+                         a weight would have to be a multiplicity in the
+                         Dirichlet process, which is not what a fractional
+                         weight means.",
+                        i = "{.fn lognormal_aft_ls} takes them."))
+           }
+
+           a <- prepare_surv(y, n)
+           out$y <- a$log_time
+           out$weights <- weights
+           out$n_forest <- 2L
+           out$eta_scale <- c(stats::sd(a$log_time), 0.5)
+
+           seen <- a$event > 0
+           out$opts <- c(dpm_baseline(family, a$log_time[seen],
+                                      x[seen, , drop = FALSE], sum(seen)),
+                         list(event = a$event))
+           intercept <- c(mean(a$log_time[seen]), 0)
+         },
+
          # A family supplied from R. Nothing is known about the log density beyond
          # the function itself, so the starting value comes from the caller and the
          # leaf prior scale is the default one for a predictor on a standardized
@@ -514,6 +567,19 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            intercept <- 0
          },
 
+         # `gaussian_ls()` on the log time, with censoring. The log standard
+         # deviation takes `gaussian_ls()`'s tighter prior scale, for its reason.
+         lognormal_aft_ls = {
+           a <- prepare_surv(y, n)
+           out$y <- a$log_time
+           out$weights <- weights
+           out$n_forest <- 2L
+           out$eta_scale <- c(stats::sd(a$log_time), 0.5)
+           out$opts <- list(event = a$event)
+           intercept <- c(stats::weighted.mean(a$log_time, weights),
+                          log(stats::sd(a$log_time)))
+         },
+
          aft = {
            a <- prepare_surv(y, n)
            out$y <- a$log_time
@@ -693,7 +759,8 @@ check_numeric_response <- function(y, name) {
                i = if (inherits(y, "Surv")) {
                  "A {.cls Surv} response needs a survival family:
                   {.fn dpm_aft}, {.fn weibull_aft}, {.fn loglogistic_aft},
-                  {.fn lognormal_aft} or {.fn ph}."
+                  {.fn lognormal_aft}, {.fn ph}, or one of the location-scale
+                  pair {.fn dpm_aft_ls} and {.fn lognormal_aft_ls}."
                }
                else {
                  "A two-column response of successes and failures needs

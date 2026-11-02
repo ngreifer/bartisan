@@ -21,7 +21,7 @@
 #'   `"logit"` (the default) and `"probit"` for `multinomial()`. The remaining
 #'   families take one link each, which is therefore the default: `"log"` for
 #'   `negbin()`, `zi_poisson()`, `zi_negbin()`, and `Gamma_ls()`, `"logit"` for
-#'   `ordbeta()`, and `"identity"` for `gaussian_ls()`. Each family compiles the links for
+#'   `ordbeta()`, and `"identity"` for `gaussian_ls()` and `dpm_ls()`. Each family compiles the links for
 #'   which the additive predictor is the natural unconstrained scale; any other
 #'   link is applied from R, for the families where that is well defined. See
 #'   Details.
@@ -61,19 +61,19 @@
 #' @param update_lambda `logical`; for `ph()`, whether to draw the baseline
 #'   hazards. Default is `TRUE`; `FALSE` holds them at their prior mean, which is
 #'   for diagnosis rather than analysis.
-#' @param nu,q `numeric`; for `dpm()` and `dpm_aft()`, the degrees of freedom of
+#' @param nu,q `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, the degrees of freedom of
 #'   the baseline's inverse-chi-square prior on a component's variance and the
 #'   quantile of that prior placed at a rough estimate of the residual standard
 #'   deviation. Defaults are 10 and .95, which are tighter than BART's own 3 and
 #'   .90 because the mixture covers small errors with extra components rather
 #'   than with one component's left tail.
-#' @param k_s `numeric`; for `dpm()` and `dpm_aft()`, how many units of the
+#' @param k_s `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, how many units of the
 #'   baseline's own scale the component means are allowed to reach out to. Must
 #'   be positive. Default is 10, which places the marginal of a component mean so
 #'   that it reaches the largest residual of a linear fit.
-#' @param alpha `numeric`; for `dpm()` and `dpm_aft()`, a fixed Dirichlet process
+#' @param alpha `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, a fixed Dirichlet process
 #'   concentration, which must be positive. Default is `NULL` to draw it.
-#' @param max_clusters,psi `numeric`; for `dpm()` and `dpm_aft()`, the largest
+#' @param max_clusters,psi `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, the largest
 #'   number of mixture components thought plausible (2 or greater) and the shape
 #'   of the taper toward it, which together set the prior on `alpha`. Defaults
 #'   are `NULL` to use a tenth of the sample size, and .5.
@@ -108,6 +108,8 @@
 #' | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
 #' | `ph()` | none | 1 | baseline hazard per bin |
 #' | `dpm_aft()` | none | 1 | error mixture, concentration |
+#' | `lognormal_aft_ls()` | none | 2 | none |
+#' | `dpm_aft_ls()` | none | 2 | error mixture, concentration |
 #' | `gaussian_ls()` | `identity` | 2 | none |
 #' | `Gamma_ls()` | `log` | 2 | none |
 #' | `zi_poisson()` | `log` | 2 | none |
@@ -116,6 +118,7 @@
 #' | `ordbeta()` | `logit` | 1 | 2 cutpoints, precision |
 #' | `tweedie()` | `log` | 1 | dispersion, and the power if it is drawn |
 #' | `dpm()` | `identity` | 1 | error mixture, concentration |
+#' | `dpm_ls()` | `identity` | 2 | error mixture, concentration |
 #'
 #' A family with more than one additive predictor fits one forest per predictor.
 #' Nuisance parameters are drawn alongside the trees and reported in `fit$aux`.
@@ -146,8 +149,8 @@
 #'
 #' The families with more than one additive predictor, or whose link enters
 #' somewhere other than a single mean (`ordinal()`, `multinomial()`, the
-#' accelerated failure time families, `gaussian_ls()`, the zero-inflated
-#' families and `ordbeta()`), take only their listed links. `custom_family()` is
+#' accelerated failure time families, `gaussian_ls()`, `dpm_ls()`, the
+#' zero-inflated families and `ordbeta()`), take only their listed links. `custom_family()` is
 #' the way to reach anything else.
 #'
 #' ## Omitting `family`
@@ -236,8 +239,8 @@
 #'
 #' Some properties of `dpm()` itself are worth knowing. It does not buy
 #' heteroskedasticity: the error distribution is flexible but it is the same
-#' distribution at every \eqn{x}, and `gaussian_ls()` is the family for a
-#' spread that depends on the predictors. And the additive predictor is the
+#' distribution at every \eqn{x}, and `dpm_ls()` and `gaussian_ls()` are the
+#' families for a spread that depends on the predictors. And the additive predictor is the
 #' conditional mean, as it is for `gaussian()`: nothing in the model forces the
 #' mixture to be centered, so the sampler works in a chart where only the sum of
 #' the predictor and the error mean is identified, but reporting is done in the
@@ -246,6 +249,21 @@
 #' exactly, and `fit$aux` reports the shift that was taken out as `center` rather
 #' than an error mean, which is zero by construction. Prior weights are refused,
 #' since a weight would have to be a multiplicity in the Dirichlet process.
+#'
+#' `dpm_ls()` is `dpm()` with a second forest on the log of the error's scale,
+#' the heteroskedastic mixture of Sparapani et al. (2023):
+#' \eqn{y = f(x) + \exp(g(x)) W}, with \eqn{W} a Dirichlet process mixture of
+#' normals. The error has one shape, estimated as `dpm()` estimates it, and a
+#' size that varies with the predictors. Its two predictors, `mean` and
+#' `log_sd`, are the conditional mean and the log of the conditional standard
+#' deviation, as for `gaussian_ls()`, and [error_density()] gives the shape of
+#' the error at the average scale. The second forest is the slower of the two
+#' and can be given fewer trees, and prior weights are refused, as for `dpm()`.
+#'
+#' When the spread does not depend on the predictors, `dpm()` is the better
+#' choice: the second forest picks up some variation by chance, and with a
+#' skewed error that variation moves the estimated mean. `vignette("families")`
+#' has the comparison.
 #'
 #' The gamma family puts the forest on the log mean and draws the shape, which
 #' acts as the inverse dispersion; it does *not* regress the shape on the
@@ -333,6 +351,17 @@
 #' property `dpm()` has against `gaussian()`; `vignette("survival")` summarizes
 #' the simulations behind that.
 #'
+#' `lognormal_aft_ls()` and `dpm_aft_ls()` are `lognormal_aft()` and
+#' `dpm_aft()` with a second forest, `log_sd`, on the log of the scale of
+#' \eqn{\log T}, so that the spread of survival times can vary with the
+#' predictors and survival curves can cross. `dpm_aft_ls()` is the
+#' nonparametric failure time (NFT) BART model of Sparapani et al. (2023). The
+#' first predictor is the mean of \eqn{\log T}, but a contrast in it is no
+#' longer a time ratio at every quantile, since the scale can change too, so
+#' contrasts are best taken on `type = "survival"` or `type = "response"`. An
+#' intercept-only formula for the second forest recovers the single-scale
+#' family. `dpm_aft_ls()` refuses prior weights, as `dpm_aft()` does.
+#'
 #' `gaussian_ls()` regresses the mean and the log standard deviation of a
 #' normal response on separate forests, so the variance is an unrestricted
 #' function of the predictors.
@@ -407,7 +436,7 @@
 #'
 #' | Family | Forests, in order |
 #' | --- | --- |
-#' | `gaussian_ls()` | `mean`, `log_sd` |
+#' | `gaussian_ls()`, `dpm_ls()`, `lognormal_aft_ls()`, `dpm_aft_ls()` | `mean`, `log_sd` |
 #' | `Gamma_ls()` | `mean`, `log_dispersion` |
 #' | `zi_poisson()`, `zi_negbin()` | `count`, `zero` |
 #' | `custom_family(num_predictors = k)` | `eta1` ... `etak` |
@@ -429,7 +458,9 @@
 #' one drawn scalar. Every family here that takes more than one formula accepts
 #' that, which makes the distinction between a nuisance parameter and an
 #' empty forest a thin one: `gaussian_ls()` with `~ 1` on its scale is
-#' `gaussian()`, `Gamma_ls()` with `~ 1` is `Gamma("log")`, and `zi_poisson()`
+#' `gaussian()`, `dpm_ls()` with `~ 1` on its scale is `dpm()`, and likewise for
+#' the two survival families with a scale forest; `Gamma_ls()` with `~ 1` is
+#' `Gamma("log")`, and `zi_poisson()`
 #' with `~ 1` on its inflation part is the zero-inflated Poisson with a single
 #' structural-zero probability. Note that the scalar is drawn under the leaf prior
 #' rather than under the prior the corresponding built-in family puts on its
@@ -461,8 +492,16 @@
 #' @seealso
 #' [bartisan()] for fitting a model with one of these families;
 #' [custom_family()] for a likelihood none of them covers;
-#' [error_density()] for the error distribution a `dpm()` or `dpm_aft()` fit
-#' estimates; `vignette("families", package = "bartisan")` for the long form
+#' [error_density()] for the error distribution a `dpm()`, `dpm_ls()`,
+#' `dpm_aft()`, or `dpm_aft_ls()` fit estimates; `vignette("families", package = "bartisan")` for
+#' the long form
+#'
+#' @references
+#' Sparapani, R. A., Logan, B. R., Maiers, M. J., Laud, P. W., & McCulloch, R. E.
+#' (2023). Nonparametric failure time: Time-to-event machine learning with
+#' heteroskedastic Bayesian additive regression trees and low information
+#' omnibus Dirichlet process mixtures. *Biometrics*, 79(4), 3023–3037.
+#' \doi{10.1111/biom.13857}
 #'
 #' @examples
 #' data("rhc")
@@ -588,6 +627,16 @@ dpm_aft <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
 
 #' @rdname bartisan-families
 #' @export
+dpm_aft_ls <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
+                       max_clusters = NULL, psi = 0.5) {
+  out <- dpm(nu = nu, q = q, k_s = k_s, alpha = alpha,
+             max_clusters = max_clusters, psi = psi)
+  out[["family"]] <- "dpm_aft_ls"
+  out
+}
+
+#' @rdname bartisan-families
+#' @export
 dpm <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
                 max_clusters = NULL, psi = 0.5) {
   arg::arg_number(nu)
@@ -621,6 +670,16 @@ dpm <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
 
 #' @rdname bartisan-families
 #' @export
+dpm_ls <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
+                   max_clusters = NULL, psi = 0.5) {
+  out <- dpm(nu = nu, q = q, k_s = k_s, alpha = alpha,
+             max_clusters = max_clusters, psi = psi)
+  out[["family"]] <- "dpm_ls"
+  out
+}
+
+#' @rdname bartisan-families
+#' @export
 weibull_aft <- function() {
   new_bartisan_family("aft", "weibull")
 }
@@ -635,6 +694,12 @@ loglogistic_aft <- function() {
 #' @export
 lognormal_aft <- function() {
   new_bartisan_family("aft", "lognormal")
+}
+
+#' @rdname bartisan-families
+#' @export
+lognormal_aft_ls <- function() {
+  new_bartisan_family("lognormal_aft_ls", "identity")
 }
 
 #' @rdname bartisan-families
@@ -787,7 +852,8 @@ bartisan_family_names <- c("gaussian", "binomial", "poisson", "negbin", "Gamma",
                            "ordinal", "multinomial", "dpm",
                            "weibull_aft", "loglogistic_aft", "lognormal_aft",
                            "gaussian_ls", "Gamma_ls", "zi_poisson", "zi_negbin",
-                           "Beta", "ordbeta", "tweedie", "ph", "dpm_aft")
+                           "Beta", "ordbeta", "tweedie", "ph", "dpm_aft",
+                           "dpm_ls", "dpm_aft_ls", "lognormal_aft_ls")
 
 new_bartisan_family <- function(family, link, ...) {
   structure(c(list(family = family, link = link), list(...)),
@@ -804,7 +870,10 @@ native_links <- c(gaussian = "identity", binomial = "logit", poisson = "log",
 valid_links <- list(custom = "identity",
                     gaussian = "identity",
                     dpm = "identity",
+                    dpm_ls = "identity",
                     dpm_aft = "identity",
+                    dpm_aft_ls = "identity",
+                    lognormal_aft_ls = "identity",
                     binomial = c("logit", "probit", "cloglog"),
                     poisson = "log",
                     negbin = "log",
@@ -822,7 +891,8 @@ valid_links <- list(custom = "identity",
                     ordbeta = "logit",
                     tweedie = "log")
 
-survival_families <- c("dpm_aft", "weibull_aft", "loglogistic_aft", "lognormal_aft", "ph")
+survival_families <- c("dpm_aft", "weibull_aft", "loglogistic_aft", "lognormal_aft", "ph",
+                       "dpm_aft_ls", "lognormal_aft_ls")
 
 # Normalize whatever the user passed to `family` into a bartisan family object.
 # Accepts a string, a family-generating function, a stats::family object, or one

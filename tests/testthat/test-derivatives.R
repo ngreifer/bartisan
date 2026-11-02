@@ -177,6 +177,53 @@ test_that("multi-predictor families are correct in each component", {
   }
 })
 
+test_that("`dpm_ls()` and `dpm_aft_ls()` are correct in each component", {
+  set.seed(16)
+
+  second <- matrix(stats::rnorm(n_grid) * 0.4, nrow = 1L)
+  y <- stats::rnorm(n_grid)
+
+  # Before the first mixture update there is one component, at `mu_0` with
+  # variance `lambda`. A component mean of zero keeps the curvature in the
+  # scale, a (a + u) / sigma^2, at 2 a^2 / sigma^2 and so nonnegative, where
+  # the observed value can be compared unclamped; a nonzero one checks the
+  # score with the mean in it. `dpm_aft_ls()`'s target is the same, on the
+  # imputed log times.
+  for (family in c("dpm_ls", "dpm_aft_ls")) {
+    for (mu_0 in c(0, -0.3)) {
+      opts <- list(nu = 10, lambda = 0.5, mu_0 = mu_0, k_0 = 0.1, alpha = 1,
+                   update_alpha = FALSE, alpha_grid = numeric(0),
+                   alpha_logprior = numeric(0),
+                   event = rep(c(1, 0), length.out = n_grid))
+
+      for (component in 0:1) {
+        expect_score_matches_difference(family, "identity", y,
+                                        list(grid, second), opts,
+                                        component = component,
+                                        check_info = mu_0 == 0)
+      }
+    }
+  }
+})
+
+test_that("`lognormal_aft_ls()` is correct for events and for censoring", {
+  set.seed(17)
+
+  second <- matrix(stats::rnorm(n_grid) * 0.4, nrow = 1L)
+  y <- stats::rnorm(n_grid)
+  opts <- list(event = rep(c(1, 0), length.out = n_grid))
+
+  # A censoring's curvature in the log scale, lambda r (1 + r (lambda - r)),
+  # is negative where the residual is, and is clamped there, so the
+  # information is compared in the mean only.
+  for (component in 0:1) {
+    expect_score_matches_difference("lognormal_aft_ls", "identity", y,
+                                    list(grid, second), opts,
+                                    component = component,
+                                    check_info = component == 0L)
+  }
+})
+
 # Where a stable form would lose its precision, the families hand over: the
 # ordinal family to a difference of its log density once a category's
 # probability underflows, and the ordered beta to the exact digamma combinations

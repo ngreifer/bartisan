@@ -57,6 +57,7 @@ In this guide, we will work through the families one at a time. First we'll lay 
 | `gaussian()` | `identity` | 1 | residual standard deviation |
 | `dpm()` | `identity` | 1 | error mixture, concentration |
 | `gaussian_ls()` | `identity` | 2 | none |
+| `dpm_ls()` | `identity` | 2 | error mixture, concentration |
 | `Gamma("log")` | `log` | 1 | shape |
 | `Gamma_ls()` | `log` | 2 | none |
 | `binomial()` | `logit`, `probit`, `cloglog` | 1 | none |
@@ -72,6 +73,8 @@ In this guide, we will work through the families one at a time. First we'll lay 
 | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
 | `ph()` | none | 1 | baseline hazard per bin |
 | `dpm_aft()` | none | 1 | error mixture, concentration |
+| `lognormal_aft_ls()` | none | 2 | none |
+| `dpm_aft_ls()` | none | 2 | error mixture, concentration |
 | `custom_family()` | implied by `logdens` | as many as requested | as many as named in `aux_names` |
 
 A family with more than one additive predictor fits one forest per predictor, and `predict(type = "link")` returns one column per forest. Nuisance parameters are drawn alongside the trees and reported in `fit$aux`.
@@ -82,7 +85,7 @@ We start from the shape of the response:
 
 | The response is | Use |
 |------------------------------------|------------------------------------|
-| numeric, unbounded | `dpm()`, the default; `gaussian()` if prior weights are needed; `gaussian_ls()` if the spread varies with the predictors |
+| numeric, unbounded | `dpm()`, the default; `gaussian()` if prior weights are needed; `dpm_ls()` or `gaussian_ls()` if the spread varies with the predictors |
 | positive and continuous | `Gamma("log")`, or `Gamma_ls()` if the dispersion varies with the predictors |
 | non-negative and continuous, with a point mass at zero | `tweedie()` |
 | a proportion strictly inside $(0, 1)$ | `Beta()` |
@@ -91,12 +94,12 @@ We start from the shape of the response:
 | a count | `poisson()`, `negbin()` if overdispersed, or a zero-inflated family if there are more zeros than either can produce |
 | an ordered factor | `ordinal()` |
 | an unordered factor | `multinomial()` |
-| a time with censoring | `dpm_aft()`, the default for survival outcomes; `weibull_aft()`, `loglogistic_aft()` or `lognormal_aft()` if the shape of the error is known; `ph()` for proportional hazards with a free baseline |
+| a time with censoring | `dpm_aft()`, the default for survival outcomes; `weibull_aft()`, `loglogistic_aft()` or `lognormal_aft()` if the shape of the error is known; `ph()` for proportional hazards with a free baseline; `dpm_aft_ls()` or `lognormal_aft_ls()` if the spread of $\log T$ varies with the predictors |
 | something else | `custom_family()` |
 
 Some considerations cut across that table.
 
-One is whether anything besides the mean varies with the predictors. Every family except `gaussian_ls()`, `Gamma_ls()`, and the zero-inflated pair puts a forest on one location parameter and holds the rest of the distribution fixed across observations. If the spread itself moves with $x$, that is the wrong assumption, and the two location-scale families relax it: `gaussian_ls()` gives the normal's standard deviation a forest of its own, and `Gamma_ls()` does the same for the gamma's dispersion.
+One is whether anything besides the mean varies with the predictors. Every family except the location-scale families (`gaussian_ls()`, `dpm_ls()`, `Gamma_ls()`, `lognormal_aft_ls()`, and `dpm_aft_ls()`) and the zero-inflated pair puts a forest on one location parameter and holds the rest of the distribution fixed across observations. If the spread itself moves with $x$, that is the wrong assumption, and the location-scale families relax it: `gaussian_ls()` gives the normal's standard deviation a forest of its own, `dpm_ls()` does the same for an error whose shape is estimated as `dpm()` estimates it, `Gamma_ls()` does the same for the gamma's dispersion, and `lognormal_aft_ls()` and `dpm_aft_ls()` do it for the spread of a log survival time. The extra forest is not free when the spread is in fact constant: with a skewed error, the chance variation it picks up moves the estimated mean, and in simulations `dpm_ls()` estimated the mean less accurately than `dpm()` in that case (see `?bartisan-families`). So `dpm_ls()` is for a spread there is reason to expect to vary.
 
 Another is whether that extra structure is real or a flexible mean would absorb it. A nonparametric mean makes this sharper than it is in a GLM. A sum of trees can produce excess zeros on its own, by driving a Poisson mean very low where the zeros are, so a zero-inflated family is for when the zero mechanism is a *separate process worth modeling*, not merely for when a histogram spikes at zero. The same caution applies to the multinomial probit's latent correlations.
 
@@ -154,30 +157,42 @@ The families for a numeric response each put a forest on its mean, and they diff
 - `gaussian()` assumes one normal error, with `sigma` drawn and reported.
 - `dpm()` estimates the error distribution (a Dirichlet process mixture of normals [@george2019] rather than a single normal) but keeps it the same at every $x$.
 - `gaussian_ls()` puts a second forest on the log standard deviation, so the spread is an unrestricted function of the predictors.
+- `dpm_ls()` does both: a second forest on the log of the error's scale, and an error whose shape is estimated as `dpm()` estimates it.
 - `ordinal()` assumes nothing about the error at all; see [a continuous outcome as ordinal](#a-continuous-outcome-as-ordinal).
 
-We measured the four on 1000 training and 1000 test observations, 50 trees, 500 draws after 500 warmup, three replicates, with the error centered so that $E[Y \mid x]$ is the same function in every column. RMSE and coverage are for that regression function on held-out data; the log score is the held-out predictive density. Cells in all but the last column are RMSE / log score, where lower RMSE and higher log score are preferred. `ordinal("probit")` is fitted to the response binned onto 25 quantiles and predicted with `type = "mean"`, so its RMSE is on the same scale as the others; its density is on the binned scale and so has no comparable log score. A bold cell is one whose lead holds in every replicate.
+We measured the five on 1000 training and 1000 test observations, 50 trees, 500 draws after 500 warmup, three replicates, with the error centered so that $E[Y \mid x]$ is the same function in every column. RMSE and coverage are for that regression function on held-out data; the log score is the held-out predictive density. Cells in all but the last column are RMSE / log score, where lower RMSE and higher log score are preferred. `ordinal("probit")` is fitted to the response binned onto 25 quantiles and predicted with `type = "mean"`, so its RMSE is on the same scale as the others; its density is on the binned scale and so has no comparable log score. A bold cell is the best in its column in every replicate.
 
 
 ::: wide-table
 | Family | normal | $t_3$ | skewed | bimodal | heteroskedastic | seconds |
 |---------------|---------------|---------------|---------------|---------------|---------------|---------------|
-| `gaussian()` | 0.029 / -229 | 0.029 / -179 | 0.036 / -8 | 0.037 / -262 | 0.036 / -507 | **3.3** |
-| `dpm()` | 0.029 / -229 | **0.024** / **-64** | **0.022** / **181** | **0.022** / **166** | 0.038 / -487 | 4.0 |
-| `gaussian_ls()` | 0.029 / -231 | 0.030 / -174 | 0.031 / -7 | 0.040 / -265 | 0.032 / **-370** | 19.6 |
-| `ordinal("probit")` | 0.029 | 0.035 | 0.031 | 0.043 | 0.037 | 5.1 |
+| `gaussian()` | 0.040 / -228 | 0.038 / -207 | 0.038 / -11 | 0.046 / -278 | 0.047 / -512 | **2.3** |
+| `dpm()` | 0.040 / -230 | 0.029 / -74 | **0.025** / 175 | 0.021 / 160 | 0.049 / -494 | 3.1 |
+| `gaussian_ls()` | 0.038 / -229 | 0.032 / -183 | 0.037 / -12 | 0.046 / -280 | 0.038 / -387 | 13.7 |
+| `dpm_ls()` | 0.038 / -229 | 0.030 / -74 | 0.031 / 187 | 0.022 / 158 | 0.037 / -387 | 12.0 |
+| `ordinal("probit")` | 0.039 | 0.036 | 0.036 | 0.046 | 0.045 | 3.5 |
 :::
 
 
-Coverage was between .89 and 1.00 everywhere, with the four families' medians between .98 and 1.00, so it does not separate them. There are a few things to take from this:
+Coverage was between .90 and 1.00 everywhere, with the five families' medians between .98 and .99, so it does not separate them. There are a few things to take from this:
 
-On normal errors they all tie, to three decimal places on RMSE and within two log points, even though `gaussian()` is exactly right there. This makes `dpm()` a sensible default rather than a specialist tool: it costs nothing when the simpler assumption holds.
+On normal errors they all tie, to within .002 on RMSE and two log points, even though `gaussian()` is exactly right there. This makes `dpm()` a sensible default rather than a specialist tool: it costs nothing when the simpler assumption holds.
 
-`dpm()` is the family for a badly *shaped* error. Heavy tails are worth 115 log points over `gaussian()`, skewness 189, and bimodality 428, each of them in every replicate, and on the skewed and bimodal errors it also cuts RMSE to about 60% of `gaussian()`'s. When we are unsure what the errors look like, this is the safe choice, and it is why it is the default.
+`dpm()` is the family for a badly *shaped* error. Heavy tails are worth 133 log points over `gaussian()`, skewness 186, and bimodality 438, each of them in every replicate, and on the skewed and bimodal errors it also cuts RMSE to between half and two thirds of `gaussian()`'s. When we are unsure what the errors look like, this is the safe choice, and it is why it is the default.
 
-`gaussian_ls()` is the family for a *varying* error, and only that. It is level with `gaussian()` in the first four columns and wins the fifth by 117 log points over `dpm()`. Reach for it when a residual plot fans out or when variability is itself the question. It costs about six times a Gaussian fit, almost all of it in the second forest, so that forest should be given fewer trees; setting `num_trees = c(50, 10)` was two and a half times faster than `c(50, 50)` with the same accuracy on both surfaces.
+`gaussian_ls()` is the family for a *varying* error, and only that. It is level with or slightly ahead of `gaussian()` in the first four columns and wins the fifth by 107 log points over `dpm()`. Reach for it when a residual plot fans out or when variability is itself the question. It costs about six times a Gaussian fit, almost all of it in the second forest, so that forest should be given fewer trees; setting `num_trees = c(50, 10)` was two and a half times faster than `c(50, 50)` with the same accuracy on both surfaces.
 
-`ordinal()` never wins by much and never loses by much. Binned onto 25 quantiles it ties the others on normal errors and stays within about a hundredth of the best elsewhere, never first and never far from it, as we would expect from a model that writes down no error distribution. Prefer it when the outcome is bounded, heavily rounded, or piles up at a floor or ceiling, where a continuous density smears mass across values the outcome cannot take.
+`dpm_ls()` is the family for an error that is both badly shaped and varying. It matches `gaussian_ls()` in the fifth column, where a normal error with a varying spread is exactly right, and `dpm()` on the heavy-tailed and bimodal errors. On the skewed error its log score is the best in the table but its RMSE trails `dpm()`'s, a cost of the second forest described in the next section, and it costs about as much to fit as `gaussian_ls()`.
+
+`ordinal()` never wins, and it loses little except on the bimodal error. Binned onto 25 quantiles it ties the others on normal errors and trails the best by about a hundredth on the heavy-tailed and skewed errors, as we would expect from a model that writes down no error distribution; on the bimodal error it is level with `gaussian()`. Prefer it when the outcome is bounded, heavily rounded, or piles up at a floor or ceiling, where a continuous density smears mass across values the outcome cannot take.
+
+### An Estimated Error Shape with a Varying Spread
+
+`dpm_ls()` is the heteroskedastic Dirichlet process mixture of Sparapani et al. [-@sparapani2023].[^dpmls] It writes the response as $y = f(x) + e^{g(x)} W$, with $W$ a Dirichlet process mixture of normals that does not depend on $x$, so the error has one shape, estimated as `dpm()` estimates it, and a size that moves with the predictors. Its two forests, `mean` and `log_sd`, are the conditional mean and the log of the conditional standard deviation, as in `gaussian_ls()`, and `error_density()` draws the shape of $W$ at the average scale.
+
+It is not a free upgrade from `dpm()`. When the spread is constant, the second forest still picks up some variation by chance, and with a skewed error that variation moves the estimated mean, which is the cost the skewed column of the table shows. So `dpm_ls()` is for a spread there is reason to expect to vary, and `dpm()` remains the default.
+
+[^dpmls]: Sparapani et al. write the model in their eq. 6 with only each component's variance multiplied by the scale, which leaves the component means where they are, so that the shape of the error would change with its size. Their Web Appendix instead draws the components on the standardized scale, and their R package *nftbart* fits the model given here. In our simulations, scaling the whole error was the more accurate of the two wherever the error was not normal, and *nftbart*, fit to the same data, behaved like `dpm_ls()`.
 
 ### Per-Forest Predictors and Settings
 
@@ -515,7 +530,7 @@ Because the mean is $\exp(\eta)$ and nothing more, a counterfactual mean needs n
 
 ## Right-Censored Survival Times
 
-There are five families that can be used with survival time response, all taking a `survival::Surv()` object. They differ in what the predictor means and in what the model leaves free:
+There are seven families that can be used with a survival time response, all taking a `survival::Surv()` object. They differ in what the predictor means and in what the model leaves free:
 
 | Family | Model | A contrast in the predictor is | Left free |
 |------------------|------------------|------------------|------------------|
@@ -523,13 +538,17 @@ There are five families that can be used with survival time response, all taking
 | `loglogistic_aft()` | the same with $\epsilon$ logistic | a log time ratio | $\sigma$ |
 | `lognormal_aft()` | the same with $\epsilon$ normal | a log time ratio | $\sigma$ |
 | `dpm_aft()` | $\log T = \eta + W$, $W$ a mixture | a log time ratio | the whole error density |
+| `lognormal_aft_ls()` | $\log T = \eta + e^{g(x)}\epsilon$, $\epsilon$ normal | a change in the mean of $\log T$ | the scale $e^{g(x)}$ |
+| `dpm_aft_ls()` | $\log T = \eta + e^{g(x)}W$, $W$ a mixture | a change in the mean of $\log T$ | the scale and the error density |
 | `ph()` | $\lambda(t \mid x) = \lambda_0(t)e^{r(x)}$ | a log hazard ratio | the baseline $\lambda_0$ |
 
-All four accelerated failure time families share the structure $\log T = \eta(x) + W$ with $W$ independent of $x$, and that alone makes a contrast in the predictor a log time ratio: every quantile of $T$, its mean, and its geometric mean all scale by $e^{\Delta\eta}$, whatever shape $W$ has. They differ in what $e^{\eta}$ is on its own, since each pins its error's location differently, and `vignette("survival")` gives that per family. `weibull_aft()` is the only one whose predictor also carries a log hazard ratio, of $-\Delta\eta/\sigma$, and that is a property of the smallest extreme value error rather than of the shared structure: it is the only error that makes an accelerated failure time model proportional hazards as well.
+The first four accelerated failure time families share the structure $\log T = \eta(x) + W$ with $W$ independent of $x$, and that alone makes a contrast in the predictor a log time ratio: every quantile of $T$, its mean, and its geometric mean all scale by $e^{\Delta\eta}$, whatever shape $W$ has. They differ in what $e^{\eta}$ is on its own, since each pins its error's location differently, and `vignette("survival")` gives that per family. `weibull_aft()` is the only one whose predictor also carries a log hazard ratio, of $-\Delta\eta/\sigma$, and that is a property of the smallest extreme value error rather than of the shared structure: it is the only error that makes an accelerated failure time model proportional hazards as well.
 
-The three structured accelerated failure time families (i.e., the first three above) fix the shape of the error and so of the hazard. `lognormal_aft()` and `loglogistic_aft()` are the quickest of the five to fit, since imputing the censored times leaves the sampler a quadratic target; `weibull_aft()`, whose likelihood takes the exponential path instead, is the slowest. `ph()` frees the baseline hazard instead, so it fits a hazard of any shape at the price of asserting proportionality and of reading the predictor on the hazard scale. `dpm_aft()` frees the error density [@henderson2020], which costs little when a single normal is right and gains a great deal when it is not.
+The three structured accelerated failure time families (i.e., the first three above) fix the shape of the error and so of the hazard. `lognormal_aft()` and `loglogistic_aft()` are the quickest of these to fit, since imputing the censored times leaves the sampler a quadratic target; `weibull_aft()`, whose likelihood takes the exponential path instead, is the slowest. `ph()` frees the baseline hazard instead, so it fits a hazard of any shape at the price of asserting proportionality and of reading the predictor on the hazard scale. `dpm_aft()` frees the error density [@henderson2020], which costs little when a single normal is right and gains a great deal when it is not.
 
 `dpm_aft()` is the default for a `Surv` response, on the evidence in the survival vignette and because it is one of the cheaper families to fit. `weibull_aft()` is the one family that is both an accelerated failure time and a proportional hazards model, so it is the one to name when we want a hazard-ratio reading.
+
+`lognormal_aft_ls()` and `dpm_aft_ls()` add a second forest, `log_sd`, on the log of the scale of $\log T$, as `gaussian_ls()` and `dpm_ls()` do for an uncensored response; `dpm_aft_ls()` is the nonparametric failure time (NFT) BART model of Sparapani et al. [-@sparapani2023]. With the scale free to move, the survival curves of two units can cross, which no accelerated failure time model with a single scale allows, and a contrast in the first predictor is a difference in the mean of $\log T$ rather than a time ratio, so contrasts are best taken on the survival curve or the median survival time.
 
 ```{r aft, eval = rlang::is_installed("survival")}
 d$time <- rexp(n, exp(-(1 + d$x1)))
@@ -555,7 +574,7 @@ predict(fit_ph, type = "survival", times = c(1, 2, 5)) |>
 
 It is also the estimand we usually want. The question is rarely about the predictor but about survival at a horizon (e.g., the difference in one-year survival between two groups), and that is a contrast of `type = "survival"` at one time. Setting `type = "hazard"` with the same `times` gives the hazard instead, the rate at which the event occurs at each time among those who have survived to it, for every family in the table.
 
-We recommend `dpm_aft()` as the default when we have no view about the shape of anything; measured against five alternatives over six data-generating truths, it was best or tied-best on three and never worse than third, and it came within .004 of the correctly specified family on the two truths where one existed. Use `lognormal_aft()` or `loglogistic_aft()` when the fit has to be quick, `weibull_aft()` when a hazard-ratio reading is wanted from a parametric fit, and `ph()` when the shape of the baseline hazard is the point. If the covariate effect may move with time, so that survival curves cross, none of the five is right and the discrete-time route is.
+We recommend `dpm_aft()` as the default when we have no view about the shape of anything; in our simulations it came close to the correctly specified family where one existed and was far ahead of the parametric families on a bimodal error. Use `lognormal_aft()` or `loglogistic_aft()` when the fit has to be quick, `weibull_aft()` when a hazard-ratio reading is wanted from a parametric fit, and `ph()` when the shape of the baseline hazard is the point. Use `dpm_aft_ls()` or `lognormal_aft_ls()` when the spread of survival times may differ between units or survival curves may cross: they lost little to their single-scale versions where the spread was constant and were the most accurate families where it varied and where a covariate effect reversed over time. The discrete-time route is for an effect that changes over time in some other way.
 
 `vignette("survival", package = "bartisan")` covers these families in more depth: how to choose among them and check a fit against the observed survival, what each one's predictor means, how to report survival probabilities, median survival times, and contrasts of either, and the discrete-time route for effects that change over time.
 

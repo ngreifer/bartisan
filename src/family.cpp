@@ -1988,6 +1988,188 @@ struct LognormalAFTAugmentedFamily final : Concrete<LognormalAFTAugmentedFamily>
   }
 };
 
+// ---------------------------------------------------------------------------
+// The log-normal accelerated failure time model with a second forest on the log
+// scale: log T = m(x) + exp(g(x)) epsilon, epsilon standard normal. With the
+// scale free to move, survival curves for different x can cross, which no
+// accelerated failure time model with one scale allows. There is no nuisance
+// parameter left; both are forests.
+//
+// Directly, with r = (y - m) exp(-g), an event contributes the normal log
+// density at r less g and a censoring log Phi(-r). Writing lambda for the
+// inverse Mills ratio at r, the censored terms have
+//
+//   d/dm = lambda exp(-g),          -d2/dm2 = lambda (lambda - r) exp(-2 g),
+//   d/dg = lambda r,                -d2/dg2 = lambda r (1 + r (lambda - r)),
+//
+// and the event terms are `gaussian_ls()`'s. The censored terms are no quadratic
+// or exponential form in either predictor, so both forests take the general
+// path; the augmented family below is the fast route when it applies.
+// ---------------------------------------------------------------------------
+
+struct LognormalAFTLSFamily final : Concrete<LognormalAFTLSFamily> {
+  arma::vec event;
+
+  LognormalAFTLSFamily(const arma::vec& y_, const arma::vec& w_,
+                       const arma::vec& event_)
+    : Concrete<LognormalAFTLSFamily>(y_, w_, 2), event(event_) {}
+
+  static double loglik_one(double y, const double* eta, double delta) {
+    double r = (y - eta[0]) * std::exp(-eta[1]);
+    return delta * (R::dnorm4(r, 0.0, 1.0, 1) - eta[1]) +
+      (1.0 - delta) * R::pnorm5(-r, 0.0, 1.0, 1, 1);
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    return loglik_one(y(i), eta, event(i));
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double s = std::exp(-eta[1]);
+    double r = (y(i) - eta[0]) * s;
+
+    if (event(i) > 0.0) {
+      if (h == 0) {
+        *d1 = r * s;
+        *d2 = s * s;
+        return;
+      }
+
+      *d1 = r * r - 1.0;
+      *d2 = 2.0 * r * r;
+      return;
+    }
+
+    double lambda = inv_mills(r);
+
+    if (h == 0) {
+      *d1 = lambda * s;
+      *d2 = lambda * (lambda - r) * s * s;
+      return;
+    }
+
+    *d1 = lambda * r;
+    *d2 = lambda * r * (1.0 + r * (lambda - r));
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
+  }
+};
+
+// The same model with the censored log-times imputed, which makes it
+// `gaussian_ls()` on the completed log times: quadratic in the mean and the
+// exponential form at rate -2 in the log scale. The imputation draws each
+// censored time from its normal truncated below at the censoring time, given
+// both predictors. Like the other augmented survival families it needs every
+// weight to be one.
+struct LognormalAFTLSAugmentedFamily final
+  : Concrete<LognormalAFTLSAugmentedFamily> {
+  arma::vec obs;      // log of the observed time, a failure or a censoring
+  arma::vec event;
+
+  LognormalAFTLSAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
+                                const arma::vec& event_)
+    : Concrete<LognormalAFTLSAugmentedFamily>(y_, w_, 2), obs(y_),
+      event(event_) {
+    // A deterministic start one standard deviation past each censoring time,
+    // the second predictor starting near the log of the spread.
+    double spread = arma::stddev(obs);
+
+    for (int i = 0; i < N; i++) {
+      if (event(i) <= 0.0) {
+        y(i) = obs(i) + spread;
+      }
+    }
+  }
+
+  static bool applies(const arma::vec& w_) {
+    for (arma::uword i = 0; i < w_.n_elem; i++) {
+      if (w_(i) != 1.0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  TargetForm target_form(int h) const override {
+    return h == 0 ? TARGET_QUADRATIC : TARGET_EXP_DOWN;
+  }
+
+  double exp_rate(int h) const override {
+    return h == 0 ? 0.0 : -2.0;
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double r = (y(i) - eta[0]) * std::exp(-eta[1]);
+    return -0.5 * LN_2PI - eta[1] - 0.5 * r * r;
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double s = std::exp(-eta[1]);
+    double r = (y(i) - eta[0]) * s;
+
+    if (h == 0) {
+      *d1 = r * s;
+      *d2 = s * s;
+      return;
+    }
+
+    *d1 = r * r - 1.0;
+    *d2 = 2.0 * r * r;
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    for (int i = 0; i < N; i++) {
+      if (event(i) > 0.0) {
+        y(i) = obs(i);
+        continue;
+      }
+
+      double sd = std::exp(eta(1, i));
+      double lo = (obs(i) - eta(0, i)) / sd;
+      y(i) = eta(0, i) + sd * truncated_normal_between(lo, R_PosInf);
+    }
+  }
+
+  double reported_loglik(const arma::mat& eta) const override {
+    double out = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      double e[2] = {eta(0, i), eta(1, i)};
+      out += w(i) * LognormalAFTLSFamily::loglik_one(obs(i), e, event(i));
+    }
+
+    return out;
+  }
+};
+
 // The log-logistic model needs a second layer: even with the failure time in
 // hand the complete-data density is logistic, not normal. Writing it as a scale
 // mixture of normals -- Polson, Scott and Windle (2013), Theorem 1 at a = 1 and
@@ -4184,6 +4366,40 @@ arma::mat inverse_wishart(double df, const arma::mat& scatter) {
 // mixture update a few lines are exactly the closed forms conjugacy provides.
 // That is why this family does not use the half-Cauchy scale prior the Gaussian
 // family here uses -- there is no conjugate mixture update to be had from it.
+//
+// With a second additive predictor this is `dpm_ls()`, the heteroskedastic
+// mixture of Sparapani, Logan, Maiers, Laud and McCulloch (2023), which scales
+// the whole error:
+//
+//     y_i = f(x_i) + exp(g(x_i)) W_i,   W_i ~ N(mu_i, sigma_i^2),
+//
+// so the error has the same shape at every x and only its size moves, which is
+// what a residual plot that fans out shows. Conditional on the labels the
+// target is quadratic in f, with an offset exp(g) mu_i and precision
+// exp(-2 g) / sigma_i^2. In g it has both exp(-g) and exp(-2 g) in it, so that
+// forest takes the general path. The mixture is updated exactly as for
+// `dpm()`, on the standardized residuals (y - f) exp(-g), since the Jacobian
+// exp(-g) is common to every component and to the new-atom term.
+//
+// The paper's eq. 6 writes the component means unscaled, N(mu_i, sigma_i^2
+// exp(2 g)), but its Web Appendix (sec. 3) draws the atoms on the standardized
+// scale and its software, nftbart, fits the model above. The unscaled form was
+// built and compared (`_dev/dpm-ls-forms.R`, `_dev/nftbart-compare.R`): it
+// cannot keep an error's shape while its size changes, and lost to this one
+// wherever the shape was not normal.
+//
+// The mixture's center c moves the conditional mean by exp(g(x)) c, which no
+// constant added to f absorbs, so the mean is reported through
+// `report_shift_obs()` rather than `report_shift()`: the recorded predictor is
+// f + exp(g) c, and R adds the same amount to anything it evaluates from the
+// trees, whose leaves stay in the sampler's chart. The size of W trades against
+// the level of g by a constant, and is reported in the chart where W has unit
+// variance, so exp(g(x)) is the conditional standard deviation.
+//
+// With one predictor every quantity is formed exactly as it was before the
+// second predictor existed, so `dpm()` and `dpm_aft()` fits run the same chains
+// draw for draw and report the same log likelihood to the bit (checked against
+// an install of 797726d).
 // ---------------------------------------------------------------------------
 
 // The one `Concrete` family that is not `final`, because `DPMAFTFamily` derives
@@ -4197,9 +4413,14 @@ arma::mat inverse_wishart(double df, const arma::mat& scatter) {
 // subclass of this one has to be checked by eye.
 struct DPMFamily : Concrete<DPMFamily> {
   // Per-observation error mean and variance, which are what the predictor's
-  // target sees.
+  // target sees. With a second predictor they are the standardized error's.
   arma::vec shift;
   arma::vec scale2;
+
+  // The average of the second predictor over the sample at the last mixture
+  // update, in the sampler's chart. It is what puts `scale` in the reported
+  // chart, since `aux_values()` is not handed the predictors.
+  double mean_log_sd;
 
   // The mixture, held as a list of atoms plus a label per observation. Atoms are
   // deleted by swapping the last one into the hole, which is why the labels have
@@ -4225,14 +4446,16 @@ struct DPMFamily : Concrete<DPMFamily> {
 
   // Scratch, so that a sweep allocates nothing.
   mutable std::vector<double> weight_buffer;
+  arma::vec resid;
 
   DPMFamily(const arma::vec& y_, const arma::vec& w_, double nu_,
             double lambda_, double mu_0_, double k_0_, double alpha_,
             bool update_alpha_, const arma::vec& alpha_grid_,
-            const arma::vec& alpha_logprior_)
-    : Concrete<DPMFamily>(y_, w_, 1), nu(nu_), lambda(lambda_), mu_0(mu_0_),
-      k_0(k_0_), alpha(alpha_), update_alpha(update_alpha_),
-      alpha_grid(alpha_grid_), alpha_logprior(alpha_logprior_) {
+            const arma::vec& alpha_logprior_, int H_ = 1)
+    : Concrete<DPMFamily>(y_, w_, H_), mean_log_sd(0.0), nu(nu_),
+      lambda(lambda_), mu_0(mu_0_), k_0(k_0_), alpha(alpha_),
+      update_alpha(update_alpha_), alpha_grid(alpha_grid_),
+      alpha_logprior(alpha_logprior_) {
 
     shift = arma::vec(N, arma::fill::zeros);
     scale2 = arma::vec(N).fill(lambda);
@@ -4248,8 +4471,15 @@ struct DPMFamily : Concrete<DPMFamily> {
   }
 
   // Conditional on the mixture the log density is a Gaussian one in the
-  // predictor, with an offset and a variance that differ by observation.
+  // predictor, with an offset and a variance that differ by observation. With a
+  // second predictor it is the density of the standardized residual with the
+  // Jacobian exp(-eta1), which stays here since it moves with the predictor.
   double logdens_unit(int i, const double* eta) const override {
+    if (H > 1) {
+      double u = (y(i) - eta[0]) * std::exp(-eta[1]) - shift(i);
+      return -0.5 * u * u / scale2(i) - eta[1];
+    }
+
     double r = y(i) - shift(i) - eta[0];
     return -0.5 * r * r / scale2(i);
   }
@@ -4264,22 +4494,49 @@ struct DPMFamily : Concrete<DPMFamily> {
     return out;
   }
 
+  // With a second predictor, write a = (y - f) exp(-g) for the standardized
+  // residual and u = a - mu for its departure from the component. Then
+  // d/dg = a u / sigma^2 - 1, and minus the second derivative is
+  // a (a + u) / sigma^2, which can be negative and is clamped like any other
+  // information.
   void score_info_unit(int i, const double* eta, int h, double* d1,
                        double* d2) const override {
-    *d1 = (y(i) - shift(i) - eta[0]) / scale2(i);
-    *d2 = 1.0 / scale2(i);
+    if (H == 1) {
+      *d1 = (y(i) - shift(i) - eta[0]) / scale2(i);
+      *d2 = 1.0 / scale2(i);
+      return;
+    }
+
+    double s = std::exp(-eta[1]);
+    double a = (y(i) - eta[0]) * s;
+    double u = a - shift(i);
+
+    if (h == 0) {
+      *d1 = u * s / scale2(i);
+      *d2 = s * s / scale2(i);
+      return;
+    }
+
+    *d1 = a * u / scale2(i) - 1.0;
+    *d2 = a * (a + u) / scale2(i);
   }
 
   double dlogdens_unit(int i, const double* eta, int h) const override {
-    return (y(i) - shift(i) - eta[0]) / scale2(i);
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
   }
 
   double info_unit(int i, const double* eta, int h) const override {
-    return 1.0 / scale2(i);
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
   }
 
   TargetForm target_form(int h) const override {
-    return TARGET_QUADRATIC;
+    return h == 0 ? TARGET_QUADRATIC : TARGET_GENERAL;
   }
 
   // The marginal density of one residual under the baseline, which is the
@@ -4334,12 +4591,18 @@ struct DPMFamily : Concrete<DPMFamily> {
 
   // Escobar and West's sampler, in the two steps the paper takes from Dey,
   // Muller and Sinha (1998, sec. 1.3.3): reassign every observation, then
-  // redraw every occupied atom given the observations that landed in it.
+  // redraw every occupied atom given the observations that landed in it. With a
+  // second predictor the mixture sees the standardized residuals.
   void update_mixture(const arma::mat& eta) {
     const arma::rowvec& e = eta.row(0);
 
+    if (H > 1) {
+      mean_log_sd = arma::mean(eta.row(1));
+      resid = (y - e.t()) % arma::exp(-eta.row(1).t());
+    }
+
     for (int i = 0; i < N; i++) {
-      double r = y(i) - e(i);
+      double r = H == 1 ? y(i) - e(i) : resid(i);
 
       // Take the observation out of its atom, and remove the atom if it empties.
       int mine = label[i];
@@ -4439,7 +4702,7 @@ struct DPMFamily : Concrete<DPMFamily> {
         continue;
       }
 
-      double r = y(i) - e(i);
+      double r = H == 1 ? y(i) - e(i) : resid(i);
       int k = label[i];
       count[k] += 1.0;
       total[k] += r;
@@ -4505,7 +4768,8 @@ struct DPMFamily : Concrete<DPMFamily> {
   // The predictive density of one error under the current draw: the occupied
   // atoms weighted by their sizes, plus the chance under the Dirichlet process
   // that the next observation opens an atom of its own, which is the baseline's
-  // own marginal.
+  // own marginal. With a second predictor it is the density of W, in the
+  // sampler's chart.
   double log_predictive(double r) const {
     double n = static_cast<double>(N);
     double total = alpha + n;
@@ -4529,6 +4793,14 @@ struct DPMFamily : Concrete<DPMFamily> {
     double out = 0.0;
 
     for (int i = 0; i < N; i++) {
+      if (H > 1) {
+        // The density of W at the standardized residual, with the Jacobian
+        // exp(-g) of the standardization.
+        double z = (y(i) - e(i)) * std::exp(-eta(1, i));
+        out += w(i) * (log_predictive(z) - eta(1, i));
+        continue;
+      }
+
       out += w(i) * log_predictive(y(i) - e(i));
     }
 
@@ -4559,14 +4831,42 @@ struct DPMFamily : Concrete<DPMFamily> {
   // the predictor -- so `eta` means for `dpm()` what it means for `gaussian()`.
   // The shift is applied to the recorded predictor, the recorded leaf values and
   // the recorded mixture together, so every density is untouched.
+  //
+  // A second predictor has the same trouble with the size of W, and is reported
+  // in the chart where W has unit variance, so exp(eta1) is the conditional
+  // standard deviation and a mixture that collapses to one component reports
+  // what `gaussian_ls()` would. The mean's shift then differs by observation and
+  // is `report_shift_obs()`'s.
   arma::vec report_shift(const arma::mat& eta) const override {
     double mean;
     double sd;
     error_moments(&mean, &sd);
 
     // model.cpp records `eta - shift`, and the predictor has to move *up* by the
-    // error mean, so the shift is its negative.
-    return arma::vec{-mean};
+    // error mean, so the shift is its negative. The second moves up by the log
+    // of W's standard deviation, for the same reason.
+    if (H == 1) {
+      return arma::vec{-mean};
+    }
+
+    return arma::vec{0.0, -std::log(sd)};
+  }
+
+  // exp(g) times the center, which moves the recorded mean to the conditional
+  // mean. `eta` is the sampler's, so exp(g) here is in the sampler's chart, as
+  // the center is.
+  arma::mat report_shift_obs(const arma::mat& eta) const override {
+    if (H == 1) {
+      return arma::mat();
+    }
+
+    double mean;
+    double sd;
+    error_moments(&mean, &sd);
+
+    arma::mat out(H, N, arma::fill::zeros);
+    out.row(0) = -mean * arma::exp(eta.row(1));
+    return out;
   }
 
   // `center` is the raw mixture's mean, which is exactly the shift taken out
@@ -4575,9 +4875,22 @@ struct DPMFamily : Concrete<DPMFamily> {
   // says how far from symmetric the fitted error came out. It is a bookkeeping
   // quantity, not an estimate of anything: the error mean in the reported chart
   // is zero by construction.
+  //
+  // With a second predictor `spread` is the same kind of quantity for the scale:
+  // the standard deviation of the raw W, which the second predictor's shift took
+  // out, and which the new-component term needs to put an observation back in
+  // the raw chart. `scale` is exp of the second predictor averaged over the
+  // sample, in the reported chart, and `error_sd` the standard deviation of the
+  // error at that scale, which is where `error_density()` draws the error
+  // distribution; W having unit variance, the two are equal.
   std::vector<std::string> aux_names() const override {
-    return std::vector<std::string>{"alpha", "clusters", "center",
-                                    "error_sd"};
+    if (H == 1) {
+      return std::vector<std::string>{"alpha", "clusters", "center",
+                                      "error_sd"};
+    }
+
+    return std::vector<std::string>{"alpha", "clusters", "center", "spread",
+                                    "scale", "error_sd"};
   }
 
   arma::vec aux_values() const override {
@@ -4585,10 +4898,17 @@ struct DPMFamily : Concrete<DPMFamily> {
     double sd;
     error_moments(&mean, &sd);
 
-    return arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd};
+    if (H == 1) {
+      return arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd};
+    }
+
+    double scale = std::exp(mean_log_sd) * sd;
+
+    return arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd,
+                     scale, scale};
   }
 
-  // Only alpha is recoverable from these four numbers; the mixture itself is
+  // Only alpha is recoverable from these numbers; the mixture itself is
   // reported separately, as a flat vector of atoms, because it has a different
   // number of components at every draw.
   void set_aux(const arma::vec& values) override {
@@ -4604,14 +4924,16 @@ struct DPMFamily : Concrete<DPMFamily> {
     arma::vec out(3 * atom_mu.size());
     double n = static_cast<double>(N);
 
-    // Centered, to match the chart the predictor is reported in.
+    // Centered, and with a second predictor rescaled to unit variance, to match
+    // the chart the predictors are reported in.
     double mean;
     double sd;
     error_moments(&mean, &sd);
+    double unit = H == 1 ? 1.0 : sd;
 
     for (std::size_t k = 0; k < atom_mu.size(); k++) {
-      out(3 * k) = atom_mu[k] - mean;
-      out(3 * k + 1) = std::sqrt(atom_s2[k]);
+      out(3 * k) = (atom_mu[k] - mean) / unit;
+      out(3 * k + 1) = std::sqrt(atom_s2[k]) / unit;
       out(3 * k + 2) = static_cast<double>(atom_count[k]) / n;
     }
 
@@ -4636,6 +4958,12 @@ struct DPMFamily : Concrete<DPMFamily> {
 // The paper's error model is a location mixture with one common scale; this one
 // is a location-scale mixture, because that is what `DPMFamily` already is, so
 // the error distribution here is the more flexible of the two.
+//
+// With a second predictor this is NFT BART (Sparapani et al. 2023), `dpm_ls()`
+// on the log time: log T_i = m(x_i) + exp(g(x_i)) W_i. A censored log-time is
+// imputed from its component on that scale, centred at m + exp(g) mu_k with
+// standard deviation exp(g) sigma_k, and the observed-data likelihood reads the
+// mixture at the standardized residual, with the Jacobian for an event.
 // ---------------------------------------------------------------------------
 
 struct DPMAFTFamily final : DPMFamily {
@@ -4645,12 +4973,14 @@ struct DPMAFTFamily final : DPMFamily {
   DPMAFTFamily(const arma::vec& y_, const arma::vec& w_,
                const arma::vec& event_, double nu_, double lambda_,
                double mu_0_, double k_0_, double alpha_, bool update_alpha_,
-               const arma::vec& alpha_grid_, const arma::vec& alpha_logprior_)
+               const arma::vec& alpha_grid_, const arma::vec& alpha_logprior_,
+               int H_ = 1)
     : DPMFamily(y_, w_, nu_, lambda_, mu_0_, k_0_, alpha_, update_alpha_,
-                alpha_grid_, alpha_logprior_),
+                alpha_grid_, alpha_logprior_, H_),
       obs(y_), event(event_) {
     // A deterministic start one scale unit past each censoring time, replaced by
-    // a proper draw at the end of the first sweep.
+    // a proper draw at the end of the first sweep. The second predictor starts
+    // at zero, a multiplier of one, so the unit is the same with it.
     for (int i = 0; i < N; i++) {
       if (event(i) <= 0.0) {
         y(i) = obs(i) + std::sqrt(lambda);
@@ -4681,8 +5011,9 @@ struct DPMAFTFamily final : DPMFamily {
       }
 
       int k = label[i];
-      double centre = e(i) + atom_mu[k];
-      double sd = std::sqrt(atom_s2[k]);
+      double size = H == 1 ? 1.0 : std::exp(eta(1, i));
+      double centre = e(i) + size * atom_mu[k];
+      double sd = size * std::sqrt(atom_s2[k]);
       double lo = (obs(i) - centre) / sd;
       y(i) = centre + sd * truncated_normal_between(lo, R_PosInf);
     }
@@ -4715,12 +5046,20 @@ struct DPMAFTFamily final : DPMFamily {
   // The *observed-data* likelihood: a density for an event, a survival
   // probability for a censoring. Not the complete-data one the imputation works
   // with, so that this is comparable with what the other survival families
-  // report.
+  // report. With a second predictor both are read at the standardized residual,
+  // and the density takes the Jacobian exp(-g).
   double reported_loglik(const arma::mat& eta) const override {
     const arma::rowvec& e = eta.row(0);
     double out = 0.0;
 
     for (int i = 0; i < N; i++) {
+      if (H > 1) {
+        double z = (obs(i) - e(i)) * std::exp(-eta(1, i));
+        out += w(i) * (event(i) > 0.0 ? log_predictive(z) - eta(1, i)
+                                      : log_survival(z));
+        continue;
+      }
+
       double r = obs(i) - e(i);
       out += w(i) * (event(i) > 0.0 ? log_predictive(r) : log_survival(r));
     }
@@ -6135,6 +6474,30 @@ struct VaryingCoefficientFamily final : Concrete<VaryingCoefficientFamily> {
     return out;
   }
 
+  // The per-observation shift goes where the constant one does, onto the
+  // forest that carries the predictor's control function, since that is the
+  // forest added to the predictor without a covariate multiplying it.
+  arma::mat report_shift_obs(const arma::mat& eta) const override {
+    arma::mat inner_shift = inner->report_shift_obs(inner_eta(eta));
+
+    if (inner_shift.is_empty()) {
+      return inner_shift;
+    }
+
+    arma::mat out(H, N, arma::fill::zeros);
+
+    for (arma::uword p = 0; p < inner_shift.n_rows; p++) {
+      for (arma::uword h = 0; h < param.n_elem; h++) {
+        if (param(h) == static_cast<int>(p) && column(h) < 0) {
+          out.row(h) = inner_shift.row(p);
+          break;
+        }
+      }
+    }
+
+    return out;
+  }
+
   // The shift arrives indexed by forest, as `report_shift()` returned it, and
   // the inner family wants it by predictor.
   arma::vec inner_shift_of(const arma::vec& shift) const {
@@ -6285,7 +6648,7 @@ Family* make_base_family(const std::string& name, const std::string& link,
                          as<bool>(opts["update_sigma"])));
   }
 
-  if (name == "dpm_aft") {
+  if (name == "dpm_aft" || name == "dpm_aft_ls") {
     return finish(new DPMAFTFamily(y, w, as<arma::vec>(opts["event"]),
                                    as<double>(opts["nu"]),
                                    as<double>(opts["lambda"]),
@@ -6294,7 +6657,8 @@ Family* make_base_family(const std::string& name, const std::string& link,
                                    as<double>(opts["alpha"]),
                                    as<bool>(opts["update_alpha"]),
                                    as<arma::vec>(opts["alpha_grid"]),
-                                   as<arma::vec>(opts["alpha_logprior"])));
+                                   as<arma::vec>(opts["alpha_logprior"]),
+                                   name == "dpm_aft_ls" ? 2 : 1));
   }
 
   if (name == "ph") {
@@ -6309,11 +6673,15 @@ Family* make_base_family(const std::string& name, const std::string& link,
     return finish(new GaussianLSFamily(y, w));
   }
 
+  if (name == "lognormal_aft_ls") {
+    return finish(new LognormalAFTLSFamily(y, w, as<arma::vec>(opts["event"])));
+  }
+
   if (name == "Gamma_ls") {
     return finish(new GammaLSFamily(y, w));
   }
 
-  if (name == "dpm") {
+  if (name == "dpm" || name == "dpm_ls") {
     return finish(new DPMFamily(y, w, as<double>(opts["nu"]),
                                 as<double>(opts["lambda"]),
                                 as<double>(opts["mu_0"]),
@@ -6321,7 +6689,8 @@ Family* make_base_family(const std::string& name, const std::string& link,
                                 as<double>(opts["alpha"]),
                                 as<bool>(opts["update_alpha"]),
                                 as<arma::vec>(opts["alpha_grid"]),
-                                as<arma::vec>(opts["alpha_logprior"])));
+                                as<arma::vec>(opts["alpha_logprior"]),
+                                name == "dpm_ls" ? 2 : 1));
   }
 
   if (name == "mnp") {
@@ -6523,6 +6892,11 @@ Family* augmented_base(const std::string& name, const std::string& link,
     return finish(new LognormalAFTAugmentedFamily(
       y, w, as<arma::vec>(opts["event"]), as<double>(opts["sigma_hat"]),
       as<bool>(opts["update_sigma"])));
+  }
+
+  if (name == "lognormal_aft_ls" && LognormalAFTLSAugmentedFamily::applies(w)) {
+    return finish(new LognormalAFTLSAugmentedFamily(
+      y, w, as<arma::vec>(opts["event"])));
   }
 
   if (name == "aft" && link == "loglogistic" &&

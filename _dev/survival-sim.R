@@ -1,7 +1,7 @@
 # Simulation behind vignettes/survival.Rmd.
 #
-# Six data-generating truths crossed with the five survival families and the
-# discrete-time route, scored on held-out data against the true survival
+# Seven data-generating truths crossed with the seven survival families and
+# the discrete-time route, scored on held-out data against the true survival
 # function. Run with
 #
 #   Rscript _dev/survival-sim.R
@@ -33,8 +33,37 @@
 # old one was partly an artifact of the Dirichlet prior, and the decision rule
 # in vignette("families") is checked against it.
 
+# Rerun 2026-11-02 with the location-scale families, `lognormal_aft_ls()` and
+# `dpm_aft_ls()`, and a seventh truth, normal log times whose spread moves with
+# x4, so that every result comes from one build. A companion run that fitted
+# only the new families against the stored 2026-10-01 results was not
+# comparable: a one-chain fit's random number stream changed between the two
+# builds (`add_chains()`), so the old and new fits drew different chains.
+#
+# What is being tested. That the vignettes' survival claims hold with every
+# family fitted on one build: ph() best where the baseline turns over;
+# dpm_aft() far ahead on the bimodal error and close to the correctly
+# specified family where there is one; the location-scale pair costing little
+# against its single-scale versions on the six constant-spread truths and
+# ahead of every other family where the spread varies and under crossing
+# hazards, as the companion run found; and the censoring sweep's ranking. Any
+# of these could reverse, since the companion run's pairing mixed builds.
+#
+# The measurement. As before: S(t | x) RMSE over the grid first, then rank,
+# log score and seconds; the censoring sweep on the turning-over baseline.
+#
+# What each outcome means. Every claim holding: the vignettes' prose stands, and
+# `_dev/TASKS.md` records this run as its basis. A claim reversing: that part
+# of the prose is rewritten to the new result.
+
 A <- path.expand("~/.claude/skills/live-progress/assets")
 source(file.path(A, "progress.R"))
+
+lib <- Sys.getenv("BARTISAN_LIB")
+
+if (nzchar(lib)) {
+  .libPaths(c(lib, .libPaths()))
+}
 
 suppressPackageStartupMessages({
   library(bartisan)
@@ -156,13 +185,28 @@ truth_crossing <- function(d, tau = 1.2, k = 1.6, b = 1) {
        })
 }
 
+# Normal log times whose spread moves with x4, which the mean does not use, so
+# two subjects with the same mean but different spread have survival curves
+# that cross at their common median.
+truth_spread <- function(d, sigma = 0.7, slope = 0.8) {
+  m <- signal(d)
+  s <- sigma * exp(slope * (2 * d$x4 - 1))
+  list(time = exp(m + s * rnorm(nrow(d))),
+       surv = function(tt) {
+         1 - outer(seq_along(m), log(tt), function(i, lt) {
+           pnorm((lt - m[i]) / s[i])
+         })
+       })
+}
+
 TRUTHS <- list(
   "Weibull PH"        = truth_weibull,
   "hazard turns over" = truth_turnover,
   "log-normal errors" = truth_lognormal,
   "bimodal errors"    = truth_bimodal,
   "heavy-tailed errors" = truth_heavy,
-  "crossing hazards"  = truth_crossing
+  "crossing hazards"  = truth_crossing,
+  "spread varies"     = truth_spread
 )
 
 # ---- censoring ---------------------------------------------------------------
@@ -212,7 +256,9 @@ FAMILIES <- list(
   "loglogistic_aft()" = function() loglogistic_aft(),
   "lognormal_aft()"   = function() lognormal_aft(),
   "ph()"              = function() ph(),
-  "dpm_aft()"         = function() dpm_aft()
+  "dpm_aft()"         = function() dpm_aft(),
+  "lognormal_aft_ls()" = function() lognormal_aft_ls(),
+  "dpm_aft_ls()"       = function() dpm_aft_ls()
 )
 
 # ---- the discrete-time route -------------------------------------------------

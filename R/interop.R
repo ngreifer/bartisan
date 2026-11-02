@@ -364,6 +364,10 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
     return(exp(e + sigma * error))
   }
 
+  if (identical(family, "lognormal_aft_ls")) {
+    return(exp(e + exp(eta[[2L]]) * square(stats::rnorm(cells))))
+  }
+
   if (family %in% c("zip", "zinb")) {
     mu <- exp(e)
 
@@ -404,11 +408,15 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
   # occupied ones, or a fresh draw from the baseline -- and then a normal from
   # it. The baseline's marginal is a t, which is where the heavy tails a mixture
   # of normals reaches for come from.
-  if (identical(family, "dpm")) {
+  #
+  # Under `dpm_ls()` a replicate is the observation's scale times a draw of W in
+  # its reported, standardized chart.
+  if (family %in% c("dpm", "dpm_ls")) {
     total <- object[["n"]] + aux[, "alpha"]
     out <- square(0)
 
     for (s in seq_len(ns)) {
+      scale <- if (identical(family, "dpm_ls")) exp(eta[[2L]][s, ]) else 1
       components <- mixture_at(object, iterations[s])
       probability <- c(components[, "weight"] * object[["n"]],
                        aux[s, "alpha"]) / total[s]
@@ -423,13 +431,21 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
                        components[pmin(picked, nrow(components)), "mean"])
       spread <- ifelse(fresh, 1, components[pmin(picked, nrow(components)),
                                             "sd"])
-      noise <- stats::rnorm(n) * spread
+      noise <- stats::rnorm(n) * spread * scale
 
-      baseline <- sqrt(object[["family_opts"]][["lambda"]] *
-                         (1 + 1 / object[["family_opts"]][["k_0"]])) *
-        stats::rt(n, object[["family_opts"]][["nu"]])
+      opts <- object[["family_opts"]]
+      raw <- sqrt(opts[["lambda"]] * (1 + 1 / opts[["k_0"]])) *
+        stats::rt(n, opts[["nu"]])
 
-      out[s, ] <- e[s, ] + center + ifelse(fresh, baseline, noise)
+      # A fresh component's draw is in the raw chart, which with a second
+      # predictor is also unstandardized.
+      if (identical(family, "dpm_ls")) {
+        baseline <- scale * (raw - aux[s, "center"]) / aux[s, "spread"]
+        out[s, ] <- e[s, ] + ifelse(fresh, baseline, scale * center + noise)
+        next
+      }
+
+      out[s, ] <- e[s, ] + center + ifelse(fresh, raw, noise)
     }
 
     return(out)
@@ -492,7 +508,7 @@ observed_response <- function(object) {
     return(as.integer(y) + 1L)
   }
 
-  if (identical(family, "aft")) {
+  if (family %in% c("aft", "lognormal_aft_ls")) {
     return(exp(y))
   }
 
@@ -636,7 +652,7 @@ residuals.bartisan_fit <- function(object, ...) {
   # The predictor rather than the median survival time: an accelerated failure
   # time model is a linear model for the log time, and the residual that means
   # anything there is on that scale.
-  if (identical(family, "aft")) {
+  if (family %in% c("aft", "lognormal_aft_ls")) {
     return(object[["y"]] - colMeans(object[["eta"]][[1L]]))
   }
 
@@ -644,7 +660,7 @@ residuals.bartisan_fit <- function(object, ...) {
   # time, and the observed time is not a draw from it: a censored time is a
   # bound, not a value. `dpm_aft()` also stores the log time, so the difference
   # was being taken across two scales.
-  if (family %in% c("dpm_aft", "ph")) {
+  if (family %in% c("dpm_aft", "dpm_aft_ls", "ph")) {
     arg::err(c("A censored response has no residual on the response scale: a
                 censored time is a lower bound rather than a value, and the
                 fitted median survival time is not what it is a draw from.",
@@ -832,7 +848,7 @@ family_prior <- function(object) {
   # The Dirichlet process mixture's base measure, which is where a weightless
   # observation's atom comes from, and the concentration that governs how many
   # atoms there are.
-  if (family %in% c("dpm", "dpm_aft")) {
+  if (family %in% c("dpm", "dpm_ls", "dpm_aft", "dpm_aft_ls")) {
     add("atom variance",
         sprintf("%s * %s / ChiSq(%s)", value("nu"), value("lambda"),
                 value("nu")),
@@ -1475,7 +1491,7 @@ survival_shift <- function(object, scale) {
 
   family <- object[["family"]][["family"]]
 
-  if (!family %in% c("aft", "dpm_aft", "ph")) {
+  if (!family %in% c("aft", "dpm_aft", "ph", "dpm_aft_ls", "lognormal_aft_ls")) {
     arg::err(c("{.arg scale} names the measure a survival model's density is
                 taken with respect to, and this fit's family is
                 {.val {family}}.",
@@ -1569,7 +1585,7 @@ pp_check.bartisan_fit <- function(object, type = "dens_overlay", ndraws = 10, ..
               {.val ppc_} prefix")
   }
 
-  if (identical(object[["family"]][["family"]], "aft")) {
+  if (object[["family"]][["family"]] %in% c("aft", "lognormal_aft_ls")) {
     arg::wrn(c("The replicates are event times and the observed times may
                 be censored, so the comparison is not like for like.",
                i = "Restrict to the uncensored observations, or check the
@@ -1744,7 +1760,7 @@ r2_posterior.bartisan_fit <- function(model, verbose = TRUE, ...) {
   # mean, and a censored time is a bound on one. The number this produced was
   # therefore not an R2, and for `dpm_aft()` it also subtracted a median
   # survival time from a log time.
-  if (family %in% c("aft", "dpm_aft", "ph")) {
+  if (family %in% c("aft", "dpm_aft", "ph", "dpm_aft_ls", "lognormal_aft_ls")) {
     if (verbose) {
       arg::wrn("the {.val {family}} family's response is a censored time, so a
                 residual variance, and with it a Bayesian {.field R2}, is not
@@ -1840,7 +1856,8 @@ model_performance.bartisan_fit <- function(model, metrics = "all", verbose = TRU
   if (any(c("RMSE", "SIGMA") %in% metrics)) {
     residual <- {
       if (model[["family"]][["family"]] %in%
-          c("ordinal", "multinomial", "mnp", "custom", "dpm_aft", "ph")) NULL
+          c("ordinal", "multinomial", "mnp", "custom", "dpm_aft", "dpm_aft_ls",
+            "ph")) NULL
       else stats::residuals(model)
     }
 

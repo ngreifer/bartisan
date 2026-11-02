@@ -10,9 +10,13 @@ error_density(object, at = NULL, level = 0.95, iterations = NULL)
 \method{plot}{bartisan_error_density}(x, y, ...)
 }
 \arguments{
-\item{object}{a \verb{<bartisan_fit>} object fit with \code{family = dpm()} or
-\code{family = dpm_aft()}; every other family fixes the error distribution, so
-its density is a closed form rather than something to estimate.}
+\item{object}{a \verb{<bartisan_fit>} object fit with \code{family = dpm()},
+\code{family = dpm_ls()}, \code{family = dpm_aft()}, or \code{family = dpm_aft_ls()};
+every other family fixes the error distribution, so its density is a closed
+form rather than something to estimate. The error of a \code{dpm_ls()} or
+\code{dpm_aft_ls()} fit has a scale that varies with the predictors, and its
+density is evaluated at the scale the \code{log_sd} predictor has on average over
+the fitted sample.}
 
 \item{at}{\code{numeric}; the grid to evaluate the density on. Default is \code{NULL}
 for 201 points spanning four posterior-mean error standard deviations
@@ -44,9 +48,10 @@ drawn against something else, such as the normal a \code{lognormal_aft()} fit
 would have assumed.
 }
 \description{
-Estimates the density of the errors of a \code{\link[=dpm]{dpm()}} or \code{\link[=dpm_aft]{dpm_aft()}} fit, as the
-posterior of the density of a new error evaluated on a grid. Where BART
-commits to one normal, this says what shape the errors actually have.
+Estimates the density of the errors of a \code{\link[=dpm]{dpm()}}, \code{\link[=dpm_ls]{dpm_ls()}}, \code{\link[=dpm_aft]{dpm_aft()}}, or
+\code{\link[=dpm_aft_ls]{dpm_aft_ls()}} fit, as the posterior of the density of a new error evaluated on a grid.
+Where BART commits to one normal, this says what shape the errors actually
+have.
 }
 \examples{
 data("rhc")
@@ -74,6 +79,6 @@ plot(error_density(fit))
 
 }
 \seealso{
-\code{\link[=dpm]{dpm()}} and \code{\link[=dpm_aft]{dpm_aft()}} for the families with an estimated error
-distribution; \code{\link[=bartisan]{bartisan()}}
+\code{\link[=dpm]{dpm()}}, \code{\link[=dpm_ls]{dpm_ls()}}, \code{\link[=dpm_aft]{dpm_aft()}}, and \code{\link[=dpm_aft_ls]{dpm_aft_ls()}} for the families with
+an estimated error distribution; \code{\link[=bartisan]{bartisan()}}
 }

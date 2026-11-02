@@ -548,6 +548,17 @@ struct Family {
     return arma::zeros<arma::vec>(H);
   }
 
+  // A change of chart that is not a constant: H rows by N columns, subtracted
+  // from the recorded predictor along with `report_shift()`, or empty for none.
+  // It exists for `dpm_ls()`, whose mixture center moves the conditional mean
+  // by exp(g(x)) times the center, so that no constant does it. Unlike the
+  // constant shift this cannot be written into the leaf values, so a prediction
+  // that evaluates the stored trees has to apply it again; R's `report_chart()`
+  // does, and the two have to agree.
+  virtual arma::mat report_shift_obs(const arma::mat& eta) const {
+    return arma::mat();
+  }
+
   // A record of the family's own state that does not fit in a fixed number of
   // columns -- the mixture of a Dirichlet process family, whose component count
   // changes every draw. Appended to one flat vector across draws, the way the

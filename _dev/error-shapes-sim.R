@@ -10,11 +10,42 @@
 # numbers it produces therefore replace the whole table rather than one row of
 # it, since the seeds cannot be recovered.
 #
-# Run with: Rscript _dev/error-shapes-sim.R
+# Rerun 2026-11-02 with `dpm_ls()` added as a fifth family.
+#
+# What is tested. Where `dpm_ls()` sits among the four. It should match
+# `dpm()` on the four columns whose spread is constant, perhaps a little behind
+# on the mean where the error is skewed (`_dev/dpm-ls-forms.R` measured that
+# cost), and on the heteroskedastic column match `gaussian_ls()`, which is
+# exactly right there, on both RMSE and log score. It could fail either way:
+# behind `dpm()` by more than the table's other gaps on constant spread, or
+# short of `gaussian_ls()` on the varying one.
+#
+# The measurement. The table's own: RMSE of E[Y | x] / held-out log score, and
+# seconds. `dpm_ls()` is fitted last within each data set, and the seed is set
+# per data set, so the four existing families draw exactly what they drew
+# before; if their numbers match the published table the table stands and gains
+# a row, and if not (the package has changed since), the whole table is
+# replaced from this run.
+#
+# What each outcome would mean. Level with `dpm()` on constant spread and with
+# `gaussian_ls()` on the varying one: the vignette can recommend `dpm_ls()` for
+# a varying spread without qualification. Behind on constant spread: the
+# vignette says so, as it already does in words. Short of `gaussian_ls()` on the
+# heteroskedastic column: its mixture is paying for flexibility normal errors
+# do not need, and the recommendation narrows to errors that are not normal.
+#
+# Run with: [BARTISAN_LIB=<library holding the working tree>] \
+#             Rscript _dev/error-shapes-sim.R
 # Writes:   _dev/error-shapes.rds
 
 A <- path.expand("~/.claude/skills/live-progress/assets")
 source(file.path(A, "progress.R"))
+
+lib <- Sys.getenv("BARTISAN_LIB")
+
+if (nzchar(lib)) {
+  .libPaths(c(lib, .libPaths()))
+}
 
 library(bartisan)
 
@@ -108,6 +139,16 @@ fits <- list(
 
     list(mean = drop(predict(fit, newdata = test, type = "mean")),
          score = NA_real_, fit = fit)
+  },
+  # Last, so that the families before it draw what they drew before it was
+  # added.
+  `dpm_ls()` = function(train, test) {
+    fit <- bartisan(y ~ x1 + x2 + x3, data = train, family = dpm_ls(),
+                    control = control)
+    list(mean = drop(predict(fit, newdata = test, type = "response")),
+         score = sum(predict(fit, newdata = test, type = "density",
+                             log = TRUE)),
+         fit = fit)
   }
 )
 

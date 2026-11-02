@@ -51,7 +51,7 @@ test_that("the Polya-Gamma sampler draws only positive values", {
 
 test_that("augment resolves to the families it says it does", {
   every <- c("binomial", "ordinal", "multinomial", "negbin", "zip", "zinb",
-             "aft")
+             "aft", "lognormal_aft_ls")
 
   # `TRUE` means every family that has a rewriting, whatever the rules. The
   # negative binomial's gain is larger under hard rules, where the target's

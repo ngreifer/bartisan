@@ -201,7 +201,8 @@ predict.bartisan_fit <- function(object, newdata = NULL, type = "response",
 
   family <- object[["family"]][["family"]]
   categorical <- family %in% c("binomial", "ordinal", "multinomial", "mnp")
-  survival <- family %in% c("aft", "ph", "dpm_aft")
+  survival <- family %in% c("aft", "ph", "dpm_aft", "dpm_aft_ls",
+                            "lognormal_aft_ls")
 
   arg::arg_flag(draws)
   arg::arg_flag(log)
@@ -425,6 +426,12 @@ predict_parts <- function(object, newdata = NULL, offset = NULL,
   # rather than in `predict_eta()` because the stored draws take the other branch
   # above and would otherwise come back uncombined.
   eta <- vc_combine(object, eta, newdata, iterations)
+
+  # Stored draws were recorded in the reported chart; draws rebuilt from the
+  # trees are in the sampler's until this puts them there.
+  if (!is_null(newdata)) {
+    eta <- report_chart(object, eta, iterations)
+  }
 
   aux <- {
     if (is_null(object[["aux"]])) NULL
@@ -749,15 +756,25 @@ survival_scale <- function(object, eta, aux, times, draws, iterations = NULL) {
   out <- array(NA_real_, c(nrow(e), ncol(e), length(times)),
                dimnames = list(NULL, NULL, labels))
 
-  if (identical(family, "dpm_aft")) {
+  if (family %in% c("dpm_aft", "dpm_aft_ls")) {
     # log T = eta + W, so S(t | x) is the mixture's own survival at the
     # standardized log time. The mixture is reported centered, so the predictor
-    # is already the conditional mean of log T.
+    # is already the conditional mean of log T. With a second predictor W is
+    # stretched by exp(log_sd) at each observation.
     for (k in seq_along(times)) {
       for (s in seq_len(nrow(e))) {
         out[s, , k] <- dpm_survival(object, iterations[s],
-                                    log(times[k]) - e[s, ])
+                                    log(times[k]) - e[s, ],
+                                    scale = dpm_scale(eta, s))
       }
+    }
+  }
+  else if (identical(family, "lognormal_aft_ls")) {
+    sigma <- exp(eta[[2L]])
+
+    for (k in seq_along(times)) {
+      out[, , k] <- stats::pnorm((log(times[k]) - e) / sigma,
+                                 lower.tail = FALSE)
     }
   }
   else if (identical(family, "aft")) {
@@ -814,15 +831,27 @@ hazard_scale <- function(object, eta, aux, times, draws, iterations = NULL) {
   out <- array(NA_real_, c(nrow(e), ncol(e), length(times)),
                dimnames = list(NULL, NULL, labels))
 
-  if (identical(family, "dpm_aft")) {
+  if (family %in% c("dpm_aft", "dpm_aft_ls")) {
     # log T = eta + W, so the density of T at t is the mixture's density at the
     # standardized log time divided by t, and its survival is the mixture's.
     for (k in seq_along(times)) {
       for (s in seq_len(nrow(e))) {
         at <- log(times[k]) - e[s, ]
-        out[s, , k] <- dpm_predictive(object, iterations[s], at) /
-          (times[k] * dpm_survival(object, iterations[s], at))
+        scale <- dpm_scale(eta, s)
+        out[s, , k] <- dpm_predictive(object, iterations[s], at, scale) /
+          (times[k] * dpm_survival(object, iterations[s], at, scale = scale))
       }
+    }
+  }
+  else if (identical(family, "lognormal_aft_ls")) {
+    # `lognormal_aft()`'s ratio, with the scale an observation's own.
+    sigma <- exp(eta[[2L]])
+
+    for (k in seq_along(times)) {
+      z <- (log(times[k]) - e) / sigma
+      out[, , k] <- exp(stats::dnorm(z, log = TRUE) -
+                          stats::pnorm(z, lower.tail = FALSE, log.p = TRUE)) /
+        (sigma * times[k])
     }
   }
   else if (identical(family, "aft")) {
@@ -888,7 +917,8 @@ response_scale <- function(object, eta, aux, draws, iterations = NULL) {
                 # its own.
                 # The mixture is reported centered, so the predictor already
                 # is the conditional mean and the response scale is the identity.
-                dpm = e,
+                dpm = ,
+                dpm_ls = e,
                 gaussian = ,
                 gaussian_ls = if (supplied) inv(e) else e,
                 # The beta mean is the inverse link of the predictor, the same
@@ -930,8 +960,11 @@ response_scale <- function(object, eta, aux, draws, iterations = NULL) {
                 # draw, not one per observation. Bisecting a vector of identical
                 # values instead cost a factor of n in `pnorm` calls -- at 700
                 # observations, 588 million of them to produce 500 numbers, which
-                # was six times the cost of the sampler itself.
-                dpm_aft = {
+                # was six times the cost of the sampler itself. With a second
+                # predictor it is W's median, which each observation's scale
+                # stretches.
+                dpm_aft = ,
+                dpm_aft_ls = {
                   median_error <- vapply(seq_len(nrow(e)), function(s) {
                     lo <- -30
                     hi <- 30
@@ -953,8 +986,15 @@ response_scale <- function(object, eta, aux, draws, iterations = NULL) {
 
                   # One median per draw, added down the rows of `e`, which is
                   # draws by observations.
-                  exp(e + median_error)
+                  if (identical(family, "dpm_aft_ls")) {
+                    exp(e + exp(eta[[2L]]) * median_error)
+                  }
+                  else {
+                    exp(e + median_error)
+                  }
                 },
+                # The normal's median is its mean, whatever its scale.
+                lognormal_aft_ls = exp(e),
                 aft = {
                   sigma <- aux[, "sigma"]
                   # log T = eta + sigma * epsilon, so the median is eta shifted by the
@@ -1152,11 +1192,11 @@ conditional_density <- function(object, newdata, eta, aux, weights, draws, log,
   # A Dirichlet process mixture's likelihood is the mixture's own, which lives in
   # the drawn components rather than in a fixed set of nuisance parameters, so it
   # is not reachable through the engine's log density either.
-  if (identical(object[["family"]][["family"]], "dpm")) {
+  if (object[["family"]][["family"]] %in% c("dpm", "dpm_ls")) {
     return(dpm_density(object, newdata, eta, iterations, draws, log))
   }
 
-  if (identical(object[["family"]][["family"]], "dpm_aft")) {
+  if (object[["family"]][["family"]] %in% c("dpm_aft", "dpm_aft_ls")) {
     return(dpm_aft_density(object, newdata, eta, iterations, draws, log))
   }
 
@@ -1309,8 +1349,8 @@ mixture_at <- function(object, iteration) {
   start <- object[["mixture_start"]]
 
   if (is_null(start)) {
-    arg::err("this fit carries no mixture; only {.fn dpm} and {.fn dpm_aft}
-              have one")
+    arg::err("this fit carries no mixture; only {.fn dpm}, {.fn dpm_ls},
+              {.fn dpm_aft} and {.fn dpm_aft_ls} have one")
   }
 
   at <- seq_len(start[iteration + 1L] - start[iteration]) + start[iteration]
@@ -1323,34 +1363,84 @@ mixture_at <- function(object, iteration) {
 # weighted by their sizes, plus the chance under the Dirichlet process that a new
 # observation opens a component of its own, which is the baseline's own marginal.
 # This is the same expression the sampler reports its log likelihood from.
-dpm_predictive <- function(object, iteration, at) {
+#
+# For `dpm_ls()`, `scale` is each error's exp(log_sd) in the reported chart.
+# Every component's standard deviation is multiplied by it, and when the whole
+# error is scaled every component's mean is too.
+dpm_predictive <- function(object, iteration, at, scale = 1) {
   opts <- object[["family_opts"]]
   n <- object[["n"]]
   alpha <- object[["aux"]][iteration, "alpha"]
   total <- alpha + n
 
   components <- mixture_at(object, iteration)
-
-  # The occupied components are reported centered, but the baseline a fresh
-  # component would be drawn from is centered on the raw chart, so it is
-  # evaluated `center` further along. `center` is the shift that was taken out.
-  center <- object[["aux"]][iteration, "center"]
-  scale <- sqrt(opts[["lambda"]] * (1 + 1 / opts[["k_0"]]))
-  out <- alpha / total *
-    stats::dt((at + center) / scale, df = opts[["nu"]]) / scale
+  base <- baseline_point(object, iteration, at, scale)
+  out <- alpha / total * stats::dt(base[["q"]], df = opts[["nu"]]) /
+    base[["divisor"]]
 
   for (k in seq_len(nrow(components))) {
     out <- out + components[k, "weight"] * n / total *
-      stats::dnorm(at, components[k, "mean"], components[k, "sd"])
+      stats::dnorm(at, components[k, "mean"] * scale,
+                   components[k, "sd"] * scale)
   }
 
   out
 }
 
+# Where the t of a fresh component is evaluated for an error `at`, and what its
+# density is divided by. The occupied components are reported centered, but the
+# baseline a fresh component would be drawn from is centered on the raw chart,
+# so it is evaluated `center` further along; `center` is the shift that was
+# taken out. With a second predictor the raw chart is that of W, which the error
+# reaches by dividing by the scale and undoing W's standardization.
+baseline_point <- function(object, iteration, at, scale = 1) {
+  opts <- object[["family_opts"]]
+  aux <- object[["aux"]]
+  center <- aux[iteration, "center"]
+  base <- sqrt(opts[["lambda"]] * (1 + 1 / opts[["k_0"]]))
+
+  if (!dpm_scaled(object)) {
+    return(list(q = (at + center) / base, divisor = base))
+  }
+
+  spread <- aux[iteration, "spread"]
+
+  list(q = (center + spread * at / scale) / base,
+       divisor = base * scale / spread)
+}
+
+# Whether a Dirichlet process mixture fit has a second forest on the log of the
+# error's scale.
+dpm_scaled <- function(object) {
+  object[["family"]][["family"]] %in% c("dpm_ls", "dpm_aft_ls")
+}
+
+# The scale W is stretched by at each observation in draw row `s` of `eta`,
+# which is one for a fit without a second predictor.
+dpm_scale <- function(eta, s) {
+  if (length(eta) > 1L) exp(eta[[2L]][s, ]) else 1
+}
+
+# The conditional mean of a `dpm_ls()` or `dpm_aft_ls()` fit is the mean forest
+# plus exp(log_sd) times W's center in units of its standard deviation, which no
+# constant in the leaves can carry. The engine adds it to the draws it records,
+# and this adds it to a predictor evaluated from the trees, so the two agree.
+report_chart <- function(object, eta, iterations) {
+  if (!dpm_scaled(object)) {
+    return(eta)
+  }
+
+  aux <- object[["aux"]][iterations, , drop = FALSE]
+  eta[[1L]] <- eta[[1L]] + exp(eta[[2L]]) * (aux[, "center"] / aux[, "spread"])
+
+  eta
+}
+
 # The survival function of one error under the current draw, matching
 # `dpm_predictive()` term for term. This is what a censored observation
 # contributes, and what turns the mixture into a survival curve.
-dpm_survival <- function(object, iteration, at, components = NULL) {
+dpm_survival <- function(object, iteration, at, components = NULL,
+                         scale = 1) {
   opts <- object[["family_opts"]]
   n <- object[["n"]]
   alpha <- object[["aux"]][iteration, "alpha"]
@@ -1363,16 +1453,15 @@ dpm_survival <- function(object, iteration, at, components = NULL) {
     components <- mixture_at(object, iteration)
   }
 
-  center <- object[["aux"]][iteration, "center"]
-  scale <- sqrt(opts[["lambda"]] * (1 + 1 / opts[["k_0"]]))
+  base <- baseline_point(object, iteration, at, scale)
 
   out <- alpha / total *
-    stats::pt((at + center) / scale, df = opts[["nu"]], lower.tail = FALSE)
+    stats::pt(base[["q"]], df = opts[["nu"]], lower.tail = FALSE)
 
   for (k in seq_len(nrow(components))) {
     out <- out + components[k, "weight"] * n / total *
-      stats::pnorm(at, components[k, "mean"], components[k, "sd"],
-                   lower.tail = FALSE)
+      stats::pnorm(at, components[k, "mean"] * scale,
+                   components[k, "sd"] * scale, lower.tail = FALSE)
   }
 
   out
@@ -1392,8 +1481,11 @@ dpm_density <- function(object, newdata, eta, iterations, draws, log) {
               observations")
   }
 
+  scaled <- length(eta) > 1L
+
   out <- vapply(seq_len(nrow(predictor)), function(s) {
-    dpm_predictive(object, iterations[s], y - predictor[s, ])
+    scale <- if (scaled) exp(eta[[2L]][s, ]) else 1
+    dpm_predictive(object, iterations[s], y - predictor[s, ], scale)
   }, numeric(length(y))) |>
     t()
 
@@ -1428,8 +1520,10 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 
   out <- vapply(seq_len(nrow(predictor)), function(s) {
     at <- surv[["log_time"]] - predictor[s, ]
-    value <- dpm_survival(object, iterations[s], at)
-    value[seen] <- dpm_predictive(object, iterations[s], at[seen])
+    scale <- rep_len(dpm_scale(eta, s), length(at))
+    value <- dpm_survival(object, iterations[s], at, scale = scale)
+    value[seen] <- dpm_predictive(object, iterations[s], at[seen],
+                                  scale[seen])
     value
   }, numeric(length(surv[["log_time"]]))) |>
     t()
@@ -1444,14 +1538,19 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' Error distribution of a Dirichlet process mixture fit
 #'
 #' @description
-#' Estimates the density of the errors of a [dpm()] or [dpm_aft()] fit, as the
-#' posterior of the density of a new error evaluated on a grid. Where BART
-#' commits to one normal, this says what shape the errors actually have.
+#' Estimates the density of the errors of a [dpm()], [dpm_ls()], [dpm_aft()], or
+#' [dpm_aft_ls()] fit, as the posterior of the density of a new error evaluated on a grid.
+#' Where BART commits to one normal, this says what shape the errors actually
+#' have.
 #'
 #' @inheritParams predict.bartisan_fit
-#' @param object a `<bartisan_fit>` object fit with `family = dpm()` or
-#'   `family = dpm_aft()`; every other family fixes the error distribution, so
-#'   its density is a closed form rather than something to estimate.
+#' @param object a `<bartisan_fit>` object fit with `family = dpm()`,
+#'   `family = dpm_ls()`, `family = dpm_aft()`, or `family = dpm_aft_ls()`;
+#'   every other family fixes the error distribution, so its density is a closed
+#'   form rather than something to estimate. The error of a `dpm_ls()` or
+#'   `dpm_aft_ls()` fit has a scale that varies with the predictors, and its
+#'   density is evaluated at the scale the `log_sd` predictor has on average over
+#'   the fitted sample.
 #' @param at `numeric`; the grid to evaluate the density on. Default is `NULL`
 #'   for 201 points spanning four posterior-mean error standard deviations
 #'   either side of zero.
@@ -1470,8 +1569,8 @@ dpm_aft_density <- function(object, newdata, eta, iterations, draws, log) {
 #' would have assumed.
 #'
 #' @seealso
-#' [dpm()] and [dpm_aft()] for the families with an estimated error
-#' distribution; [bartisan()]
+#' [dpm()], [dpm_ls()], [dpm_aft()], and [dpm_aft_ls()] for the families with
+#' an estimated error distribution; [bartisan()]
 #'
 #' @examples
 #' data("rhc")
@@ -1503,7 +1602,8 @@ error_density <- function(object, at = NULL, level = 0.95,
 
   arg::arg_is(object, "bartisan_fit")
 
-  if (!object[["family"]][["family"]] %in% c("dpm", "dpm_aft")) {
+  if (!object[["family"]][["family"]] %in% c("dpm", "dpm_ls", "dpm_aft",
+                                             "dpm_aft_ls")) {
     arg::err(c("{.fn error_density} needs a fit with an estimated error
                 distribution, such as the one {.fn dpm} fits.",
                i = "Every other family fixes the error distribution, so its
@@ -1524,9 +1624,16 @@ error_density <- function(object, at = NULL, level = 0.95,
 
   # `matrix()` rather than the shape vapply() returns, so that a single grid
   # point is still a one-row matrix rather than a vector.
-  drawn <- matrix(vapply(iterations,
-                         function(s) dpm_predictive(object, s, at),
-                         numeric(length(at))),
+  # A `dpm_ls()` fit's error distribution differs with the scale, and is drawn
+  # at the scale its second predictor has on average over the fitted sample.
+  scaled <- any(colnames(object[["aux"]]) == "scale")
+
+  density_at <- function(s) {
+    scale <- if (scaled) object[["aux"]][s, "scale"] else 1
+    dpm_predictive(object, s, at, scale)
+  }
+
+  drawn <- matrix(vapply(iterations, density_at, numeric(length(at))),
                   nrow = length(at))
 
   summarized <- apply(drawn, 1L, post_summary, level = level)
@@ -1638,7 +1745,7 @@ density_response <- function(object, newdata, weights) {
   else if (family %in% c("multinomial", "ordinal")) {
     y_out <- match_levels(y, levels)
   }
-  else if (family %in% c("aft", "dpm_aft")) {
+  else if (family %in% c("aft", "dpm_aft", "dpm_aft_ls", "lognormal_aft_ls")) {
     a <- prepare_surv(y, n)
     # The event indicator is part of the outcome, so it comes from the new
     # data rather than from the stored options.

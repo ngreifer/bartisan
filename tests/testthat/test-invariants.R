@@ -155,7 +155,8 @@ test_that("every hook a decorator inherits is one it means to inherit", {
   # A link applied from R puts the predictor on the caller's scale, so a shift
   # of the wrapped family's predictor is not a shift of this one, and the
   # sampler's own chart is the one to report in: `report_shift()`,
-  # `aux_values_shifted()` and `mixture_flat()` stay at the base. The
+  # `report_shift_obs()`, `aux_values_shifted()` and `mixture_flat()` stay at
+  # the base. The
   # derivatives are central differences through the link by design, the target
   # form is general for the same reason, which makes `exp_rate()` and the
   # coding exactness moot, and the wrapper has one predictor, so no family with
@@ -166,7 +167,7 @@ test_that("every hook a decorator inherits is one it means to inherit", {
                   c(generic, "aux_values_shifted", "coding_is_exact",
                     "coding_not_exact", "dlogdens_unit", "exp_rate",
                     "info_unit", "mixture_flat", "num_pinned", "report_shift",
-                    "target_form"))
+                    "report_shift_obs", "target_form"))
 
   # `RFamily` wraps an R function rather than another family, so what it does
   # not override is its implementation and not a forward it forgot: the base
@@ -177,7 +178,8 @@ test_that("every hook a decorator inherits is one it means to inherit", {
                     "coding_is_exact", "coding_not_exact", "compute_eta_free",
                     "dlogdens_unit", "exp_rate", "info_unit", "log_norm_const",
                     "logdens_extra_total", "mixture_flat", "report_shift",
-                    "reported_loglik", "sweep_delivered", "target_form"))
+                    "report_shift_obs", "reported_loglik", "sweep_delivered",
+                    "target_form"))
 })
 
 test_that("a binomial fit keeps its invariants under every structural wrapper", {
@@ -522,6 +524,7 @@ matrix_cases <- list(
        response = "ymult", discrete = TRUE, simulated_density = TRUE,
        structures = c("plain", "ranef", "offset", "weights")),
   list(name = "dpm", family = dpm(), response = "ydpm"),
+  list(name = "dpm_ls", family = dpm_ls(), response = "ydpm"),
   list(name = "weibull_aft", family = weibull_aft(),
        response = "cbind(t_weib, e_weib)"),
   list(name = "loglogistic_aft", family = loglogistic_aft(),
@@ -529,6 +532,10 @@ matrix_cases <- list(
   list(name = "lognormal_aft", family = lognormal_aft(),
        response = "cbind(t_lnorm, e_lnorm)"),
   list(name = "dpm_aft", family = dpm_aft(), response = "cbind(t_dpma, e_dpma)"),
+  list(name = "dpm_aft_ls", family = dpm_aft_ls(),
+       response = "cbind(t_dpma, e_dpma)"),
+  list(name = "lognormal_aft_ls", family = lognormal_aft_ls(),
+       response = "cbind(t_lnorm, e_lnorm)"),
   list(name = "ph", family = ph(), response = "cbind(t_ph, e_ph)"),
   list(name = "custom", response = "ynorm",
        family = custom_family(function(y, eta) {
@@ -700,15 +707,17 @@ test_that("every family keeps its chart and its density under every structural w
 
   # The cells the fitter refused, which is a list someone has looked at: a
   # drawn coding is refused wherever the family's leaf target is not quadratic
-  # (the two `_ls` families through their scale predictor), and prior weights
-  # by the two Dirichlet process families. A family that changes its target
-  # form, or starts or stops taking weights, moves a name here.
+  # (the `_ls` families through their scale predictor), and prior weights by
+  # the Dirichlet process families. A family that changes its target form, or
+  # starts or stops taking weights, moves a name here.
   refused <- sort(ls(matrix_skipped))
   expected <- sort(c(
     paste(c("gaussian_ls", "poisson", "negbin", "zi_poisson", "zi_negbin",
             "Gamma", "Gamma_ls", "Beta", "ordbeta", "tweedie",
-            "ordinal cloglog", "weibull_aft", "ph", "custom"), "drawn"),
-    paste(c("dpm", "dpm_aft"), "weights")))
+            "ordinal cloglog", "weibull_aft", "ph", "custom", "dpm_ls",
+            "dpm_aft_ls", "lognormal_aft_ls"),
+          "drawn"),
+    paste(c("dpm", "dpm_aft", "dpm_ls", "dpm_aft_ls"), "weights")))
   expect_setequal(refused, expected)
 })
 

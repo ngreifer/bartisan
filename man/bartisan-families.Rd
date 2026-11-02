@@ -6,10 +6,13 @@
 \alias{ordinal}
 \alias{multinomial}
 \alias{dpm_aft}
+\alias{dpm_aft_ls}
 \alias{dpm}
+\alias{dpm_ls}
 \alias{weibull_aft}
 \alias{loglogistic_aft}
 \alias{lognormal_aft}
+\alias{lognormal_aft_ls}
 \alias{ph}
 \alias{gaussian_ls}
 \alias{Gamma_ls}
@@ -35,13 +38,33 @@ dpm_aft(
   psi = 0.5
 )
 
+dpm_aft_ls(
+  nu = 10,
+  q = 0.95,
+  k_s = 10,
+  alpha = NULL,
+  max_clusters = NULL,
+  psi = 0.5
+)
+
 dpm(nu = 10, q = 0.95, k_s = 10, alpha = NULL, max_clusters = NULL, psi = 0.5)
+
+dpm_ls(
+  nu = 10,
+  q = 0.95,
+  k_s = 10,
+  alpha = NULL,
+  max_clusters = NULL,
+  psi = 0.5
+)
 
 weibull_aft()
 
 loglogistic_aft()
 
 lognormal_aft()
+
+lognormal_aft_ls()
 
 ph(num_bins = NULL, lambda_shape = 1, update_lambda = TRUE)
 
@@ -65,7 +88,7 @@ tweedie(link = "log", power = 1.5, phi = NULL)
 \code{"logit"} (the default) and \code{"probit"} for \code{multinomial()}. The remaining
 families take one link each, which is therefore the default: \code{"log"} for
 \code{negbin()}, \code{zi_poisson()}, \code{zi_negbin()}, and \code{Gamma_ls()}, \code{"logit"} for
-\code{ordbeta()}, and \code{"identity"} for \code{gaussian_ls()}. Each family compiles the links for
+\code{ordbeta()}, and \code{"identity"} for \code{gaussian_ls()} and \code{dpm_ls()}. Each family compiles the links for
 which the additive predictor is the natural unconstrained scale; any other
 link is applied from R, for the families where that is well defined. See
 Details.}
@@ -91,22 +114,22 @@ draws to use for the category probabilities, which have no closed form.
 Default is 200. More is always better but resulting calculations will take
 longer.}
 
-\item{nu, q}{\code{numeric}; for \code{dpm()} and \code{dpm_aft()}, the degrees of freedom of
+\item{nu, q}{\code{numeric}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and \code{dpm_aft_ls()}, the degrees of freedom of
 the baseline's inverse-chi-square prior on a component's variance and the
 quantile of that prior placed at a rough estimate of the residual standard
 deviation. Defaults are 10 and .95, which are tighter than BART's own 3 and
 .90 because the mixture covers small errors with extra components rather
 than with one component's left tail.}
 
-\item{k_s}{\code{numeric}; for \code{dpm()} and \code{dpm_aft()}, how many units of the
+\item{k_s}{\code{numeric}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and \code{dpm_aft_ls()}, how many units of the
 baseline's own scale the component means are allowed to reach out to. Must
 be positive. Default is 10, which places the marginal of a component mean so
 that it reaches the largest residual of a linear fit.}
 
-\item{alpha}{\code{numeric}; for \code{dpm()} and \code{dpm_aft()}, a fixed Dirichlet process
+\item{alpha}{\code{numeric}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and \code{dpm_aft_ls()}, a fixed Dirichlet process
 concentration, which must be positive. Default is \code{NULL} to draw it.}
 
-\item{max_clusters, psi}{\code{numeric}; for \code{dpm()} and \code{dpm_aft()}, the largest
+\item{max_clusters, psi}{\code{numeric}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and \code{dpm_aft_ls()}, the largest
 number of mixture components thought plausible (2 or greater) and the shape
 of the taper toward it, which together set the prior on \code{alpha}. Defaults
 are \code{NULL} to use a tenth of the sample size, and .5.}
@@ -179,6 +202,8 @@ The supported families and links are:\tabular{llll}{
    \code{weibull_aft()}, \code{loglogistic_aft()}, \code{lognormal_aft()} \tab none \tab 1 \tab scale \cr
    \code{ph()} \tab none \tab 1 \tab baseline hazard per bin \cr
    \code{dpm_aft()} \tab none \tab 1 \tab error mixture, concentration \cr
+   \code{lognormal_aft_ls()} \tab none \tab 2 \tab none \cr
+   \code{dpm_aft_ls()} \tab none \tab 2 \tab error mixture, concentration \cr
    \code{gaussian_ls()} \tab \code{identity} \tab 2 \tab none \cr
    \code{Gamma_ls()} \tab \code{log} \tab 2 \tab none \cr
    \code{zi_poisson()} \tab \code{log} \tab 2 \tab none \cr
@@ -187,6 +212,7 @@ The supported families and links are:\tabular{llll}{
    \code{ordbeta()} \tab \code{logit} \tab 1 \tab 2 cutpoints, precision \cr
    \code{tweedie()} \tab \code{log} \tab 1 \tab dispersion, and the power if it is drawn \cr
    \code{dpm()} \tab \code{identity} \tab 1 \tab error mixture, concentration \cr
+   \code{dpm_ls()} \tab \code{identity} \tab 2 \tab error mixture, concentration \cr
 }
 
 
@@ -218,8 +244,8 @@ Prefer links whose inverse is defined on the whole line.
 
 The families with more than one additive predictor, or whose link enters
 somewhere other than a single mean (\code{ordinal()}, \code{multinomial()}, the
-accelerated failure time families, \code{gaussian_ls()}, the zero-inflated
-families and \code{ordbeta()}), take only their listed links. \code{custom_family()} is
+accelerated failure time families, \code{gaussian_ls()}, \code{dpm_ls()}, the
+zero-inflated families and \code{ordbeta()}), take only their listed links. \code{custom_family()} is
 the way to reach anything else.
 }
 
@@ -310,8 +336,8 @@ times at a thousand observations. The vignette has the comparison.
 
 Some properties of \code{dpm()} itself are worth knowing. It does not buy
 heteroskedasticity: the error distribution is flexible but it is the same
-distribution at every \eqn{x}, and \code{gaussian_ls()} is the family for a
-spread that depends on the predictors. And the additive predictor is the
+distribution at every \eqn{x}, and \code{dpm_ls()} and \code{gaussian_ls()} are the
+families for a spread that depends on the predictors. And the additive predictor is the
 conditional mean, as it is for \code{gaussian()}: nothing in the model forces the
 mixture to be centered, so the sampler works in a chart where only the sum of
 the predictor and the error mean is identified, but reporting is done in the
@@ -320,6 +346,21 @@ the predictor. \code{type = "link"} and \code{type = "response"} therefore agree
 exactly, and \code{fit$aux} reports the shift that was taken out as \code{center} rather
 than an error mean, which is zero by construction. Prior weights are refused,
 since a weight would have to be a multiplicity in the Dirichlet process.
+
+\code{dpm_ls()} is \code{dpm()} with a second forest on the log of the error's scale,
+the heteroskedastic mixture of Sparapani et al. (2023):
+\eqn{y = f(x) + \exp(g(x)) W}, with \eqn{W} a Dirichlet process mixture of
+normals. The error has one shape, estimated as \code{dpm()} estimates it, and a
+size that varies with the predictors. Its two predictors, \code{mean} and
+\code{log_sd}, are the conditional mean and the log of the conditional standard
+deviation, as for \code{gaussian_ls()}, and \code{\link[=error_density]{error_density()}} gives the shape of
+the error at the average scale. The second forest is the slower of the two
+and can be given fewer trees, and prior weights are refused, as for \code{dpm()}.
+
+When the spread does not depend on the predictors, \code{dpm()} is the better
+choice: the second forest picks up some variation by chance, and with a
+skewed error that variation moves the estimated mean. \code{vignette("families")}
+has the comparison.
 
 The gamma family puts the forest on the log mean and draws the shape, which
 acts as the inverse dispersion; it does \emph{not} regress the shape on the
@@ -407,6 +448,17 @@ wrong and costs next to nothing where one would have been right, which is the
 property \code{dpm()} has against \code{gaussian()}; \code{vignette("survival")} summarizes
 the simulations behind that.
 
+\code{lognormal_aft_ls()} and \code{dpm_aft_ls()} are \code{lognormal_aft()} and
+\code{dpm_aft()} with a second forest, \code{log_sd}, on the log of the scale of
+\eqn{\log T}, so that the spread of survival times can vary with the
+predictors and survival curves can cross. \code{dpm_aft_ls()} is the
+nonparametric failure time (NFT) BART model of Sparapani et al. (2023). The
+first predictor is the mean of \eqn{\log T}, but a contrast in it is no
+longer a time ratio at every quantile, since the scale can change too, so
+contrasts are best taken on \code{type = "survival"} or \code{type = "response"}. An
+intercept-only formula for the second forest recovers the single-scale
+family. \code{dpm_aft_ls()} refuses prior weights, as \code{dpm_aft()} does.
+
 \code{gaussian_ls()} regresses the mean and the log standard deviation of a
 normal response on separate forests, so the variance is an unrestricted
 function of the predictors.
@@ -480,7 +532,7 @@ The first forest is always the main parameter, the one a single-forest family
 would have on its own. This table is the canonical list of the names, which
 \code{vignette("families")} reproduces:\tabular{ll}{
    Family \tab Forests, in order \cr
-   \code{gaussian_ls()} \tab \code{mean}, \code{log_sd} \cr
+   \code{gaussian_ls()}, \code{dpm_ls()}, \code{lognormal_aft_ls()}, \code{dpm_aft_ls()} \tab \code{mean}, \code{log_sd} \cr
    \code{Gamma_ls()} \tab \code{mean}, \code{log_dispersion} \cr
    \code{zi_poisson()}, \code{zi_negbin()} \tab \code{count}, \code{zero} \cr
    \code{custom_family(num_predictors = k)} \tab \code{eta1} ... \code{etak} \cr
@@ -504,7 +556,9 @@ forest nothing to split on, so every tree in it is a stump and the parameter is
 one drawn scalar. Every family here that takes more than one formula accepts
 that, which makes the distinction between a nuisance parameter and an
 empty forest a thin one: \code{gaussian_ls()} with \code{~ 1} on its scale is
-\code{gaussian()}, \code{Gamma_ls()} with \code{~ 1} is \code{Gamma("log")}, and \code{zi_poisson()}
+\code{gaussian()}, \code{dpm_ls()} with \code{~ 1} on its scale is \code{dpm()}, and likewise for
+the two survival families with a scale forest; \code{Gamma_ls()} with \code{~ 1} is
+\code{Gamma("log")}, and \code{zi_poisson()}
 with \code{~ 1} on its inflation part is the zero-inflated Poisson with a single
 structural-zero probability. Note that the scalar is drawn under the leaf prior
 rather than under the prior the corresponding built-in family puts on its
@@ -574,9 +628,17 @@ bartisan(death ~ rhc + age + sex + race + edu + aps +
          num_trees = 10, num_burn = 50, num_draws = 50)
 
 }
+\references{
+Sparapani, R. A., Logan, B. R., Maiers, M. J., Laud, P. W., & McCulloch, R. E.
+(2023). Nonparametric failure time: Time-to-event machine learning with
+heteroskedastic Bayesian additive regression trees and low information
+omnibus Dirichlet process mixtures. \emph{Biometrics}, 79(4), 3023–3037.
+\doi{10.1111/biom.13857}
+}
 \seealso{
 \code{\link[=bartisan]{bartisan()}} for fitting a model with one of these families;
 \code{\link[=custom_family]{custom_family()}} for a likelihood none of them covers;
-\code{\link[=error_density]{error_density()}} for the error distribution a \code{dpm()} or \code{dpm_aft()} fit
-estimates; \code{vignette("families", package = "bartisan")} for the long form
+\code{\link[=error_density]{error_density()}} for the error distribution a \code{dpm()}, \code{dpm_ls()},
+\code{dpm_aft()}, or \code{dpm_aft_ls()} fit estimates; \code{vignette("families", package = "bartisan")} for
+the long form
 }

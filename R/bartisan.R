@@ -1631,7 +1631,8 @@ forest_labels <- function(family, opts, levels, n_report, vc = NULL) {
     return(sprintf("%s-%s", levels[-1L], levels[1L]))
   }
 
-  if (identical(family, "gaussian_ls")) {
+  if (family %in% c("gaussian_ls", "dpm_ls", "dpm_aft_ls",
+                    "lognormal_aft_ls")) {
     return(c("mean", "log_sd"))
   }
 

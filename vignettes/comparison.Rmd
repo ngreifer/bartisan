@@ -201,7 +201,7 @@ In this case, nothing separates them: the differences are a couple of points at 
 
 `loo()` compares models by the log density each assigns to the observed outcomes, so the models being compared have to describe the same quantity on the same scale. That holds for every comparison above, and for any comparison between two families of the same kind. It needs a step from us when a comparison crosses between the two kinds of survival family.
 
-The accelerated failure time families (`weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()`, and `dpm_aft()`) model the log of the survival time, and `ph()` models the time itself. When a comparison includes both kinds, `scale = "time"` should be supplied to every call to `loo()`, which puts each model on the scale of the time. A fit already on that scale is returned unchanged, so the same argument can be given to every model in the comparison. Below, we compare a log-normal accelerated failure time model with a proportional hazards model for the survival outcome in `rhc`:
+The accelerated failure time families (`weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()`, `dpm_aft()`, and the location-scale `lognormal_aft_ls()` and `dpm_aft_ls()`) model the log of the survival time, and `ph()` models the time itself. When a comparison includes both kinds, `scale = "time"` should be supplied to every call to `loo()`, which puts each model on the scale of the time. A fit already on that scale is returned unchanged, so the same argument can be given to every model in the comparison. Below, we compare a log-normal accelerated failure time model with a proportional hazards model for the survival outcome in `rhc`:
 
 ```{r survfits, eval = run && has_surv}
 library(survival)

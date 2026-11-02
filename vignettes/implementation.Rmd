@@ -232,7 +232,7 @@ A likelihood written with `custom_family()` can have them too, by naming them in
 
 ### The Dirichlet Process Mixture
 
-Two families, `dpm()` and `dpm_aft()`, do not assume a shape for the error at all. They model it as a mixture of normals with a Dirichlet process prior on the mixing distribution [@escobar1995; @george2019], which lets the number of components grow with the data. The mixture is constrained to have mean zero so that the forest still carries the conditional mean.
+Four families, `dpm()`, `dpm_aft()`, and their location-scale versions `dpm_ls()` and `dpm_aft_ls()`, do not assume a shape for the error at all. They model it as a mixture of normals with a Dirichlet process prior on the mixing distribution [@escobar1995; @george2019], which lets the number of components grow with the data. The mixture is constrained to have mean zero so that the forest still carries the conditional mean, and in the location-scale versions a second forest scales the whole error, so that its shape stays the same while its size varies with $x$ [@sparapani2023].
 
 Conditional on which component each observation belongs to, the model is Gaussian and the target is quadratic, so the extra flexibility is cheap. `error_density()` reports the fitted error distribution, which is the diagnostic the family exists to provide. Because the mixture can collapse to a single component, it costs little when a single normal was right.
 

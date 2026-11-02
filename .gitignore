@@ -187,3 +187,8 @@ _dev/did/*
 !_dev/gibbs-prior.patch
 !_dev/survival-old.Rmd
 !_dev/survival-results.rds
+!_dev/dpm-ls-forms.R
+!_dev/dpm-ls-homoskedastic.R
+!_dev/dpm-ls-scale-prior.R
+!_dev/nftbart-compare.R
+!_dev/scale-switch.R

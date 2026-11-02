@@ -607,8 +607,10 @@ pd_predictor <- function(object, newdata, vars, type, dots) {
     # Combined after the sum rather than before it, because a varying
     # coefficient multiplies its forest by the covariate and the covariate is
     # one of the things the grid moves.
-    parts <- list(eta = vc_combine(object, eta, d, iterations),
-                  aux = aux, iterations = iterations)
+    eta <- vc_combine(object, eta, d, iterations)
+    eta <- report_chart(object, eta, iterations)
+
+    parts <- list(eta = eta, aux = aux, iterations = iterations)
 
     eta_to_type(object, parts, type, draws = TRUE, newdata = d,
                 weights = dots[["weights"]], values = dots[["values"]],

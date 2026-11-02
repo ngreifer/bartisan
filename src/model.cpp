@@ -728,9 +728,14 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     // The chart the draw is recorded in may differ from the one the sampler
     // works in; for every family but the ordinal ones this is zero.
     arma::vec shift = family->report_shift(eta);
+    arma::mat obs_shift = family->report_shift_obs(eta);
 
     for (int h = 0; h < n_report; h++) {
       eta_out[h].row(iter) = eta.row(h) - shift(h);
+
+      if (!obs_shift.is_empty()) {
+        eta_out[h].row(iter) -= obs_shift.row(h);
+      }
       sigma_mu_out(iter, h) = hypers[h]->sigma_mu;
 
       arma::uvec var_counts = arma::zeros<arma::uvec>(num_groups);

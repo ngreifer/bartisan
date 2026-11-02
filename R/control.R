@@ -791,5 +791,6 @@ resolve_augment <- function(augment) {
     return(character())
   }
 
-  c("binomial", "ordinal", "multinomial", "zip", "zinb", "aft", "negbin")
+  c("binomial", "ordinal", "multinomial", "zip", "zinb", "aft", "negbin",
+    "lognormal_aft_ls")
 }
