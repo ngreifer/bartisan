@@ -186,7 +186,8 @@ here.
 
 Setting \code{type = "link"} contrasts the additive predictor instead. For \code{\link[=ph]{ph()}}
 the contrast at each unit is the log hazard ratio at that unit's covariates,
-and for the accelerated failure time families it is the log time ratio, so
+and for the single-scale accelerated failure time families it is the log
+time ratio, so
 \code{avg_comparisons()} averages conditional ratios over the units; the average
 of conditional log hazard ratios is not the marginal one, since a hazard
 ratio is noncollapsible.

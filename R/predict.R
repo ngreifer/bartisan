@@ -20,7 +20,10 @@
 #'     \item{`"link"`}{the additive predictor, one column per predictor for
 #'       families that have more than one. For the accelerated failure time
 #'       families it is on the scale of log time, so a difference between two
-#'       units is a log time ratio. For [ph()] it is reported centered over the
+#'       units is a log time ratio; in [lognormal_aft_ls()] and [dpm_aft_ls()]
+#'       it is a difference in the mean of log time, which is a log time ratio
+#'       only between units whose `log_sd` predictors are equal. For [ph()] it
+#'       is reported centered over the
 #'       fitted sample, so a single value is a log hazard ratio against a unit
 #'       whose predictor sits at that average and a difference between two units
 #'       is the log hazard ratio between them.}
@@ -939,7 +942,7 @@ response_scale <- function(object, eta, aux, draws, iterations = NULL) {
                   span <- c(diff(edges), Inf)
 
                   out <- vapply(seq_len(nrow(e)), function(s) {
-                    lam <- aux[s, cols]
+                    lam <- unname(aux[s, cols])
                     # Cumulative baseline at each edge, then locate log2 / exp(eta).
                     at_edge <- c(0, cumsum(lam[-length(lam)] *
                                              span[-length(span)]))

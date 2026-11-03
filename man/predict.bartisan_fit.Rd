@@ -35,7 +35,10 @@ else is an error. See section \emph{Missing Predictor Values} in the Details of
 \item{\code{"link"}}{the additive predictor, one column per predictor for
 families that have more than one. For the accelerated failure time
 families it is on the scale of log time, so a difference between two
-units is a log time ratio. For \code{\link[=ph]{ph()}} it is reported centered over the
+units is a log time ratio; in \code{\link[=lognormal_aft_ls]{lognormal_aft_ls()}} and \code{\link[=dpm_aft_ls]{dpm_aft_ls()}}
+it is a difference in the mean of log time, which is a log time ratio
+only between units whose \code{log_sd} predictors are equal. For \code{\link[=ph]{ph()}} it
+is reported centered over the
 fitted sample, so a single value is a log hazard ratio against a unit
 whose predictor sits at that average and a difference between two units
 is the log hazard ratio between them.}
