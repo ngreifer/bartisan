@@ -123,3 +123,47 @@ test_that("the scale forest of `dpm_aft_ls()` recovers a spread that varies", {
   expect_gt(stats::cor(log_sd, log(d$sd)), 0.85)
   expect_lt(abs(mean(exp(log_sd) / d$sd) - 1), 0.2)
 })
+
+patrick::with_parameters_test_that(
+  "a Dirichlet process survival fit draws replicates from its own distribution:",
+  {
+    skip_if_not_installed("rstantools")
+
+    d <- sim_crossing(150, 1505)
+    formula <- if (scaled) {
+      list(cbind(time, status) ~ x1 + x2, log_sd = ~ x1 + x2)
+    } else {
+      cbind(time, status) ~ x1 + x2
+    }
+
+    fit <- bartisan(formula, d, family = family,
+                    control = quick_control(num_trees = if (scaled) c(10L, 5L)
+                                                        else 10L,
+                                            num_burn = 60L, num_draws = 200L))
+
+    # Within a draw a replicate exceeds t with probability S(t | x) for that
+    # draw, so the share of replicates above t, pooled over draws and units,
+    # matches the mean of the survival curve up to Monte Carlo error.
+    set.seed(15)
+    reps <- rstantools::posterior_predict(fit)
+    expect_identical(dim(reps), c(200L, nrow(d)))
+    expect_true(all(reps > 0))
+
+    times <- c(2, 4, 8)
+    surv <- stats::predict(fit, type = "survival", times = times, draws = TRUE)
+
+    for (k in seq_along(times)) {
+      p <- surv[, , k]
+      se <- sqrt(mean(p * (1 - p)) / length(p))
+      expect_lt(abs(mean(reps > times[k]) - mean(p)), 4 * se)
+    }
+
+    # On new data too, where the predictor is rebuilt from the trees.
+    new_reps <- rstantools::posterior_predict(fit, newdata = d[1:20, ])
+    expect_identical(dim(new_reps), c(200L, 20L))
+  },
+  patrick::cases(
+    dpm_aft = list(family = dpm_aft(), scaled = FALSE),
+    dpm_aft_ls = list(family = dpm_aft_ls(), scaled = TRUE)
+  )
+)

@@ -410,13 +410,15 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
   # of normals reaches for come from.
   #
   # Under `dpm_ls()` a replicate is the observation's scale times a draw of W in
-  # its reported, standardized chart.
-  if (family %in% c("dpm", "dpm_ls")) {
+  # its reported, standardized chart. `dpm_aft()` and `dpm_aft_ls()` draw a log
+  # event time the same way and return the event time.
+  if (family %in% c("dpm", "dpm_ls", "dpm_aft", "dpm_aft_ls")) {
+    scaled <- family %in% c("dpm_ls", "dpm_aft_ls")
     total <- object[["n"]] + aux[, "alpha"]
     out <- square(0)
 
     for (s in seq_len(ns)) {
-      scale <- if (identical(family, "dpm_ls")) exp(eta[[2L]][s, ]) else 1
+      scale <- if (scaled) exp(eta[[2L]][s, ]) else 1
       components <- mixture_at(object, iterations[s])
       probability <- c(components[, "weight"] * object[["n"]],
                        aux[s, "alpha"]) / total[s]
@@ -439,13 +441,17 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
 
       # A fresh component's draw is in the raw chart, which with a second
       # predictor is also unstandardized.
-      if (identical(family, "dpm_ls")) {
+      if (scaled) {
         baseline <- scale * (raw - aux[s, "center"]) / aux[s, "spread"]
         out[s, ] <- e[s, ] + ifelse(fresh, baseline, scale * center + noise)
         next
       }
 
       out[s, ] <- e[s, ] + center + ifelse(fresh, raw, noise)
+    }
+
+    if (family %in% c("dpm_aft", "dpm_aft_ls")) {
+      return(exp(out))
     }
 
     return(out)
@@ -508,7 +514,7 @@ observed_response <- function(object) {
     return(as.integer(y) + 1L)
   }
 
-  if (family %in% c("aft", "lognormal_aft_ls")) {
+  if (family %in% c("aft", "lognormal_aft_ls", "dpm_aft", "dpm_aft_ls")) {
     return(exp(y))
   }
 
@@ -1585,7 +1591,8 @@ pp_check.bartisan_fit <- function(object, type = "dens_overlay", ndraws = 10, ..
               {.val ppc_} prefix")
   }
 
-  if (object[["family"]][["family"]] %in% c("aft", "lognormal_aft_ls")) {
+  if (object[["family"]][["family"]] %in%
+      c("aft", "lognormal_aft_ls", "dpm_aft", "dpm_aft_ls")) {
     arg::wrn(c("The replicates are event times and the observed times may
                 be censored, so the comparison is not like for like.",
                i = "Restrict to the uncensored observations, or check the

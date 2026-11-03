@@ -4,6 +4,8 @@
 
 * Added `dpm_aft_ls()` and `lognormal_aft_ls()`, versions of `dpm_aft()` and `lognormal_aft()` with a second forest on the log of the scale of the log survival time, so that survival curves can cross. `dpm_aft_ls()` is the NFT BART model of Sparapani et al. (2023).
 
+* `posterior_predict()`, and with it `pp_check()` and `simulate()`, now draws event times for `dpm_aft()` fits, which previously had no posterior predictive sampler, and for `dpm_aft_ls()` fits.
+
 * Added `add_chains()` to run more chains of a fitted model and add their draws to the fit. The added chains are the ones a larger `chains` would have run, so the result is identical to a fit that requested the total number of chains from the start with the same seed. `diagnose()` now suggests it where more chains would help.
 
 * A fit with a single chain now draws from the same kind of random number stream as each chain of a multi-chain fit, so its chain is the first chain of a fit with more chains from the same seed. Single-chain results will therefore differ from those of version 0.1.0 with the same seed. Multi-chain `bartisan()` fits run directly after `set.seed()` are unaffected; `bcf()` fits are not when the propensity score is estimated, since that model runs a single chain by default.
