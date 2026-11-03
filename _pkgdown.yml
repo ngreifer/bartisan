@@ -83,6 +83,17 @@ reference:
   - add_chains
   - bartisan-interop
 
+- title: Prediction Workflows
+  desc: >
+    Interfaces that let a generalized BART model be used where another package
+    expects a learner: as a member of a *SuperLearner* ensemble, as an engine for
+    `parsnip::bart()` in *tidymodels* workflows and tuning, and as an imputation
+    method for *mice*.
+  contents:
+  - SL.bartisan
+  - bartisan-parsnip
+  - mice.impute.bartisan
+
 - title: Data
   desc: >
     The observational study the examples and most of the vignettes are fitted

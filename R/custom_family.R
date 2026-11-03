@@ -12,7 +12,7 @@
 #'   additive predictors, returning a numeric vector of length `n`. `y` is the
 #'   response as it appears in the model formula, with only those observations
 #'   kept: a vector or factor of length `n`, or a matrix with `n` rows, such as
-#'   one made with [cbind()] or \pkgfun{survival}{Surv}. See Details. With
+#'   one made with [base::cbind()] or \pkgfun{survival}{Surv}. See Details. With
 #'   nuisance parameters it must take a third argument,
 #'   `function(y, eta, aux)`, where `aux` is a numeric vector of their current
 #'   values. It is the log density of one unit of prior weight, so that

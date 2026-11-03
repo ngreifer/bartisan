@@ -21,7 +21,7 @@ additive predictors, \verb{function(y, eta)}, where \code{y} holds the response 
 additive predictors, returning a numeric vector of length \code{n}. \code{y} is the
 response as it appears in the model formula, with only those observations
 kept: a vector or factor of length \code{n}, or a matrix with \code{n} rows, such as
-one made with \code{\link[=cbind]{cbind()}} or \pkgfun{survival}{Surv}. See Details. With
+one made with \code{\link[base:cbind]{base::cbind()}} or \pkgfun{survival}{Surv}. See Details. With
 nuisance parameters it must take a third argument,
 \verb{function(y, eta, aux)}, where \code{aux} is a numeric vector of their current
 values. It is the log density of one unit of prior weight, so that

@@ -498,5 +498,10 @@ flatten_matrix_columns <- function(data) {
     options(marginaleffects_model_classes = c(classes, "bartisan_fit"))
   }
 
+  # parsnip keeps its engines in a registry of its own rather than dispatching
+  # on a class, so the engine has to be added to it, whichever of the two
+  # packages is loaded first. See `?bartisan-parsnip`.
+  on_package_load("parsnip", register_parsnip_engine)
+
   invisible()
 }

@@ -51,8 +51,10 @@ Suggests:
     loo,
     MASS,
     marginaleffects,
+    mice,
     nlme,
     lme4,
+    parsnip,
     patrick (>= 0.3.0),
     performance,
     posterior,
@@ -60,6 +62,7 @@ Suggests:
     rmarkdown,
     rstanarm,
     rstantools,
+    SuperLearner,
     survival,
     testthat (>= 3.0.0),
     WeightIt
