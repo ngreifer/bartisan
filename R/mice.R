@@ -73,7 +73,8 @@
 #' \pkgfun{mice}{mice} for multiple imputation by chained equations;
 #' [bartisan()] for the imputation model and the settings that can be passed
 #' through `...`; [SL.bartisan()] and [`bartisan-parsnip`] for the other
-#' prediction workflows \pkg{bartisan} fits into
+#' prediction workflows \pkg{bartisan} fits into; `vignette("workflows")` for
+#' a worked example of all three
 #'
 #' @references
 #' Rubin, D. B. (1987). *Multiple Imputation for Nonresponse in Surveys*. John

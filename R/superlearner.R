@@ -70,7 +70,8 @@
 #' \pkgfun{SuperLearner}{SuperLearner} for fitting the ensemble; [bartisan()] for
 #' the model and the arguments that can be passed through `...`;
 #' [`bartisan-parsnip`] and [mice.impute.bartisan()] for the other prediction
-#' workflows \pkg{bartisan} fits into
+#' workflows \pkg{bartisan} fits into; `vignette("workflows")` for a worked
+#' example of all three
 #'
 #' @examplesIf rlang::is_installed("SuperLearner")
 #' library("SuperLearner")

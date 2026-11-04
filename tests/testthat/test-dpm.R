@@ -13,7 +13,8 @@ test_that("the mixture is stored, weighted and shaped as a mixture", {
                                           num_draws = 200L))
 
   expect_identical(colnames(fit[["aux"]]),
-                   c("alpha", "clusters", "center", "error_sd"))
+                   c("alpha", "clusters", "center", "error_sd", "k_0",
+                     "lambda"))
   expect_true(all(fit[["aux"]][, "alpha"] > 0))
   expect_true(all(fit[["aux"]][, "error_sd"] > 0))
 
@@ -23,8 +24,9 @@ test_that("the mixture is stored, weighted and shaped as a mixture", {
   expect_gt(max(clusters), 1)
 
   # The components are stored flat with one offset per draw, because the count
-  # changes from draw to draw. Their weights are a probability distribution and
-  # their number matches what `aux` reports.
+  # changes from draw to draw. Their weights are drawn given the counts and
+  # leave a share for a component of its own, so they sum to less than one,
+  # and their number matches what `aux` reports.
   starts <- fit[["mixture_start"]]
   expect_length(starts, nrow(fit[["aux"]]) + 1L)
   expect_identical(diff(starts) / 3, clusters)
@@ -32,7 +34,9 @@ test_that("the mixture is stored, weighted and shaped as a mixture", {
   for (s in c(1L, 100L, 200L)) {
     components <- mixture_at(fit, s)
     expect_identical(nrow(components), as.integer(clusters[s]))
-    expect_equal(sum(components[, "weight"]), 1)
+    expect_lt(sum(components[, "weight"]), 1)
+    expect_gt(sum(components[, "weight"]), 0.9)
+    expect_true(all(components[, "weight"] > 0))
     expect_true(all(components[, "sd"] > 0))
   }
 })
@@ -416,4 +420,63 @@ test_that("the reported likelihood and replay hold under dpm_aft() too", {
   eta <- stats::predict(fit, type = "link", draws = TRUE)
   replayed <- stats::predict(fit, newdata = d, type = "link", draws = TRUE)
   expect_equal(as.vector(replayed), as.vector(eta), tolerance = 1e-6)
+})
+
+test_that("the mixture's weights carry their posterior uncertainty", {
+  skip_on_cran()
+
+  # Two modes far enough apart that hardly a label moves between them, so the
+  # clusters' sizes barely change from draw to draw. The weights are drawn
+  # given those sizes, and so vary by about the binomial standard deviation,
+  # sqrt(.25 / n); the counts alone would vary by almost nothing.
+  set.seed(1304)
+  n <- 400
+  d <- data.frame(x = stats::runif(n))
+  side <- ifelse(stats::rbinom(n, 1L, 0.5) == 1L, 2, -2)
+  d$y <- d$x + side + stats::rnorm(n, sd = 0.3)
+
+  fit <- bartisan(y ~ x, d, family = dpm(),
+                  control = quick_control(num_trees = 10L, num_burn = 200L,
+                                          num_draws = 300L))
+
+  upper <- vapply(seq_len(nrow(fit[["aux"]])), function(s) {
+    components <- mixture_at(fit, s)
+    sum(components[components[, "mean"] > 0, "weight"])
+  }, numeric(1L))
+
+  # A robust spread, since this short warmup can leave the first draws before
+  # the two modes have separated.
+  expect_gt(stats::mad(upper), 0.5 * sqrt(0.25 / n))
+  expect_lt(stats::mad(upper), 2 * sqrt(0.25 / n))
+})
+
+test_that("the baseline's scales are drawn under their priors, or fixed on request", {
+  skip_on_cran()
+
+  # With no data the draws of k_0 and lambda are draws from their gamma priors,
+  # whose shape is 1.5 and whose rate puts the mean at the calibrated value.
+  # Twelve percent on the means is several Monte Carlo standard errors at
+  # these draws, whose lag-one autocorrelation is about .6.
+  set.seed(1305)
+  d <- data.frame(x = stats::runif(100))
+  d$y <- d$x + stats::rnorm(100)
+
+  fit <- bartisan(y ~ x, d, family = dpm(), prior_only = TRUE,
+                  control = quick_control(num_trees = 10L, num_burn = 100L,
+                                          num_draws = 3000L))
+  opts <- fit[["family_opts"]]
+
+  expect_true(opts[["update_k0"]])
+  expect_true(opts[["update_lambda"]])
+  expect_equal(mean(fit[["aux"]][, "k_0"]), opts[["k_0"]], tolerance = 0.12)
+  expect_equal(mean(fit[["aux"]][, "lambda"]), opts[["lambda"]],
+               tolerance = 0.12)
+
+  fixed <- bartisan(y ~ x, d, family = dpm(update_baseline = FALSE),
+                    control = quick_control(num_trees = 10L, num_burn = 20L,
+                                            num_draws = 20L))
+
+  expect_false(any(c("k_0", "lambda") %in% colnames(fixed[["aux"]])))
+  expect_false(fixed[["family_opts"]][["update_k0"]])
+  expect_error(dpm(update_baseline = NA))
 })

@@ -24,13 +24,14 @@ test_that("a dpm_ls() fit reports in its chart and agrees with itself", {
 
   expect_identical(colnames(fit[["aux"]]),
                    c("alpha", "clusters", "center", "spread", "scale",
-                     "error_sd"))
+                     "error_sd", "k_0", "lambda"))
 
   # The stored mixture is centered, with unit variance, which is the unit the
-  # scale forest's shift took out.
+  # scale forest's shift took out, on its occupied components' weights
+  # normalized among themselves.
   for (s in c(1L, 30L, 60L)) {
     components <- mixture_at(fit, s)
-    weight <- components[, "weight"]
+    weight <- components[, "weight"] / sum(components[, "weight"])
     expect_equal(sum(weight * components[, "mean"]), 0, tolerance = 1e-10)
     expect_equal(sum(weight * (components[, "sd"]^2 + components[, "mean"]^2)),
                  1, tolerance = 1e-10)

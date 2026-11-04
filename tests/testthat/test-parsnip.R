@@ -243,3 +243,29 @@ test_that("survival predictions carry the censoring weights tidymodels adds", {
   expect_true(all(c(".eval_time", ".pred_survival", ".weight_censored") %in%
                     names(out$.pred[[1L]])))
 })
+
+test_that("intervals can be computed for a single row of new data", {
+  skip_if_not_installed("parsnip")
+  skip_if_not_installed("survival")
+
+  d <- sim_parsnip()
+
+  fit <- parsnip::bart(trees = 5, mode = "classification") |>
+    parsnip::set_engine("bartisan", family = "multinomial", num_burn = 30,
+                        num_draws = 30) |>
+    parsnip::fit(k ~ x1 + x2 + x3, data = d)
+
+  ci <- stats::predict(fit, d[1L, ], type = "conf_int")
+  expect_identical(dim(ci), c(1L, 6L))
+  expect_true(all(ci[1:3] <= ci[4:6]))
+
+  fit <- parsnip::bart(trees = 5, mode = "censored regression") |>
+    parsnip::set_engine("bartisan", family = "lognormal_aft", num_burn = 30,
+                        num_draws = 30) |>
+    parsnip::fit(survival::Surv(time, status) ~ x1 + x2 + x3, data = d)
+
+  surv <- stats::predict(fit, d[1L, ], type = "survival", eval_time = c(1, 3),
+                         interval = "confidence")
+  expect_length(surv$.pred, 1L)
+  expect_identical(dim(surv$.pred[[1L]]), c(2L, 4L))
+})

@@ -55,12 +55,18 @@ test_that("the exponential shortcut reproduces the general path", {
   # is the more accurate of the two. Where the general path happens to land on
   # the mode anyway the two agree to the last bits; where it stops short they
   # agree to the tolerance. The augmented negative binomial has the sharpest
-  # target of the three and so shows the largest residual.
+  # target of the three and so shows the largest residual. The Poisson and gamma
+  # rows once had 1e-10, which held only for the chain they were set on: over
+  # 30 seeds of this sweep the two paths agreed to 3e-15 in 24 or 25 and
+  # differed by up to 1.9e-4 (Poisson) and 2.9e-4 (gamma) in the rest, and a
+  # change to the random number streams moved this seed into the second group.
+  # A wrong closed form would be off by the size of a leaf, so 1e-3 still
+  # detects one.
   settings <- list(
     list(label = "poisson", family = poisson(),
-         y = stats::rpois(250, exp(linear)), tol = 1e-10),
+         y = stats::rpois(250, exp(linear)), tol = 1e-3),
     list(label = "Gamma(log)", family = stats::Gamma("log"),
-         y = stats::rgamma(250, 3, rate = 3 / exp(linear)), tol = 1e-10),
+         y = stats::rgamma(250, 3, rate = 3 / exp(linear)), tol = 1e-3),
     list(label = "negbin augmented", family = negbin(),
          y = stats::rnbinom(250, mu = exp(linear), size = 2),
          augment = TRUE, tol = 1e-3))

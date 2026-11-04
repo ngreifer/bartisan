@@ -187,5 +187,5 @@ pred$.pred[[1]]
 \pkgfun{parsnip}{bart} for the model specification; \code{\link[=bartisan]{bartisan()}} and
 \code{\link[=bartisan_control]{bartisan_control()}} for the engine arguments; \code{\link[=SL.bartisan]{SL.bartisan()}} and
 \code{\link[=mice.impute.bartisan]{mice.impute.bartisan()}} for the other prediction workflows \pkg{bartisan}
-fits into
+fits into; \code{vignette("workflows")} for a worked example of all three
 }

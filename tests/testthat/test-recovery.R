@@ -581,7 +581,8 @@ test_that("dpm_aft recovers a bimodal error distribution under censoring", {
   # The mixture found more than one component, which is the whole point.
   expect_gt(mean(fit[["aux"]][, "clusters"]), 1.5)
   expect_identical(colnames(fit[["aux"]]),
-                   c("alpha", "clusters", "center", "error_sd"))
+                   c("alpha", "clusters", "center", "error_sd", "k_0",
+                     "lambda"))
 
   # And the fitted error density has both modes.
   at <- seq(-2, 2, by = 0.1)

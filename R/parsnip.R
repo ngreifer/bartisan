@@ -140,7 +140,7 @@
 #' \pkgfun{parsnip}{bart} for the model specification; [bartisan()] and
 #' [bartisan_control()] for the engine arguments; [SL.bartisan()] and
 #' [mice.impute.bartisan()] for the other prediction workflows \pkg{bartisan}
-#' fits into
+#' fits into; `vignette("workflows")` for a worked example of all three
 #'
 #' @examplesIf rlang::is_installed(c("parsnip", "survival"))
 #' library("parsnip")
@@ -324,9 +324,13 @@ parsnip_interval <- function(type) {
     extras <- object[["spec"]][["method"]][["pred"]][[type]][["extras"]]
     probs <- c(1 - extras[["level"]], 1 + extras[["level"]]) / 2
 
+    # Rebuilt as a matrix, since subsetting a category out of the draws for a
+    # single row of `new_data` would drop the column dimension.
     draws <- {
       if (length(dim(x)) == 2L) list(x)
-      else lapply(seq_len(dim(x)[3L]), function(j) x[, , j])
+      else lapply(seq_len(dim(x)[3L]), function(j) {
+        matrix(x[, , j], nrow = dim(x)[1L])
+      })
     }
 
     # Unsuffixed for a single quantity, and suffixed with the level otherwise,

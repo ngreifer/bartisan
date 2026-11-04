@@ -141,6 +141,15 @@ articles:
   - diagnostics
   - comparison
 
+- title: Prediction Workflows
+  desc: >
+    Using a generalized BART model where another package expects one: as a
+    member of a SuperLearner ensemble, as a tidymodels engine for resampling,
+    tuning, and survival models, and as an imputation method in mice.
+  navbar: Prediction Workflows
+  contents:
+  - workflows
+
 - title: Reference
   desc: >
     What the model is, how it is fitted, and why the defaults are what they are,

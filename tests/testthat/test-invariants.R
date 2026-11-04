@@ -884,8 +884,13 @@ test_that("a family with a reporting chart keeps it under every structural wrapp
         expect_lt(max(abs(level)), 1e-8, label = paste(label, "centered"))
       }
       else {
+        # A wrapper that drops the shift leaves the level following `center`
+        # one for one (ratio near 1, correlation near -1). Correct fits range
+        # widely below that: over twelve seeds of `dpm_aft()` under
+        # `vc + ranef` the ratio ran .13 to .55 with the baseline's scales
+        # drawn and .18 to .45 with them fixed, so the bound is .75.
         center <- fit[["aux"]][, "center"]
-        expect_lt(stats::sd(level), 0.5 * stats::sd(center),
+        expect_lt(stats::sd(level), 0.75 * stats::sd(center),
                   label = paste(label, "level against the raw center"))
         expect_lt(abs(stats::cor(level, center)), 0.8,
                   label = paste(label, "level follows the raw center"))

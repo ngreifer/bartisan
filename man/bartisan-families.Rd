@@ -35,7 +35,8 @@ dpm_aft(
   k_s = 10,
   alpha = NULL,
   max_clusters = NULL,
-  psi = 0.5
+  psi = 0.5,
+  update_baseline = TRUE
 )
 
 dpm_aft_ls(
@@ -44,10 +45,19 @@ dpm_aft_ls(
   k_s = 10,
   alpha = NULL,
   max_clusters = NULL,
-  psi = 0.5
+  psi = 0.5,
+  update_baseline = TRUE
 )
 
-dpm(nu = 10, q = 0.95, k_s = 10, alpha = NULL, max_clusters = NULL, psi = 0.5)
+dpm(
+  nu = 10,
+  q = 0.95,
+  k_s = 10,
+  alpha = NULL,
+  max_clusters = NULL,
+  psi = 0.5,
+  update_baseline = TRUE
+)
 
 dpm_ls(
   nu = 10,
@@ -55,7 +65,8 @@ dpm_ls(
   k_s = 10,
   alpha = NULL,
   max_clusters = NULL,
-  psi = 0.5
+  psi = 0.5,
+  update_baseline = TRUE
 )
 
 weibull_aft()
@@ -117,14 +128,19 @@ longer.}
 \item{nu, q}{\code{numeric}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and \code{dpm_aft_ls()}, the degrees of freedom of
 the baseline's inverse-chi-square prior on a component's variance and the
 quantile of that prior placed at a rough estimate of the residual standard
-deviation. Defaults are 10 and .95, which are tighter than BART's own 3 and
-.90 because the mixture covers small errors with extra components rather
-than with one component's left tail.}
+deviation, which together set the prior's scale \eqn{\lambda} (its center,
+when it is drawn; see \code{update_baseline}). Defaults are 10 and .95, which are
+tighter than BART's own 3 and .90 because the mixture covers small errors
+with extra components rather than with one component's left tail.}
 
 \item{k_s}{\code{numeric}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and \code{dpm_aft_ls()}, how many units of the
-baseline's own scale the component means are allowed to reach out to. Must
-be positive. Default is 10, which places the marginal of a component mean so
-that it reaches the largest residual of a linear fit.}
+scale of the baseline's prior on a component mean the largest residual of a
+linear fit lies from zero, which sets \eqn{k_0} (its center, when it is
+drawn; see \code{update_baseline}). Must be positive. Default is 10, as in George
+et al. (2019). A larger value is a tighter prior, pulling the component
+means toward zero; residuals far from zero are then covered by components
+with larger variances, which the conjugate baseline allows to have means
+further out.}
 
 \item{alpha}{\code{numeric}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and \code{dpm_aft_ls()}, a fixed Dirichlet process
 concentration, which must be positive. Default is \code{NULL} to draw it.}
@@ -133,6 +149,13 @@ concentration, which must be positive. Default is \code{NULL} to draw it.}
 number of mixture components thought plausible (2 or greater) and the shape
 of the taper toward it, which together set the prior on \code{alpha}. Defaults
 are \code{NULL} to use a tenth of the sample size, and .5.}
+
+\item{update_baseline}{\code{logical}; for \code{dpm()}, \code{dpm_ls()}, \code{dpm_aft()}, and
+\code{dpm_aft_ls()}, whether to draw the baseline's variance scale
+\eqn{\lambda} and mean-scale ratio \eqn{k_0} at each iteration, each under
+a gamma prior with shape 1.5 centered at the value \code{nu}, \code{q}, and \code{k_s} set
+for it. Default is \code{TRUE}. \code{FALSE} fixes them at those values, as George et
+al. (2019) do. See Details.}
 
 \item{num_bins}{\emph{Advanced.} \code{numeric}; for \code{ph()}, how many pieces the
 baseline hazard has, with the edges at evenly spaced quantiles of the
@@ -201,9 +224,9 @@ The supported families and links are:\tabular{llll}{
    \code{multinomial()} \tab \code{logit}, \code{probit} \tab one per category, or per non-reference level \tab latent covariance, for the probit link \cr
    \code{weibull_aft()}, \code{loglogistic_aft()}, \code{lognormal_aft()} \tab none \tab 1 \tab scale \cr
    \code{ph()} \tab none \tab 1 \tab baseline hazard per bin \cr
-   \code{dpm_aft()} \tab none \tab 1 \tab error mixture, concentration \cr
+   \code{dpm_aft()} \tab none \tab 1 \tab error mixture, concentration, baseline scales \cr
    \code{lognormal_aft_ls()} \tab none \tab 2 \tab none \cr
-   \code{dpm_aft_ls()} \tab none \tab 2 \tab error mixture, concentration \cr
+   \code{dpm_aft_ls()} \tab none \tab 2 \tab error mixture, concentration, baseline scales \cr
    \code{gaussian_ls()} \tab \code{identity} \tab 2 \tab none \cr
    \code{Gamma_ls()} \tab \code{log} \tab 2 \tab none \cr
    \code{zi_poisson()} \tab \code{log} \tab 2 \tab none \cr
@@ -211,8 +234,8 @@ The supported families and links are:\tabular{llll}{
    \code{Beta()} \tab \code{logit}, \code{probit}, \code{cloglog} \tab 1 \tab precision \cr
    \code{ordbeta()} \tab \code{logit} \tab 1 \tab 2 cutpoints, precision \cr
    \code{tweedie()} \tab \code{log} \tab 1 \tab dispersion, and the power if it is drawn \cr
-   \code{dpm()} \tab \code{identity} \tab 1 \tab error mixture, concentration \cr
-   \code{dpm_ls()} \tab \code{identity} \tab 2 \tab error mixture, concentration \cr
+   \code{dpm()} \tab \code{identity} \tab 1 \tab error mixture, concentration, baseline scales \cr
+   \code{dpm_ls()} \tab \code{identity} \tab 2 \tab error mixture, concentration, baseline scales \cr
 }
 
 
@@ -346,6 +369,26 @@ the predictor. \code{type = "link"} and \code{type = "response"} therefore agree
 exactly, and \code{fit$aux} reports the shift that was taken out as \code{center} rather
 than an error mean, which is zero by construction. Prior weights are refused,
 since a weight would have to be a multiplicity in the Dirichlet process.
+
+The mixture's components are drawn from a baseline with two scales:
+\eqn{\lambda}, around which a component's variance falls, and \eqn{k_0},
+which sets how far a component's mean may lie from the center in units of the
+component's own standard deviation. George et al. (2019) fix both at values
+calibrated from a linear fit (see \code{nu}, \code{q}, and \code{k_s}). A linear fit cannot
+tell an error with two narrow, well separated modes from one wide error, so
+with the baseline fixed the components of such an error come out too wide
+and too close to the center, and the posterior is confident about that
+biased shape: in simulations, intervals from \code{\link[=error_density]{error_density()}} and the survival
+curves of \code{dpm_aft()} covered well below their nominal level on a bimodal
+error. By default both scales are drawn instead, each under a gamma prior
+centered at the calibrated value, as the reference implementation of
+Sparapani et al. (2023) draws its counterparts, which lets the data move them
+where the calibration is wrong and leaves them near it where it is right.
+This brought coverage on the bimodal error close to nominal at no cost in
+accuracy, though in the same simulations it lowered the coverage of the
+conditional mean slightly on skewed and bimodal errors, below nominal only for
+\code{dpm_ls()} on a skewed error. \code{update_baseline = FALSE} fixes them as the
+paper does.
 
 \code{dpm_ls()} is \code{dpm()} with a second forest on the log of the error's scale,
 the heteroskedastic mixture of Sparapani et al. (2023):
@@ -629,6 +672,12 @@ bartisan(death ~ rhc + age + sex + race + edu + aps +
 
 }
 \references{
+George, E., Laud, P., Logan, B., McCulloch, R., & Sparapani, R. (2019). Fully
+nonparametric Bayesian additive regression trees. In \emph{Topics in
+Identification, Limited Dependent Variables, Partial Observability,
+Experimentation, and Flexible Modeling: Part B} (pp. 89–110). Emerald
+Publishing Limited. \doi{10.1108/S0731-90532019000040B006}
+
 Sparapani, R. A., Logan, B. R., Maiers, M. J., Laud, P. W., & McCulloch, R. E.
 (2023). Nonparametric failure time: Time-to-event machine learning with
 heteroskedastic Bayesian additive regression trees and low information

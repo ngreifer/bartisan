@@ -1346,8 +1346,10 @@ mnp_density <- function(object, newdata, eta, aux, draws, log) {
 }
 
 # The mixture components of one draw, as a matrix of mean, standard deviation and
-# weight. The count differs from draw to draw, which is why they are stored flat
-# with an offset per draw rather than in a matrix.
+# weight. The weights are drawn given the components' sizes and sum to less than
+# one, the rest being the share of a component of its own. The count differs from
+# draw to draw, which is why they are stored flat with an offset per draw rather
+# than in a matrix.
 mixture_at <- function(object, iteration) {
   start <- object[["mixture_start"]]
 
@@ -1363,8 +1365,8 @@ mixture_at <- function(object, iteration) {
 }
 
 # The predictive density of an error under one draw: the occupied components
-# weighted by their sizes, plus the chance under the Dirichlet process that a new
-# observation opens a component of its own, which is the baseline's own marginal.
+# with the weights drawn for them given their sizes, plus the share left for a
+# component of its own, which is the baseline's own marginal.
 # This is the same expression the sampler reports its log likelihood from.
 #
 # For `dpm_ls()`, `scale` is each error's exp(log_sd) in the reported chart.
@@ -1372,17 +1374,16 @@ mixture_at <- function(object, iteration) {
 # error is scaled every component's mean is too.
 dpm_predictive <- function(object, iteration, at, scale = 1) {
   opts <- object[["family_opts"]]
-  n <- object[["n"]]
-  alpha <- object[["aux"]][iteration, "alpha"]
-  total <- alpha + n
-
   components <- mixture_at(object, iteration)
   base <- baseline_point(object, iteration, at, scale)
-  out <- alpha / total * stats::dt(base[["q"]], df = opts[["nu"]]) /
-    base[["divisor"]]
+
+  # The stored weights are drawn given the atoms' counts, and what they leave
+  # is the share of an atom the next observation would open.
+  out <- (1 - sum(components[, "weight"])) *
+    stats::dt(base[["q"]], df = opts[["nu"]]) / base[["divisor"]]
 
   for (k in seq_len(nrow(components))) {
-    out <- out + components[k, "weight"] * n / total *
+    out <- out + components[k, "weight"] *
       stats::dnorm(at, components[k, "mean"] * scale,
                    components[k, "sd"] * scale)
   }
@@ -1400,7 +1401,8 @@ baseline_point <- function(object, iteration, at, scale = 1) {
   opts <- object[["family_opts"]]
   aux <- object[["aux"]]
   center <- aux[iteration, "center"]
-  base <- sqrt(opts[["lambda"]] * (1 + 1 / opts[["k_0"]]))
+  base <- sqrt(dpm_hyper(object, iteration, "lambda") *
+                 (1 + 1 / dpm_hyper(object, iteration, "k_0")))
 
   if (!dpm_scaled(object)) {
     return(list(q = (at + center) / base, divisor = base))
@@ -1410,6 +1412,18 @@ baseline_point <- function(object, iteration, at, scale = 1) {
 
   list(q = (center + spread * at / scale) / base,
        divisor = base * scale / spread)
+}
+
+# A baseline parameter (`k_0` or `lambda`) at a draw: fixed, unless the fit
+# drew it and recorded it.
+dpm_hyper <- function(object, iteration, name) {
+  aux <- object[["aux"]]
+
+  if (name %in% colnames(aux)) {
+    return(aux[iteration, name])
+  }
+
+  object[["family_opts"]][[name]]
 }
 
 # Whether a Dirichlet process mixture fit has a second forest on the log of the
@@ -1445,9 +1459,6 @@ report_chart <- function(object, eta, iterations) {
 dpm_survival <- function(object, iteration, at, components = NULL,
                          scale = 1) {
   opts <- object[["family_opts"]]
-  n <- object[["n"]]
-  alpha <- object[["aux"]][iteration, "alpha"]
-  total <- alpha + n
 
   # `components` is accepted already built for callers that evaluate the same
   # draw repeatedly -- the median bisection does it sixty times -- since
@@ -1458,11 +1469,11 @@ dpm_survival <- function(object, iteration, at, components = NULL,
 
   base <- baseline_point(object, iteration, at, scale)
 
-  out <- alpha / total *
+  out <- (1 - sum(components[, "weight"])) *
     stats::pt(base[["q"]], df = opts[["nu"]], lower.tail = FALSE)
 
   for (k in seq_len(nrow(components))) {
-    out <- out + components[k, "weight"] * n / total *
+    out <- out + components[k, "weight"] *
       stats::pnorm(at, components[k, "mean"] * scale,
                    components[k, "sd"] * scale, lower.tail = FALSE)
   }

@@ -193,3 +193,13 @@ _dev/did/*
 !_dev/dpm-ls-scale-prior.R
 !_dev/nftbart-compare.R
 !_dev/scale-switch.R
+!_dev/survival-skew-coverage.R
+!_dev/dpm-aft-coverage.R
+!_dev/dpm-k0-draw.R
+!_dev/dpm-k0-oracle.R
+!_dev/dpm-k0-reps.R
+!_dev/dpm-k0-numeric.R
+!_dev/dpm-packages-coverage.R
+!_dev/aft-lognormal-reps.R
+!_dev/skewed-inner-coverage.R
+!_dev/linear-mean-coverage.R

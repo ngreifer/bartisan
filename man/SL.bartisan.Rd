@@ -116,5 +116,6 @@ head(predict(fit, type = "response"))
 \pkgfun{SuperLearner}{SuperLearner} for fitting the ensemble; \code{\link[=bartisan]{bartisan()}} for
 the model and the arguments that can be passed through \code{...};
 \code{\link{bartisan-parsnip}} and \code{\link[=mice.impute.bartisan]{mice.impute.bartisan()}} for the other prediction
-workflows \pkg{bartisan} fits into
+workflows \pkg{bartisan} fits into; \code{vignette("workflows")} for a worked
+example of all three
 }

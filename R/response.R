@@ -1210,10 +1210,30 @@ dpm_baseline <- function(family, y, x, n) {
   taper <- 1 - (grid - alpha_min) / (alpha_max - alpha_min)
   logprior <- family[["psi"]] * log(pmax(taper, 1e-12))
 
+  # By default k_0 and lambda are drawn, each under a gamma prior of shape 1.5
+  # centered on the value above, as nftbart draws its k0 and b0: fixed, a
+  # baseline calibrated from a linear fit pulls components toward one wide
+  # one, and intervals for the error's shape under-cover (`_dev/dpm-k0-*.R`).
+  # `k0_shape` and `lambda_shape` are internal overrides the studies use, and
+  # either one draws its parameter even when `update_baseline` is FALSE.
+  update <- !isFALSE(family[["update_baseline"]])
+  update_k0 <- update || !is_null(family[["k0_shape"]])
+  k0_shape <- family[["k0_shape"]] %or% 1.5
+  k0_rate <- family[["k0_rate"]] %or% (k0_shape / k_0)
+  update_lambda <- update || !is_null(family[["lambda_shape"]])
+  lambda_shape <- family[["lambda_shape"]] %or% 1.5
+  lambda_rate <- family[["lambda_rate"]] %or% (lambda_shape / lambda)
+
   list(nu = nu,
        lambda = lambda,
        mu_0 = 0,
        k_0 = k_0,
+       update_k0 = update_k0,
+       k0_shape = k0_shape,
+       k0_rate = k0_rate,
+       update_lambda = update_lambda,
+       lambda_shape = lambda_shape,
+       lambda_rate = lambda_rate,
        alpha = family[["alpha"]] %or% stats::median(grid),
        update_alpha = is_null(family[["alpha"]]),
        alpha_grid = grid,

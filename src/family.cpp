@@ -4430,6 +4430,17 @@ struct DPMFamily : Concrete<DPMFamily> {
   std::vector<int> atom_count;
   std::vector<int> label;
 
+  // The mixture's weights as reported, drawn after every mixture update from
+  // their posterior given the atoms' counts: Dirichlet(n_1, ..., n_K, alpha),
+  // the last share going to an atom the next observation would open. The urn
+  // integrates the weights out, so its own per-draw predictive puts the counts
+  // in their place, and with well separated atoms, whose labels rarely move,
+  // that fixes the weights across draws and leaves the uncertainty in them out
+  // of every density and survival curve built from the draws. Drawing them
+  // puts it back. The sampler itself never reads these.
+  std::vector<double> report_weight;
+  double report_new;
+
   // Baseline parameters, all fixed: the paper chooses values rather than priors
   // for these, on the argument that BART plus a Dirichlet process is already
   // adaptable enough that keeping the rest simple is worth more than another
@@ -4438,6 +4449,17 @@ struct DPMFamily : Concrete<DPMFamily> {
   double lambda;
   double mu_0;
   double k_0;
+
+  // Except, optionally, k_0 and lambda, each drawn under a gamma prior with the
+  // shape and rate given, as nftbart draws k0 and b0 (Shi et al. 2019).
+  // Experiments (`_dev/dpm-k0-draw.R`, `_dev/dpm-k0-oracle.R`), off unless the
+  // family options ask for them.
+  bool update_k0;
+  double k0_shape;
+  double k0_rate;
+  bool update_lambda;
+  double lambda_shape;
+  double lambda_rate;
 
   double alpha;
   bool update_alpha;
@@ -4451,9 +4473,14 @@ struct DPMFamily : Concrete<DPMFamily> {
   DPMFamily(const arma::vec& y_, const arma::vec& w_, double nu_,
             double lambda_, double mu_0_, double k_0_, double alpha_,
             bool update_alpha_, const arma::vec& alpha_grid_,
-            const arma::vec& alpha_logprior_, int H_ = 1)
+            const arma::vec& alpha_logprior_, int H_ = 1,
+            bool update_k0_ = false, double k0_shape_ = 1.0,
+            double k0_rate_ = 1.0, bool update_lambda_ = false,
+            double lambda_shape_ = 1.0, double lambda_rate_ = 1.0)
     : Concrete<DPMFamily>(y_, w_, H_), mean_log_sd(0.0), nu(nu_),
-      lambda(lambda_), mu_0(mu_0_), k_0(k_0_), alpha(alpha_),
+      lambda(lambda_), mu_0(mu_0_), k_0(k_0_), update_k0(update_k0_),
+      k0_shape(k0_shape_), k0_rate(k0_rate_), update_lambda(update_lambda_),
+      lambda_shape(lambda_shape_), lambda_rate(lambda_rate_), alpha(alpha_),
       update_alpha(update_alpha_), alpha_grid(alpha_grid_),
       alpha_logprior(alpha_logprior_) {
 
@@ -4466,6 +4493,8 @@ struct DPMFamily : Concrete<DPMFamily> {
     atom_mu.push_back(mu_0);
     atom_s2.push_back(lambda);
     atom_count.push_back(N);
+    report_weight.assign(1, 1.0);
+    report_new = 0.0;
     shift.fill(mu_0);
     refresh_eta_free();
   }
@@ -4759,25 +4788,75 @@ struct DPMFamily : Concrete<DPMFamily> {
     alpha = alpha_grid(alpha_grid.n_elem - 1);
   }
 
+  // Given the atoms, each mu_k is N(mu_0, sigma_k^2 / k_0), so a gamma prior
+  // on k_0 is conjugate: shape + K / 2 and rate + sum (mu_k - mu_0)^2 /
+  // (2 sigma_k^2). Each 1 / sigma_k^2 is gamma with shape nu / 2 and rate
+  // nu lambda / 2, so a gamma prior on lambda is too: shape + K nu / 2 and rate
+  // + (nu / 2) sum 1 / sigma_k^2. The urn's reassignment used the values the
+  // atoms were drawn under, which is what makes these ordinary Gibbs steps.
+  void update_baseline_scale() {
+    double atoms = static_cast<double>(atom_mu.size());
+
+    if (update_k0) {
+      double rate = k0_rate;
+
+      for (std::size_t k = 0; k < atom_mu.size(); k++) {
+        double d = atom_mu[k] - mu_0;
+        rate += 0.5 * d * d / atom_s2[k];
+      }
+
+      k_0 = R::rgamma(k0_shape + 0.5 * atoms, 1.0 / rate);
+    }
+
+    if (update_lambda) {
+      double rate = lambda_rate;
+
+      for (std::size_t k = 0; k < atom_s2.size(); k++) {
+        rate += 0.5 * nu / atom_s2[k];
+      }
+
+      lambda = R::rgamma(lambda_shape + 0.5 * nu * atoms, 1.0 / rate);
+    }
+  }
+
   void update_aux(const arma::mat& eta) override {
     update_mixture(eta);
+    update_baseline_scale();
     update_concentration();
+    draw_report_weights();
     refresh_eta_free();
   }
 
+  void draw_report_weights() {
+    std::size_t atoms = atom_mu.size();
+    report_weight.resize(atoms);
+    double total = 0.0;
+
+    for (std::size_t k = 0; k < atoms; k++) {
+      report_weight[k] = R::rgamma(static_cast<double>(atom_count[k]), 1.0);
+      total += report_weight[k];
+    }
+
+    report_new = R::rgamma(alpha, 1.0);
+    total += report_new;
+
+    for (std::size_t k = 0; k < atoms; k++) {
+      report_weight[k] /= total;
+    }
+
+    report_new /= total;
+  }
+
   // The predictive density of one error under the current draw: the occupied
-  // atoms weighted by their sizes, plus the chance under the Dirichlet process
-  // that the next observation opens an atom of its own, which is the baseline's
-  // own marginal. With a second predictor it is the density of W, in the
-  // sampler's chart.
+  // atoms with their drawn weights, plus the share an atom of its own would
+  // take, which is the baseline's own marginal. With a second predictor it is
+  // the density of W, in the sampler's chart.
   double log_predictive(double r) const {
-    double n = static_cast<double>(N);
-    double total = alpha + n;
-    double out = std::exp(std::log(alpha) - std::log(total) + log_marginal(r));
+    double out = report_new * std::exp(log_marginal(r));
 
     for (std::size_t k = 0; k < atom_mu.size(); k++) {
       double resid = r - atom_mu[k];
-      out += atom_count[k] / total *
+      out += report_weight[k] *
         std::exp(-0.5 * (LN_2PI + std::log(atom_s2[k]) +
                          resid * resid / atom_s2[k]));
     }
@@ -4808,14 +4887,15 @@ struct DPMFamily : Concrete<DPMFamily> {
   }
 
   // The mean and standard deviation of the fitted error distribution, which is
-  // the mixture over the atoms weighted by how many observations sit in each.
+  // the mixture over the occupied atoms with their drawn weights, normalized
+  // among themselves.
   void error_moments(double* out_mean, double* out_sd) const {
-    double n = static_cast<double>(N);
+    double occupied = 1.0 - report_new;
     double mean = 0.0;
     double second = 0.0;
 
     for (std::size_t k = 0; k < atom_mu.size(); k++) {
-      double p = static_cast<double>(atom_count[k]) / n;
+      double p = report_weight[k] / occupied;
       mean += p * atom_mu[k];
       second += p * (atom_s2[k] + atom_mu[k] * atom_mu[k]);
     }
@@ -4883,46 +4963,80 @@ struct DPMFamily : Concrete<DPMFamily> {
   // sample, in the reported chart, and `error_sd` the standard deviation of the
   // error at that scale, which is where `error_density()` draws the error
   // distribution; W having unit variance, the two are equal.
+  // A drawn k_0 and lambda are reported last, since the new-component term
+  // needs them.
   std::vector<std::string> aux_names() const override {
+    std::vector<std::string> out;
+
     if (H == 1) {
-      return std::vector<std::string>{"alpha", "clusters", "center",
-                                      "error_sd"};
+      out = {"alpha", "clusters", "center", "error_sd"};
+    }
+    else {
+      out = {"alpha", "clusters", "center", "spread", "scale", "error_sd"};
     }
 
-    return std::vector<std::string>{"alpha", "clusters", "center", "spread",
-                                    "scale", "error_sd"};
+    if (update_k0) {
+      out.push_back("k_0");
+    }
+
+    if (update_lambda) {
+      out.push_back("lambda");
+    }
+
+    return out;
   }
 
   arma::vec aux_values() const override {
     double mean;
     double sd;
     error_moments(&mean, &sd);
+    arma::vec out;
 
     if (H == 1) {
-      return arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd};
+      out = arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd};
+    }
+    else {
+      double scale = std::exp(mean_log_sd) * sd;
+      out = arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd,
+                      scale, scale};
     }
 
-    double scale = std::exp(mean_log_sd) * sd;
+    if (update_k0) {
+      out = arma::join_cols(out, arma::vec{k_0});
+    }
 
-    return arma::vec{alpha, static_cast<double>(atom_mu.size()), mean, sd,
-                     scale, scale};
+    if (update_lambda) {
+      out = arma::join_cols(out, arma::vec{lambda});
+    }
+
+    return out;
   }
 
-  // Only alpha is recoverable from these numbers; the mixture itself is
-  // reported separately, as a flat vector of atoms, because it has a different
-  // number of components at every draw.
+  // Only alpha, and a drawn k_0 and lambda, are recoverable from these
+  // numbers; the mixture itself is reported separately, as a flat vector of
+  // atoms, because it has a different number of components at every draw.
   void set_aux(const arma::vec& values) override {
     if (values.n_elem > 0) {
       alpha = values(0);
     }
+
+    arma::uword at = H == 1 ? 4u : 6u;
+
+    if (update_k0 && values.n_elem > at) {
+      k_0 = values(at++);
+    }
+
+    if (update_lambda && values.n_elem > at) {
+      lambda = values(at);
+    }
   }
 
   // The atoms of the current draw, as (mean, standard deviation, weight)
-  // triples. `model.cpp` appends these to one flat vector across draws, the same
+  // triples, the weights the drawn ones, which leave `report_new` for an atom
+  // of its own. `model.cpp` appends these to one flat vector across draws, the same
   // way it stores the trees.
   arma::vec mixture_flat() const override {
     arma::vec out(3 * atom_mu.size());
-    double n = static_cast<double>(N);
 
     // Centered, and with a second predictor rescaled to unit variance, to match
     // the chart the predictors are reported in.
@@ -4934,7 +5048,7 @@ struct DPMFamily : Concrete<DPMFamily> {
     for (std::size_t k = 0; k < atom_mu.size(); k++) {
       out(3 * k) = (atom_mu[k] - mean) / unit;
       out(3 * k + 1) = std::sqrt(atom_s2[k]) / unit;
-      out(3 * k + 2) = static_cast<double>(atom_count[k]) / n;
+      out(3 * k + 2) = report_weight[k];
     }
 
     return out;
@@ -4974,9 +5088,12 @@ struct DPMAFTFamily final : DPMFamily {
                const arma::vec& event_, double nu_, double lambda_,
                double mu_0_, double k_0_, double alpha_, bool update_alpha_,
                const arma::vec& alpha_grid_, const arma::vec& alpha_logprior_,
-               int H_ = 1)
+               int H_ = 1, bool update_k0_ = false, double k0_shape_ = 1.0,
+               double k0_rate_ = 1.0, bool update_lambda_ = false,
+               double lambda_shape_ = 1.0, double lambda_rate_ = 1.0)
     : DPMFamily(y_, w_, nu_, lambda_, mu_0_, k_0_, alpha_, update_alpha_,
-                alpha_grid_, alpha_logprior_, H_),
+                alpha_grid_, alpha_logprior_, H_, update_k0_, k0_shape_,
+                k0_rate_, update_lambda_, lambda_shape_, lambda_rate_),
       obs(y_), event(event_) {
     // A deterministic start one scale unit past each censoring time, replaced by
     // a proper draw at the end of the first sweep. The second predictor starts
@@ -5025,14 +5142,11 @@ struct DPMAFTFamily final : DPMFamily {
   // `log_predictive()` term for term: the occupied atoms weighted by their sizes
   // plus the baseline's own marginal, which is a t.
   double log_survival(double r) const {
-    double n = static_cast<double>(N);
-    double total = alpha + n;
     double scale = std::sqrt(lambda * (1.0 + 1.0 / k_0));
-    double out = alpha / total *
-      R::pt((r - mu_0) / scale, nu, 0, 0);
+    double out = report_new * R::pt((r - mu_0) / scale, nu, 0, 0);
 
     for (std::size_t k = 0; k < atom_mu.size(); k++) {
-      out += atom_count[k] / total *
+      out += report_weight[k] *
         R::pnorm5(r, atom_mu[k], std::sqrt(atom_s2[k]), 0, 0);
     }
 
@@ -6555,6 +6669,16 @@ Family* with_link(Family* family, const List& opts) {
 
 namespace {
 
+// A family option that may be absent, for options only an experiment sets.
+template <typename T>
+T opt_or(const List& opts, const char* name, T fallback) {
+  if (opts.containsElementNamed(name) && !Rf_isNull(opts[name])) {
+    return as<T>(opts[name]);
+  }
+
+  return fallback;
+}
+
 Family* make_base_family(const std::string& name, const std::string& link,
                          const arma::vec& y, const arma::vec& w,
                          const List& opts) {
@@ -6658,7 +6782,13 @@ Family* make_base_family(const std::string& name, const std::string& link,
                                    as<bool>(opts["update_alpha"]),
                                    as<arma::vec>(opts["alpha_grid"]),
                                    as<arma::vec>(opts["alpha_logprior"]),
-                                   name == "dpm_aft_ls" ? 2 : 1));
+                                   name == "dpm_aft_ls" ? 2 : 1,
+                                   opt_or(opts, "update_k0", false),
+                                   opt_or(opts, "k0_shape", 1.0),
+                                   opt_or(opts, "k0_rate", 1.0),
+                                   opt_or(opts, "update_lambda", false),
+                                   opt_or(opts, "lambda_shape", 1.0),
+                                   opt_or(opts, "lambda_rate", 1.0)));
   }
 
   if (name == "ph") {
@@ -6690,7 +6820,13 @@ Family* make_base_family(const std::string& name, const std::string& link,
                                 as<bool>(opts["update_alpha"]),
                                 as<arma::vec>(opts["alpha_grid"]),
                                 as<arma::vec>(opts["alpha_logprior"]),
-                                name == "dpm_ls" ? 2 : 1));
+                                name == "dpm_ls" ? 2 : 1,
+                                opt_or(opts, "update_k0", false),
+                                opt_or(opts, "k0_shape", 1.0),
+                                opt_or(opts, "k0_rate", 1.0),
+                                opt_or(opts, "update_lambda", false),
+                                opt_or(opts, "lambda_shape", 1.0),
+                                opt_or(opts, "lambda_rate", 1.0)));
   }
 
   if (name == "mnp") {

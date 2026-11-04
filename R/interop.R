@@ -414,14 +414,15 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
   # event time the same way and return the event time.
   if (family %in% c("dpm", "dpm_ls", "dpm_aft", "dpm_aft_ls")) {
     scaled <- family %in% c("dpm_ls", "dpm_aft_ls")
-    total <- object[["n"]] + aux[, "alpha"]
     out <- square(0)
 
     for (s in seq_len(ns)) {
       scale <- if (scaled) exp(eta[[2L]][s, ]) else 1
       components <- mixture_at(object, iterations[s])
-      probability <- c(components[, "weight"] * object[["n"]],
-                       aux[s, "alpha"]) / total[s]
+      # The stored weights are drawn given the counts, and what they leave
+      # goes to a fresh component.
+      probability <- c(components[, "weight"],
+                       max(1 - sum(components[, "weight"]), 0))
       picked <- sample.int(length(probability), n, replace = TRUE,
                            prob = probability)
       fresh <- picked > nrow(components)
@@ -436,7 +437,8 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
       noise <- stats::rnorm(n) * spread * scale
 
       opts <- object[["family_opts"]]
-      raw <- sqrt(opts[["lambda"]] * (1 + 1 / opts[["k_0"]])) *
+      raw <- sqrt(dpm_hyper(object, iterations[s], "lambda") *
+                    (1 + 1 / dpm_hyper(object, iterations[s], "k_0"))) *
         stats::rt(n, opts[["nu"]])
 
       # A fresh component's draw is in the raw chart, which with a second
@@ -855,13 +857,32 @@ family_prior <- function(object) {
   # observation's atom comes from, and the concentration that governs how many
   # atoms there are.
   if (family %in% c("dpm", "dpm_ls", "dpm_aft", "dpm_aft_ls")) {
+    # A fit made before the baseline could be drawn has no flag for it, and
+    # its baseline was fixed, so a missing flag reads as fixed here.
+    drawn_k0 <- isTRUE(opts[["update_k0"]])
+    drawn_lambda <- isTRUE(opts[["update_lambda"]])
+
     add("atom variance",
-        sprintf("%s * %s / ChiSq(%s)", value("nu"), value("lambda"),
-                value("nu")),
+        sprintf("%s * %s / ChiSq(%s)", value("nu"),
+                if (drawn_lambda) "lambda" else value("lambda"), value("nu")),
         TRUE)
     add("atom mean",
-        sprintf("Normal(%s, variance / %s)", value("mu_0"), value("k_0")),
+        sprintf("Normal(%s, variance / %s)", value("mu_0"),
+                if (drawn_k0) "k_0" else value("k_0")),
         TRUE)
+
+    if (drawn_lambda) {
+      add("lambda", sprintf("Gamma(shape = %s, rate = %s)",
+                            value("lambda_shape"), value("lambda_rate")),
+          TRUE)
+    }
+
+    if (drawn_k0) {
+      add("k_0", sprintf("Gamma(shape = %s, rate = %s)", value("k0_shape"),
+                         value("k0_rate")),
+          TRUE)
+    }
+
     grid <- opts[["alpha_grid"]]
 
     add("concentration",

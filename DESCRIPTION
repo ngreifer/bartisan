@@ -65,6 +65,7 @@ Suggests:
     SuperLearner,
     survival,
     testthat (>= 3.0.0),
+    tidymodels,
     WeightIt
 VignetteBuilder: knitr, rmarkdown
 URL: https://github.com/ngreifer/bartisan, https://ngreifer.github.io/bartisan/

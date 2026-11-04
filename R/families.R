@@ -64,19 +64,30 @@
 #' @param nu,q `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, the degrees of freedom of
 #'   the baseline's inverse-chi-square prior on a component's variance and the
 #'   quantile of that prior placed at a rough estimate of the residual standard
-#'   deviation. Defaults are 10 and .95, which are tighter than BART's own 3 and
-#'   .90 because the mixture covers small errors with extra components rather
-#'   than with one component's left tail.
+#'   deviation, which together set the prior's scale \eqn{\lambda} (its center,
+#'   when it is drawn; see `update_baseline`). Defaults are 10 and .95, which are
+#'   tighter than BART's own 3 and .90 because the mixture covers small errors
+#'   with extra components rather than with one component's left tail.
 #' @param k_s `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, how many units of the
-#'   baseline's own scale the component means are allowed to reach out to. Must
-#'   be positive. Default is 10, which places the marginal of a component mean so
-#'   that it reaches the largest residual of a linear fit.
+#'   scale of the baseline's prior on a component mean the largest residual of a
+#'   linear fit lies from zero, which sets \eqn{k_0} (its center, when it is
+#'   drawn; see `update_baseline`). Must be positive. Default is 10, as in George
+#'   et al. (2019). A larger value is a tighter prior, pulling the component
+#'   means toward zero; residuals far from zero are then covered by components
+#'   with larger variances, which the conjugate baseline allows to have means
+#'   further out.
 #' @param alpha `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, a fixed Dirichlet process
 #'   concentration, which must be positive. Default is `NULL` to draw it.
 #' @param max_clusters,psi `numeric`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and `dpm_aft_ls()`, the largest
 #'   number of mixture components thought plausible (2 or greater) and the shape
 #'   of the taper toward it, which together set the prior on `alpha`. Defaults
 #'   are `NULL` to use a tenth of the sample size, and .5.
+#' @param update_baseline `logical`; for `dpm()`, `dpm_ls()`, `dpm_aft()`, and
+#'   `dpm_aft_ls()`, whether to draw the baseline's variance scale
+#'   \eqn{\lambda} and mean-scale ratio \eqn{k_0} at each iteration, each under
+#'   a gamma prior with shape 1.5 centered at the value `nu`, `q`, and `k_s` set
+#'   for it. Default is `TRUE`. `FALSE` fixes them at those values, as George et
+#'   al. (2019) do. See Details.
 #'
 #' @returns
 #' A `<bartisan_family>` object, which is a list containing at least the elements
@@ -107,9 +118,9 @@
 #' | `multinomial()` | `logit`, `probit` | one per category, or per non-reference level | latent covariance, for the probit link |
 #' | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
 #' | `ph()` | none | 1 | baseline hazard per bin |
-#' | `dpm_aft()` | none | 1 | error mixture, concentration |
+#' | `dpm_aft()` | none | 1 | error mixture, concentration, baseline scales |
 #' | `lognormal_aft_ls()` | none | 2 | none |
-#' | `dpm_aft_ls()` | none | 2 | error mixture, concentration |
+#' | `dpm_aft_ls()` | none | 2 | error mixture, concentration, baseline scales |
 #' | `gaussian_ls()` | `identity` | 2 | none |
 #' | `Gamma_ls()` | `log` | 2 | none |
 #' | `zi_poisson()` | `log` | 2 | none |
@@ -117,8 +128,8 @@
 #' | `Beta()` | `logit`, `probit`, `cloglog` | 1 | precision |
 #' | `ordbeta()` | `logit` | 1 | 2 cutpoints, precision |
 #' | `tweedie()` | `log` | 1 | dispersion, and the power if it is drawn |
-#' | `dpm()` | `identity` | 1 | error mixture, concentration |
-#' | `dpm_ls()` | `identity` | 2 | error mixture, concentration |
+#' | `dpm()` | `identity` | 1 | error mixture, concentration, baseline scales |
+#' | `dpm_ls()` | `identity` | 2 | error mixture, concentration, baseline scales |
 #'
 #' A family with more than one additive predictor fits one forest per predictor.
 #' Nuisance parameters are drawn alongside the trees and reported in `fit$aux`.
@@ -249,6 +260,26 @@
 #' exactly, and `fit$aux` reports the shift that was taken out as `center` rather
 #' than an error mean, which is zero by construction. Prior weights are refused,
 #' since a weight would have to be a multiplicity in the Dirichlet process.
+#'
+#' The mixture's components are drawn from a baseline with two scales:
+#' \eqn{\lambda}, around which a component's variance falls, and \eqn{k_0},
+#' which sets how far a component's mean may lie from the center in units of the
+#' component's own standard deviation. George et al. (2019) fix both at values
+#' calibrated from a linear fit (see `nu`, `q`, and `k_s`). A linear fit cannot
+#' tell an error with two narrow, well separated modes from one wide error, so
+#' with the baseline fixed the components of such an error come out too wide
+#' and too close to the center, and the posterior is confident about that
+#' biased shape: in simulations, intervals from [error_density()] and the survival
+#' curves of `dpm_aft()` covered well below their nominal level on a bimodal
+#' error. By default both scales are drawn instead, each under a gamma prior
+#' centered at the calibrated value, as the reference implementation of
+#' Sparapani et al. (2023) draws its counterparts, which lets the data move them
+#' where the calibration is wrong and leaves them near it where it is right.
+#' This brought coverage on the bimodal error close to nominal at no cost in
+#' accuracy, though in the same simulations it lowered the coverage of the
+#' conditional mean slightly on skewed and bimodal errors, below nominal only for
+#' `dpm_ls()` on a skewed error. `update_baseline = FALSE` fixes them as the
+#' paper does.
 #'
 #' `dpm_ls()` is `dpm()` with a second forest on the log of the error's scale,
 #' the heteroskedastic mixture of Sparapani et al. (2023):
@@ -497,6 +528,12 @@
 #' the long form
 #'
 #' @references
+#' George, E., Laud, P., Logan, B., McCulloch, R., & Sparapani, R. (2019). Fully
+#' nonparametric Bayesian additive regression trees. In *Topics in
+#' Identification, Limited Dependent Variables, Partial Observability,
+#' Experimentation, and Flexible Modeling: Part B* (pp. 89–110). Emerald
+#' Publishing Limited. \doi{10.1108/S0731-90532019000040B006}
+#'
 #' Sparapani, R. A., Logan, B. R., Maiers, M. J., Laud, P. W., & McCulloch, R. E.
 #' (2023). Nonparametric failure time: Time-to-event machine learning with
 #' heteroskedastic Bayesian additive regression trees and low information
@@ -618,9 +655,10 @@ multinomial <- function(link = "logit", reference = NULL,
 #' @rdname bartisan-families
 #' @export
 dpm_aft <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
-                    max_clusters = NULL, psi = 0.5) {
+                    max_clusters = NULL, psi = 0.5, update_baseline = TRUE) {
   out <- dpm(nu = nu, q = q, k_s = k_s, alpha = alpha,
-             max_clusters = max_clusters, psi = psi)
+             max_clusters = max_clusters, psi = psi,
+             update_baseline = update_baseline)
   out[["family"]] <- "dpm_aft"
   out
 }
@@ -628,9 +666,11 @@ dpm_aft <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
 #' @rdname bartisan-families
 #' @export
 dpm_aft_ls <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
-                       max_clusters = NULL, psi = 0.5) {
+                       max_clusters = NULL, psi = 0.5,
+                       update_baseline = TRUE) {
   out <- dpm(nu = nu, q = q, k_s = k_s, alpha = alpha,
-             max_clusters = max_clusters, psi = psi)
+             max_clusters = max_clusters, psi = psi,
+             update_baseline = update_baseline)
   out[["family"]] <- "dpm_aft_ls"
   out
 }
@@ -638,7 +678,7 @@ dpm_aft_ls <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
 #' @rdname bartisan-families
 #' @export
 dpm <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
-                max_clusters = NULL, psi = 0.5) {
+                max_clusters = NULL, psi = 0.5, update_baseline = TRUE) {
   arg::arg_number(nu)
   arg::arg_gt(nu, 0)
   arg::arg_number(q)
@@ -647,6 +687,7 @@ dpm <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
   arg::arg_gt(k_s, 0)
   arg::arg_number(psi)
   arg::arg_gte(psi, 0)
+  arg::arg_flag(update_baseline)
 
   arg::when_not_null(
     alpha,
@@ -665,15 +706,17 @@ dpm <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
   )
 
   new_bartisan_family("dpm", "identity", nu = nu, q = q, k_s = k_s,
-                      alpha = alpha, max_clusters = max_clusters, psi = psi)
+                      alpha = alpha, max_clusters = max_clusters, psi = psi,
+                      update_baseline = update_baseline)
 }
 
 #' @rdname bartisan-families
 #' @export
 dpm_ls <- function(nu = 10, q = 0.95, k_s = 10, alpha = NULL,
-                   max_clusters = NULL, psi = 0.5) {
+                   max_clusters = NULL, psi = 0.5, update_baseline = TRUE) {
   out <- dpm(nu = nu, q = q, k_s = k_s, alpha = alpha,
-             max_clusters = max_clusters, psi = psi)
+             max_clusters = max_clusters, psi = psi,
+             update_baseline = update_baseline)
   out[["family"]] <- "dpm_ls"
   out
 }

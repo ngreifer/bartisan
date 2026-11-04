@@ -113,5 +113,6 @@ Wiley & Sons. \doi{10.1002/9780470316696}
 \pkgfun{mice}{mice} for multiple imputation by chained equations;
 \code{\link[=bartisan]{bartisan()}} for the imputation model and the settings that can be passed
 through \code{...}; \code{\link[=SL.bartisan]{SL.bartisan()}} and \code{\link{bartisan-parsnip}} for the other
-prediction workflows \pkg{bartisan} fits into
+prediction workflows \pkg{bartisan} fits into; \code{vignette("workflows")} for
+a worked example of all three
 }

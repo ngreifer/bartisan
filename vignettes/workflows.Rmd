@@ -1,0 +1,630 @@
+---
+title: "Using bartisan in Prediction Workflows"
+author: "Noah Greifer"
+date: "`r Sys.Date()`"
+output:
+  html_vignette:
+    toc: yes
+vignette: >
+  %\VignetteIndexEntry{Using bartisan in Prediction Workflows}
+  %\VignetteEngine{knitr::rmarkdown_notangle}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+link-citations: true
+---
+
+```{=html}
+<style>
+pre {overflow-x: auto;}
+pre code {word-wrap: normal; white-space: pre;}
+</style>
+```
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5,
+                      fig.height = 3.4, dpi = 110, fig.align = "center",
+                      message = FALSE, warning = FALSE)
+options(digits = 3)
+
+has_sl <- rlang::is_installed("SuperLearner")
+has_tm <- rlang::is_installed(c("tidymodels", "survival"))
+has_mice <- rlang::is_installed("mice")
+
+# Resampling and multiple imputation fit many models, so the output is saved
+# ahead of time and replayed where the code is not run, as on CRAN; see
+# saved-results.R.
+source("saved-results.R", local = knitr::knit_global())
+knitr::opts_chunk$set(saved = TRUE)
+```
+
+## Introduction
+
+Many analyses that need a flexible model of an outcome are not built around a
+single call to a model-fitting function. A prediction model might be one member
+of an ensemble whose weights are chosen by cross-validation, or one of several
+candidate models compared on the same resamples and tuned over a grid, and an
+outcome model in a causal analysis is often fit to data that were first
+completed by multiple imputation. Each of these tasks has a well-established
+package that runs it, and each of those packages has a way for another package
+to supply the model.
+
+*bartisan* supplies one for three of them:
+
+* [*SuperLearner*](https://CRAN.R-project.org/package=SuperLearner), for
+  ensembles of prediction models, through the learner `SL.bartisan()`;
+* [*tidymodels*](https://www.tidymodels.org/), for resampling, tuning, and
+  comparing models, through a `"bartisan"` engine for `parsnip::bart()`;
+* [*mice*](https://amices.org/mice/), for multiple imputation, through the
+  imputation method `mice.impute.bartisan()`, requested with
+  `method = "bartisan"`.
+
+In each case the other package runs the analysis as it always does, and
+*bartisan* fits the model whenever it is asked to. Nothing new has to be learned
+beyond how to name the model and how to pass it settings, and this guide covers
+both for each package.
+
+### This Guide
+
+In this guide, we will use each interface on the `rhc` data. First we'll add a
+BART model to a *SuperLearner* ensemble predicting death and see how much weight
+the ensemble gives it, and then how to supply variants of it with different
+settings. Next we'll fit the same model with *tidymodels*, tune two of its prior
+settings by cross-validation, compare it with a logistic regression on held-out
+data, and fit a survival model in the `"censored regression"` mode. Finally,
+we'll impute missing values with *mice* using BART and compare the analysis of
+the imputed data with the analysis of the complete data.
+
+The fits use default settings for the sampler and a single chain, except where
+a setting is reduced to keep the run short. The interfaces do not change what a
+fit needs, so in a real analysis the advice in `vignette("diagnostics")` applies
+to these models as it does to any other.
+
+We'll start by loading *bartisan* and the `rhc` data, which is described in
+`vignette("bartisan")` and `help("rhc", package = "bartisan")`.
+
+```{r libs}
+library(bartisan)
+
+data("rhc")
+```
+
+## Super Learning (`SL.bartisan()`)
+
+A super learner is a weighted combination of candidate prediction models, with
+the weights chosen to minimize the cross-validated risk of the combination
+[@vanderlaanSuperLearner2007]. The candidates are called the library, and
+choosing them is one of the main decisions in specifying a super learner
+[@phillipsPracticalConsiderationsSpecifying2023].
+Including a flexible model such as BART in the library gives the ensemble a
+candidate that can find nonlinear relationships and interactions without their
+being specified, alongside the simpler models that do better when there are
+none.
+
+In *SuperLearner*, a library member is a function that the `SuperLearner()`
+function finds by name, so including BART requires only adding
+`"SL.bartisan"` to the `SL.library` argument. Below, we predict death from the
+covariates in `rhc` using a library of the overall mean, a main-effects logistic
+regression, and BART, with 5-fold cross-validation rather than the default 10
+to keep the run short.
+
+```{r sl, eval = has_sl}
+library(SuperLearner)
+
+covs <- c("age", "sex", "race", "edu", "aps", "meanbp", "resp",
+          "hema", "pafi", "paco2", "crea", "surv2m", "card")
+
+set.seed(1234)
+sl <- SuperLearner(Y = rhc$death, X = rhc[covs],
+                   family = binomial(),
+                   SL.library = c("SL.mean", "SL.glm", "SL.bartisan"),
+                   cvControl = list(V = 5))
+
+sl
+```
+
+The `Risk` column contains each candidate's cross-validated mean squared error,
+and the `Coef` column contains the weight each one receives in the ensemble.
+BART has a cross-validated risk of
+`r saved_value("sl_risk_bart", format(sl$cvRisk[["SL.bartisan_All"]], digits = 3))`,
+nearly the same as the
+`r saved_value("sl_risk_glm", format(sl$cvRisk[["SL.glm_All"]], digits = 3))`
+of the logistic regression, and the ensemble splits its weight between the two,
+giving BART a weight of
+`r saved_value("sl_coef", format(sl$coef[["SL.bartisan_All"]], digits = 2))`.
+In these data, a logistic regression with main effects captures most of what the
+covariates can predict about death, so BART finds little more to add; with an
+outcome that depends on its predictors in ways a linear model misses, the
+difference between the two would be larger.
+
+`SL.bartisan()` fits the family *SuperLearner* passes to it, which is
+`binomial()` here and `gaussian()` for a continuous outcome, rather than the
+family `bartisan()` would choose for the outcome on its own. A continuous
+outcome that is better fit with a different family, such as `dpm()`, which does
+not assume normal errors, can be given one with the `bartisan_family` argument,
+as described next. Each prediction is the posterior mean of the response, so
+for a binary outcome it is the posterior mean probability.
+
+Predictions for new units come from `predict()`, which uses the ensemble's
+weights to combine the predictions from each candidate fit to the full data.
+
+```{r slpred, eval = has_sl}
+predict(sl, newdata = rhc[1:5, covs], onlySL = TRUE)$pred
+```
+
+### Changing the Settings of the Learner
+
+`SuperLearner()` calls each learner with a fixed set of arguments, so settings
+for `bartisan()` and `bartisan_control()` are supplied by making a new learner
+that calls `SL.bartisan()` with them. This can be done by writing a short
+function, as below, which requests 200 trees.
+
+```{r slwrapper, eval = has_sl}
+SL.bartisan_200 <- function(...) {
+  SL.bartisan(..., num_trees = 200)
+}
+```
+
+Including `"SL.bartisan_200"` in the library would then add that model as a
+candidate. The same approach supplies a family, e.g., with
+`SL.bartisan(..., bartisan_family = dpm())` inside the function.
+
+To add several variants at once, `create.Learner()` in *SuperLearner* writes one
+such function for each combination of the values it is given. Below, we create
+variants of BART with 20 and 50 trees and with the default and a larger value
+of `k`, which shrinks the fit more strongly toward the overall mean (see
+`help("bartisan_control")`).
+
+```{r sllearners, eval = has_sl}
+bart_learners <- create.Learner("SL.bartisan",
+                                tune = list(num_trees = c(20, 50),
+                                            k = c(2, 4)))
+
+bart_learners$names
+```
+
+The functions are created in the environment `create.Learner()` is called from,
+and their names are stored in the `names` component of its output, which can be
+used in the library directly.
+
+```{r sl2, eval = has_sl}
+set.seed(1234)
+sl2 <- SuperLearner(Y = rhc$death, X = rhc[covs],
+                    family = binomial(),
+                    SL.library = c("SL.mean", "SL.glm",
+                                   bart_learners$names),
+                    cvControl = list(V = 5))
+
+sl2
+```
+
+The `Risk` column lets us compare the four BART models directly. Their
+cross-validated risks differ by no more than .001, and the ensemble gives nearly
+all of the weight it assigns to BART to one of them; with candidates this
+similar, which one receives the weight says little about which settings are
+better. Placing several variants in the library in this way is a form of
+tuning, with the ensemble deciding how much to rely on each rather than
+choosing one.
+
+Note that `SuperLearner()` looks up the learners by name in the environment it is
+called from and then along the search path, so *bartisan* has to be attached
+(e.g., with `library("bartisan")`) for `"SL.bartisan"` to be found. Each call to
+`SuperLearner()` fits each BART model once per fold and once more to the full
+data, so the cost of adding BART to a library is about the cost of that many
+calls to `bartisan()`.
+
+## tidymodels (`bart(engine = "bartisan")`)
+
+The *tidymodels* collection of packages organizes modeling around a model
+specification that is separate from the code that fits it, so that the same
+resampling, tuning, and evaluation code works with any model. The
+`parsnip::bart()` specification describes a BART model, and loading *bartisan*
+adds `"bartisan"` to the engines that can fit it. Below, we load *tidymodels*
+and split the data into a training set and a test set. The outcome has to be a
+factor for a classification model, and we place the `"yes"` level first, since
+*yardstick* treats the first level as the event by default.
+
+```{r tmsplit, eval = has_tm}
+library(tidymodels)
+
+rhc_tm <- rhc
+rhc_tm$died <- factor(rhc$death, levels = c(1, 0),
+                      labels = c("yes", "no"))
+
+set.seed(1234)
+rhc_split <- initial_split(rhc_tm, prop = .75, strata = died)
+rhc_train <- training(rhc_split)
+rhc_test <- testing(rhc_split)
+```
+
+Next we specify the model. Setting the engine to `"bartisan"` selects
+`bartisan()` as the fitting function, and further arguments to `set_engine()`
+are passed to it. Here we name the family, which silences the message
+`bartisan()` prints when it chooses one, and is otherwise the family it would
+choose for a binary outcome.
+
+```{r tmspec, eval = has_tm}
+bart_spec <- bart(trees = 50) |>
+  set_engine("bartisan", family = "binomial") |>
+  set_mode("classification")
+
+bart_spec
+```
+
+The model arguments of `bart()` correspond to settings of `bartisan_control()`:
+`trees` is `num_trees`, `prior_terminal_node_coef` and
+`prior_terminal_node_expo` are `gamma` and `beta`, the parameters of the prior
+on the depth of the trees, and `prior_outcome_range` is `k`. Any other argument
+of `bartisan()` or `bartisan_control()` can be given to `set_engine()`, and any
+of them can be tuned. See `` help("bartisan-parsnip") `` for the full list of
+correspondences.
+
+We fit the model to the training data using the `fit()` method for model
+specifications with the same model formula used in the other vignettes.
+
+```{r tmfit, eval = has_tm}
+set.seed(1234)
+bart_fit <- bart_spec |>
+  fit(died ~ rhc + age + sex + race + edu + aps + meanbp + resp +
+        hema + pafi + paco2 + crea + surv2m + card,
+      data = rhc_train)
+```
+
+Predictions come in the forms *parsnip* defines. With `type = "prob"`, they are
+the posterior mean probability of each level, and with `type = "conf_int"`, they
+are the limits of an equal-tailed credible interval for each probability, here
+with 90% coverage.
+
+```{r tmpred, eval = has_tm}
+predict(bart_fit, rhc_test[1:5, ], type = "prob")
+
+predict(bart_fit, rhc_test[1:5, ], type = "conf_int", level = .9)
+```
+
+The first patient in the test set has a predicted probability of death of
+`r saved_value("tm_p1", format(predict(bart_fit, rhc_test[1, ], type = "prob")$.pred_yes, digits = 2))`,
+and the 90% credible interval for that probability runs from
+`r saved_value("tm_lo1", format(predict(bart_fit, rhc_test[1, ], type = "conf_int", level = .9)$.pred_lower_yes, digits = 2))`
+to
+`r saved_value("tm_hi1", format(predict(bart_fit, rhc_test[1, ], type = "conf_int", level = .9)$.pred_upper_yes, digits = 2))`.
+The interval describes uncertainty about this patient's probability of death
+under the model; it is not a statement about whether the patient will die.
+
+The fit *bartisan* produced can be extracted with `extract_fit_engine()`, and
+every function in *bartisan* applies to it, including those for checking
+convergence, estimating effects, and measuring variable importance.
+
+```{r tmengine, eval = has_tm}
+extract_fit_engine(bart_fit)
+```
+
+### Tuning by Cross-Validation
+
+In the comparison by @chipman2010, BART with its default prior settings
+predicted nearly as well as BART with settings chosen by cross-validation, which
+did best, so tuning can be expected to bring modest improvements at the cost of
+many more fits. To tune a setting, it is marked with `tune()` in the
+specification. Below, we tune the number of trees
+and `k`, and we reduce the number of retained draws to 400 to keep the run short.
+
+```{r tmtunespec, eval = has_tm}
+tune_spec <- bart(trees = tune(), prior_outcome_range = tune()) |>
+  set_engine("bartisan", family = "binomial", num_draws = 400) |>
+  set_mode("classification")
+
+bart_wf <- workflow() |>
+  add_formula(died ~ rhc + age + sex + race + edu + aps + meanbp +
+                resp + hema + pafi + paco2 + crea + surv2m + card) |>
+  add_model(tune_spec)
+```
+
+The workflow combines the model formula with the specification, so that the
+two travel together through the resampling. We evaluate each combination of
+settings on a grid using 5-fold cross-validation on the training data, measuring
+performance using the area under the ROC curve and the Brier score.
+
+```{r tmtune, eval = has_tm}
+set.seed(1234)
+rhc_folds <- vfold_cv(rhc_train, v = 5, strata = died)
+
+bart_grid <- expand.grid(trees = c(20, 50),
+                         prior_outcome_range = c(1, 2, 4))
+
+bart_res <- tune_grid(bart_wf, resamples = rhc_folds,
+                      grid = bart_grid,
+                      metrics = metric_set(roc_auc, brier_class))
+
+show_best(bart_res, metric = "roc_auc")
+```
+
+The best combination uses
+`r saved_value("tm_best_trees", select_best(bart_res, metric = "roc_auc")$trees)`
+trees and a value of
+`r saved_value("tm_best_k", select_best(bart_res, metric = "roc_auc")$prior_outcome_range)`
+for `k`, with a cross-validated area under the ROC curve of
+`r saved_value("tm_best_auc", format(show_best(bart_res, metric = "roc_auc", n = 1)$mean, digits = 3))`.
+The standard errors in the `std_err` column are worth comparing to the
+differences between the rows: when the differences are smaller, the grid has not
+found a setting that is clearly better than the others. Here the five best
+combinations differ by no more than .001, against standard errors of about .02,
+so none of the settings on the grid improves on the defaults, which agrees with
+the comparison by @chipman2010.
+
+When requesting a grid with `grid_regular()` or another function in *dials* rather
+than writing one out, the ranges used are the ones the engine registers. The
+range for `prior_outcome_range` is .5 to 5 rather than the *dials* default, which
+extends to 0, where the prior on the trees is so diffuse that the fit is of no
+use.
+
+Next, we finalize the workflow with the best settings, fit it to the whole
+training set, and evaluate it on the test set using `last_fit()`. To have
+something to compare it with, we do the same for a logistic regression with the
+same main effects.
+
+```{r tmlast, eval = has_tm}
+bart_final <- bart_wf |>
+  finalize_workflow(select_best(bart_res, metric = "roc_auc")) |>
+  last_fit(rhc_split, metrics = metric_set(roc_auc, brier_class))
+
+glm_final <- workflow() |>
+  add_formula(died ~ rhc + age + sex + race + edu + aps + meanbp +
+                resp + hema + pafi + paco2 + crea + surv2m + card) |>
+  add_model(logistic_reg()) |>
+  last_fit(rhc_split, metrics = metric_set(roc_auc, brier_class))
+
+bind_rows(BART = collect_metrics(bart_final),
+          GLM = collect_metrics(glm_final),
+          .id = "model")
+```
+
+On the test set, the area under the ROC curve is
+`r saved_value("tm_auc_bart", format(collect_metrics(bart_final)$.estimate[collect_metrics(bart_final)$.metric == "roc_auc"], digits = 3))`
+for BART and
+`r saved_value("tm_auc_glm", format(collect_metrics(glm_final)$.estimate[collect_metrics(glm_final)$.metric == "roc_auc"], digits = 3))`
+for the logistic regression, which agrees with what the super learner found:
+the two models predict death about equally well in these data, and the
+difference between them is small relative to the sampling variability of a
+metric computed on `r saved_value("tm_ntest", nrow(rhc_test))` patients.
+
+### Survival Outcomes (`mode = "censored regression"`)
+
+`bart()` has no survival mode in *parsnip* itself, and *bartisan* adds one,
+`"censored regression"`, so that its survival families can be used with the
+tools *tidymodels* provides for censored outcomes. The outcome is a
+`survival::Surv()` object; below, we add one to the training and test sets for
+the time to death.
+
+```{r tmsurvdata, eval = has_tm}
+rhc_train$surv <- survival::Surv(rhc_train$days, rhc_train$death)
+rhc_test$surv <- survival::Surv(rhc_test$days, rhc_test$death)
+```
+
+The family is chosen as for the other modes. Without one, `bartisan()` fits
+`dpm_aft()`, an accelerated failure time model with a flexible error
+distribution, and any of the survival families described in
+`vignette("survival")` can be named instead. We fit `dpm_aft()` and, for
+comparison, `weibull_aft()`, which assumes a Weibull distribution for the
+survival times.
+
+```{r tmsurvfit, eval = has_tm}
+surv_model <- surv ~ rhc + age + sex + race + edu + aps + meanbp +
+  resp + hema + pafi + paco2 + crea + surv2m + card
+
+set.seed(1234)
+dpm_fit <- bart(mode = "censored regression") |>
+  set_engine("bartisan", family = "dpm_aft") |>
+  fit(surv_model, data = rhc_train)
+
+weibull_fit <- bart(mode = "censored regression") |>
+  set_engine("bartisan", family = "weibull_aft") |>
+  fit(surv_model, data = rhc_train)
+```
+
+With `type = "time"`, the predictions are the posterior mean of the median
+survival time, and with `type = "survival"`, they are the posterior mean of the
+survival function at the times given in `eval_time`. The survival predictions
+are stored in a list with one data frame per patient, which can contain a
+credible interval for the survival probability at each time.
+
+```{r tmsurvpred, eval = has_tm}
+predict(dpm_fit, rhc_test[1:3, ], type = "time")
+
+surv_pred <- predict(dpm_fit, rhc_test[1:3, ], type = "survival",
+                     eval_time = c(30, 180),
+                     interval = "confidence")
+
+surv_pred$.pred[[1]]
+```
+
+Under the `dpm_aft()` model, the first patient in the test set has a
+`r saved_value("tm_s180", format(100 * surv_pred$.pred[[1]]$.pred_survival[2], digits = 2))`%
+probability of surviving 180 days.
+
+To evaluate the two models on the test set, we compute the time-dependent Brier
+score at 30, 90, and 180 days and the concordance index of the predicted
+median survival times. Calling `augment()` with `eval_time` adds both kinds of
+predictions to the test data, along with the weights for censoring that the
+Brier score requires.
+
+```{r tmsurveval, eval = has_tm}
+surv_metrics <- function(fit) {
+  aug <- augment(fit, rhc_test, eval_time = c(30, 90, 180))
+
+  bind_rows(brier_survival(aug, truth = surv, .pred),
+            concordance_survival(aug, truth = surv,
+                                 estimate = .pred_time))
+}
+
+surv_eval <- bind_rows(dpm_aft = surv_metrics(dpm_fit),
+                       weibull_aft = surv_metrics(weibull_fit),
+                       .id = "family")
+
+surv_eval
+```
+
+The two models order the patients equally well, with a concordance index of
+`r saved_value("tm_conc", format(surv_eval$.estimate[surv_eval$family == "dpm_aft" & surv_eval$.metric == "concordance_survival"], digits = 2))`
+for `dpm_aft()`, but the Weibull model has the lower Brier score at each time,
+`r saved_value("tm_brier_weib", format(surv_eval$.estimate[surv_eval$family == "weibull_aft" & surv_eval$.eval_time %in% 180], digits = 2))`
+against
+`r saved_value("tm_brier_dpm", format(surv_eval$.estimate[surv_eval$family == "dpm_aft" & surv_eval$.eval_time %in% 180], digits = 2))`
+at 180 days, so its survival probabilities are the better calibrated of the two
+on this test set. The flexible error distribution of `dpm_aft()` protects
+against a misspecified distribution of survival times, and here the Weibull
+distribution appears to be adequate. `vignette("survival")` compares the
+survival families in more detail.
+
+These metrics can also be computed across resamples with `fit_resamples()` or
+`tune_grid()`, as in the previous section, which is how two survival families,
+or a BART survival model and one of the models in the
+[*censored*](https://censored.tidymodels.org/) package, would usually be
+compared. *censored* is not required to use the `"censored regression"` mode of
+the `"bartisan"` engine.
+
+## Multiple Imputation (`mice.impute.bartisan()`)
+
+Multiple imputation replaces each missing value with several draws from a model
+of the variable given the other variables, creating several completed datasets
+that are analyzed separately and whose results are pooled
+[@rubinMultipleImputationNonresponse2004]. *mice* imputes each incomplete
+variable in turn with a model of its own, cycling through the variables until
+the imputations stabilize [@vanbuurenMiceMultivariateImputation2011]. Using BART
+as that model lets the imputations reflect nonlinear relationships and
+interactions among the variables without their having to be specified, which
+the default imputation models in *mice* do not.
+
+`mice.impute.bartisan()` fits a BART model to the observed values of the
+variable and draws each missing value from the posterior predictive
+distribution at a randomly chosen posterior draw, so the imputations carry both
+the uncertainty about the model and the variation of the variable around its
+predicted value. The family is chosen from the variable as in `bartisan()`:
+`dpm()` for a continuous variable, `binomial()` for a binary one, and `ordinal()`
+or `multinomial()` for a factor.
+
+`rhc` has no missing values, so to demonstrate, we remove some. Below, we make
+the values of `pafi` and `crea`, two of the physiological measurements, missing
+more often for patients who are older, sicker (i.e., have higher `aps`), and who
+died. Because the missingness depends only on variables that are observed, the
+values are missing at random, which is the condition under which multiple
+imputation with a correctly specified imputation model is valid.
+
+```{r midata, eval = has_mice}
+rhc_mis <- rhc[c("death", "age", "sex", "aps", "meanbp", "pafi",
+                 "crea", "card")]
+
+set.seed(1234)
+p_mis <- plogis(-2 + .03 * (rhc$age - 60) +
+                  .02 * (rhc$aps - 55) + rhc$death)
+
+rhc_mis$pafi[runif(nrow(rhc)) < p_mis] <- NA
+rhc_mis$crea[runif(nrow(rhc)) < p_mis] <- NA
+
+colMeans(is.na(rhc_mis))
+```
+
+To impute with BART, we supply `method = "bartisan"` to `mice()`, which uses it
+for every incomplete variable. A different method can be used for each variable
+by supplying a vector of method names, one per variable. Below, we create 10
+imputed datasets, running 10 iterations of the cycle for each.
+
+`pafi` and `crea` are both strictly positive, and `crea`, the serum creatinine
+level, is also strongly skewed. `dpm()` can impute values below zero for such a
+variable, since nothing in it restricts the range of the variable, and with
+these data it does so for a small fraction of the imputations of `pafi`. To
+prevent this, we supply a family for each variable through the `blots`
+argument, here `Gamma("log")`, which keeps the imputations positive.
+Other arguments to `mice()` that `bartisan()` or `bartisan_control()` accept are
+passed on to every model; `mice.impute.bartisan()` keeps a single posterior
+draw by default, since that is all an imputation uses, and runs the usual
+burn-in period before it.
+
+```{r mice, eval = has_mice}
+library(mice)
+
+set.seed(1234)
+imp <- mice(rhc_mis, method = "bartisan", m = 10, maxit = 10,
+            blots = list(pafi = list(family = Gamma("log")),
+                         crea = list(family = Gamma("log"))),
+            printFlag = FALSE)
+
+imp$method
+```
+
+The `method` component shows that only the two incomplete variables were
+imputed. The usual diagnostics in *mice* apply. Below, we compare the
+distribution of the imputed values (red) to that of the observed values (blue).
+The imputed values are not expected to match the observed values, since they
+belong to patients who differ systematically from those whose values were
+observed, but they should be plausible.
+
+```{r midens, eval = has_mice, fig.height = 3}
+densityplot(imp, ~ pafi + crea,
+            scales = list(relation = "free", y = list(draw = FALSE)))
+```
+
+The imputed values of `crea` are less concentrated around the observed values'
+peak and spread further to the right of it, which is consistent with the
+missing values belonging to older and sicker patients.
+
+Next we fit the analysis model, a logistic regression of death on the
+covariates, in each imputed dataset, and pool the results using Rubin's rules.
+For comparison, we fit the same model to the complete cases, which drops every
+patient with a missing value, and to the original data, before any values were
+removed, which is the answer the analyses with missing data are trying to
+recover.
+
+```{r mipool, eval = has_mice}
+mi_fits <- with(imp, glm(death ~ age + sex + aps + meanbp + pafi +
+                           crea + card, family = binomial))
+
+pooled <- summary(pool(mi_fits))
+
+f <- death ~ age + sex + aps + meanbp + pafi + crea + card
+
+cc_fit <- glm(f, data = rhc_mis, family = binomial)
+full_fit <- glm(f, data = rhc, family = binomial)
+
+vars <- c("pafi", "crea")
+
+data.frame(
+  term = vars,
+  full = coef(full_fit)[vars],
+  full_se = sqrt(diag(vcov(full_fit)))[vars],
+  bart_mi = pooled$estimate[match(vars, pooled$term)],
+  bart_mi_se = pooled$std.error[match(vars, pooled$term)],
+  cc = coef(cc_fit)[vars],
+  cc_se = sqrt(diag(vcov(cc_fit)))[vars],
+  row.names = NULL
+)
+```
+
+The coefficient on `crea` is
+`r saved_value("mi_crea_full", format(coef(full_fit)[["crea"]], digits = 2))`
+in the original data,
+`r saved_value("mi_crea_mi", format(pooled$estimate[pooled$term == "crea"], digits = 2))`
+after imputation with BART, and
+`r saved_value("mi_crea_cc", format(coef(cc_fit)[["crea"]], digits = 2))`
+in the complete cases, with standard errors of
+`r saved_value("mi_crea_se_full", format(sqrt(diag(vcov(full_fit)))[["crea"]], digits = 2))`,
+`r saved_value("mi_crea_se_mi", format(pooled$std.error[pooled$term == "crea"], digits = 2))`,
+and
+`r saved_value("mi_crea_se_cc", format(sqrt(diag(vcov(cc_fit)))[["crea"]], digits = 2))`,
+respectively. The complete-case analysis drops the
+`r saved_value("mi_n_dropped", sum(!complete.cases(rhc_mis)))`
+patients with a missing value on either variable, along with everything else
+that was recorded about them.
+
+Both analyses with missing data give an estimate that differs from the one in
+the original data by less than its standard error, so in this one example
+neither is clearly better at recovering it. The difference between them is in
+precision: the standard error after imputation is closer to the one in the
+original data, because the imputations let the analysis keep the patients whose
+values are missing and use what was recorded about them. A single example
+cannot show which approach is less biased; that would take repeating the
+removal of values and the analyses many times.
+
+Note that *mice* finds `mice.impute.bartisan()` by name, so *bartisan* has to be
+attached when `mice()` is called. See `help("mice.impute.bartisan")` for the
+rest of the details, including how the family is chosen for each kind of
+variable.
+
+## References
