@@ -15,6 +15,7 @@ bartisan_control(
   split_prior = NULL,
   x_transform = "smoothcdf",
   k = 2,
+  anchor = NULL,
   bandwidth = 0.1,
   share_sparsity = FALSE,
   categorical = "subset",
@@ -123,6 +124,25 @@ fail, and why the default is the default, is in
 deviation of a forest is \code{3 / k} times the natural scale of its additive
 predictor, so larger values shrink the fit harder toward the intercept-only
 model. Default is 2.}
+
+\item{anchor}{\emph{Advanced.} \code{numeric}; the value on the link scale that each
+additive predictor is shrunk toward, in place of the intercept-only fit.
+Default is \code{NULL} to use the intercept-only fit, which is computed with the
+offset included so that a constant offset has no effect on the fit. When
+\code{anchor} is supplied, the offset is added to it rather than absorbed by it:
+with a log-exposure offset, the anchor of a count model is a log rate per
+unit of exposure, and \code{anchor = 0} with \code{binomial("probit")} shrinks the
+predicted probabilities toward .5, as \code{binaryOffset = 0} does in
+\code{dbarts::bart()}. Give one value, one per additive predictor, or name them
+by predictor as for \code{sigma_mu}; \code{NA} keeps the intercept-only fit for that
+predictor. Note that how strongly a fit is pulled toward its anchor is set
+by the leaf standard deviation, which is drawn by default; with the anchor
+far from where the data put the level, the drawn value grows, which widens
+intervals more than it moves the estimates. Setting
+\code{update_sigma_mu = FALSE}, with \code{k} or \code{sigma_mu} chosen, holds the pull at
+a fixed strength. Not available
+for \code{\link[=custom_family]{custom_family()}}, whose \code{start} sets the same thing, or for \code{\link[=ph]{ph()}},
+whose predictor has no level apart from the baseline hazard.}
 
 \item{bandwidth}{\emph{Advanced.} \code{numeric}; the prior mean of the gate bandwidth
 of a soft rule, on the scale of the transformed predictors, which lie in

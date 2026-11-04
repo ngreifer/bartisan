@@ -240,10 +240,15 @@ test_that("a binomial fit keeps its invariants under every structural wrapper", 
                  tolerance = 0.05 * abs(mean(fits[[2L]][["loglik"]])) + 10,
                  label = paste(cell[[1L]], "log likelihood under augmentation"))
 
+    # An absolute allowance. Passed to `expect_equal()` as a tolerance it was
+    # read as relative and multiplied by `abs(two)` again, which left about
+    # .04 on a level near -.25, inside the spread of single 200-draw chains:
+    # the `vc + offset` cell gaps by .003 to .023 over five seeds and by .073
+    # on a sixth.
     one <- mean(colMeans(fits[[1L]][["eta"]][[1L]]))
     two <- mean(colMeans(fits[[2L]][["eta"]][[1L]]))
-    expect_equal(one, two, tolerance = 0.25 * (abs(two) + 0.5),
-                 label = paste(cell[[1L]], "predictor under augmentation"))
+    expect_lt(abs(one - two), 0.25 * (abs(two) + 0.5),
+              label = paste(cell[[1L]], "predictor gap under augmentation"))
   }
 })
 
@@ -719,6 +724,120 @@ test_that("every family keeps its chart and its density under every structural w
           "drawn"),
     paste(c("dpm", "dpm_aft", "dpm_ls", "dpm_aft_ls"), "weights")))
   expect_setequal(refused, expected)
+})
+
+# A fit's start is the intercept-only fit with the offset, so a constant added
+# to the offset moves the start by minus that constant and the sampler sees the
+# same predictor: the same chain, draw for draw. When the start ignored the
+# offset, the forests carried the difference and a log exposure in days rather
+# than years widened a Poisson fit's intervals (`_dev/offset-anchor.R`). A
+# custom family starts where its caller put it, so it is the one exception.
+offset_cases <- Filter(function(case) !identical(case$name, "custom"),
+                       matrix_cases)
+
+# Through `do.call()`, as `matrix_fit()` does, so the offset reaches the model
+# frame as a value: `matrix_formula()` builds its formulas in the global
+# environment, where an expression naming the test's data would not be found.
+offset_fit <- function(form, d, offset, ...) {
+  do.call(bartisan, list(form, data = d, control = quick_control(),
+                         offset = offset, ...))
+}
+
+patrick::with_parameters_test_that(
+  "adding a constant to the offset leaves the fit unchanged:",
+  {
+    d <- sim_matrix(n = 150L)
+    form <- matrix_formula(case$response, "plain")
+
+    set.seed(11L)
+    base <- offset_fit(form, d, d$off, family = case$family)
+    set.seed(11L)
+    shifted <- offset_fit(form, d, d$off + 3, family = case$family)
+
+    expect_equal(shifted[["intercept"]], base[["intercept"]] - 3,
+                 tolerance = 1e-10)
+    expect_equal(shifted[["eta"]], base[["eta"]], tolerance = 1e-8)
+  },
+  case = offset_cases,
+  .test_name = vapply(offset_cases, `[[`, character(1L), "name")
+)
+
+test_that("an offset moves only the starts it is an offset to", {
+  d <- sim_matrix(n = 150L)
+
+  # A coefficient forest starts at zero, the model with no effect, whatever the
+  # offset; only the control function's start moves.
+  form <- matrix_formula("ynorm", "vc")
+  plain <- offset_fit(form, d, d$off)
+  shifted <- offset_fit(form, d, d$off + 3)
+  expect_equal(shifted[["intercept"]] - plain[["intercept"]], c(-3, 0),
+               tolerance = 1e-10)
+
+  # A matrix offset moves each predictor's start by its own column: here the
+  # count part of a zero-inflated Poisson and not its zero part. The count
+  # part's start is the exact intercept-only Poisson fit with that offset.
+  form <- matrix_formula("yzi", "plain")
+  exposure <- cbind(d$off + 2, 0)
+  fit <- offset_fit(form, d, exposure, family = zi_poisson())
+  bare <- offset_fit(form, d, NULL, family = zi_poisson())
+  expect_equal(fit[["intercept"]] - bare[["intercept"]],
+               c(-log(mean(exp(exposure[, 1L]))), 0), tolerance = 1e-10)
+
+  fit <- offset_fit(form, d, exposure[, 1L], family = poisson())
+  expect_equal(fit[["intercept"]], log(sum(d$yzi) / sum(exp(exposure[, 1L]))),
+               tolerance = 1e-10)
+})
+
+test_that("an anchor replaces the intercept-only fit and is not moved by the offset", {
+  d <- sim_matrix(n = 150L)
+  form <- matrix_formula("ycnt", "plain")
+  anchored <- function(anchor, ...) {
+    quick_control(anchor = anchor, ...)
+  }
+
+  # The offset is added to an anchor, not subtracted from it, so the start is
+  # the anchor whatever the offset.
+  for (offset in list(NULL, d$off, d$off + 3)) {
+    fit <- do.call(bartisan, list(form, data = d, family = poisson(),
+                                  control = anchored(-1), offset = offset))
+    expect_identical(fit[["intercept"]], -1)
+  }
+
+  # Positional, named, and `NA` for a predictor left at its intercept-only fit.
+  form <- matrix_formula("ynorm", "plain")
+  plain <- bartisan(form, data = d, family = gaussian_ls(),
+                    control = quick_control())
+  named <- bartisan(form, data = d, family = gaussian_ls(),
+                    control = anchored(c(mean = 1)))
+  positional <- bartisan(form, data = d, family = gaussian_ls(),
+                         control = anchored(c(1, NA)))
+  expect_equal(named[["intercept"]], c(1, plain[["intercept"]][2L]))
+  expect_equal(positional[["intercept"]], named[["intercept"]])
+
+  # A coefficient forest still starts at zero; the anchor is the control
+  # function's.
+  fit <- bartisan(matrix_formula("ynorm", "vc"), data = d,
+                  control = anchored(1))
+  expect_identical(fit[["intercept"]], c(1, 0))
+
+  # The cutpoint prior is read at the anchored level.
+  fit <- bartisan(matrix_formula("yord", "plain"), data = d,
+                  family = ordinal(), control = anchored(0.4))
+  expect_identical(fit[["family_opts"]][["cut_anchor"]], 0.4)
+
+  expect_error(bartisan(form, data = d, family = gaussian_ls(),
+                        control = anchored(c(1, 2, 3))),
+               "has 3 values")
+  expect_error(bartisan(matrix_formula("cbind(t_ph, e_ph)", "plain"), data = d,
+                        family = ph(), control = anchored(0)),
+               "not available")
+  expect_error(bartisan(form, data = d, control = anchored(0),
+                        family = custom_family(function(y, eta) {
+                          stats::dnorm(y, eta[, 1], 0.5, log = TRUE)
+                        })),
+               "not available")
+  expect_error(bartisan_control(anchor = Inf), "finite")
+  expect_error(bartisan_control(anchor = "a"))
 })
 
 test_that("a family with a reporting chart keeps it under every structural wrapper", {

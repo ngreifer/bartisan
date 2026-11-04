@@ -17,3 +17,7 @@
 # *bartisan* 0.1.0
 
 * First version!
+* Fixed a bug in which the intercept-only fit that the additive predictor starts from ignored the offset, so the forests had to carry the difference between the two against a prior centered at zero. In a Poisson rate model with a log exposure averaging 5, the drawn leaf scale nearly tripled and intervals were about 17% wider than they should have been, and how much wider depended on the units the exposure was measured in. The starting value now includes the offset, so adding a constant to the offset leaves the fit unchanged. Results of fits with an offset differ from those of earlier versions.
+
+* Added `anchor` to `bartisan_control()`, which sets the value on the link scale that each additive predictor is shrunk toward, in place of the intercept-only fit. A fit can then be shrunk toward a known base rate rather than the sample's, or toward a probability of .5, as `dbarts::bart()` does by default for a binary outcome. An offset is added to an anchor rather than absorbed by it.
+

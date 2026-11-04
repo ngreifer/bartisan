@@ -192,6 +192,13 @@
 #' rows the fit has not seen: a model fitted with one requires `offset` at
 #' `predict()` time.
 #'
+#' The intercept-only fit that the additive predictor starts from (see
+#' *Preprocessing* below) is computed with the offset included, so adding a
+#' constant to the offset, as measuring an exposure in days rather than years
+#' does, leaves the fit unchanged. The exceptions are a [custom_family()], which
+#' starts where its `start` argument puts it, and a fit given an `anchor` in
+#' [bartisan_control()], to which the offset is added rather than absorbed.
+#'
 #' ## Missing Predictor Values
 #'
 #' A missing predictor is not imputed and its row is not dropped, which is the
@@ -227,7 +234,14 @@
 #' exact null-model estimate for most families; for the accelerated failure time
 #' families, where censoring makes the sample mean of the log times biased, and
 #' for the zero-inflated and ordered beta families, it is a moment
-#' approximation, which the sampler then moves away from.
+#' approximation, which the sampler then moves away from. With an offset, a
+#' mean on the log scale starts at the log of the total response over the total
+#' of `exp(offset)`, which is the exact null-model estimate for [poisson()], and
+#' every other predictor starts at its value without the offset minus the
+#' average offset, which is exact for an identity link and an approximation
+#' otherwise. Setting `anchor` in [bartisan_control()] replaces the
+#' intercept-only fit with a value of the caller's choosing, toward which the
+#' fit is then shrunk instead.
 #'
 #' ## Drawing From the Prior (`prior_only`)
 #'
@@ -670,6 +684,14 @@ bartisan <- function(formula, data, family = NULL, weights = NULL,
   }
 
   response <- expand_for_vc(response, vc, y, response[["intercept"]])
+  response[["intercept"]] <- anchor_at_offset(response[["intercept"]],
+                                              response[["anchor_by"]],
+                                              model_offset,
+                                              response[["weights"]],
+                                              response[["n_forest"]])
+  response <- apply_anchor(response, control[["anchor"]], param_labels)
+  response[["anchor_by"]] <- NULL
+  response[["base"]] <- NULL
   response[["offset"]] <- build_offset(response[["intercept"]], model_offset,
                                        response[["n_forest"]], n)
 

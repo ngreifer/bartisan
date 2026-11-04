@@ -60,6 +60,24 @@
 #'   deviation of a forest is `3 / k` times the natural scale of its additive
 #'   predictor, so larger values shrink the fit harder toward the intercept-only
 #'   model. Default is 2.
+#' @param anchor *Advanced.* `numeric`; the value on the link scale that each
+#'   additive predictor is shrunk toward, in place of the intercept-only fit.
+#'   Default is `NULL` to use the intercept-only fit, which is computed with the
+#'   offset included so that a constant offset has no effect on the fit. When
+#'   `anchor` is supplied, the offset is added to it rather than absorbed by it:
+#'   with a log-exposure offset, the anchor of a count model is a log rate per
+#'   unit of exposure, and `anchor = 0` with `binomial("probit")` shrinks the
+#'   predicted probabilities toward .5, as `binaryOffset = 0` does in
+#'   `dbarts::bart()`. Give one value, one per additive predictor, or name them
+#'   by predictor as for `sigma_mu`; `NA` keeps the intercept-only fit for that
+#'   predictor. Note that how strongly a fit is pulled toward its anchor is set
+#'   by the leaf standard deviation, which is drawn by default; with the anchor
+#'   far from where the data put the level, the drawn value grows, which widens
+#'   intervals more than it moves the estimates. Setting
+#'   `update_sigma_mu = FALSE`, with `k` or `sigma_mu` chosen, holds the pull at
+#'   a fixed strength. Not available
+#'   for [custom_family()], whose `start` sets the same thing, or for [ph()],
+#'   whose predictor has no level apart from the baseline hazard.
 #' @param bandwidth *Advanced.* `numeric`; the prior mean of the gate bandwidth
 #'   of a soft rule, on the scale of the transformed predictors, which lie in
 #'   `[0, 1]`. Smaller values approach hard rules. Default is .1. Ignored when
@@ -476,6 +494,7 @@ bartisan_control <- function(chains = 1L,
                              split_prior = NULL,
                              x_transform = "smoothcdf",
                              k = 2,
+                             anchor = NULL,
                              bandwidth = 0.1,
                              share_sparsity = FALSE,
                              categorical = "subset",
@@ -573,6 +592,13 @@ bartisan_control <- function(chains = 1L,
     )
   )
 
+  # `NA` is allowed, as the predictor's way of keeping the intercept-only fit.
+  arg::when_not_null(anchor, arg::arg_numeric)
+
+  if (any(is.infinite(anchor))) {
+    arg::err("{.arg anchor} must be finite")
+  }
+
   x_transform <- arg::match_arg(x_transform, c("smoothcdf", "quantile", "range"))
 
   # One argument for both the shape of a soft rule's gate and the choice between
@@ -652,6 +678,7 @@ bartisan_control <- function(chains = 1L,
               split_prior = split_prior,
               categorical = categorical,
               k = k,
+              anchor = anchor,
               bandwidth = bandwidth,
               chains = as.integer(chains),
               num_burn = as.integer(num_burn),

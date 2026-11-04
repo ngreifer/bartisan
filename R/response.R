@@ -621,6 +621,32 @@ prepare_response <- function(family, y, weights, offset, x, n) {
     out$opts <- c(out$opts, compose_link(family[["custom_link"]], native))
   }
 
+  # How each predictor's starting value moves when there is an offset, which
+  # `anchor_at_offset()` applies once the forests are laid out. A mean on the log
+  # scale moves by the log of the average of exp(offset), which makes the start
+  # the exact intercept-only fit for a Poisson and the ratio estimator for the
+  # other log-link families; everything else moves by the average offset, which
+  # is exact for an identity link. A custom family's start is the caller's own
+  # and stays where it was put.
+  anchor_by <- {
+    if (identical(name, "custom")) NA_character_
+    else if (!is_null(family[["custom_link"]])) "mean"
+    else switch(name,
+                poisson = ,
+                negbin = ,
+                Gamma = ,
+                tweedie = ,
+                ph = "log_mean_exp",
+                Gamma_ls = ,
+                zip = ,
+                zinb = c("log_mean_exp", "mean"),
+                "mean")
+  }
+  out$anchor_by <- rep(anchor_by, length.out = out$n_forest)
+  # Which forests carry an additive predictor, which is what `anchor` in
+  # `bartisan_control()` sets; a custom family's trailing nuisance forests do not.
+  out$base <- seq_len(out$n_forest) <= out$n_forest - out$n_aux
+
   # The intercept-only starting value comes back rather than being folded into
   # the offset here. Varying coefficients enlarge the forest set, and how many
   # forests there are depends on the `vc()` terms of each parameter's formula --
@@ -678,13 +704,18 @@ expand_for_vc <- function(out, vc, y, intercept) {
   # not the mean's.
   base_scale <- rep(out$eta_scale %or% 1, length.out = out$n_forest)
   base_start <- rep(intercept, length.out = out$n_forest)
+  base_anchor <- rep(out$anchor_by, length.out = out$n_forest)
 
   eta_scale <- numeric()
   start <- numeric()
+  anchor_by <- character()
+  base <- logical()
 
   for (h in seq_len(n_param)) {
     eta_scale <- c(eta_scale, base_scale[h])
     start <- c(start, base_start[h])
+    anchor_by <- c(anchor_by, base_anchor[h])
+    base <- c(base, TRUE)
 
     if (n_slope[h] == 0L) {
       next
@@ -695,8 +726,11 @@ expand_for_vc <- function(out, vc, y, intercept) {
 
     eta_scale <- c(eta_scale, base_scale[h] * scale)
     # The control function starts where a single-forest fit would; a coefficient
-    # starts at zero, which is the model with no effect.
+    # starts at zero, which is the model with no effect, and stays there
+    # whatever the offset.
     start <- c(start, rep.int(0, n_slope[h]))
+    anchor_by <- c(anchor_by, rep.int(NA_character_, n_slope[h]))
+    base <- c(base, rep.int(FALSE, n_slope[h]))
   }
 
   # A custom family's pinned nuisance forests trail the additive predictors and
@@ -705,13 +739,111 @@ expand_for_vc <- function(out, vc, y, intercept) {
     aux <- n_param + seq_len(out$n_aux)
     eta_scale <- c(eta_scale, base_scale[aux])
     start <- c(start, base_start[aux])
+    anchor_by <- c(anchor_by, base_anchor[aux])
+    base <- c(base, rep.int(FALSE, out$n_aux))
   }
 
   out$n_forest <- out$n_forest + slopes
   out$eta_scale <- eta_scale
   out$intercept <- start
+  out$anchor_by <- anchor_by
+  out$base <- base
 
   out
+}
+
+# The starting values measured from the offset rather than from zero, so that
+# each one is the intercept-only fit *with* the offset. Without this the start
+# ignores the offset and the offset is added on top of it, so the forests
+# carry the gap between the two, against a leaf prior centered at zero: a log
+# exposure averaging five started a Poisson fit five units from its null fit,
+# and the drawn leaf scale grew to absorb it (`_dev/offset-anchor.R`). With it,
+# adding a constant to the offset moves the start by minus that constant and
+# leaves the fit unchanged, which is what rescaling an exposure should do.
+#
+# A malformed offset is left to `build_offset()`, which reports it.
+anchor_at_offset <- function(intercept, anchor_by, offset, weights, n_forest) {
+  intercept <- rep(intercept, length.out = n_forest)
+
+  if (is_null(offset)) {
+    return(intercept)
+  }
+
+  n <- length(weights)
+  fits <- {
+    if (is.matrix(offset)) nrow(offset) == n && ncol(offset) == n_forest
+    else length(offset) == n
+  }
+
+  if (!fits || !is.numeric(offset)) {
+    return(intercept)
+  }
+
+  w <- {
+    if (sum(weights) > 0) weights / sum(weights)
+    else rep.int(1 / n, n)
+  }
+
+  for (f in which(!is.na(anchor_by))) {
+    o <- {
+      if (is.matrix(offset)) offset[, f]
+      else offset
+    }
+
+    shift <- switch(anchor_by[f],
+                    mean = sum(w * o),
+                    log_mean_exp = {
+                      top <- max(o[w > 0])
+                      top + log(sum(w * exp(o - top)))
+                    })
+
+    intercept[f] <- intercept[f] - shift
+  }
+
+  intercept
+}
+
+# The caller's `anchor` in place of the intercept-only fit, for the forests that
+# carry an additive predictor. It is resolved over the predictors as `sigma_mu`
+# is, positionally or by name, and an `NA` keeps that predictor's intercept-only
+# fit. The offset is not subtracted from it: an anchor is the level the caller
+# chose for an observation with no offset, so a constant offset moves the fit
+# when there is an anchor and is absorbed when there is not.
+#
+# `ordinal()` and `ordbeta()` read their cutpoint prior at the predictor's level,
+# so the induced Dirichlet is uniform over the category probabilities there; with
+# an anchor, that level is the anchor.
+apply_anchor <- function(response, anchor, param_labels) {
+  if (is_null(anchor)) {
+    return(response)
+  }
+
+  family <- response[["family"]]
+
+  if (identical(family, "custom")) {
+    arg::err(c("{.arg anchor} is not available for {.fn custom_family}.",
+               i = "Its {.arg start} argument sets where each additive
+                    predictor starts and is centered."))
+  }
+
+  if (identical(family, "ph")) {
+    arg::err(c("{.arg anchor} is not available for {.fn ph}.",
+               i = "Its predictor is a log hazard ratio, identified only against
+                    the baseline hazard, so it has no level of its own to set."))
+  }
+
+  value <- per_forest_vector(anchor, param_labels, "anchor", NA_real_)
+  value <- rep(value, length.out = length(param_labels))
+  set <- !is.na(value)
+
+  base <- which(response[["base"]])
+  response[["intercept"]][base[set]] <- value[set]
+
+  if (!is_null(response[["opts"]][["cut_anchor"]]) && set[1L]) {
+    response[["opts"]][["cut_anchor"]] <- value[1L]
+  }
+
+  response
 }
 
 # The offset is stored with one row per additive predictor, matching the layout

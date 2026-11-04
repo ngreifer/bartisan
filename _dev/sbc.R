@@ -23,10 +23,17 @@
 #     binomial, which no prior of the model's own produced.
 #
 # The last one is why the target here is a **contrast**, one observation's
-# predictor minus another's. The centering is common to both and cancels, so the
-# quantity being calibrated is one the empirical part of the prior does not
-# touch. Calibrating the level instead would be measuring the centering, which
-# absorbs it entirely and would tell us nothing.
+# predictor minus another's. The centering is common to both and cancels from
+# the estimand. Calibrating the level instead would be measuring the centering,
+# which absorbs it entirely and would tell us nothing.
+#
+# It does not cancel from the posterior, which an earlier version of this
+# comment claimed (corrected 2026-11-04). The leaf prior does not separate the
+# level from the contrast: a leaf holding A and most of the sample moves both,
+# so the two covary a priori. The fit's prior is the tree prior on the forest
+# around the empirical anchor, the generator's is the tree prior around zero,
+# and the data pin the level, so the two give the contrast different
+# conditional priors. `SBC_NO_CENTER` below removes the difference exactly.
 #
 # The tree prior itself is data-free and is replicated exactly below: branch with
 # probability `gamma * (1 + depth)^-beta`, split on a variable drawn uniformly,
@@ -76,12 +83,58 @@ DRAWS <- as.integer(Sys.getenv("SBC_DRAWS", "1000"))
 # whose draws are merely autocorrelated.
 WARMUP <- as.integer(Sys.getenv("SBC_WARMUP", "400"))
 # `SBC_OFFSET` adds a known constant to the generating predictor and supplies
-# the same constant to the fit, which leaves the model unchanged and raises the
-# level of the response. For a Poisson it is how far the log density is pushed
-# toward a quadratic: at a mean near one it is sharply skewed and at a mean of
-# fifty it is nearly normal, so the Laplace approximation the tree moves accept
-# on gets better as this grows.
+# the same constant to the fit, which raises the level of the response. For a
+# Poisson it is how far the log density is pushed toward a quadratic: at a mean
+# near one it is sharply skewed and at a mean of fifty it is nearly normal, so
+# the Laplace approximation the tree moves accept on gets better as this grows.
+#
+# It does not leave the model unchanged, which this comment said until
+# 2026-11-04. The fit's anchor is `log(mean(y))`, which ignores the offset, and
+# the offset is added on top of it, so the anchor sits near twice the offset and
+# the forest has to carry about minus the offset by itself, against a prior on
+# its level with standard deviation sqrt(20) * 0.35, about 1.6. The offset runs
+# of 2026-10-02 therefore raised the counts and the prior mismatch together.
 OFFSET <- as.numeric(Sys.getenv("SBC_OFFSET", "0"))
+# `SBC_NO_CENTER` makes the fit's predictor `OFFSET + forest` exactly, which is
+# the generator's. The fit's prior is then the generating prior with no
+# empirical part, and the level becomes a valid target too; its rank is recorded
+# as `rank_level` (the predictor at A).
+#
+# How depends on the installed build. Since 2026-11-04 the package computes the
+# intercept-only fit with the offset included, so a constant offset is absorbed
+# and can no longer cancel it; there, the fit is given `anchor = 0` in
+# `bartisan_control()` and the offset `OFFSET`. The CRAN 0.1.0 build has no
+# `anchor` and ignores the offset when it computes the start, so there the fit
+# is given `OFFSET - log(mean(y))` as its offset, which the start adds back to.
+# The four runs of 2026-11-04 used the second route.
+#
+# What is tested (2026-11-04). The claim, raised in an outside comment, that
+# the empirical anchor is what narrows the soft-rule Poisson posterior: that
+# the dispersion contrast near +2 with the bandwidth drawn comes from the
+# mismatch between the fit's prior and the generator's rather than from the
+# sampler. Against it already: the anchor is identical in the arms that pass
+# (bandwidth fixed, hard rules, soft logit). Separately, the claim that the
+# excess at offset 4 and 1000 draws (+4.3, `_dev/TASKS.md` 2026-10-02) came
+# from the anchor sitting near twice the offset rather than from the counts.
+#
+# What is measured. Four arms of 600 replicates on the default seed block,
+# soft rules, bandwidth drawn, 1000 draws, so replicate r is the same data set
+# and the same truth in every arm: offsets 0 and 4, each with the anchor as
+# the package sets it and with `SBC_NO_CENTER`. The pairs differ only in the
+# anchor. Read the dispersion z of the contrast's ranks (positive is too
+# narrow; the default arm read +2.78), with the mean-rank z beside it and
+# coverage as the noisier proxy. In the cancelled arms, read `rank_level` too.
+#
+# What each outcome would mean. At offset 0, a dispersion z that stays near +2
+# with the anchor cancelled clears the anchor, and the bandwidth-drawn reading
+# of the record stands; one that falls to about zero, the fixed-bandwidth
+# arm's -0.24, means the anchor was the cause and every soft-Poisson
+# conclusion since 2026-10-01 has to be re-read. At offset 4, the uncancelled
+# arm should reproduce about +4.3. If the cancelled arm comes back to the
+# offset-0 level, the growth with the counts was the anchor and the Laplace
+# reading of it is withdrawn for good; if it stays near +4.3, the growth is
+# real and the counts are what track it.
+NO_CENTER <- nzchar(Sys.getenv("SBC_NO_CENTER"))
 FIX_BANDWIDTH <- nzchar(Sys.getenv("SBC_FIX_BANDWIDTH"))
 TAG <- Sys.getenv("SBC_TAG", "")
 
@@ -208,15 +261,17 @@ d0 <- as.data.frame(u)
 A <- which.min(u[, 1L])
 B <- which.max(u[, 1L])
 
-control <- bartisan_control(num_trees = TREES, num_burn = WARMUP,
-                            num_draws = DRAWS, chains = 1L, gate = GATE,
-                            sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
-                            sparsity = FALSE, x_transform = "range",
-                            bandwidth = BANDWIDTH,
-                            update_bandwidth = !FIX_BANDWIDTH,
-                            augment = identical(FAMILY, "probit"))
+HAS_ANCHOR <- "anchor" %in% names(formals(bartisan_control))
 
-ranks <- integer(0)
+control <- do.call(bartisan_control, c(
+  list(num_trees = TREES, num_burn = WARMUP, num_draws = DRAWS, chains = 1L,
+       gate = GATE, sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
+       sparsity = FALSE, x_transform = "range", bandwidth = BANDWIDTH,
+       update_bandwidth = !FIX_BANDWIDTH,
+       augment = identical(FAMILY, "probit")),
+  if (NO_CENTER && HAS_ANCHOR) list(anchor = 0)))
+
+ranks <- level_ranks <- integer(0)
 truths <- widths <- covered <- numeric(0)
 
 # The seed block is part of the path whenever it is not the default, because a
@@ -232,6 +287,7 @@ OUT <- {
              if (WARMUP != 400L) sprintf("warm%d", WARMUP),
              if (DRAWS != 1000L) sprintf("draws%d", DRAWS),
              if (OFFSET != 0) sprintf("off%s", format(OFFSET)),
+             if (NO_CENTER) "nocenter",
              if (L != 100L) sprintf("L%d", L))
   sprintf("%s%s.rds", base,
           if (length(parts)) paste0("-", paste(parts, collapse = "-")) else "")
@@ -249,6 +305,7 @@ if (file.exists(OUT)) {
   if (!isTRUE(prev$complete) && isTRUE(prev$done >= 1L) &&
       isTRUE(prev$total == reps)) {
     ranks <- prev$res$rank
+    level_ranks <- prev$res$rank_level
     truths <- prev$res$truth
     widths <- prev$res$width
     covered <- prev$res$covered
@@ -294,7 +351,8 @@ on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
 # is killed leaves its finished replicates readable. `complete` is what tells a
 # reader which of the two it is looking at.
 checkpoint <- function(complete, done) {
-  saveRDS(list(res = data.frame(rank = ranks, truth = truths, width = widths,
+  saveRDS(list(res = data.frame(rank = ranks, rank_level = level_ranks,
+                                truth = truths, width = widths,
                                 covered = covered, n = N, gate = GATE),
                complete = complete, done = done, total = reps, draws = L),
           OUT)
@@ -317,14 +375,30 @@ for (r in todo) {
     next
   }
 
+  # The anchor the package will add, computed as `prepare_response()` does, so
+  # that subtracting it here leaves the fit's predictor at `OFFSET + forest`.
+  anchor <- log(max(mean(d$y), 1 / (2 * N)))
+  fit_offset <- {
+    if (NO_CENTER && !HAS_ANCHOR) rep(OFFSET - anchor, N)
+    else if (OFFSET != 0) rep(OFFSET, N)
+  }
+
   fit <- bartisan(y ~ ., data = d, family = family, control = control,
-                  offset = if (OFFSET != 0) rep(OFFSET, N))
+                  offset = fit_offset)
+
+  # Either route has to leave the start at the generator's: zero before the
+  # offset under `anchor`, the empirical anchor under the offset route.
+  if (NO_CENTER) {
+    stopifnot(abs(fit[["intercept"]] - if (HAS_ANCHOR) 0 else anchor) < 1e-12)
+  }
 
   e <- fit[["eta"]][[1L]]
   contrast <- e[, A] - e[, B]
-  thin <- contrast[seq(1L, length(contrast), length.out = L)]
+  keep <- seq(1L, length(contrast), length.out = L)
+  thin <- contrast[keep]
 
   ranks <- c(ranks, sum(thin < truth))
+  level_ranks <- c(level_ranks, sum(e[keep, A] < eta[A] + OFFSET))
   truths <- c(truths, truth)
   ci <- stats::quantile(contrast, c(0.025, 0.975), names = FALSE)
   widths <- c(widths, ci[2L] - ci[1L])
@@ -336,8 +410,8 @@ for (r in todo) {
 }
 
 checkpoint(TRUE, reps)
-out <- data.frame(rank = ranks, truth = truths, width = widths,
-                  covered = covered, n = N, gate = GATE)
+out <- data.frame(rank = ranks, rank_level = level_ranks, truth = truths,
+                  width = widths, covered = covered, n = N, gate = GATE)
 
 on.exit()
 prog_end(pr, "done", sprintf("%d replicates", nrow(out)))
@@ -376,3 +450,28 @@ cat(sprintf("       mean rank %.1f of %d (%.1f is uniform)\n",
 cat(sprintf("\n95%% interval coverage of the contrast: %.3f (SE %.3f)\n",
             mean(out$covered),
             sqrt(mean(out$covered) * (1 - mean(out$covered)) / nrow(out))))
+
+# The mean-rank and dispersion contrasts, as z statistics against the exact
+# moments of a rank uniform on 0..L: the mean rank's departure from L / 2, and
+# the mean squared distance from L / 2. A positive dispersion z is a U shape, a
+# posterior too narrow; this is the statistic the 2026-10-02 table reports, to
+# within 0.08.
+rank_z <- function(r) {
+  v <- 0:L
+  dv <- (v - L / 2)^2
+  c(mean = (mean(r) - L / 2) / sqrt(mean((v - L / 2)^2) / length(r)),
+    dispersion = (mean((r - L / 2)^2) - mean(dv)) /
+      sqrt(mean((dv - mean(dv))^2) / length(r)))
+}
+
+z <- rank_z(out$rank)
+cat(sprintf("\ncontrast: mean-rank z %+.2f, dispersion z %+.2f\n",
+            z[["mean"]], z[["dispersion"]]))
+
+# The level is a valid target only when the anchor is cancelled, since
+# otherwise the fit's prior on it is centered somewhere the generator's is not.
+if (NO_CENTER) {
+  z <- rank_z(out$rank_level)
+  cat(sprintf("level (predictor at A): mean-rank z %+.2f, dispersion z %+.2f\n",
+              z[["mean"]], z[["dispersion"]]))
+}
