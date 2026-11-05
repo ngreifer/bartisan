@@ -156,8 +156,9 @@ test_that("informative missingness is recovered", {
   d$x1[gone] <- NA
 
   fit <- bartisan(y ~ ., data = d, na.action = stats::na.pass,
-                  control = bartisan_control(num_trees = 20, num_burn = 300,
-                                             num_draws = 300, verbose = FALSE))
+                  control = bartisan_control(chains = 4, num_trees = 20,
+                                             num_burn = 300, num_draws = 300,
+                                             verbose = FALSE))
 
   p <- predict(fit)
   expect_equal(mean(p[gone]), 2, tolerance = 0.15)
@@ -167,8 +168,12 @@ test_that("informative missingness is recovered", {
   # variable that carries anything. More, not most: under the default splitting
   # prior every predictor keeps a share of the rules, so the noise variables are
   # split on too; concentrating the rules on x1 is the sparsity prior's job.
+  # Four chains against the noise variables' mean, because one chain against the
+  # busier of them failed on 12% of 200 seeds with the signal present. In this
+  # form the check passed on all 200, and on none of 200 where whether x1 is
+  # missing carries nothing (2026-11-05).
   used <- colMeans(fit[["counts"]][["eta"]])
-  expect_gt(used[["x1"]], 1.25 * max(used[c("x2", "x3")]))
+  expect_gt(used[["x1"]], 1.25 * mean(used[c("x2", "x3")]))
 })
 
 test_that("a flat likelihood still reproduces the tree prior with missing data", {
