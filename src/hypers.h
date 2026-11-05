@@ -43,6 +43,21 @@ struct Hypers {
   // soft-rule fit.
   int bandwidth_every;
 
+  // Internal, off by default, and read only by `update_forest()`: propose the
+  // bandwidth with the tree's leaves integrated out where the target is
+  // quadratic, and with `collapsed_check` verify each marginal likelihood
+  // against the family's exact log density. The test of whether holding the
+  // leaves fixed is what narrows soft-rule posteriors (`_dev/TASKS.md`,
+  // 2026-11-04); `the$collapsed_bandwidth` in R sets it.
+  bool collapsed_bandwidth = false;
+  bool collapsed_check = false;
+  // Internal and off by default: attempt only births and deaths, never a change,
+  // with the move-choice terms of their acceptance ratios to match. Birth and
+  // death alone are a valid sampler. A test of whether the change move is what
+  // narrows soft-rule posteriors (`_dev/TASKS.md`, 2026-11-04);
+  // `the$no_change_move` in R sets it.
+  bool no_change_move = false;
+
   // Which gate the soft rules use; see GateShape in node.h. Ignored when the
   // rules are hard.
   int gate;

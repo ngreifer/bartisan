@@ -117,6 +117,31 @@ struct ForestGuard {
   }
 };
 
+// A tree drawn from its prior, as the starting state of a chain. Internal and
+// off by default: `the$init_from_prior` in R sets it, to test whether chains
+// that all start from stumps share a region of the posterior that dispersed
+// starts would not (`_dev/TASKS.md`, 2026-11-04). The bandwidth comes first,
+// since a soft rule divides the support by it as the tree grows; then the
+// branching process, the rule prior through `birth_leaves()`, and the leaves
+// from N(0, sigma_mu^2).
+void grow_from_prior(Node* node, double sigma_mu) {
+  if (unif_rand() < grow_prob(node->tree->hypers, node->depth)) {
+    node->birth_leaves();
+    grow_from_prior(node->left, sigma_mu);
+    grow_from_prior(node->right, sigma_mu);
+  }
+  else {
+    node->mu = sigma_mu * norm_rand();
+  }
+}
+
+void init_tree_from_prior(Tree* tree, double sigma_mu) {
+  if (tree->hypers->soft && tree->hypers->update_bandwidth) {
+    tree->bandwidth = exp_rand() * tree->hypers->bandwidth_scale;
+  }
+  grow_from_prior(tree->root, sigma_mu);
+}
+
 template <typename T>
 List wrap_matrices(const std::vector<T>& x) {
   List out(x.size());
@@ -259,6 +284,15 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     as<bool>(control["share_sparsity"]);
   bool share_forests = control.containsElementNamed("share_forests") &&
     as<bool>(control["share_forests"]);
+  bool collapsed_bandwidth =
+    control.containsElementNamed("collapsed_bandwidth") &&
+    as<bool>(control["collapsed_bandwidth"]);
+  bool collapsed_check = control.containsElementNamed("collapsed_check") &&
+    as<bool>(control["collapsed_check"]);
+  bool init_from_prior = control.containsElementNamed("init_from_prior") &&
+    as<bool>(control["init_from_prior"]);
+  bool no_change_move = control.containsElementNamed("no_change_move") &&
+    as<bool>(control["no_change_move"]);
 
   int num_burn = as<int>(control["num_burn"]);
   int num_thin = as<int>(control["num_thin"]);
@@ -408,6 +442,9 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
       static_cast<int>(at("bandwidth_every", h)), gate,
       split_prior.n_cols > 0 ? arma::vec(split_prior.col(h)) : arma::vec(),
       split_mask.n_cols > 0 ? arma::vec(split_mask.col(h)) : arma::vec())));
+    hypers[h]->collapsed_bandwidth = collapsed_bandwidth;
+    hypers[h]->collapsed_check = collapsed_check;
+    hypers[h]->no_change_move = no_change_move;
 
     for (int t = 0; t < num_trees[h]; t++) {
       forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na, &codes,
@@ -530,6 +567,20 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     as<bool>(control["block_eval"]);
 
   Context ctx(family.get(), &eta, block_eval);
+
+  // Each chain is its own call, so each draws its own starting trees. Only the
+  // reported forests: the pinned nuisance forests stay single leaves, which is
+  // what pinning means.
+  if (init_from_prior) {
+    for (int h = 0; h < n_report; h++) {
+      for (std::size_t t = 0; t < forests[h].size(); t++) {
+        init_tree_from_prior(forests[h][t], sigma_mu_target(h));
+        arma::rowvec row = eta.row(h);
+        accumulate(forests[h][t]->root, row, 1.0);
+        eta.row(h) = row;
+      }
+    }
+  }
 
   // The closed forms a quadratic target allows can be switched off, so that the
   // test suite can check they reproduce the general path.

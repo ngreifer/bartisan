@@ -134,6 +134,7 @@ _dev/did/*
 !_dev/transient-scaling.R
 !_dev/transient-trace.R
 !_dev/sbc.R
+!_dev/sbc-report.R
 !_dev/offset-anchor.R
 !_dev/varsel-check.R
 !_dev/share-sparsity-sim.R

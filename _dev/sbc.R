@@ -63,6 +63,89 @@ library(bartisan)
 # matrices cannot say, since an interval that is too narrow or too wide passes
 # both. Uniform ranks and 95% coverage near 0.95 say they do; a U-shaped
 # histogram says the posterior is too narrow, a hump too wide, a slope a bias.
+#
+# "binomial" (added 2026-11-04) is a binomial logit with `SBC_TRIALS` trials
+# per observation (default 20), fit as `cbind(successes, failures)`.
+# `SBC_AUGMENT` sets `augment` for any family ("1" on, "0" off); unset, only
+# probit is augmented. Together they split the soft-gate Poisson narrowing:
+#
+# What is tested. Whether the narrowing comes from the general leaf path (a
+# Laplace proposal with a Metropolis correction) meeting a skewed likelihood
+# while the bandwidth moves, or from something specific to `poisson()`. A
+# binomial with many trials and a small probability is shaped like a Poisson,
+# and it can be fit directly on the general path or through the Polya-Gamma
+# augmentation, exact at an integer number of trials, which makes each leaf
+# target quadratic as *SoftBart*'s Gaussian targets are.
+#
+# What is measured. 20 trials, `SBC_OFFSET=-2.7` for counts at about the
+# Poisson arm's level (prior median 1.3 and mean 2.5, against 1 and 3.4), `SBC_NO_CENTER` so the fit's prior is the generator's, soft
+# rules with the bandwidth drawn, 600 replicates, augmentation on and off on
+# the same data sets. The dispersion z of the contrast's ranks in each arm and
+# their paired difference, against soft Poisson's +2.61.
+#
+# What each outcome would mean. Only the direct arm narrows: the general path
+# under a moving bandwidth is the cause. Both narrow: the leaf path is cleared
+# and the bandwidth move under a skewed likelihood is the suspect. Neither: a
+# Poisson-shaped likelihood is not enough, and the cause is in `poisson()`
+# itself. `_dev/TASKS.md`, 2026-11-04, has the full statement.
+#
+# "negbin" (added 2026-11-04) is `negbin(theta = SBC_THETA)`, default 5, with
+# the same theta in the generator, so the predictor is the only parameter and
+# SBC is valid. It asks whether the soft-gate narrowing reaches `negbin()`,
+# augmented by default (a Poisson-shaped leaf target given the gamma rates)
+# and direct (`SBC_AUGMENT=0`); the statement is in `_dev/TASKS.md`.
+#
+# `SBC_COLLAPSED` (added 2026-11-04) sets the internal flag
+# `the$collapsed_bandwidth`, which proposes each tree's bandwidth with its
+# leaves integrated out where the target is quadratic and then draws the
+# leaves jointly. It tests whether holding the leaves fixed in the bandwidth
+# move is what narrows the soft-rule posteriors; run it on the augmented
+# binomial arm, whose target is quadratic. The statement is in
+# `_dev/TASKS.md`. It needs a build that has the flag, and stops otherwise.
+#
+# A single tree and several chains (added 2026-11-04), from the BART mixing
+# literature (Ronen et al. 2022, Tan et al. 2026, Kim and Rockova 2025): a
+# chain held in one mode of the tree posterior reports only that mode's spread.
+#
+# What is tested. Whether the narrowing needs an ensemble (`SBC_TREES=1`), and
+# whether pooling separately started chains removes it (`SBC_CHAINS=4`).
+#
+# What is measured. One soft tree with the bandwidth drawn and one hard tree,
+# `SBC_SIGMA_MU=1.565` so the function's prior spread matches 20 trees at .35,
+# soft Poisson with `SBC_NO_CENTER`, 1200 replicates each. Four chains of 250
+# draws against the single-chain augmented binomial and soft Poisson runs on
+# the same seeds, 200 replicates each, read paired.
+#
+# What each outcome would mean. Only the soft single tree narrows: it lives in
+# one soft tree. Both single trees narrow: tree-structure mixing, which more
+# trees relieve. Neither: it needs several trees. Four chains remove it: mode
+# confinement is the cause and more chains or better structure moves the fix;
+# they do not: what remains is the Stan reference. `_dev/TASKS.md` has the
+# full statement.
+#
+# A single tree with four chains (added 2026-11-04, after both single-tree arms
+# narrowed). Tested: whether that narrowing is a chain confined to one mode of
+# the tree posterior. Measured: `SBC_TREES=1` with `SBC_CHAINS=4`, both gates,
+# 1200 replicates, paired against the single-chain arms. Meaning: if it goes,
+# the single tree is a mixing problem separate from the 20-tree soft one; if it
+# stays, one tree is the smallest case of a too-narrow posterior and the place
+# to build the Stan reference.
+#
+# `SBC_INIT_PRIOR` (added 2026-11-04) sets the internal flag
+# `the$init_from_prior`, which starts each chain's trees from a draw of the
+# tree prior rather than from stumps. Tested: whether the 20-tree soft
+# narrowing is a region all chains reach from the common stump start.
+# Measured: four chains from prior draws against four from stumps, same 200
+# seeds, soft Poisson and the augmented binomial. Meaning: if it shrinks, the
+# start is the cause; if not, the Stan reference is what is left.
+#
+# `SBC_NO_CHANGE` (added 2026-11-04) sets the internal flag
+# `the$no_change_move`, which drops the change move and leaves birth and death,
+# a valid sampler on their own. Tested: whether the change move is what leaves
+# a too-narrow distribution invariant. Measured: one chain, soft Poisson and the
+# augmented binomial, 200 replicates paired against the single-chain runs.
+# Meaning: if the narrowing goes, the change move is the defect; if not, birth
+# and death or the problem remain.
 args <- commandArgs(trailingOnly = TRUE)
 reps <- if (length(args) > 0L) as.integer(args[1L]) else 200L
 N <- if (length(args) > 1L) as.integer(args[2L]) else 400L
@@ -137,21 +220,57 @@ OFFSET <- as.numeric(Sys.getenv("SBC_OFFSET", "0"))
 NO_CENTER <- nzchar(Sys.getenv("SBC_NO_CENTER"))
 FIX_BANDWIDTH <- nzchar(Sys.getenv("SBC_FIX_BANDWIDTH"))
 TAG <- Sys.getenv("SBC_TAG", "")
+TRIALS <- as.integer(Sys.getenv("SBC_TRIALS", "20"))
+THETA <- as.numeric(Sys.getenv("SBC_THETA", "5"))
+COLLAPSED <- nzchar(Sys.getenv("SBC_COLLAPSED"))
+INIT_PRIOR <- nzchar(Sys.getenv("SBC_INIT_PRIOR"))
+NO_CHANGE <- nzchar(Sys.getenv("SBC_NO_CHANGE"))
+AUGMENT <- {
+  if (nzchar(Sys.getenv("SBC_AUGMENT"))) Sys.getenv("SBC_AUGMENT") == "1"
+  else identical(FAMILY, "probit")
+}
 
 family <- switch(FAMILY,
                  logit = stats::binomial(),
                  probit = stats::binomial("probit"),
                  poisson = stats::poisson(),
-                 stop("family must be logit, probit or poisson"))
+                 binomial = stats::binomial(),
+                 negbin = negbin(theta = THETA),
+                 stop("family must be logit, probit, poisson, binomial or negbin"))
 
 draw_response <- switch(FAMILY,
                         logit = function(eta) stats::rbinom(N, 1L, stats::plogis(eta)),
                         probit = function(eta) stats::rbinom(N, 1L, stats::pnorm(eta)),
-                        poisson = function(eta) stats::rpois(N, exp(eta)))
+                        poisson = function(eta) stats::rpois(N, exp(eta)),
+                        binomial = function(eta) {
+                          stats::rbinom(N, TRIALS, stats::plogis(eta))
+                        },
+                        negbin = function(eta) {
+                          stats::rnbinom(N, size = THETA, mu = exp(eta))
+                        })
+
+FORMULA <- {
+  if (identical(FAMILY, "binomial")) cbind(y, fail) ~ x1 + x2
+  else y ~ x1 + x2
+}
 
 P <- 2L
-TREES <- 20L
-SIGMA_MU <- 0.35
+# `SBC_TREES` and `SBC_SIGMA_MU` (added 2026-11-04) set the number of trees and
+# the leaf scale, in the generator and the fit alike, so a single tree (Bayesian
+# CART) can be calibrated with the same harness. `SBC_CHAINS` fits each
+# replicate with that many chains and ranks the truth among their pooled draws;
+# `SBC_DRAWS` is then the draws per chain.
+TREES <- as.integer(Sys.getenv("SBC_TREES", "20"))
+SIGMA_MU <- as.numeric(Sys.getenv("SBC_SIGMA_MU", "0.35"))
+CHAINS <- as.integer(Sys.getenv("SBC_CHAINS", "1"))
+
+# `SBC_WORKERS` (added 2026-11-04) sets how many processes fit replicates at
+# once. Unset, `prog_parallel()` asks `prog_cores()`, which reads the cores and
+# the load. One run either way: one file, one widget run, one report.
+WORKERS <- {
+  w <- Sys.getenv("SBC_WORKERS")
+  if (nzchar(w)) as.integer(w) else NULL
+}
 GAMMA <- 0.95
 BETA <- 2
 # The mean of the exponential prior on a tree's bandwidth. `SBC_BANDWIDTH`
@@ -263,16 +382,40 @@ B <- which.max(u[, 1L])
 
 HAS_ANCHOR <- "anchor" %in% names(formals(bartisan_control))
 
+if (COLLAPSED) {
+  if (!"collapsed_bandwidth" %in% names(bartisan_control())) {
+    stop("`SBC_COLLAPSED` needs a build with `the$collapsed_bandwidth`")
+  }
+
+  flags <- bartisan:::the
+  flags$collapsed_bandwidth <- TRUE
+}
+
+if (INIT_PRIOR) {
+  if (!"init_from_prior" %in% names(bartisan_control())) {
+    stop("`SBC_INIT_PRIOR` needs a build with `the$init_from_prior`")
+  }
+
+  flags <- bartisan:::the
+  flags$init_from_prior <- TRUE
+}
+
+if (NO_CHANGE) {
+  if (!"no_change_move" %in% names(bartisan_control())) {
+    stop("`SBC_NO_CHANGE` needs a build with `the$no_change_move`")
+  }
+
+  flags <- bartisan:::the
+  flags$no_change_move <- TRUE
+}
+
 control <- do.call(bartisan_control, c(
-  list(num_trees = TREES, num_burn = WARMUP, num_draws = DRAWS, chains = 1L,
+  list(num_trees = TREES, num_burn = WARMUP, num_draws = DRAWS, chains = CHAINS,
        gate = GATE, sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
        sparsity = FALSE, x_transform = "range", bandwidth = BANDWIDTH,
        update_bandwidth = !FIX_BANDWIDTH,
-       augment = identical(FAMILY, "probit")),
+       augment = AUGMENT),
   if (NO_CENTER && HAS_ANCHOR) list(anchor = 0)))
-
-ranks <- level_ranks <- integer(0)
-truths <- widths <- covered <- numeric(0)
 
 # The seed block is part of the path whenever it is not the default, because a
 # run under a different block is a different run: on 2026-10-02 one was
@@ -288,33 +431,27 @@ OUT <- {
              if (DRAWS != 1000L) sprintf("draws%d", DRAWS),
              if (OFFSET != 0) sprintf("off%s", format(OFFSET)),
              if (NO_CENTER) "nocenter",
+             if (identical(FAMILY, "binomial")) sprintf("trials%d", TRIALS),
+             if (identical(FAMILY, "negbin")) sprintf("theta%s", format(THETA)),
+             if (COLLAPSED) "collapsed",
+             if (nzchar(Sys.getenv("SBC_AUGMENT")))
+               if (AUGMENT) "aug" else "direct",
+             if (TREES != 20L) sprintf("trees%d", TREES),
+             if (SIGMA_MU != 0.35) sprintf("smu%s", format(SIGMA_MU)),
+             if (CHAINS != 1L) sprintf("chains%d", CHAINS),
+             if (INIT_PRIOR) "initprior",
+             if (NO_CHANGE) "nochange",
              if (L != 100L) sprintf("L%d", L))
   sprintf("%s%s.rds", base,
           if (length(parts)) paste0("-", paste(parts, collapse = "-")) else "")
 }
 
-# Resume. Every replicate seeds itself from `SEED_BASE + r` before it draws
-# anything, so picking up at the next index reproduces exactly what an
-# uninterrupted run would have produced; a killed run loses at most the
-# replicate it was in. Delete the output file to start over.
-START_AT <- 1L
+LABEL <- sprintf("%s, n = %d, %s rules%s%s", FAMILY, N, GATE,
+                 if (TREES != 20L) sprintf(", %d tree%s", TREES,
+                                           if (TREES == 1L) "" else "s") else "",
+                 if (CHAINS != 1L) sprintf(", %d chains", CHAINS) else "")
 
-if (file.exists(OUT)) {
-  prev <- readRDS(OUT)
-
-  if (!isTRUE(prev$complete) && isTRUE(prev$done >= 1L) &&
-      isTRUE(prev$total == reps)) {
-    ranks <- prev$res$rank
-    level_ranks <- prev$res$rank_level
-    truths <- prev$res$truth
-    widths <- prev$res$width
-    covered <- prev$res$covered
-    START_AT <- prev$done + 1L
-    cat(sprintf("resuming at replicate %d of %d\n", START_AT, reps))
-  }
-}
-
-todo <- if (START_AT > reps) integer(0) else seq(START_AT, reps)
+todo <- seq_len(reps)
 
 # `SBC_REPLAY_ONLY` redraws each replicate's forest and records the bandwidths
 # it drew, with no fitting at all. The generating forest is a deterministic
@@ -339,52 +476,58 @@ if (nzchar(Sys.getenv("SBC_REPLAY_ONLY"))) {
   quit(save = "no")
 }
 
-pr <- prog_init(total = max(length(todo), 1L),
-                title = sprintf("SBC: %s, %s rules, n = %d%s", FAMILY, GATE, N,
-                                if (START_AT > 1L)
-                                  sprintf(" (resumed at %d)", START_AT) else ""),
-                unit = "replicate", kind = "simulation")
-on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
-        add = TRUE)
-
-# Written after every replicate rather than after the last one, so a run that
-# is killed leaves its finished replicates readable. `complete` is what tells a
-# reader which of the two it is looking at.
-checkpoint <- function(complete, done) {
-  saveRDS(list(res = data.frame(rank = ranks, rank_level = level_ranks,
-                                truth = truths, width = widths,
-                                covered = covered, n = N, gate = GATE),
-               complete = complete, done = done, total = reps, draws = L),
-          OUT)
+# The rank of `value` among `draws`, with ties broken uniformly at random. A
+# quantity with an atom needs it: with a single tree the contrast is exactly
+# zero whenever no split separates A from B, and `sum(draws < value)` then puts
+# every such replicate at the bottom, which read as a dispersion z of +21 for
+# one hard tree (2026-11-04). With no ties it is the old rank exactly.
+tied_rank <- function(draws, value) {
+  sum(draws < value) + sample.int(sum(draws == value) + 1L, 1L) - 1L
 }
 
-for (r in todo) {
-  set.seed(SEED_BASE + r)
-  t0 <- Sys.time()
+# One replicate, start to finish, so that the replicates can be handed to
+# worker processes. Seeded here, from `SEED_BASE + r` with R's default
+# generators named explicitly, rather than by `prog_parallel()`: replicate r
+# then draws the same truth and the same data in every run this script has
+# made, sequential or parallel, which is what pairs one run against another.
+# A worker starts under `future`'s L'Ecuyer generator, so the kinds have to be
+# named for that to hold.
+one_replicate <- function(r) {
+  set.seed(SEED_BASE + r, kind = "Mersenne-Twister", normal.kind = "Inversion",
+           sample.kind = "Rejection")
 
   eta <- draw_forest(u)
   truth <- eta[A] - eta[B]
 
   d <- d0
   d$y <- draw_response(eta + OFFSET)
+  d$fail <- TRIALS - d$y
 
   # A response with no variation carries no likelihood and the fit refuses it.
+  # Recorded as a failed unit, as the sequential loop recorded it.
   if (length(unique(d$y)) < 2L) {
-    prog_tick(pr, ok = FALSE, label = sprintf("replicate %d", r),
-              msg = "response had no variation")
-    next
+    stop("response had no variation")
   }
 
   # The anchor the package will add, computed as `prepare_response()` does, so
   # that subtracting it here leaves the fit's predictor at `OFFSET + forest`.
   anchor <- log(max(mean(d$y), 1 / (2 * N)))
+
+  if (NO_CENTER && !HAS_ANCHOR && !identical(FAMILY, "poisson")) {
+    stop("the offset route to `SBC_NO_CENTER` is written for poisson only; ",
+         "install a build with `anchor`")
+  }
+
   fit_offset <- {
     if (NO_CENTER && !HAS_ANCHOR) rep(OFFSET - anchor, N)
     else if (OFFSET != 0) rep(OFFSET, N)
   }
 
-  fit <- bartisan(y ~ ., data = d, family = family, control = control,
-                  offset = fit_offset)
+  # Through `do.call()` so the offset reaches the model frame as a value: the
+  # model frame looks for an `offset` expression in the formula's environment,
+  # which is the global one, and `fit_offset` lives here.
+  fit <- do.call(bartisan, list(FORMULA, data = d, family = family,
+                                control = control, offset = fit_offset))
 
   # Either route has to leave the start at the generator's: zero before the
   # offset under `anchor`, the empirical anchor under the offset route.
@@ -395,83 +538,43 @@ for (r in todo) {
   e <- fit[["eta"]][[1L]]
   contrast <- e[, A] - e[, B]
   keep <- seq(1L, length(contrast), length.out = L)
-  thin <- contrast[keep]
-
-  ranks <- c(ranks, sum(thin < truth))
-  level_ranks <- c(level_ranks, sum(e[keep, A] < eta[A] + OFFSET))
-  truths <- c(truths, truth)
   ci <- stats::quantile(contrast, c(0.025, 0.975), names = FALSE)
-  widths <- c(widths, ci[2L] - ci[1L])
-  covered <- c(covered, as.numeric(ci[1L] <= truth && truth <= ci[2L]))
 
-  prog_tick(pr, label = sprintf("replicate %d", r),
-            secs = as.numeric(difftime(Sys.time(), t0, units = "secs")))
-  checkpoint(FALSE, r)
+  data.frame(rep = r,
+             rank = tied_rank(contrast[keep], truth),
+             rank_level = tied_rank(e[keep, A], eta[A] + OFFSET),
+             truth = truth,
+             width = ci[2L] - ci[1L],
+             covered = as.numeric(ci[1L] <= truth && truth <= ci[2L]))
 }
 
-checkpoint(TRUE, reps)
-out <- data.frame(rank = ranks, rank_level = level_ranks, truth = truths,
-                  width = widths, covered = covered, n = N, gate = GATE)
+pr <- prog_init(total = length(todo), title = sprintf("SBC: %s", LABEL),
+                unit = "replicate", kind = "simulation")
+on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
+        add = TRUE)
+
+# Each worker checkpoints the replicates it finishes beside the output file,
+# and rerunning the same command resumes from them, so a killed run loses at
+# most the replicates in flight. `prog_collect()` on the stem reads a partial
+# run back.
+rows <- prog_parallel(pr, todo, one_replicate, workers = WORKERS,
+                      label = function(r) sprintf("replicate %d", r),
+                      seed = FALSE, checkpoint = sub("\\.rds$", "", OUT),
+                      packages = "bartisan")
+
+out <- do.call(rbind, rows)
+out$n <- N
+out$gate <- GATE
+
+saveRDS(list(res = out, complete = TRUE, done = reps, total = reps, draws = L,
+             label = LABEL, level_valid = NO_CENTER),
+        OUT)
 
 on.exit()
 prog_end(pr, "done", sprintf("%d replicates", nrow(out)))
 
 # ---- the report --------------------------------------------------------------
 
-# A rank takes the L + 1 values 0 to L, which ten bins split evenly only when
-# L + 1 is a multiple of ten. Otherwise some bins hold one more value than the
-# others, so the expected count is per value, not per bin. Assuming 60 a bin
-# made a uniform L = 20 run read as chi-square 29.7, when it was 9.6.
-bins <- 10L
-breaks <- seq(0, L + 1, length.out = bins + 1L)
-counts <- table(cut(out$rank, breaks = breaks, include.lowest = TRUE))
-values_per_bin <- tabulate(cut(0:L, breaks = breaks, include.lowest = TRUE,
-                               labels = FALSE), nbins = bins)
-expected <- nrow(out) * values_per_bin / (L + 1)
-chisq <- sum((as.numeric(counts) - expected)^2 / expected)
-
-cat(sprintf("\n%s, n = %d, %s rules: %d replicates, %d thinned draws each\n\n",
-            FAMILY, N, GATE, nrow(out), L))
-cat("rank histogram, 10 bins (uniform is what a correct sampler gives):\n")
-cat(sprintf("  %s\n", paste(sprintf("%4d", as.numeric(counts)), collapse = "")))
-cat(sprintf("  %s expected\n", paste(sprintf("%4.0f", expected), collapse = "")))
-cat(sprintf("\nchi-square %.1f on %d df, p = %.3f\n", chisq, bins - 1L,
-            stats::pchisq(chisq, bins - 1L, lower.tail = FALSE)))
-
-# A U shape is a posterior too narrow, a hump in the middle one too wide, and a
-# slope is a bias. Reporting the three separately says which, where a single
-# p-value does not.
-mid <- mean(out$rank > L * 0.25 & out$rank < L * 0.75)
-mid_uniform <- mean((0:L) > L * 0.25 & (0:L) < L * 0.75)
-cat(sprintf("\nshape: %.0f%% of ranks in the middle half (%.0f%% is uniform)\n",
-            100 * mid, 100 * mid_uniform))
-cat(sprintf("       mean rank %.1f of %d (%.1f is uniform)\n",
-            mean(out$rank), L, L / 2))
-cat(sprintf("\n95%% interval coverage of the contrast: %.3f (SE %.3f)\n",
-            mean(out$covered),
-            sqrt(mean(out$covered) * (1 - mean(out$covered)) / nrow(out))))
-
-# The mean-rank and dispersion contrasts, as z statistics against the exact
-# moments of a rank uniform on 0..L: the mean rank's departure from L / 2, and
-# the mean squared distance from L / 2. A positive dispersion z is a U shape, a
-# posterior too narrow; this is the statistic the 2026-10-02 table reports, to
-# within 0.08.
-rank_z <- function(r) {
-  v <- 0:L
-  dv <- (v - L / 2)^2
-  c(mean = (mean(r) - L / 2) / sqrt(mean((v - L / 2)^2) / length(r)),
-    dispersion = (mean((r - L / 2)^2) - mean(dv)) /
-      sqrt(mean((dv - mean(dv))^2) / length(r)))
-}
-
-z <- rank_z(out$rank)
-cat(sprintf("\ncontrast: mean-rank z %+.2f, dispersion z %+.2f\n",
-            z[["mean"]], z[["dispersion"]]))
-
-# The level is a valid target only when the anchor is cancelled, since
-# otherwise the fit's prior on it is centered somewhere the generator's is not.
-if (NO_CENTER) {
-  z <- rank_z(out$rank_level)
-  cat(sprintf("level (predictor at A): mean-rank z %+.2f, dispersion z %+.2f\n",
-              z[["mean"]], z[["dispersion"]]))
-}
+# In `_dev/sbc-report.R`, shared with anything that rereads a run's file.
+source("_dev/sbc-report.R")
+sbc_report(out, L, LABEL, level = NO_CENTER)

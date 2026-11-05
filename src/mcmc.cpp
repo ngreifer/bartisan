@@ -99,12 +99,19 @@ const double SCORE_INIT = 0.0;
 // same numbers so the boundary case stays reversible.
 const double P_BIRTH_DEATH = 0.7;
 
+// The probability of attempting a birth or a death for this forest: all of
+// them when the internal `no_change_move` flag drops the change move, so the
+// ratios below always use the numbers the move choice in `update_forest()` used.
+double p_birth_death(const Node* node) {
+  return node->tree->hypers->no_change_move ? 1.0 : P_BIRTH_DEATH;
+}
+
 double p_birth_move(const Node* root) {
-  return root->is_leaf ? 1.0 : 0.5 * P_BIRTH_DEATH;
+  return root->is_leaf ? 1.0 : 0.5 * p_birth_death(root);
 }
 
 double p_death_move(const Node* root) {
-  return root->is_leaf ? 0.0 : 0.5 * P_BIRTH_DEATH;
+  return root->is_leaf ? 0.0 : 0.5 * p_birth_death(root);
 }
 
 // The birth probability of the tree that results from collapsing this branch,
@@ -112,7 +119,7 @@ double p_death_move(const Node* root) {
 // evaluates this on the pre-collapse tree and so uses 0.5 even when the root is
 // collapsed, which unbalances the death move there.
 double p_birth_after_death(const Node* branch) {
-  return branch->is_root ? 1.0 : 0.5 * P_BIRTH_DEATH;
+  return branch->is_root ? 1.0 : 0.5 * p_birth_death(branch);
 }
 
 } // namespace
@@ -1687,6 +1694,192 @@ void update_bandwidth(Tree* tree, Context& ctx, const Hypers& hypers) {
   restore_support(tree->root, ctx.bw_support, pos);
 }
 
+// The bandwidth move with the tree's leaves integrated out, for a quadratic
+// target. Internal and off by default; see `Hypers::collapsed_bandwidth`.
+//
+// Given the rest of the predictor, a quadratic target makes the tree's
+// contribution t = W mu enter the log likelihood as g't - t'Dt/2 exactly, where
+// g and D are each observation's score and information at the predictor with
+// the tree removed, and W holds the gate weights of every observation in every
+// leaf. With the N(0, sigma_mu^2) leaf prior the leaves then have a Gaussian
+// posterior with precision P = W'DW + I / sigma_mu^2 and mean P^{-1} W'g, and
+// the tree's marginal likelihood is exp(g'W P^{-1} W'g / 2) |P|^{-1/2} up to
+// factors the bandwidth does not touch. The move proposes the bandwidth by the
+// same random walk as `update_bandwidth()`, accepts on that marginal
+// likelihood, and on acceptance draws every leaf jointly from its new
+// posterior, which is an exact Metropolis-Hastings step on the bandwidth and
+// the leaves together. The usual move instead keeps the leaves where they are,
+// which pins the bandwidth when the data say a lot about them.
+struct LeafPosterior {
+  arma::mat chol;   // upper triangular R with R'R = P
+  arma::vec mean;
+  double log_marginal;
+  double half_gm;   // g'mean / 2, kept for the check
+};
+
+LeafPosterior leaf_posterior(const std::vector<Node*>& leaf_list,
+                             const std::vector<double>& d1,
+                             const std::vector<double>& d2, double prec0) {
+  const int n_obs = static_cast<int>(d1.size());
+  const int K = static_cast<int>(leaf_list.size());
+
+  arma::mat W(n_obs, K, arma::fill::zeros);
+  for (int l = 0; l < K; l++) {
+    const Node* leaf = leaf_list[l];
+    const double* wt = leaf->weights();
+    for (std::size_t k = 0; k < leaf->idx.size(); k++) {
+      W(leaf->idx[k], l) = wt ? wt[k] : 1.0;
+    }
+  }
+
+  arma::vec g_obs(const_cast<double*>(d1.data()), n_obs, false, true);
+  arma::vec d_obs(const_cast<double*>(d2.data()), n_obs, false, true);
+
+  arma::mat DW = W.each_col() % d_obs;
+  arma::mat P = W.t() * DW;
+  P.diag() += prec0;
+  arma::vec g = W.t() * g_obs;
+
+  LeafPosterior out;
+  out.chol = arma::chol(P);
+  arma::vec u = arma::solve(arma::trimatl(out.chol.t()), g);
+  out.mean = arma::solve(arma::trimatu(out.chol), u);
+  out.log_marginal = 0.5 * arma::dot(u, u) -
+    arma::accu(arma::log(out.chol.diag()));
+  out.half_gm = 0.5 * arma::dot(g, out.mean);
+  return out;
+}
+
+void update_bandwidth_collapsed(Tree* tree, Context& ctx,
+                                const Hypers& hypers) {
+  if (tree->root->is_leaf) {
+    tree->bandwidth = exp_rand() * hypers.bandwidth_scale;
+    return;
+  }
+
+  const int n_obs = ctx.family->N;
+  const int stride = ctx.H;
+  const int h = ctx.h;
+  const double prec0 = std::pow(ctx.sigma_mu, -2.0);
+
+  std::vector<double>& base = ctx.buf_bw_base;
+  std::vector<double>& proposed = ctx.buf_bw_new;
+  base.resize(n_obs);
+  proposed.resize(n_obs);
+
+  const double* e = ctx.eta->memptr() + h;
+  for (int i = 0; i < n_obs; i++) {
+    base[i] = e[static_cast<std::size_t>(i) * stride];
+  }
+  arma::rowvec base_view(base.data(), n_obs, false, true);
+  accumulate(tree->root, base_view, -1.0);
+
+  // Each observation's score and information with the tree removed. The
+  // target is quadratic, so these two numbers are the whole of its dependence
+  // on the tree, wherever they are taken.
+  std::vector<double> d1(n_obs), d2(n_obs);
+  std::vector<double> col(stride);
+  for (int i = 0; i < n_obs; i++) {
+    const double* c = ctx.eta->colptr(i);
+    std::copy(c, c + stride, col.begin());
+    col[h] = base[i];
+    ctx.family->score_info(i, col.data(), h, &d1[i], &d2[i]);
+  }
+
+  std::vector<Node*>& leaf_list = ctx.buf_leaves;
+
+  // The marginal likelihood must equal the family's exact log likelihood at
+  // the leaves' posterior mean, with the prior's quadratic term added: g'm/2 =
+  // [L(base + W m) - L(base)] - prec0 m'm / 2. A disagreement means the target
+  // is not quadratic in the way the move assumes.
+  auto check = [&](const LeafPosterior& post) {
+    if (!hypers.collapsed_check) {
+      return;
+    }
+    std::copy(base.begin(), base.end(), proposed.begin());
+    for (std::size_t l = 0; l < leaf_list.size(); l++) {
+      const Node* leaf = leaf_list[l];
+      const double* wt = leaf->weights();
+      for (std::size_t k = 0; k < leaf->idx.size(); k++) {
+        proposed[leaf->idx[k]] += (wt ? wt[k] : 1.0) * post.mean(l);
+      }
+    }
+    double at_mean = ctx.family->loglik_delta(*ctx.eta, h, proposed.data());
+    double at_base = ctx.family->loglik_delta(*ctx.eta, h, base.data());
+    double lhs = at_mean - at_base -
+      0.5 * prec0 * arma::dot(post.mean, post.mean);
+    if (std::abs(lhs - post.half_gm) > 1e-6 * (1.0 + std::abs(lhs))) {
+      Rcpp::stop("collapsed bandwidth check failed: %.10g against %.10g.",
+                 lhs, post.half_gm);
+    }
+  };
+
+  leaf_list.clear();
+  leaves(tree->root, leaf_list);
+  LeafPosterior post_old = leaf_posterior(leaf_list, d1, d2, prec0);
+  check(post_old);
+
+  double bandwidth_old = tree->bandwidth;
+  double bandwidth_new = bandwidth_old *
+    std::exp(tree->log_step * (2.0 * unif_rand() - 1.0));
+
+  ctx.bw_support.clear();
+  save_support(tree->root, ctx.bw_support);
+  tree->bandwidth = bandwidth_new;
+  rebuild_support(tree->root);
+
+  leaf_list.clear();
+  leaves(tree->root, leaf_list);
+  LeafPosterior post_new = leaf_posterior(leaf_list, d1, d2, prec0);
+  check(post_new);
+
+  double log_ratio = post_new.log_marginal - post_old.log_marginal +
+    Rf_dexp(bandwidth_new, hypers.bandwidth_scale, 1) -
+    Rf_dexp(bandwidth_old, hypers.bandwidth_scale, 1) +
+    std::log(bandwidth_new) - std::log(bandwidth_old);
+
+  bool accept = std::isfinite(log_ratio) && std::log(unif_rand()) < log_ratio;
+
+  if (hypers.adapt) {
+    tree->attempts++;
+    double gain = 1.0 / std::sqrt(1.0 + tree->attempts / 50.0);
+    tree->log_step += gain * ((accept ? 1.0 : 0.0) - BANDWIDTH_TARGET);
+    if (tree->log_step < std::log(1.02)) {
+      tree->log_step = std::log(1.02);
+    }
+    if (tree->log_step > std::log(100.0)) {
+      tree->log_step = std::log(100.0);
+    }
+  }
+
+  if (!accept) {
+    tree->bandwidth = bandwidth_old;
+    std::size_t pos = 0;
+    restore_support(tree->root, ctx.bw_support, pos);
+    return;
+  }
+
+  // Every leaf drawn jointly from its posterior under the new bandwidth, and
+  // the predictor rebuilt from the tree with the tree's new leaves in it.
+  arma::vec z(leaf_list.size());
+  for (std::size_t l = 0; l < leaf_list.size(); l++) {
+    z(l) = norm_rand();
+  }
+  arma::vec mu = post_new.mean + arma::solve(arma::trimatu(post_new.chol), z);
+  for (std::size_t l = 0; l < leaf_list.size(); l++) {
+    leaf_list[l]->mu = mu(l);
+  }
+
+  std::copy(base.begin(), base.end(), proposed.begin());
+  arma::rowvec prop_view(proposed.data(), n_obs, false, true);
+  accumulate(tree->root, prop_view, 1.0);
+
+  double* out = ctx.eta->memptr() + h;
+  for (int i = 0; i < n_obs; i++) {
+    out[static_cast<std::size_t>(i) * stride] = proposed[i];
+  }
+}
+
 void update_sigma_mu(Hypers& hypers, std::vector<Tree*>& forest) {
   std::vector<double> params;
   for (std::size_t t = 0; t < forest.size(); t++) {
@@ -1716,10 +1909,11 @@ void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers,
     }
     else {
       double u = unif_rand();
-      if (u < 0.5 * P_BIRTH_DEATH) {
+      double p_bd = hypers.no_change_move ? 1.0 : P_BIRTH_DEATH;
+      if (u < 0.5 * p_bd) {
         node_birth(tree, ctx, hypers);
       }
-      else if (u < P_BIRTH_DEATH) {
+      else if (u < p_bd) {
         node_death(tree, ctx, hypers);
       }
       else {
@@ -1733,7 +1927,12 @@ void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers,
 
     if (hypers.soft && hypers.update_bandwidth &&
         tree->sweeps % hypers.bandwidth_every == 0) {
-      update_bandwidth(tree, ctx, hypers);
+      if (hypers.collapsed_bandwidth && ctx.quadratic) {
+        update_bandwidth_collapsed(tree, ctx, hypers);
+      }
+      else {
+        update_bandwidth(tree, ctx, hypers);
+      }
     }
   }
 
