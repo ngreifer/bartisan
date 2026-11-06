@@ -91,6 +91,7 @@ _dev/did/*
 # Records
 !_dev/TASKS.md
 !_dev/SHIP.md
+!_dev/TASKS-archive.md
 !_dev/REVIEW.md
 !_dev/AUDITING.md
 !_dev/SIMULATION.md

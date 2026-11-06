@@ -101,6 +101,19 @@ rather than by inspection.
   whose question is settled and recorded in `TASKS.md` does not need to stay.
   `TASKS.md` is the running record of what was tried, measured and rejected;
   `SHIP.md` is the release assessment.
+- `_dev/TASKS.md` is organized by topic, not by session. Each topic opens with
+  one bold sentence stating the problem and where it stands, and its entries
+  follow as dated one-line bullets in chronological order: two or three
+  sentences giving what was tested, the deciding numbers, and the decision or
+  what is open. Longer working goes in the `_dev/` script's header.
+  `_dev/TASKS-archive.md` holds the full text of every entry up to 2026-11-05
+  and is frozen. A new entry goes at the end
+  of its topic (or under a new topic with its own bold sentence), and **any
+  edit that changes what a topic's bold sentence says rewrites that sentence in
+  the same edit**: a new result, a fix, a reversed decision, an item opened or
+  closed. A closed To Do item moves out of To Do into its topic. Each paragraph
+  in it is one line, with no hard wraps. The file's own header repeats these
+  rules.
 - `src/Makevars` sets `CXX_STD = CXX17`. The code needs it, and without it a
   `-O0` build fails to link where `-O2` silently succeeds.
 - The simulations behind the conclusions `vignette("survival")` states are
