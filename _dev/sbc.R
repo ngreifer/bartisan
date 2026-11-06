@@ -146,6 +146,56 @@ library(bartisan)
 # augmented binomial, 200 replicates paired against the single-chain runs.
 # Meaning: if the narrowing goes, the change move is the defect; if not, birth
 # and death or the problem remain.
+#
+# `SBC_UNIT_X` and `SBC_FIXED_STRUCTURE` (added 2026-11-05). Tested: whether
+# the 20-tree soft narrowing lives in the structure moves. `SBC_UNIT_X`
+# evaluates the generator on the design rescaled by each column's range, the
+# coordinate the fit works in under `x_transform = "range"`, which the raw
+# design misses by about 0.5%. `SBC_FIXED_STRUCTURE` (needs `SBC_UNIT_X`) starts
+# the chain at the generator's own trees, leaves and bandwidths and turns birth,
+# death and change off, so it draws only leaves and bandwidths; conditioning on
+# the structure keeps the ranks uniform for a correct sampler. Measured: 600
+# replicates, one chain, soft Poisson and the augmented binomial, structure free
+# and fixed, both on the rescaled design. Meaning: free narrow and fixed
+# uniform, the structure moves are the cause; fixed still narrow, the leaf and
+# bandwidth updates or the harness are, and the Stan reference is the next
+# test; free uniform, the rescaling was the cause. `_dev/TASKS.md` has the
+# full statement.
+#
+# `SBC_KNOWN_BANDWIDTH` (added 2026-11-05, after the fixed-structure arms still
+# narrowed; needs `SBC_FIXED_STRUCTURE`) also holds each tree's bandwidth at the
+# generator's, with the bandwidth move off, so only the leaves are drawn.
+# Tested: whether the narrowing comes from the bandwidth's update or prior.
+# Measured: 600 replicates, one chain, soft Poisson and the augmented binomial,
+# paired against the fixed-structure arms. Meaning: uniform, the bandwidth
+# move or prior is the cause; still narrow, the leaf updates or, since the
+# binomial's are exact Gibbs steps, the harness.
+#
+# `SBC_STAN` (added 2026-11-05; needs `SBC_KNOWN_BANDWIDTH`) replaces only the
+# fit: with the structure and bandwidths known the model is linear in the
+# leaves, eta = offset + W mu, and Stan's NUTS fits it (`_dev/sbc-stan-glm.stan`)
+# on the same seeds, data sets and rank code. Tested: whether a sampler known
+# to be correct gives uniform ranks on this model. Measured: 600 replicates per
+# family, one chain of 1000 + 1000, paired with the known-bandwidth bartisan
+# arms. Meaning: Stan uniform, the narrowing is bartisan's; Stan narrow too,
+# the harness is the cause. `STAN_WARMUP` and `STAN_DRAWS` change the chain.
+#
+# A fresh seed block (2026-11-05, `SBC_SEED_BASE=300000`). Tested: whether
+# block 5000's leaves-only reading under Stan (+1.56) was chance or the harness,
+# and whether the full sampler narrows on fresh data. Measured: the full
+# sampler, the leaves-only bartisan arm and Stan's, per family, 600 replicates
+# on the new block. Meaning: Stan near zero, the harness is sound and the full
+# sampler's reading decides whether anything narrows; Stan about +1.5 again,
+# the harness is at fault.
+#
+# October's three soft-Poisson readings rerun (2026-11-05). Tested: whether
+# +1.63 (prior mean 0.1, block 90000), +1.88 (0.03) and +2.65 (0.3), on an
+# older build, belong to their data sets or the build, and whether the full
+# sampler narrows on the current build at any prior. Measured: October's
+# configuration (no `SBC_NO_CENTER`, raw design), those settings on their own
+# blocks and on fresh blocks 400000, 500000 and 600000. Meaning: same-block
+# arms reproducing October and fresh arms near zero, their data sets' chance and
+# no narrowing now; fresh arms pooled at about +2.5, a small narrowing remains.
 args <- commandArgs(trailingOnly = TRUE)
 reps <- if (length(args) > 0L) as.integer(args[1L]) else 200L
 N <- if (length(args) > 1L) as.integer(args[2L]) else 400L
@@ -225,6 +275,27 @@ THETA <- as.numeric(Sys.getenv("SBC_THETA", "5"))
 COLLAPSED <- nzchar(Sys.getenv("SBC_COLLAPSED"))
 INIT_PRIOR <- nzchar(Sys.getenv("SBC_INIT_PRIOR"))
 NO_CHANGE <- nzchar(Sys.getenv("SBC_NO_CHANGE"))
+UNIT_X <- nzchar(Sys.getenv("SBC_UNIT_X"))
+FIXED_STRUCTURE <- nzchar(Sys.getenv("SBC_FIXED_STRUCTURE"))
+KNOWN_BANDWIDTH <- nzchar(Sys.getenv("SBC_KNOWN_BANDWIDTH"))
+STAN <- nzchar(Sys.getenv("SBC_STAN"))
+STAN_WARMUP <- as.integer(Sys.getenv("STAN_WARMUP", "1000"))
+STAN_DRAWS <- as.integer(Sys.getenv("STAN_DRAWS", "1000"))
+
+if (STAN && !KNOWN_BANDWIDTH) {
+  stop("`SBC_STAN` needs `SBC_KNOWN_BANDWIDTH`: Stan fits the model with the ",
+       "structure and bandwidths given")
+}
+
+if (KNOWN_BANDWIDTH && !FIXED_STRUCTURE) {
+  stop("`SBC_KNOWN_BANDWIDTH` needs `SBC_FIXED_STRUCTURE`: the bandwidths are ",
+       "held at the generator's through the trees passed in")
+}
+
+if (FIXED_STRUCTURE && !UNIT_X) {
+  stop("`SBC_FIXED_STRUCTURE` needs `SBC_UNIT_X`: the trees are passed in the ",
+       "fit's own coordinates")
+}
 AUGMENT <- {
   if (nzchar(Sys.getenv("SBC_AUGMENT"))) Sys.getenv("SBC_AUGMENT") == "1"
   else identical(FAMILY, "probit")
@@ -352,6 +423,8 @@ draw_forest <- function(u) {
   # One bandwidth per tree, from the exponential prior the bandwidth move uses.
   bw <- numeric(TREES)
 
+  trees <- vector("list", TREES)
+
   out <- Reduce(`+`, lapply(seq_len(TREES), function(i) {
     b <- {
       if (!SOFT) 0
@@ -359,11 +432,62 @@ draw_forest <- function(u) {
       else stats::rexp(1L, rate = 1 / BANDWIDTH)
     }
     bw[i] <<- b
-    eval_tree(draw_tree(), u, b)
+    tree <- draw_tree()
+    trees[[i]] <<- tree
+    eval_tree(tree, u, b)
   }), numeric(nrow(u)))
 
   LAST_BW <<- bw
+  # The trees and bandwidths ride along as attributes, which a worker process
+  # can read back where a `<<-` global might land in another environment.
+  attr(out, "trees") <- trees
+  attr(out, "bandwidths") <- bw
   out
+}
+
+# A generated tree in the engine's preorder form for `fixed_trees`: one entry
+# per node, a leaf with its value or a rule with its zero-based column and
+# cutpoint. Stashing and flattening consume no draw.
+flatten_tree <- function(tree, bandwidth) {
+  is_leaf <- integer(0)
+  var <- integer(0)
+  val <- numeric(0)
+  mu <- numeric(0)
+
+  walk <- function(node) {
+    leaf <- isTRUE(node$leaf)
+    is_leaf <<- c(is_leaf, as.integer(leaf))
+    var <<- c(var, if (leaf) -1L else node$var - 1L)
+    val <<- c(val, if (leaf) 0 else node$val)
+    mu <<- c(mu, if (leaf) node$mu else 0)
+
+    if (!leaf) {
+      walk(node$left)
+      walk(node$right)
+    }
+  }
+
+  walk(tree)
+  list(is_leaf = is_leaf, var = var, val = val, mu = mu, bandwidth = bandwidth)
+}
+
+# Every leaf of a tree as its column of gate weights and its value, in the order
+# `eval_tree()` sums them, so that `W %*% mu` is the tree's contribution.
+leaf_columns <- function(node, u, bandwidth, w = rep.int(1, nrow(u))) {
+  if (isTRUE(node$leaf)) {
+    return(list(list(w = w, mu = node$mu)))
+  }
+
+  p <- left_prob(u[, node$var], node$val, bandwidth)
+  c(leaf_columns(node$left, u, bandwidth, w * p),
+    leaf_columns(node$right, u, bandwidth, w * (1 - p)))
+}
+
+# The rstan model, compiled once by the parent and loaded from the file it
+# writes beside the source in each worker.
+stan_glm_model <- function() {
+  rstan::rstan_options(auto_write = TRUE)
+  rstan::stan_model("_dev/sbc-stan-glm.stan")
 }
 
 # ---- the run -----------------------------------------------------------------
@@ -379,6 +503,10 @@ d0 <- as.data.frame(u)
 # quantity the forest actually has to represent.
 A <- which.min(u[, 1L])
 B <- which.max(u[, 1L])
+
+# The design the generator evaluates its trees on: the raw one, or under
+# `SBC_UNIT_X` the one the fit sees after `x_transform = "range"`.
+u_gen <- if (UNIT_X) apply(u, 2L, function(z) (z - min(z)) / (max(z) - min(z))) else u
 
 HAS_ANCHOR <- "anchor" %in% names(formals(bartisan_control))
 
@@ -413,7 +541,7 @@ control <- do.call(bartisan_control, c(
   list(num_trees = TREES, num_burn = WARMUP, num_draws = DRAWS, chains = CHAINS,
        gate = GATE, sigma_mu = SIGMA_MU, update_sigma_mu = FALSE,
        sparsity = FALSE, x_transform = "range", bandwidth = BANDWIDTH,
-       update_bandwidth = !FIX_BANDWIDTH,
+       update_bandwidth = !FIX_BANDWIDTH && !KNOWN_BANDWIDTH,
        augment = AUGMENT),
   if (NO_CENTER && HAS_ANCHOR) list(anchor = 0)))
 
@@ -441,15 +569,23 @@ OUT <- {
              if (CHAINS != 1L) sprintf("chains%d", CHAINS),
              if (INIT_PRIOR) "initprior",
              if (NO_CHANGE) "nochange",
+             if (UNIT_X) "unitx",
+             if (FIXED_STRUCTURE) "fixed",
+             if (KNOWN_BANDWIDTH) "knownbw",
+             if (STAN) sprintf("stan-w%d-d%d", STAN_WARMUP, STAN_DRAWS),
              if (L != 100L) sprintf("L%d", L))
   sprintf("%s%s.rds", base,
           if (length(parts)) paste0("-", paste(parts, collapse = "-")) else "")
 }
 
-LABEL <- sprintf("%s, n = %d, %s rules%s%s", FAMILY, N, GATE,
+LABEL <- sprintf("%s, n = %d, %s rules%s%s%s", FAMILY, N, GATE,
                  if (TREES != 20L) sprintf(", %d tree%s", TREES,
                                            if (TREES == 1L) "" else "s") else "",
-                 if (CHAINS != 1L) sprintf(", %d chains", CHAINS) else "")
+                 if (CHAINS != 1L) sprintf(", %d chains", CHAINS) else "",
+                 if (STAN) ", Stan, structure and bandwidths given"
+                 else if (KNOWN_BANDWIDTH) ", structure and bandwidths fixed"
+                 else if (FIXED_STRUCTURE) ", structure fixed"
+                 else if (UNIT_X) ", rescaled design" else "")
 
 todo <- seq_len(reps)
 
@@ -464,7 +600,7 @@ if (nzchar(Sys.getenv("SBC_REPLAY_ONLY"))) {
 
   for (r in seq_len(reps)) {
     set.seed(SEED_BASE + r)
-    eta <- draw_forest(u)
+    eta <- draw_forest(u_gen)
     out$truth[r] <- eta[A] - eta[B]
     out$bw_mean[r] <- mean(LAST_BW)
     out$bw_max[r] <- max(LAST_BW)
@@ -496,8 +632,16 @@ one_replicate <- function(r) {
   set.seed(SEED_BASE + r, kind = "Mersenne-Twister", normal.kind = "Inversion",
            sample.kind = "Rejection")
 
-  eta <- draw_forest(u)
+  eta <- draw_forest(u_gen)
   truth <- eta[A] - eta[B]
+
+  ctl <- control
+
+  if (FIXED_STRUCTURE) {
+    ctl$fixed_trees <- Map(flatten_tree, attr(eta, "trees"),
+                           attr(eta, "bandwidths"))
+    ctl$fixed_structure <- TRUE
+  }
 
   d <- d0
   d$y <- draw_response(eta + OFFSET)
@@ -523,29 +667,68 @@ one_replicate <- function(r) {
     else if (OFFSET != 0) rep(OFFSET, N)
   }
 
-  # Through `do.call()` so the offset reaches the model frame as a value: the
-  # model frame looks for an `offset` expression in the formula's environment,
-  # which is the global one, and `fit_offset` lives here.
-  fit <- do.call(bartisan, list(FORMULA, data = d, family = family,
-                                control = control, offset = fit_offset))
+  stan_diag <- NULL
 
-  # Either route has to leave the start at the generator's: zero before the
-  # offset under `anchor`, the empirical anchor under the offset route.
-  if (NO_CENTER) {
-    stopifnot(abs(fit[["intercept"]] - if (HAS_ANCHOR) 0 else anchor) < 1e-12)
+  if (STAN) {
+    cols <- do.call(c, Map(leaf_columns, attr(eta, "trees"),
+                           u = list(u_gen), bandwidth = attr(eta, "bandwidths")))
+    W <- do.call(cbind, lapply(cols, `[[`, "w"))
+    mu_true <- vapply(cols, `[[`, numeric(1L), "mu")
+
+    # The matrix has to be the generator's predictor exactly, or the model
+    # Stan fits is not the one the data came from.
+    stopifnot(max(abs(drop(W %*% mu_true) - eta)) < 1e-10)
+
+    sd <- list(N = N, K = ncol(W), W = W, y = as.integer(d$y),
+               trials = rep.int(TRIALS, N), base = rep(OFFSET, N),
+               sigma_mu = SIGMA_MU,
+               family = if (identical(FAMILY, "poisson")) 1L else 2L,
+               A = A, B = B)
+    sf <- rstan::sampling(stan_glm_model(), data = sd, chains = 1L,
+                          warmup = STAN_WARMUP, iter = STAN_WARMUP + STAN_DRAWS,
+                          refresh = 0L, seed = sample.int(.Machine$integer.max, 1L))
+    draws <- rstan::extract(sf, pars = c("contrast", "level"))
+    contrast <- as.numeric(draws$contrast)
+    level <- as.numeric(draws$level)
+    stan_diag <- data.frame(
+      divergent = sum(rstan::get_divergent_iterations(sf)),
+      ess = rstan::summary(sf, pars = "contrast")$summary[1L, "n_eff"],
+      leaves = ncol(W))
+  }
+  else {
+    # Through `do.call()` so the offset reaches the model frame as a value: the
+    # model frame looks for an `offset` expression in the formula's
+    # environment, which is the global one, and `fit_offset` lives here.
+    fit <- do.call(bartisan, list(FORMULA, data = d, family = family,
+                                  control = ctl, offset = fit_offset))
+
+    # Either route has to leave the start at the generator's: zero before the
+    # offset under `anchor`, the empirical anchor under the offset route.
+    if (NO_CENTER) {
+      stopifnot(abs(fit[["intercept"]] - if (HAS_ANCHOR) 0 else anchor) < 1e-12)
+    }
+
+    e <- fit[["eta"]][[1L]]
+    contrast <- e[, A] - e[, B]
+    level <- e[, A]
   }
 
-  e <- fit[["eta"]][[1L]]
-  contrast <- e[, A] - e[, B]
   keep <- seq(1L, length(contrast), length.out = L)
   ci <- stats::quantile(contrast, c(0.025, 0.975), names = FALSE)
 
-  data.frame(rep = r,
-             rank = tied_rank(contrast[keep], truth),
-             rank_level = tied_rank(e[keep, A], eta[A] + OFFSET),
-             truth = truth,
-             width = ci[2L] - ci[1L],
-             covered = as.numeric(ci[1L] <= truth && truth <= ci[2L]))
+  out <- data.frame(rep = r,
+                    rank = tied_rank(contrast[keep], truth),
+                    rank_level = tied_rank(level[keep], eta[A] + OFFSET),
+                    truth = truth,
+                    width = ci[2L] - ci[1L],
+                    covered = as.numeric(ci[1L] <= truth && truth <= ci[2L]))
+
+  if (!is.null(stan_diag)) out <- cbind(out, stan_diag)
+  out
+}
+
+if (STAN) {
+  invisible(stan_glm_model())
 }
 
 pr <- prog_init(total = length(todo), title = sprintf("SBC: %s", LABEL),
@@ -560,7 +743,7 @@ on.exit(prog_end(pr, "failed", "aborted before the last replicate"),
 rows <- prog_parallel(pr, todo, one_replicate, workers = WORKERS,
                       label = function(r) sprintf("replicate %d", r),
                       seed = FALSE, checkpoint = sub("\\.rds$", "", OUT),
-                      packages = "bartisan")
+                      packages = c("bartisan", if (STAN) "rstan"))
 
 out <- do.call(rbind, rows)
 out$n <- N

@@ -677,9 +677,10 @@ bartisan_control <- function(chains = 1L,
               share_forests = isTRUE(the$share_forests),
               # The bandwidth move with the tree's leaves integrated out, where
               # the target is quadratic, and a check of every marginal
-              # likelihood it computes. A test of why soft-rule posteriors
-              # narrow with the bandwidth drawn (`_dev/TASKS.md`, 2026-11-04),
-              # not a setting: reached the same way as `share_forests`.
+              # likelihood it computes. Built to test an apparent narrowing of
+              # soft-rule posteriors in SBC that fresh seed blocks showed to be
+              # chance (`_dev/TASKS.md`, 2026-11-05); not a setting, and
+              # reached the same way as `share_forests`.
               collapsed_bandwidth = isTRUE(the$collapsed_bandwidth),
               collapsed_check = isTRUE(the$collapsed_check),
               # Each chain's trees started from a draw of the tree prior rather
@@ -687,7 +688,7 @@ bartisan_control <- function(chains = 1L,
               # chains that share a start share a region of the posterior.
               init_from_prior = isTRUE(the$init_from_prior),
               # Only births and deaths, never a change, with the acceptance
-              # ratios to match: whether the change move is what narrows.
+              # ratios to match; the same kind of internal test.
               no_change_move = isTRUE(the$no_change_move),
               split_prior = split_prior,
               categorical = categorical,

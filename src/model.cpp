@@ -135,6 +135,58 @@ void grow_from_prior(Node* node, double sigma_mu) {
   }
 }
 
+// A tree built from a given structure, as the starting state of a chain:
+// `spec` lists the nodes in preorder, each a leaf (with its value) or a numeric
+// rule on a zero-based column of the engine's [0, 1] predictors (with its
+// cutpoint), and the tree takes `bandwidth` before any rule splits the support,
+// since a soft rule's gates depend on it. Internal: `_dev/sbc.R` passes the
+// generator's own trees as `fixed_trees` in the control list, so that a chain
+// with `fixed_structure` starts at, and keeps, the true structure. Only numeric
+// rules with missing values going left, which is all the SBC generator draws.
+void build_from_spec(Node* node, const IntegerVector& is_leaf,
+                     const IntegerVector& var, const NumericVector& val,
+                     const NumericVector& mu, int& pos) {
+  int k = pos++;
+
+  if (k >= is_leaf.size()) {
+    stop("`fixed_trees`: a tree's preorder ran out of nodes");
+  }
+
+  if (is_leaf[k] == 1) {
+    node->mu = mu[k];
+    return;
+  }
+
+  node->is_leaf = false;
+  node->var = var[k];
+  node->group = var[k];
+  node->mask.clear();
+  node->na_rule = NA_LEFT;
+  node->get_limits();
+  node->val = val[k];
+  node->left = node->tree->take_node(node);
+  node->right = node->tree->take_node(node);
+  node->split_support(nullptr, nullptr);
+
+  build_from_spec(node->left, is_leaf, var, val, mu, pos);
+  build_from_spec(node->right, is_leaf, var, val, mu, pos);
+}
+
+void init_tree_from_spec(Tree* tree, const List& spec) {
+  if (tree->hypers->soft) {
+    tree->bandwidth = as<double>(spec["bandwidth"]);
+  }
+
+  IntegerVector is_leaf = spec["is_leaf"];
+  int pos = 0;
+  build_from_spec(tree->root, is_leaf, spec["var"], spec["val"], spec["mu"],
+                  pos);
+
+  if (pos != is_leaf.size()) {
+    stop("`fixed_trees`: a tree's preorder has nodes left over");
+  }
+}
+
 void init_tree_from_prior(Tree* tree, double sigma_mu) {
   if (tree->hypers->soft && tree->hypers->update_bandwidth) {
     tree->bandwidth = exp_rand() * tree->hypers->bandwidth_scale;
@@ -293,6 +345,8 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     as<bool>(control["init_from_prior"]);
   bool no_change_move = control.containsElementNamed("no_change_move") &&
     as<bool>(control["no_change_move"]);
+  bool fixed_structure = control.containsElementNamed("fixed_structure") &&
+    as<bool>(control["fixed_structure"]);
 
   int num_burn = as<int>(control["num_burn"]);
   int num_thin = as<int>(control["num_thin"]);
@@ -445,6 +499,7 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
     hypers[h]->collapsed_bandwidth = collapsed_bandwidth;
     hypers[h]->collapsed_check = collapsed_check;
     hypers[h]->no_change_move = no_change_move;
+    hypers[h]->fixed_structure = fixed_structure;
 
     for (int t = 0; t < num_trees[h]; t++) {
       forests[h].push_back(new Tree(hypers[h].get(), &X, &has_na, &codes,
@@ -579,6 +634,21 @@ List bartisan_fit(const arma::mat& X, const arma::uvec& has_na,
         accumulate(forests[h][t]->root, row, 1.0);
         eta.row(h) = row;
       }
+    }
+  }
+
+  if (control.containsElementNamed("fixed_trees")) {
+    List specs = control["fixed_trees"];
+
+    if (static_cast<std::size_t>(specs.size()) != forests[0].size()) {
+      stop("`fixed_trees` needs one tree per tree of the first forest");
+    }
+
+    for (std::size_t t = 0; t < forests[0].size(); t++) {
+      init_tree_from_spec(forests[0][t], specs[t]);
+      arma::rowvec row = eta.row(0);
+      accumulate(forests[0][t]->root, row, 1.0);
+      eta.row(0) = row;
     }
   }
 

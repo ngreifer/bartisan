@@ -1904,7 +1904,10 @@ void update_forest(std::vector<Tree*>& forest, Context& ctx, Hypers& hypers,
     Tree* tree = forest[t];
     ctx.sigma_mu = hypers.sigma_mu;
 
-    if (tree->root->is_leaf) {
+    if (hypers.fixed_structure) {
+      // No structure move at all; see `Hypers::fixed_structure`.
+    }
+    else if (tree->root->is_leaf) {
       node_birth(tree, ctx, hypers);
     }
     else {

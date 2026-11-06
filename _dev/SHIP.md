@@ -69,19 +69,18 @@ maintainer's decision of 2026-10-07, reversed on 2026-10-18.
 
 ## Accepted for this release
 
-- **Calibration of the default Poisson fit**, accepted as unsolved by the
-  maintainer's decision of 2026-10-07, since every hypothesis tested for it was
-  rejected. Simulation-based calibration of a Poisson response under the
-  defaults (soft rules, bandwidth drawn per tree) gives ranks whose dispersion
-  contrast is near +2 on 600 replicates in every arm that draws the bandwidth,
-  across a tenfold range of bandwidth priors, ten times the warmup, four times
-  the draws, three response levels and thinning to one draw in 200. The arm that
-  fixes the bandwidth is uniform, and so are the soft-rule logit arms; the
-  posterior is slightly too narrow. The move itself is verified (its acceptance
-  ratio, its likelihood difference and its bookkeeping, the last to 1e-10 after
-  72,488 accepted moves in `_dev/bandwidth-predictor.R`), so the cause is not an
-  implementation bug in the move and is not yet located. See the `TASKS.md`
-  entries of 2026-10-01 and 2026-10-02.
+- **Calibration of the default Poisson fit: resolved on 2026-11-05, not a
+  defect.** Accepted as unsolved on 2026-10-07, when simulation-based
+  calibration of a Poisson response under the defaults read a dispersion
+  contrast near +2 on 600 replicates in every arm that drew the bandwidth. Those
+  arms mostly reused one seed block, and the reading was that block's chance.
+  On the current build October's readings reproduce replicate for replicate on
+  their own seed blocks (two of the three share block 5000's trees), while the
+  same settings on three fresh blocks pool to +0.12, with coverage .943 to .957.
+  The soft binomial reads +0.66 on a fresh block. Stan, fitting the model with
+  the tree structures and bandwidths given, gives uniform ranks on fresh data
+  and matches bartisan's leaf draws replicate for replicate. See the
+  `TASKS.md` entries of 2026-11-05.
 - **A deprecation warning under clang with libstdc++.** rhub's ubuntu-clang
   build warns that `std::get_temporary_buffer` is deprecated, through
   Armadillo's `inv_sympd()` in the multinomial probit code. Clang with libc++,

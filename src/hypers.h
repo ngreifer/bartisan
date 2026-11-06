@@ -43,20 +43,29 @@ struct Hypers {
   // soft-rule fit.
   int bandwidth_every;
 
+  // The flags below were built to locate an apparent narrowing of soft-rule
+  // posteriors in simulation-based calibration, which on fresh seed blocks
+  // turned out to be one block's chance rather than a defect (`_dev/TASKS.md`,
+  // 2026-11-05). They stay as tools for testing the sampler.
+  //
   // Internal, off by default, and read only by `update_forest()`: propose the
   // bandwidth with the tree's leaves integrated out where the target is
   // quadratic, and with `collapsed_check` verify each marginal likelihood
-  // against the family's exact log density. The test of whether holding the
-  // leaves fixed is what narrows soft-rule posteriors (`_dev/TASKS.md`,
-  // 2026-11-04); `the$collapsed_bandwidth` in R sets it.
+  // against the family's exact log density. `the$collapsed_bandwidth` in R sets
+  // it.
   bool collapsed_bandwidth = false;
   bool collapsed_check = false;
   // Internal and off by default: attempt only births and deaths, never a change,
   // with the move-choice terms of their acceptance ratios to match. Birth and
-  // death alone are a valid sampler. A test of whether the change move is what
-  // narrows soft-rule posteriors (`_dev/TASKS.md`, 2026-11-04);
-  // `the$no_change_move` in R sets it.
+  // death alone are a valid sampler. `the$no_change_move` in R sets it.
   bool no_change_move = false;
+  // Internal and off by default: no birth, death or change at all, so every
+  // tree keeps the structure it started with while its leaves and bandwidth are
+  // drawn. With the trees started at the generator's own (`fixed_trees` in the
+  // control list), an SBC of this sampler tests everything but the structure
+  // moves (`_dev/TASKS.md`, 2026-11-05). Set by `_dev/sbc.R` appending
+  // `fixed_structure` to the control list; there is no `the$` route.
+  bool fixed_structure = false;
 
   // Which gate the soft rules use; see GateShape in node.h. Ignored when the
   // rules are hard.

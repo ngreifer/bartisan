@@ -184,6 +184,7 @@ _dev/did/*
 !_dev/bandwidth-predictor.R
 !_dev/sbc-stan.R
 !_dev/sbc-stan.stan
+!_dev/sbc-stan-glm.stan
 
 # Parked
 !_dev/gibbs-prior-smoke.R
