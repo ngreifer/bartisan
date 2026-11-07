@@ -24,7 +24,15 @@ test_that("the closed forms reproduce the general path", {
          gate = "hard", augment = TRUE,
          y = stats::rbinom(200, 1, stats::plogis(2 * d$x1 - 1))),
     list(label = "location-scale, soft", family = gaussian_ls(),
-         gate = "smoothstep", augment = FALSE, y = d$y))
+         gate = "smoothstep", augment = FALSE, y = d$y),
+    # Both forests quadratic: the log-normal positive part, with the zeros
+    # contributing nothing to it, and the zero part under Polya-Gamma.
+    list(label = "hurdle log-normal augmented, soft",
+         family = hurdle_lognormal(), gate = "smoothstep", augment = TRUE,
+         y = ifelse(d$x2 < 0.3, 0, exp(d$y))),
+    list(label = "hurdle log-normal augmented, hard",
+         family = hurdle_lognormal(), gate = "hard", augment = TRUE,
+         y = ifelse(d$x2 < 0.3, 0, exp(d$y))))
 
   for (s in settings) {
     dd <- d

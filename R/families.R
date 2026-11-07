@@ -20,12 +20,14 @@
 #'   (the default), `"probit"`, and `"cloglog"` for `ordinal()` and `Beta()`, and
 #'   `"logit"` (the default) and `"probit"` for `multinomial()`. The remaining
 #'   families take one link each, which is therefore the default: `"log"` for
-#'   `negbin()`, `zi_poisson()`, `zi_negbin()`, and `Gamma_ls()`, `"logit"` for
-#'   `ordbeta()`, and `"identity"` for `gaussian_ls()` and `dpm_ls()`. Each family compiles the links for
+#'   `negbin()`, `zi_poisson()`, `zi_negbin()`, `Gamma_ls()`, `hurdle_poisson()`,
+#'   `hurdle_negbin()`, and `hurdle_Gamma()`, `"logit"` for `ordbeta()`, and
+#'   `"identity"` for `gaussian_ls()`, `dpm_ls()`, and `hurdle_lognormal()`.
+#'   Each family compiles the links for
 #'   which the additive predictor is the natural unconstrained scale; any other
 #'   link is applied from R, for the families where that is well defined. See
 #'   Details.
-#' @param theta `numeric`; for `negbin()` and `zi_negbin()`, a fixed value for
+#' @param theta `numeric`; for `negbin()`, `zi_negbin()`, and `hurdle_negbin()`, a fixed value for
 #'   the dispersion parameter, which must be positive. Default is `NULL` to draw
 #'   it along with everything else.
 #' @param phi `numeric`; for `Beta()` and `ordbeta()`, a fixed value for the beta
@@ -125,6 +127,10 @@
 #' | `Gamma_ls()` | `log` | 2 | none |
 #' | `zi_poisson()` | `log` | 2 | none |
 #' | `zi_negbin()` | `log` | 2 | dispersion |
+#' | `hurdle_poisson()` | `log` | 2 | none |
+#' | `hurdle_negbin()` | `log` | 2 | dispersion |
+#' | `hurdle_Gamma()` | `log` | 2 | shape |
+#' | `hurdle_lognormal()` | `identity` | 2 | standard deviation of \eqn{\log y} |
 #' | `Beta()` | `logit`, `probit`, `cloglog` | 1 | precision |
 #' | `ordbeta()` | `logit` | 1 | 2 cutpoints, precision |
 #' | `tweedie()` | `log` | 1 | dispersion, and the power if it is drawn |
@@ -416,6 +422,33 @@
 #' excess-zero mechanism is free to depend on the predictors. The two are
 #' reported as the `count` and `zero` predictors.
 #'
+#' `hurdle_poisson()`, `hurdle_negbin()`, `hurdle_Gamma()`, and
+#' `hurdle_lognormal()` are hurdle, or two-part, models for a non-negative
+#' response with a point mass at zero. As in the zero-inflated families, the
+#' second predictor is the log odds of a zero, but here every zero comes from
+#' that part and every positive value from the first, so the likelihood
+#' separates into a logistic regression on whether the response is zero and a
+#' model for the positive values alone. The first predictor is the log mean of a
+#' Poisson or negative binomial count truncated at zero for the two counts, the
+#' log mean of a gamma for `hurdle_Gamma()`, and the mean of \eqn{\log y} for
+#' `hurdle_lognormal()`. They are reported as the `count` and `zero` predictors
+#' for the counts and as `mean` and `zero` for the other two. Note that a count's
+#' predictor is the log mean of the distribution *before* truncation, so
+#' \eqn{\exp(\eta)} is not the mean of a positive count; `predict(type =
+#' "response")` gives the mean of the response, which is the probability of a
+#' positive value times the mean of the positive part.
+#'
+#' The choice between a hurdle and a zero-inflated count is about what a zero
+#' means rather than about how many there are. A zero-inflated model lets a zero
+#' arise from either part, so its `zero` predictor describes only the zeros the
+#' count would not have produced, and it can only add zeros to the count
+#' distribution. A hurdle model sends every zero through the zero part, so its
+#' `zero` predictor is the probability of a zero itself, its count predictor is
+#' informed by the positive counts alone, and it can fit fewer zeros than the
+#' count distribution would produce as well as more. That makes it the natural
+#' model when whether any event occurs is a process of its own (e.g., whether
+#' to seek care at all) and the count is how many occur once one has.
+#'
 #' `Beta()` is beta regression for a response strictly inside the unit interval:
 #' a forest on the link of the mean, and a precision drawn alongside it. A
 #' response *at* either endpoint has no beta density, so it is an error rather
@@ -442,8 +475,8 @@
 #' at \eqn{\exp(-\mu^{2-p}/(\phi(2-p)))}. That makes it a single process
 #' and is also its restriction: the share of zeros has no level of its own, so a
 #' response whose zeros are more or less common than its mean implies wants a
-#' two-part model instead, which `zi_poisson()` and `zi_negbin()` are for counts
-#' and which `custom_family()` can supply for anything else.
+#' two-part model instead, which `hurdle_Gamma()` and `hurdle_lognormal()` are,
+#' with the probability of a zero given a forest of its own.
 #'
 #' Because the mean is exactly \eqn{\exp(\eta)}, a counterfactual mean through
 #' \CRANpkg{marginaleffects} needs nothing beyond the
@@ -469,7 +502,8 @@
 #' | --- | --- |
 #' | `gaussian_ls()`, `dpm_ls()`, `lognormal_aft_ls()`, `dpm_aft_ls()` | `mean`, `log_sd` |
 #' | `Gamma_ls()` | `mean`, `log_dispersion` |
-#' | `zi_poisson()`, `zi_negbin()` | `count`, `zero` |
+#' | `zi_poisson()`, `zi_negbin()`, `hurdle_poisson()`, `hurdle_negbin()` | `count`, `zero` |
+#' | `hurdle_Gamma()`, `hurdle_lognormal()` | `mean`, `zero` |
 #' | `custom_family(num_predictors = k)` | `eta1` ... `etak` |
 #' | `multinomial("logit")` | one per level, or per non-reference level |
 #' | `multinomial("probit")` | one per non-reference level, named for its contrast |
@@ -480,7 +514,9 @@
 #' as `Gamma("log")`'s single forest is, and its `log_dispersion` is the
 #' logarithm of the dispersion, so that in both location-scale families a larger
 #' second predictor means more spread. `count` is the linear predictor of the
-#' count component and `zero` that of the inflation component. A custom family's
+#' count component and `zero` that of the inflation component; in a hurdle
+#' family, `zero` is the log odds of a zero, and `count` or `mean` is the
+#' predictor of the positive part. A custom family's
 #' nuisance parameters are not on this list: they are carried as trailing forests
 #' pinned to a single leaf, and nothing about them is set per forest.
 #'
@@ -571,6 +607,23 @@
 #'            card,
 #'          data = rhc, family = multinomial(),
 #'          num_trees = 10, num_burn = 50, num_draws = 50)
+#'
+#' # A cost that is zero for those who use no care and
+#' # gamma-distributed for those who do, where whether care
+#' # is used depends on x2 and how much it costs on x1
+#' d <- data.frame(x1 = runif(300), x2 = runif(300))
+#' used <- rbinom(300, 1, plogis(2 * d$x2 - 1))
+#' d$cost <- used * rgamma(300, shape = 2,
+#'                         rate = 2 / exp(1 + d$x1))
+#'
+#' fit <- bartisan(cost ~ x1 + x2, data = d,
+#'                 family = hurdle_Gamma(), num_trees = 10,
+#'                 num_burn = 50, num_draws = 50)
+#'
+#' # The log mean of a positive cost and the log odds of
+#' # a zero, then the mean cost
+#' head(predict(fit, type = "link"))
+#' head(predict(fit))
 #'
 #' # A link the engine does not compile, applied from R
 #' bartisan(death ~ rhc + age + sex + race + edu + aps +
@@ -809,6 +862,46 @@ zi_negbin <- function(link = "log", theta = NULL) {
 
 #' @rdname bartisan-families
 #' @export
+hurdle_poisson <- function(link = "log") {
+  link <- arg::match_arg(link, "log")
+
+  new_bartisan_family("hurdle_poisson", link)
+}
+
+#' @rdname bartisan-families
+#' @export
+hurdle_negbin <- function(link = "log", theta = NULL) {
+  link <- arg::match_arg(link, "log")
+
+  arg::when_not_null(
+    theta,
+    arg::arg_and(
+      arg::arg_number,
+      arg::arg_gt(0)
+    )
+  )
+
+  new_bartisan_family("hurdle_negbin", link, theta = theta)
+}
+
+#' @rdname bartisan-families
+#' @export
+hurdle_Gamma <- function(link = "log") {
+  link <- arg::match_arg(link, "log")
+
+  new_bartisan_family("hurdle_Gamma", link)
+}
+
+#' @rdname bartisan-families
+#' @export
+hurdle_lognormal <- function(link = "identity") {
+  link <- arg::match_arg(link, "identity")
+
+  new_bartisan_family("hurdle_lognormal", link)
+}
+
+#' @rdname bartisan-families
+#' @export
 Beta <- function(link = "logit", phi = NULL) {
   # Only the logit link is compiled; `probit` and `cloglog` are reached by
   # composition, the way an uncompiled link is for any other family, so they are
@@ -896,7 +989,14 @@ bartisan_family_names <- c("gaussian", "binomial", "poisson", "negbin", "Gamma",
                            "weibull_aft", "loglogistic_aft", "lognormal_aft",
                            "gaussian_ls", "Gamma_ls", "zi_poisson", "zi_negbin",
                            "Beta", "ordbeta", "tweedie", "ph", "dpm_aft",
-                           "dpm_ls", "dpm_aft_ls", "lognormal_aft_ls")
+                           "dpm_ls", "dpm_aft_ls", "lognormal_aft_ls",
+                           "hurdle_poisson", "hurdle_negbin", "hurdle_Gamma",
+                           "hurdle_lognormal")
+
+# The engine families whose second forest is the logit of the probability of a
+# zero and whose first is the positive part, in that order.
+hurdle_families <- c("hurdle_poisson", "hurdle_negbin", "hurdle_Gamma",
+                     "hurdle_lognormal")
 
 new_bartisan_family <- function(family, link, ...) {
   structure(c(list(family = family, link = link), list(...)),
@@ -932,7 +1032,11 @@ valid_links <- list(custom = "identity",
                     zinb = "log",
                     beta = "logit",
                     ordbeta = "logit",
-                    tweedie = "log")
+                    tweedie = "log",
+                    hurdle_poisson = "log",
+                    hurdle_negbin = "log",
+                    hurdle_Gamma = "log",
+                    hurdle_lognormal = "identity")
 
 survival_families <- c("dpm_aft", "weibull_aft", "loglogistic_aft", "lognormal_aft", "ph",
                        "dpm_aft_ls", "lognormal_aft_ls")

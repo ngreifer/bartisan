@@ -1009,6 +1009,16 @@ response_scale <- function(object, eta, aux, draws, iterations = NULL) {
                 # probability that the observation is not a structural zero.
                 zip = ,
                 zinb = exp(e) * (1 - stats::plogis(eta[[2L]])),
+                # The mean of a hurdle model is the probability of clearing the
+                # hurdle times the mean of the positive part, which for a count
+                # is the mean of the distribution truncated at zero.
+                hurdle_poisson = ,
+                hurdle_negbin = ,
+                hurdle_Gamma = ,
+                hurdle_lognormal = {
+                  positive_mean <- hurdle_positive_mean(family, e, aux)
+                  positive_mean * stats::plogis(-eta[[2L]])
+                },
                 # The mean of an ordered beta response mixes the two point masses with the
                 # beta mean on the interior.
                 ordbeta = {
@@ -1042,6 +1052,23 @@ response_scale <- function(object, eta, aux, draws, iterations = NULL) {
   }
 
   colMeans(out)
+}
+
+# The mean of a hurdle model's positive part, from the positive forest's
+# predictor `e` (draws by observations) and the nuisance draws in `aux`, one row
+# per draw. A count's positive part is truncated at zero, so its mean is the
+# untruncated mean divided by the probability of a positive count.
+hurdle_positive_mean <- function(family, e, aux) {
+  mu <- exp(e)
+
+  switch(family,
+         hurdle_poisson = mu / -expm1(-mu),
+         hurdle_negbin = {
+           theta <- aux[, "theta"]
+           mu / -expm1(theta * (log(theta) - log(theta + mu)))
+         },
+         hurdle_Gamma = mu,
+         hurdle_lognormal = exp(e + aux[, "sigma"]^2 / 2))
 }
 
 # The covariance columns of `aux`, which for a multinomial probit fit are the
@@ -1748,7 +1775,8 @@ density_response <- function(object, newdata, weights) {
     arg::err("{.arg weights} must have one value per row of {.arg newdata}")
   }
 
-  if (family %in% c("poisson", "negbin", "zip", "zinb")) {
+  if (family %in% c("poisson", "negbin", "zip", "zinb", "hurdle_poisson",
+                    "hurdle_negbin")) {
     y_out <- check_count_response(y, family)
   }
   else if (family == "binomial") {

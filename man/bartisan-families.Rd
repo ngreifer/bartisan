@@ -18,6 +18,10 @@
 \alias{Gamma_ls}
 \alias{zi_poisson}
 \alias{zi_negbin}
+\alias{hurdle_poisson}
+\alias{hurdle_negbin}
+\alias{hurdle_Gamma}
+\alias{hurdle_lognormal}
 \alias{Beta}
 \alias{ordbeta}
 \alias{tweedie}
@@ -87,6 +91,14 @@ zi_poisson(link = "log")
 
 zi_negbin(link = "log", theta = NULL)
 
+hurdle_poisson(link = "log")
+
+hurdle_negbin(link = "log", theta = NULL)
+
+hurdle_Gamma(link = "log")
+
+hurdle_lognormal(link = "identity")
+
 Beta(link = "logit", phi = NULL)
 
 ordbeta(link = "logit", phi = NULL, cut_alpha = 1)
@@ -98,13 +110,15 @@ tweedie(link = "log", power = 1.5, phi = NULL)
 (the default), \code{"probit"}, and \code{"cloglog"} for \code{ordinal()} and \code{Beta()}, and
 \code{"logit"} (the default) and \code{"probit"} for \code{multinomial()}. The remaining
 families take one link each, which is therefore the default: \code{"log"} for
-\code{negbin()}, \code{zi_poisson()}, \code{zi_negbin()}, and \code{Gamma_ls()}, \code{"logit"} for
-\code{ordbeta()}, and \code{"identity"} for \code{gaussian_ls()} and \code{dpm_ls()}. Each family compiles the links for
+\code{negbin()}, \code{zi_poisson()}, \code{zi_negbin()}, \code{Gamma_ls()}, \code{hurdle_poisson()},
+\code{hurdle_negbin()}, and \code{hurdle_Gamma()}, \code{"logit"} for \code{ordbeta()}, and
+\code{"identity"} for \code{gaussian_ls()}, \code{dpm_ls()}, and \code{hurdle_lognormal()}.
+Each family compiles the links for
 which the additive predictor is the natural unconstrained scale; any other
 link is applied from R, for the families where that is well defined. See
 Details.}
 
-\item{theta}{\code{numeric}; for \code{negbin()} and \code{zi_negbin()}, a fixed value for
+\item{theta}{\code{numeric}; for \code{negbin()}, \code{zi_negbin()}, and \code{hurdle_negbin()}, a fixed value for
 the dispersion parameter, which must be positive. Default is \code{NULL} to draw
 it along with everything else.}
 
@@ -231,6 +245,10 @@ The supported families and links are:\tabular{llll}{
    \code{Gamma_ls()} \tab \code{log} \tab 2 \tab none \cr
    \code{zi_poisson()} \tab \code{log} \tab 2 \tab none \cr
    \code{zi_negbin()} \tab \code{log} \tab 2 \tab dispersion \cr
+   \code{hurdle_poisson()} \tab \code{log} \tab 2 \tab none \cr
+   \code{hurdle_negbin()} \tab \code{log} \tab 2 \tab dispersion \cr
+   \code{hurdle_Gamma()} \tab \code{log} \tab 2 \tab shape \cr
+   \code{hurdle_lognormal()} \tab \code{identity} \tab 2 \tab standard deviation of \eqn{\log y} \cr
    \code{Beta()} \tab \code{logit}, \code{probit}, \code{cloglog} \tab 1 \tab precision \cr
    \code{ordbeta()} \tab \code{logit} \tab 1 \tab 2 cutpoints, precision \cr
    \code{tweedie()} \tab \code{log} \tab 1 \tab dispersion, and the power if it is drawn \cr
@@ -525,6 +543,32 @@ second the log odds that an observation is a structural zero, so the
 excess-zero mechanism is free to depend on the predictors. The two are
 reported as the \code{count} and \code{zero} predictors.
 
+\code{hurdle_poisson()}, \code{hurdle_negbin()}, \code{hurdle_Gamma()}, and
+\code{hurdle_lognormal()} are hurdle, or two-part, models for a non-negative
+response with a point mass at zero. As in the zero-inflated families, the
+second predictor is the log odds of a zero, but here every zero comes from
+that part and every positive value from the first, so the likelihood
+separates into a logistic regression on whether the response is zero and a
+model for the positive values alone. The first predictor is the log mean of a
+Poisson or negative binomial count truncated at zero for the two counts, the
+log mean of a gamma for \code{hurdle_Gamma()}, and the mean of \eqn{\log y} for
+\code{hurdle_lognormal()}. They are reported as the \code{count} and \code{zero} predictors
+for the counts and as \code{mean} and \code{zero} for the other two. Note that a count's
+predictor is the log mean of the distribution \emph{before} truncation, so
+\eqn{\exp(\eta)} is not the mean of a positive count; \code{predict(type = "response")} gives the mean of the response, which is the probability of a
+positive value times the mean of the positive part.
+
+The choice between a hurdle and a zero-inflated count is about what a zero
+means rather than about how many there are. A zero-inflated model lets a zero
+arise from either part, so its \code{zero} predictor describes only the zeros the
+count would not have produced, and it can only add zeros to the count
+distribution. A hurdle model sends every zero through the zero part, so its
+\code{zero} predictor is the probability of a zero itself, its count predictor is
+informed by the positive counts alone, and it can fit fewer zeros than the
+count distribution would produce as well as more. That makes it the natural
+model when whether any event occurs is a process of its own (e.g., whether
+to seek care at all) and the count is how many occur once one has.
+
 \code{Beta()} is beta regression for a response strictly inside the unit interval:
 a forest on the link of the mean, and a precision drawn alongside it. A
 response \emph{at} either endpoint has no beta density, so it is an error rather
@@ -551,8 +595,8 @@ and \eqn{\mathrm{Var}(y) = \phi\mu^p} together fix the probability of a zero
 at \eqn{\exp(-\mu^{2-p}/(\phi(2-p)))}. That makes it a single process
 and is also its restriction: the share of zeros has no level of its own, so a
 response whose zeros are more or less common than its mean implies wants a
-two-part model instead, which \code{zi_poisson()} and \code{zi_negbin()} are for counts
-and which \code{custom_family()} can supply for anything else.
+two-part model instead, which \code{hurdle_Gamma()} and \code{hurdle_lognormal()} are,
+with the probability of a zero given a forest of its own.
 
 Because the mean is exactly \eqn{\exp(\eta)}, a counterfactual mean through
 \CRANpkg{marginaleffects} needs nothing beyond the
@@ -577,7 +621,8 @@ would have on its own. This table is the canonical list of the names, which
    Family \tab Forests, in order \cr
    \code{gaussian_ls()}, \code{dpm_ls()}, \code{lognormal_aft_ls()}, \code{dpm_aft_ls()} \tab \code{mean}, \code{log_sd} \cr
    \code{Gamma_ls()} \tab \code{mean}, \code{log_dispersion} \cr
-   \code{zi_poisson()}, \code{zi_negbin()} \tab \code{count}, \code{zero} \cr
+   \code{zi_poisson()}, \code{zi_negbin()}, \code{hurdle_poisson()}, \code{hurdle_negbin()} \tab \code{count}, \code{zero} \cr
+   \code{hurdle_Gamma()}, \code{hurdle_lognormal()} \tab \code{mean}, \code{zero} \cr
    \code{custom_family(num_predictors = k)} \tab \code{eta1} ... \code{etak} \cr
    \code{multinomial("logit")} \tab one per level, or per non-reference level \cr
    \code{multinomial("probit")} \tab one per non-reference level, named for its contrast \cr
@@ -590,7 +635,9 @@ which is the scale the forest works on. \code{Gamma_ls()}'s \code{mean} is the l
 as \code{Gamma("log")}'s single forest is, and its \code{log_dispersion} is the
 logarithm of the dispersion, so that in both location-scale families a larger
 second predictor means more spread. \code{count} is the linear predictor of the
-count component and \code{zero} that of the inflation component. A custom family's
+count component and \code{zero} that of the inflation component; in a hurdle
+family, \code{zero} is the log odds of a zero, and \code{count} or \code{mean} is the
+predictor of the positive part. A custom family's
 nuisance parameters are not on this list: they are carried as trailing forests
 pinned to a single leaf, and nothing about them is set per forest.
 
@@ -662,6 +709,23 @@ bartisan(race ~ rhc + age + sex + edu + aps + meanbp +
            card,
          data = rhc, family = multinomial(),
          num_trees = 10, num_burn = 50, num_draws = 50)
+
+# A cost that is zero for those who use no care and
+# gamma-distributed for those who do, where whether care
+# is used depends on x2 and how much it costs on x1
+d <- data.frame(x1 = runif(300), x2 = runif(300))
+used <- rbinom(300, 1, plogis(2 * d$x2 - 1))
+d$cost <- used * rgamma(300, shape = 2,
+                        rate = 2 / exp(1 + d$x1))
+
+fit <- bartisan(cost ~ x1 + x2, data = d,
+                family = hurdle_Gamma(), num_trees = 10,
+                num_burn = 50, num_draws = 50)
+
+# The log mean of a positive cost and the log odds of
+# a zero, then the mean cost
+head(predict(fit, type = "link"))
+head(predict(fit))
 
 # A link the engine does not compile, applied from R
 bartisan(death ~ rhc + age + sex + race + edu + aps +

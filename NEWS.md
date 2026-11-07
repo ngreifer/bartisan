@@ -22,6 +22,8 @@
 
 * Added `anchor` to `bartisan_control()`, which sets the value on the link scale that each additive predictor is shrunk toward, in place of the intercept-only fit. A fit can then be shrunk toward a known base rate rather than the sample's, or toward a probability of .5, as `dbarts::bart()` does by default for a binary outcome. An offset is added to an anchor rather than absorbed by it.
 
+* Added `hurdle_poisson()`, `hurdle_negbin()`, `hurdle_Gamma()`, and `hurdle_lognormal()`, hurdle (two-part) models in which one forest models the probability of a zero and another the positive values, which for the two count families follow a distribution truncated at zero. See `?bartisan-families` and `vignette("families")`.
+
 # *bartisan* 0.1.0
 
 * First version!

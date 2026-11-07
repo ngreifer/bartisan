@@ -65,11 +65,15 @@ In this guide, we will work through the families one at a time. First we'll lay 
 | `negbin()` | `log` | 1 | dispersion |
 | `zi_poisson()` | `log` | 2 | none |
 | `zi_negbin()` | `log` | 2 | dispersion |
+| `hurdle_poisson()` | `log` | 2 | none |
+| `hurdle_negbin()` | `log` | 2 | dispersion |
 | `ordinal()` | `logit`, `probit`, `cloglog` | 1 | cutpoints |
 | `multinomial()` | `logit`, `probit` | one per category, or per non-reference level | latent covariance, for the probit link |
 | `Beta()` | `logit`, `probit`, `cloglog` | 1 | precision |
 | `ordbeta()` | `logit` | 1 | 2 cutpoints, precision |
 | `tweedie()` | `log` | 1 | dispersion, and the power if it is drawn |
+| `hurdle_Gamma()` | `log` | 2 | shape |
+| `hurdle_lognormal()` | `identity` | 2 | standard deviation of $\log y$ |
 | `weibull_aft()`, `loglogistic_aft()`, `lognormal_aft()` | none | 1 | scale |
 | `ph()` | none | 1 | baseline hazard per bin |
 | `dpm_aft()` | none | 1 | error mixture, concentration, baseline scales |
@@ -87,11 +91,11 @@ We start from the shape of the response:
 |------------------------------------|------------------------------------|
 | numeric, unbounded | `dpm()`, the default; `gaussian()` if prior weights are needed; `dpm_ls()` or `gaussian_ls()` if the spread varies with the predictors |
 | positive and continuous | `Gamma("log")`, or `Gamma_ls()` if the dispersion varies with the predictors |
-| non-negative and continuous, with a point mass at zero | `tweedie()` |
+| non-negative and continuous, with a point mass at zero | `tweedie()`, or `hurdle_Gamma()` or `hurdle_lognormal()` if whether the response is zero is a process of its own |
 | a proportion strictly inside $(0, 1)$ | `Beta()` |
 | a proportion that can equal 0 or 1 | `ordbeta()` |
 | a 0/1 indicator, or a two-column matrix of successes and failures | `binomial()` |
-| a count | `poisson()`, `negbin()` if overdispersed, or a zero-inflated family if there are more zeros than either can produce |
+| a count | `poisson()`, `negbin()` if overdispersed, a zero-inflated family if there are more zeros than either can produce, or a hurdle family if whether the count is zero is a process of its own |
 | an ordered factor | `ordinal()` |
 | an unordered factor | `multinomial()` |
 | a time with censoring | `dpm_aft()`, the default for survival outcomes; `weibull_aft()`, `loglogistic_aft()` or `lognormal_aft()` if the shape of the error is known; `ph()` for proportional hazards with a free baseline; `dpm_aft_ls()` or `lognormal_aft_ls()` if the spread of $\log T$ varies with the predictors |
@@ -99,9 +103,9 @@ We start from the shape of the response:
 
 Some considerations cut across that table.
 
-One is whether anything besides the mean varies with the predictors. Every family except the location-scale families (`gaussian_ls()`, `dpm_ls()`, `Gamma_ls()`, `lognormal_aft_ls()`, and `dpm_aft_ls()`) and the zero-inflated pair puts a forest on one location parameter and holds the rest of the distribution fixed across observations. If the spread itself moves with $x$, that is the wrong assumption, and the location-scale families relax it: `gaussian_ls()` gives the normal's standard deviation a forest of its own, `dpm_ls()` does the same for an error whose shape is estimated as `dpm()` estimates it, `Gamma_ls()` does the same for the gamma's dispersion, and `lognormal_aft_ls()` and `dpm_aft_ls()` do it for the spread of a log survival time. The extra forest is not free when the spread is in fact constant: with a skewed error, the chance variation it picks up moves the estimated mean, and in simulations `dpm_ls()` estimated the mean less accurately than `dpm()` in that case (see `?bartisan-families`). So `dpm_ls()` is for a spread there is reason to expect to vary.
+One is whether anything besides the mean varies with the predictors. Every family except the location-scale families (`gaussian_ls()`, `dpm_ls()`, `Gamma_ls()`, `lognormal_aft_ls()`, and `dpm_aft_ls()`) and the zero-inflated and hurdle families puts a forest on one location parameter and holds the rest of the distribution fixed across observations. If the spread itself moves with $x$, that is the wrong assumption, and the location-scale families relax it: `gaussian_ls()` gives the normal's standard deviation a forest of its own, `dpm_ls()` does the same for an error whose shape is estimated as `dpm()` estimates it, `Gamma_ls()` does the same for the gamma's dispersion, and `lognormal_aft_ls()` and `dpm_aft_ls()` do it for the spread of a log survival time. The extra forest is not free when the spread is in fact constant: with a skewed error, the chance variation it picks up moves the estimated mean, and in simulations `dpm_ls()` estimated the mean less accurately than `dpm()` in that case (see `?bartisan-families`). So `dpm_ls()` is for a spread there is reason to expect to vary.
 
-Another is whether that extra structure is real or a flexible mean would absorb it. A nonparametric mean makes this sharper than it is in a GLM. A sum of trees can produce excess zeros on its own, by driving a Poisson mean very low where the zeros are, so a zero-inflated family is for when the zero mechanism is a *separate process worth modeling*, not merely for when a histogram spikes at zero. The same caution applies to the multinomial probit's latent correlations.
+Another is whether that extra structure is real or a flexible mean would absorb it. A nonparametric mean makes this sharper than it is in a GLM. A sum of trees can produce excess zeros on its own, by driving a Poisson mean very low where the zeros are, so a zero-inflated or hurdle family is for when the zero mechanism is a *separate process worth modeling*, not merely for when a histogram spikes at zero. The same caution applies to the multinomial probit's latent correlations.
 
 When two families are both defensible, we can compare them empirically rather than reason about them; `loo()` and `waic()` work on a fit:
 
@@ -318,7 +322,7 @@ With very few events, the whole fit mixes slowly regardless of the link because 
 
 ## Counts
 
-The `poisson()` family restricts the conditional variance to equal the conditional mean, and the `negbin()` family adds a dispersion parameter reported as `theta`. The `zi_poisson()` and `zi_negbin()` families mix a point mass at zero (the zero-inflation part) with a count component and give each part its own forest (the first predictor is the log mean of the count, the second the log odds of being a structural zero), so the excess-zero mechanism can depend on the predictors. As with standard GLMs for count variables, these models can include an offset.
+The `poisson()` family restricts the conditional variance to equal the conditional mean, and the `negbin()` family adds a dispersion parameter reported as `theta`. The `zi_poisson()` and `zi_negbin()` families mix a point mass at zero (the zero-inflation part) with a count component and give each part its own forest (the first predictor is the log mean of the count, the second the log odds of being a structural zero), so the excess-zero mechanism can depend on the predictors. The `hurdle_poisson()` and `hurdle_negbin()` families also give the zeros a forest of their own but divide the response differently: every zero comes from the zero part and every positive count from a count distribution truncated at zero, so the second predictor is the log odds of a zero and the first is informed by the positive counts alone. As with standard GLMs for count variables, these models can include an offset.
 
 To decide which family to use, consider the following questions, in this order:
 
@@ -357,9 +361,15 @@ A comparison of fits says the same. Fit to these data and compared with `loo()`,
 
 One cost of the mixture is worth planning for before the fit rather than discovering after it. A zero-inflated family carries two additive predictors that the data have to tell apart, and a quantity built from them mixes slowly as a result. Measured on a treatment contrast at `n = 1000`, the effective sample size rises in proportion to the number of draws, at about 130 effective draws per thousand for `zi_poisson()` and about 40 per thousand for `zi_negbin()`, with the gate making little difference. So reaching 400 effective draws, which is where `diagnose()` stops complaining, takes something like 3000 draws for the first and 13000 for the second, against the default of 800. A plain `poisson()` or `negbin()` fit on the same data needs no such allowance, which is one more reason to let a comparison of fits decide whether the mixture is earning its place.
 
+### Zero Inflation and Hurdles
+
+The two kinds of mixture describe different processes. A zero-inflated model lets a zero arise from either part, so its `zero` predictor describes only the zeros that the count would not have produced, and both a zero and a positive count inform its count predictor. A hurdle model sends every zero through the zero part, so its `zero` predictor is a logistic regression on whether the count is zero and its count predictor is fit to the positive counts alone. The two parts of a hurdle model can therefore be read separately, which makes it the natural model when whether anything happens is a decision of its own (e.g., whether to seek care at all) and the count is how much happens once it has. A hurdle model can also fit fewer zeros than the count distribution would produce, which a zero-inflated model cannot, since its mixture only adds zeros.
+
+Note that the count predictor of a hurdle model is the log mean of the count distribution before it is truncated, so its exponential is not the mean of a positive count. `predict(type = "response")` returns the mean of the response, the probability of a positive count times the mean of the truncated distribution, and that is the scale a contrast computed with *marginaleffects* is on.
+
 ### Overdispersion in the Count Component
 
-The next question is whether the count component is overdispersed once the zeros are accounted for. A spike at zero inflates the sample variance and looks like dispersion.`negbin()` and `zi_negbin()` separates the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `poisson()` or `zi_poisson()` is the better-conditioned fit.
+The next question is whether the count component is overdispersed once the zeros are accounted for. A spike at zero inflates the sample variance and looks like dispersion. `negbin()`, `zi_negbin()`, and `hurdle_negbin()` separate the two at the cost of a parameter; if `theta` comes back large with a tight posterior, the negative binomial is not buying anything and `poisson()`, `zi_poisson()`, or `hurdle_poisson()` is the better-conditioned fit.
 
 Once again, the `ordinal()` family is another option worth knowing about for counts. A count is ordered and takes few distinct values, the case the cutpoint structure is designed for: it makes no assumption about the count distribution, needs no dispersion parameter, and handles excess zeros without a mixture, since the zero category simply gets whatever probability the cutpoints give it. Predict with `type = "mean"` to get predictions on the original response scale. The limits are that it cannot predict a count larger than the largest one observed, and that it has no rate interpretation (i.e., no log link, so no incidence-rate ratio). It can be useful to bin first if the counts range over more than a few dozen values, as below.
 
@@ -507,7 +517,7 @@ for a variance power $p$ between 1 and 2. One forest does all of it, because the
 
 $$\Pr(y = 0 \mid x) = \exp\!\left(-\frac{\mu(x)^{2-p}}{\phi\,(2-p)}\right)$$
 
-That tie makes this a single process rather than two, and it is also the assumption to check. The share of zeros has no level of its own: two people with the same mean have the same probability of a zero, with the functional form above. Where that is wrong, a two-part model is the alternative, and `custom_family()` is how to write one.
+That tie makes this a single process rather than two, and it is also the assumption to check. The share of zeros has no level of its own: two people with the same mean have the same probability of a zero, with the functional form above. Where that is wrong, a two-part model is the alternative. `hurdle_Gamma()` and `hurdle_lognormal()` give the probability of a zero a forest of its own and fit the positive amounts separately, with a gamma distribution or a log-normal one, so that two people with the same mean can differ in how likely they are to have a zero. @soutoBayesianCausalForests2026 use the same two-part structure for treatment effects on such a response, with Bayesian causal forests [@hahn2020] for a probit model of whether the response is positive and for a normal model of its logarithm. Note that they convert the log scale back to the original scale with Duan's smearing estimator rather than the factor $\exp(\sigma^2/2)$ that the log-normal implies, which `predict(type = "response")` uses for `hurdle_lognormal()`, because that factor is inflated when the positive amounts are not in fact log-normal; `hurdle_Gamma()` is the alternative when they are not.
 
 ```{r tweedie}
 mu <- exp(1.5 + sin(pi * d$x1))
@@ -526,7 +536,7 @@ c(zeros = mean(d$spend == 0), phi = mean(fit_tw$aux[, "phi"]))
 
 The `power` argument is fixed at 1.5 by default rather than drawn, which is the one place this family differs from the rest in how its nuisance parameters are treated. The power is weakly identified at the sample sizes this package is used on, and a badly determined power drags the dispersion with it, since the two are identified jointly through the share of zeros. Pass `power = NULL` to draw it when the sample is large and the shape is of interest in itself; leave it alone when only the mean is wanted.
 
-Because the mean is $\exp(\eta)$ and nothing more, a counterfactual mean needs nothing beyond the forest, and a `tweedie()` fit is directly comparable with a `poisson()` or `Gamma("log")` fit of the same response. A two-part model has no such property: its mean has to be recombined across two forests before anything can be contrasted.
+Because the mean is $\exp(\eta)$ and nothing more, a counterfactual mean needs nothing beyond the forest, and a `tweedie()` fit is directly comparable with a `poisson()` or `Gamma("log")` fit of the same response. A two-part model has no such property: its mean has to be recombined across two forests before anything can be contrasted. `predict(type = "response")` does that recombination for the hurdle families, so a contrast computed with *marginaleffects* is on the mean of the response either way; what a two-part model gives up is a single forest that can be compared directly with a `Gamma("log")` fit.
 
 ## Right-Censored Survival Times
 

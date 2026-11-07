@@ -2900,6 +2900,466 @@ struct ZeroInflatedFamily final : Concrete<ZeroInflatedFamily> {
 };
 
 // ---------------------------------------------------------------------------
+// Hurdle, or two-part, models. Two additive predictors: the first is the
+// predictor of the positive part (the log mean of an untruncated count, the log
+// mean of a gamma, or the mean of a log-normal's log), the second the logit of
+// the probability that the response is zero. Unlike a zero-inflated model, every
+// zero comes from the second part and every positive value from the first, so
+// the likelihood factors into a Bernoulli in the zero indicator and the positive
+// part's density over the positive observations:
+//
+//   y = 0:  log pi
+//   y > 0:  log(1 - pi) + log f(y | eta_1) - log(1 - f(0 | eta_1))
+//
+// with the last term present only for a count, whose positive part is the count
+// distribution truncated at zero. Each forest therefore sees only its own part,
+// which is what makes the two predictors separately interpretable.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+enum HurdlePart {
+  HURDLE_POISSON = 0,
+  HURDLE_NEGBIN = 1,
+  HURDLE_GAMMA = 2,
+  HURDLE_LOGNORMAL = 3
+};
+
+// Everything a hurdle family is built from beyond the data, read from the options
+// once so that the direct family and the augmented one are built the same way.
+// `nuisance` is the negative binomial's size, the gamma's shape, or the
+// log-normal's standard deviation, and is unused for the Poisson.
+struct HurdleSpec {
+  HurdlePart part;
+  double nuisance;
+  double prior_shape;
+  double prior_rate;
+  double sigma_hat;
+  bool update;
+};
+
+HurdleSpec hurdle_spec(const std::string& name, const List& opts) {
+  HurdleSpec out = {HURDLE_POISSON, 1.0, 0.0, 0.0, 1.0, false};
+
+  if (name == "hurdle_negbin") {
+    out.part = HURDLE_NEGBIN;
+    out.nuisance = as<double>(opts["theta"]);
+    out.prior_shape = as<double>(opts["theta_prior_shape"]);
+    out.prior_rate = as<double>(opts["theta_prior_rate"]);
+    out.update = as<bool>(opts["update_theta"]);
+  }
+  else if (name == "hurdle_Gamma") {
+    out.part = HURDLE_GAMMA;
+    out.nuisance = as<double>(opts["shape"]);
+    out.prior_shape = as<double>(opts["shape_prior_shape"]);
+    out.prior_rate = as<double>(opts["shape_prior_rate"]);
+    out.update = as<bool>(opts["update_shape"]);
+  }
+  else if (name == "hurdle_lognormal") {
+    out.part = HURDLE_LOGNORMAL;
+    out.sigma_hat = as<double>(opts["sigma_hat"]);
+    out.nuisance = out.sigma_hat;
+    out.update = true;
+  }
+
+  return out;
+}
+
+bool hurdle_is_count(HurdlePart part) {
+  return part == HURDLE_POISSON || part == HURDLE_NEGBIN;
+}
+
+// log P(the untruncated count is zero).
+double hurdle_log_p0(double eta, double theta, HurdlePart part) {
+  if (part == HURDLE_POISSON) {
+    return -std::exp(eta);
+  }
+
+  return theta * (std::log(theta) - std::log(theta + std::exp(eta)));
+}
+
+// The whole log density of one observation, normalizing constants included.
+double hurdle_loglik_one(double y_i, const double* eta, double nuisance,
+                         HurdlePart part) {
+  if (y_i <= 0.0) {
+    return log_expit(eta[1]);
+  }
+
+  double out = log1m_expit(eta[1]);
+  double e = eta[0];
+
+  switch (part) {
+  case HURDLE_POISSON: {
+    double mu = std::exp(e);
+    return out + y_i * e - mu - R::lgammafn(y_i + 1.0) - log1mexp(mu);
+  }
+  case HURDLE_NEGBIN: {
+    double lp0 = hurdle_log_p0(e, nuisance, part);
+    return out + R::lgammafn(y_i + nuisance) - R::lgammafn(nuisance) -
+      R::lgammafn(y_i + 1.0) + lp0 +
+      y_i * (e - std::log(nuisance + std::exp(e))) - log1mexp(-lp0);
+  }
+  case HURDLE_GAMMA:
+    return out + nuisance * (std::log(nuisance) - e) - R::lgammafn(nuisance) +
+      (nuisance - 1.0) * std::log(y_i) - nuisance * y_i * std::exp(-e);
+  default: {
+    double log_y = std::log(y_i);
+    double r = (log_y - e) / nuisance;
+    return out - 0.5 * LN_2PI - std::log(nuisance) - log_y - 0.5 * r * r;
+  }
+  }
+}
+
+// 1 - exp(-mu) - mu * exp(-mu), which is mu times the variance of a Poisson
+// count truncated at zero, times (1 - exp(-mu))^2. Its two terms agree to
+// second order as mu goes to zero, so there the series is used instead.
+double truncated_poisson_numerator(double mu) {
+  if (mu < 1e-3) {
+    return mu * mu * (0.5 - mu / 3.0 + mu * mu / 8.0);
+  }
+
+  return -std::expm1(-mu) - mu * std::exp(-mu);
+}
+
+// The draws of the nuisance parameter that the direct and the augmented
+// families share, each from the true hurdle likelihood. Only the positive
+// observations depend on it, so only they are visited.
+double hurdle_draw_theta(const arma::vec& y, const arma::vec& w,
+                         const arma::mat& eta, double theta,
+                         const HurdleSpec& spec) {
+  auto logf = [&](double candidate) {
+    double th = std::exp(candidate);
+
+    if (!(th > 0.0) || !std::isfinite(th)) {
+      return R_NegInf;
+    }
+
+    double out = spec.prior_shape * candidate - spec.prior_rate * th;
+
+    for (arma::uword i = 0; i < y.n_elem; i++) {
+      if (y(i) > 0.0) {
+        out += w(i) * hurdle_loglik_one(y(i), eta.colptr(i), th, HURDLE_NEGBIN);
+      }
+    }
+
+    return out;
+  };
+
+  return std::exp(slice_sampler(std::log(theta), logf, 1.0, -20.0, 20.0));
+}
+
+// The gamma shape, through the four sums its log likelihood depends on, as
+// GammaFamily does.
+double hurdle_draw_shape(const arma::vec& y, const arma::vec& w,
+                         const arma::mat& eta, double shape,
+                         const HurdleSpec& spec) {
+  double sum_w = 0.0;
+  double sum_w_eta = 0.0;
+  double sum_w_log_y = 0.0;
+  double sum_w_y_exp = 0.0;
+
+  for (arma::uword i = 0; i < y.n_elem; i++) {
+    if (!(y(i) > 0.0)) {
+      continue;
+    }
+
+    double e = eta(0, i);
+    sum_w += w(i);
+    sum_w_eta += w(i) * e;
+    sum_w_log_y += w(i) * std::log(y(i));
+    sum_w_y_exp += w(i) * y(i) * std::exp(-e);
+  }
+
+  double prior_shape = spec.prior_shape;
+  double prior_rate = spec.prior_rate;
+
+  auto logf = [=](double log_shape) {
+    double sh = std::exp(log_shape);
+
+    if (!(sh > 0.0) || !std::isfinite(sh)) {
+      return R_NegInf;
+    }
+
+    return prior_shape * log_shape - prior_rate * sh +
+      sum_w * (sh * log_shape - R::lgammafn(sh)) - sh * sum_w_eta +
+      (sh - 1.0) * sum_w_log_y - sh * sum_w_y_exp;
+  };
+
+  return std::exp(slice_sampler(std::log(shape), logf, 1.0, -20.0, 20.0));
+}
+
+// The log-normal's precision, under the half-Cauchy prior `gaussian()` uses,
+// from the residuals of the positive observations' logs.
+double hurdle_draw_prec(const arma::vec& y, const arma::vec& log_y,
+                        const arma::vec& w, const arma::mat& eta, double prec,
+                        const HurdleSpec& spec) {
+  double sse = 0.0;
+  double n = 0.0;
+
+  for (arma::uword i = 0; i < y.n_elem; i++) {
+    if (!(y(i) > 0.0)) {
+      continue;
+    }
+
+    double r = log_y(i) - eta(0, i);
+    sse += w(i) * r * r;
+    n += w(i);
+  }
+
+  return half_cauchy_update_precision_mh(sse, n, prec, spec.sigma_hat);
+}
+
+arma::vec positive_logs(const arma::vec& y) {
+  arma::vec out(y.n_elem, arma::fill::zeros);
+
+  for (arma::uword i = 0; i < y.n_elem; i++) {
+    if (y(i) > 0.0) {
+      out(i) = std::log(y(i));
+    }
+  }
+
+  return out;
+}
+
+std::vector<std::string> hurdle_aux_names(HurdlePart part) {
+  switch (part) {
+  case HURDLE_NEGBIN:
+    return std::vector<std::string>{"theta"};
+  case HURDLE_GAMMA:
+    return std::vector<std::string>{"shape"};
+  case HURDLE_LOGNORMAL:
+    return std::vector<std::string>{"sigma"};
+  default:
+    return std::vector<std::string>();
+  }
+}
+
+} // namespace
+
+struct HurdleFamily final : Concrete<HurdleFamily> {
+  HurdleSpec spec;
+  // The negative binomial's size, the gamma's shape, or the log-normal's
+  // standard deviation; `prec` is the last as a precision and `log_nuisance` is
+  // its log, cached because the densities and derivatives use them.
+  double nuisance;
+  double log_nuisance;
+  double prec;
+  arma::vec log_y;
+
+  HurdleFamily(const arma::vec& y_, const arma::vec& w_, const HurdleSpec& spec_)
+    : Concrete<HurdleFamily>(y_, w_, 2), spec(spec_), nuisance(spec_.nuisance) {
+    log_y = positive_logs(y_);
+    cache_nuisance();
+  }
+
+  void cache_nuisance() {
+    log_nuisance = std::log(nuisance);
+    prec = 1.0 / (nuisance * nuisance);
+  }
+
+  // The positive part's log density without the terms that do not involve eta,
+  // which `compute_eta_free()` carries.
+  double positive_kernel(int i, double e) const {
+    double y_i = y(i);
+
+    switch (spec.part) {
+    case HURDLE_POISSON: {
+      double mu = std::exp(e);
+      return y_i * e - mu - log1mexp(mu);
+    }
+    case HURDLE_NEGBIN: {
+      double log_theta_mu = std::log(nuisance + std::exp(e));
+      double lp0 = nuisance * (log_nuisance - log_theta_mu);
+      return lp0 + y_i * (e - log_theta_mu) - log1mexp(-lp0);
+    }
+    case HURDLE_GAMMA:
+      return -nuisance * (e + y_i * std::exp(-e));
+    default: {
+      double r = log_y(i) - e;
+      return -0.5 * r * r * prec;
+    }
+    }
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    if (y(i) <= 0.0) {
+      return log_expit(eta[1]);
+    }
+
+    return log1m_expit(eta[1]) + positive_kernel(i, eta[0]);
+  }
+
+  arma::vec compute_eta_free() const override {
+    arma::vec out(N, arma::fill::zeros);
+    double lg_nuisance = spec.part == HURDLE_NEGBIN || spec.part == HURDLE_GAMMA
+      ? R::lgammafn(nuisance) : 0.0;
+
+    for (int i = 0; i < N; i++) {
+      double y_i = y(i);
+
+      if (!(y_i > 0.0)) {
+        continue;
+      }
+
+      switch (spec.part) {
+      case HURDLE_POISSON:
+        out(i) = -R::lgammafn(y_i + 1.0);
+        break;
+      case HURDLE_NEGBIN:
+        out(i) = R::lgammafn(y_i + nuisance) - lg_nuisance -
+          R::lgammafn(y_i + 1.0);
+        break;
+      case HURDLE_GAMMA:
+        out(i) = nuisance * log_nuisance - lg_nuisance +
+          (nuisance - 1.0) * log_y(i);
+        break;
+      default:
+        out(i) = -0.5 * LN_2PI - log_nuisance - log_y(i);
+        break;
+      }
+    }
+
+    return out;
+  }
+
+  // The zero forest is a logistic regression on the indicator of a zero, with
+  // its exact derivatives. The positive forest's derivatives are zero at a zero,
+  // which is the factorization at work: a zero says nothing about the size of a
+  // positive value.
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    double y_i = y(i);
+
+    if (h == 1) {
+      *d1 = y_i <= 0.0 ? expit(-eta[1]) : -expit(eta[1]);
+      *d2 = logistic_density(eta[1]);
+      return;
+    }
+
+    if (y_i <= 0.0) {
+      *d1 = 0.0;
+      *d2 = 0.0;
+      return;
+    }
+
+    double e = eta[0];
+
+    switch (spec.part) {
+    case HURDLE_POISSON: {
+      // The score is y less the truncated mean mu / (1 - exp(-mu)), and the
+      // information is the truncated variance.
+      double mu = std::exp(e);
+      double kept = -std::expm1(-mu);
+      *d1 = y_i - mu / kept;
+      *d2 = mu * truncated_poisson_numerator(mu) / (kept * kept);
+      return;
+    }
+    case HURDLE_NEGBIN: {
+      // With r = theta / (theta + mu), a = r * mu (minus the derivative of
+      // log P(0)) and q = P(0) / (1 - P(0)), the truncation adds -q * a to the
+      // negative binomial's score, and its derivative to the information.
+      double mu = std::exp(e);
+      double s = nuisance + mu;
+      double r = nuisance / s;
+      double a = r * mu;
+      double lp0 = nuisance * (log_nuisance - std::log(s));
+      double q = 1.0 / std::expm1(-lp0);
+      *d1 = r * (y_i - mu) - q * a;
+      *d2 = nuisance * mu * (nuisance + y_i) / (s * s) - q * (1.0 + q) * a * a +
+        q * a * r;
+      return;
+    }
+    case HURDLE_GAMMA: {
+      double scaled = nuisance * y_i * std::exp(-e);
+      *d1 = scaled - nuisance;
+      *d2 = scaled;
+      return;
+    }
+    default:
+      *d1 = (log_y(i) - e) * prec;
+      *d2 = prec;
+      return;
+    }
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
+  }
+
+  // A zero contributes nothing to the positive forest, which leaves the shape of
+  // the positive part's own family intact: the gamma's falling exponential and
+  // the log-normal's quadratic. The truncated counts and the logistic have no
+  // shape until they are augmented.
+  TargetForm target_form(int h) const override {
+    if (h == 1) {
+      return TARGET_GENERAL;
+    }
+
+    switch (spec.part) {
+    case HURDLE_GAMMA:
+      return TARGET_EXP_DOWN;
+    case HURDLE_LOGNORMAL:
+      return TARGET_QUADRATIC;
+    default:
+      return TARGET_GENERAL;
+    }
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    if (!spec.update) {
+      return;
+    }
+
+    switch (spec.part) {
+    case HURDLE_NEGBIN:
+      nuisance = hurdle_draw_theta(y, w, eta, nuisance, spec);
+      break;
+    case HURDLE_GAMMA:
+      nuisance = hurdle_draw_shape(y, w, eta, nuisance, spec);
+      break;
+    case HURDLE_LOGNORMAL:
+      nuisance = std::pow(hurdle_draw_prec(y, log_y, w, eta, prec, spec), -0.5);
+      break;
+    default:
+      return;
+    }
+
+    cache_nuisance();
+    refresh_eta_free();
+  }
+
+  std::vector<std::string> aux_names() const override {
+    return hurdle_aux_names(spec.part);
+  }
+
+  arma::vec aux_values() const override {
+    if (spec.part == HURDLE_POISSON) {
+      return arma::vec();
+    }
+
+    return arma::vec{nuisance};
+  }
+
+  void set_aux(const arma::vec& values) override {
+    if (spec.part != HURDLE_POISSON && values.n_elem > 0) {
+      nuisance = values(0);
+      cache_nuisance();
+      refresh_eta_free();
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Ordered beta regression (Kubinec 2023). The response lies on the closed unit
 // interval, with point masses at both ends. A single additive predictor drives
 // both the probability of landing on an endpoint, through a pair of cutpoints
@@ -4288,6 +4748,257 @@ struct ZeroInflatedAugmentedFamily final : Concrete<ZeroInflatedAugmentedFamily>
 
     for (int i = 0; i < N; i++) {
       out += zi_loglik_one(count(i), eta.colptr(i), theta, negbin);
+    }
+
+    return out;
+  }
+};
+
+// The hurdle families, with both forests given an exploitable target.
+//
+// The zero forest is a logistic regression on the indicator of a zero, so the
+// Polya-Gamma rewriting of LogitAugmentedFamily makes it quadratic, whatever the
+// positive part is.
+//
+// For a count, what blocks the positive forest is the truncation term,
+// -log(1 - P_0(mu)). It goes away by reading the truncated count as the first
+// non-zero draw of the untruncated one: a positive count y is preceded by K
+// zeros, K geometric with success probability 1 - P_0, and the joint density
+// P_0^K f(y) sums over K to f(y) / (1 - P_0), which is the truncated density.
+// Given K, the forest sees K + 1 untruncated draws of which y is the only
+// non-zero one:
+//
+//   Poisson:            y * eta - (K + 1) * exp(eta),   TARGET_EXP_UP;
+//   negative binomial:  -(K + 1) * theta * eta - theta * Lambda * exp(-eta),
+//                       TARGET_EXP_DOWN, once each of the K + 1 draws is given
+//                       the Poisson-gamma rate of NegBinAugmentedFamily.
+//
+// Lambda is the sum of those K + 1 rates, and only the sum enters the target.
+// Given K and the count, each zero's rate is Gamma(theta, 1 + theta / mu) and
+// the positive draw's is Gamma(y + theta, 1 + theta / mu), so the sum is drawn
+// directly as Gamma(y + (K + 1) * theta, 1 + theta / mu). K is drawn with the
+// rates integrated out, and the rates immediately after; theta is drawn from the
+// true hurdle likelihood, with both integrated out. As for the zero-inflated
+// families, that order is a valid partially collapsed Gibbs step (Van Dyk and
+// Park 2008).
+//
+// The gamma and log-normal positive parts already have a shape, and are
+// unchanged.
+struct HurdleAugmentedFamily final : Concrete<HurdleAugmentedFamily> {
+  HurdleSpec spec;
+  double nuisance;
+  double prec;
+  arma::vec log_y;
+  arma::vec kappa;      // Polya-Gamma constants for the zero forest
+  arma::vec omega;
+  arma::vec failures;   // K, the zeros preceding each positive count
+  arma::vec rate;       // Lambda, negative binomial only
+
+  HurdleAugmentedFamily(const arma::vec& y_, const arma::vec& w_,
+                        const HurdleSpec& spec_)
+    : Concrete<HurdleAugmentedFamily>(y_, unit_weights(y_.n_elem), 2),
+      spec(spec_), nuisance(spec_.nuisance) {
+    prec = 1.0 / (nuisance * nuisance);
+    log_y = positive_logs(y_);
+    kappa = arma::vec(N);
+
+    for (int i = 0; i < N; i++) {
+      kappa(i) = y_(i) <= 0.0 ? 0.5 : -0.5;
+    }
+
+    omega = arma::vec(N, arma::fill::ones);
+    // Replaced by proper draws before the positive forest first moves.
+    failures = arma::vec(N, arma::fill::zeros);
+    rate = arma::clamp(y_, 0.1, arma::datum::inf);
+  }
+
+  static bool applies(const arma::vec& w) {
+    return arma::all(w == 1.0);
+  }
+
+  TargetForm target_form(int h) const override {
+    if (h == 1) {
+      return TARGET_QUADRATIC;
+    }
+
+    switch (spec.part) {
+    case HURDLE_POISSON:
+      return TARGET_EXP_UP;
+    case HURDLE_LOGNORMAL:
+      return TARGET_QUADRATIC;
+    default:
+      return TARGET_EXP_DOWN;
+    }
+  }
+
+  double positive_kernel(int i, double e) const {
+    double y_i = y(i);
+
+    switch (spec.part) {
+    case HURDLE_POISSON:
+      return y_i * e - (failures(i) + 1.0) * std::exp(e);
+    case HURDLE_NEGBIN:
+      return -nuisance * ((failures(i) + 1.0) * e + rate(i) * std::exp(-e));
+    case HURDLE_GAMMA:
+      return -nuisance * (e + y_i * std::exp(-e));
+    default: {
+      double r = log_y(i) - e;
+      return -0.5 * r * r * prec;
+    }
+    }
+  }
+
+  double logdens_unit(int i, const double* eta) const override {
+    double out = kappa(i) * eta[1] - 0.5 * omega(i) * eta[1] * eta[1];
+
+    if (y(i) > 0.0) {
+      out += positive_kernel(i, eta[0]);
+    }
+
+    return out;
+  }
+
+  void score_info_unit(int i, const double* eta, int h, double* d1,
+                       double* d2) const override {
+    if (h == 1) {
+      *d1 = kappa(i) - omega(i) * eta[1];
+      *d2 = omega(i);
+      return;
+    }
+
+    double y_i = y(i);
+
+    if (y_i <= 0.0) {
+      *d1 = 0.0;
+      *d2 = 0.0;
+      return;
+    }
+
+    double e = eta[0];
+
+    switch (spec.part) {
+    case HURDLE_POISSON: {
+      double scaled = (failures(i) + 1.0) * std::exp(e);
+      *d1 = y_i - scaled;
+      *d2 = scaled;
+      return;
+    }
+    case HURDLE_NEGBIN: {
+      double scaled = nuisance * rate(i) * std::exp(-e);
+      *d1 = scaled - (failures(i) + 1.0) * nuisance;
+      *d2 = scaled;
+      return;
+    }
+    case HURDLE_GAMMA: {
+      double scaled = nuisance * y_i * std::exp(-e);
+      *d1 = scaled - nuisance;
+      *d2 = scaled;
+      return;
+    }
+    default:
+      *d1 = (log_y(i) - e) * prec;
+      *d2 = prec;
+      return;
+    }
+  }
+
+  double dlogdens_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d1;
+  }
+
+  double info_unit(int i, const double* eta, int h) const override {
+    double d1;
+    double d2;
+    score_info_unit(i, eta, h, &d1, &d2);
+    return d2;
+  }
+
+  // K | y, eta is geometric: the number of failures before the first success,
+  // with success probability 1 - P_0. By inversion, K = floor(log U / log P_0),
+  // which stays exact as P_0 approaches one, where K is large. log P_0 is held
+  // below zero so that a mean that has underflowed cannot divide by it.
+  void draw_counts(const arma::mat& eta) {
+    bool negbin = spec.part == HURDLE_NEGBIN;
+
+    for (int i = 0; i < N; i++) {
+      double y_i = y(i);
+
+      if (!(y_i > 0.0)) {
+        continue;
+      }
+
+      double e = eta(0, i);
+      double lp0 = std::min(hurdle_log_p0(e, nuisance, spec.part), -1e-300);
+      failures(i) = std::floor(std::log(unif_rand()) / lp0);
+
+      if (negbin) {
+        double scale = 1.0 / (1.0 + nuisance * std::exp(-e));
+        rate(i) = Rf_rgamma(y_i + (failures(i) + 1.0) * nuisance, scale);
+      }
+    }
+  }
+
+  void before_forest(int h, const arma::mat& eta) override {
+    if (h == 0) {
+      if (hurdle_is_count(spec.part)) {
+        draw_counts(eta);
+      }
+      return;
+    }
+
+    for (int i = 0; i < N; i++) {
+      omega(i) = rpg(1.0, eta(1, i));
+    }
+  }
+
+  void update_aux(const arma::mat& eta) override {
+    if (!spec.update) {
+      return;
+    }
+
+    switch (spec.part) {
+    case HURDLE_NEGBIN:
+      nuisance = hurdle_draw_theta(y, w, eta, nuisance, spec);
+      return;
+    case HURDLE_GAMMA:
+      nuisance = hurdle_draw_shape(y, w, eta, nuisance, spec);
+      return;
+    case HURDLE_LOGNORMAL:
+      prec = hurdle_draw_prec(y, log_y, w, eta, prec, spec);
+      nuisance = std::pow(prec, -0.5);
+      return;
+    default:
+      return;
+    }
+  }
+
+  std::vector<std::string> aux_names() const override {
+    return hurdle_aux_names(spec.part);
+  }
+
+  arma::vec aux_values() const override {
+    if (spec.part == HURDLE_POISSON) {
+      return arma::vec();
+    }
+
+    return arma::vec{nuisance};
+  }
+
+  void set_aux(const arma::vec& values) override {
+    if (spec.part != HURDLE_POISSON && values.n_elem > 0) {
+      nuisance = values(0);
+      prec = 1.0 / (nuisance * nuisance);
+    }
+  }
+
+  double reported_loglik(const arma::mat& eta) const override {
+    double out = 0.0;
+
+    for (int i = 0; i < N; i++) {
+      out += hurdle_loglik_one(y(i), eta.colptr(i), nuisance, spec.part);
     }
 
     return out;
@@ -6845,6 +7556,11 @@ Family* make_base_family(const std::string& name, const std::string& link,
                                   nb ? as<bool>(opts["update_theta"]) : false));
   }
 
+  if (name == "hurdle_poisson" || name == "hurdle_negbin" ||
+      name == "hurdle_Gamma" || name == "hurdle_lognormal") {
+    return finish(new HurdleFamily(y, w, hurdle_spec(name, opts)));
+  }
+
   // Only the logit link is compiled; `probit` and `cloglog` arrive composed
   // from R like any uncompiled link, so this family takes `with_link()` as the
   // others do. Without it the composition was dropped here: the sampler fit the
@@ -7056,6 +7772,12 @@ Family* augmented_base(const std::string& name, const std::string& link,
       nb ? as<double>(opts["theta_prior_shape"]) : 0.0,
       nb ? as<double>(opts["theta_prior_rate"]) : 0.0,
       nb ? as<bool>(opts["update_theta"]) : false));
+  }
+
+  if ((name == "hurdle_poisson" || name == "hurdle_negbin" ||
+       name == "hurdle_Gamma" || name == "hurdle_lognormal") &&
+      HurdleAugmentedFamily::applies(w)) {
+    return finish(new HurdleAugmentedFamily(y, w, hurdle_spec(name, opts)));
   }
 
   return nullptr;

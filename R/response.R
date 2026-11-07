@@ -442,6 +442,97 @@ prepare_response <- function(family, y, weights, offset, x, n) {
            }
          },
 
+         # A hurdle model's two parts see disjoint observations, so each is
+         # started from its own: the zero forest at the share of zeros, and the
+         # positive forest at the fit its family would give the positive values
+         # alone. For a count that is the mean of the untruncated distribution
+         # whose truncation has the observed positive mean.
+         hurdle_poisson = ,
+         hurdle_negbin = ,
+         hurdle_Gamma = ,
+         hurdle_lognormal = {
+           counts <- name %in% c("hurdle_poisson", "hurdle_negbin")
+           y <- {
+             if (counts) check_count_response(y, name)
+             else check_numeric_response(y, name)
+           }
+
+           if (any(y < 0)) {
+             arg::err("the {.val {name}} family requires a non-negative
+                       response")
+           }
+
+           positive <- y > 0
+
+           if (!any(positive)) {
+             arg::err("the {.val {name}} family needs some positive responses,
+                       and every one of these is zero")
+           }
+
+           if (all(positive)) {
+             arg::wrn("The response has no zeros, so the zero part of the
+                       {.val {name}} family has nothing to model.")
+           }
+
+           out$y <- y
+           out$weights <- weights
+           out$n_forest <- 2L
+           out$eta_scale <- c(1, 1)
+
+           half <- 1 / (2 * sum(weights))
+           p_zero <- stats::weighted.mean(!positive, weights)
+           zero_start <- stats::qlogis(min(max(p_zero, half), 1 - half))
+
+           y_pos <- y[positive]
+           w_pos <- weights[positive]
+           m <- stats::weighted.mean(y_pos, w_pos)
+           v <- {
+             if (length(y_pos) > 1L) stats::var(y_pos)
+             else NA_real_
+           }
+
+           switch(name,
+                  hurdle_poisson = {
+                    intercept <- c(log(untruncated_poisson_mean(m)), zero_start)
+                  },
+                  hurdle_negbin = {
+                    intercept <- c(log(untruncated_poisson_mean(m)), zero_start)
+                    theta_start <- {
+                      if (isTRUE(v > m)) m^2 / (v - m)
+                      else 10
+                    }
+                    out$opts <- list(theta = family[["theta"]] %or% theta_start,
+                                     theta_prior_shape = 0.01,
+                                     theta_prior_rate = 0.01,
+                                     update_theta = is_null(family[["theta"]]))
+                  },
+                  hurdle_Gamma = {
+                    intercept <- c(log(m), zero_start)
+                    shape_start <- {
+                      if (isTRUE(v > 0)) max(m^2 / v, 0.1)
+                      else 1
+                    }
+                    out$opts <- list(shape = shape_start,
+                                     shape_prior_shape = 0.01,
+                                     shape_prior_rate = 0.01,
+                                     update_shape = TRUE)
+                  },
+                  hurdle_lognormal = {
+                    log_y <- log(y_pos)
+                    intercept <- c(stats::weighted.mean(log_y, w_pos),
+                                   zero_start)
+
+                    # The positive forest lives on the scale of log y, as the
+                    # Gaussian family's lives on the scale of y.
+                    if (length(log_y) > 1L && stats::sd(log_y) > 0) {
+                      out$eta_scale[1L] <- stats::sd(log_y)
+                    }
+
+                    out$opts <- list(sigma_hat = residual_scale(
+                      log_y, x[positive, , drop = FALSE], w_pos))
+                  })
+         },
+
          beta = {
            y <- check_numeric_response(y, name)
 
@@ -639,7 +730,10 @@ prepare_response <- function(family, y, weights, offset, x, n) {
                 ph = "log_mean_exp",
                 Gamma_ls = ,
                 zip = ,
-                zinb = c("log_mean_exp", "mean"),
+                zinb = ,
+                hurdle_poisson = ,
+                hurdle_negbin = ,
+                hurdle_Gamma = c("log_mean_exp", "mean"),
                 "mean")
   }
   out$anchor_by <- rep(anchor_by, length.out = out$n_forest)
@@ -931,6 +1025,22 @@ check_custom_response <- function(y) {
   }
 
   y
+}
+
+# The mean of a Poisson whose truncation at zero has mean `m`, that is, the root
+# of mu / (1 - exp(-mu)) = m. The truncated mean is one at mu = 0 and exceeds mu
+# everywhere, so for m > 1 the root lies in (0, m). Positive counts that are all
+# one say only that mu is small, and m - 1 is close to mu / 2 there.
+untruncated_poisson_mean <- function(m) {
+  if (m <= 1 + 1e-6) {
+    return(1e-3)
+  }
+
+  excess <- function(mu) {
+    mu / -expm1(-mu) - m
+  }
+
+  stats::uniroot(excess, c(1e-8, m), tol = 1e-10)[["root"]]
 }
 
 check_count_response <- function(y, name) {

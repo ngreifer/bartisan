@@ -166,6 +166,33 @@ test_that("multi-predictor families are correct in each component", {
                                   list(num_cat = 2L, symmetric = TRUE),
                                   component = 1L, check_info = TRUE)
 
+  # The hurdle families report the observed information in both forests: the
+  # zero forest's is the logistic one, and each positive part's is its own
+  # second derivative, which the truncation of a count changes. A zero
+  # contributes nothing to the positive forest, so the response has some.
+  hurdle_y <- stats::rpois(n_grid, 2)
+  hurdle_y[seq(1, n_grid, by = 5)] <- 0
+  cost <- ifelse(hurdle_y > 0, stats::rgamma(n_grid, 2, 1), 0)
+  hurdle_cases <- list(
+    list("hurdle_poisson", "log", hurdle_y, list(), matrix(0, 1L, 0L)),
+    list("hurdle_negbin", "log", hurdle_y,
+         list(theta = 2, theta_prior_shape = 0.01, theta_prior_rate = 0.01,
+              update_theta = TRUE), matrix(2, 1L, 1L)),
+    list("hurdle_Gamma", "log", cost,
+         list(shape = 2, shape_prior_shape = 0.01, shape_prior_rate = 0.01,
+              update_shape = TRUE), matrix(2, 1L, 1L)),
+    list("hurdle_lognormal", "identity", cost, list(sigma_hat = 0.7),
+         matrix(0.7, 1L, 1L)))
+
+  for (case in hurdle_cases) {
+    for (component in 0:1) {
+      expect_score_matches_difference(case[[1L]], case[[2L]], case[[3L]],
+                                      list(grid, second), case[[4L]],
+                                      case[[5L]], component = component,
+                                      check_info = TRUE)
+    }
+  }
+
   counts <- stats::rpois(n_grid, 2)
   for (component in 0:1) {
     expect_score_matches_difference("zip", "log", counts,

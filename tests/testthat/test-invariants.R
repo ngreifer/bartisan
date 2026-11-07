@@ -517,6 +517,13 @@ matrix_cases <- list(
   list(name = "Beta", family = Beta(), response = "ybeta"),
   list(name = "ordbeta", family = ordbeta(), response = "yob"),
   list(name = "tweedie", family = tweedie(), response = "ytw"),
+  list(name = "hurdle_poisson", family = hurdle_poisson(), response = "yzi",
+       discrete = TRUE),
+  list(name = "hurdle_negbin", family = hurdle_negbin(), response = "yzi",
+       discrete = TRUE),
+  list(name = "hurdle_Gamma", family = hurdle_Gamma(), response = "ytw"),
+  list(name = "hurdle_lognormal", family = hurdle_lognormal(),
+       response = "ytw"),
   list(name = "ordinal logit", family = ordinal(), response = "yord",
        discrete = TRUE),
   list(name = "ordinal probit", family = ordinal("probit"), response = "yord",
@@ -712,7 +719,8 @@ test_that("every family keeps its chart and its density under every structural w
 
   # The cells the fitter refused, which is a list someone has looked at: a
   # drawn coding is refused wherever the family's leaf target is not quadratic
-  # (the `_ls` families through their scale predictor), and prior weights by
+  # (the `_ls` families through their scale predictor, and the hurdle families
+  # other than `hurdle_lognormal()` through their positive part), and prior weights by
   # the Dirichlet process families. A family that changes its target form, or
   # starts or stops taking weights, moves a name here.
   refused <- sort(ls(matrix_skipped))
@@ -720,7 +728,8 @@ test_that("every family keeps its chart and its density under every structural w
     paste(c("gaussian_ls", "poisson", "negbin", "zi_poisson", "zi_negbin",
             "Gamma", "Gamma_ls", "Beta", "ordbeta", "tweedie",
             "ordinal cloglog", "weibull_aft", "ph", "custom", "dpm_ls",
-            "dpm_aft_ls", "lognormal_aft_ls"),
+            "dpm_aft_ls", "lognormal_aft_ls", "hurdle_poisson",
+            "hurdle_negbin", "hurdle_Gamma"),
           "drawn"),
     paste(c("dpm", "dpm_aft", "dpm_ls", "dpm_aft_ls"), "weights")))
   expect_setequal(refused, expected)

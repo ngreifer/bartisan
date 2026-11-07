@@ -106,7 +106,7 @@
 #'   sampler can exploit. The posterior is the same either way, so this is a
 #'   sampling setting rather than a modeling one. Default is `TRUE`, which
 #'   rewrites wherever a rewriting exists: the binomial, ordinal, multinomial,
-#'   negative binomial, zero-inflated, and survival families. A rewriting is
+#'   negative binomial, zero-inflated, hurdle, and survival families. A rewriting is
 #'   faster and has not been measured to mix worse per second, so the default is
 #'   rarely worth changing; see `vignette("implementation")`.
 #' @param x_transform string; how numeric predictors are mapped to `[0, 1]`
@@ -834,5 +834,5 @@ resolve_augment <- function(augment) {
   }
 
   c("binomial", "ordinal", "multinomial", "zip", "zinb", "aft", "negbin",
-    "lognormal_aft_ls")
+    "lognormal_aft_ls", hurdle_families)
 }

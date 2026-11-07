@@ -95,7 +95,33 @@ test_that("the exponential shortcut reproduces the general path", {
          y = cbind(pmin(stats::rexp(250, exp(linear)), 3),
                    as.numeric(stats::rexp(250, exp(linear)) <= 3))))
 
-  for (s in c(settings, extra)) {
+  # Drawn after the rows above, so that their data are what they were. The
+  # hurdle families' positive forests: the two counts in the exponential
+  # form only once the zeros the truncation hides are drawn, at a rate that the
+  # count of them multiplies, and the gamma in it directly, with the zeros
+  # contributing nothing. The zero forest is compared too, which under
+  # `augment = TRUE` is the quadratic closed form and otherwise the general
+  # path in both fits.
+  hurdle_zero <- stats::runif(250) < 0.3
+  hurdle <- list(
+    list(label = "hurdle Poisson augmented", family = hurdle_poisson(),
+         y = ifelse(hurdle_zero, 0, stats::rpois(250, exp(linear)) + 1),
+         augment = TRUE, tol = 1e-3),
+    list(label = "hurdle negbin augmented", family = hurdle_negbin(),
+         y = ifelse(hurdle_zero, 0,
+                    stats::rnbinom(250, mu = exp(linear), size = 2) + 1),
+         augment = TRUE, tol = 1e-3),
+    # 2e-3: over 12 response draws the two paths agreed to 1e-15 in 8, which a
+    # wrong form could not do, and the general path stopped short by up to
+    # 9.1e-4 in the rest, and by 1.0e-3 on this one. The positive part has
+    # fewer observations per leaf than a plain gamma, so its standard error,
+    # and the hundredth of one that Fisher scoring stops within, is larger.
+    list(label = "hurdle gamma", family = hurdle_Gamma(),
+         y = ifelse(hurdle_zero, 0,
+                    stats::rgamma(250, 3, rate = 3 / exp(linear))),
+         tol = 2e-3))
+
+  for (s in c(settings, extra, hurdle)) {
     dd <- d
     dd$y <- s$y
 

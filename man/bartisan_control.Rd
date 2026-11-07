@@ -168,7 +168,7 @@ margin of a Gaussian or a Poisson one, which makes the target a shape the
 sampler can exploit. The posterior is the same either way, so this is a
 sampling setting rather than a modeling one. Default is \code{TRUE}, which
 rewrites wherever a rewriting exists: the binomial, ordinal, multinomial,
-negative binomial, zero-inflated, and survival families. A rewriting is
+negative binomial, zero-inflated, hurdle, and survival families. A rewriting is
 faster and has not been measured to mix worse per second, so the default is
 rarely worth changing; see \code{vignette("implementation")}.}
 

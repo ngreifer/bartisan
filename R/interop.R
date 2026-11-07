@@ -382,6 +382,42 @@ posterior_sample <- function(object, eta, aux, weights = NULL,
     return(counts)
   }
 
+  # A hurdle replicate is zero with the zero part's probability and otherwise a
+  # draw from the positive part. A count's positive part is truncated at zero,
+  # so it is drawn by inversion on the upper tail, from a uniform on (0, P(Y >
+  # 0)): every count that leaves at least that much in the tail beyond it is
+  # positive. The upper tail rather than the distribution function, because at
+  # a small mean P(Y = 0) rounds to one and the inversion would return `Inf`.
+  if (family %in% hurdle_families) {
+    mu <- exp(e)
+
+    out <- switch(family,
+                  hurdle_poisson = {
+                    tail <- stats::ppois(0, mu, lower.tail = FALSE)
+                    u <- stats::runif(cells, 0, tail)
+                    square(stats::qpois(u, mu, lower.tail = FALSE))
+                  },
+                  hurdle_negbin = {
+                    theta <- spread("theta")
+                    tail <- stats::pnbinom(0, size = theta, mu = mu,
+                                           lower.tail = FALSE)
+                    u <- stats::runif(cells, 0, tail)
+                    square(stats::qnbinom(u, size = theta, mu = mu,
+                                          lower.tail = FALSE))
+                  },
+                  hurdle_Gamma = {
+                    shape <- spread("shape")
+                    square(stats::rgamma(cells, shape = shape,
+                                         rate = shape / mu))
+                  },
+                  hurdle_lognormal = square(stats::rlnorm(cells, e,
+                                                          spread("sigma"))))
+
+    out[uniform() < stats::plogis(eta[[2L]])] <- 0
+
+    return(out)
+  }
+
   if (identical(family, "beta")) {
     mu <- stats::plogis(e)
     phi <- spread("phi")

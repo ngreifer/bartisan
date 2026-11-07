@@ -1662,8 +1662,12 @@ forest_labels <- function(family, opts, levels, n_report, vc = NULL) {
     return(c("mean", "log_dispersion"))
   }
 
-  if (family %in% c("zip", "zinb")) {
+  if (family %in% c("zip", "zinb", "hurdle_poisson", "hurdle_negbin")) {
     return(c("count", "zero"))
+  }
+
+  if (family %in% c("hurdle_Gamma", "hurdle_lognormal")) {
+    return(c("mean", "zero"))
   }
 
   if (identical(family, "custom") && n_report > 1L) {
