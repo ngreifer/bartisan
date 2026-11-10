@@ -561,6 +561,8 @@ Candidates raised on 2026-10-02 while rewriting `vignette("survival")`, none pro
 
 - **2026-11-05: Crossing hazards: the step is the fixed leaf scale, and only under hard rules.** `_dev/nftbart-forests.R`: fixing the leaf scale carries the step (+.084), and soft rules undo it. `gate = "hard", k = c(5, 2), update_sigma_mu = FALSE` covered .925 and is named as an alternative only.
 
+- **2026-11-05: Is the crossing-hazards result a few unlucky data sets, as the soft-Poisson narrowing was?** No, by the stored per-data-set differences, so no new block was run: the default covered below nftbart on every one of 40 data sets over two seed blocks (replicates 6 to 25, mean -.058, median -.057; 26 to 45, -.070, -.061), and on the one block the decomposition used, fixing the leaf scale under hard rules raised coverage on 20 of 20 (+.084, median +.084, still +.075 without the two largest) and hard rules on 18 of 20 (+.046, median +.051). The weak reading is soft rules with nftbart's forest settings, +.015 over the default on 12 of 20 (median +.010), which supports only "barely helps", as recorded.
+
 ### Survival predictions, the vignette and its simulations
 
 **`predict(type = "hazard")` joined the survival predictions on 2026-10-02, the same day the survival vignette was rewritten around what a user does with a fit, stating its simulation results in prose; `_dev/survival-sim.R` was last rerun whole on 2026-11-02 with the location-scale families, and every claim held.**

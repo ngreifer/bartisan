@@ -207,3 +207,6 @@ _dev/did/*
 !_dev/aft-lognormal-reps.R
 !_dev/skewed-inner-coverage.R
 !_dev/linear-mean-coverage.R
+!_dev/nftbart-survival.R
+!_dev/nftbart-crossing.R
+!_dev/nftbart-forests.R
