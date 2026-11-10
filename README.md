@@ -102,7 +102,7 @@ functions that examine each of these in full:
 summary(fit)
 #> Convergence and mixing
 #> 
-#> Log likelihood: R-hat 1.039, bulk ESS 98, tail ESS 185, over 1 chain
+#> Log likelihood: R-hat 1, bulk ESS 103, tail ESS 262, over 1 chain
 #> 
 #> ℹ Use diagnose() (`?bartisan::diagnose`) to examine convergence and mixing
 #>   diagnostics.
@@ -111,11 +111,11 @@ summary(fit)
 #> 
 #> Predictors ranked by use; 5 of 10 shown.
 #>  variable prop_used prop_splits splits
-#>    surv2m         1       0.141   10.6
-#>       age         1       0.109    8.3
-#>     paco2         1       0.109    8.2
-#>       edu         1       0.095    7.2
-#>       sex         1       0.093    7.0
+#>    surv2m         1       0.136   10.0
+#>       age         1       0.112    8.3
+#>     paco2         1       0.110    8.2
+#>      pafi         1       0.103    7.7
+#>      card         1       0.090    6.7
 #> 
 #> ℹ Use variable_importance() (`?bartisan::variable_importance`) to examine
 #>   variable importance.
@@ -157,14 +157,14 @@ estimate_effect(fit, treat = "rhc")
 #> Treatment: `rhc`
 #> Averaged over 1500 units
 #> 
-#>     contrast estimate  lower upper    n
-#>  Y[1] - Y[0]    0.064 0.0143  0.11 1500
+#>     contrast estimate lower upper    n
+#>  Y[1] - Y[0]   0.0635 0.018 0.109 1500
 #> 
 #> Average potential outcomes
 #> 
 #>  quantity estimate lower upper
-#>      Y[0]    0.631 0.602 0.659
-#>      Y[1]    0.695 0.656 0.732
+#>      Y[0]    0.630 0.601 0.660
+#>      Y[1]    0.694 0.657 0.728
 #> 
 #> ℹ estimate is the posterior mean; lower and upper bound the 95% equal-tailed
 #>   credible interval.
