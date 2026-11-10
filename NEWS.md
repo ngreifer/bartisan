@@ -14,7 +14,7 @@
 
 * A fit with a single chain now draws from the same kind of random number stream as each chain of a multi-chain fit, so its chain is the first chain of a fit with more chains from the same seed. Single-chain results will therefore differ from those of version 0.1.0 with the same seed. Multi-chain `bartisan()` fits run directly after `set.seed()` are unaffected; `bcf()` fits are not when the propensity score is estimated, since that model runs a single chain by default.
 
-* Added interfaces to three prediction workflows: `SL.bartisan()` as a *SuperLearner* library member, a `"bartisan"` engine for `parsnip::bart()` that can be used throughout *tidymodels*, including in a `"censored regression"` mode for the survival families that works with *censored* and the survival metrics of *yardstick*, and `mice.impute.bartisan()`, which lets `mice::mice()` impute with `method = "bartisan"` by drawing from the posterior predictive distribution. See `?SL.bartisan`, `` ?`bartisan-parsnip` ``, and `?mice.impute.bartisan`.
+* Added interfaces to three prediction workflows: `SL.bartisan()` as a *SuperLearner* library member; a `"bartisan"` engine for `parsnip::bart()` that can be used throughout *tidymodels*, including in a `"censored regression"` mode for the survival families that works with *censored* and the survival metrics of *yardstick*; and `mice.impute.bartisan()`, which lets `mice::mice()` impute with `method = "bartisan"` by drawing from the posterior predictive distribution. See `?SL.bartisan`, `` ?`bartisan-parsnip` ``, and `?mice.impute.bartisan`.
 
 * Fixed a bug in which consecutive multi-chain calls to `bartisan()` or `bcf()` without a call to `set.seed()` in between produced identical draws.
 
