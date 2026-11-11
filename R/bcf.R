@@ -229,7 +229,16 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
   # The treatment is not one of the covariates. Removing it rather than
   # complaining is the friendly reading of `y ~ .`, which is how most callers
   # will write the covariates.
-  covariates <- setdiff(attr(stats::terms(formula, data = data), "term.labels"), name)
+  #
+  # Random intercepts are split off first and reach only the outcome model.
+  # `terms()` would list `(1 | g)` as the bare label `1 | g`, which
+  # `reformulate()` then rejoins without its parentheses, so the bar swallowed
+  # the covariates before it, and it would also have become an effect moderator
+  # and a propensity covariate.
+  bars <- vapply(reformulas::findbars(formula),
+                 function(b) sprintf("(%s)", deparse1(b)), character(1L))
+  covariates <- setdiff(attr(stats::terms(reformulas::nobars(formula), data = data),
+                             "term.labels"), name)
 
   if (is_null(covariates)) {
     arg::err("{.arg formula} must name at least one covariate besides the
@@ -312,7 +321,7 @@ bcf <- function(formula, treat, data, family = NULL, moderators = NULL,
     coding <- if (drawn) ', center = "estimate"' else ""
 
     outcome <- stats::reformulate(
-      c(covariates,
+      c(covariates, bars,
         sprintf("vc(%s, ~ %s%s)", name,
                 paste(moderator_terms, collapse = " + "), coding)),
       response = formula[[2L]])

@@ -121,6 +121,20 @@ test_that("a treatment among the covariates is removed rather than refused", {
   expect_named(fit[["eta"]], c("(Intercept)", "z"))
 })
 
+test_that("a random intercept reaches the outcome model and nothing else", {
+  d <- sim_causal(seed = 4)
+  d$g <- factor(rep(1:4, length.out = nrow(d)))
+
+  # `terms()` drops the parentheses from `(1 | g)`, which used to fold the
+  # covariates before it into the bar (#1).
+  fit <- do.call(bcf, c(list(y ~ x1 + (1 | g) + x2, treat = ~ z, data = d,
+                             family = gaussian()), bcf_args()))
+
+  expect_identical(names(fit[["random"]]), "g")
+  expect_named(fit[["eta"]], c("(Intercept)", "z"))
+  expect_false("g" %in% all.vars(stats::terms(fit[["bcf"]][["model"]])))
+})
+
 test_that("a categorical treatment gets a forest per level and a score per level", {
   d <- sim_causal(seed = 5, kind = "categorical")
 
